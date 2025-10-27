@@ -1,9 +1,12 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import CartContext from '../context/CartContext';
+import FavoriteContext from '../context/FavoriteContext';
 import useUserNotifications from '../hooks/useUserNotifications';
+import { buildWhatsappLink } from '../utils/whatsapp';
+import { Heart } from 'lucide-react';
 
 const emptyDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 const withDefaultDistribution = (distribution = {}) => ({ ...emptyDistribution, ...distribution });
@@ -26,8 +29,10 @@ const StarIcon = ({ filled, className }) => (
 export default function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useContext(AuthContext);
   const { addItem, loading: cartLoading } = useContext(CartContext);
+  const { toggleFavorite, isFavorite } = useContext(FavoriteContext);
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState(null);
   const [error, setError] = useState('');
@@ -47,7 +52,16 @@ export default function ProductDetails() {
   const [cartFeedback, setCartFeedback] = useState('');
   const [cartError, setCartError] = useState('');
   const [hoverRating, setHoverRating] = useState(0);
+  const [whatsappCount, setWhatsappCount] = useState(0);
+  const [favoriteCount, setFavoriteCount] = useState(0);
   const { counts: notificationCounts } = useUserNotifications(Boolean(user));
+  const currentPath = useMemo(
+    () => `${location.pathname}${location.search}${location.hash}`,
+    [location.pathname, location.search, location.hash]
+  );
+  const redirectToLogin = useCallback(() => {
+    navigate('/login', { state: { from: currentPath || '/' } });
+  }, [navigate, currentPath]);
 
   const formatDateTime = useCallback((value) => {
     if (!value) return '';
@@ -100,6 +114,12 @@ export default function ProductDetails() {
     };
   }, [product]);
 
+  const whatsappLink = useMemo(
+    () => buildWhatsappLink(product, product?.user?.phone || product?.contactPhone),
+    [product]
+  );
+  const isFavoriteProduct = product?._id ? isFavorite(product._id) : false;
+
   useEffect(() => {
     let active = true;
     const fetchProduct = async () => {
@@ -129,6 +149,16 @@ export default function ProductDetails() {
     setCartFeedback('');
     setCartError('');
   }, [id]);
+
+  useEffect(() => {
+    if (product?._id) {
+      setWhatsappCount(product.whatsappClicks || 0);
+      setFavoriteCount(product.favoritesCount || 0);
+    } else {
+      setWhatsappCount(0);
+      setFavoriteCount(0);
+    }
+  }, [product?._id, product?.whatsappClicks, product?.favoritesCount]);
 
   useEffect(() => {
     let active = true;
@@ -432,7 +462,7 @@ export default function ProductDetails() {
 
   const onAddToCart = async () => {
     if (!user) {
-      navigate('/login');
+      redirectToLogin();
       return;
     }
     if (!product) return;
@@ -445,6 +475,36 @@ export default function ProductDetails() {
       setCartError(e.response?.data?.message || e.message || 'Impossible d’ajouter cet article.');
     }
   };
+
+  const registerWhatsappClick = useCallback(async () => {
+    if (!id) return;
+    try {
+      const { data } = await api.post(`/products/public/${id}/whatsapp-click`);
+      setWhatsappCount((prev) =>
+        typeof data?.whatsappClicks === 'number' ? data.whatsappClicks : prev + 1
+      );
+    } catch (e) {
+      console.error('Impossible de comptabiliser un clic WhatsApp', e);
+    }
+  }, [id]);
+
+  const handleFavoriteToggle = useCallback(async () => {
+    if (!product?._id) return;
+    if (!user) {
+      redirectToLogin();
+      return;
+    }
+    try {
+      const result = await toggleFavorite(product);
+      if (result === true) {
+        setFavoriteCount((prev) => prev + 1);
+      } else if (result === false) {
+        setFavoriteCount((prev) => Math.max(0, prev - 1));
+      }
+    } catch (e) {
+      console.error('Impossible de mettre à jour les favoris.', e);
+    }
+  }, [product, user, toggleFavorite, redirectToLogin]);
 
   if (loading) {
     return (
@@ -488,22 +548,28 @@ export default function ProductDetails() {
         <div className="space-y-3">
           {product.images?.length ? (
             <>
-              <img
-                src={product.images[0]}
-                alt={product.title}
-                className="w-full h-72 object-cover rounded-md border"
-                loading="lazy"
-              />
+              <div className="w-full h-80 bg-white border rounded-md flex items-center justify-center overflow-hidden">
+                <img
+                  src={product.images[0]}
+                  alt={product.title}
+                  className="max-h-full max-w-full object-contain"
+                  loading="lazy"
+                />
+              </div>
               {product.images.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {product.images.slice(1).map((src, idx) => (
-                    <img
+                    <div
                       key={src || idx}
-                      src={src}
-                      alt={`${product.title} ${idx + 2}`}
-                      className="h-20 w-24 object-cover rounded border"
-                      loading="lazy"
-                    />
+                      className="h-20 w-24 border rounded flex items-center justify-center bg-white"
+                    >
+                      <img
+                        src={src}
+                        alt={`${product.title} ${idx + 2}`}
+                        className="max-h-full max-w-full object-contain"
+                        loading="lazy"
+                      />
+                    </div>
                   ))}
                 </div>
               )}
@@ -519,6 +585,18 @@ export default function ProductDetails() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{product.title}</h1>
             <p className="text-gray-500 text-sm capitalize">{product.category}</p>
+            <div className="mt-1 flex items-center gap-2 text-sm text-gray-600">
+              <span className="font-medium text-gray-700">État :</span>
+              <span
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                  product.condition === 'new'
+                    ? 'bg-emerald-100 text-emerald-600'
+                    : 'bg-amber-100 text-amber-700'
+                }`}
+              >
+                {product.condition === 'new' ? 'Neuf' : 'Occasion'}
+              </span>
+            </div>
           </div>
           <div className="space-y-2">
             {priceDisplay.before && (
@@ -543,10 +621,57 @@ export default function ProductDetails() {
               >
                 Ajouter au panier
               </button>
+              <button
+                type="button"
+                onClick={handleFavoriteToggle}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-pink-500 text-pink-600 rounded hover:bg-pink-50 text-sm"
+              >
+                <Heart
+                  size={16}
+                  className={isFavoriteProduct ? 'fill-current text-pink-500' : 'text-pink-500'}
+                  fill={isFavoriteProduct ? 'currentColor' : 'none'}
+                />
+                {isFavoriteProduct ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              </button>
+              <p className="text-xs text-gray-500">
+                {favoriteCount} personne{favoriteCount > 1 ? 's' : ''} ont ajouté cet article
+              </p>
               {!user && (
                 <p className="text-xs text-gray-500">
-                  <Link to="/login" className="text-indigo-600 underline">Connectez-vous</Link> pour sauvegarder vos produits.
+                  <Link
+                    to="/login"
+                    state={{ from: currentPath || '/' }}
+                    className="text-indigo-600 underline"
+                  >
+                    Connectez-vous
+                  </Link>{' '}
+                  pour sauvegarder vos produits.
                 </p>
+              )}
+              {whatsappLink && (
+                <div className="mt-3 space-y-1">
+                  <a
+                    href={whatsappLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-green-600 text-green-700 rounded hover:bg-green-50 text-sm"
+                    onClick={(e) => {
+                      if (!user) {
+                        e.preventDefault();
+                        redirectToLogin();
+                        return;
+                      }
+                      registerWhatsappClick();
+                    }}
+                  >
+                    Écrire sur WhatsApp
+                  </a>
+                  <p className="text-xs text-gray-500">
+                    {whatsappCount === 0
+                      ? 'Pas encore de contact via WhatsApp'
+                      : `Contacté ${whatsappCount} fois via WhatsApp`}
+                  </p>
+                </div>
               )}
               {cartFeedback && <p className="text-xs text-green-600">{cartFeedback}</p>}
               {cartError && <p className="text-xs text-red-600">{cartError}</p>}
@@ -559,12 +684,69 @@ export default function ProductDetails() {
           <div className="space-y-2">
             <h2 className="text-lg font-semibold">Informations vendeur</h2>
             <ul className="text-sm text-gray-700 space-y-1">
-              <li><span className="font-medium">Nom :</span> {product.user?.name || 'Utilisateur HDMarket'}</li>
-              {product.user?.email && (
-                <li><span className="font-medium">Email :</span> {product.user.email}</li>
-              )}
+              <li>
+                <span className="font-medium">
+                  {product.user?.accountType === 'shop' ? 'Boutique :' : 'Vendeur :'}
+                </span>{' '}
+                {product.user?.accountType === 'shop' ? (
+                  <Link to={`/shop/${product.user?._id}`} className="text-indigo-600 underline">
+                    {product.user?.shopName || product.user?.name || 'Boutique HDMarket'}
+                  </Link>
+                ) : (
+                  product.user?.name || 'Utilisateur HDMarket'
+                )}
+              </li>
               {product.user?.phone && (
-                <li><span className="font-medium">Téléphone :</span> {product.user.phone}</li>
+                <li className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                  <div>
+                    <span className="font-medium">Téléphone :</span>{' '}
+                    {user ? (
+                      product.user.phone
+                    ) : (
+                      <Link
+                        to="/login"
+                        state={{ from: currentPath || '/' }}
+                        className="text-indigo-600 underline"
+                      >
+                        Connectez-vous pour voir ce numéro
+                      </Link>
+                    )}
+                  </div>
+                </li>
+              )}
+              {product.user?.accountType === 'shop' && product.user?.shopAddress && (
+                <li className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                  <span className="font-medium">Adresse :</span>
+                  <span>{product.user.shopAddress}</span>
+                </li>
+              )}
+              {whatsappLink && (
+                <li className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                  <div>
+                    <span className="font-medium">WhatsApp :</span>{' '}
+                    <a
+                      href={whatsappLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-green-600 underline"
+                      onClick={(e) => {
+                        if (!user) {
+                          e.preventDefault();
+                          redirectToLogin();
+                          return;
+                        }
+                        registerWhatsappClick();
+                      }}
+                    >
+                      Discuter via WhatsApp
+                    </a>
+                  </div>
+                  <span className="text-xs text-gray-500">
+                    {whatsappCount === 0
+                      ? 'Aucun contact WhatsApp pour le moment'
+                      : `${whatsappCount} contact${whatsappCount > 1 ? 's' : ''} via WhatsApp`}
+                  </span>
+                </li>
               )}
             </ul>
           </div>
@@ -682,7 +864,14 @@ export default function ProductDetails() {
             </>
           ) : (
             <p className="text-sm text-gray-500">
-              <Link to="/login" className="text-indigo-600 underline">Connectez-vous</Link> pour noter ce produit.
+              <Link
+                to="/login"
+                state={{ from: currentPath || '/' }}
+                className="text-indigo-600 underline"
+              >
+                Connectez-vous
+              </Link>{' '}
+              pour noter ce produit.
             </p>
           )}
         </div>
@@ -712,7 +901,14 @@ export default function ProductDetails() {
           </form>
         ) : (
           <p className="text-sm text-gray-500">
-            <Link to="/login" className="text-indigo-600 underline">Connectez-vous</Link> pour laisser un commentaire.
+            <Link
+              to="/login"
+              state={{ from: currentPath || '/' }}
+              className="text-indigo-600 underline"
+            >
+              Connectez-vous
+            </Link>{' '}
+            pour laisser un commentaire.
           </p>
         )}
 

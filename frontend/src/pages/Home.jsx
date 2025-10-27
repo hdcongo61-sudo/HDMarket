@@ -1,38 +1,47 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import api from '../services/api';
-import ProductCard from '../components/ProductCard';
+import React, { useEffect, useMemo, useState } from "react";
+import api from "../services/api";
+import ProductCard from "../components/ProductCard";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Navigation, Pagination, Autoplay } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/navigation";
+import "swiper/css/pagination";
+import { Search } from "lucide-react";
 
+/**
+ * 🎨 Page d'accueil moderne et responsive pour HDMarket
+ * - Mobile-first
+ * - Contient bannière, carrousel et liste produits filtrable
+ */
 export default function Home() {
+  // === États principaux ===
   const [items, setItems] = useState([]);
-  const [q, setQ] = useState('');
-  const [category, setCategory] = useState('');
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
-  const [sort, setSort] = useState('new');
+  const [q, setQ] = useState("");
+  const [category, setCategory] = useState("");
+  const [sort, setSort] = useState("new");
   const [page, setPage] = useState(1);
-  const [limit] = useState(12);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
 
+  // === Récupération dynamique ===
   const params = useMemo(() => {
-    const p = { page, limit, sort };
+    const p = { page, limit: 12, sort };
     if (q) p.q = q;
     if (category) p.category = category;
-    if (minPrice) p.minPrice = Number(minPrice);
-    if (maxPrice) p.maxPrice = Number(maxPrice);
     return p;
-  }, [q, category, minPrice, maxPrice, page, limit, sort]);
+  }, [q, category, page, sort]);
 
+  // === Chargement produits ===
   const load = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/products/public', { params });
+      const { data } = await api.get("/products/public", { params });
       const fetchedItems = Array.isArray(data) ? data : data.items || [];
       const pages = Array.isArray(data) ? 1 : data.pagination?.pages || 1;
       setItems(fetchedItems);
       setTotalPages(pages);
     } catch (e) {
-      alert(e.response?.data?.message || e.message);
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -40,9 +49,9 @@ export default function Home() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, sort]);
 
+  // === Fonction recherche ===
   const onSearch = (e) => {
     e.preventDefault();
     setPage(1);
@@ -50,49 +59,116 @@ export default function Home() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-4 space-y-4">
-      <form onSubmit={onSearch} className="grid grid-cols-1 md:grid-cols-6 gap-2">
-        <input className="border p-2 md:col-span-2" placeholder="Recherche (titre, description)" value={q} onChange={(e) => setQ(e.target.value)} />
-        <input className="border p-2" placeholder="Catégorie" value={category} onChange={(e) => setCategory(e.target.value)} />
-        <input type="number" className="border p-2" placeholder="Prix min" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} />
-        <input type="number" className="border p-2" placeholder="Prix max" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} />
-        <button className="bg-indigo-600 text-white px-3 py-2 rounded">Rechercher</button>
-      </form>
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-8 space-y-10">
+      {/* 💡 HERO SECTION */}
+      <section className="relative bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 text-white rounded-3xl p-6 md:p-10 shadow-lg overflow-hidden">
+        <div className="max-w-2xl z-10 relative">
+          <h1 className="text-3xl md:text-5xl font-extrabold mb-3">
+            Bienvenue sur <span className="text-yellow-300">HDMarket</span>
+          </h1>
+          <p className="text-sm md:text-lg mb-5 opacity-90">
+            Découvrez les meilleures offres de produits et publiez vos articles
+            facilement. Une marketplace moderne et rapide.
+          </p>
+          <a
+            href="/my"
+            className="inline-block bg-yellow-400 text-black font-semibold px-4 py-2 rounded-lg hover:bg-yellow-300 transition"
+          >
+            Publier un produit
+          </a>
+        </div>
 
-      <div className="flex items-center gap-2">
-        <span className="text-sm">Trier par :</span>
-        <select className="border p-2" value={sort} onChange={(e) => setSort(e.target.value)}>
-          <option value="new">Plus récents</option>
-          <option value="price_asc">Prix ↑</option>
-          <option value="price_desc">Prix ↓</option>
+        {/* Décor d’arrière-plan */}
+        <div className="absolute inset-0 bg-[url('/hero-pattern.svg')] opacity-10"></div>
+      </section>
+
+      {/* 🧭 TRI RAPIDE */}
+      <div className="flex justify-between items-center flex-wrap gap-2 text-sm">
+        <span className="font-medium">Trier par :</span>
+        <select
+          className="border rounded p-2 text-sm"
+          value={sort}
+          onChange={(e) => setSort(e.target.value)}
+        >
+          <option value="new">Nouveautés</option>
+          <option value="price_asc">Prix croissant</option>
+          <option value="price_desc">Prix décroissant</option>
           <option value="discount">Promotions</option>
         </select>
       </div>
 
-      {loading ? (
-        <p>Chargement…</p>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {items.map((p) => <ProductCard key={p._id} p={p} />)}
-          {items.length === 0 && <p>Aucun résultat</p>}
-        </div>
-      )}
+      {/* 🆕 CARROUSEL DES NOUVEAUTÉS */}
+      <section>
+        <h2 className="text-lg font-semibold mb-3 text-gray-800">
+          Nouveautés cette semaine
+        </h2>
+        <Swiper
+          modules={[Navigation, Pagination, Autoplay]}
+          spaceBetween={16}
+          slidesPerView={1}
+          navigation
+          pagination={{ clickable: true }}
+          autoplay={{ delay: 3500, disableOnInteraction: false }}
+          breakpoints={{
+            640: { slidesPerView: 2 },
+            1024: { slidesPerView: 4 },
+          }}
+        >
+          {items.slice(0, 8).map((p) => (
+            <SwiperSlide key={p._id}>
+              <ProductCard p={p} />
+            </SwiperSlide>
+          ))}
+        </Swiper>
+      </section>
 
-      <div className="flex justify-center items-center gap-2">
+      {/* 🛍️ LISTE DES PRODUITS */}
+      <section>
+        <h2 className="text-lg font-semibold mb-3 text-gray-800">
+          Tous les produits
+        </h2>
+
+        {loading ? (
+          // Skeleton loader moderne
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="animate-pulse bg-gray-100 h-48 rounded-xl"
+              ></div>
+            ))}
+          </div>
+        ) : items.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {items.map((p) => (
+              <ProductCard key={p._id} p={p} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-center text-gray-500 mt-10">
+            Aucun produit trouvé.
+          </p>
+        )}
+      </section>
+
+      {/* 📄 PAGINATION */}
+      <div className="flex justify-center items-center gap-3 pt-6">
         <button
-          className="px-3 py-1 border rounded disabled:opacity-50"
+          className="px-4 py-2 bg-gray-200 rounded-full disabled:opacity-50 hover:bg-gray-300 transition"
           onClick={() => setPage((p) => Math.max(1, p - 1))}
           disabled={page <= 1}
         >
-          Précédent
+          ◀ Précédent
         </button>
-        <span className="text-sm">Page {page} / {totalPages}</span>
+        <span className="text-sm font-medium">
+          Page {page} / {totalPages}
+        </span>
         <button
-          className="px-3 py-1 border rounded disabled:opacity-50"
+          className="px-4 py-2 bg-gray-200 rounded-full disabled:opacity-50 hover:bg-gray-300 transition"
           onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
           disabled={page >= totalPages}
         >
-          Suivant
+          Suivant ▶
         </button>
       </div>
     </div>

@@ -4,7 +4,7 @@ import Comment from '../models/commentModel.js';
 import Rating from '../models/ratingModel.js';
 
 export const createProduct = asyncHandler(async (req, res) => {
-  const { title, description, price, category, discount } = req.body;
+  const { title, description, price, category, discount, condition } = req.body;
   if (!title || !description || !price || !category)
     return res.status(400).json({ message: 'Missing fields' });
 
@@ -26,6 +26,9 @@ export const createProduct = asyncHandler(async (req, res) => {
     finalPrice = Number((priceValue * (1 - discountValue / 100)).toFixed(2));
   }
 
+  const resolvedCondition = (condition || 'used').toString().toLowerCase();
+  const safeCondition = resolvedCondition === 'new' ? 'new' : 'used';
+
   const images = (req.files || []).map((f) => `${req.protocol}://${req.get('host')}/` + f.path.replace('\\', '/'));
 
   const product = await Product.create({
@@ -34,6 +37,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     price: finalPrice,
     category,
     discount: discountValue,
+    condition: safeCondition,
     priceBeforeDiscount,
     images,
     user: req.user.id,
@@ -144,7 +148,9 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
 });
 
 export const getPublicProductById = asyncHandler(async (req, res) => {
-  const productDoc = await Product.findById(req.params.id).select('-payment').populate('user', 'name email phone');
+  const productDoc = await Product.findById(req.params.id)
+    .select('-payment')
+    .populate('user', 'name phone accountType shopName shopAddress shopLogo');
   if (!productDoc || productDoc.status === 'disabled') {
     return res.status(404).json({ message: 'Produit introuvable ou non publié.' });
   }
@@ -179,7 +185,9 @@ export const getMyProducts = asyncHandler(async (req, res) => {
 export const getAllProductsAdmin = asyncHandler(async (req, res) => {
   const { status } = req.query; // optional filter
   const query = status ? { status } : {};
-  const products = await Product.find(query).populate('user', 'name email').populate('payment');
+  const products = await Product.find(query)
+    .populate('user', 'name email phone accountType shopName shopAddress shopLogo')
+    .populate('payment');
   res.json(products);
 });
 
@@ -202,7 +210,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
   if (product.user.toString() !== req.user.id && req.user.role !== 'admin')
     return res.status(403).json({ message: 'Forbidden' });
 
-  const { title, description, category, discount } = req.body;
+  const { title, description, category, discount, condition } = req.body;
   if (title) product.title = title;
   if (description) product.description = description;
   if (category) product.category = category;
@@ -220,6 +228,13 @@ export const updateProduct = asyncHandler(async (req, res) => {
       product.price = basePrice;
       product.priceBeforeDiscount = undefined;
       product.discount = 0;
+    }
+  }
+
+  if (condition) {
+    const normalized = condition.toString().toLowerCase();
+    if (normalized === 'new' || normalized === 'used') {
+      product.condition = normalized;
     }
   }
 
@@ -247,18 +262,49 @@ export const disableProduct = asyncHandler(async (req, res) => {
   if (product.user.toString() !== req.user.id && req.user.role !== 'admin')
     return res.status(403).json({ message: 'Forbidden' });
 
+  if (product.status !== 'disabled') {
+    product.lastStatusBeforeDisable = product.status;
+  }
   product.status = 'disabled';
   await product.save();
   res.json(product);
 });
 
 export const enableProduct = asyncHandler(async (req, res) => {
-  const product = await Product.findById(req.params.id);
+  const product = await Product.findById(req.params.id).populate('payment', 'status');
   if (!product) return res.status(404).json({ message: 'Not found' });
   if (product.user.toString() !== req.user.id && req.user.role !== 'admin')
     return res.status(403).json({ message: 'Forbidden' });
 
-  product.status = 'approved';
+  const paymentStatus = product.payment?.status || null;
+  let restoredStatus = product.lastStatusBeforeDisable;
+
+  if (paymentStatus === 'verified') {
+    restoredStatus = 'approved';
+  } else if (!restoredStatus) {
+    restoredStatus = paymentStatus ? 'pending' : 'approved';
+  }
+
+  if (restoredStatus === 'disabled' || !restoredStatus) {
+    restoredStatus = 'approved';
+  }
+
+  product.status = restoredStatus;
+  product.lastStatusBeforeDisable = null;
   await product.save();
   res.json(product);
+});
+
+export const registerWhatsappClick = asyncHandler(async (req, res) => {
+  const product = await Product.findOneAndUpdate(
+    { _id: req.params.id, status: { $ne: 'disabled' } },
+    { $inc: { whatsappClicks: 1 } },
+    { new: true, select: '_id whatsappClicks' }
+  );
+
+  if (!product) {
+    return res.status(404).json({ message: 'Produit introuvable ou désactivé.' });
+  }
+
+  res.json({ whatsappClicks: product.whatsappClicks });
 });

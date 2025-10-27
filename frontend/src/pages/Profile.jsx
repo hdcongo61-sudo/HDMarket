@@ -7,7 +7,10 @@ const initialForm = {
   email: '',
   phone: '',
   password: '',
-  confirmPassword: ''
+  confirmPassword: '',
+  accountType: 'person',
+  shopName: '',
+  shopAddress: ''
 };
 
 export default function Profile() {
@@ -16,6 +19,16 @@ export default function Profile() {
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [error, setError] = useState('');
+  const [shopLogoFile, setShopLogoFile] = useState(null);
+  const [shopLogoPreview, setShopLogoPreview] = useState('');
+  useEffect(
+    () => () => {
+      if (shopLogoPreview && shopLogoPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(shopLogoPreview);
+      }
+    },
+    [shopLogoPreview]
+  );
 
   useEffect(() => {
     if (!user) return;
@@ -23,13 +36,38 @@ export default function Profile() {
       ...prev,
       name: user.name || '',
       email: user.email || '',
-      phone: user.phone || ''
+      phone: user.phone || '',
+      accountType: user.accountType || 'person',
+      shopName: user.shopName || '',
+      shopAddress: user.shopAddress || ''
     }));
+    setShopLogoPreview(user.shopLogo || '');
   }, [user]);
 
   const onChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'accountType') {
+      setForm((prev) => ({
+        ...prev,
+        accountType: value,
+        shopName: value === 'shop' ? prev.shopName : '',
+        shopAddress: value === 'shop' ? prev.shopAddress : ''
+      }));
+      if (value !== 'shop') {
+        setShopLogoFile(null);
+        setShopLogoPreview('');
+      }
+      return;
+    }
     setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const onLogoChange = (e) => {
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    setShopLogoFile(file);
+    if (file) {
+      setShopLogoPreview(URL.createObjectURL(file));
+    }
   };
 
   const onSubmit = async (e) => {
@@ -42,16 +80,40 @@ export default function Profile() {
     setError('');
     setFeedback('');
     try {
-      const payload = {
-        name: form.name,
-        email: form.email,
-        phone: form.phone
-      };
-      if (form.password) payload.password = form.password;
-      const { data } = await api.put('/users/profile', payload);
-      updateUser(data);
-      setFeedback('Profil mis à jour avec succès.');
-      setForm((prev) => ({ ...prev, password: '', confirmPassword: '' }));
+    if (form.accountType === 'shop' && (!form.shopName || !form.shopAddress)) {
+      setError('Veuillez renseigner le nom et l\'adresse de votre boutique.');
+      return;
+    }
+
+    const payload = new FormData();
+    payload.append('name', form.name);
+    payload.append('email', form.email);
+    payload.append('phone', form.phone);
+    payload.append('accountType', form.accountType);
+    if (form.password) payload.append('password', form.password);
+    if (form.accountType === 'shop') {
+      payload.append('shopName', form.shopName);
+      payload.append('shopAddress', form.shopAddress);
+      if (shopLogoFile) {
+        payload.append('shopLogo', shopLogoFile);
+      }
+    }
+
+    const { data } = await api.put('/users/profile', payload, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    updateUser(data);
+    setFeedback('Profil mis à jour avec succès.');
+    setForm((prev) => ({
+      ...prev,
+      password: '',
+      confirmPassword: '',
+      accountType: data.accountType || 'person',
+      shopName: data.shopName || '',
+      shopAddress: data.shopAddress || ''
+    }));
+    setShopLogoPreview(data.shopLogo || '');
+    setShopLogoFile(null);
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Une erreur est survenue.');
     } finally {
@@ -112,6 +174,63 @@ export default function Profile() {
               required
             />
           </label>
+          <label className="flex flex-col text-sm font-medium text-gray-700">
+            Type de compte
+            <select
+              className="mt-1 border rounded p-2"
+              name="accountType"
+              value={form.accountType}
+              onChange={onChange}
+              disabled={loading}
+            >
+              <option value="person">Particulier</option>
+              <option value="shop">Boutique</option>
+            </select>
+          </label>
+          {form.accountType === 'shop' && (
+            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label className="flex flex-col text-sm font-medium text-gray-700">
+                Nom de la boutique
+                <input
+                  className="mt-1 border rounded p-2"
+                  name="shopName"
+                  value={form.shopName}
+                  onChange={onChange}
+                  disabled={loading}
+                  required
+                />
+              </label>
+              <label className="flex flex-col text-sm font-medium text-gray-700">
+                Adresse de la boutique
+                <input
+                  className="mt-1 border rounded p-2"
+                  name="shopAddress"
+                  value={form.shopAddress}
+                  onChange={onChange}
+                  disabled={loading}
+                  required
+                />
+              </label>
+              <div className="md:col-span-2 flex flex-col gap-2">
+                <span className="text-sm font-medium text-gray-700">Logo de la boutique</span>
+                {shopLogoPreview && (
+                  <img
+                    src={shopLogoPreview}
+                    alt="Logo boutique"
+                    className="h-20 w-20 rounded object-cover border"
+                  />
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={onLogoChange}
+                  disabled={loading}
+                  required={!shopLogoPreview}
+                />
+                <span className="text-xs text-gray-500">Formats acceptés: JPG, PNG. Taille recommandée 200x200.</span>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <label className="flex flex-col text-sm font-medium text-gray-700">
               Nouveau mot de passe

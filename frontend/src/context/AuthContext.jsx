@@ -4,29 +4,31 @@ import { jwtDecode } from 'jwt-decode';
 
 const AuthContext = createContext();
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null); // {id, name, email, role}
-
-  useEffect(() => {
-    const token = localStorage.getItem('qm_token');
-    if (!token) return;
-    try {
-      const payload = jwtDecode(token);
-      const stored = localStorage.getItem('qm_user');
-      let parsed = {};
-      if (stored) {
-        try {
-          parsed = JSON.parse(stored);
-        } catch {
-          parsed = {};
-        }
+const readPersistedUser = () => {
+  if (typeof window === 'undefined') return null;
+  const token = window.localStorage.getItem('qm_token');
+  if (!token) return null;
+  try {
+    const payload = jwtDecode(token);
+    const stored = window.localStorage.getItem('qm_user');
+    let parsed = {};
+    if (stored) {
+      try {
+        parsed = JSON.parse(stored);
+      } catch {
+        parsed = {};
       }
-      setUser({ id: payload.id, role: payload.role, token, ...parsed });
-    } catch {
-      localStorage.removeItem('qm_token');
-      localStorage.removeItem('qm_user');
     }
-  }, []);
+    return { id: payload.id, role: payload.role, token, ...parsed };
+  } catch {
+    window.localStorage.removeItem('qm_token');
+    window.localStorage.removeItem('qm_user');
+    return null;
+  }
+};
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(() => readPersistedUser()); // {id, name, email, role}
 
   const persistUser = (data) => {
     const { token: _token, ...rest } = data || {};
@@ -43,7 +45,11 @@ export const AuthProvider = ({ children }) => {
       token: data.token,
       name: data.name,
       email: data.email,
-      phone: data.phone
+      phone: data.phone,
+      accountType: data.accountType || 'person',
+      shopName: data.shopName || '',
+      shopAddress: data.shopAddress || '',
+      shopLogo: data.shopLogo || ''
     };
     persistUser(userData);
     setUser(userData);

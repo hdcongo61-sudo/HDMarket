@@ -9,9 +9,17 @@ const productSchema = new mongoose.Schema(
     priceBeforeDiscount: { type: Number, min: 0 },
     images: [{ type: String }],
     category: { type: String, required: true },
+    condition: { type: String, enum: ['new', 'used'], default: 'used' },
+    lastStatusBeforeDisable: {
+      type: String,
+      enum: [null, 'pending', 'approved', 'rejected'],
+      default: null
+    },
     status: { type: String, enum: ['pending', 'approved', 'rejected', 'disabled'], default: 'pending' },
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    payment: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment' }
+    payment: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment' },
+    whatsappClicks: { type: Number, default: 0, min: 0 },
+    favoritesCount: { type: Number, default: 0, min: 0 }
   },
   { timestamps: true }
 );

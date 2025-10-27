@@ -13,7 +13,8 @@ import {
   updateProduct,
   deleteProduct,
   disableProduct,
-  enableProduct
+  enableProduct,
+  registerWhatsappClick
 } from '../controllers/productController.js';
 import { addComment, getCommentsForProduct } from '../controllers/commentController.js';
 import {
@@ -30,6 +31,7 @@ router.get('/public', validate(schemas.publicQuery, 'query'), getPublicProducts)
 router.get('/public/:id/comments', getCommentsForProduct);
 router.get('/public/:id/ratings', getRatingSummary);
 router.get('/public/:id', getPublicProductById);
+router.post('/public/:id/whatsapp-click', validate(schemas.idParam, 'params'), registerWhatsappClick);
 
 // Détail protégé si non approuvé
 router.post('/:id/comments', protect, validate(schemas.commentCreate), addComment);

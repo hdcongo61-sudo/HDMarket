@@ -1,6 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { Link } from 'react-router-dom';
 import CartContext from '../context/CartContext';
+import { buildWhatsappLink } from '../utils/whatsapp';
 
 const TrashIcon = ({ className }) => (
   <svg
@@ -96,7 +97,9 @@ export default function Cart() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
           <ul className="space-y-3">
-            {items.map(({ product, quantity, lineTotal }) => (
+            {items.map(({ product, quantity, lineTotal }) => {
+              const whatsappLink = buildWhatsappLink(product, product.user?.phone || product?.contactPhone);
+              return (
               <li key={product._id} className="border rounded-lg p-4 flex flex-col gap-3 md:flex-row md:items-center">
                 <div className="w-full md:w-32">
                   <div className="relative overflow-hidden rounded aspect-[4/3] bg-gray-100">
@@ -113,6 +116,16 @@ export default function Cart() {
                     {product.title}
                   </Link>
                   <p className="text-sm text-gray-500">Catégorie : {product.category}</p>
+                  {whatsappLink && (
+                    <a
+                      href={whatsappLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-green-600 font-medium"
+                    >
+                      Contacter le vendeur sur WhatsApp
+                    </a>
+                  )}
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <span className="font-semibold text-indigo-600">{formatPrice(product.price)} FCFA</span>
                     {product.discount ? (
@@ -165,7 +178,7 @@ export default function Cart() {
                   </button>
                 </div>
               </li>
-            ))}
+            )})}
           </ul>
 
           <aside className="border rounded-lg p-4 space-y-4 bg-slate-50">

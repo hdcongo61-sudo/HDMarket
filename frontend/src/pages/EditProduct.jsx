@@ -61,6 +61,7 @@ export default function EditProduct() {
     description: '',
     category: '',
     discount: 0,
+    condition: 'used',
     images: []
   });
   const [error, setError] = useState('');
@@ -94,6 +95,7 @@ export default function EditProduct() {
           description: data.description || '',
           category: data.category || '',
           discount: data.discount ?? 0,
+          condition: data.condition || 'used',
           images: data.images || []
         });
         setError('');
@@ -128,7 +130,8 @@ export default function EditProduct() {
         title: form.title,
         description: form.description,
         category: form.category,
-        discount: form.discount
+        discount: form.discount,
+        condition: form.condition
       };
       await api.put(`/products/${id}`, payload);
       navigate('/my');
@@ -209,6 +212,16 @@ export default function EditProduct() {
               onChange={(e) => onChange('description', e.target.value)}
               required
             />
+          </label>
+
+          <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={form.condition === 'new'}
+              onChange={(e) => onChange('condition', e.target.checked ? 'new' : 'used')}
+            />
+            <span>{form.condition === 'new' ? 'Produit neuf' : "Produit d'occasion"}</span>
           </label>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

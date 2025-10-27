@@ -8,6 +8,11 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true },
     phone: { type: String, required: true },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    accountType: { type: String, enum: ['person', 'shop'], default: 'person' },
+    shopName: { type: String },
+    shopAddress: { type: String },
+    shopLogo: { type: String },
+    favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
     notificationsReadAt: { type: Date }
   },
   { timestamps: true }

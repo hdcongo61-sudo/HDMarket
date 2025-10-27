@@ -1,11 +1,13 @@
 import React, { useContext, useState } from 'react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate, useLocation } from 'react-router-dom';
 
 export default function Login() {
-  const { login } = useContext(AuthContext);
+  const { user, login } = useContext(AuthContext);
   const nav = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from || '/';
   const [form, setForm] = useState({ email: '', password: '' });
 
   const submit = async (e) => {
@@ -13,11 +15,15 @@ export default function Login() {
     try {
       const { data } = await api.post('/auth/login', form);
       login(data);
-      nav('/');
+      nav(from, { replace: true });
     } catch (e) {
       alert(e.response?.data?.message || e.message);
     }
   };
+
+  if (user) {
+    return <Navigate to={from} replace />;
+  }
 
   return (
     <div className="max-w-md mx-auto p-4">

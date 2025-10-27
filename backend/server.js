@@ -14,6 +14,8 @@ import productRoutes from './routes/productRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import cartRoutes from './routes/cartRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import shopRoutes from './routes/shopRoutes.js';
+import searchRoutes from './routes/searchRoutes.js';
 
 dotenv.config();
 connectDB();
@@ -65,6 +67,8 @@ app.use('/api/products', productRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/shops', shopRoutes);
+app.use('/api/search', searchRoutes);
 
 // Global error handler
 // eslint-disable-next-line no-unused-vars
