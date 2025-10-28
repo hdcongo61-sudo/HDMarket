@@ -20,13 +20,15 @@ export default function useAdminCounts(enabled) {
     const load = async () => {
       setLoading(true);
       try {
-        const { data } = await api.get('/payments/admin?status=waiting');
+        const { data } = await api.get('/admin/stats');
         if (!active) return;
-        setCounts({ waitingPayments: Array.isArray(data) ? data.length : 0 });
+        setCounts({ waitingPayments: data?.payments?.waiting || 0 });
         setError('');
       } catch (e) {
         if (!active) return;
-        setError(e.response?.data?.message || e.message || 'Erreur lors du chargement des paiements.');
+        setError(
+          e.response?.data?.message || e.message || 'Erreur lors du chargement des statistiques admin.'
+        );
       } finally {
         if (active) setLoading(false);
       }

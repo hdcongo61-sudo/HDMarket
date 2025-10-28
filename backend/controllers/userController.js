@@ -3,6 +3,9 @@ import User from '../models/userModel.js';
 import Comment from '../models/commentModel.js';
 import Product from '../models/productModel.js';
 import Rating from '../models/ratingModel.js';
+import Notification from '../models/notificationModel.js';
+import { registerNotificationStream } from '../utils/notificationEmitter.js';
+import { createNotification } from '../utils/notificationService.js';
 
 const sanitizeUser = (user) => ({
   _id: user._id,
@@ -22,6 +25,48 @@ export const getProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
   if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
   res.json(sanitizeUser(user));
+});
+
+export const getProfileStats = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+
+  const [products, userDoc] = await Promise.all([
+    Product.find({ user: userId }).select('_id status favoritesCount').lean(),
+    User.findById(userId).select('favorites').lean()
+  ]);
+
+  const listings = {
+    total: products.length,
+    approved: 0,
+    pending: 0,
+    rejected: 0,
+    disabled: 0
+  };
+
+  let favoritesReceived = 0;
+
+  products.forEach((product) => {
+    if (product?.status && Object.prototype.hasOwnProperty.call(listings, product.status)) {
+      listings[product.status] += 1;
+    }
+    favoritesReceived += Number(product?.favoritesCount || 0);
+  });
+
+  const productIds = products.map((product) => product._id);
+
+  let commentsReceived = 0;
+  if (productIds.length) {
+    commentsReceived = await Comment.countDocuments({ product: { $in: productIds } });
+  }
+
+  res.json({
+    listings,
+    engagement: {
+      favoritesReceived,
+      commentsReceived,
+      favoritesSaved: userDoc?.favorites?.length || 0
+    }
+  });
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
@@ -80,93 +125,90 @@ export const updateProfile = asyncHandler(async (req, res) => {
 });
 
 export const getNotifications = asyncHandler(async (req, res) => {
-  const [products, viewer] = await Promise.all([
-    Product.find({ user: req.user.id }).select('_id title'),
+  const [notifications, viewer] = await Promise.all([
+    Notification.find({ user: req.user.id })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .populate('product', 'title status')
+      .populate('actor', 'name email'),
     User.findById(req.user.id).select('notificationsReadAt')
   ]);
 
-  const productIds = products.map((p) => p._id);
-  const alertsMap = new Map();
   const lastRead = viewer?.notificationsReadAt ? new Date(viewer.notificationsReadAt) : new Date(0);
 
-  const addAlert = (type, commentDoc) => {
-    const key = commentDoc._id.toString();
-    if (alertsMap.has(key)) return;
-    const product = commentDoc.product
-      ? { _id: commentDoc.product._id, title: commentDoc.product.title }
-      : null;
-    const user = commentDoc.user
-      ? { _id: commentDoc.user._id, name: commentDoc.user.name, email: commentDoc.user.email }
-      : null;
-    const parent = commentDoc.parent
+  const alerts = notifications.map((notification) => {
+    const actor = notification.actor
       ? {
-          _id: commentDoc.parent._id,
-          message: commentDoc.parent.message,
-          user: commentDoc.parent.user
-            ? {
-                _id: commentDoc.parent.user._id,
-                name: commentDoc.parent.user.name,
-                email: commentDoc.parent.user.email
-              }
-            : null
+          _id: notification.actor._id,
+          name: notification.actor.name,
+          email: notification.actor.email
         }
       : null;
-    const createdAt = new Date(commentDoc.createdAt);
+    const product = notification.product
+      ? {
+          _id: notification.product._id,
+          title: notification.product.title,
+          status: notification.product.status
+        }
+      : null;
+    const metadata = notification.metadata || {};
+    const actorName = actor?.name || 'Un utilisateur';
+    const productLabel = product?.title ? ` "${product.title}"` : '';
+    const snippet =
+      typeof metadata.message === 'string'
+        ? metadata.message.length > 180
+          ? `${metadata.message.slice(0, 177)}...`
+          : metadata.message
+        : '';
 
-    alertsMap.set(key, {
-      _id: commentDoc._id,
-      type,
-      message: commentDoc.message,
-      createdAt: commentDoc.createdAt,
+    let message;
+    switch (notification.type) {
+      case 'product_comment':
+        message = snippet
+          ? `${actorName} a commenté votre annonce${productLabel} : ${snippet}`
+          : `${actorName} a laissé un commentaire sur votre annonce${productLabel}.`;
+        break;
+      case 'reply':
+        message = snippet
+          ? `${actorName} a répondu à votre commentaire${productLabel} : ${snippet}`
+          : `${actorName} a répondu à votre commentaire${productLabel}.`;
+        break;
+      case 'favorite':
+        message = `${actorName} a ajouté votre annonce${productLabel} à ses favoris.`;
+        break;
+      case 'rating':
+        message = metadata.value
+          ? `${actorName} a noté votre annonce${productLabel} (${metadata.value}/5).`
+          : `${actorName} a noté votre annonce${productLabel}.`;
+        break;
+      default:
+        message = `${actorName} a interagi avec votre annonce${productLabel}.`;
+    }
+
+    const isNew = notification.createdAt > lastRead;
+    const parent =
+      notification.type === 'reply' && metadata.parentMessage
+        ? { message: metadata.parentMessage }
+        : null;
+
+    return {
+      _id: notification._id,
+      type: notification.type,
+      message,
+      createdAt: notification.createdAt,
+      updatedAt: notification.updatedAt,
       product,
-      user,
+      user: actor,
+      actor,
+      metadata,
       parent,
-      isNew: createdAt > lastRead
-    });
-  };
-
-  if (productIds.length) {
-    const productComments = await Comment.find({
-      product: { $in: productIds },
-      user: { $ne: req.user.id }
-    })
-      .populate('user', 'name email')
-      .populate('product', 'title')
-      .populate({
-        path: 'parent',
-        select: 'message user',
-        populate: { path: 'user', select: 'name email' }
-      });
-
-    productComments.forEach((comment) => addAlert('product_comment', comment));
-  }
-
-  const userComments = await Comment.find({ user: req.user.id }).select('_id');
-  const parentIds = userComments.map((c) => c._id);
-
-  if (parentIds.length) {
-    const replies = await Comment.find({
-      parent: { $in: parentIds },
-      user: { $ne: req.user.id }
-    })
-      .populate('user', 'name email')
-      .populate('product', 'title')
-      .populate({
-        path: 'parent',
-        select: 'message user',
-        populate: { path: 'user', select: 'name email' }
-      });
-
-    replies.forEach((comment) => addAlert('reply', comment));
-  }
-
-  const alerts = Array.from(alertsMap.values()).sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+      isNew
+    };
+  });
 
   res.json({
     commentAlerts: alerts.filter((alert) => alert.isNew).length,
-    alerts: alerts.slice(0, 50)
+    alerts
   });
 });
 
@@ -177,6 +219,10 @@ export const markNotificationsRead = asyncHandler(async (req, res) => {
   await user.save();
   res.json({ success: true, notificationsReadAt: user.notificationsReadAt });
 });
+
+export const streamNotifications = (req, res) => {
+  registerNotificationStream(req.user.id, res);
+};
 
 export const getFavorites = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id).select('favorites');
@@ -246,9 +292,9 @@ export const addFavorite = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Product ID requis.' });
   }
 
-  const product = await Product.findOne({ _id: productId, status: { $ne: 'disabled' } })
-    .select('_id')
-    .lean();
+  const product = await Product.findOne({ _id: productId, status: { $ne: 'disabled' } }).select(
+    '_id user title'
+  );
   if (!product) {
     return res.status(404).json({ message: 'Produit introuvable ou désactivé.' });
   }
@@ -263,6 +309,18 @@ export const addFavorite = asyncHandler(async (req, res) => {
       user.save(),
       Product.findByIdAndUpdate(productId, { $inc: { favoritesCount: 1 } }).exec()
     ]);
+
+    if (product.user && String(product.user) !== req.user.id) {
+      await createNotification({
+        userId: product.user,
+        actorId: req.user.id,
+        productId: product._id,
+        type: 'favorite',
+        metadata: {
+          productTitle: product.title || ''
+        }
+      });
+    }
   }
 
   res.json({ favorites: user.favorites });

@@ -102,5 +102,22 @@ export const schemas = {
   }),
   idParam: Joi.object({
     id: Joi.string().hex().length(24).required()
+  }),
+  adminUserAccountType: Joi.object({
+    accountType: Joi.string().valid('person', 'shop').required(),
+    shopName: Joi.when('accountType', {
+      is: 'shop',
+      then: Joi.string().min(2).max(120).required(),
+      otherwise: Joi.forbidden()
+    }),
+    shopAddress: Joi.when('accountType', {
+      is: 'shop',
+      then: Joi.string().min(4).max(200).required(),
+      otherwise: Joi.forbidden()
+    }),
+    shopLogo: Joi.string().max(500).allow('', null)
+  }),
+  adminBlockUser: Joi.object({
+    reason: Joi.string().trim().max(500).allow('', null)
   })
 };

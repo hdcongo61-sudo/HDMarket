@@ -1,6 +1,7 @@
 import asyncHandler from 'express-async-handler';
 import Comment from '../models/commentModel.js';
 import Product from '../models/productModel.js';
+import { createNotification } from '../utils/notificationService.js';
 
 const formatComment = (comment) => {
   const plain = comment.toObject ? comment.toObject() : comment;
@@ -50,7 +51,7 @@ export const getCommentsForProduct = asyncHandler(async (req, res) => {
 });
 
 export const addComment = asyncHandler(async (req, res) => {
-  const product = await Product.findById(req.params.id).select('_id status');
+  const product = await Product.findById(req.params.id).select('_id status user title');
   if (!product || product.status !== 'approved') {
     return res.status(404).json({ message: 'Produit introuvable ou non publié.' });
   }
@@ -81,6 +82,50 @@ export const addComment = asyncHandler(async (req, res) => {
     select: 'message user',
     populate: { path: 'user', select: 'name' }
   });
+
+  const notifications = [];
+  if (String(product.user) !== req.user.id) {
+    notifications.push(
+      createNotification({
+        userId: product.user,
+        actorId: req.user.id,
+        productId: product._id,
+        type: 'product_comment',
+        metadata: {
+          commentId: comment._id,
+          message,
+          productTitle: product.title || ''
+        }
+      })
+    );
+  }
+
+  if (
+    parent &&
+    parent.user &&
+    String(parent.user) !== req.user.id &&
+    String(parent.user) !== String(product.user)
+  ) {
+    notifications.push(
+      createNotification({
+        userId: parent.user,
+        actorId: req.user.id,
+        productId: product._id,
+        type: 'reply',
+        metadata: {
+          commentId: comment._id,
+          parentId: parent._id,
+          parentMessage: parent.message || '',
+          message,
+          productTitle: product.title || ''
+        }
+      })
+    );
+  }
+
+  if (notifications.length) {
+    await Promise.all(notifications);
+  }
 
   res.status(201).json(formatComment(comment));
 });

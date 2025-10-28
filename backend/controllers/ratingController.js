@@ -2,12 +2,13 @@ import asyncHandler from 'express-async-handler';
 import mongoose from 'mongoose';
 import Rating from '../models/ratingModel.js';
 import Product from '../models/productModel.js';
+import { createNotification } from '../utils/notificationService.js';
 
 const ensureProductVisible = async (productId) => {
   if (!mongoose.isValidObjectId(productId)) {
     throw Object.assign(new Error('Identifiant de produit invalide.'), { status: 400 });
   }
-  const product = await Product.findById(productId).select('status user');
+  const product = await Product.findById(productId).select('status user title');
   if (!product || product.status !== 'approved') {
     throw Object.assign(new Error('Produit introuvable ou non publié.'), { status: 404 });
   }
@@ -70,6 +71,18 @@ export const upsertRating = asyncHandler(async (req, res) => {
     { value },
     { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
   );
+
+  if (String(product.user) !== req.user.id) {
+    await createNotification({
+      userId: product.user,
+      actorId: req.user.id,
+      productId: product._id,
+      type: 'rating',
+      metadata: {
+        value
+      }
+    });
+  }
 
   res.status(201).json({ value: rating.value });
 });

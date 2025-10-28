@@ -16,6 +16,7 @@ import cartRoutes from './routes/cartRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import shopRoutes from './routes/shopRoutes.js';
 import searchRoutes from './routes/searchRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 
 dotenv.config();
 connectDB();
@@ -39,12 +40,16 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions)); // Handle preflight requests
 
-// Rate limit global
+// Rate limit global (skip long-lived streams + allow higher burst during dev)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 min
-  max: 300,
+  max: Number(process.env.RATE_LIMIT_MAX ?? 1000),
   standardHeaders: true,
   legacyHeaders: false,
+  message: { message: 'Trop de requêtes, veuillez réessayer plus tard.' },
+  skip: (req) =>
+    req.originalUrl?.startsWith('/api/users/notifications/stream') ||
+    (process.env.NODE_ENV === 'development' && req.ip === '::1')
 });
 app.use(limiter);
 
@@ -69,6 +74,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/shops', shopRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Global error handler
 // eslint-disable-next-line no-unused-vars

@@ -58,6 +58,14 @@ export const login = asyncHandler(async (req, res) => {
   if (!user || !(await user.matchPassword(password))) {
     return res.status(401).json({ message: 'Invalid credentials' });
   }
+  if (user.isBlocked) {
+    const reason = user.blockedReason ? ` Motif : ${user.blockedReason}` : '';
+    return res.status(403).json({
+      message: `Votre compte est suspendu. Contactez l’administrateur pour plus d’informations.${reason}`,
+      reason: user.blockedReason || '',
+      code: 'ACCOUNT_BLOCKED'
+    });
+  }
   const token = genToken(user);
   res.json({
     _id: user._id,

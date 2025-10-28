@@ -6,7 +6,21 @@ import FavoriteContext from "../context/FavoriteContext";
 import useAdminCounts from "../hooks/useAdminCounts";
 import useUserNotifications from "../hooks/useUserNotifications";
 import api from "../services/api";
-import { ShoppingCart, Bell, Menu, X, Search, LogOut, User, Sun, Moon, Heart } from "lucide-react";
+import {
+  ShoppingCart,
+  Bell,
+  Menu,
+  X,
+  Search,
+  LogOut,
+  User,
+  Sun,
+  Moon,
+  Heart,
+  Store,
+  ChevronDown,
+  Users
+} from "lucide-react";
 
 /**
  * 🎨 Navbar moderne et responsive pour HDMarket
@@ -37,6 +51,11 @@ export default function Navbar() {
   const [showResults, setShowResults] = useState(false);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
+  const [shops, setShops] = useState([]);
+  const [shopsLoading, setShopsLoading] = useState(false);
+  const [shopsError, setShopsError] = useState("");
+  const [isShopMenuOpen, setIsShopMenuOpen] = useState(false);
+  const [isMobileShopsOpen, setIsMobileShopsOpen] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
@@ -92,6 +111,32 @@ export default function Navbar() {
     }
   };
 
+  useEffect(() => {
+    let cancelled = false;
+    const loadShops = async () => {
+      setShopsLoading(true);
+      setShopsError("");
+      try {
+        const { data } = await api.get("/shops");
+        if (!cancelled) {
+          setShops(Array.isArray(data) ? data : []);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setShopsError("Impossible de charger les boutiques.");
+        }
+      } finally {
+        if (!cancelled) {
+          setShopsLoading(false);
+        }
+      }
+    };
+    loadShops();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-lg bg-white/70 dark:bg-gray-900/70 shadow-sm border-b border-gray-200 dark:border-gray-800 transition">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -104,79 +149,71 @@ export default function Navbar() {
             HDMarket
           </Link>
 
-          {/* === SEARCH BAR (Desktop) === */}
-          <div className="hidden md:flex items-center flex-1 mx-6 relative">
-            <Search className="absolute left-3 text-gray-400" size={18} />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Rechercher par produit, catégorie ou boutique"
-              className="w-full pl-9 pr-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              onFocus={() => setShowResults(true)}
-              onKeyDown={handleSearchKeyDown}
-              onBlur={() => setTimeout(() => setShowResults(false), 150)}
-            />
-            {showResults && (searchResults.length > 0 || searchQuery.trim()) && (
-              <div
-                className="absolute top-11 left-0 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-80 overflow-auto z-50"
-                onMouseDown={(e) => e.preventDefault()}
-              >
-                {searching && (
-                  <p className="px-4 py-2 text-sm text-gray-500">Recherche…</p>
-                )}
-                {!searching && searchError && (
-                  <p className="px-4 py-2 text-sm text-red-500">{searchError}</p>
-                )}
-                {!searching && !searchError && searchResults.length === 0 && (
-                  <p className="px-4 py-2 text-sm text-gray-500">
-                    Aucun résultat pour « {searchQuery} »
-                  </p>
-                )}
-                {searchResults.map((product) => (
-                  <button
-                    key={product._id}
-                    type="button"
-                    onClick={() => handleSelectResult(product)}
-                    className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3"
-                  >
-                    <img
-                      src={product.image || product.shopLogo || "https://via.placeholder.com/60"}
-                      alt={product.title}
-                      className="h-10 w-10 rounded object-cover"
-                    />
-                    <div className="flex flex-col text-sm">
-                      <span className="font-semibold text-gray-900 dark:text-white">
-                        {product.title}
-                      </span>
-                      <span className="text-gray-500 flex items-center gap-1">
-                        <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-[11px] uppercase tracking-wide font-semibold text-gray-700 dark:text-gray-200">
-                          {product.type === 'shop'
-                            ? 'Boutique'
-                            : product.type === 'category'
-                            ? 'Catégorie'
-                            : 'Produit'}
-                        </span>
-                        <span>
-                          {product.type === 'shop'
-                            ? product.shopAddress || 'Adresse non renseignée'
-                            : product.type === 'category'
-                            ? product.category
-                            : `${product.category}${product.shopName ? ` • ${product.shopName}` : ''}`}
-                        </span>
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
           {/* === ACTIONS (Desktop) === */}
           <div className="hidden md:flex items-center gap-5">
             <NavLink to="/" className="hover:text-indigo-600">
               Accueil
             </NavLink>
+            <div
+              className="relative"
+              onMouseEnter={() => setIsShopMenuOpen(true)}
+              onMouseLeave={() => setIsShopMenuOpen(false)}
+            >
+              <button
+                type="button"
+                onClick={() => setIsShopMenuOpen((prev) => !prev)}
+                onFocus={() => setIsShopMenuOpen(true)}
+                className="inline-flex items-center gap-1 hover:text-indigo-600"
+              >
+                <Store size={18} />
+                Boutiques
+                <ChevronDown
+                  size={16}
+                  className={`transition-transform ${isShopMenuOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+              {isShopMenuOpen && (
+                <div className="absolute left-0 mt-2 w-72 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-40 p-3 space-y-2">
+                  {shopsLoading ? (
+                    <p className="text-sm text-gray-500">Chargement…</p>
+                  ) : shopsError ? (
+                    <p className="text-sm text-red-600">{shopsError}</p>
+                  ) : shops.length === 0 ? (
+                    <p className="text-sm text-gray-500">Aucune boutique enregistrée pour le moment.</p>
+                  ) : (
+                    <ul className="space-y-2 max-h-72 overflow-auto">
+                      {shops.map((shop) => (
+                        <li key={shop._id}>
+                          <Link
+                            to={`/shop/${shop._id}`}
+                            className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                            onClick={() => setIsShopMenuOpen(false)}
+                          >
+                            <img
+                              src={shop.shopLogo || "https://via.placeholder.com/50"}
+                              alt={shop.shopName}
+                              className="h-10 w-10 rounded-full object-cover border border-gray-200 dark:border-gray-700"
+                              loading="lazy"
+                            />
+                            <div className="flex flex-col text-sm">
+                              <span className="font-semibold text-gray-900 dark:text-white">
+                                {shop.shopName}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {shop.shopAddress || "Adresse non renseignée"}
+                              </span>
+                              <span className="text-xs text-indigo-600">
+                                {shop.productCount} annonce{shop.productCount > 1 ? "s" : ""}
+                              </span>
+                            </div>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
 
             {user && (
               <>
@@ -195,14 +232,20 @@ export default function Navbar() {
             )}
 
             {user?.role === "admin" && (
-              <NavLink to="/admin" className="relative hover:text-indigo-600">
-                <Bell size={20} />
-                {waitingPayments > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-yellow-400 text-black text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
-                    {waitingPayments}
-                  </span>
-                )}
-              </NavLink>
+              <>
+                <NavLink to="/admin" className="relative hover:text-indigo-600">
+                  <Bell size={20} />
+                  {waitingPayments > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-yellow-400 text-black text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
+                      {waitingPayments}
+                    </span>
+                  )}
+                </NavLink>
+                <NavLink to="/admin/users" className="flex items-center gap-1 hover:text-indigo-600 text-sm">
+                  <Users size={18} />
+                  Gestion utilisateurs
+                </NavLink>
+              </>
             )}
 
             {/* Favoris */}
@@ -284,6 +327,76 @@ export default function Navbar() {
         </div>
       </div>
 
+      {/* === SEARCH BAR (Desktop, second row) === */}
+      <div className="hidden md:flex justify-center px-4 sm:px-6 lg:px-8 pb-3">
+        <div className="relative w-full max-w-3xl">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Rechercher par produit, catégorie ou boutique"
+            className="w-full pl-9 pr-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            onFocus={() => setShowResults(true)}
+            onKeyDown={handleSearchKeyDown}
+            onBlur={() => setTimeout(() => setShowResults(false), 150)}
+          />
+          {showResults && (searchResults.length > 0 || searchQuery.trim()) && (
+            <div
+              className="absolute top-11 left-0 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-80 overflow-auto z-50"
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              {searching && (
+                <p className="px-4 py-2 text-sm text-gray-500">Recherche…</p>
+              )}
+              {!searching && searchError && (
+                <p className="px-4 py-2 text-sm text-red-500">{searchError}</p>
+              )}
+              {!searching && !searchError && searchResults.length === 0 && (
+                <p className="px-4 py-2 text-sm text-gray-500">
+                  Aucun résultat pour « {searchQuery} »
+                </p>
+              )}
+              {searchResults.map((product) => (
+                <button
+                  key={product._id}
+                  type="button"
+                  onClick={() => handleSelectResult(product)}
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3"
+                >
+                  <img
+                    src={product.image || product.shopLogo || "https://via.placeholder.com/60"}
+                    alt={product.title}
+                    className="h-10 w-10 rounded object-cover"
+                  />
+                  <div className="flex flex-col text-sm">
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {product.title}
+                    </span>
+                    <span className="text-gray-500 flex items-center gap-1">
+                      <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-[11px] uppercase tracking-wide font-semibold text-gray-700 dark:text-gray-200">
+                        {product.type === 'shop'
+                          ? 'Boutique'
+                          : product.type === 'category'
+                          ? 'Catégorie'
+                          : 'Produit'}
+                      </span>
+                      <span>
+                        {product.type === 'shop'
+                          ? product.shopAddress || 'Adresse non renseignée'
+                          : product.type === 'category'
+                          ? product.category
+                          : `${product.category}${product.shopName ? ` • ${product.shopName}` : ''}`}
+                      </span>
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* === MENU MOBILE === */}
       {isMenuOpen && (
         <div className="md:hidden bg-white/95 dark:bg-gray-900/95 border-t border-gray-200 dark:border-gray-800">
@@ -362,6 +475,54 @@ export default function Navbar() {
             <NavLink to="/" onClick={() => setIsMenuOpen(false)}>
               Accueil
             </NavLink>
+            <button
+              type="button"
+              onClick={() => setIsMobileShopsOpen((prev) => !prev)}
+              className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-left"
+            >
+              <span className="inline-flex items-center gap-2">
+                <Store size={16} />
+                Boutiques
+              </span>
+              <ChevronDown
+                size={16}
+                className={`transition-transform ${isMobileShopsOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+            {isMobileShopsOpen && (
+              <div className="space-y-2 rounded-lg border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-xs text-gray-600 dark:text-gray-300">
+                {shopsLoading ? (
+                  <p>Chargement…</p>
+                ) : shopsError ? (
+                  <p className="text-red-500">{shopsError}</p>
+                ) : shops.length === 0 ? (
+                  <p>Aucune boutique enregistrée.</p>
+                ) : (
+                  shops.map((shop) => (
+                    <Link
+                      key={shop._id}
+                      to={`/shop/${shop._id}`}
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        setIsMobileShopsOpen(false);
+                      }}
+                      className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-white dark:hover:bg-gray-700 transition"
+                    >
+                      <img
+                        src={shop.shopLogo || "https://via.placeholder.com/50"}
+                        alt={shop.shopName}
+                        className="h-8 w-8 rounded-full object-cover border border-gray-200 dark:border-gray-700"
+                        loading="lazy"
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-800 dark:text-white text-sm">{shop.shopName}</p>
+                        <p>{shop.productCount} annonce{shop.productCount > 1 ? "s" : ""}</p>
+                      </div>
+                    </Link>
+                  ))
+                )}
+              </div>
+            )}
             {user && (
               <>
                 <NavLink to="/my" onClick={() => setIsMenuOpen(false)}>
@@ -375,6 +536,11 @@ export default function Navbar() {
             {user?.role === "admin" && (
               <NavLink to="/admin" onClick={() => setIsMenuOpen(false)}>
                 Tableau Admin
+              </NavLink>
+            )}
+            {user?.role === "admin" && (
+              <NavLink to="/admin/users" onClick={() => setIsMenuOpen(false)}>
+                Gestion utilisateurs
               </NavLink>
             )}
             <NavLink to="/favorites" onClick={() => setIsMenuOpen(false)}>

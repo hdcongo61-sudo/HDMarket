@@ -65,17 +65,21 @@ export default function UserDashboard() {
             <p className={`text-sm font-medium ${statusStyles[p.status] || 'text-gray-600'}`}>
               {statusMessages[p.status] || 'Statut en cours de mise à jour.'}
             </p>
-            <div className="flex items-center gap-2 pt-1">
-              <Link
-                to={`/product/${p._id}`}
-                className="text-sm text-indigo-600 hover:underline"
-              >
-                Voir l'annonce
-              </Link>
-              <span className="text-gray-300">|</span>
+            <div className="flex items-center gap-2 pt-1 text-sm">
+              {p.status === 'approved' && (
+                <>
+                  <Link
+                    to={`/product/${p._id}`}
+                    className="text-indigo-600 hover:underline"
+                  >
+                    Voir l'annonce
+                  </Link>
+                  <span className="text-gray-300">|</span>
+                </>
+              )}
               <Link
                 to={`/product/${p._id}/edit`}
-                className="text-sm text-indigo-600 hover:underline"
+                className="text-indigo-600 hover:underline"
               >
                 Modifier
               </Link>

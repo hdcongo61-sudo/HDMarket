@@ -6,6 +6,11 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import UserDashboard from './pages/UserDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminUsers from './pages/AdminUsers';
+import TopDeals from './pages/TopDeals';
+import TopRanking from './pages/TopRanking';
+import TopFavorites from './pages/TopFavorites';
+import TopDiscounts from './pages/TopDiscounts';
 import ProtectedRoute from './components/ProtectedRoute';
 import ProductDetails from './pages/ProductDetails';
 import EditProduct from './pages/EditProduct';
@@ -19,13 +24,17 @@ export default function App() {
   return (
     <BrowserRouter>
       <Navbar />
-      <main className="pt-20 md:pt-24">
+      <main className="pt-28 md:pt-32">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/product/:id" element={<ProductDetails />} />
           <Route path="/shop/:id" element={<ShopProfile />} />
+          <Route path="/top-deals" element={<TopDeals />} />
+          <Route path="/top-ranking" element={<TopRanking />} />
+          <Route path="/top-favorites" element={<TopFavorites />} />
+          <Route path="/top-discounts" element={<TopDiscounts />} />
           <Route
             path="/favorites"
             element={
@@ -79,6 +88,14 @@ export default function App() {
             element={
               <ProtectedRoute role="admin">
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute role="admin">
+                <AdminUsers />
               </ProtectedRoute>
             }
           />

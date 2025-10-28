@@ -4,6 +4,39 @@ import Product from '../models/productModel.js';
 import Comment from '../models/commentModel.js';
 import Rating from '../models/ratingModel.js';
 
+export const listShops = asyncHandler(async (_req, res) => {
+  const shops = await User.find({ accountType: 'shop' })
+    .select('shopName shopAddress shopLogo name createdAt')
+    .sort({ shopName: 1, createdAt: 1 })
+    .lean();
+
+  if (!shops.length) {
+    return res.json([]);
+  }
+
+  const shopIds = shops.map((shop) => shop._id);
+  const productCounts = await Product.aggregate([
+    { $match: { user: { $in: shopIds }, status: 'approved' } },
+    { $group: { _id: '$user', count: { $sum: 1 } } }
+  ]);
+
+  const productCountMap = new Map(productCounts.map((entry) => [String(entry._id), entry.count]));
+
+  const payload = shops.map((shop) => {
+    const id = String(shop._id);
+    return {
+      _id: shop._id,
+      shopName: shop.shopName || shop.name,
+      shopAddress: shop.shopAddress || '',
+      shopLogo: shop.shopLogo || null,
+      productCount: productCountMap.get(id) || 0,
+      createdAt: shop.createdAt
+    };
+  });
+
+  res.json(payload);
+});
+
 export const getShopProfile = asyncHandler(async (req, res) => {
   const shop = await User.findById(req.params.id).select('name shopName phone accountType createdAt shopLogo shopAddress');
   if (!shop || shop.accountType !== 'shop') {

@@ -13,7 +13,10 @@ const userSchema = new mongoose.Schema(
     shopAddress: { type: String },
     shopLogo: { type: String },
     favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
-    notificationsReadAt: { type: Date }
+    notificationsReadAt: { type: Date },
+    isBlocked: { type: Boolean, default: false },
+    blockedAt: { type: Date },
+    blockedReason: { type: String }
   },
   { timestamps: true }
 );

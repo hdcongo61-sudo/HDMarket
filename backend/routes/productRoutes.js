@@ -6,6 +6,7 @@ import { validate, schemas } from '../middlewares/validate.js';
 import {
   createProduct,
   getPublicProducts,
+  getPublicHighlights,
   getPublicProductById,
   getMyProducts,
   getAllProductsAdmin,
@@ -27,6 +28,7 @@ import {
 const router = express.Router();
 
 // Public (validation query)
+router.get('/public/highlights', getPublicHighlights);
 router.get('/public', validate(schemas.publicQuery, 'query'), getPublicProducts);
 router.get('/public/:id/comments', getCommentsForProduct);
 router.get('/public/:id/ratings', getRatingSummary);

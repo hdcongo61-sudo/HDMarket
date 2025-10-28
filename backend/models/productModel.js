@@ -19,7 +19,8 @@ const productSchema = new mongoose.Schema(
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     payment: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment' },
     whatsappClicks: { type: Number, default: 0, min: 0 },
-    favoritesCount: { type: Number, default: 0, min: 0 }
+    favoritesCount: { type: Number, default: 0, min: 0 },
+    disabledByAdmin: { type: Boolean, default: false }
   },
   { timestamps: true }
 );

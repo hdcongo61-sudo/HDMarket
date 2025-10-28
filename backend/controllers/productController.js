@@ -58,7 +58,7 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     limit = 12
   } = req.query;
 
-  const filter = { status: { $ne: 'disabled' } };
+  const filter = { status: 'approved' };
 
   if (q) {
     const matcher = new RegExp(q.trim(), 'i');
@@ -147,11 +147,120 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   });
 });
 
+export const getPublicHighlights = asyncHandler(async (req, res) => {
+  const limitParam = Number(req.query?.limit);
+  const limit = Math.max(1, Math.min(Number.isFinite(limitParam) ? limitParam : 6, 60));
+
+  const baseFilter = { status: 'approved' };
+
+  const favoritesRaw = await Product.find(baseFilter)
+    .sort({ favoritesCount: -1, createdAt: -1 })
+    .limit(limit)
+    .lean();
+
+  const dealsRaw = await Product.find(baseFilter)
+    .sort({ price: 1, createdAt: -1 })
+    .limit(limit)
+    .lean();
+
+  const discountRaw = await Product.find({ ...baseFilter, discount: { $gt: 0 } })
+    .sort({ discount: -1, createdAt: -1 })
+    .limit(limit)
+    .lean();
+  const newRaw = await Product.find({ ...baseFilter, condition: 'new' })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
+
+  const usedRaw = await Product.find({ ...baseFilter, condition: 'used' })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
+
+  const topRatingStats = await Rating.aggregate([
+    { $group: { _id: '$product', average: { $avg: '$value' }, count: { $sum: 1 } } },
+    { $match: { count: { $gt: 0 } } },
+    { $sort: { average: -1, count: -1 } },
+    { $limit: limit * 5 }
+  ]);
+
+  const ratingCandidateIds = topRatingStats.map((stat) => stat._id);
+  let ratingProductsRaw = [];
+  if (ratingCandidateIds.length) {
+    ratingProductsRaw = await Product.find({ _id: { $in: ratingCandidateIds }, status: 'approved' })
+      .lean();
+  }
+
+  const ratingProductMap = new Map(ratingProductsRaw.map((doc) => [String(doc._id), doc]));
+  const topRatedRaw = [];
+  for (const stat of topRatingStats) {
+    const product = ratingProductMap.get(String(stat._id));
+    if (product) {
+      topRatedRaw.push(product);
+      if (topRatedRaw.length >= limit) break;
+    }
+  }
+
+  const combinedMap = new Map();
+  favoritesRaw.forEach((doc) => combinedMap.set(String(doc._id), doc));
+  topRatedRaw.forEach((doc) => combinedMap.set(String(doc._id), doc));
+  dealsRaw.forEach((doc) => combinedMap.set(String(doc._id), doc));
+  discountRaw.forEach((doc) => combinedMap.set(String(doc._id), doc));
+  newRaw.forEach((doc) => combinedMap.set(String(doc._id), doc));
+  usedRaw.forEach((doc) => combinedMap.set(String(doc._id), doc));
+  const productIds = Array.from(combinedMap.values()).map((doc) => doc._id);
+
+  let commentStats = [];
+  let ratingStats = [];
+  if (productIds.length) {
+    commentStats = await Comment.aggregate([
+      { $match: { product: { $in: productIds } } },
+      { $group: { _id: '$product', count: { $sum: 1 } } }
+    ]);
+
+    ratingStats = await Rating.aggregate([
+      { $match: { product: { $in: productIds } } },
+      { $group: { _id: '$product', average: { $avg: '$value' }, count: { $sum: 1 } } }
+    ]);
+  }
+
+  const commentMap = new Map(commentStats.map((stat) => [String(stat._id), stat.count]));
+  const ratingMap = new Map(
+    ratingStats.map((stat) => [
+      String(stat._id),
+      { average: Number(stat.average?.toFixed(2) ?? 0), count: stat.count }
+    ])
+  );
+
+  const serialize = (doc) => {
+    const idStr = String(doc._id);
+    const rating = ratingMap.get(idStr) || { average: 0, count: 0 };
+    return {
+      ...doc,
+      commentCount: commentMap.get(idStr) || 0,
+      ratingAverage: rating.average,
+      ratingCount: rating.count
+    };
+  };
+
+  const favorites = favoritesRaw.map(serialize);
+  const topRated = topRatedRaw.map(serialize);
+  const topDeals = dealsRaw
+    .map(serialize)
+    .sort((a, b) => Number(a.price || 0) - Number(b.price || 0))
+    .slice(0, limit);
+  const topDiscounts = discountRaw.map(serialize).slice(0, limit);
+  const newProducts = newRaw.map(serialize).slice(0, limit);
+  const usedProducts = usedRaw.map(serialize).slice(0, limit);
+
+  res.json({ favorites, topRated, topDeals, topDiscounts, newProducts, usedProducts });
+});
+
 export const getPublicProductById = asyncHandler(async (req, res) => {
   const productDoc = await Product.findById(req.params.id)
     .select('-payment')
     .populate('user', 'name phone accountType shopName shopAddress shopLogo');
-  if (!productDoc || productDoc.status === 'disabled') {
+  if (!productDoc || productDoc.status !== 'approved') {
     return res.status(404).json({ message: 'Produit introuvable ou non publié.' });
   }
 
@@ -266,6 +375,7 @@ export const disableProduct = asyncHandler(async (req, res) => {
     product.lastStatusBeforeDisable = product.status;
   }
   product.status = 'disabled';
+  product.disabledByAdmin = req.user.role === 'admin';
   await product.save();
   res.json(product);
 });
@@ -275,6 +385,15 @@ export const enableProduct = asyncHandler(async (req, res) => {
   if (!product) return res.status(404).json({ message: 'Not found' });
   if (product.user.toString() !== req.user.id && req.user.role !== 'admin')
     return res.status(403).json({ message: 'Forbidden' });
+
+  if (product.disabledByAdmin && req.user.role !== 'admin') {
+    return res
+      .status(403)
+      .json({
+        message:
+          'Cette annonce a été désactivée par l\'administration. Merci de contacter un administrateur pour la réactiver.'
+      });
+  }
 
   const paymentStatus = product.payment?.status || null;
   let restoredStatus = product.lastStatusBeforeDisable;
@@ -291,6 +410,7 @@ export const enableProduct = asyncHandler(async (req, res) => {
 
   product.status = restoredStatus;
   product.lastStatusBeforeDisable = null;
+  product.disabledByAdmin = false;
   await product.save();
   res.json(product);
 });

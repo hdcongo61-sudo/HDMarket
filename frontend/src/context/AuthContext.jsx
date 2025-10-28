@@ -70,6 +70,12 @@ export const AuthProvider = ({ children }) => {
       } catch (e) {
         if (e.response?.status === 401) {
           logout();
+        } else if (e.response?.status === 403 && e.response?.data?.code === 'ACCOUNT_BLOCKED') {
+          const message =
+            e.response?.data?.message ||
+            'Votre compte est suspendu. Contactez l’administrateur pour plus d’informations.';
+          logout();
+          alert(message);
         }
       }
     };
