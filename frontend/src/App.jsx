@@ -11,6 +11,11 @@ import TopDeals from './pages/TopDeals';
 import TopRanking from './pages/TopRanking';
 import TopFavorites from './pages/TopFavorites';
 import TopDiscounts from './pages/TopDiscounts';
+import TopNewProducts from './pages/TopNewProducts';
+import TopUsedProducts from './pages/TopUsedProducts';
+import CategoryProducts from './pages/CategoryProducts';
+import Products from './pages/Products';
+import CityProducts from './pages/CityProducts';
 import ProtectedRoute from './components/ProtectedRoute';
 import ProductDetails from './pages/ProductDetails';
 import EditProduct from './pages/EditProduct';
@@ -35,6 +40,11 @@ export default function App() {
           <Route path="/top-ranking" element={<TopRanking />} />
           <Route path="/top-favorites" element={<TopFavorites />} />
           <Route path="/top-discounts" element={<TopDiscounts />} />
+          <Route path="/top-new" element={<TopNewProducts />} />
+          <Route path="/top-used" element={<TopUsedProducts />} />
+          <Route path="/products" element={<Products />} />
+          <Route path="/cities" element={<CityProducts />} />
+          <Route path="/categories/:categoryId" element={<CategoryProducts />} />
           <Route
             path="/favorites"
             element={

@@ -19,17 +19,22 @@ import {
   Heart,
   Store,
   ChevronDown,
-  Users
+  Users,
+  Package,
+  Settings,
+  Home,
+  UserCircle,
+  AlertCircle
 } from "lucide-react";
 
 /**
- * 🎨 Navbar moderne et responsive pour HDMarket
- * - Mobile-first avec menu hamburger
- * - Recherche globale
- * - Notifications + panier avec badges
- * - Menu utilisateur déroulant
- * - Mode clair/sombre (optionnel)
+ * 🎨 NAVBAR PREMIUM HDMarket - Version Mobile First
+ * - Pour les admins: "Mes annonces" retiré de la navbar desktop, conservé dans le dropdown
+ * - Lien profil utilisateur amélioré sur mobile
+ * - Gestion des erreurs robuste
+ * - Design responsive optimisé
  */
+
 export default function Navbar() {
   const navigate = useNavigate();
   const { user, logout } = useContext(AuthContext);
@@ -43,7 +48,7 @@ export default function Navbar() {
   const { counts: userNotifications } = useUserNotifications(Boolean(user));
   const commentAlerts = userNotifications.commentAlerts || 0;
 
-  // États du menu mobile et du mode clair/sombre
+  // États
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -57,34 +62,41 @@ export default function Navbar() {
   const [isShopMenuOpen, setIsShopMenuOpen] = useState(false);
   const [isMobileShopsOpen, setIsMobileShopsOpen] = useState(false);
 
+  // Mode sombre
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
 
+  // Recherche avec gestion d'erreur améliorée
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
       setSearchError("");
       return;
     }
+    
     const controller = new AbortController();
     const timeout = setTimeout(async () => {
       setSearching(true);
+      setSearchError("");
+      
       try {
         const { data } = await api.get(`/search?q=${encodeURIComponent(searchQuery)}`, {
           signal: controller.signal
         });
         setSearchResults(Array.isArray(data?.products) ? data.products : []);
-        setSearchError("");
         setShowResults(true);
-      } catch (e) {
-        if (e.name !== "CanceledError" && e.name !== "AbortError") {
-          setSearchError("Erreur lors de la recherche");
+      } catch (error) {
+        if (error.name !== "CanceledError" && error.name !== "AbortError") {
+          console.error("Search error:", error);
+          setSearchError("Erreur lors de la recherche. Veuillez réessayer.");
+          setSearchResults([]);
         }
       } finally {
         setSearching(false);
       }
-    }, 250);
+    }, 300);
+    
     return () => {
       clearTimeout(timeout);
       controller.abort();
@@ -111,19 +123,24 @@ export default function Navbar() {
     }
   };
 
+  // Chargement des boutiques avec gestion d'erreur
   useEffect(() => {
     let cancelled = false;
+    
     const loadShops = async () => {
       setShopsLoading(true);
       setShopsError("");
+      
       try {
         const { data } = await api.get("/shops");
         if (!cancelled) {
           setShops(Array.isArray(data) ? data : []);
         }
-      } catch (e) {
+      } catch (error) {
         if (!cancelled) {
-          setShopsError("Impossible de charger les boutiques.");
+          console.error("Shops loading error:", error);
+          setShopsError("Impossible de charger les boutiques. Vérifiez votre connexion.");
+          setShops([]);
         }
       } finally {
         if (!cancelled) {
@@ -131,6 +148,7 @@ export default function Navbar() {
         }
       }
     };
+    
     loadShops();
     return () => {
       cancelled = true;
@@ -138,441 +156,660 @@ export default function Navbar() {
   }, []);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-lg bg-white/70 dark:bg-gray-900/70 shadow-sm border-b border-gray-200 dark:border-gray-800 transition">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* === LOGO === */}
-          <Link
-            to="/"
-            className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 tracking-tight"
-          >
-            HDMarket
-          </Link>
+    <>
+      {/* 🎯 NAVBAR PRINCIPALE */}
+      <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 shadow-lg border-b border-gray-200/50 dark:border-gray-800/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            
+            {/* === LOGO HDMarket === */}
+            <Link to="/" className="flex items-center space-x-3 group">
+              <div className="w-9 h-9 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
+                <span className="text-white font-bold text-sm">HD</span>
+              </div>
+              <div className="hidden sm:flex flex-col">
+                <span className="text-xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                  HDMarket
+                </span>
+                <span className="text-xs text-gray-500 -mt-1">Marketplace Premium</span>
+              </div>
+            </Link>
 
-          {/* === ACTIONS (Desktop) === */}
-          <div className="hidden md:flex items-center gap-5">
-            <NavLink to="/" className="hover:text-indigo-600">
-              Accueil
-            </NavLink>
-            <div
-              className="relative"
-              onMouseEnter={() => setIsShopMenuOpen(true)}
-              onMouseLeave={() => setIsShopMenuOpen(false)}
-            >
-              <button
-                type="button"
-                onClick={() => setIsShopMenuOpen((prev) => !prev)}
-                onFocus={() => setIsShopMenuOpen(true)}
-                className="inline-flex items-center gap-1 hover:text-indigo-600"
-              >
-                <Store size={18} />
-                Boutiques
-                <ChevronDown
-                  size={16}
-                  className={`transition-transform ${isShopMenuOpen ? "rotate-180" : ""}`}
-                />
-              </button>
-              {isShopMenuOpen && (
-                <div className="absolute left-0 mt-2 w-72 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-40 p-3 space-y-2">
-                  {shopsLoading ? (
-                    <p className="text-sm text-gray-500">Chargement…</p>
-                  ) : shopsError ? (
-                    <p className="text-sm text-red-600">{shopsError}</p>
-                  ) : shops.length === 0 ? (
-                    <p className="text-sm text-gray-500">Aucune boutique enregistrée pour le moment.</p>
-                  ) : (
-                    <ul className="space-y-2 max-h-72 overflow-auto">
-                      {shops.map((shop) => (
-                        <li key={shop._id}>
-                          <Link
-                            to={`/shop/${shop._id}`}
-                            className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-                            onClick={() => setIsShopMenuOpen(false)}
-                          >
-                            <img
-                              src={shop.shopLogo || "https://via.placeholder.com/50"}
-                              alt={shop.shopName}
-                              className="h-10 w-10 rounded-full object-cover border border-gray-200 dark:border-gray-700"
-                              loading="lazy"
-                            />
-                            <div className="flex flex-col text-sm">
-                              <span className="font-semibold text-gray-900 dark:text-white">
-                                {shop.shopName}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                {shop.shopAddress || "Adresse non renseignée"}
-                              </span>
-                              <span className="text-xs text-indigo-600">
-                                {shop.productCount} annonce{shop.productCount > 1 ? "s" : ""}
-                              </span>
-                            </div>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-            </div>
-
+            {/* === PROFIL UTILISATEUR MOBILE - TOUJOURS VISIBLE === */}
             {user && (
-              <>
-                <NavLink to="/my" className="hover:text-indigo-600">
-                  Mes annonces
-                </NavLink>
-                <NavLink to="/notifications" className="relative hover:text-indigo-600">
-                  <Bell size={20} />
-                  {commentAlerts > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
-                      {commentAlerts}
+              <div className="md:hidden flex items-center">
+                <Link 
+                  to="/profile"
+                  className="flex items-center gap-2 p-2 rounded-xl bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-100 dark:border-indigo-800"
+                >
+                  <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center">
+                    <UserCircle className="text-white" size={16} />
+                  </div>
+                  <div className="hidden xs:flex flex-col items-start max-w-24">
+                    <span className="font-semibold text-gray-900 dark:text-white text-xs truncate">
+                      {user.name || "Profil"}
                     </span>
-                  )}
-                </NavLink>
-              </>
+                    <span className="text-[10px] text-indigo-600 font-medium">Voir profil</span>
+                  </div>
+                </Link>
+              </div>
             )}
 
-            {user?.role === "admin" && (
-              <>
-                <NavLink to="/admin" className="relative hover:text-indigo-600">
-                  <Bell size={20} />
+            {/* === ACTIONS UTILISATEUR (Desktop) === */}
+            <div className="hidden md:flex items-center gap-2">
+              
+              {/* Accueil */}
+              <NavLink 
+                to="/" 
+                className={({ isActive }) => 
+                  `flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-200 ${
+                    isActive 
+                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg' 
+                      : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`
+                }
+              >
+                <Home size={18} />
+                <span className="font-medium">Accueil</span>
+              </NavLink>
+
+              {/* Boutiques */}
+              <div className="relative">
+                <button
+                  onMouseEnter={() => setIsShopMenuOpen(true)}
+                  onMouseLeave={() => setIsShopMenuOpen(false)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200"
+                >
+                  <Store size={18} />
+                  <span className="font-medium">Boutiques</span>
+                  <ChevronDown
+                    size={16}
+                    className={`transition-transform duration-200 ${isShopMenuOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+                
+                {/* MENU DÉROULANT BOUTIQUES */}
+                {isShopMenuOpen && (
+                  <div 
+                    className="absolute left-0 mt-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl z-40 overflow-hidden"
+                    onMouseEnter={() => setIsShopMenuOpen(true)}
+                    onMouseLeave={() => setIsShopMenuOpen(false)}
+                  >
+                    <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+                      <h3 className="font-bold text-gray-900 dark:text-white">Nos Boutiques</h3>
+                      <p className="text-sm text-gray-500 mt-1">Découvrez nos vendeurs professionnels</p>
+                    </div>
+                    
+                    <div className="max-h-96 overflow-auto">
+                      {shopsLoading ? (
+                        <div className="p-4 flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-6 w-6 border-2 border-indigo-600 border-t-transparent"></div>
+                        </div>
+                      ) : shopsError ? (
+                        <div className="p-4 text-center text-red-500 text-sm flex items-center justify-center gap-2">
+                          <AlertCircle size={16} />
+                          {shopsError}
+                        </div>
+                      ) : shops.length === 0 ? (
+                        <div className="p-4 text-center text-gray-500 text-sm">
+                          Aucune boutique enregistrée pour le moment.
+                        </div>
+                      ) : (
+                        <div className="p-2">
+                          {shops.map((shop) => (
+                            <Link
+                              key={shop._id}
+                              to={`/shop/${shop._id}`}
+                              className="flex items-center gap-3 rounded-xl p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
+                              onClick={() => setIsShopMenuOpen(false)}
+                            >
+                              <img
+                                src={shop.shopLogo || "/api/placeholder/60/60"}
+                                alt={shop.shopName}
+                                className="h-12 w-12 rounded-xl object-cover border border-gray-200 dark:border-gray-600 group-hover:border-indigo-300 transition-colors"
+                                onError={(e) => {
+                                  e.target.src = "/api/placeholder/60/60";
+                                }}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <span className="font-semibold text-gray-900 dark:text-white text-sm block group-hover:text-indigo-600 transition-colors">
+                                  {shop.shopName}
+                                </span>
+                                <span className="text-xs text-gray-500 block mt-1 truncate">
+                                  {shop.shopAddress || "Adresse non renseignée"}
+                                </span>
+                                <span className="text-xs text-indigo-600 font-semibold">
+                                  {shop.productCount || 0} annonce{shop.productCount > 1 ? "s" : ""}
+                                </span>
+                              </div>
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Utilisateur connecté - MASQUER "Mes annonces" POUR LES ADMINS SUR DESKTOP */}
+              {user && (
+                <>
+                  {/* "Mes annonces" n'est affiché que pour les non-admins sur desktop */}
+                  {user.role !== "admin" && (
+                    <NavLink 
+                      to="/my" 
+                      className={({ isActive }) => 
+                        `flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-200 ${
+                          isActive 
+                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg' 
+                            : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
+                        }`
+                      }
+                    >
+                      <Package size={18} />
+                      <span className="font-medium">Mes annonces</span>
+                    </NavLink>
+                  )}
+
+                  <NavLink 
+                    to="/notifications" 
+                    className="relative flex items-center gap-2 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200"
+                  >
+                    <Bell size={18} />
+                    <span className="font-medium">Notifications</span>
+                    {commentAlerts > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                        {commentAlerts}
+                      </span>
+                    )}
+                  </NavLink>
+                </>
+              )}
+
+              {/* Admin */}
+              {user?.role === "admin" && (
+                <NavLink 
+                  to="/admin" 
+                  className="relative flex items-center gap-2 px-3 py-2 rounded-xl text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all duration-200"
+                >
+                  <Settings size={18} />
+                  <span className="font-medium">Admin</span>
                   {waitingPayments > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-yellow-400 text-black text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
+                    <span className="absolute -top-1 -right-1 bg-yellow-400 text-black text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                       {waitingPayments}
                     </span>
                   )}
                 </NavLink>
-                <NavLink to="/admin/users" className="flex items-center gap-1 hover:text-indigo-600 text-sm">
-                  <Users size={18} />
-                  Gestion utilisateurs
-                </NavLink>
-              </>
-            )}
-
-            {/* Favoris */}
-            <NavLink to="/favorites" className="relative hover:text-indigo-600">
-              <Heart size={20} />
-              {favoritesCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
-                  {favoritesCount}
-                </span>
               )}
-            </NavLink>
 
-            {/* Panier */}
-            <NavLink to="/cart" className="relative hover:text-indigo-600">
-              <ShoppingCart size={20} />
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-indigo-600 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
-                  {cartCount}
-                </span>
-              )}
-            </NavLink>
+              {/* Favoris */}
+              <NavLink 
+                to="/favorites" 
+                className="relative flex items-center gap-2 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200"
+              >
+                <Heart size={18} />
+                <span className="font-medium">Favoris</span>
+                {favoritesCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                    {favoritesCount}
+                  </span>
+                )}
+              </NavLink>
 
-            {/* Mode clair/sombre */}
-            <button
-              onClick={() => setDarkMode((p) => !p)}
-              className="hover:text-indigo-600"
-            >
-              {darkMode ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
+              {/* Panier */}
+              <NavLink 
+                to="/cart" 
+                className="relative flex items-center gap-2 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200"
+              >
+                <ShoppingCart size={18} />
+                <span className="font-medium">Panier</span>
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-indigo-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                    {cartCount}
+                  </span>
+                )}
+              </NavLink>
 
-            {/* Utilisateur */}
-            {!user ? (
-              <div className="flex items-center gap-3">
-                <NavLink
-                  to="/login"
-                  className="px-3 py-1 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition"
-                >
-                  Connexion
-                </NavLink>
-                <NavLink
-                  to="/register"
-                  className="px-3 py-1 border border-indigo-600 text-indigo-600 rounded-lg hover:bg-indigo-50 transition"
-                >
-                  Inscription
-                </NavLink>
-              </div>
-            ) : (
-              <div className="relative group">
-                <button className="flex items-center gap-2 hover:text-indigo-600">
-                  <User size={20} />
-                  <span>{user.name || "Mon compte"}</span>
-                </button>
-                {/* Menu déroulant */}
-                <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-800 border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-                  <Link
-                    to="/profile"
-                    className="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+              {/* Mode clair/sombre */}
+              <button
+                onClick={() => setDarkMode((p) => !p)}
+                className="flex items-center justify-center w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200"
+                aria-label={darkMode ? "Activer le mode clair" : "Activer le mode sombre"}
+              >
+                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+
+              {/* Compte utilisateur */}
+              {!user ? (
+                <div className="flex items-center gap-2">
+                  <NavLink
+                    to="/login"
+                    className="px-3 py-2 rounded-xl border border-indigo-600 text-indigo-600 font-medium hover:bg-indigo-50 transition-all duration-200"
                   >
-                    Profil
-                  </Link>
-                  <button
-                    onClick={logout}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                    Connexion
+                  </NavLink>
+                  <NavLink
+                    to="/register"
+                    className="px-3 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-200"
                   >
-                    <LogOut size={14} className="inline mr-1" /> Déconnexion
+                    Inscription
+                  </NavLink>
+                </div>
+              ) : (
+                <div className="relative group">
+                  <button className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200">
+                    <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center">
+                      <span className="text-white font-semibold text-sm">
+                        {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                      </span>
+                    </div>
+                    <span className="font-medium text-gray-700 dark:text-gray-200 max-w-24 truncate hidden lg:block">
+                      {user.name || "Mon compte"}
+                    </span>
+                    <ChevronDown size={16} className="text-gray-500 hidden lg:block" />
                   </button>
+                  
+                  {/* MENU DÉROULANT UTILISATEUR - GARDE "Mes annonces" POUR TOUS */}
+                  <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                    <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+                      <p className="font-semibold text-gray-900 dark:text-white truncate">
+                        {user.name || "Utilisateur"}
+                      </p>
+                      <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                    </div>
+                    <div className="p-2">
+                      <Link
+                        to="/profile"
+                        className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                      >
+                        <User size={16} />
+                        <span>Mon profil</span>
+                      </Link>
+                      {/* "Mes annonces" conservé dans le dropdown même pour les admins */}
+                      <Link
+                        to="/my"
+                        className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                      >
+                        <Package size={16} />
+                        <span>Mes annonces</span>
+                      </Link>
+                      <button
+                        onClick={logout}
+                        className="flex items-center gap-3 px-3 py-2 rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors w-full text-left"
+                      >
+                        <LogOut size={16} />
+                        <span>Déconnexion</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* === BOUTON MENU MOBILE === */}
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="md:hidden flex items-center justify-center w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200"
+              aria-label={isMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+            >
+              {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
+        </div>
+
+        {/* === BARRE DE RECHERCHE DESCENDUE (Desktop) === */}
+        <div className="hidden lg:block border-t border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex items-center justify-center">
+              <div className="w-full max-w-2xl">
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Rechercher des produits, marques, catégories ou boutiques..."
+                    className="w-full pl-12 pr-4 py-3 bg-gray-100 dark:bg-gray-800 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-gray-700 transition-all duration-200 placeholder-gray-500 text-sm"
+                    onFocus={() => setShowResults(true)}
+                    onKeyDown={handleSearchKeyDown}
+                    onBlur={() => setTimeout(() => setShowResults(false), 150)}
+                  />
+                  
+                  {/* RÉSULTATS DE RECHERCHE POUR BARRE DESCENDUE */}
+                  {showResults && (searchResults.length > 0 || searchQuery.trim()) && (
+                    <div className="absolute top-14 left-0 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl max-h-80 overflow-auto z-50">
+                      {searching && (
+                        <div className="px-4 py-3 flex items-center space-x-3">
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-600 border-t-transparent"></div>
+                          <span className="text-sm text-gray-500">Recherche en cours...</span>
+                        </div>
+                      )}
+                      {!searching && searchError && (
+                        <div className="px-4 py-3 flex items-center space-x-3 text-red-500 text-sm">
+                          <AlertCircle size={16} />
+                          {searchError}
+                        </div>
+                      )}
+                      {!searching && !searchError && searchResults.length === 0 && searchQuery.trim() && (
+                        <div className="px-4 py-3 text-center text-gray-500">
+                          Aucun résultat pour « {searchQuery} »
+                        </div>
+                      )}
+                      {searchResults.map((product) => (
+                        <button
+                          key={product._id}
+                          type="button"
+                          onClick={() => handleSelectResult(product)}
+                          className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors"
+                        >
+                          <img
+                            src={product.image || product.shopLogo || "/api/placeholder/60/60"}
+                            alt={product.title}
+                            className="h-10 w-10 rounded-lg object-cover border border-gray-200 dark:border-gray-600"
+                            onError={(e) => {
+                              e.target.src = "/api/placeholder/60/60";
+                            }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <span className="font-semibold text-gray-900 dark:text-white text-sm block truncate">
+                              {product.title}
+                            </span>
+                            <span className="text-gray-500 text-xs flex items-center gap-2 mt-1">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                product.type === 'shop'
+                                  ? 'bg-green-100 text-green-700'
+                                  : product.type === 'category'
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : 'bg-indigo-100 text-indigo-700'
+                              }`}>
+                                {product.type === 'shop' ? 'Boutique' : product.type === 'category' ? 'Catégorie' : 'Produit'}
+                              </span>
+                              <span className="truncate">
+                                {product.type === 'shop'
+                                  ? product.shopAddress || 'Adresse non renseignée'
+                                  : product.type === 'category'
+                                  ? product.category
+                                  : `${product.category}${product.shopName ? ` • ${product.shopName}` : ''}`}
+                              </span>
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
-
-          {/* === BOUTON MOBILE === */}
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="md:hidden p-2 text-gray-700 dark:text-gray-200"
-          >
-            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-        </div>
-      </div>
-
-      {/* === SEARCH BAR (Desktop, second row) === */}
-      <div className="hidden md:flex justify-center px-4 sm:px-6 lg:px-8 pb-3">
-        <div className="relative w-full max-w-3xl">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Rechercher par produit, catégorie ou boutique"
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            onFocus={() => setShowResults(true)}
-            onKeyDown={handleSearchKeyDown}
-            onBlur={() => setTimeout(() => setShowResults(false), 150)}
-          />
-          {showResults && (searchResults.length > 0 || searchQuery.trim()) && (
-            <div
-              className="absolute top-11 left-0 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-80 overflow-auto z-50"
-              onMouseDown={(e) => e.preventDefault()}
-            >
-              {searching && (
-                <p className="px-4 py-2 text-sm text-gray-500">Recherche…</p>
-              )}
-              {!searching && searchError && (
-                <p className="px-4 py-2 text-sm text-red-500">{searchError}</p>
-              )}
-              {!searching && !searchError && searchResults.length === 0 && (
-                <p className="px-4 py-2 text-sm text-gray-500">
-                  Aucun résultat pour « {searchQuery} »
-                </p>
-              )}
-              {searchResults.map((product) => (
-                <button
-                  key={product._id}
-                  type="button"
-                  onClick={() => handleSelectResult(product)}
-                  className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3"
-                >
-                  <img
-                    src={product.image || product.shopLogo || "https://via.placeholder.com/60"}
-                    alt={product.title}
-                    className="h-10 w-10 rounded object-cover"
-                  />
-                  <div className="flex flex-col text-sm">
-                    <span className="font-semibold text-gray-900 dark:text-white">
-                      {product.title}
-                    </span>
-                    <span className="text-gray-500 flex items-center gap-1">
-                      <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-[11px] uppercase tracking-wide font-semibold text-gray-700 dark:text-gray-200">
-                        {product.type === 'shop'
-                          ? 'Boutique'
-                          : product.type === 'category'
-                          ? 'Catégorie'
-                          : 'Produit'}
-                      </span>
-                      <span>
-                        {product.type === 'shop'
-                          ? product.shopAddress || 'Adresse non renseignée'
-                          : product.type === 'category'
-                          ? product.category
-                          : `${product.category}${product.shopName ? ` • ${product.shopName}` : ''}`}
-                      </span>
-                    </span>
-                  </div>
-                </button>
-              ))}
             </div>
-          )}
+          </div>
         </div>
-      </div>
+
+        {/* === BARRE DE RECHERCHE MOBILE === */}
+        <div className="lg:hidden border-t border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm">
+          <div className="max-w-7xl mx-auto px-4 py-3">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Rechercher produits, boutiques..."
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-100 dark:bg-gray-800 border-0 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-gray-700 transition-all duration-200 text-sm"
+                onFocus={() => setShowResults(true)}
+                onKeyDown={handleSearchKeyDown}
+                onBlur={() => setTimeout(() => setShowResults(false), 150)}
+              />
+            </div>
+          </div>
+        </div>
+      </nav>
 
       {/* === MENU MOBILE === */}
       {isMenuOpen && (
-        <div className="md:hidden bg-white/95 dark:bg-gray-900/95 border-t border-gray-200 dark:border-gray-800">
-          <div className="flex flex-col space-y-2 p-4 text-sm">
-            <div className="relative">
-              <div className="flex items-center border rounded-lg px-3 py-2 bg-white dark:bg-gray-800">
-                <Search className="text-gray-400 mr-2" size={18} />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Rechercher un produit, une catégorie ou une boutique"
-                  className="flex-1 bg-transparent text-sm focus:outline-none"
-                  onFocus={() => setShowResults(true)}
-                  onKeyDown={handleSearchKeyDown}
-                  onBlur={() => setTimeout(() => setShowResults(false), 150)}
-                />
-              </div>
-              {showResults && (searchResults.length > 0 || searchQuery.trim()) && (
-                <div
-                  className="absolute left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-60 overflow-auto z-50"
-                  onMouseDown={(e) => e.preventDefault()}
-                >
-                  {searching && (
-                    <p className="px-4 py-2 text-sm text-gray-500">Recherche…</p>
-                  )}
-                  {!searching && searchError && (
-                    <p className="px-4 py-2 text-sm text-red-500">{searchError}</p>
-                  )}
-                  {!searching && !searchError && searchResults.length === 0 && (
-                    <p className="px-4 py-2 text-sm text-gray-500">
-                      Aucun résultat pour « {searchQuery} »
-                    </p>
-                  )}
-                  {searchResults.map((product) => (
-                    <button
-                      key={product._id}
-                      type="button"
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        handleSelectResult(product);
-                      }}
-                      className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3"
+        <div className="md:hidden fixed inset-0 z-40 pt-16">
+          <div 
+            className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+            onClick={() => setIsMenuOpen(false)}
+          />
+          <div className="absolute top-0 left-0 right-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 shadow-xl max-h-[80vh] overflow-auto">
+            <div className="max-w-7xl mx-auto px-4 py-4">
+              <div className="grid gap-2">
+                
+                {/* PROFIL UTILISATEUR MOBILE AMÉLIORÉ */}
+                {user && (
+                  <div className="pb-3 border-b border-gray-200 dark:border-gray-700 mb-2">
+                    <Link 
+                      to="/profile"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-100 dark:border-indigo-800 hover:shadow-md transition-all duration-200"
                     >
-                      <img
-                      src={product.image || product.shopLogo || "https://via.placeholder.com/60"}
-                        alt={product.title}
-                        className="h-10 w-10 rounded object-cover"
-                      />
-                      <div className="flex flex-col text-sm">
-                        <span className="font-semibold text-gray-900 dark:text-white">
-                          {product.title}
-                        </span>
-                        <span className="text-gray-500 flex items-center gap-1">
-                          <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-[11px] uppercase tracking-wide font-semibold text-gray-700 dark:text-gray-200">
-                            {product.type === 'shop'
-                              ? 'Boutique'
-                              : product.type === 'category'
-                              ? 'Catégorie'
-                              : 'Produit'}
-                          </span>
-                          <span>
-                            {product.type === 'shop'
-                              ? product.shopAddress || 'Adresse non renseignée'
-                              : product.type === 'category'
-                              ? product.category
-                              : `${product.category}${product.shopName ? ` • ${product.shopName}` : ''}`}
-                          </span>
-                        </span>
+                      <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center shadow-md">
+                        <UserCircle className="text-white" size={20} />
                       </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <NavLink to="/" onClick={() => setIsMenuOpen(false)}>
-              Accueil
-            </NavLink>
-            <button
-              type="button"
-              onClick={() => setIsMobileShopsOpen((prev) => !prev)}
-              className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-left"
-            >
-              <span className="inline-flex items-center gap-2">
-                <Store size={16} />
-                Boutiques
-              </span>
-              <ChevronDown
-                size={16}
-                className={`transition-transform ${isMobileShopsOpen ? "rotate-180" : ""}`}
-              />
-            </button>
-            {isMobileShopsOpen && (
-              <div className="space-y-2 rounded-lg border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-xs text-gray-600 dark:text-gray-300">
-                {shopsLoading ? (
-                  <p>Chargement…</p>
-                ) : shopsError ? (
-                  <p className="text-red-500">{shopsError}</p>
-                ) : shops.length === 0 ? (
-                  <p>Aucune boutique enregistrée.</p>
-                ) : (
-                  shops.map((shop) => (
-                    <Link
-                      key={shop._id}
-                      to={`/shop/${shop._id}`}
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        setIsMobileShopsOpen(false);
-                      }}
-                      className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-white dark:hover:bg-gray-700 transition"
-                    >
-                      <img
-                        src={shop.shopLogo || "https://via.placeholder.com/50"}
-                        alt={shop.shopName}
-                        className="h-8 w-8 rounded-full object-cover border border-gray-200 dark:border-gray-700"
-                        loading="lazy"
-                      />
                       <div className="flex-1">
-                        <p className="font-medium text-gray-800 dark:text-white text-sm">{shop.shopName}</p>
-                        <p>{shop.productCount} annonce{shop.productCount > 1 ? "s" : ""}</p>
+                        <p className="font-semibold text-gray-900 dark:text-white text-sm">
+                          {user.name || "Utilisateur"}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                        <p className="text-xs text-indigo-600 font-medium mt-1 flex items-center gap-1">
+                          Voir mon profil <ChevronDown size={12} className="rotate-270" />
+                        </p>
                       </div>
                     </Link>
-                  ))
+                  </div>
+                )}
+
+                {/* Navigation principale mobile */}
+                <NavLink 
+                  to="/" 
+                  onClick={() => setIsMenuOpen(false)}
+                  className={({ isActive }) => 
+                    `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                      isActive 
+                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg' 
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
+                    }`
+                  }
+                >
+                  <Home size={20} />
+                  Accueil
+                </NavLink>
+
+                {/* Boutiques mobile avec gestion d'erreur */}
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setIsMobileShopsOpen(!isMobileShopsOpen)}
+                    className="flex items-center justify-between w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Store size={20} />
+                      Boutiques
+                    </div>
+                    <ChevronDown
+                      size={16}
+                      className={`transition-transform ${isMobileShopsOpen ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                  
+                  {isMobileShopsOpen && (
+                    <div className="ml-4 space-y-2 rounded-xl bg-gray-50 dark:bg-gray-800/50 p-3 border border-gray-200 dark:border-gray-700">
+                      {shopsLoading ? (
+                        <div className="flex items-center justify-center py-4">
+                          <div className="animate-spin rounded-full h-6 w-6 border-2 border-indigo-600 border-t-transparent"></div>
+                        </div>
+                      ) : shopsError ? (
+                        <div className="text-red-500 text-sm text-center py-2 flex items-center justify-center gap-2">
+                          <AlertCircle size={16} />
+                          {shopsError}
+                        </div>
+                      ) : shops.length === 0 ? (
+                        <div className="text-gray-500 text-sm text-center py-2">
+                          Aucune boutique disponible
+                        </div>
+                      ) : (
+                        shops.map((shop) => (
+                          <Link
+                            key={shop._id}
+                            to={`/shop/${shop._id}`}
+                            onClick={() => {
+                              setIsMenuOpen(false);
+                              setIsMobileShopsOpen(false);
+                            }}
+                            className="flex items-center gap-3 p-3 rounded-lg hover:bg-white dark:hover:bg-gray-700 transition-colors border border-transparent hover:border-gray-200 dark:hover:border-gray-600"
+                          >
+                            <img
+                              src={shop.shopLogo || "/api/placeholder/50/50"}
+                              alt={shop.shopName}
+                              className="h-10 w-10 rounded-lg object-cover border border-gray-200 dark:border-gray-600"
+                              onError={(e) => {
+                                e.target.src = "/api/placeholder/50/50";
+                              }}
+                            />
+                            <div className="flex-1">
+                              <p className="font-semibold text-gray-900 dark:text-white text-sm">
+                                {shop.shopName}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {shop.productCount || 0} annonce{shop.productCount > 1 ? "s" : ""}
+                              </p>
+                            </div>
+                          </Link>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Utilisateur connecté mobile - TOUJOURS AFFICHER "Mes annonces" */}
+                {user && (
+                  <>
+                    <NavLink 
+                      to="/my" 
+                      onClick={() => setIsMenuOpen(false)}
+                      className={({ isActive }) => 
+                        `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                          isActive 
+                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg' 
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
+                        }`
+                      }
+                    >
+                      <Package size={20} />
+                      Mes annonces
+                    </NavLink>
+
+                    <NavLink 
+                      to="/notifications" 
+                      onClick={() => setIsMenuOpen(false)}
+                      className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <Bell size={20} />
+                      Notifications
+                      {commentAlerts > 0 && (
+                        <span className="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                          {commentAlerts}
+                        </span>
+                      )}
+                    </NavLink>
+                  </>
+                )}
+
+                {/* Admin mobile */}
+                {user?.role === "admin" && (
+                  <>
+                    <NavLink 
+                      to="/admin" 
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 font-medium hover:bg-amber-200 dark:hover:bg-amber-900/30 transition-colors"
+                    >
+                      <Settings size={20} />
+                      Administration
+                      {waitingPayments > 0 && (
+                        <span className="ml-auto bg-yellow-400 text-black text-xs font-bold px-2 py-1 rounded-full">
+                          {waitingPayments}
+                        </span>
+                      )}
+                    </NavLink>
+                  </>
+                )}
+
+                {/* Actions communes */}
+                <NavLink 
+                  to="/favorites" 
+                  onClick={() => setIsMenuOpen(false)}
+                  className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <Heart size={20} />
+                  Favoris
+                  {favoritesCount > 0 && (
+                    <span className="ml-auto bg-pink-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      {favoritesCount}
+                    </span>
+                  )}
+                </NavLink>
+
+                <NavLink 
+                  to="/cart" 
+                  onClick={() => setIsMenuOpen(false)}
+                  className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <ShoppingCart size={20} />
+                  Panier
+                  {cartCount > 0 && (
+                    <span className="ml-auto bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      {cartCount}
+                    </span>
+                  )}
+                </NavLink>
+
+                {/* Mode sombre mobile */}
+                <button
+                  onClick={() => setDarkMode(!darkMode)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+                  {darkMode ? "Mode clair" : "Mode sombre"}
+                </button>
+
+                {/* Authentification mobile */}
+                {!user ? (
+                  <div className="grid grid-cols-2 gap-3 pt-4 border-t border-gray-200 dark:border-gray-800">
+                    <NavLink
+                      to="/login"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="px-4 py-3 rounded-xl border border-indigo-600 text-indigo-600 text-center font-medium hover:bg-indigo-50 transition-colors"
+                    >
+                      Connexion
+                    </NavLink>
+                    <NavLink
+                      to="/register"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-center font-medium hover:from-indigo-700 hover:to-purple-700 transition-colors"
+                    >
+                      Inscription
+                    </NavLink>
+                  </div>
+                ) : (
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+                    <button
+                      onClick={() => {
+                        logout();
+                        setIsMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    >
+                      <LogOut size={20} />
+                      Déconnexion
+                    </button>
+                  </div>
                 )}
               </div>
-            )}
-            {user && (
-              <>
-                <NavLink to="/my" onClick={() => setIsMenuOpen(false)}>
-                  Mes annonces
-                </NavLink>
-                <NavLink to="/notifications" onClick={() => setIsMenuOpen(false)}>
-                  Notifications
-                </NavLink>
-              </>
-            )}
-            {user?.role === "admin" && (
-              <NavLink to="/admin" onClick={() => setIsMenuOpen(false)}>
-                Tableau Admin
-              </NavLink>
-            )}
-            {user?.role === "admin" && (
-              <NavLink to="/admin/users" onClick={() => setIsMenuOpen(false)}>
-                Gestion utilisateurs
-              </NavLink>
-            )}
-            <NavLink to="/favorites" onClick={() => setIsMenuOpen(false)}>
-              Favoris ({favoritesCount})
-            </NavLink>
-            <NavLink to="/cart" onClick={() => setIsMenuOpen(false)}>
-              Panier ({cartCount})
-            </NavLink>
-
-            {!user ? (
-              <>
-                <NavLink to="/login" onClick={() => setIsMenuOpen(false)}>
-                  Connexion
-                </NavLink>
-                <NavLink to="/register" onClick={() => setIsMenuOpen(false)}>
-                  Inscription
-                </NavLink>
-              </>
-            ) : (
-              <button
-                onClick={() => {
-                  logout();
-                  setIsMenuOpen(false);
-                }}
-                className="text-left text-red-600"
-              >
-                Déconnexion
-              </button>
-            )}
+            </div>
           </div>
         </div>
       )}
-    </nav>
+
+      {/* ESPACE POUR LA NAVBAR FIXE */}
+      <div className="h-16 lg:h-24"></div>
+    </>
   );
 }

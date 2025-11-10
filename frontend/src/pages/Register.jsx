@@ -1,7 +1,8 @@
 import React, { useContext, useState } from 'react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
-import { useNavigate, Navigate, useLocation } from 'react-router-dom';
+import { useNavigate, Navigate, useLocation, Link } from 'react-router-dom';
+import { Eye, EyeOff, UserPlus, User, Mail, Lock, Phone, Store, MapPin, Camera, Upload, CheckCircle2, ArrowLeft } from 'lucide-react';
 
 export default function Register() {
   const { user, login } = useContext(AuthContext);
@@ -16,11 +17,45 @@ export default function Register() {
     accountType: 'person',
     shopName: '',
     shopAddress: '',
-    shopLogo: null
+    shopLogo: null,
+    country: 'République du Congo',
+    city: '',
+    gender: ''
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [shopLogoPreview, setShopLogoPreview] = useState(null);
+  const cities = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
+  const genderOptions = [
+    { value: 'homme', label: 'Homme' },
+    { value: 'femme', label: 'Femme' }
+  ];
+
+  const handleShopLogoChange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      setForm({ ...form, shopLogo: file });
+      const previewUrl = URL.createObjectURL(file);
+      setShopLogoPreview(previewUrl);
+    }
+  };
+
+  const removeShopLogo = () => {
+    setForm({ ...form, shopLogo: null });
+    setShopLogoPreview(null);
+    // Nettoyer l'URL de l'image preview pour éviter les fuites mémoire
+    if (shopLogoPreview) {
+      URL.revokeObjectURL(shopLogoPreview);
+    }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
+    if (!form.city || !form.gender) {
+      alert("Veuillez sélectionner votre ville et votre genre.");
+      return;
+    }
+    setLoading(true);
     try {
       const payload = new FormData();
       payload.append('name', form.name);
@@ -28,6 +63,10 @@ export default function Register() {
       payload.append('password', form.password);
       payload.append('phone', form.phone);
       payload.append('accountType', form.accountType);
+      payload.append('country', 'République du Congo');
+      payload.append('city', form.city);
+      payload.append('gender', form.gender);
+      
       if (form.accountType === 'shop') {
         payload.append('shopName', form.shopName);
         payload.append('shopAddress', form.shopAddress);
@@ -43,6 +82,8 @@ export default function Register() {
       nav(from, { replace: true });
     } catch (error) {
       alert(error.response?.data?.message || error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -51,90 +92,419 @@ export default function Register() {
   }
 
   return (
-    <div className="max-w-md mx-auto p-4">
-      <h2 className="text-2xl font-bold mb-4">Inscription</h2>
-      <form onSubmit={submit} className="space-y-3">
-        <input
-          className="w-full border p-2"
-          placeholder="Nom"
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-        />
-        <input
-          className="w-full border p-2"
-          placeholder="Email"
-          value={form.email}
-          onChange={(e) => setForm({ ...form, email: e.target.value })}
-        />
-        <input
-          type="password"
-          className="w-full border p-2"
-          placeholder="Mot de passe"
-          value={form.password}
-          onChange={(e) => setForm({ ...form, password: e.target.value })}
-        />
-        <input
-          className="w-full border p-2"
-          placeholder="Téléphone"
-          value={form.phone}
-          onChange={(e) => setForm({ ...form, phone: e.target.value })}
-        />
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Type de compte</label>
-          <select
-            className="w-full border p-2"
-            value={form.accountType}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                accountType: e.target.value,
-                shopName: '',
-                shopAddress: '',
-                shopLogo: null
-              })
-            }
-          >
-            <option value="person">Particulier</option>
-            <option value="shop">Boutique</option>
-          </select>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center px-4 py-8">
+      <div className="max-w-2xl w-full space-y-8">
+        {/* En-tête */}
+        <div className="text-center">
+          <div className="flex justify-center mb-6">
+            <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-3xl flex items-center justify-center shadow-lg">
+              <UserPlus className="w-10 h-10 text-white" />
+            </div>
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Rejoignez HDMarket</h1>
+          <p className="text-gray-500">Créez votre compte et commencez à vendre dès aujourd'hui</p>
         </div>
-        {form.accountType === 'shop' && (
-          <input
-            className="w-full border p-2"
-            placeholder="Nom de la boutique"
-            value={form.shopName}
-            onChange={(e) => setForm({ ...form, shopName: e.target.value })}
-            required
-          />
-        )}
-        {form.accountType === 'shop' && (
-          <input
-            className="w-full border p-2"
-            placeholder="Adresse de la boutique"
-            value={form.shopAddress}
-            onChange={(e) => setForm({ ...form, shopAddress: e.target.value })}
-            required
-          />
-        )}
-        {form.accountType === 'shop' && (
-          <label className="flex flex-col text-sm font-medium text-gray-700">
-            Logo de la boutique
-            <input
-              type="file"
-              accept="image/*"
-              className="mt-1"
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  shopLogo: e.target.files && e.target.files[0] ? e.target.files[0] : null
-                })
-              }
-              required
-            />
-          </label>
-        )}
-        <button className="bg-indigo-600 text-white px-4 py-2 rounded">Créer un compte</button>
-      </form>
+
+        {/* Carte du formulaire */}
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+          <form onSubmit={submit} className="space-y-6">
+            {/* Informations de base */}
+            <div className="space-y-4">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-2 h-6 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full"></div>
+                <h2 className="text-lg font-semibold text-gray-900">Informations personnelles</h2>
+              </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Nom */}
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                    <User className="w-4 h-4 text-indigo-500" />
+                    <span>Nom complet *</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+                      placeholder="Votre nom complet"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      required
+                    />
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  </div>
+                </div>
+
+                {/* Téléphone */}
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                    <Phone className="w-4 h-4 text-indigo-500" />
+                    <span>Téléphone *</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+                      placeholder="Votre numéro"
+                      value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                      required
+                    />
+                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Email */}
+              <div className="space-y-2">
+                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                  <Mail className="w-4 h-4 text-indigo-500" />
+                  <span>Adresse email *</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="email"
+                    className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+                    placeholder="votre@email.com"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    required
+                  />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                </div>
+              </div>
+
+              {/* Mot de passe */}
+              <div className="space-y-2">
+                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                  <Lock className="w-4 h-4 text-indigo-500" />
+                  <span>Mot de passe *</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    className="w-full px-4 py-3 pl-11 pr-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+                    placeholder="Votre mot de passe"
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    required
+                  />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <label className="flex items-center space-x-2 text-sm text-gray-500 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showPassword}
+                    onChange={() => setShowPassword(!showPassword)}
+                    className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                  />
+                  <span>Afficher le mot de passe</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Type de compte */}
+            <div className="space-y-4">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-2 h-6 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full"></div>
+                <h2 className="text-lg font-semibold text-gray-900">Type de compte</h2>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className={`relative cursor-pointer rounded-2xl border-2 p-4 transition-all ${
+                  form.accountType === 'person' 
+                    ? 'border-indigo-500 bg-indigo-50' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                  <input
+                    type="radio"
+                    name="accountType"
+                    value="person"
+                    checked={form.accountType === 'person'}
+                    onChange={(e) => setForm({ 
+                      ...form, 
+                      accountType: e.target.value,
+                      shopName: '',
+                      shopAddress: '',
+                      shopLogo: null 
+                    })}
+                    className="sr-only"
+                  />
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-5 h-5 border-2 rounded-full flex items-center justify-center transition-all ${
+                      form.accountType === 'person' 
+                        ? 'border-indigo-500 bg-indigo-500' 
+                        : 'border-gray-300'
+                    }`}>
+                      {form.accountType === 'person' && (
+                        <div className="w-2 h-2 bg-white rounded-full"></div>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <User className="w-4 h-4 text-gray-600" />
+                        <span className="font-semibold text-gray-900">Particulier</span>
+                      </div>
+                      <p className="text-sm text-gray-500">Vendez vos produits occasionnels</p>
+                    </div>
+                  </div>
+                </label>
+
+                <label className={`relative cursor-pointer rounded-2xl border-2 p-4 transition-all ${
+                  form.accountType === 'shop' 
+                    ? 'border-indigo-500 bg-indigo-50' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                  <input
+                    type="radio"
+                    name="accountType"
+                    value="shop"
+                    checked={form.accountType === 'shop'}
+                    onChange={(e) => setForm({ ...form, accountType: e.target.value })}
+                    className="sr-only"
+                  />
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-5 h-5 border-2 rounded-full flex items-center justify-center transition-all ${
+                      form.accountType === 'shop' 
+                        ? 'border-indigo-500 bg-indigo-500' 
+                        : 'border-gray-300'
+                    }`}>
+                      {form.accountType === 'shop' && (
+                        <div className="w-2 h-2 bg-white rounded-full"></div>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <Store className="w-4 h-4 text-gray-600" />
+                        <span className="font-semibold text-gray-900">Boutique</span>
+                      </div>
+                      <p className="text-sm text-gray-500">Votre entreprise professionnelle</p>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Informations boutique (conditionnel) */}
+            {form.accountType === 'shop' && (
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="w-2 h-6 bg-gradient-to-b from-amber-500 to-orange-500 rounded-full"></div>
+                  <h2 className="text-lg font-semibold text-gray-900">Informations de la boutique</h2>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Nom boutique */}
+                  <div className="space-y-2">
+                    <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                      <Store className="w-4 h-4 text-amber-500" />
+                      <span>Nom de la boutique *</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+                        placeholder="Nom de votre boutique"
+                        value={form.shopName}
+                        onChange={(e) => setForm({ ...form, shopName: e.target.value })}
+                        required
+                      />
+                      <Store className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    </div>
+                  </div>
+
+                  {/* Adresse boutique */}
+                  <div className="space-y-2">
+                    <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                      <MapPin className="w-4 h-4 text-amber-500" />
+                      <span>Adresse *</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+                        placeholder="Adresse de votre boutique"
+                        value={form.shopAddress}
+                        onChange={(e) => setForm({ ...form, shopAddress: e.target.value })}
+                        required
+                      />
+                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Logo boutique - CORRECTION ICI */}
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                    <Camera className="w-4 h-4 text-amber-500" />
+                    <span>Logo de la boutique {form.shopLogo ? '' : '*'}</span>
+                  </label>
+                  
+                  <label className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group p-6">
+                    {shopLogoPreview ? (
+                      <div className="text-center">
+                        <img
+                          src={shopLogoPreview}
+                          alt="Preview logo"
+                          className="w-20 h-20 rounded-xl object-cover mx-auto mb-3 border border-gray-200"
+                        />
+                        <p className="text-sm text-gray-600">Logo sélectionné</p>
+                        <button
+                          type="button"
+                          onClick={removeShopLogo}
+                          className="text-sm text-red-600 hover:text-red-500 mt-2"
+                        >
+                          Changer
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2" />
+                        <span className="text-sm text-gray-500 text-center">
+                          <span className="text-indigo-600 font-medium">Cliquez pour uploader</span>
+                          <br />
+                          <span className="text-xs">PNG, JPG jusqu'à 5MB</span>
+                        </span>
+                      </>
+                    )}
+                    {/* CORRECTION : Le input file doit être DANS le label */}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleShopLogoChange}
+                      className="hidden"
+                    />
+                  </label>
+                  {!form.shopLogo && (
+                    <p className="text-xs text-gray-500">
+                      Le logo est recommandé pour une boutique professionnelle
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Bouton d'inscription */}
+            <button
+              type="submit"
+              disabled={loading || !form.name || !form.email || !form.password || !form.phone || (form.accountType === 'shop' && (!form.shopName || !form.shopAddress))}
+              className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 shadow-lg"
+            >
+              {loading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Création du compte...</span>
+                </>
+              ) : (
+                <>
+                  <UserPlus className="w-5 h-5" />
+                  <span>Créer mon compte</span>
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Lien vers connexion */}
+          <div className="text-center mt-6 pt-6 border-t border-gray-100">
+            <p className="text-gray-600">
+              Déjà un compte ?{' '}
+              <Link 
+                to="/login" 
+                className="text-indigo-600 hover:text-indigo-500 font-semibold transition-colors"
+              >
+                Se connecter
+              </Link>
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="text-center">
+          <p className="text-xs text-gray-500">
+            En créant un compte, vous acceptez nos{' '}
+            <Link to="/terms" className="text-indigo-600 hover:text-indigo-500">
+              conditions d'utilisation
+            </Link>{' '}
+            et notre{' '}
+            <Link to="/privacy" className="text-indigo-600 hover:text-indigo-500">
+              politique de confidentialité
+            </Link>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Pays (fixe) */}
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                    <MapPin className="w-4 h-4 text-indigo-500" />
+                    <span>Pays *</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      className="w-full px-4 py-3 pl-11 bg-gray-100 border border-gray-200 rounded-xl text-gray-500 cursor-not-allowed"
+                      value="République du Congo"
+                      readOnly
+                      disabled
+                    />
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  </div>
+                </div>
+
+                {/* Ville */}
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                    <MapPin className="w-4 h-4 text-indigo-500" />
+                    <span>Ville *</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-sm"
+                      value={form.city}
+                      onChange={(e) => setForm({ ...form, city: e.target.value })}
+                      required
+                    >
+                      <option value="" disabled>Choisissez votre ville</option>
+                      {cities.map((city) => (
+                        <option key={city} value={city}>{city}</option>
+                      ))}
+                    </select>
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Genre */}
+              <div className="space-y-2">
+                <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <User className="w-4 h-4 text-indigo-500" />
+                  Genre *
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  {genderOptions.map((option) => (
+                    <label
+                      key={option.value}
+                      className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-colors cursor-pointer ${
+                        form.gender === option.value
+                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                          : 'border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="gender"
+                        value={option.value}
+                        checked={form.gender === option.value}
+                        onChange={(e) => setForm({ ...form, gender: e.target.value })}
+                        className="sr-only"
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
