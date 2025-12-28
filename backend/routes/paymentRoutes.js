@@ -17,8 +17,8 @@ router.post('/', protect, validate(schemas.paymentCreate), createPayment);
 router.get('/me', protect, getMyPayments);
 
 // Admin
-router.get('/admin', protect, requireRole(['admin']), listPaymentsAdmin);
-router.put('/admin/:id/verify', protect, requireRole(['admin']), verifyPayment);
-router.put('/admin/:id/reject', protect, requireRole(['admin']), rejectPayment);
+router.get('/admin', protect, requireRole(['admin', 'manager']), listPaymentsAdmin);
+router.put('/admin/:id/verify', protect, requireRole(['admin', 'manager']), verifyPayment);
+router.put('/admin/:id/reject', protect, requireRole(['admin', 'manager']), rejectPayment);
 
 export default router;

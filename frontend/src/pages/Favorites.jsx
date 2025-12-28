@@ -1,14 +1,104 @@
-import React, { useContext } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import FavoriteContext from '../context/FavoriteContext';
 import ProductCard from '../components/ProductCard';
 
+const PAGE_SIZE = 12;
+
 export default function Favorites() {
   const { favorites, loading } = useContext(FavoriteContext);
+  const [page, setPage] = useState(1);
   const hasFavorites = favorites.length > 0;
+  const totalPages = Math.max(1, Math.ceil(favorites.length / PAGE_SIZE));
+
+  useEffect(() => {
+    setPage(1);
+  }, [favorites.length]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const paginatedFavorites = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return favorites.slice(start, start + PAGE_SIZE);
+  }, [favorites, page]);
+
+  const renderPagination = () => {
+    if (favorites.length <= PAGE_SIZE) return null;
+
+    const visiblePages = Math.min(5, totalPages);
+    const half = Math.floor(visiblePages / 2);
+    let start = Math.max(1, page - half);
+    let end = Math.min(totalPages, start + visiblePages - 1);
+    start = Math.max(1, end - visiblePages + 1);
+    const pageNumbers = Array.from({ length: end - start + 1 }, (_, idx) => start + idx);
+
+    return (
+      <div className="flex justify-center items-center space-x-2 mt-8 mb-4 pb-[88px] md:pb-0">
+        <button
+          onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+          disabled={page <= 1}
+          className="flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          ‹
+        </button>
+
+        {start > 1 && (
+          <>
+            <button
+              onClick={() => setPage(1)}
+              className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
+                page === 1 ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              1
+            </button>
+            {start > 2 && <span className="px-1 text-gray-500">...</span>}
+          </>
+        )}
+
+        {pageNumbers.map((pageNum) => (
+          <button
+            key={pageNum}
+            onClick={() => setPage(pageNum)}
+            className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
+              page === pageNum ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            {pageNum}
+          </button>
+        ))}
+
+        {end < totalPages && (
+          <>
+            {end < totalPages - 1 && <span className="px-1 text-gray-500">...</span>}
+            <button
+              onClick={() => setPage(totalPages)}
+              className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
+                page === totalPages ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              {totalPages}
+            </button>
+          </>
+        )}
+
+        <button
+          onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+          disabled={page >= totalPages}
+          className="flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          ›
+        </button>
+      </div>
+    );
+  };
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-8 space-y-8 pb-12 md:pb-16">
       <header className="text-center sm:text-left">
         <p className="text-sm uppercase tracking-wide text-indigo-600 font-semibold">
           Vos favoris
@@ -24,11 +114,14 @@ export default function Favorites() {
           <p className="text-gray-600">Chargement de vos favoris…</p>
         </div>
       ) : hasFavorites ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {favorites.map((product) => (
-            <ProductCard key={product._id} p={product} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {paginatedFavorites.map((product) => (
+              <ProductCard key={product._id} p={product} />
+            ))}
+          </div>
+          {renderPagination()}
+        </>
       ) : (
         <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center shadow-sm">
           <p className="text-lg font-semibold text-gray-700">Aucun favori pour le moment</p>

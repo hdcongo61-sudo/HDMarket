@@ -49,7 +49,12 @@ export const AuthProvider = ({ children }) => {
       accountType: data.accountType || 'person',
       shopName: data.shopName || '',
       shopAddress: data.shopAddress || '',
-      shopLogo: data.shopLogo || ''
+      shopLogo: data.shopLogo || '',
+      shopDescription: data.shopDescription || '',
+      country: data.country || 'République du Congo',
+      address: data.address || '',
+      city: data.city || '',
+      gender: data.gender || ''
     };
     persistUser(userData);
     setUser(userData);

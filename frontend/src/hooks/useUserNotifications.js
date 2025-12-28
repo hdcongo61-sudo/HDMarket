@@ -1,14 +1,41 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '../services/api';
 
-const initialState = {
-  commentAlerts: 0,
-  alerts: [],
-  unreadCount: 0
+const DEFAULT_PREFERENCES = Object.freeze({
+  product_comment: true,
+  reply: true,
+  favorite: true,
+  rating: true,
+  product_approval: true,
+  product_rejection: true,
+  promotional: true,
+  shop_review: true,
+  payment_pending: true,
+  order_created: true,
+  order_delivered: true
+});
+
+const buildDefaultPreferences = () => ({ ...DEFAULT_PREFERENCES });
+
+const normalizePreferences = (prefs = {}) => {
+  const merged = buildDefaultPreferences();
+  Object.keys(merged).forEach((key) => {
+    if (typeof prefs[key] === 'boolean') {
+      merged[key] = prefs[key];
+    }
+  });
+  return merged;
 };
 
+const buildInitialState = () => ({
+  commentAlerts: 0,
+  alerts: [],
+  unreadCount: 0,
+  preferences: buildDefaultPreferences()
+});
+
 export default function useUserNotifications(enabled) {
-  const [counts, setCounts] = useState(initialState);
+  const [counts, setCounts] = useState(() => buildInitialState());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -16,25 +43,32 @@ export default function useUserNotifications(enabled) {
 
   const fetchData = useCallback(async () => {
     if (!enabled) {
-      setCounts({ ...initialState });
-      return initialState;
+      const emptyState = buildInitialState();
+      setCounts(emptyState);
+      return emptyState;
     }
     setLoading(true);
     try {
       const { data } = await api.get('/users/notifications');
-      const unread = data?.commentAlerts ?? data?.unreadCount ?? 0;
+      const unread =
+        typeof data?.unreadCount === 'number'
+          ? data.unreadCount
+          : typeof data?.commentAlerts === 'number'
+          ? data.commentAlerts
+          : 0;
       const alerts = Array.isArray(data?.alerts) ? data.alerts : [];
       const nextState = {
         commentAlerts: unread,
         unreadCount: unread,
-        alerts
+        alerts,
+        preferences: normalizePreferences(data?.preferences)
       };
       setCounts(nextState);
       setError('');
       return nextState;
     } catch (e) {
       setError(e.response?.data?.message || e.message || 'Erreur lors du chargement des notifications.');
-      return initialState;
+      return buildInitialState();
     } finally {
       setLoading(false);
     }
@@ -67,7 +101,7 @@ export default function useUserNotifications(enabled) {
     if (!enabled) {
       closeSource();
       clearRetry();
-      setCounts({ ...initialState });
+      setCounts(buildInitialState());
       setError('');
       return () => {
         closeSource();

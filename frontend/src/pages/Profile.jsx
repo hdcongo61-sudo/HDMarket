@@ -1,14 +1,18 @@
-import React, { useContext, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useContext, useEffect, useState, useCallback } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import api from '../services/api';
 import { 
   User, Mail, Phone, Store, MapPin, Camera, Upload, 
   Save, Eye, EyeOff, BarChart3, Heart, MessageCircle, 
   Package, CheckCircle, Clock, XCircle, Shield, 
   TrendingUp, Users, Star, Award, Edit3, Image,
-  Lock
+  Lock,
+  Truck,
+  ClipboardList
 } from 'lucide-react';
+import VerifiedBadge from '../components/VerifiedBadge';
 
 const initialForm = {
   name: '',
@@ -19,6 +23,8 @@ const initialForm = {
   accountType: 'person',
   shopName: '',
   shopAddress: '',
+  shopDescription: '',
+  address: '',
   country: 'République du Congo',
   city: '',
   gender: ''
@@ -30,6 +36,84 @@ const createDefaultStats = () => ({
   performance: { views: 0, clicks: 0, conversion: 0 }
 });
 
+const ORDER_STATUS_LABELS = {
+  confirmed: 'Commande confirmée',
+  delivering: 'En cours de livraison',
+  delivered: 'Commande terminée'
+};
+
+const ORDER_STATUS_STYLES = {
+  confirmed: 'border-yellow-200 bg-yellow-50 text-yellow-800',
+  delivering: 'border-blue-200 bg-blue-50 text-blue-800',
+  delivered: 'border-green-200 bg-green-50 text-green-800'
+};
+
+const ORDER_FLOW = [
+  {
+    id: 'confirmed',
+    label: 'Commande confirmée',
+    description: 'Votre commande a été validée et sera préparée pour la livraison.',
+    icon: Package
+  },
+  {
+    id: 'delivering',
+    label: 'En cours de livraison',
+    description: 'Le livreur est en route avec votre colis.',
+    icon: Truck
+  },
+  {
+    id: 'delivered',
+    label: 'Commande terminée',
+    description: 'La commande est livrée et archivée par nos équipes.',
+    icon: CheckCircle
+  }
+];
+
+const OrderProgress = ({ status }) => {
+  const currentIndexRaw = ORDER_FLOW.findIndex((step) => step.id === status);
+  const currentIndex = currentIndexRaw >= 0 ? currentIndexRaw : 0;
+
+  return (
+    <div className="mt-4 border border-gray-100 rounded-2xl p-3 bg-gray-50">
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Suivi de l’avancement</p>
+      <div className="space-y-4">
+        {ORDER_FLOW.map((step, index) => {
+          const Icon = step.icon;
+          const reached = currentIndex >= index;
+          const isCurrent = currentIndex === index;
+          return (
+            <div key={step.id} className="flex items-start gap-3">
+              <div
+                className={`mt-0.5 w-9 h-9 rounded-full border-2 flex items-center justify-center ${
+                  reached ? 'border-indigo-600 text-indigo-600 bg-white' : 'border-gray-200 text-gray-400 bg-white'
+                }`}
+              >
+                <Icon size={16} />
+              </div>
+              <div className="flex-1">
+                <p className={`text-sm font-semibold ${reached ? 'text-gray-900' : 'text-gray-500'}`}>
+                  {step.label}
+                  {isCurrent && (
+                    <span className="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                      En cours
+                    </span>
+                  )}
+                  {!isCurrent && reached && (
+                    <span className="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                      Terminée
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs text-gray-500">{step.description}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const numberFormatter = new Intl.NumberFormat('fr-FR');
 
 const formatNumber = (value) => {
@@ -40,6 +124,7 @@ const formatNumber = (value) => {
 
 export default function Profile() {
   const { user, updateUser } = useContext(AuthContext);
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(false);
@@ -52,6 +137,18 @@ export default function Profile() {
   const [statsError, setStatsError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
+  const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState('');
+  const [ordersLoaded, setOrdersLoaded] = useState(false);
+  const userShopLink = user?.accountType === 'shop' ? `/shop/${user?._id || user?.id}` : null;
+
+  const mobileHighlights = [
+    { label: 'Annonces', value: stats.listings?.total || 0 },
+    { label: 'Favoris reçus', value: stats.engagement?.favoritesReceived || 0 },
+    { label: 'Vues', value: stats.performance?.views || 0 },
+    { label: 'WhatsApp', value: stats.performance?.clicks || 0 }
+  ];
 
   useEffect(
     () => () => {
@@ -72,6 +169,8 @@ export default function Profile() {
       accountType: user.accountType || 'person',
       shopName: user.shopName || '',
       shopAddress: user.shopAddress || '',
+      shopDescription: user.shopDescription || '',
+      address: user.address || '',
       country: user.country || 'République du Congo',
       city: user.city || '',
       gender: user.gender || ''
@@ -84,6 +183,9 @@ export default function Profile() {
       setStats(createDefaultStats());
       setStatsError('');
       setStatsLoading(false);
+      setOrders([]);
+      setOrdersLoaded(false);
+      setOrdersError('');
       return;
     }
 
@@ -119,6 +221,28 @@ export default function Profile() {
     };
   }, [user]);
 
+  const fetchOrders = useCallback(async () => {
+    if (!user) return;
+    setOrdersLoading(true);
+    setOrdersError('');
+    try {
+      const { data } = await api.get('/orders?limit=50');
+      const items = Array.isArray(data) ? data : data?.items || [];
+      setOrders(items);
+      setOrdersLoaded(true);
+    } catch (err) {
+      setOrdersError(err.response?.data?.message || err.message || 'Impossible de charger vos commandes.');
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (activeTab === 'orders' && user && !ordersLoaded && !ordersLoading) {
+      fetchOrders();
+    }
+  }, [activeTab, user, ordersLoaded, ordersLoading, fetchOrders]);
+
   const onChange = (e) => {
     const { name, value } = e.target;
     if (name === 'accountType') {
@@ -126,7 +250,8 @@ export default function Profile() {
         ...prev,
         accountType: value,
         shopName: value === 'shop' ? prev.shopName : '',
-        shopAddress: value === 'shop' ? prev.shopAddress : ''
+        shopAddress: value === 'shop' ? prev.shopAddress : '',
+        shopDescription: value === 'shop' ? prev.shopDescription : ''
       }));
       if (value !== 'shop') {
         setShopLogoFile(null);
@@ -153,19 +278,34 @@ export default function Profile() {
   const onSubmit = async (e) => {
     e.preventDefault();
     if (form.password && form.password !== form.confirmPassword) {
-      setError('Les mots de passe ne correspondent pas.');
+      const message = 'Les mots de passe ne correspondent pas.';
+      setError(message);
+      showToast(message, { variant: 'error' });
       return;
     }
     if (!form.city || !form.gender) {
-      setError('Veuillez sélectionner votre ville et votre genre.');
+      const message = 'Veuillez sélectionner votre ville et votre genre.';
+      setError(message);
+      showToast(message, { variant: 'error' });
+      return;
+    }
+    if (!form.address.trim()) {
+      const message = 'Veuillez renseigner votre adresse complète.';
+      setError(message);
+      showToast(message, { variant: 'error' });
       return;
     }
     setLoading(true);
     setError('');
     setFeedback('');
     try {
-      if (form.accountType === 'shop' && (!form.shopName || !form.shopAddress)) {
-        setError('Veuillez renseigner le nom et l\'adresse de votre boutique.');
+      if (
+        form.accountType === 'shop' &&
+        (!form.shopName || !form.shopAddress || !form.shopDescription.trim())
+      ) {
+        const message = 'Veuillez renseigner le nom, l’adresse et la description de votre boutique.';
+        setError(message);
+        showToast(message, { variant: 'error' });
         return;
       }
 
@@ -176,10 +316,12 @@ export default function Profile() {
       payload.append('accountType', form.accountType);
       payload.append('city', form.city);
       payload.append('gender', form.gender);
+      payload.append('address', form.address.trim());
       if (form.password) payload.append('password', form.password);
       if (form.accountType === 'shop') {
         payload.append('shopName', form.shopName);
         payload.append('shopAddress', form.shopAddress);
+        payload.append('shopDescription', form.shopDescription.trim());
         if (shopLogoFile) {
           payload.append('shopLogo', shopLogoFile);
         }
@@ -190,6 +332,7 @@ export default function Profile() {
       });
       updateUser(data);
       setFeedback('Profil mis à jour avec succès !');
+      showToast('Profil mis à jour avec succès !', { variant: 'success' });
       setForm((prev) => ({
         ...prev,
         password: '',
@@ -197,6 +340,8 @@ export default function Profile() {
         accountType: data.accountType || 'person',
         shopName: data.shopName || '',
         shopAddress: data.shopAddress || '',
+        shopDescription: data.shopDescription || '',
+        address: data.address || '',
         country: data.country || 'République du Congo',
         city: data.city || '',
         gender: data.gender || ''
@@ -209,7 +354,9 @@ export default function Profile() {
         navigate('/');
       }, 2000);
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Une erreur est survenue.');
+      const message = err.response?.data?.message || err.message || 'Une erreur est survenue.';
+      setError(message);
+      showToast(message, { variant: 'error' });
     } finally {
       setLoading(false);
     }
@@ -238,21 +385,49 @@ export default function Profile() {
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Mon Profil</h1>
           <p className="text-gray-500">Gérez vos informations et consultez vos statistiques</p>
+          {user?.address ? (
+            <p className="mt-2 flex items-center justify-center text-sm text-gray-600 gap-2">
+              <MapPin className="w-4 h-4 text-indigo-500" />
+              <span>{user.address}</span>
+            </p>
+          ) : null}
+          {userShopLink && (
+            <Link
+              to={userShopLink}
+              className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-xl border border-indigo-200 text-sm font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors"
+            >
+              <Store className="w-4 h-4" />
+              Voir ma boutique publique
+            </Link>
+          )}
+
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:hidden">
+            {mobileHighlights.map(({ label, value }) => (
+              <div
+                key={label}
+                className="bg-white border border-gray-100 rounded-2xl p-3 shadow-sm flex flex-col"
+              >
+                <span className="text-[11px] uppercase tracking-wide text-gray-400">{label}</span>
+                <span className="text-lg font-bold text-gray-900">{formatNumber(value)}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Navigation par onglets */}
-        <div className="flex space-x-1 bg-white rounded-2xl p-1 shadow-sm border border-gray-100 mb-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:gap-1 bg-white rounded-2xl p-2 sm:p-1 shadow-sm border border-gray-100 mb-6">
           {[
             { id: 'profile', label: 'Profil', icon: User },
             { id: 'stats', label: 'Statistiques', icon: BarChart3 },
-            { id: 'performance', label: 'Performance', icon: TrendingUp }
+            { id: 'performance', label: 'Performance', icon: TrendingUp },
+            { id: 'orders', label: 'Mes commandes', icon: ClipboardList }
           ].map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 px-4 py-3 rounded-xl font-medium transition-all flex-1 ${
+                className={`flex items-center space-x-2 px-4 py-3 rounded-xl font-medium transition-all flex-1 w-full text-left sm:text-center ${
                   activeTab === tab.id
                     ? 'bg-indigo-600 text-white shadow-lg'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -268,7 +443,7 @@ export default function Profile() {
         {/* Section Profil */}
         {activeTab === 'profile' && (
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
-            <div className="flex items-center space-x-3 mb-6">
+            <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 mb-6">
               <div className="w-2 h-6 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full"></div>
               <h2 className="text-xl font-semibold text-gray-900">Informations personnelles</h2>
             </div>
@@ -331,6 +506,100 @@ export default function Profile() {
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                    <MapPin className="w-4 h-4 text-indigo-500" />
+                    <span>Pays *</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      className="w-full px-4 py-3 pl-11 bg-gray-100 border border-gray-200 rounded-xl text-gray-500"
+                      value="République du Congo"
+                      readOnly
+                      disabled
+                    />
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                    <MapPin className="w-4 h-4 text-indigo-500" />
+                    <span>Ville *</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                      name="city"
+                      value={form.city}
+                      onChange={onChange}
+                      disabled={loading}
+                      required
+                    >
+                      <option value="">Choisissez votre ville</option>
+                      {['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'].map((city) => (
+                        <option key={city} value={city}>
+                          {city}
+                        </option>
+                      ))}
+                    </select>
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  </div>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                    <MapPin className="w-4 h-4 text-indigo-500" />
+                    <span>Adresse complète *</span>
+                  </label>
+                  <div className="relative">
+                    <textarea
+                      className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+                      rows={2}
+                      name="address"
+                      value={form.address}
+                      onChange={onChange}
+                      disabled={loading}
+                      placeholder="Quartier, rue, numéro de parcelle..."
+                      required
+                    />
+                    <MapPin className="absolute left-4 top-4 w-4 h-4 text-gray-400" />
+                  </div>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-indigo-500" />
+                    Genre *
+                  </span>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { value: 'homme', label: 'Homme' },
+                      { value: 'femme', label: 'Femme' }
+                    ].map((option) => (
+                      <label
+                        key={option.value}
+                        className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-colors cursor-pointer ${
+                          form.gender === option.value
+                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                            : 'border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-600'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="gender"
+                          value={option.value}
+                          checked={form.gender === option.value}
+                          onChange={onChange}
+                          className="sr-only"
+                          disabled={loading}
+                        />
+                        {option.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Type de compte */}
                 <div className="space-y-2">
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
@@ -369,9 +638,15 @@ export default function Profile() {
               {/* Section boutique conditionnelle */}
               {form.accountType === 'shop' && (
                 <div className="space-y-6 pt-6 border-t border-gray-100">
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-3 flex-wrap gap-y-2">
                     <div className="w-2 h-6 bg-gradient-to-b from-amber-500 to-orange-500 rounded-full"></div>
                     <h3 className="text-lg font-semibold text-gray-900">Informations de la boutique</h3>
+                    <VerifiedBadge verified={Boolean(user?.shopVerified)} />
+                    <span className="text-xs text-gray-500">
+                      {user?.shopVerified
+                        ? 'Boutique vérifiée par l’équipe HDMarket.'
+                        : 'Contactez un administrateur pour faire vérifier votre boutique.'}
+                    </span>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -410,6 +685,26 @@ export default function Profile() {
                         <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       </div>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                      <Edit3 className="w-4 h-4 text-amber-500" />
+                      <span>À propos de la boutique *</span>
+                    </label>
+                    <textarea
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400 text-sm"
+                      rows={4}
+                      name="shopDescription"
+                      value={form.shopDescription}
+                      onChange={onChange}
+                      placeholder="Décrivez vos engagements, types de produits, services..."
+                      disabled={loading}
+                      required
+                    />
+                    <p className="text-xs text-gray-500">
+                      Ce texte s’affiche sur votre page publique pour rassurer vos clients.
+                    </p>
                   </div>
 
                   {/* Logo boutique */}
@@ -566,7 +861,7 @@ export default function Profile() {
           <div className="space-y-6">
             {/* En-tête statistiques */}
             <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
-              <div className="flex items-center space-x-3 mb-6">
+              <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 mb-6">
                 <div className="w-2 h-6 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full"></div>
                 <h2 className="text-xl font-semibold text-gray-900">Vue d'ensemble</h2>
               </div>
@@ -687,7 +982,7 @@ export default function Profile() {
         {/* Section Performance (Nouvelle fonctionnalité) */}
         {activeTab === 'performance' && (
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
-            <div className="flex items-center space-x-3 mb-6">
+            <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 mb-6">
               <div className="w-2 h-6 bg-gradient-to-b from-purple-500 to-pink-500 rounded-full"></div>
               <h2 className="text-xl font-semibold text-gray-900">Performance et Insights</h2>
             </div>
@@ -735,7 +1030,7 @@ export default function Profile() {
 
                 <div className="space-y-3">
                   {stats.listings.pending > 0 && (
-                    <div className="flex items-center space-x-3 p-3 rounded-xl bg-amber-50 border border-amber-200">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-3 rounded-xl bg-amber-50 border border-amber-200">
                       <Clock className="w-4 h-4 text-amber-600" />
                       <p className="text-sm text-amber-800">
                         Vous avez {stats.listings.pending} annonce(s) en attente de validation
@@ -744,7 +1039,7 @@ export default function Profile() {
                   )}
 
                   {stats.engagement.favoritesReceived === 0 && stats.listings.approved > 0 && (
-                    <div className="flex items-center space-x-3 p-3 rounded-xl bg-blue-50 border border-blue-200">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-3 rounded-xl bg-blue-50 border border-blue-200">
                       <Heart className="w-4 h-4 text-blue-600" />
                       <p className="text-sm text-blue-800">
                         Améliorez vos photos pour augmenter les favoris
@@ -753,7 +1048,7 @@ export default function Profile() {
                   )}
 
                   {stats.listings.approved > 5 && (
-                    <div className="flex items-center space-x-3 p-3 rounded-xl bg-green-50 border border-green-200">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-3 rounded-xl bg-green-50 border border-green-200">
                       <TrendingUp className="w-4 h-4 text-green-600" />
                       <p className="text-sm text-green-800">
                         Excellent ! Pensez à promouvoir vos meilleures annonces
@@ -763,6 +1058,160 @@ export default function Profile() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'orders' && (
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+              <div>
+                <div className="flex items-center gap-2 text-sm font-semibold text-indigo-600">
+                  <ClipboardList className="w-4 h-4" />
+                  Historique des commandes
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900">Mes commandes</h2>
+                <p className="text-sm text-gray-500">Retrouvez toutes les commandes créées par l’administrateur.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-500">Total : {orders.length}</span>
+                <button
+                  type="button"
+                  onClick={fetchOrders}
+                  disabled={ordersLoading}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-60"
+                >
+                  {ordersLoading ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="#c7d2fe" strokeWidth="4" opacity="0.3" />
+                        <path d="M22 12a10 10 0 00-10-10" stroke="#6366f1" strokeWidth="4" strokeLinecap="round" />
+                      </svg>
+                      Chargement…
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582M20 20v-5h-.581M5 9a7 7 0 0114 0M19 15a7 7 0 01-14 0" />
+                      </svg>
+                      Actualiser
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {ordersError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-600 mb-6">
+                {ordersError}
+              </div>
+            )}
+
+            {!ordersLoading && !ordersError && orders.length === 0 && (
+              <div className="text-center py-10 border border-dashed border-gray-200 rounded-2xl">
+                <div className="w-16 h-16 mx-auto rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                  <ClipboardList className="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">Aucune commande disponible</h3>
+                <p className="text-sm text-gray-500 max-w-md mx-auto">
+                  Un gestionnaire enregistre vos commandes depuis l’admin. Dès qu’une commande est créée, elle s’affichera ici avec son statut.
+                </p>
+              </div>
+            )}
+
+            {(ordersLoading || orders.length > 0) && (
+              <div className="space-y-4">
+                {ordersLoading && orders.length === 0
+                  ? Array.from({ length: 2 }).map((_, index) => (
+                      <div key={index} className="animate-pulse border border-gray-100 rounded-2xl p-5 bg-gray-50" />
+                    ))
+                  : orders.map((order) => {
+                      const orderItems =
+                        order.items && order.items.length
+                          ? order.items
+                          : order.productSnapshot
+                          ? [{ snapshot: order.productSnapshot, quantity: 1 }]
+                          : [];
+
+                      return (
+                        <div key={order._id} className="border border-gray-100 rounded-2xl p-5 shadow-sm">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-sm text-gray-500">Commande #{order._id.slice(-6)}</p>
+                              <div className="mt-1 space-y-1 text-sm text-gray-700">
+                                {orderItems.map((item, idx) => (
+                                  <div key={`${order._id}-${idx}`} className="flex items-center gap-2">
+                                    <span className="font-medium text-gray-900">{item.snapshot?.title || 'Produit'}</span>
+                                    <span className="text-xs text-gray-500">
+                                      x{item.quantity} · {Number(item.snapshot?.price || 0).toLocaleString()} FCFA
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="mt-3 flex flex-wrap gap-3 text-xs text-gray-500">
+                                <span className="inline-flex items-center gap-1">
+                                  <Shield className="w-3.5 h-3.5 text-indigo-500" />
+                                  Gestionnaire : {order.createdBy?.name || order.createdBy?.email || 'Admin HDMarket'}
+                                </span>
+                                <span className="hidden sm:block text-gray-300">•</span>
+                                <span className="font-semibold text-gray-700">
+                                  Statut : {ORDER_STATUS_LABELS[order.status] || 'Enregistrée'}
+                                </span>
+                              </div>
+                            </div>
+                            <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border ${
+                              ORDER_STATUS_STYLES[order.status] || 'border-gray-200 bg-gray-50 text-gray-600'
+                            }`}>
+                              {order.status === 'confirmed' && <Package size={14} />}
+                              {order.status === 'delivering' && <Truck size={14} />}
+                              {order.status === 'delivered' && <CheckCircle size={14} />}
+                              {ORDER_STATUS_LABELS[order.status] || 'Statut inconnu'}
+                            </span>
+                          </div>
+
+                          <div className="mt-4 grid gap-3 md:grid-cols-2 text-sm text-gray-600">
+                            <div>
+                              <p className="text-xs uppercase tracking-wide text-gray-400">Adresse de livraison</p>
+                              <p className="font-medium text-gray-900">{order.deliveryAddress}</p>
+                              <p className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                                <MapPin size={13} />
+                                {order.deliveryCity}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs uppercase tracking-wide text-gray-400">Suivi</p>
+                              {order.trackingNote ? (
+                                <p>{order.trackingNote}</p>
+                              ) : (
+                                <p className="text-xs text-gray-500">Aucune note ajoutée pour le moment.</p>
+                              )}
+                            </div>
+                          </div>
+
+                          <OrderProgress status={order.status} />
+
+                          <div className="mt-4 flex flex-wrap gap-4 text-xs text-gray-500">
+                            <span className="inline-flex items-center gap-1">
+                              <Clock size={12} />
+                              Créée le {new Date(order.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            {order.shippedAt && (
+                              <span className="inline-flex items-center gap-1">
+                                <Truck size={12} />
+                                Expédiée le {new Date(order.shippedAt).toLocaleDateString('fr-FR')}
+                              </span>
+                            )}
+                            {order.deliveredAt && (
+                              <span className="inline-flex items-center gap-1">
+                                <CheckCircle size={12} />
+                                Livrée le {new Date(order.deliveredAt).toLocaleDateString('fr-FR')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+              </div>
+            )}
           </div>
         )}
       </div>

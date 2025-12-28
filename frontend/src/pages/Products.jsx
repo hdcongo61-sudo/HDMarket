@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
+import { getCategoryMeta } from '../data/categories';
 
 const SORT_OPTIONS = [
   { value: 'new', label: 'Plus récents' },
@@ -13,6 +14,8 @@ const SORT_OPTIONS = [
 const PAGE_SIZE = 12;
 
 export default function Products() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const categoryParam = (searchParams.get('category') || '').trim();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -21,6 +24,11 @@ export default function Products() {
   const [totalPages, setTotalPages] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState(categoryParam);
+
+  useEffect(() => {
+    setCategoryFilter(categoryParam);
+  }, [categoryParam]);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -32,6 +40,7 @@ export default function Products() {
         limit: PAGE_SIZE
       };
       if (searchTerm) params.q = searchTerm;
+      if (categoryFilter) params.category = categoryFilter;
       const { data } = await api.get('/products/public', { params });
       const fetchedItems = Array.isArray(data) ? data : data?.items || [];
       const paginationMeta = Array.isArray(data) ? { pages: 1 } : data?.pagination || {};
@@ -42,11 +51,11 @@ export default function Products() {
     } finally {
       setLoading(false);
     }
-  }, [page, sort, searchTerm]);
+  }, [page, sort, searchTerm, categoryFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [sort, searchTerm]);
+  }, [sort, searchTerm, categoryFilter]);
 
   useEffect(() => {
     fetchProducts();
@@ -83,6 +92,15 @@ export default function Products() {
     }
     return buttons;
   }, [page, totalPages]);
+
+  const categoryMeta = useMemo(() => getCategoryMeta(categoryFilter), [categoryFilter]);
+
+  const clearCategoryFilter = useCallback(() => {
+    setCategoryFilter('');
+    const next = new URLSearchParams(searchParams);
+    next.delete('category');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -136,6 +154,16 @@ export default function Products() {
               <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">
                 Filtre&nbsp;:&nbsp;{searchTerm}
               </span>
+            )}
+            {categoryFilter && (
+              <button
+                type="button"
+                onClick={clearCategoryFilter}
+                className="inline-flex items-center gap-2 rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700 hover:bg-purple-200 transition-colors"
+              >
+                Catégorie&nbsp;:&nbsp;{categoryMeta?.label || categoryFilter}
+                <span aria-hidden="true">×</span>
+              </button>
             )}
           </div>
           <div className="flex items-center gap-2">

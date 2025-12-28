@@ -131,7 +131,7 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
 });
 
 export const adminListOrders = asyncHandler(async (req, res) => {
-  const { status, search = '' } = req.query;
+  const { status, search = '', page = 1, limit = 20 } = req.query;
   const filter = {};
 
   if (status && ORDER_STATUS.includes(status)) {
@@ -151,17 +151,33 @@ export const adminListOrders = asyncHandler(async (req, res) => {
       { trackingNote: regex },
       { deliveryAddress: regex }
     ];
-      if (customerIds.length) {
-        filter.$or.push({ customer: { $in: customerIds.map((c) => c._id) } });
-      }
+    if (customerIds.length) {
+      filter.$or.push({ customer: { $in: customerIds.map((c) => c._id) } });
+    }
   }
 
-  const orders = await baseOrderQuery()
-    .find(filter)
-    .sort({ createdAt: -1 })
-    .limit(200);
+  const pageNumber = Math.max(1, Number(page) || 1);
+  const pageSize = Math.max(1, Math.min(Number(limit) || 20, 100));
+  const skip = (pageNumber - 1) * pageSize;
 
-  res.json(orders.map(buildOrderResponse));
+  const [orders, total] = await Promise.all([
+    baseOrderQuery()
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageSize),
+    Order.countDocuments(filter)
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  res.json({
+    items: orders.map(buildOrderResponse),
+    total,
+    page: pageNumber,
+    pageSize,
+    totalPages
+  });
 });
 
 export const adminUpdateOrder = asyncHandler(async (req, res) => {
@@ -317,10 +333,33 @@ export const adminSearchProducts = asyncHandler(async (req, res) => {
 
 export const userListOrders = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
-  const filter = userId ? { customer: userId } : { customer: null };
+  const { status, page = 1, limit = 6 } = req.query || {};
 
-  const orders = await baseOrderQuery()
-    .find(filter)
-    .sort({ createdAt: -1 });
-  res.json(orders.map(buildOrderResponse));
+  const filter = userId ? { customer: userId } : { customer: null };
+  if (status && ORDER_STATUS.includes(status)) {
+    filter.status = status;
+  }
+
+  const pageNumber = Math.max(1, Number(page) || 1);
+  const pageSize = Math.max(1, Math.min(Number(limit) || 6, 24));
+  const skip = (pageNumber - 1) * pageSize;
+
+  const [orders, total] = await Promise.all([
+    baseOrderQuery()
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageSize),
+    Order.countDocuments(filter)
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  res.json({
+    items: orders.map(buildOrderResponse),
+    total,
+    page: pageNumber,
+    pageSize,
+    totalPages
+  });
 });

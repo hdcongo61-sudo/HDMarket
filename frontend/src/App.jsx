@@ -1,12 +1,15 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
+import Footer from './components/Footer';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import UserDashboard from './pages/UserDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminPayments from './pages/AdminPayments';
 import AdminUsers from './pages/AdminUsers';
+import AdminOrders from './pages/AdminOrders';
 import TopDeals from './pages/TopDeals';
 import TopRanking from './pages/TopRanking';
 import TopFavorites from './pages/TopFavorites';
@@ -24,18 +27,28 @@ import Profile from './pages/Profile';
 import Notifications from './pages/Notifications';
 import Favorites from './pages/Favorites';
 import ShopProfile from './pages/ShopProfile';
+import HelpCenter from './pages/HelpCenter';
+import VerifiedShops from './pages/VerifiedShops';
+import UserStats from './pages/UserStats';
+import UserOrders from './pages/UserOrders';
+import usePreventNewTabOnMobile from './hooks/usePreventNewTabOnMobile';
+import ScrollToTop from './components/ScrollToTop';
 
 export default function App() {
+  usePreventNewTabOnMobile();
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Navbar />
-      <main className="pt-28 md:pt-32">
+      <main className="pt-20 sm:pt-24 md:pt-32 pb-24 md:pb-0">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/product/:id" element={<ProductDetails />} />
           <Route path="/shop/:id" element={<ShopProfile />} />
+          <Route path="/shops/verified" element={<VerifiedShops />} />
+          <Route path="/help" element={<HelpCenter />} />
           <Route path="/top-deals" element={<TopDeals />} />
           <Route path="/top-ranking" element={<TopRanking />} />
           <Route path="/top-favorites" element={<TopFavorites />} />
@@ -94,10 +107,50 @@ export default function App() {
             }
           />
           <Route
+            path="/my/stats"
+            element={
+              <ProtectedRoute>
+                <UserStats />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders"
+            element={
+              <ProtectedRoute>
+                <UserOrders />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders/:status"
+            element={
+              <ProtectedRoute>
+                <UserOrders />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/admin"
             element={
-              <ProtectedRoute role="admin">
+              <ProtectedRoute roles={['admin', 'manager']}>
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/payments"
+            element={
+              <ProtectedRoute roles={['admin', 'manager']}>
+                <AdminPayments />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/orders"
+            element={
+              <ProtectedRoute roles={['admin', 'manager']}>
+                <AdminOrders />
               </ProtectedRoute>
             }
           />
@@ -111,6 +164,7 @@ export default function App() {
           />
         </Routes>
       </main>
+      <Footer />
     </BrowserRouter>
   );
 }

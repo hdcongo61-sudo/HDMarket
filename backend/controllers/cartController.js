@@ -4,7 +4,7 @@ import Cart from '../models/cartModel.js';
 import Product from '../models/productModel.js';
 
 const productSelectFields =
-  'title price discount priceBeforeDiscount images status category user priceBeforeDiscount';
+  'title price discount priceBeforeDiscount images status category user city country whatsappClicks';
 
 const getItemProductId = (item) => {
   if (!item) return null;
@@ -32,7 +32,11 @@ const sanitizeCart = async (cart) => {
 const populateCart = async (userId) => {
   const cart = await Cart.findOne({ user: userId }).populate({
     path: 'items.product',
-    select: productSelectFields
+    select: productSelectFields,
+    populate: {
+      path: 'user',
+      select: 'name phone accountType shopName'
+    }
   });
   if (!cart) return null;
   await sanitizeCart(cart);
@@ -63,6 +67,17 @@ const formatCart = (cart) => {
       const product = item.product;
       const unitPrice = Number(product.price || 0);
       const lineTotal = Number((unitPrice * item.quantity).toFixed(2));
+      const seller =
+        product.user && typeof product.user === 'object'
+          ? {
+              _id: product.user._id,
+              name: product.user.name,
+              phone: product.user.phone,
+              accountType: product.user.accountType,
+              shopName: product.user.shopName
+            }
+          : null;
+
       return {
         product: {
           _id: product._id,
@@ -72,7 +87,12 @@ const formatCart = (cart) => {
           priceBeforeDiscount: product.priceBeforeDiscount,
           images: product.images,
           category: product.category,
-          status: product.status
+          status: product.status,
+          city: product.city,
+          country: product.country,
+          whatsappClicks: product.whatsappClicks ?? 0,
+          user: seller,
+          contactPhone: seller?.phone || null
         },
         quantity: item.quantity,
         lineTotal

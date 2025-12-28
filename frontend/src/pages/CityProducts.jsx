@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
+import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 
 const cityOptions = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
 
@@ -10,34 +11,113 @@ export default function CityProducts() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [cityHighlights, setCityHighlights] = useState({});
+  const cacheRef = useRef(new Map());
+  const externalLinkProps = useDesktopExternalLink();
   const [selectedCity, setSelectedCity] = useState(() => {
     const initial = searchParams.get('city');
     return cityOptions.includes(initial) ? initial : cityOptions[0];
   });
 
   useEffect(() => {
+    const controller = new AbortController();
+    const loadHighlights = async () => {
+      try {
+        const { data } = await api.get('/products/public/highlights', {
+          params: { limit: 12 },
+          signal: controller.signal
+        });
+        if (data?.cityHighlights && typeof data.cityHighlights === 'object') {
+          setCityHighlights(data.cityHighlights);
+        }
+      } catch (e) {
+        // ignore highlight fetch errors
+      }
+    };
+    loadHighlights();
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
     if (!selectedCity) return;
+
+    const cached = cacheRef.current.get(selectedCity);
+    if (cached) {
+      setItems(cached.items);
+      setError(cached.error || '');
+      setLoading(false);
+      if (cached.nextRetry && Date.now() < cached.nextRetry) {
+        return;
+      }
+    }
+
     const controller = new AbortController();
     const load = async () => {
       setLoading(true);
       setError('');
       try {
         const { data } = await api.get('/products/public', {
-          params: { city: encodeURIComponent(selectedCity), limit: 60 },
+          params: { city: selectedCity },
           signal: controller.signal
         });
         const list = Array.isArray(data) ? data : data?.items || [];
-        setItems(list);
+        if (list.length) {
+          setItems(list);
+          cacheRef.current.set(selectedCity, {
+            items: list,
+            error: '',
+            nextRetry: 0
+          });
+        } else if (cityHighlights[selectedCity]) {
+          const fallback = cityHighlights[selectedCity];
+          setItems(fallback);
+          cacheRef.current.set(selectedCity, {
+            items: fallback,
+            error: '',
+            nextRetry: 0
+          });
+        } else {
+          setItems([]);
+          cacheRef.current.set(selectedCity, {
+            items: [],
+            error: '',
+            nextRetry: 0
+          });
+        }
       } catch (e) {
         if (controller.signal.aborted) return;
-        setError(e.response?.data?.message || e.message || 'Impossible de charger les produits.');
+        const message = e.response?.data?.message || e.message || 'Impossible de charger les produits.';
+        setError(message);
+        const fallbackItems =
+          cacheRef.current.get(selectedCity)?.items || cityHighlights[selectedCity] || [];
+        if (fallbackItems.length) {
+          setItems(fallbackItems);
+        }
+        cacheRef.current.set(selectedCity, {
+          items: fallbackItems,
+          error: message,
+          nextRetry: Date.now() + 60 * 1000
+        });
       } finally {
         setLoading(false);
       }
     };
+
     load();
     return () => controller.abort();
-  }, [selectedCity]);
+  }, [selectedCity, cityHighlights]);
+
+  useEffect(() => {
+    if (!items.length && cityHighlights[selectedCity]?.length) {
+      const fallback = cityHighlights[selectedCity];
+      setItems(fallback);
+      cacheRef.current.set(selectedCity, {
+        items: fallback,
+        error: '',
+        nextRetry: 0
+      });
+    }
+  }, [cityHighlights, selectedCity, items.length]);
 
   useEffect(() => {
     if (selectedCity) {
@@ -118,8 +198,7 @@ export default function CityProducts() {
             <div className="flex flex-col sm:flex-row gap-2">
               <Link
                 to="/products"
-                target="_blank"
-                rel="noopener noreferrer"
+                {...externalLinkProps}
                 className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100"
               >
                 Parcourir tous les produits

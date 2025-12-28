@@ -15,7 +15,7 @@ export const globalSearch = asyncHandler(async (req, res) => {
     accountType: 'shop',
     shopName: regex
   })
-    .select('_id name shopName shopLogo shopAddress')
+    .select('_id name shopName shopLogo shopAddress shopVerified')
     .lean();
 
   const shopUserIds = shopUsers.map((user) => user._id);
@@ -34,7 +34,7 @@ export const globalSearch = asyncHandler(async (req, res) => {
     status: { $ne: 'disabled' },
     $or: orFilters
   })
-    .populate('user', 'name shopName accountType')
+    .populate('user', 'name shopName accountType shopVerified shopLogo shopAddress')
     .sort('-createdAt')
     .limit(8)
     .lean();
@@ -48,6 +48,7 @@ export const globalSearch = asyncHandler(async (req, res) => {
     shopName: product.user?.shopName || (product.user?.accountType === 'shop' ? product.user?.name : null),
     shopLogo: product.user?.shopLogo || null,
     shopAddress: product.user?.shopAddress || null,
+    shopVerified: Boolean(product.user?.shopVerified),
     type:
       product.category && regex.test(product.category)
         ? 'category'
@@ -62,6 +63,7 @@ export const globalSearch = asyncHandler(async (req, res) => {
     image: shop.shopLogo || null,
     shopName: shop.shopName || shop.name,
     shopAddress: shop.shopAddress || null,
+    shopVerified: Boolean(shop.shopVerified),
     type: 'shop'
   }));
 

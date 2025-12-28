@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import ProductCard from "../components/ProductCard";
 import categoryGroups from "../data/categories";
@@ -10,6 +10,7 @@ import "swiper/css/navigation";
 import "swiper/css/pagination";
 import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock } from "lucide-react";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
+import { buildProductPath, buildShopPath } from "../utils/links";
 
 /**
  * 🎨 PAGE D'ACCUEIL HDMarket - Design Alibaba Mobile First
@@ -25,6 +26,12 @@ export default function Home() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const pageParam = Number(searchParams.get('page'));
+  const initialPageRef = useRef(Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1);
+  const [isMobileView, setIsMobileView] = useState(() =>
+    typeof window === 'undefined' ? false : window.innerWidth <= 767
+  );
   const [highlights, setHighlights] = useState({
     favorites: [],
     topRated: [],
@@ -57,7 +64,7 @@ export default function Home() {
       const fetchedItems = Array.isArray(data) ? data : data.items || [];
       const pages = Array.isArray(data) ? 1 : data.pagination?.pages || 1;
       
-      setItems(fetchedItems);
+      setItems((prev) => (isMobileView && page > 1 ? [...prev, ...fetchedItems] : fetchedItems));
       setTotalPages(pages);
     } catch (error) {
       console.error("Erreur chargement produits:", error);
@@ -120,14 +127,14 @@ const loadDiscountProducts = async () => {
     });
     const discountItems = Array.isArray(data) ? data : data.items || [];
     
-    // CORRECTION: Utiliser priceBeforeDiscount au lieu de originalPrice
     const realDiscountProducts = discountItems.filter(product => 
       product.discount > 0 && 
       product.priceBeforeDiscount && // Vérifier que priceBeforeDiscount existe
       product.price < product.priceBeforeDiscount // Comparer avec priceBeforeDiscount
     );
     
-    setDiscountProducts(realDiscountProducts);
+    const shuffled = [...realDiscountProducts].sort(() => Math.random() - 0.5);
+    setDiscountProducts(shuffled.slice(0, 4));
   } catch (error) {
     console.error("Erreur chargement produits en promotion:", error);
   } finally {
@@ -137,8 +144,69 @@ const loadDiscountProducts = async () => {
 
   // === EFFETS DE CHARGEMENT ===
   useEffect(() => {
+    initialPageRef.current = 1;
+    setPage(1);
+  }, [sort, category]);
+
+  useEffect(() => {
     loadProducts();
-  }, [page, sort, category]);
+  }, [page, sort, category, isMobileView]);
+
+  useEffect(() => {
+    if (page === initialPageRef.current) {
+      setSearchParams((prev) => {
+        const params = new URLSearchParams(prev);
+        if (page === 1) {
+          params.delete('page');
+        } else {
+          params.set('page', String(page));
+        }
+        return params;
+      }, { replace: true });
+    } else {
+      setSearchParams((prev) => {
+        const params = new URLSearchParams(prev);
+        if (page === 1) {
+          params.delete('page');
+        } else {
+          params.set('page', String(page));
+        }
+        return params;
+      }, { replace: false });
+    }
+  }, [page, setSearchParams]);
+
+  useEffect(() => {
+    initialPageRef.current = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1;
+    setPage(initialPageRef.current);
+  }, [pageParam]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (typeof window === 'undefined') return;
+      setIsMobileView(window.innerWidth <= 767);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileView) return;
+    if (loading) return;
+    if (page >= totalPages) return;
+    const handleScroll = () => {
+      const threshold = 200;
+      if (
+        window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight - threshold
+      ) {
+        setPage((prev) => Math.min(prev + 1, totalPages));
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isMobileView, loading, page, totalPages]);
 
   useEffect(() => {
     loadHighlights();
@@ -150,6 +218,7 @@ const loadDiscountProducts = async () => {
 
   // === PAGINATION SIMPLIFIÉE ===
   const renderPagination = () => {
+    if (isMobileView) return null;
     if (totalPages <= 1) return null;
 
     return (
@@ -419,7 +488,7 @@ const loadDiscountProducts = async () => {
 
                   {/* LIEN DIRECT VERS LE PRODUIT */}
                   <Link
-                    to={`/product/${product._id}`}
+                    to={buildProductPath(product)}
                     {...externalLinkProps}
                     className="block w-full text-center bg-indigo-600 text-white text-xs font-semibold py-2 rounded-lg hover:bg-indigo-700 transition-colors"
                   >
@@ -514,7 +583,7 @@ const loadDiscountProducts = async () => {
 
                   {/* LIEN DIRECT VERS LE PRODUIT */}
                   <Link
-                    to={`/product/${product._id}`}
+                    to={buildProductPath(product)}
                     {...externalLinkProps}
                     className="block w-full text-center bg-green-600 text-white text-xs font-semibold py-2 rounded-lg hover:bg-green-700 transition-colors"
                   >
@@ -574,7 +643,47 @@ const loadDiscountProducts = async () => {
               >
                 {products.map((product) => (
                   <SwiperSlide key={`city-${city}-${product._id}`}>
-                    <ProductCard p={product} />
+                    <div className="bg-white rounded-2xl border border-gray-100 p-3 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col gap-2 h-full">
+                      <Link
+                        to={buildProductPath(product)}
+                        {...externalLinkProps}
+                        className="relative block"
+                      >
+                        <img
+                          src={product.images?.[0] || "/api/placeholder/200/200"}
+                          alt={product.title}
+                          className="w-full aspect-square rounded-xl object-cover"
+                        />
+                        {product.discount > 0 && (
+                          <span className="absolute top-2 left-2 px-2 py-1 text-[10px] font-semibold rounded-full bg-rose-500 text-white">
+                            -{product.discount}%
+                          </span>
+                        )}
+                          <span className="absolute top-2 right-2 px-2 py-1 text-[10px] font-semibold rounded-full bg-white/90 text-gray-700">
+                            {product.condition === 'new' ? 'Neuf' : 'Occasion'}
+                          </span>
+                      </Link>
+
+                      <div className="flex items-center justify-between text-sm font-bold text-gray-900">
+                        <span>{Number(product.price || 0).toLocaleString()} FCFA</span>
+                        {product.priceBeforeDiscount > product.price && (
+                          <span className="text-xs text-gray-500 font-medium line-through">
+                            {Number(product.priceBeforeDiscount).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">{product.title}</h3>
+                      {product.shopName && (
+                        <p className="text-xs text-gray-500 flex items-center justify-between">
+                          <span>{product.shopName}</span>
+                          <span className="text-[10px] text-indigo-600 font-semibold">
+                            {product.condition === 'new' ? 'Neuf' : 'Occasion'}
+                          </span>
+                        </p>
+                      )}
+
+                    </div>
                   </SwiperSlide>
                 ))}
               </Swiper>
@@ -646,7 +755,7 @@ const loadDiscountProducts = async () => {
                 {highlights.favorites.slice(0, 3).map((product, index) => (
                   <Link
                     key={product._id}
-                    to={`/product/${product._id}`}
+                    to={buildProductPath(product)}
                     {...externalLinkProps}
                     className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-50 transition-colors group"
                   >
@@ -723,7 +832,7 @@ const loadDiscountProducts = async () => {
                 {highlights.topRated.slice(0, 3).map((product, index) => (
                   <Link
                     key={product._id}
-                    to={`/product/${product._id}`}
+                    to={buildProductPath(product)}
                     {...externalLinkProps}
                     className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-50 transition-colors group"
                   >
@@ -805,7 +914,7 @@ const loadDiscountProducts = async () => {
                 {highlights.newProducts.slice(0, 3).map((product) => (
                   <Link
                     key={product._id}
-                    to={`/product/${product._id}`}
+                    to={buildProductPath(product)}
                     {...externalLinkProps}
                     className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-50 transition-colors group"
                   >
@@ -871,7 +980,7 @@ const loadDiscountProducts = async () => {
                 {highlights.usedProducts.slice(0, 3).map((product) => (
                   <Link
                     key={product._id}
-                    to={`/product/${product._id}`}
+                    to={buildProductPath(product)}
                     {...externalLinkProps}
                     className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-50 transition-colors group"
                   >
@@ -906,40 +1015,66 @@ const loadDiscountProducts = async () => {
 
         {/* 🎯 FILTRES ET TRI RAPIDE */}
         <section className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
-          <div className="flex flex-col space-y-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <span className="font-semibold text-gray-900 text-sm">Filtrer :</span>
-              <select 
-                className="border border-gray-300 rounded-lg px-3 py-2 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-transparent w-full sm:w-auto"
-                value={category}
-                onChange={(e) => {
-                  setCategory(e.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="">Toutes catégories</option>
-                <option value="electronics">Électronique</option>
-                <option value="fashion">Mode</option>
-                <option value="home">Maison</option>
-                <option value="sports">Sports</option>
-              </select>
+          <div className="flex flex-col gap-4">
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                Filtrer les meilleures offres
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: '', label: 'Toutes' },
+                  { value: 'electronics', label: 'Électronique' },
+                  { value: 'fashion', label: 'Mode' },
+                  { value: 'home', label: 'Maison' },
+                  { value: 'sports', label: 'Sports' }
+                ].map((option) => (
+                  <button
+                    key={option.value || 'all'}
+                    type="button"
+                    onClick={() => {
+                      setCategory(option.value);
+                      setPage(1);
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                      category === option.value
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
             
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <span className="font-semibold text-gray-900 text-sm">Trier par :</span>
-              <select 
-                className="border border-gray-300 rounded-lg px-3 py-2 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-transparent w-full sm:w-auto"
-                value={sort}
-                onChange={(e) => {
-                  setSort(e.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="new">Nouveautés</option>
-                <option value="price_asc">Prix croissant</option>
-                <option value="price_desc">Prix décroissant</option>
-                <option value="discount">Meilleures promos</option>
-              </select>
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                Trier par
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: 'new', label: 'Nouveautés' },
+                  { value: 'price_asc', label: 'Prix ↑' },
+                  { value: 'price_desc', label: 'Prix ↓' },
+                  { value: 'discount', label: 'Remises' }
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => {
+                      setSort(option.value);
+                      setPage(1);
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                      sort === option.value
+                        ? 'bg-purple-600 text-white shadow-sm'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -973,7 +1108,7 @@ const loadDiscountProducts = async () => {
               {verifiedShops.map((shop) => (
                 <Link
                   key={shop._id}
-                  to={`/shop/${shop._id}`}
+                  to={buildShopPath(shop)}
                   className="flex items-center gap-3 rounded-xl border border-gray-100 hover:border-indigo-200 hover:shadow-md transition-all bg-gradient-to-r from-white to-indigo-50/30 p-4"
                 >
                   <img

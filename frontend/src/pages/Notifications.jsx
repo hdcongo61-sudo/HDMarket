@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Star } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import useUserNotifications, { triggerNotificationsRefresh } from '../hooks/useUserNotifications';
@@ -14,7 +14,9 @@ const DEFAULT_NOTIFICATION_PREFERENCES = {
   product_rejection: true,
   promotional: true,
   shop_review: true,
-  payment_pending: true
+  payment_pending: true,
+  order_created: true,
+  order_delivered: true
 };
 
 const formatDateTime = (value) => {
@@ -93,7 +95,9 @@ const NotificationPreferences = ({ preferences, onUpdate }) => {
               { key: 'product_rejection', label: "Rejets d'annonce" },
               { key: 'promotional', label: 'Promotions appliquées' },
               { key: 'shop_review', label: 'Avis sur ma boutique' },
-              { key: 'payment_pending', label: 'Paiements à valider' }
+              { key: 'payment_pending', label: 'Paiements à valider' },
+              { key: 'order_created', label: 'Commandes confirmées' },
+              { key: 'order_delivered', label: 'Commandes livrées' }
             ].map(({ key, label }) => (
               <div key={key} className="flex items-center justify-between">
                 <span className="text-sm text-gray-700">{label}</span>
@@ -120,6 +124,7 @@ const NotificationPreferences = ({ preferences, onUpdate }) => {
 };
 
 export default function Notifications() {
+  const navigate = useNavigate();
   const { user } = useContext(AuthContext);
   const { counts, loading, error, refresh } = useUserNotifications(Boolean(user));
   const alerts = counts.alerts || [];
@@ -227,6 +232,24 @@ export default function Notifications() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 21h6a2 2 0 002-2v-3a2 2 0 00-2-2H9m6 0l-2-2m0 0l-2 2m2-2v6" />
         </svg>
       )
+    },
+    order_created: {
+      label: 'Commande confirmée',
+      badgeClass: 'bg-blue-50 text-blue-700 border border-blue-200',
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 7l1.5 12.5A2 2 0 006.5 21h11a2 2 0 002-1.5L21 7M8 7V4a2 2 0 012-2h4a2 2 0 012 2v3" />
+        </svg>
+      )
+    },
+    order_delivered: {
+      label: 'Commande livrée',
+      badgeClass: 'bg-green-50 text-green-700 border border-green-200',
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2a2 2 0 012-2h2l4-5V4H9m0 13h6m-6 0v2a2 2 0 002 2h2a2 2 0 002-2v-2m-6 0H5a2 2 0 01-2-2V7m16 0h1a2 2 0 012 2v6a2 2 0 01-2 2h-1" />
+        </svg>
+      )
     }
   };
 
@@ -251,7 +274,6 @@ export default function Notifications() {
 
   const renderAlert = (alert, isUnread) => {
     const productStatus = alert.product?.status;
-    const canViewListing = !productStatus || productStatus === 'approved';
     const config = typeConfig[alert.type] || {
       label: 'Notification',
       badgeClass: 'bg-gray-100 text-gray-700 border border-gray-200',
@@ -291,6 +313,14 @@ export default function Notifications() {
                   {config.label}
                 </span>
                 <span className="text-xs text-gray-500">{formatDateTime(alert.createdAt)}</span>
+                {isUnread && (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600">
+                    <svg className="w-2 h-2 fill-current" viewBox="0 0 8 8">
+                      <circle cx="4" cy="4" r="4" />
+                    </svg>
+                    Nouveau
+                  </span>
+                )}
               </div>
               
               {/* Action buttons */}
@@ -368,26 +398,29 @@ export default function Notifications() {
 
             {/* Product link */}
             {alert.product && (
-              <div className="mt-3 pt-3 border-t border-gray-100">
-                {canViewListing ? (
-                  <Link
-                    to={`/product/${alert.product._id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors group/link"
-                  >
-                    <svg className="w-4 h-4 transition-transform group-hover/link:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                    Voir l'annonce : {alert.product.title}
-                  </Link>
-                ) : (
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
+              <div className="mt-3 pt-3 border-t border-gray-100 space-y-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate(`/product/${alert.product._id}`);
+                    if (isUnread) {
+                      handleMarkRead([alert._id]);
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors group/link"
+                >
+                  <svg className="w-4 h-4 transition-transform group-hover/link:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  Voir l'annonce : {alert.product.title}
+                </button>
+                {productStatus && productStatus !== 'approved' && (
+                  <p className="flex items-center gap-2 text-xs text-gray-500">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
-                    <span className="italic">Annonce en attente de validation : {alert.product.title}</span>
-                  </div>
+                    Annonce actuellement « {productStatus === 'pending' ? 'En attente' : productStatus} ».
+                  </p>
                 )}
               </div>
             )}
@@ -459,7 +492,9 @@ export default function Notifications() {
     { key: 'product_rejection', label: 'Rejets', count: alerts.filter(a => a.type === 'product_rejection').length },
     { key: 'promotional', label: 'Promotions', count: alerts.filter(a => a.type === 'promotional').length },
     { key: 'shop_review', label: 'Avis boutique', count: alerts.filter(a => a.type === 'shop_review').length },
-    { key: 'payment_pending', label: 'Paiements à valider', count: alerts.filter(a => a.type === 'payment_pending').length }
+    { key: 'payment_pending', label: 'Paiements à valider', count: alerts.filter(a => a.type === 'payment_pending').length },
+    { key: 'order_created', label: 'Commandes confirmées', count: alerts.filter(a => a.type === 'order_created').length },
+    { key: 'order_delivered', label: 'Commandes livrées', count: alerts.filter(a => a.type === 'order_delivered').length }
   ];
 
   const renderFilterButtons = ({ variant = 'stack', closeOnSelect = false } = {}) =>

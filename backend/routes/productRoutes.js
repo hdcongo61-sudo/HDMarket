@@ -43,9 +43,9 @@ router.delete('/:id/rating', protect, deleteRating);
 router.get('/:id', protect, getProductById);
 
 // User
-router.post('/', protect, upload.array('images', 5), validate(schemas.productCreate), createProduct);
+router.post('/', protect, upload.array('images', 3), validate(schemas.productCreate), createProduct);
 router.get('/', protect, getMyProducts);
-router.put('/:id', protect, upload.array('images', 5), validate(schemas.productUpdate), updateProduct);
+router.put('/:id', protect, upload.array('images', 3), validate(schemas.productUpdate), updateProduct);
 router.delete('/:id', protect, deleteProduct);
 router.patch('/:id/disable', protect, disableProduct);
 router.patch('/:id/enable', protect, enableProduct);

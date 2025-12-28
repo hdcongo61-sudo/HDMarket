@@ -1,13 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
 
 const LIMIT = 60;
+const PAGE_SIZE = 12;
 
 export default function TopRanking() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     let active = true;
@@ -44,8 +46,92 @@ export default function TopRanking() {
     };
   }, []);
 
+  useEffect(() => {
+    setPage(1);
+  }, [items.length]);
+
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const paginatedItems = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return items.slice(start, start + PAGE_SIZE);
+  }, [items, page]);
+
+  const renderPagination = () => {
+    if (items.length <= PAGE_SIZE) return null;
+
+    const visiblePages = Math.min(5, totalPages);
+    const half = Math.floor(visiblePages / 2);
+    let start = Math.max(1, page - half);
+    let end = Math.min(totalPages, start + visiblePages - 1);
+    start = Math.max(1, end - visiblePages + 1);
+    const pages = Array.from({ length: end - start + 1 }, (_, idx) => start + idx);
+
+    return (
+      <div className="flex justify-center items-center space-x-2 mt-8 pb-[88px] md:pb-0">
+        <button
+          onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+          disabled={page <= 1}
+          className="flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          ‹
+        </button>
+        {start > 1 && (
+          <>
+            <button
+              onClick={() => setPage(1)}
+              className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
+                page === 1 ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              1
+            </button>
+            {start > 2 && <span className="px-1 text-gray-500">...</span>}
+          </>
+        )}
+        {pages.map((pageNum) => (
+          <button
+            key={pageNum}
+            onClick={() => setPage(pageNum)}
+            className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
+              page === pageNum ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            {pageNum}
+          </button>
+        ))}
+        {end < totalPages && (
+          <>
+            {end < totalPages - 1 && <span className="px-1 text-gray-500">...</span>}
+            <button
+              onClick={() => setPage(totalPages)}
+              className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
+                page === totalPages ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              {totalPages}
+            </button>
+          </>
+        )}
+        <button
+          onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+          disabled={page >= totalPages}
+          className="flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          ›
+        </button>
+      </div>
+    );
+  };
+
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-8 space-y-8 pb-12 md:pb-16">
       <header className="space-y-2">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Top des évaluations</h1>
         <p className="text-sm text-gray-500">
@@ -68,11 +154,14 @@ export default function TopRanking() {
           ))}
         </div>
       ) : items.length ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {items.map((product) => (
-            <ProductCard key={product._id} p={product} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {paginatedItems.map((product) => (
+              <ProductCard key={product._id} p={product} />
+            ))}
+          </div>
+          {renderPagination()}
+        </>
       ) : (
         <p className="text-sm text-gray-500">
           Aucun produit n&apos;a encore reçu d&apos;évaluations suffisantes. Revenez un peu plus tard !
@@ -81,4 +170,3 @@ export default function TopRanking() {
     </div>
   );
 }
-

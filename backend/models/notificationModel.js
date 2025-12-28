@@ -4,16 +4,30 @@ const notificationSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     actor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+    product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: false },
+    shop: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
     type: {
       type: String,
-      enum: ['product_comment', 'reply', 'favorite', 'rating'],
+      enum: [
+        'product_comment',
+        'reply',
+        'favorite',
+        'rating',
+        'product_approval',
+        'product_rejection',
+        'promotional',
+        'shop_review',
+        'payment_pending',
+        'order_created',
+        'order_delivered'
+      ],
       required: true
     },
     metadata: {
       type: mongoose.Schema.Types.Mixed,
       default: {}
-    }
+    },
+    readAt: { type: Date, default: null }
   },
   {
     timestamps: true

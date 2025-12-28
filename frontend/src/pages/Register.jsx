@@ -2,7 +2,7 @@ import React, { useContext, useState } from 'react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useNavigate, Navigate, useLocation, Link } from 'react-router-dom';
-import { Eye, EyeOff, UserPlus, User, Mail, Lock, Phone, Store, MapPin, Camera, Upload, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, UserPlus, User, Mail, Lock, Phone, Store, MapPin, Camera, Upload, CheckCircle2, ArrowLeft, Edit3 } from 'lucide-react';
 
 export default function Register() {
   const { user, login } = useContext(AuthContext);
@@ -17,7 +17,9 @@ export default function Register() {
     accountType: 'person',
     shopName: '',
     shopAddress: '',
+    address: '',
     shopLogo: null,
+    shopDescription: '',
     country: 'République du Congo',
     city: '',
     gender: ''
@@ -55,6 +57,10 @@ export default function Register() {
       alert("Veuillez sélectionner votre ville et votre genre.");
       return;
     }
+    if (!form.address.trim()) {
+      alert("Veuillez renseigner votre adresse complète.");
+      return;
+    }
     setLoading(true);
     try {
       const payload = new FormData();
@@ -66,10 +72,12 @@ export default function Register() {
       payload.append('country', 'République du Congo');
       payload.append('city', form.city);
       payload.append('gender', form.gender);
+      payload.append('address', form.address.trim());
       
       if (form.accountType === 'shop') {
         payload.append('shopName', form.shopName);
         payload.append('shopAddress', form.shopAddress);
+        payload.append('shopDescription', form.shopDescription.trim());
         if (form.shopLogo) {
           payload.append('shopLogo', form.shopLogo);
         }
@@ -151,6 +159,26 @@ export default function Register() {
                     <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   </div>
                 </div>
+
+                {/* Adresse personnelle */}
+                <div className="space-y-2 md:col-span-2">
+                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                    <MapPin className="w-4 h-4 text-indigo-500" />
+                    <span>Adresse complète *</span>
+                  </label>
+                  <div className="relative">
+                    <textarea
+                      className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+                      rows={2}
+                      placeholder="Quartier, rue, numéro de parcelle..."
+                      name="address"
+                      value={form.address}
+                      onChange={(e) => setForm({ ...form, address: e.target.value })}
+                      required
+                    />
+                    <MapPin className="absolute left-4 top-4 w-4 h-4 text-gray-400" />
+                  </div>
+                </div>
               </div>
 
               {/* Email */}
@@ -208,6 +236,82 @@ export default function Register() {
               </div>
             </div>
 
+            {/* Localisation et genre */}
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Pays (fixe) */}
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                    <MapPin className="w-4 h-4 text-indigo-500" />
+                    <span>Pays *</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      className="w-full px-4 py-3 pl-11 bg-gray-100 border border-gray-200 rounded-xl text-gray-500 cursor-not-allowed"
+                      value="République du Congo"
+                      readOnly
+                      disabled
+                    />
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  </div>
+                </div>
+
+                {/* Ville */}
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                    <MapPin className="w-4 h-4 text-indigo-500" />
+                    <span>Ville *</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-sm"
+                      value={form.city}
+                      onChange={(e) => setForm({ ...form, city: e.target.value })}
+                      required
+                    >
+                      <option value="">Choisissez votre ville</option>
+                      {cities.map((city) => (
+                        <option key={city} value={city}>
+                          {city}
+                        </option>
+                      ))}
+                    </select>
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Genre */}
+              <div className="space-y-2">
+                <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <User className="w-4 h-4 text-indigo-500" />
+                  Genre *
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  {genderOptions.map((option) => (
+                    <label
+                      key={option.value}
+                      className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-colors cursor-pointer ${
+                        form.gender === option.value
+                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                          : 'border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="gender"
+                        value={option.value}
+                        checked={form.gender === option.value}
+                        onChange={(e) => setForm({ ...form, gender: e.target.value })}
+                        className="sr-only"
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             {/* Type de compte */}
             <div className="space-y-4">
               <div className="flex items-center space-x-3 mb-4">
@@ -226,13 +330,16 @@ export default function Register() {
                     name="accountType"
                     value="person"
                     checked={form.accountType === 'person'}
-                    onChange={(e) => setForm({ 
-                      ...form, 
-                      accountType: e.target.value,
-                      shopName: '',
-                      shopAddress: '',
-                      shopLogo: null 
-                    })}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        accountType: e.target.value,
+                        shopName: '',
+                        shopAddress: '',
+                        shopDescription: '',
+                        shopLogo: null
+                      }))
+                    }
                     className="sr-only"
                   />
                   <div className="flex items-center space-x-3">
@@ -265,7 +372,15 @@ export default function Register() {
                     name="accountType"
                     value="shop"
                     checked={form.accountType === 'shop'}
-                    onChange={(e) => setForm({ ...form, accountType: e.target.value })}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        accountType: e.target.value,
+                        shopName: prev.shopName,
+                        shopAddress: prev.shopAddress,
+                        shopDescription: prev.shopDescription
+                      }))
+                    }
                     className="sr-only"
                   />
                   <div className="flex items-center space-x-3">
@@ -336,6 +451,24 @@ export default function Register() {
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                    <Edit3 className="w-4 h-4 text-amber-500" />
+                    <span>À propos de la boutique *</span>
+                  </label>
+                  <textarea
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400 text-sm"
+                    rows={4}
+                    placeholder="Décrivez vos produits, votre expertise et vos engagements..."
+                    value={form.shopDescription}
+                    onChange={(e) => setForm({ ...form, shopDescription: e.target.value })}
+                    required
+                  />
+                  <p className="text-xs text-gray-500">
+                    Ce texte apparaîtra sur votre page boutique pour rassurer vos clients.
+                  </p>
+                </div>
+
                 {/* Logo boutique - CORRECTION ICI */}
                 <div className="space-y-2">
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
@@ -390,7 +523,15 @@ export default function Register() {
             {/* Bouton d'inscription */}
             <button
               type="submit"
-              disabled={loading || !form.name || !form.email || !form.password || !form.phone || (form.accountType === 'shop' && (!form.shopName || !form.shopAddress))}
+          disabled={
+            loading ||
+            !form.name ||
+            !form.email ||
+            !form.password ||
+            !form.phone ||
+            !form.address ||
+            (form.accountType === 'shop' && (!form.shopName || !form.shopAddress || !form.shopDescription.trim()))
+          }
               className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 shadow-lg"
             >
               {loading ? (
@@ -422,89 +563,20 @@ export default function Register() {
         </div>
 
         {/* Footer */}
-        <div className="text-center">
+        <div className="text-center space-y-1">
           <p className="text-xs text-gray-500">
             En créant un compte, vous acceptez nos{' '}
-            <Link to="/terms" className="text-indigo-600 hover:text-indigo-500">
-              conditions d'utilisation
+            <Link to="/help" className="text-indigo-600 hover:text-indigo-500">
+              conditions d'utilisation et service client
             </Link>{' '}
-            et notre{' '}
+            ainsi que notre{' '}
             <Link to="/privacy" className="text-indigo-600 hover:text-indigo-500">
               politique de confidentialité
             </Link>
           </p>
+          <p className="text-[11px] text-gray-400">ETS HD Tech Filial</p>
         </div>
       </div>
     </div>
   );
 }
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Pays (fixe) */}
-                <div className="space-y-2">
-                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                    <MapPin className="w-4 h-4 text-indigo-500" />
-                    <span>Pays *</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      className="w-full px-4 py-3 pl-11 bg-gray-100 border border-gray-200 rounded-xl text-gray-500 cursor-not-allowed"
-                      value="République du Congo"
-                      readOnly
-                      disabled
-                    />
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  </div>
-                </div>
-
-                {/* Ville */}
-                <div className="space-y-2">
-                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                    <MapPin className="w-4 h-4 text-indigo-500" />
-                    <span>Ville *</span>
-                  </label>
-                  <div className="relative">
-                    <select
-                      className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-sm"
-                      value={form.city}
-                      onChange={(e) => setForm({ ...form, city: e.target.value })}
-                      required
-                    >
-                      <option value="" disabled>Choisissez votre ville</option>
-                      {cities.map((city) => (
-                        <option key={city} value={city}>{city}</option>
-                      ))}
-                    </select>
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Genre */}
-              <div className="space-y-2">
-                <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <User className="w-4 h-4 text-indigo-500" />
-                  Genre *
-                </span>
-                <div className="grid grid-cols-2 gap-3">
-                  {genderOptions.map((option) => (
-                    <label
-                      key={option.value}
-                      className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-colors cursor-pointer ${
-                        form.gender === option.value
-                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                          : 'border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="gender"
-                        value={option.value}
-                        checked={form.gender === option.value}
-                        onChange={(e) => setForm({ ...form, gender: e.target.value })}
-                        className="sr-only"
-                      />
-                      {option.label}
-                    </label>
-                  ))}
-                </div>
-              </div>

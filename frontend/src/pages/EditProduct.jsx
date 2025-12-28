@@ -2,57 +2,15 @@ import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
-
-const ArrowLeftIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path
-      d="M7.33333 3.33337L2.66667 8.00004L7.33333 12.6667"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M13.3333 8.00004H2.66666"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
-const DiscountTagIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path
-      d="M3 13L11 21L21 11L13 3H6L3 6V13Z"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M9.5 9C9.5 9.82843 8.82843 10.5 8 10.5C7.17157 10.5 6.5 9.82843 6.5 9C6.5 8.17157 7.17157 7.5 8 7.5C8.82843 7.5 9.5 8.17157 9.5 9Z"
-      fill="currentColor"
-    />
-    <path
-      d="M15 15C15 15.8284 14.3284 16.5 13.5 16.5C12.6716 16.5 12 15.8284 12 15C12 14.1716 12.6716 13.5 13.5 13.5C14.3284 13.5 15 14.1716 15 15Z"
-      fill="currentColor"
-    />
-    <path
-      d="M10 14L14 10"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
+import { useToast } from '../context/ToastContext';
+import { ArrowLeft, Edit, Tag, FileText, Package, DollarSign, Save, Image, AlertCircle } from 'lucide-react';
+import categoryGroups, { getCategoryMeta } from '../data/categories';
 
 export default function EditProduct() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [product, setProduct] = useState(null);
@@ -90,10 +48,11 @@ export default function EditProduct() {
           return;
         }
         setProduct(data);
+        const categoryMeta = getCategoryMeta(data.category);
         setForm({
           title: data.title || '',
           description: data.description || '',
-          category: data.category || '',
+          category: categoryMeta?.value || data.category || '',
           discount: data.discount ?? 0,
           condition: data.condition || 'used',
           images: data.images || []
@@ -134,10 +93,11 @@ export default function EditProduct() {
         condition: form.condition
       };
       await api.put(`/products/${id}`, payload);
+      showToast('Annonce mise à jour avec succès !', { variant: 'success' });
       navigate('/my');
     } catch (err) {
       const message = err.response?.data?.message || err.message || 'Erreur lors de la mise à jour.';
-      alert(message);
+      showToast(message, { variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -145,146 +105,300 @@ export default function EditProduct() {
 
   if (loading) {
     return (
-      <main className="max-w-4xl mx-auto p-4">
-        <p className="text-sm text-gray-500">Chargement de l'annonce…</p>
-      </main>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <Edit className="w-8 h-8 text-white" />
+          </div>
+          <p className="text-gray-500">Chargement de l'annonce…</p>
+        </div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <main className="max-w-4xl mx-auto p-4 space-y-4">
-        <p className="text-red-600 font-medium">{error}</p>
-        <button
-          onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 px-4 py-2 border rounded hover:bg-gray-50"
-        >
-          <ArrowLeftIcon /> Retour
-        </button>
-      </main>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="max-w-md mx-auto text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-white" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Erreur</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Retour
+          </button>
+        </div>
+      </div>
     );
   }
 
   return (
-    <main className="max-w-4xl mx-auto p-4 space-y-6">
-      <button
-        onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-2 px-3 py-1 text-sm border rounded hover:bg-gray-100"
-      >
-        <ArrowLeftIcon /> Retour
-      </button>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-2xl mx-auto px-4 py-6">
+        {/* En-tête */}
+        <div className="flex items-center justify-between mb-8">
+          <button
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span className="font-medium">Retour</span>
+          </button>
+        </div>
 
-      <header className="space-y-1">
-        <h1 className="text-2xl font-bold text-gray-900">Modifier l'annonce</h1>
-        <p className="text-sm text-gray-500">
-          Le prix actuel ne peut pas être modifié. Vous pouvez toutefois appliquer une remise pour mettre en avant votre annonce.
-        </p>
-      </header>
+        {/* En-tête du formulaire */}
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Edit className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Modifier l'annonce</h1>
+          <p className="text-gray-500">Mettez à jour les informations de votre produit</p>
+        </div>
 
-      <section className="bg-white border rounded-lg shadow-sm p-5">
-        <form onSubmit={onSubmit} className="grid grid-cols-1 gap-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <label className="block text-sm font-medium text-gray-700">
-              Titre
+        <form onSubmit={onSubmit} className="space-y-6 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          {/* Section Informations de base */}
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-2 h-6 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full"></div>
+              <h2 className="text-lg font-semibold text-gray-900">Informations du produit</h2>
+            </div>
+
+            {/* Titre */}
+            <div className="space-y-2">
+              <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                <FileText className="w-4 h-4 text-indigo-500" />
+                <span>Titre de l'annonce *</span>
+              </label>
               <input
-                className="mt-1 w-full border p-2 rounded"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+                placeholder="Ex: iPhone 13 Pro Max 256GB - État neuf"
                 value={form.title}
                 onChange={(e) => onChange('title', e.target.value)}
                 required
               />
-            </label>
-            <label className="block text-sm font-medium text-gray-700">
-              Catégorie
-              <input
-                className="mt-1 w-full border p-2 rounded"
-                value={form.category}
-                onChange={(e) => onChange('category', e.target.value)}
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                <FileText className="w-4 h-4 text-indigo-500" />
+                <span>Description détaillée *</span>
+              </label>
+              <textarea
+                rows={4}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400 resize-none"
+                placeholder="Décrivez votre produit en détail : caractéristiques, état, accessoires inclus..."
+                value={form.description}
+                onChange={(e) => onChange('description', e.target.value)}
                 required
               />
-            </label>
-          </div>
-
-          <label className="block text-sm font-medium text-gray-700">
-            Description
-            <textarea
-              className="mt-1 w-full border p-2 rounded min-h-[140px]"
-              value={form.description}
-              onChange={(e) => onChange('description', e.target.value)}
-              required
-            />
-          </label>
-
-          <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
-            <input
-              type="checkbox"
-              className="h-4 w-4"
-              checked={form.condition === 'new'}
-              onChange={(e) => onChange('condition', e.target.checked ? 'new' : 'used')}
-            />
-            <span>{form.condition === 'new' ? 'Produit neuf' : "Produit d'occasion"}</span>
-          </label>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="border rounded p-3 bg-slate-50">
-              <p className="text-xs uppercase text-gray-500">Prix actuel</p>
-              <p className="text-xl font-semibold text-indigo-600">{priceDisplay.current} FCFA</p>
-              {priceDisplay.before && (
-                <p className="text-sm text-gray-500 line-through">{priceDisplay.before} FCFA</p>
-              )}
             </div>
 
-            <label className="block text-sm font-medium text-gray-700">
-              <span className="flex items-center gap-2">
-                <DiscountTagIcon /> Remise (%)
-              </span>
-              <input
-                type="number"
-                className="mt-1 w-full border p-2 rounded"
-                min="0"
-                max="99"
-                step="1"
-                value={form.discount}
-                onChange={(e) => onChange('discount', Number(e.target.value))}
-              />
-              <span className="text-xs text-gray-500">Seul le pourcentage de remise peut être ajusté.</span>
-            </label>
-          </div>
+            {/* Catégorie et Condition */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Catégorie */}
+              <div className="space-y-2">
+                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                  <Tag className="w-4 h-4 text-indigo-500" />
+                  <span>Catégorie *</span>
+                </label>
+                <select
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  value={form.category}
+                  onChange={(e) => onChange('category', e.target.value)}
+                  required
+                >
+                  <option value="">Sélectionnez une catégorie</option>
+                  {categoryGroups.map((group, index) => (
+                    <optgroup key={index} label={group.label}>
+                      {group.options.map(option => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
 
-          {form.images?.length ? (
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-gray-700">Aperçu des images</p>
-              <div className="flex gap-2 overflow-x-auto">
-                {form.images.map((src, idx) => (
-                  <img
-                    key={src || idx}
-                    src={src}
-                    alt={`${form.title} ${idx + 1}`}
-                    className="h-20 w-24 object-cover rounded border"
-                    loading="lazy"
-                  />
-                ))}
+              {/* Condition */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700">État du produit</label>
+                <div className="flex space-x-4">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <div className="relative">
+                      <input
+                        type="radio"
+                        name="condition"
+                        value="new"
+                        checked={form.condition === 'new'}
+                        onChange={(e) => onChange('condition', e.target.value)}
+                        className="sr-only"
+                      />
+                      <div className={`w-5 h-5 border-2 rounded-full flex items-center justify-center transition-all ${
+                        form.condition === 'new' 
+                          ? 'border-indigo-500 bg-indigo-500' 
+                          : 'border-gray-300'
+                      }`}>
+                        {form.condition === 'new' && (
+                          <div className="w-2 h-2 bg-white rounded-full"></div>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-sm text-gray-700">Neuf</span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <div className="relative">
+                      <input
+                        type="radio"
+                        name="condition"
+                        value="used"
+                        checked={form.condition === 'used'}
+                        onChange={(e) => onChange('condition', e.target.value)}
+                        className="sr-only"
+                      />
+                      <div className={`w-5 h-5 border-2 rounded-full flex items-center justify-center transition-all ${
+                        form.condition === 'used' 
+                          ? 'border-indigo-500 bg-indigo-500' 
+                          : 'border-gray-300'
+                      }`}>
+                        {form.condition === 'used' && (
+                          <div className="w-2 h-2 bg-white rounded-full"></div>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-sm text-gray-700">Occasion</span>
+                  </label>
+                </div>
               </div>
             </div>
-          ) : null}
+          </div>
 
-          <div className="flex items-center gap-3 justify-end pt-2">
+          {/* Section Prix et Remise */}
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-2 h-6 bg-gradient-to-b from-green-500 to-emerald-500 rounded-full"></div>
+              <h2 className="text-lg font-semibold text-gray-900">Prix et Promotion</h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Prix Actuel */}
+              <div className="rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 p-4">
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <DollarSign className="w-4 h-4 text-indigo-500" />
+                    <span className="text-sm font-medium text-indigo-900">Prix actuel</span>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-2xl font-bold text-indigo-600">{priceDisplay.current} FCFA</p>
+                    {priceDisplay.before && (
+                      <p className="text-sm text-gray-500 line-through">{priceDisplay.before} FCFA</p>
+                    )}
+                  </div>
+                  <p className="text-xs text-indigo-700">
+                    Le prix de vente ne peut pas être modifié après création
+                  </p>
+                </div>
+              </div>
+
+              {/* Remise */}
+              <div className="space-y-2">
+                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                  <Tag className="w-4 h-4 text-green-500" />
+                  <span>Remise promotionnelle (%)</span>
+                </label>
+                <input
+                  type="number"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  min="0"
+                  max="99"
+                  step="1"
+                  value={form.discount}
+                  onChange={(e) => onChange('discount', Number(e.target.value))}
+                />
+                <p className="text-xs text-gray-500">
+                  Appliquez une remise pour mettre en avant votre annonce
+                </p>
+                {form.discount > 0 && (
+                  <div className="text-xs text-green-600 font-medium">
+                    Nouveau prix: {Math.round(product.price * (1 - form.discount / 100)).toLocaleString()} FCFA
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Section Images */}
+          {form.images?.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-2 h-6 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full"></div>
+                <h2 className="text-lg font-semibold text-gray-900">Images du produit</h2>
+              </div>
+
+              <div className="space-y-3">
+                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                  <Image className="w-4 h-4 text-blue-500" />
+                  <span>Images actuelles ({form.images.length})</span>
+                </label>
+                
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {form.images.map((src, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={src}
+                        alt={`${form.title} ${index + 1}`}
+                        className="w-full h-24 object-cover rounded-lg border border-gray-200"
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded-lg flex items-center justify-center">
+                        <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                          Vue {index + 1}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500">
+                  Les images ne peuvent pas être modifiées après création
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Boutons d'action */}
+          <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-100">
             <button
               type="button"
               onClick={() => navigate('/my')}
-              className="px-4 py-2 border rounded hover:bg-gray-50"
+              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-70"
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2"
             >
-              {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
+              {saving ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Enregistrement...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-5 h-5" />
+                  <span>Enregistrer les modifications</span>
+                </>
+              )}
             </button>
           </div>
         </form>
-      </section>
-    </main>
+      </div>
+    </div>
   );
 }

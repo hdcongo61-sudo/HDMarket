@@ -9,6 +9,8 @@ const paymentSchema = new mongoose.Schema(
     amount: { type: Number, required: true, min: 0 },
     operator: { type: String, enum: ['MTN', 'Airtel', 'Orange', 'Moov', 'Other'], required: true },
     status: { type: String, enum: ['waiting', 'verified', 'rejected'], default: 'waiting' },
+    validatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    validatedAt: { type: Date, default: null },
     submittedAt: { type: Date, default: Date.now }
   },
   { timestamps: true }

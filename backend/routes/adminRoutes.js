@@ -7,12 +7,15 @@ import {
   listUsers,
   updateUserAccountType,
   blockUser,
-  unblockUser
+  unblockUser,
+  updateShopVerification,
+  listVerifiedShopsAdmin,
+  updateUserRole
 } from '../controllers/adminController.js';
 
 const router = express.Router();
 
-router.use(protect, requireRole(['admin']));
+router.use(protect, requireRole(['admin', 'manager']));
 
 router.get('/stats', getDashboardStats);
 router.get('/users', listUsers);
@@ -33,5 +36,18 @@ router.patch(
   validate(schemas.idParam, 'params'),
   unblockUser
 );
+router.patch(
+  '/users/:id/shop-verification',
+  validate(schemas.idParam, 'params'),
+  validate(schemas.adminShopVerification),
+  updateShopVerification
+);
+router.patch(
+  '/users/:id/role',
+  validate(schemas.idParam, 'params'),
+  validate(schemas.adminUserRole),
+  updateUserRole
+);
+router.get('/shops/verified', listVerifiedShopsAdmin);
 
 export default router;

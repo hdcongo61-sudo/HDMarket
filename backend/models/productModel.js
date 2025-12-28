@@ -18,9 +18,16 @@ const productSchema = new mongoose.Schema(
     status: { type: String, enum: ['pending', 'approved', 'rejected', 'disabled'], default: 'pending' },
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     payment: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment' },
+    country: { type: String, default: 'République du Congo' },
+    city: {
+      type: String,
+      enum: ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'],
+      default: 'Brazzaville'
+    },
     whatsappClicks: { type: Number, default: 0, min: 0 },
     favoritesCount: { type: Number, default: 0, min: 0 },
-    disabledByAdmin: { type: Boolean, default: false }
+    disabledByAdmin: { type: Boolean, default: false },
+    disabledBySuspension: { type: Boolean, default: false }
   },
   { timestamps: true }
 );

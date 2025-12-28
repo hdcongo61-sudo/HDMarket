@@ -7,7 +7,10 @@ import {
   getProfileStats,
   updateProfile,
   getNotifications,
+  getNotificationPreferences,
+  updateNotificationPreferences,
   markNotificationsRead,
+  deleteNotification,
   getFavorites,
   addFavorite,
   removeFavorite,
@@ -24,6 +27,13 @@ router.put('/profile', upload.single('shopLogo'), validate(schemas.profileUpdate
 router.get('/notifications', getNotifications);
 router.get('/notifications/stream', streamNotifications);
 router.patch('/notifications/read', markNotificationsRead);
+router.get('/notification-preferences', getNotificationPreferences);
+router.patch(
+  '/notification-preferences',
+  validate(schemas.notificationPreferencesUpdate),
+  updateNotificationPreferences
+);
+router.delete('/notifications/:id', validate(schemas.idParam, 'params'), deleteNotification);
 router.get('/favorites', getFavorites);
 router.post('/favorites', validate(schemas.favoriteModify), addFavorite);
 router.delete('/favorites/:id', validate(schemas.idParam, 'params'), removeFavorite);

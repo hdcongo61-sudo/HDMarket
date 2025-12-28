@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import PaymentForm from '../components/PaymentForm';
 import ProductForm from '../components/ProductForm';
+import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 
 export default function UserDashboard() {
   const [items, setItems] = useState([]);
+  const externalLinkProps = useDesktopExternalLink();
   const load = async () => {
     const { data } = await api.get('/products');
     setItems(data);
@@ -70,6 +72,7 @@ export default function UserDashboard() {
                 <>
                   <Link
                     to={`/product/${p._id}`}
+                    {...externalLinkProps}
                     className="text-indigo-600 hover:underline"
                   >
                     Voir l'annonce

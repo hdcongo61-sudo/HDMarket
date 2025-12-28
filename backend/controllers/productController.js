@@ -2,6 +2,12 @@ import asyncHandler from 'express-async-handler';
 import Product from '../models/productModel.js';
 import Comment from '../models/commentModel.js';
 import Rating from '../models/ratingModel.js';
+import User from '../models/userModel.js';
+import { createNotification } from '../utils/notificationService.js';
+
+const MAX_PRODUCT_IMAGES = 3;
+const SHOP_SELECT_FIELDS =
+  'name phone accountType shopName shopAddress shopLogo city country shopVerified';
 
 export const createProduct = asyncHandler(async (req, res) => {
   const { title, description, price, category, discount, condition } = req.body;
@@ -29,7 +35,20 @@ export const createProduct = asyncHandler(async (req, res) => {
   const resolvedCondition = (condition || 'used').toString().toLowerCase();
   const safeCondition = resolvedCondition === 'new' ? 'new' : 'used';
 
-  const images = (req.files || []).map((f) => `${req.protocol}://${req.get('host')}/` + f.path.replace('\\', '/'));
+  const uploadedFiles = Array.isArray(req.files) ? req.files : [];
+  if (uploadedFiles.length > MAX_PRODUCT_IMAGES) {
+    return res.status(400).json({
+      message: `Vous pouvez télécharger jusqu'à ${MAX_PRODUCT_IMAGES} photos par annonce.`
+    });
+  }
+
+  const images = uploadedFiles.map(
+    (f) => `${req.protocol}://${req.get('host')}/` + f.path.replace('\\', '/')
+  );
+
+  const owner = await User.findById(req.user.id).select('city country');
+  const ownerCity = owner?.city || 'Brazzaville';
+  const ownerCountry = owner?.country || 'République du Congo';
 
   const product = await Product.create({
     title,
@@ -41,7 +60,9 @@ export const createProduct = asyncHandler(async (req, res) => {
     priceBeforeDiscount,
     images,
     user: req.user.id,
-    status: 'pending'
+    status: 'pending',
+    city: ownerCity,
+    country: ownerCountry
   });
 
   res.status(201).json(product);
@@ -53,6 +74,7 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     category,
     minPrice,
     maxPrice,
+    city: cityParam,
     sort = 'new',
     page = 1,
     limit = 12
@@ -67,6 +89,13 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
 
   if (category) {
     filter.category = new RegExp(`^${category.trim()}$`, 'i');
+  }
+
+  if (cityParam) {
+    const normalizedCity = cityParam.trim();
+    if (['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'].includes(normalizedCity)) {
+      filter.city = normalizedCity;
+    }
   }
 
   if (minPrice !== undefined || maxPrice !== undefined) {
@@ -98,6 +127,8 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
       .lean(),
     Product.countDocuments(filter)
   ]);
+
+  await Product.populate(itemsRaw, { path: 'user', select: SHOP_SELECT_FIELDS });
 
   const productIds = itemsRaw.map((item) => item._id);
 
@@ -184,6 +215,12 @@ export const getPublicHighlights = asyncHandler(async (req, res) => {
     { $limit: limit * 5 }
   ]);
 
+  const cityList = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
+  const cityProductsRaw = await Product.find({ ...baseFilter, city: { $in: cityList } })
+    .sort({ createdAt: -1 })
+    .limit(limit * cityList.length)
+    .lean();
+
   const ratingCandidateIds = topRatingStats.map((stat) => stat._id);
   let ratingProductsRaw = [];
   if (ratingCandidateIds.length) {
@@ -202,13 +239,21 @@ export const getPublicHighlights = asyncHandler(async (req, res) => {
   }
 
   const combinedMap = new Map();
-  favoritesRaw.forEach((doc) => combinedMap.set(String(doc._id), doc));
-  topRatedRaw.forEach((doc) => combinedMap.set(String(doc._id), doc));
-  dealsRaw.forEach((doc) => combinedMap.set(String(doc._id), doc));
-  discountRaw.forEach((doc) => combinedMap.set(String(doc._id), doc));
-  newRaw.forEach((doc) => combinedMap.set(String(doc._id), doc));
-  usedRaw.forEach((doc) => combinedMap.set(String(doc._id), doc));
-  const productIds = Array.from(combinedMap.values()).map((doc) => doc._id);
+  const pushUnique = (doc) => {
+    if (doc) combinedMap.set(String(doc._id), doc);
+  };
+
+  favoritesRaw.forEach(pushUnique);
+  topRatedRaw.forEach(pushUnique);
+  dealsRaw.forEach(pushUnique);
+  discountRaw.forEach(pushUnique);
+  newRaw.forEach(pushUnique);
+  usedRaw.forEach(pushUnique);
+  cityProductsRaw.forEach(pushUnique);
+  const combinedDocs = Array.from(combinedMap.values());
+  await Product.populate(combinedDocs, { path: 'user', select: SHOP_SELECT_FIELDS });
+
+  const productIds = combinedDocs.map((doc) => doc._id);
 
   let commentStats = [];
   let ratingStats = [];
@@ -252,14 +297,22 @@ export const getPublicHighlights = asyncHandler(async (req, res) => {
   const topDiscounts = discountRaw.map(serialize).slice(0, limit);
   const newProducts = newRaw.map(serialize).slice(0, limit);
   const usedProducts = usedRaw.map(serialize).slice(0, limit);
+  const cityHighlights = Object.fromEntries(cityList.map((city) => [city, []]));
+  const cityLimit = Math.min(limit, 12);
 
-  res.json({ favorites, topRated, topDeals, topDiscounts, newProducts, usedProducts });
+  cityProductsRaw.forEach((doc) => {
+    const city = doc.city;
+    if (!city || !cityHighlights[city] || cityHighlights[city].length >= cityLimit) return;
+    cityHighlights[city].push(serialize(doc));
+  });
+
+  res.json({ favorites, topRated, topDeals, topDiscounts, newProducts, usedProducts, cityHighlights });
 });
 
 export const getPublicProductById = asyncHandler(async (req, res) => {
   const productDoc = await Product.findById(req.params.id)
     .select('-payment')
-    .populate('user', 'name phone accountType shopName shopAddress shopLogo');
+    .populate('user', SHOP_SELECT_FIELDS);
   if (!productDoc || productDoc.status !== 'approved') {
     return res.status(404).json({ message: 'Produit introuvable ou non publié.' });
   }
@@ -295,7 +348,7 @@ export const getAllProductsAdmin = asyncHandler(async (req, res) => {
   const { status } = req.query; // optional filter
   const query = status ? { status } : {};
   const products = await Product.find(query)
-    .populate('user', 'name email phone accountType shopName shopAddress shopLogo')
+    .populate('user', `name email phone accountType shopName shopAddress shopLogo city country shopVerified`)
     .populate('payment');
   res.json(products);
 });
@@ -303,11 +356,9 @@ export const getAllProductsAdmin = asyncHandler(async (req, res) => {
 export const getProductById = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
   if (!product) return res.status(404).json({ message: 'Not found' });
-  if (
-    product.status === 'disabled' &&
-    product.user.toString() !== req.user.id &&
-    req.user.role !== 'admin'
-  ) {
+  const isModerator = ['admin', 'manager'].includes(req.user.role);
+
+  if (product.status === 'disabled' && product.user.toString() !== req.user.id && !isModerator) {
     return res.status(403).json({ message: 'Forbidden' });
   }
   res.json(product);
@@ -319,10 +370,13 @@ export const updateProduct = asyncHandler(async (req, res) => {
   if (product.user.toString() !== req.user.id && req.user.role !== 'admin')
     return res.status(403).json({ message: 'Forbidden' });
 
+  const previousDiscount = Number(product.discount || 0);
   const { title, description, category, discount, condition } = req.body;
   if (title) product.title = title;
   if (description) product.description = description;
   if (category) product.category = category;
+
+  let promotionApplied = false;
   if (discount !== undefined) {
     const parsed = Number(discount);
     if (Number.isNaN(parsed) || parsed < 0 || parsed >= 100) {
@@ -333,6 +387,9 @@ export const updateProduct = asyncHandler(async (req, res) => {
       product.priceBeforeDiscount = basePrice;
       product.price = Number((basePrice * (1 - parsed / 100)).toFixed(2));
       product.discount = parsed;
+      if (parsed !== previousDiscount) {
+        promotionApplied = true;
+      }
     } else {
       product.price = basePrice;
       product.priceBeforeDiscount = undefined;
@@ -348,11 +405,63 @@ export const updateProduct = asyncHandler(async (req, res) => {
   }
 
   if (req.files && req.files.length) {
-    const imgs = req.files.map((f) => `${req.protocol}://${req.get('host')}/` + f.path.replace('\\', '/'));
-    product.images = [...product.images, ...imgs];
+    const existingImages = Array.isArray(product.images) ? product.images : [];
+    const remainingSlots = MAX_PRODUCT_IMAGES - existingImages.length;
+    if (remainingSlots <= 0) {
+      return res.status(400).json({
+        message: `Nombre maximal de photos atteint (${MAX_PRODUCT_IMAGES}).`
+      });
+    }
+    if (req.files.length > remainingSlots) {
+      return res.status(400).json({
+        message: `Vous ne pouvez ajouter que ${remainingSlots} photo(s) supplémentaire(s).`
+      });
+    }
+    const imgs = req.files.map(
+      (f) => `${req.protocol}://${req.get('host')}/` + f.path.replace('\\', '/')
+    );
+    product.images = [...existingImages, ...imgs];
   }
 
   await product.save();
+
+  if (promotionApplied && product.discount > 0) {
+    await createNotification({
+      userId: product.user,
+      actorId: req.user.id,
+      productId: product._id,
+      type: 'promotional',
+      metadata: {
+        discount: product.discount
+      },
+      allowSelf: String(product.user) === req.user.id
+    });
+
+    const followers = await User.find({ favorites: product._id })
+      .select('_id')
+      .lean();
+
+    if (followers.length) {
+      const ops = followers
+        .filter((follower) => String(follower._id) !== String(req.user.id))
+        .map((follower) =>
+          createNotification({
+            userId: follower._id,
+            actorId: req.user.id,
+            productId: product._id,
+            type: 'promotional',
+            metadata: {
+              discount: product.discount,
+              productTitle: product.title || ''
+            }
+          })
+        );
+      if (ops.length) {
+        await Promise.all(ops);
+      }
+    }
+  }
+
   res.json(product);
 });
 
@@ -368,14 +477,16 @@ export const deleteProduct = asyncHandler(async (req, res) => {
 export const disableProduct = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
   if (!product) return res.status(404).json({ message: 'Not found' });
-  if (product.user.toString() !== req.user.id && req.user.role !== 'admin')
+  const isModerator = ['admin', 'manager'].includes(req.user.role);
+  if (product.user.toString() !== req.user.id && !isModerator)
     return res.status(403).json({ message: 'Forbidden' });
 
   if (product.status !== 'disabled') {
     product.lastStatusBeforeDisable = product.status;
   }
   product.status = 'disabled';
-  product.disabledByAdmin = req.user.role === 'admin';
+  product.disabledByAdmin = isModerator;
+  product.disabledBySuspension = false;
   await product.save();
   res.json(product);
 });
@@ -383,10 +494,11 @@ export const disableProduct = asyncHandler(async (req, res) => {
 export const enableProduct = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id).populate('payment', 'status');
   if (!product) return res.status(404).json({ message: 'Not found' });
-  if (product.user.toString() !== req.user.id && req.user.role !== 'admin')
+  const isModerator = ['admin', 'manager'].includes(req.user.role);
+  if (product.user.toString() !== req.user.id && !isModerator)
     return res.status(403).json({ message: 'Forbidden' });
 
-  if (product.disabledByAdmin && req.user.role !== 'admin') {
+  if (product.disabledByAdmin && !isModerator) {
     return res
       .status(403)
       .json({
@@ -411,6 +523,7 @@ export const enableProduct = asyncHandler(async (req, res) => {
   product.status = restoredStatus;
   product.lastStatusBeforeDisable = null;
   product.disabledByAdmin = false;
+  product.disabledBySuspension = false;
   await product.save();
   res.json(product);
 });

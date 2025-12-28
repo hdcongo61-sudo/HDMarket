@@ -23,7 +23,7 @@ export const protect = async (req, res, next) => {
         code: 'ACCOUNT_BLOCKED'
       });
     }
-    req.user = { id: user._id, role: user.role };
+    req.user = { id: user._id.toString(), role: user.role };
     if (req.query?.token) {
       delete req.query.token;
     }
@@ -31,4 +31,9 @@ export const protect = async (req, res, next) => {
   } catch (e) {
     return res.status(401).json({ message: 'Token invalid' });
   }
+};
+
+export const admin = (req, res, next) => {
+  if (req.user?.role === 'admin') return next();
+  return res.status(403).json({ message: 'Seuls les administrateurs peuvent accéder à cette ressource.' });
 };

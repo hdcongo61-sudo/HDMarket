@@ -5,19 +5,29 @@ export const createNotification = async ({
   userId,
   actorId,
   productId,
+  shopId,
   type,
-  metadata = {}
+  metadata = {},
+  allowSelf = false
 }) => {
-  if (!userId || !actorId || String(userId) === String(actorId)) return null;
+  if (!userId || !actorId) return null;
+  if (!allowSelf && String(userId) === String(actorId)) return null;
 
   try {
-    const notification = await Notification.create({
+    const doc = {
       user: userId,
       actor: actorId,
-      product: productId,
       type,
       metadata
-    });
+    };
+    if (productId) {
+      doc.product = productId;
+    }
+    if (shopId) {
+      doc.shop = shopId;
+    }
+
+    const notification = await Notification.create(doc);
 
     emitNotification(userId, {
       type: 'refresh',
