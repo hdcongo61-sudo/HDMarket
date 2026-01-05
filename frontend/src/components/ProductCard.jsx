@@ -18,7 +18,7 @@ import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
  * Mobile-first et responsive
  */
 
-export default function ProductCard({ p }) {
+export default function ProductCard({ p, hideMobileDiscountBadge = false }) {
   const { user } = useContext(AuthContext);
   const { addItem, cart } = useContext(CartContext);
   const navigate = useNavigate();
@@ -80,6 +80,7 @@ export default function ProductCard({ p }) {
   const ratingCount = p.ratingCount || 0;
   const commentCount = p.commentCount || 0;
   const isShopVerified = Boolean(p.user?.shopVerified ?? p.shopVerified);
+  const shopLogoSrc = p.user?.shopLogo || p.shopLogo || null;
 
   // Calcul de la date de publication
   const { publishedLabel, daysSince, isNew } = useMemo(() => {
@@ -182,6 +183,11 @@ export default function ProductCard({ p }) {
         </div>
 
         {/* 🔖 BADGES SUPERPOSÉS */}
+        {hasDiscount && (
+          <span className="sm:hidden absolute top-3 left-3 z-20 inline-flex items-center rounded-full bg-gradient-to-r from-red-500 to-pink-500 px-3 py-1 text-[11px] font-semibold text-white shadow-lg">
+            -{p.discount}%
+          </span>
+        )}
         <div className="hidden sm:flex absolute top-3 left-3 flex-col space-y-2">
           {/* Badge Promotion */}
           {hasDiscount && (
@@ -213,7 +219,7 @@ export default function ProductCard({ p }) {
         <button
           type="button"
           onClick={(event) => handleFavoriteToggle(event)}
-          className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm p-2.5 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 group/fav"
+          className="absolute top-3 right-3 z-30 bg-white/90 backdrop-blur-sm p-2.5 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 group/fav"
           aria-label={isInFavorites ? 'Retirer des favoris' : 'Ajouter aux favoris'}
         >
           <Heart
@@ -247,9 +253,9 @@ export default function ProductCard({ p }) {
           <span className="uppercase tracking-widest">{p.condition === 'new' ? 'Neuf' : 'Occasion'}</span>
           <span>{publishedLabel}</span>
         </div>
-        <div className="flex items-center justify-between text-lg font-semibold text-slate-900">
-          <span className="text-base sm:text-lg">{price} FCFA</span>
-          {hasDiscount && (
+        <div className="flex items-center justify-between text-base font-semibold text-slate-900">
+          <span className="text-sm font-semibold sm:text-base">{price} FCFA</span>
+          {hasDiscount && !hideMobileDiscountBadge && (
             <span className="text-xs font-semibold uppercase text-red-500">-{p.discount}%</span>
           )}
         </div>
@@ -302,13 +308,23 @@ export default function ProductCard({ p }) {
         </div>
 
         <div className="flex items-center justify-between text-xs text-slate-500">
-          <Link
-            to={buildShopPath(p.user)}
-            {...externalLinkProps}
-            className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 truncate hover:text-indigo-600"
-          >
-            {p.user?.shopName || 'Boutique HDMarket'}
-          </Link>
+          <div className="flex min-w-0 items-center gap-2">
+            {isShopVerified && shopLogoSrc && (
+              <img
+                src={shopLogoSrc}
+                alt={p.user?.shopName || 'Logo boutique'}
+                className="h-5 w-5 rounded-full border border-slate-200 object-cover"
+                loading="lazy"
+              />
+            )}
+            <Link
+              to={buildShopPath(p.user)}
+              {...externalLinkProps}
+              className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 truncate hover:text-indigo-600"
+            >
+              {p.user?.shopName || 'Boutique HDMarket'}
+            </Link>
+          </div>
           {isShopVerified && <VerifiedBadge verified className="text-[10px]" />}
         </div>
 

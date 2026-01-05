@@ -10,6 +10,9 @@ export default function TopRanking() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
+  const [isMobileView, setIsMobileView] = useState(() =>
+    typeof window === 'undefined' ? false : window.innerWidth <= 767
+  );
 
   useEffect(() => {
     let active = true;
@@ -47,8 +50,34 @@ export default function TopRanking() {
   }, []);
 
   useEffect(() => {
+    const handleResize = () => {
+      if (typeof window === 'undefined') return;
+      setIsMobileView(window.innerWidth <= 767);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
     setPage(1);
   }, [items.length]);
+
+  useEffect(() => {
+    if (!isMobileView) return;
+    if (page >= Math.max(1, Math.ceil(items.length / PAGE_SIZE))) return;
+    const handleScroll = () => {
+      const threshold = 200;
+      if (
+        window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight - threshold
+      ) {
+        setPage((prev) => Math.min(prev + 1, Math.max(1, Math.ceil(items.length / PAGE_SIZE))));
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isMobileView, items.length, page]);
 
   const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
 
@@ -59,11 +88,12 @@ export default function TopRanking() {
   }, [page, totalPages]);
 
   const paginatedItems = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return items.slice(start, start + PAGE_SIZE);
+    const end = page * PAGE_SIZE;
+    return items.slice(0, end);
   }, [items, page]);
 
   const renderPagination = () => {
+    if (isMobileView) return null;
     if (items.length <= PAGE_SIZE) return null;
 
     const visiblePages = Math.min(5, totalPages);

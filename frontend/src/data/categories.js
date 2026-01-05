@@ -1,6 +1,7 @@
 import {
   Smartphone,
   Shirt,
+  Dumbbell,
   Home as HomeIcon,
   Factory,
   HeartPulse,
@@ -31,6 +32,20 @@ const categoryGroups = [
       { value: 'chaussures', label: 'Chaussures' },
       { value: 'bijoux', label: 'Bijoux & Montres' },
       { value: 'sacs', label: 'Sacs & Accessoires' }
+    ]
+  },
+  {
+    id: 'sport',
+    label: 'Sport & Fitness',
+    description: 'Équipements sportifs, fitness, plein air et loisirs.',
+    icon: Dumbbell,
+    options: [
+      { value: 'sports-loisirs', label: 'Sports & Loisirs' },
+      { value: 'fitness', label: 'Fitness & Musculation' },
+      { value: 'sports-collectifs', label: 'Sports Collectifs' },
+      { value: 'sports-plein-air', label: 'Plein Air & Randonnée' },
+      { value: 'velos', label: 'Vélos & Mobilité' },
+      { value: 'accessoires-sport', label: 'Accessoires Sportifs' }
     ]
   },
   {
@@ -66,8 +81,7 @@ const categoryGroups = [
       { value: 'cosmetiques', label: 'Cosmétiques' },
       { value: 'soins-peau', label: 'Soins de la Peau' },
       { value: 'equipement-medical', label: 'Équipement Médical' },
-      { value: 'complements', label: 'Compléments Alimentaires' },
-      { value: 'sports-loisirs', label: 'Sports & Loisirs' }
+      { value: 'complements', label: 'Compléments Alimentaires' }
     ]
   },
   {

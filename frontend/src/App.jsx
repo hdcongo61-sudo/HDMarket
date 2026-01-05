@@ -5,11 +5,13 @@ import Footer from './components/Footer';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
 import UserDashboard from './pages/UserDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminPayments from './pages/AdminPayments';
 import AdminUsers from './pages/AdminUsers';
 import AdminOrders from './pages/AdminOrders';
+import AdminDeliveryGuys from './pages/AdminDeliveryGuys';
 import TopDeals from './pages/TopDeals';
 import TopRanking from './pages/TopRanking';
 import TopFavorites from './pages/TopFavorites';
@@ -31,8 +33,17 @@ import HelpCenter from './pages/HelpCenter';
 import VerifiedShops from './pages/VerifiedShops';
 import UserStats from './pages/UserStats';
 import UserOrders from './pages/UserOrders';
+import SellerOrders from './pages/SellerOrders';
+import OrderCheckout from './pages/OrderCheckout';
 import usePreventNewTabOnMobile from './hooks/usePreventNewTabOnMobile';
 import ScrollToTop from './components/ScrollToTop';
+import ChatBox from './components/ChatBox';
+import MobileScrollToTopButton from './components/MobileScrollToTopButton';
+import AdminChatTemplates from './pages/AdminChatTemplates';
+import AdminProductBoosts from './pages/AdminProductBoosts';
+import AdminProducts from './pages/AdminProducts';
+import AdminUserStats from './pages/AdminUserStats';
+import CertifiedProducts from './pages/CertifiedProducts';
 
 export default function App() {
   usePreventNewTabOnMobile();
@@ -45,8 +56,9 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/product/:id" element={<ProductDetails />} />
-          <Route path="/shop/:id" element={<ShopProfile />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/product/:slug" element={<ProductDetails />} />
+          <Route path="/shop/:slug" element={<ShopProfile />} />
           <Route path="/shops/verified" element={<VerifiedShops />} />
           <Route path="/help" element={<HelpCenter />} />
           <Route path="/top-deals" element={<TopDeals />} />
@@ -66,9 +78,9 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/product/:id/edit"
-            element={
+            <Route
+              path="/product/:slug/edit"
+              element={
               <ProtectedRoute>
                 <EditProduct />
               </ProtectedRoute>
@@ -123,10 +135,42 @@ export default function App() {
             }
           />
           <Route
+            path="/orders/checkout"
+            element={
+              <ProtectedRoute>
+                <OrderCheckout />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/orders/:status"
             element={
               <ProtectedRoute>
                 <UserOrders />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seller/orders"
+            element={
+              <ProtectedRoute>
+                <SellerOrders />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seller/orders/:status"
+            element={
+              <ProtectedRoute>
+                <SellerOrders />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/chat-templates"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <AdminChatTemplates />
               </ProtectedRoute>
             }
           />
@@ -155,6 +199,14 @@ export default function App() {
             }
           />
           <Route
+            path="/admin/delivery-guys"
+            element={
+              <ProtectedRoute roles={['admin', 'manager']}>
+                <AdminDeliveryGuys />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/admin/users"
             element={
               <ProtectedRoute role="admin">
@@ -162,9 +214,36 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/admin/users/:id/stats"
+            element={
+              <ProtectedRoute roles={['admin', 'manager']}>
+                <AdminUserStats />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/product-boosts"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <AdminProductBoosts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/products"
+            element={
+              <ProtectedRoute roles={['admin', 'manager']}>
+                <AdminProducts />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/certified-products" element={<CertifiedProducts />} />
         </Routes>
       </main>
       <Footer />
+      <ChatBox />
+      <MobileScrollToTopButton />
     </BrowserRouter>
   );
 }

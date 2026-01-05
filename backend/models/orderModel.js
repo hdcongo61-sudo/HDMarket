@@ -9,7 +9,8 @@ const orderItemSchema = new mongoose.Schema(
       price: Number,
       image: String,
       shopName: String,
-      shopId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+      shopId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      confirmationNumber: String
     }
   },
   { _id: false }
@@ -27,6 +28,7 @@ const orderSchema = new mongoose.Schema(
     },
     customer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    deliveryGuy: { type: mongoose.Schema.Types.ObjectId, ref: 'DeliveryGuy' },
     status: {
       type: String,
       enum: ['confirmed', 'delivering', 'delivered'],
@@ -39,6 +41,11 @@ const orderSchema = new mongoose.Schema(
       default: 'Brazzaville'
     },
     trackingNote: { type: String, default: '' },
+    totalAmount: { type: Number, default: 0 },
+    paidAmount: { type: Number, default: 0 },
+    remainingAmount: { type: Number, default: 0 },
+    paymentName: { type: String, trim: true, default: '' },
+    paymentTransactionCode: { type: String, trim: true, default: '' },
     shippedAt: { type: Date },
     deliveredAt: { type: Date }
   },

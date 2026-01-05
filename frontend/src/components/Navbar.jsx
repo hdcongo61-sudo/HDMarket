@@ -31,7 +31,8 @@ import {
   ClipboardList,
   Sparkles,
   Trash2,
-  ShieldCheck
+  ShieldCheck,
+  Truck
 } from "lucide-react";
 import VerifiedBadge from "./VerifiedBadge";
 
@@ -68,11 +69,13 @@ export default function Navbar() {
   const cartCount = cart?.totals?.quantity || 0;
   const favoritesCount = favorites.length;
   const [activeOrders, setActiveOrders] = useState(0);
+  const [sellerOrders, setSellerOrders] = useState(0);
 
   const isAdmin = user?.role === "admin";
   const isManager = user?.role === "manager";
   const canAccessBackOffice = isAdmin || isManager;
   const adminLinkLabel = isManager ? "Gestion" : "Admin";
+  const canManageSales = Boolean(user && !isAdmin);
 
   const { counts } = useAdminCounts(canAccessBackOffice);
   const waitingPayments = counts.waitingPayments || 0;
@@ -80,6 +83,8 @@ export default function Navbar() {
   const commentAlerts = userNotifications.commentAlerts || 0;
   const hasActiveOrders = activeOrders > 0;
   const activeOrdersBadge = activeOrders > 99 ? '99+' : activeOrders;
+  const hasSellerOrders = sellerOrders > 0;
+  const sellerOrdersBadge = sellerOrders > 99 ? '99+' : sellerOrders;
 
   // États
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -148,6 +153,39 @@ export default function Navbar() {
       if (intervalId) clearInterval(intervalId);
     };
   }, [user]);
+
+  useEffect(() => {
+    if (!user || isAdmin) {
+      setSellerOrders(0);
+      return () => {};
+    }
+
+    let cancelled = false;
+    let intervalId;
+
+    const fetchSellerOrders = async () => {
+      try {
+        const { data } = await api.get('/orders/seller?limit=50');
+        if (!cancelled) {
+          const collection = Array.isArray(data) ? data : data?.items || [];
+          const active = collection.filter((order) => order?.status !== 'delivered').length;
+          setSellerOrders(active);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setSellerOrders(0);
+        }
+      }
+    };
+
+    fetchSellerOrders();
+    intervalId = setInterval(fetchSellerOrders, 60000);
+
+    return () => {
+      cancelled = true;
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [user, isAdmin]);
 
   const clearShopMenuTimeout = useCallback(() => {
     if (shopMenuCloseRef.current) {
@@ -246,11 +284,6 @@ export default function Navbar() {
       controller.abort();
     };
   }, [searchQuery]);
-
-  const isMobileViewport = () => {
-    if (typeof window === "undefined") return false;
-    return window.matchMedia("(max-width: 767px)").matches;
-  };
 
   const fetchSearchHistory = useCallback(async () => {
     if (!user) {
@@ -355,13 +388,10 @@ export default function Navbar() {
     setSearchResults([]);
     if (item?.type === 'shop') {
       navigate(buildShopPath(item));
-    } else if (item?._id || item?.slug) {
-      const path = buildProductPath(item);
-      if (isMobileViewport()) {
-        navigate(path);
-      } else {
-        window.open(path, "_blank", "noopener,noreferrer");
-      }
+      return;
+    }
+    if (item?._id || item?.slug) {
+      navigate(buildProductPath(item));
     }
   };
 
@@ -774,6 +804,28 @@ export default function Navbar() {
                     </span>
                   )}
                 </Link>
+                {canManageSales && (
+                  <Link
+                    to="/seller/orders"
+                    className="relative flex items-center gap-2 p-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-100 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200"
+                    aria-label="Commandes clients"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                      <Package className="text-emerald-600 dark:text-emerald-200" size={16} />
+                    </div>
+                    <div className="hidden xs:flex flex-col items-start">
+                      <span className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        Ventes
+                      </span>
+                      <span className="text-xs font-semibold text-gray-900 dark:text-white">Commandes</span>
+                    </div>
+                    {hasSellerOrders && (
+                      <span className="absolute -top-1 -right-1 bg-emerald-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                        {sellerOrdersBadge}
+                      </span>
+                    )}
+                  </Link>
+                )}
                 {canAccessBackOffice && (
                   <Link
                     to="/admin/orders"
@@ -947,6 +999,20 @@ export default function Navbar() {
                       </span>
                     )}
                   </NavLink>
+                {canManageSales && (
+                  <NavLink
+                    to="/seller/orders"
+                    className="relative flex items-center gap-2 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200"
+                  >
+                      <Package size={18} />
+                      <span className="font-medium">Commandes clients</span>
+                      {hasSellerOrders && (
+                        <span className="absolute -top-1 -right-1 bg-emerald-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                          {sellerOrdersBadge}
+                        </span>
+                      )}
+                    </NavLink>
+                  )}
                 </>
               )}
 
@@ -1077,6 +1143,15 @@ export default function Navbar() {
                           </span>
                         )}
                       </Link>
+                      {canAccessBackOffice && (
+                        <Link
+                          to="/admin/delivery-guys"
+                          className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                        >
+                          <Truck size={16} />
+                          <span className="text-sm font-semibold">Livreurs</span>
+                        </Link>
+                      )}
                       {user?.role === 'admin' && (
                         <Link
                           to="/admin/chat-templates"
@@ -1296,6 +1371,21 @@ export default function Navbar() {
                       </span>
                     )}
                   </NavLink>
+                  {canManageSales && (
+                    <NavLink
+                      to="/seller/orders"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <Package size={20} />
+                      Commandes clients
+                      {hasSellerOrders && (
+                        <span className="ml-auto bg-emerald-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                          {sellerOrdersBadge}
+                        </span>
+                      )}
+                    </NavLink>
+                  )}
                   {canAccessBackOffice && (
                     <NavLink
                       to="/admin/orders"
@@ -1304,6 +1394,16 @@ export default function Navbar() {
                     >
                       <ClipboardList size={20} />
                       Commandes admin
+                    </NavLink>
+                  )}
+                  {canAccessBackOffice && (
+                    <NavLink
+                      to="/admin/delivery-guys"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <Truck size={20} />
+                      Livreurs
                     </NavLink>
                   )}
                 </>

@@ -1,9 +1,10 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Star } from 'lucide-react';
+import { Star, Users } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import useUserNotifications, { triggerNotificationsRefresh } from '../hooks/useUserNotifications';
 import api from '../services/api';
+import { buildProductPath, buildShopPath } from '../utils/links';
 
 const DEFAULT_NOTIFICATION_PREFERENCES = {
   product_comment: true,
@@ -14,8 +15,11 @@ const DEFAULT_NOTIFICATION_PREFERENCES = {
   product_rejection: true,
   promotional: true,
   shop_review: true,
+  shop_follow: true,
   payment_pending: true,
   order_created: true,
+  order_received: true,
+  order_reminder: true,
   order_delivered: true
 };
 
@@ -95,8 +99,11 @@ const NotificationPreferences = ({ preferences, onUpdate }) => {
               { key: 'product_rejection', label: "Rejets d'annonce" },
               { key: 'promotional', label: 'Promotions appliquées' },
               { key: 'shop_review', label: 'Avis sur ma boutique' },
+              { key: 'shop_follow', label: 'Nouveaux abonnés' },
               { key: 'payment_pending', label: 'Paiements à valider' },
               { key: 'order_created', label: 'Commandes confirmées' },
+              { key: 'order_received', label: 'Nouvelles commandes' },
+              { key: 'order_reminder', label: 'Relances commandes' },
               { key: 'order_delivered', label: 'Commandes livrées' }
             ].map(({ key, label }) => (
               <div key={key} className="flex items-center justify-between">
@@ -223,6 +230,13 @@ export default function Notifications() {
         </svg>
       )
     },
+    shop_follow: {
+      label: 'Abonnés boutique',
+      badgeClass: 'bg-cyan-50 text-cyan-700 border border-cyan-200',
+      icon: (
+        <Users className="w-4 h-4" />
+      )
+    },
     payment_pending: {
       label: 'Paiement en attente',
       badgeClass: 'bg-yellow-50 text-yellow-700 border border-yellow-200',
@@ -239,6 +253,24 @@ export default function Notifications() {
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 7l1.5 12.5A2 2 0 006.5 21h11a2 2 0 002-1.5L21 7M8 7V4a2 2 0 012-2h4a2 2 0 012 2v3" />
+        </svg>
+      )
+    },
+    order_received: {
+      label: 'Nouvelle commande',
+      badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 7l1.5 12.5A2 2 0 006.5 21h11a2 2 0 002-1.5L21 7M8 7V4a2 2 0 012-2h4a2 2 0 012 2v3" />
+        </svg>
+      )
+    },
+    order_reminder: {
+      label: 'Relance commande',
+      badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200',
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       )
     },
@@ -402,7 +434,7 @@ export default function Notifications() {
                 <button
                   type="button"
                   onClick={() => {
-                    navigate(`/product/${alert.product._id}`);
+                    navigate(buildProductPath(alert.product));
                     if (isUnread) {
                       handleMarkRead([alert._id]);
                     }
@@ -428,7 +460,7 @@ export default function Notifications() {
             {!alert.product && alert.shop && (
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <Link
-                  to={`/shop/${alert.shop._id}`}
+                  to={buildShopPath(alert.shop)}
                   className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors group/link"
                 >
                   <svg className="w-4 h-4 transition-transform group-hover/link:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -494,6 +526,8 @@ export default function Notifications() {
     { key: 'shop_review', label: 'Avis boutique', count: alerts.filter(a => a.type === 'shop_review').length },
     { key: 'payment_pending', label: 'Paiements à valider', count: alerts.filter(a => a.type === 'payment_pending').length },
     { key: 'order_created', label: 'Commandes confirmées', count: alerts.filter(a => a.type === 'order_created').length },
+    { key: 'order_received', label: 'Nouvelles commandes', count: alerts.filter(a => a.type === 'order_received').length },
+    { key: 'order_reminder', label: 'Relances commandes', count: alerts.filter(a => a.type === 'order_reminder').length },
     { key: 'order_delivered', label: 'Commandes livrées', count: alerts.filter(a => a.type === 'order_delivered').length }
   ];
 

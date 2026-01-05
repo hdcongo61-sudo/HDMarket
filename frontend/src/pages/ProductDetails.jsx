@@ -61,6 +61,10 @@ export default function ProductDetails() {
   const [replyText, setReplyText] = useState("");
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
   const [shareFeedback, setShareFeedback] = useState("");
+  const [isCertifying, setIsCertifying] = useState(false);
+  const [certifyMessage, setCertifyMessage] = useState("");
+  const [certifyError, setCertifyError] = useState("");
+  const isAdminUser = user?.role === 'admin';
 
   const handleSessionExpired = useCallback(() => {
     if (typeof authContextValue?.logout === 'function') {
@@ -101,6 +105,7 @@ export default function ProductDetails() {
         setLoading(true);
         setError("");
         let data;
+        console.debug("Loading product", { slug });
         try {
         const response = await api.get(`/products/public/${slug}`);
           data = response.data;
@@ -136,15 +141,27 @@ export default function ProductDetails() {
         
         // Charger les commentaires et la note utilisateur
         await Promise.all([
-          loadComments(),
-          loadUserRating()
+          loadComments(
+            data.slug || data._id,
+            data.user?._id || data.user?.id
+          ),
+          loadUserRating(data._id)
         ]);
         
         // Charger les produits similaires
         if (data.category) {
           try {
             const relatedResponse = await api.get(`/products/public?category=${data.category}&limit=4`);
-            setRelatedProducts(relatedResponse.data?.items || []);
+            const relatedItems = Array.isArray(relatedResponse.data?.items)
+              ? relatedResponse.data.items
+              : [];
+            const filteredItems = relatedItems.filter((item) => {
+              if (!item) return false;
+              if (data?._id && item._id && item._id === data._id) return false;
+              if (data?.slug && item.slug && item.slug === data.slug) return false;
+              return true;
+            });
+            setRelatedProducts(filteredItems.slice(0, 4));
           } catch (relatedError) {
             console.error("Erreur chargement produits similaires:", relatedError);
             setRelatedProducts([]);
@@ -165,15 +182,39 @@ export default function ProductDetails() {
     loadProduct();
   }, [slug]);
 
+  useEffect(() => {
+    setCertifyMessage("");
+    setCertifyError("");
+  }, [product?._id]);
+
   // 💬 CHARGEMENT DES COMMENTAIRES
-  const loadComments = async () => {
+  const loadComments = async (identifier, ownerIdOverride) => {
+    const target = identifier || slug;
+    console.debug('loadComments target', { target, userId: user?.id });
     try {
-      const { data } = await api.get(`/products/public/${slug}/comments`);
-      // Organiser les commentaires en threads (commentaires parents et réponses)
-      const organizedComments = organizeComments(Array.isArray(data) ? data : []);
-      setComments(organizedComments);
+      const { data } = await api.get(`/products/public/${target}/comments`);
+      setComments(organizeComments(Array.isArray(data) ? data : []));
+      return;
     } catch (error) {
-      console.error("Erreur chargement commentaires:", error);
+      const ownerId =
+        ownerIdOverride || product?.user?._id || product?.user?.id || undefined;
+      if (
+        error.response?.status === 404 &&
+        user &&
+        ownerId &&
+        String(ownerId) === String(user._id || user?.id)
+      ) {
+        console.debug('Retrying private comments after public 404', { target });
+        try {
+          const { data: privateData } = await api.get(`/products/${target}/comments`);
+          setComments(organizeComments(Array.isArray(privateData) ? privateData : []));
+          return;
+        } catch (innerError) {
+          console.error('Erreur chargement commentaires privés:', innerError);
+        }
+      } else {
+        console.error("Erreur chargement commentaires:", error);
+      }
       setComments([]);
     }
   };
@@ -185,37 +226,78 @@ export default function ProductDetails() {
 
     // Créer une map de tous les commentaires
     comments.forEach(comment => {
-      commentMap.set(comment._id, { ...comment, replies: [] });
+      const commentId = String(comment._id);
+      commentMap.set(commentId, { ...comment, replies: [] });
     });
 
     // Organiser en hiérarchie
     comments.forEach(comment => {
-      const commentWithReplies = commentMap.get(comment._id);
-      if (comment.parent) {
-        const parent = commentMap.get(comment.parent);
+      const commentId = String(comment._id);
+      const commentWithReplies = commentMap.get(commentId);
+      if (!commentWithReplies) return;
+      const parentId =
+        typeof comment.parent === 'string'
+          ? comment.parent
+          : comment.parent && comment.parent._id
+            ? String(comment.parent._id)
+            : null;
+      if (parentId) {
+        const parent = commentMap.get(parentId);
         if (parent) {
           parent.replies.push(commentWithReplies);
+          return;
         }
-      } else {
-        roots.push(commentWithReplies);
       }
+      roots.push(commentWithReplies);
     });
 
     return roots;
   };
 
   // ⭐ CHARGEMENT DE LA NOTE UTILISATEUR
-  const loadUserRating = async () => {
+  const loadUserRating = async (identifier) => {
     if (!user) return;
-    
+
     try {
-      const { data } = await api.get(`/products/${slug}/rating`);
+      const target = identifier;
+      if (!target) return;
+      const { data } = await api.get(`/products/${target}/rating`, {
+        params: { productId: target }
+      });
       setUserRating(data?.value || 0);
       setRating(data?.value || 0);
     } catch (error) {
       console.error("Erreur chargement note utilisateur:", error);
       setUserRating(0);
       setRating(0);
+    }
+  };
+
+  const handleCertificationToggle = async () => {
+    if (!product || isCertifying) return;
+    setCertifyMessage("");
+    setCertifyError("");
+    setIsCertifying(true);
+    try {
+      const desiredState = !product.certified;
+      const { data } = await api.patch(`/admin/products/${product._id}/certify`, {
+        certified: desiredState
+      });
+      setProduct((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          certified: data.certified,
+          certifiedBy: data.certifiedBy,
+          certifiedAt: data.certifiedAt
+        };
+      });
+      setCertifyMessage(desiredState ? "Produit certifié." : "Certification retirée.");
+    } catch (error) {
+      console.error("Erreur certification produit:", error);
+      setCertifyError(error?.response?.data?.message || "Une erreur est survenue.");
+    } finally {
+      setIsCertifying(false);
     }
   };
 
@@ -229,14 +311,17 @@ export default function ProductDetails() {
     
     try {
       const commentData = {
-        product: product?._id,
+        productId: product?._id,
         message: newComment.trim()
       };
 
       const response = await api.post(`/products/${slug}/comments`, commentData);
       
       setNewComment("");
-      await loadComments();
+      await loadComments(
+        product?.slug || product?._id,
+        product?.user?._id || product?.user?.id
+      );
       
     } catch (error) {
       if (error.response?.status === 401) {
@@ -266,16 +351,19 @@ export default function ProductDetails() {
     
     try {
       const replyData = {
-        product: product?._id,
+        productId: product?._id,
         message: replyText.trim(),
-        parent: parentComment._id  // Référence au commentaire parent
+        parentId: parentComment._id  // Référence au commentaire parent
       };
 
       const response = await api.post(`/products/${slug}/comments`, replyData);
       
       setReplyText("");
       setReplyingTo(null);
-      await loadComments();
+      await loadComments(
+        product?.slug || product?._id,
+        product?.user?._id || product?.user?.id
+      );
       
     } catch (error) {
       if (error.response?.status === 401) {
@@ -302,7 +390,8 @@ export default function ProductDetails() {
     setSubmittingRating(true);
     try {
       await api.put(`/products/${slug}/rating`, {
-        value: newRating
+        value: newRating,
+        productId: product?._id
       });
 
       setUserRating(newRating);
@@ -317,7 +406,11 @@ export default function ProductDetails() {
         return;
       }
       console.error("Erreur soumission note:", error);
-      alert("Erreur lors de l'ajout de la note");
+      const serverMessage =
+        error.response?.data?.message ||
+        error.message ||
+        'Une erreur est survenue lors de l’envoi de votre note.';
+      alert(`Erreur lors de l'ajout de la note : ${serverMessage}`);
     } finally {
       setSubmittingRating(false);
     }
@@ -502,7 +595,7 @@ export default function ProductDetails() {
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => navigate('/products')}
               className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
               <ArrowLeft size={20} />
@@ -653,6 +746,12 @@ export default function ProductDetails() {
                   <span className={`bg-gradient-to-r ${conditionColor} text-white px-3 py-2 rounded-full text-sm font-bold shadow-lg`}>
                     {conditionLabel}
                   </span>
+                  {product.certified && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 shadow">
+                      <Shield className="w-4 h-4 text-emerald-500" />
+                      Certifié HDMarket
+                    </span>
+                  )}
                 </div>
 
                 <button className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-lg hover:shadow-xl transition-all">
@@ -750,6 +849,54 @@ export default function ProductDetails() {
                 </>
               ) : (
                 <span className="text-3xl font-bold text-gray-900">{Number(finalPrice).toLocaleString()} FCFA</span>
+              )}
+            </div>
+
+            {product.confirmationNumber && (
+              <p className="text-xs text-gray-500">
+                Code produit :
+                <span className="font-semibold text-gray-900 ml-1">{product.confirmationNumber}</span>
+                <span className="block text-[11px] text-gray-400">
+                  Mentionnez ce code à l’administrateur lorsque vous validez votre commande.
+                </span>
+              </p>
+            )}
+
+            <div className="space-y-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-wrap items-center gap-2 text-[11px] sm:text-xs">
+                  {product.certified && (
+                    <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                      <Shield className="w-4 h-4 text-emerald-500" />
+                      Produit certifié HDMarket
+                    </span>
+                  )}
+                  {product.certifiedBy && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-gray-700">
+                      Certifié par {product.certifiedBy?.name || 'HDMarket'}
+                    </span>
+                  )}
+                  {product.certifiedAt && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-gray-600">
+                      {new Date(product.certifiedAt).toLocaleDateString('fr-FR')}
+                    </span>
+                  )}
+                </div>
+                {isAdminUser && (
+                  <button
+                    type="button"
+                    onClick={handleCertificationToggle}
+                    disabled={isCertifying}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full border border-indigo-200 bg-white px-4 py-2 text-xs font-semibold text-indigo-600 transition hover:bg-indigo-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {product.certified ? 'Retirer la certification' : 'Certifier ce produit'}
+                  </button>
+                )}
+              </div>
+              {(certifyMessage || certifyError) && (
+                <p className={`text-xs ${certifyError ? 'text-red-600' : 'text-green-600'}`}>
+                  {certifyError || certifyMessage}
+                </p>
               )}
             </div>
 
@@ -976,9 +1123,13 @@ export default function ProductDetails() {
                           <button
                             key={star}
                             type="button"
-                            onClick={() => handleSubmitRating(star)}
-                            disabled={submittingRating}
+                            onClick={() => {
+                              if (isOwnProduct) return;
+                              handleSubmitRating(star);
+                            }}
+                            disabled={submittingRating || isOwnProduct}
                             className="focus:outline-none disabled:opacity-50"
+                            title={isOwnProduct ? 'Vous ne pouvez pas noter votre propre produit.' : undefined}
                           >
                             <Star
                               size={24}
@@ -986,7 +1137,7 @@ export default function ProductDetails() {
                                 star <= userRating
                                   ? 'text-amber-400 fill-current'
                                   : 'text-gray-300'
-                              } hover:text-amber-400 transition-colors`}
+                              } ${isOwnProduct ? 'cursor-not-allowed' : 'hover:text-amber-400'} transition-colors`}
                             />
                           </button>
                         ))}

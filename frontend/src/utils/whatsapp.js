@@ -1,3 +1,5 @@
+import { buildProductShareUrl } from './links';
+
 export const sanitizePhoneNumber = (phone) => {
   if (!phone) return '';
   return String(phone).replace(/[^\d+]/g, '');
@@ -15,8 +17,7 @@ export const buildWhatsappLink = (product, phone) => {
   const sanitizedPhone = sanitizePhoneNumber(phone);
   if (!product?._id || !sanitizedPhone) return null;
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const productUrl = `${origin}/product/${product._id}`;
+  const productUrl = buildProductShareUrl(product, origin);
   const message = buildWhatsappMessage(product.title, productUrl);
   return `https://wa.me/${sanitizedPhone}?text=${message}`;
 };
-

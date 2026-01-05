@@ -24,24 +24,27 @@ import adminRoutes from './routes/adminRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import supportRoutes from './routes/supportRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
+import settingsRoutes from './routes/settingsRoutes.js';
 
 import User from './models/userModel.js';
 import ChatMessage from './models/chatMessageModel.js';
 import { setChatSocket } from './sockets/chatSocket.js';
+import { requestTracker, getDailyRequestStats } from './middlewares/requestTracker.js';
 
 connectDB();
 
-const logCloudinaryEnv = () => {
-  if (process.env.NODE_ENV === 'production') return;
-  console.log('Cloudinary credentials:', {
-    CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || '(not set)',
-    CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || '(not set)',
-    CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET ? '********' : '(not set)'
-  });
-};
-logCloudinaryEnv();
+// const logCloudinaryEnv = () => {
+//   if (process.env.NODE_ENV === 'production') return;
+//   console.log('Cloudinary credentials:', {
+//     CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || '(not set)',
+//     CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || '(not set)',
+//     CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET ? '********' : '(not set)'
+//   });
+// };
+// logCloudinaryEnv();
 
 const app = express();
+app.set('trust proxy', 1);
 // ✅ CORS setup for local development (Vite 5173)
 const corsOptions = {
   origin: [
@@ -59,6 +62,8 @@ const corsOptions = {
 // Use CORS before all other middleware
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions)); // Handle preflight requests
+
+app.use(requestTracker);
 
 // Rate limit global (skip long-lived streams + allow higher burst during dev)
 const limiter = rateLimit({
@@ -86,6 +91,12 @@ const __dirname = path.dirname(__filename);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/', (req, res) => res.json({ ok: true, name: 'HDMarket API' }));
+app.get('/api/health/requests', (req, res) => {
+  res.json({
+    success: true,
+    ...getDailyRequestStats()
+  });
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
@@ -98,6 +109,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Global error handler
 // eslint-disable-next-line no-unused-vars

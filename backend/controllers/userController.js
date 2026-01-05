@@ -4,9 +4,22 @@ import User from '../models/userModel.js';
 import Comment from '../models/commentModel.js';
 import Product from '../models/productModel.js';
 import Rating from '../models/ratingModel.js';
+import Order from '../models/orderModel.js';
 import Notification from '../models/notificationModel.js';
+import SearchHistory from '../models/searchHistoryModel.js';
 import { registerNotificationStream } from '../utils/notificationEmitter.js';
 import { createNotification } from '../utils/notificationService.js';
+import {
+  uploadToCloudinary,
+  getCloudinaryFolder,
+  isCloudinaryConfigured
+} from '../utils/cloudinaryUploader.js';
+import { hydrateShopHours, sanitizeShopHours } from '../utils/shopHours.js';
+import {
+  checkVerificationCode,
+  isTwilioConfigured,
+  sendVerificationCode
+} from '../utils/twilioVerify.js';
 
 const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   product_comment: true,
@@ -19,6 +32,8 @@ const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   shop_review: true,
   payment_pending: true,
   order_created: true,
+  order_received: true,
+  order_reminder: true,
   order_delivered: true
 });
 
@@ -36,6 +51,7 @@ const sanitizeUser = (user) => ({
   name: user.name,
   email: user.email,
   phone: user.phone,
+  phoneVerified: Boolean(user.phoneVerified),
   role: user.role,
   accountType: user.accountType,
   country: user.country,
@@ -45,20 +61,28 @@ const sanitizeUser = (user) => ({
   shopName: user.shopName,
   shopAddress: user.shopAddress,
   shopLogo: user.shopLogo,
+  shopBanner: user.shopBanner,
   shopVerified: Boolean(user.shopVerified),
   shopDescription: user.shopDescription || '',
+  shopHours: sanitizeShopHours(user.shopHours || []),
+  followersCount: Number(user.followersCount || 0),
+  followingShops: Array.isArray(user.followingShops)
+    ? user.followingShops.map((shopId) => shopId.toString())
+    : [],
   createdAt: user.createdAt,
   updatedAt: user.updatedAt
 });
 
-export const getProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.id);
-  if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
-  res.json(sanitizeUser(user));
-});
+const ensureValidUserId = (userId) => {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    const err = new Error('Utilisateur introuvable.');
+    err.status = 404;
+    throw err;
+  }
+};
 
-export const getProfileStats = asyncHandler(async (req, res) => {
-  const userId = req.user.id;
+const collectUserStats = async (userId) => {
+  ensureValidUserId(userId);
 
   const [products, userDoc] = await Promise.all([
     Product.find({ user: userId })
@@ -67,8 +91,112 @@ export const getProfileStats = asyncHandler(async (req, res) => {
       )
       .populate('payment', 'amount status')
       .lean(),
-    User.findById(userId).select('favorites').lean()
+    User.findById(userId).select('-password').lean()
   ]);
+
+  if (!userDoc) {
+    const err = new Error('Utilisateur introuvable.');
+    err.status = 404;
+    throw err;
+  }
+
+  const orderStatusKeys = ['confirmed', 'delivering', 'delivered'];
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+
+  const [buyerAgg, sellerAgg] = await Promise.all([
+    Order.aggregate([
+      { $match: { customer: userObjectId } },
+      {
+        $project: {
+          status: 1,
+          totalAmount: { $ifNull: ['$totalAmount', 0] },
+          paidAmount: { $ifNull: ['$paidAmount', 0] },
+          remainingAmount: { $ifNull: ['$remainingAmount', 0] },
+          itemCount: { $sum: '$items.quantity' }
+        }
+      },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+          totalAmount: { $sum: '$totalAmount' },
+          paidAmount: { $sum: '$paidAmount' },
+          remainingAmount: { $sum: '$remainingAmount' },
+          items: { $sum: '$itemCount' }
+        }
+      }
+    ]),
+    Order.aggregate([
+      { $unwind: '$items' },
+      { $match: { 'items.snapshot.shopId': userObjectId } },
+      {
+        $group: {
+          _id: '$status',
+          revenue: {
+            $sum: { $multiply: ['$items.snapshot.price', '$items.quantity'] }
+          },
+          orderIds: { $addToSet: '$_id' }
+        }
+      }
+    ])
+  ]);
+
+  const purchaseByStatus = orderStatusKeys.reduce((acc, status) => {
+    acc[status] = { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0, items: 0 };
+    return acc;
+  }, {});
+
+  buyerAgg.forEach((entry) => {
+    if (!entry || !purchaseByStatus[entry._id]) return;
+    const isDelivered = entry._id === 'delivered';
+    const totalAmount = Number(entry.totalAmount || 0);
+    const paidAmount = Number(entry.paidAmount || 0);
+    const remainingAmount = Number(entry.remainingAmount || 0);
+    purchaseByStatus[entry._id] = {
+      count: Number(entry.count || 0),
+      totalAmount,
+      paidAmount: isDelivered ? totalAmount : paidAmount,
+      remainingAmount: isDelivered ? 0 : remainingAmount,
+      items: Number(entry.items || 0)
+    };
+  });
+
+  const purchases = orderStatusKeys.reduce(
+    (acc, status) => {
+      const data = purchaseByStatus[status];
+      acc.totalCount += data.count;
+      acc.totalAmount += data.totalAmount;
+      acc.paidAmount += data.paidAmount;
+      acc.remainingAmount += data.remainingAmount;
+      acc.totalItems += data.items;
+      return acc;
+    },
+    { totalCount: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0, totalItems: 0 }
+  );
+
+  const salesByStatus = orderStatusKeys.reduce((acc, status) => {
+    acc[status] = { count: 0, totalAmount: 0 };
+    return acc;
+  }, {});
+
+  sellerAgg.forEach((entry) => {
+    if (!entry || !salesByStatus[entry._id]) return;
+    const orderCount = Array.isArray(entry.orderIds) ? entry.orderIds.length : 0;
+    salesByStatus[entry._id] = {
+      count: Number(orderCount || 0),
+      totalAmount: Number(entry.revenue || 0)
+    };
+  });
+
+  const sales = orderStatusKeys.reduce(
+    (acc, status) => {
+      const data = salesByStatus[status];
+      acc.totalCount += data.count;
+      acc.totalAmount += data.totalAmount;
+      return acc;
+    },
+    { totalCount: 0, totalAmount: 0 }
+  );
 
   const listings = {
     total: products.length,
@@ -186,19 +314,205 @@ export const getProfileStats = asyncHandler(async (req, res) => {
       category: product.category
     }));
 
-  res.json({
+  const followedShopIds = Array.isArray(userDoc?.followingShops)
+    ? userDoc.followingShops
+    : [];
+  let followedShopsDetails = [];
+  if (followedShopIds.length) {
+    const shops = await User.find({
+      _id: { $in: followedShopIds },
+      accountType: 'shop'
+    })
+      .select('shopName name slug city followersCount')
+      .lean();
+    followedShopsDetails = shops.map((shop) => ({
+      id: shop._id.toString(),
+      name: shop.shopName || shop.name,
+      slug: shop.slug,
+      city: shop.city || '',
+      followersCount: Number(shop.followersCount || 0)
+    }));
+  }
+
+  return {
+    user: sanitizeUser(userDoc),
     listings,
     engagement: {
       favoritesReceived,
       commentsReceived,
-      favoritesSaved: userDoc?.favorites?.length || 0
+      favoritesSaved: Array.isArray(userDoc?.favorites) ? userDoc.favorites.length : 0,
+      shopsFollowed: Array.isArray(userDoc?.followingShops) ? userDoc.followingShops.length : 0
     },
     performance,
     breakdown,
     timeline,
     topProducts,
-    advertismentSpend
+    advertismentSpend,
+    orders: {
+      purchases: {
+        ...purchases,
+        byStatus: purchaseByStatus
+      },
+      sales: {
+        ...sales,
+        byStatus: salesByStatus
+      }
+    },
+    followedShops: followedShopsDetails
+  };
+};
+
+export const getProfile = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
+  res.json(sanitizeUser(user));
+});
+
+export const getProfileStats = asyncHandler(async (req, res) => {
+  const stats = await collectUserStats(req.user.id);
+  res.json(stats);
+});
+
+export const getAdminUserStats = asyncHandler(async (req, res) => {
+  const stats = await collectUserStats(req.params.id);
+  res.json(stats);
+});
+
+export const followShop = asyncHandler(async (req, res) => {
+  const shopId = req.params.id;
+  if (shopId === req.user.id) {
+    return res.status(400).json({ message: 'Vous ne pouvez pas suivre votre propre boutique.' });
+  }
+  const shop = await User.findById(shopId).select('accountType shopVerified');
+  if (!shop || shop.accountType !== 'shop') {
+    return res.status(404).json({ message: 'Boutique introuvable.' });
+  }
+  if (!shop.shopVerified) {
+    return res.status(403).json({ message: 'Seules les boutiques certifiées peuvent être suivies.' });
+  }
+
+  const updatedUser = await User.updateOne(
+    { _id: req.user.id, followingShops: { $ne: shopId } },
+    { $addToSet: { followingShops: shopId } }
+  );
+  if (!updatedUser.modifiedCount) {
+    return res.status(400).json({ message: 'Vous suivez déjà cette boutique.' });
+  }
+
+  const updatedShop = await User.findByIdAndUpdate(
+    shopId,
+    { $inc: { followersCount: 1 } },
+    { new: true }
+  ).select('followersCount');
+
+  await createNotification({
+    userId: shopId,
+    actorId: req.user.id,
+    shopId,
+    type: 'shop_follow',
+    metadata: { shopName: shop.shopName || shop.name }
   });
+
+  res.json({
+    message: 'Boutique suivie.',
+    followersCount: Number(updatedShop?.followersCount || 0)
+  });
+});
+
+export const unfollowShop = asyncHandler(async (req, res) => {
+  const shopId = req.params.id;
+  const shop = await User.findById(shopId).select('accountType');
+  if (!shop || shop.accountType !== 'shop') {
+    return res.status(404).json({ message: 'Boutique introuvable.' });
+  }
+
+  const updatedUser = await User.updateOne(
+    { _id: req.user.id, followingShops: shopId },
+    { $pull: { followingShops: shopId } }
+  );
+  if (!updatedUser.modifiedCount) {
+    return res.status(400).json({ message: 'Vous ne suivez pas cette boutique.' });
+  }
+
+  const updatedShop = await User.findByIdAndUpdate(
+    shopId,
+    { $inc: { followersCount: -1 } },
+    { new: true }
+  ).select('followersCount');
+
+  res.json({
+    message: 'Boutique désabonnée.',
+    followersCount: Math.max(0, Number(updatedShop?.followersCount || 0))
+  });
+});
+
+export const getFollowingShops = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user.id)
+    .select('followingShops')
+    .lean();
+  if (!user) {
+    return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  }
+  const followedIds = Array.isArray(user.followingShops)
+    ? user.followingShops.map((id) => mongoose.Types.ObjectId(id))
+    : [];
+  if (!followedIds.length) {
+    return res.json([]);
+  }
+  const shops = await User.find({ _id: { $in: followedIds }, accountType: 'shop' })
+    .select(
+      'shopName shopAddress shopLogo shopVerified followersCount createdAt name'
+    )
+    .sort({ shopName: 1 })
+    .lean();
+  const payload = shops.map((shop) => ({
+    _id: shop._id,
+    shopName: shop.shopName || shop.name,
+    shopAddress: shop.shopAddress || '',
+    shopLogo: shop.shopLogo || null,
+    shopVerified: Boolean(shop.shopVerified),
+    followersCount: Number(shop.followersCount || 0),
+    createdAt: shop.createdAt
+  }));
+  res.json(payload);
+});
+
+export const addSearchHistory = asyncHandler(async (req, res) => {
+  const { query = '', metadata = {} } = req.body || {};
+  const normalized = typeof query === 'string' ? query.trim() : '';
+  if (!normalized) {
+    return res.status(400).json({ message: 'La requête de recherche est requise.' });
+  }
+  const history = await SearchHistory.create({
+    user: req.user.id,
+    query: normalized,
+    metadata
+  });
+  res.status(201).json(history);
+});
+
+export const getSearchHistory = asyncHandler(async (req, res) => {
+  const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
+  const history = await SearchHistory.find({ user: req.user.id })
+    .sort('-createdAt')
+    .limit(limit)
+    .lean();
+  res.json(history);
+});
+
+export const deleteSearchHistoryEntry = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const entry = await SearchHistory.findOne({ _id: id, user: req.user.id });
+  if (!entry) {
+    return res.status(404).json({ message: 'Historique introuvable.' });
+  }
+  await entry.deleteOne();
+  res.json({ success: true, id });
+});
+
+export const clearSearchHistory = asyncHandler(async (req, res) => {
+  const { deletedCount } = await SearchHistory.deleteMany({ user: req.user.id });
+  res.json({ success: true, deletedCount: Number(deletedCount || 0) });
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
@@ -209,15 +523,16 @@ export const updateProfile = asyncHandler(async (req, res) => {
     name,
     email,
     phone,
-    password,
     accountType,
     shopName,
     shopAddress,
     city,
     gender,
     address,
-    shopDescription
+    shopDescription,
+    shopHours
   } = req.body;
+  const hasShopHoursField = Object.prototype.hasOwnProperty.call(req.body, 'shopHours');
 
   if (email && email !== user.email) {
     const exists = await User.findOne({ email });
@@ -227,8 +542,20 @@ export const updateProfile = asyncHandler(async (req, res) => {
     user.email = email;
   }
 
+  if (typeof phone !== 'undefined') {
+    const normalizedPhone =
+      typeof phone === 'string'
+        ? phone.trim()
+        : phone !== null && phone !== undefined
+        ? String(phone).trim()
+        : '';
+    const currentPhone = typeof user.phone === 'string' ? user.phone.trim() : user.phone;
+    if (normalizedPhone && normalizedPhone !== currentPhone) {
+      return res.status(400).json({ message: 'Le numéro de téléphone ne peut pas être modifié.' });
+    }
+  }
+
   if (name) user.name = name;
-  if (phone) user.phone = phone;
 
   if (accountType) {
     user.accountType = accountType === 'shop' ? 'shop' : 'person';
@@ -252,9 +579,6 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
   user.country = 'République du Congo';
 
-  if (typeof shopName !== 'undefined') {
-    user.shopName = shopName;
-  }
   if (typeof shopAddress !== 'undefined') {
     user.shopAddress = shopAddress;
   }
@@ -263,9 +587,15 @@ export const updateProfile = asyncHandler(async (req, res) => {
   }
 
   if (user.accountType === 'shop') {
+    const logoFile = req.files?.shopLogo?.[0] || req.file || null;
+    const bannerFile = req.files?.shopBanner?.[0] || null;
+
     user.shopName = user.shopName || shopName;
     user.shopAddress = user.shopAddress || shopAddress;
-    if (!user.shopName) {
+    const rawShopName = typeof shopName !== 'undefined' ? shopName : user.shopName;
+    const normalizedShopName = rawShopName ? rawShopName.toString().trim() : '';
+    user.shopName = normalizedShopName;
+    if (!normalizedShopName) {
       return res.status(400).json({ message: 'Le nom de la boutique est requis.' });
     }
     if (!user.shopAddress) {
@@ -277,19 +607,69 @@ export const updateProfile = asyncHandler(async (req, res) => {
     if (typeof shopDescription === 'undefined' && !user.shopDescription) {
       user.shopDescription = '';
     }
-    if (req.file) {
-      user.shopLogo = `${req.protocol}://${req.get('host')}/${req.file.path.replace('\\', '/')}`;
+    if (bannerFile && !user.shopVerified) {
+      return res.status(403).json({
+        message: 'La bannière est réservée aux boutiques certifiées.'
+      });
+    }
+
+    if (!isCloudinaryConfigured() && (logoFile || bannerFile)) {
+      return res
+        .status(503)
+        .json({ message: 'Cloudinary n’est pas configuré. Définissez CLOUDINARY_* pour publier des médias.' });
+    }
+    if (normalizedShopName) {
+      const regex = new RegExp(`^${normalizedShopName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+      const conflict = await User.findOne({
+        _id: { $ne: user._id },
+        accountType: 'shop',
+        shopName: { $regex: regex }
+      });
+      if (conflict) {
+        return res.status(400).json({ message: 'Ce nom de boutique est déjà utilisé.' });
+      }
+    }
+
+    if (logoFile) {
+      try {
+        const folder = getCloudinaryFolder(['shops', 'logos']);
+        const uploaded = await uploadToCloudinary({
+          buffer: logoFile.buffer,
+          resourceType: 'image',
+          folder
+        });
+        user.shopLogo = uploaded.secure_url || uploaded.url;
+      } catch (error) {
+        return res.status(500).json({ message: 'Erreur lors de l’upload du logo.' });
+      }
     } else if (!user.shopLogo) {
       return res.status(400).json({ message: 'Le logo de la boutique est requis.' });
+    }
+
+    if (bannerFile) {
+      try {
+        const folder = getCloudinaryFolder(['shops', 'banners']);
+        const uploaded = await uploadToCloudinary({
+          buffer: bannerFile.buffer,
+          resourceType: 'image',
+          folder
+        });
+        user.shopBanner = uploaded.secure_url || uploaded.url;
+      } catch (error) {
+        return res.status(500).json({ message: 'Erreur lors de l’upload de la bannière.' });
+      }
+    }
+    if (hasShopHoursField) {
+      user.shopHours = hydrateShopHours(shopHours);
     }
   } else {
     user.shopName = undefined;
     user.shopAddress = undefined;
     user.shopLogo = undefined;
+    user.shopBanner = undefined;
     user.shopDescription = '';
+    user.shopHours = [];
   }
-
-  if (password) user.password = password;
 
   await user.save();
 
@@ -298,6 +678,43 @@ export const updateProfile = asyncHandler(async (req, res) => {
   }
 
   res.json(sanitizeUser(user));
+});
+
+export const sendPasswordChangeCode = asyncHandler(async (req, res) => {
+  if (!isTwilioConfigured()) {
+    return res.status(503).json({
+      message:
+        'Twilio n’est pas configuré. Définissez TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN et TWILIO_VERIFY_SERVICE_SID.'
+    });
+  }
+  const user = await User.findById(req.user.id).select('phone');
+  if (!user || !user.phone) {
+    return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  }
+  await sendVerificationCode(user.phone, 'sms');
+  res.json({ message: 'Code envoyé.' });
+});
+
+export const changePassword = asyncHandler(async (req, res) => {
+  const { verificationCode, newPassword } = req.body;
+  if (!isTwilioConfigured()) {
+    return res.status(503).json({
+      message:
+        'Twilio n’est pas configuré. Définissez TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN et TWILIO_VERIFY_SERVICE_SID.'
+    });
+  }
+  const user = await User.findById(req.user.id);
+  if (!user) {
+    return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  }
+  const verificationCheck = await checkVerificationCode(user.phone, verificationCode);
+  if (verificationCheck?.status !== 'approved') {
+    return res.status(400).json({ message: 'Code de vérification invalide.' });
+  }
+  user.password = newPassword;
+  user.phoneVerified = true;
+  await user.save();
+  res.json({ message: 'Mot de passe mis à jour.' });
 });
 
 export const getNotifications = asyncHandler(async (req, res) => {
@@ -385,6 +802,11 @@ export const getNotifications = asyncHandler(async (req, res) => {
           : `${actorName} a mis en avant votre annonce${productLabel} avec une nouvelle promotion.`;
         break;
       }
+      case 'shop_follow': {
+        const shopLabel = shopInfo?.shopName || metadata.shopName || 'votre boutique';
+        message = `${actorName} a commencé à suivre ${shopLabel}.`;
+        break;
+      }
       case 'shop_review': {
         const shopLabel = shopInfo?.shopName || shopInfo?.name || metadata.shopName || 'votre boutique';
         const ratingValue = Number(metadata.rating || 0);
@@ -392,6 +814,11 @@ export const getNotifications = asyncHandler(async (req, res) => {
         message = snippet
           ? `${actorName} a laissé un avis sur ${shopLabel}${ratingText} : ${snippet}`
           : `${actorName} a laissé un avis sur ${shopLabel}${ratingText}.`;
+        break;
+      }
+      case 'complaint_resolved': {
+        const subjectLabel = metadata.subject ? ` (${metadata.subject})` : '';
+        message = `${actorName} a marqué votre réclamation${subjectLabel} comme résolue.`;
         break;
       }
       case 'payment_pending': {
@@ -411,6 +838,24 @@ export const getNotifications = asyncHandler(async (req, res) => {
         const city = metadata.deliveryCity ? ` pour ${metadata.deliveryCity}` : '';
         const action = metadata.status === 'confirmed' ? 'confirmé' : 'créé';
         message = `${actorName} a ${action} votre commande ${orderId}${city}. Nous vous tiendrons informé des étapes de livraison.`;
+        break;
+      }
+      case 'order_received': {
+        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
+        const itemCount = Number(metadata.itemCount || 0);
+        const itemsLabel = itemCount > 1 ? `${itemCount} articles` : itemCount === 1 ? '1 article' : 'des articles';
+        const totalValue = Number(metadata.totalAmount || 0);
+        const totalText =
+          Number.isFinite(totalValue) && totalValue > 0
+            ? ` (${totalValue.toLocaleString('fr-FR')} FCFA)`
+            : '';
+        message = `${actorName} a passé une commande ${orderId} pour ${itemsLabel}${totalText}.`;
+        break;
+      }
+      case 'order_reminder': {
+        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
+        const city = metadata.deliveryCity ? ` pour ${metadata.deliveryCity}` : '';
+        message = `${actorName} vous rappelle d'accélérer la commande ${orderId}${city}.`;
         break;
       }
       case 'order_delivered': {

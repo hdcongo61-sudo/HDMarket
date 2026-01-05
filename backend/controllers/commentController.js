@@ -1,7 +1,10 @@
 import asyncHandler from 'express-async-handler';
+import mongoose from 'mongoose';
 import Comment from '../models/commentModel.js';
 import Product from '../models/productModel.js';
 import { createNotification } from '../utils/notificationService.js';
+import { buildIdentifierQuery } from '../utils/idResolver.js';
+import { ensureDocumentSlug } from '../utils/slugUtils.js';
 
 const formatComment = (comment) => {
   const plain = comment.toObject ? comment.toObject() : comment;
@@ -32,8 +35,23 @@ const formatComment = (comment) => {
   };
 };
 
+const loadProductForComments = async (
+  identifier,
+  fallbackId = null,
+  projection = '_id status'
+) => {
+  const query = buildIdentifierQuery(identifier);
+  let product = await Product.findOne(query).select(projection);
+  if (!product && fallbackId && mongoose.Types.ObjectId.isValid(fallbackId)) {
+    product = await Product.findById(fallbackId).select(projection);
+  }
+  if (!product) return null;
+  await ensureDocumentSlug({ document: product, sourceValue: product.title });
+  return product;
+};
+
 export const getCommentsForProduct = asyncHandler(async (req, res) => {
-  const product = await Product.findById(req.params.id).select('_id status');
+  const product = await loadProductForComments(req.params.id, null, '_id status');
   if (!product || product.status !== 'approved') {
     return res.status(404).json({ message: 'Produit introuvable ou non publié.' });
   }
@@ -51,7 +69,11 @@ export const getCommentsForProduct = asyncHandler(async (req, res) => {
 });
 
 export const addComment = asyncHandler(async (req, res) => {
-  const product = await Product.findById(req.params.id).select('_id status user title');
+  const product = await loadProductForComments(
+    req.params.id,
+    req.body.productId,
+    '_id status user title'
+  );
   if (!product || product.status !== 'approved') {
     return res.status(404).json({ message: 'Produit introuvable ou non publié.' });
   }

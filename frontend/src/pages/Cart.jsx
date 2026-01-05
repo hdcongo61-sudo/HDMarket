@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import CartContext from '../context/CartContext';
 import { buildWhatsappLink } from '../utils/whatsapp';
 import api from '../services/api';
+import { buildProductPath } from '../utils/links';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 
 const TrashIcon = ({ className }) => (
@@ -195,7 +196,7 @@ export default function Cart() {
             Votre panier est vide. Découvrez nos produits et ajoutez vos articles préférés.
           </p>
           <Link
-            to="/"
+            to="/products"
             className="inline-flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl hover:bg-indigo-700 transition-colors font-medium"
           >
             <ShoppingBagIcon className="w-5 h-5" />
@@ -241,7 +242,7 @@ export default function Cart() {
                       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
                         <div className="space-y-2 flex-1">
                   <Link
-                    to={`/product/${product._id}`}
+                    to={buildProductPath(product)}
                     {...externalLinkProps}
                     className="text-xl font-semibold text-gray-900 hover:text-indigo-600 transition-colors line-clamp-2"
                   >
@@ -398,21 +399,11 @@ export default function Cart() {
                 {/* Action Buttons */}
                 <div className="space-y-3 pt-2">
                   <Link
-                    to="/"
+                    to="/orders/checkout"
                     className="block w-full bg-indigo-600 text-white text-center py-3.5 rounded-xl hover:bg-indigo-700 transition-colors font-semibold"
                   >
                     Continuer mes achats
                   </Link>
-                  
-                  <button
-                    onClick={() => {
-                      // Scroll to top and show contact suggestions
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }}
-                    className="block w-full border-2 border-indigo-600 text-indigo-600 text-center py-3.5 rounded-xl hover:bg-indigo-50 transition-colors font-semibold"
-                  >
-                    Contacter les vendeurs
-                  </button>
                 </div>
               </div>
             </div>

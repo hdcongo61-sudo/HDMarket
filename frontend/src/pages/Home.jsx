@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import ProductCard from "../components/ProductCard";
@@ -21,9 +21,11 @@ import { buildProductPath, buildShopPath } from "../utils/links";
 export default function Home() {
   // === ÉTATS PRINCIPAUX ===
   const [items, setItems] = useState([]);
+  const [certifiedProducts, setCertifiedProducts] = useState([]);
   const [category, setCategory] = useState("");
   const [sort, setSort] = useState("new");
   const [page, setPage] = useState(1);
+  const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -46,8 +48,11 @@ export default function Home() {
   const [discountLoading, setDiscountLoading] = useState(false);
   const [verifiedShops, setVerifiedShops] = useState([]);
   const [verifiedLoading, setVerifiedLoading] = useState(false);
-  const cityList = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
-  const externalLinkProps = useDesktopExternalLink();
+  const [heroBanner, setHeroBanner] = useState('');
+const cityList = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
+const externalLinkProps = useDesktopExternalLink();
+const formatCurrency = (value) =>
+  `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
 
   // === PARAMÈTRES DE RECHERCHE ===
   const params = useMemo(() => {
@@ -57,7 +62,7 @@ export default function Home() {
   }, [category, page, sort]);
 
   // === CHARGEMENT DES PRODUITS ===
-  const loadProducts = async () => {
+const loadProducts = async () => {
     setLoading(true);
     try {
       const { data } = await api.get("/products/public", { params });
@@ -72,6 +77,49 @@ export default function Home() {
       setLoading(false);
     }
   };
+
+  const loadCertifiedProducts = useCallback(async () => {
+    try {
+      console.debug('loading certified products', {
+        params: { certified: true, sort: 'recent', limit: 8, page: 1 }
+      });
+      const { data } = await api.get("/products/public", {
+        params: {
+          certified: true,
+          sort: "new",
+          limit: 8,
+          page: 1
+        }
+      });
+      const fetched = Array.isArray(data) ? data : data?.items || [];
+      setCertifiedProducts(fetched.filter((product) => product?.certified));
+    } catch (error) {
+      console.error(
+        "Erreur chargement produits certifiés:",
+        error?.response?.status,
+        error?.response?.data,
+        error
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadHeroBanner = async () => {
+      try {
+        const { data } = await api.get('/settings/hero-banner');
+        if (!active) return;
+        setHeroBanner(data?.heroBanner || '');
+      } catch (error) {
+        if (!active) return;
+        setHeroBanner('');
+      }
+    };
+    loadHeroBanner();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // === CHARGEMENT DES PRODUITS EN VEDETTE ===
   const loadHighlights = async () => {
@@ -212,6 +260,7 @@ const loadDiscountProducts = async () => {
     loadHighlights();
     loadDiscountProducts();
     loadVerifiedShops();
+    loadCertifiedProducts();
   }, []);
 
   const cityHighlights = highlights.cityHighlights || {};
@@ -272,7 +321,18 @@ const loadDiscountProducts = async () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-6">
         {/* 🚀 HERO SECTION MOBILE-FIRST */}
         <section className="relative bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800 rounded-2xl overflow-hidden shadow-lg">
-          <div className="relative z-10 px-4 py-6 sm:py-10 text-center">
+          {heroBanner && (
+            <div className="absolute inset-0">
+              <img
+                src={heroBanner}
+                alt="Bannière HDMarket"
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-slate-950/65" />
+            </div>
+          )}
+          <div className="relative z-10 px-4 py-6 sm:py-10 text-left">
             <div className="inline-flex items-center px-3 py-1 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 mb-4">
               <Star className="w-3 h-3 text-yellow-300 mr-1" fill="currentColor" />
               <span className="text-xs text-white font-medium">Marketplace Premium</span>
@@ -285,11 +345,11 @@ const loadDiscountProducts = async () => {
               </span>
             </h1>
 
-            <p className="text-sm text-indigo-100 mb-6 max-w-md mx-auto leading-relaxed">
+            <p className="text-sm text-indigo-100 mb-6 max-w-md leading-relaxed">
               Découvrez des milliers de produits vérifiés. Vendez et achetez en toute confiance.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+            <div className="flex flex-col sm:flex-row gap-3 justify-start items-start">
               <Link
                 to="/my"
                 className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 font-bold rounded-xl hover:from-yellow-300 hover:to-orange-300 transition-all transform hover:scale-105 shadow-lg text-sm"
@@ -358,68 +418,94 @@ const loadDiscountProducts = async () => {
           ))}
         </section>
 
-        {/* 🗂️ CATÉGORIES & SOUS-CATÉGORIES */}
+        {/* 🗂️ CATÉGORIES - STYLE ALIBABA */}
         <section className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
             <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center">
                 <LayoutGrid className="w-5 h-5 text-indigo-600" />
               </div>
               <div>
                 <h2 className="text-lg font-bold text-gray-900">Explorer par catégories</h2>
                 <p className="text-xs text-gray-500">
-                  Retrouvez les univers populaires et accédez rapidement aux sous-catégories comme sur Alibaba.
+                  Découvrez les univers populaires et accédez aux sélections par icône.
                 </p>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setCategoryModalOpen(true)}
+              className="text-xs font-semibold uppercase tracking-wide text-indigo-600 hover:text-indigo-500"
+            >
+              Voir toutes les catégories
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {categoryGroups.map((group) => {
               const Icon = group.icon;
+              const targetSlug = group.options?.[0]?.value || '';
               return (
-                <div
+                <Link
                   key={group.id}
-                  className="rounded-2xl border border-gray-100 bg-gradient-to-br from-white to-indigo-50/40 p-4 hover:border-indigo-200 hover:shadow-md transition-all duration-200"
+                  to={`/categories/${targetSlug}`}
+                  className="flex flex-col items-center gap-3 text-center transition-transform hover:-translate-y-1"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-                        {Icon ? <Icon className="w-5 h-5 text-indigo-600" /> : null}
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-900">{group.label}</h3>
-                        <p className="text-xs text-gray-500 mt-1">{group.description}</p>
-                      </div>
-                    </div>
-                    {group.options?.[0] && (
-                      <Link
-                        to={`/categories/${group.options[0].value}`}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-500"
-                      >
-                        Voir tout
-                        <ChevronRight className="w-3 h-3" />
-                      </Link>
-                    )}
+                  <div className="h-20 w-20 rounded-full border border-gray-200 bg-white shadow-sm flex items-center justify-center transition-colors hover:border-indigo-200">
+                    {Icon ? <Icon className="h-7 w-7 text-indigo-600" /> : null}
                   </div>
-
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {group.options.map((option) => (
-                      <Link
-                        key={option.value}
-                        to={`/categories/${option.value}`}
-                        className="inline-flex items-center gap-1 rounded-full border border-indigo-100 bg-white px-3 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 transition-colors"
-                      >
-                        <span>{option.label}</span>
-                        <ChevronRight className="w-3 h-3" />
-                      </Link>
-                    ))}
-                  </div>
-                </div>
+                  <p className="text-xs font-semibold text-gray-900">{group.label}</p>
+                </Link>
               );
             })}
           </div>
         </section>
+        {isCategoryModalOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-2 sm:p-4"
+            onClick={() => setCategoryModalOpen(false)}
+          >
+            <div
+              className="h-full w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Explorer les catégories</p>
+                  <p className="text-xs text-gray-500">Touchez une icône pour accéder aux sous-catégories</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCategoryModalOpen(false)}
+                  className="text-xs font-semibold uppercase tracking-wide text-gray-500 hover:text-gray-900"
+                >
+                  Fermer
+                </button>
+              </div>
+              <div className="max-h-[90vh] overflow-y-auto px-4 py-4 pb-6">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {categoryGroups.map((group) => {
+                    const Icon = group.icon;
+                    return (
+                      <Link
+                        key={group.id}
+                        to={`/categories/${group.options?.[0]?.value || ''}`}
+                        onClick={() => setCategoryModalOpen(false)}
+                        className="flex flex-col items-center gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 text-center shadow-sm transition hover:border-indigo-200 hover:bg-white"
+                      >
+                        <div className="h-14 w-14 rounded-full border border-gray-200 bg-white flex items-center justify-center">
+                          {Icon ? <Icon className="h-6 w-6 text-indigo-600" /> : null}
+                        </div>
+                        <p className="text-xs font-semibold text-gray-900">{group.label}</p>
+                        <p className="text-[11px] text-gray-500">{group.description}</p>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 🔥 BONNES AFFAIRES - DESIGN ALIBABA */}
         <section className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
@@ -452,8 +538,8 @@ const loadDiscountProducts = async () => {
             </div>
           ) : highlights.topDeals.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {highlights.topDeals.slice(0, 6).map((product) => (
-                <div key={product._id} className="group">
+            {highlights.topDeals.slice(0, 6).map((product, idx) => (
+                <div key={`top-deal-${product._id}-${idx}`} className="group">
                   <div className="relative bg-gray-100 rounded-lg aspect-square overflow-hidden mb-2">
                     <img
                       src={product.images?.[0] || "/api/placeholder/200/200"}
@@ -539,8 +625,8 @@ const loadDiscountProducts = async () => {
             </div>
           ) : discountProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-              {discountProducts.slice(0, 8).map((product) => (
-                <div key={product._id} className="group">
+            {discountProducts.slice(0, 8).map((product, idx) => (
+                <div key={`discount-${product._id}-${idx}`} className="group">
                   <div className="relative bg-gray-100 rounded-lg aspect-square overflow-hidden mb-2">
                     <img
                       src={product.images?.[0] || "/api/placeholder/200/200"}
@@ -641,8 +727,8 @@ const loadDiscountProducts = async () => {
                   1024: { slidesPerView: 4 }
                 }}
               >
-                {products.map((product) => (
-                  <SwiperSlide key={`city-${city}-${product._id}`}>
+                {products.map((product, index) => (
+                  <SwiperSlide key={`city-${city}-${product._id}-${index}`}>
                     <div className="bg-white rounded-2xl border border-gray-100 p-3 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col gap-2 h-full">
                       <Link
                         to={buildProductPath(product)}
@@ -754,7 +840,7 @@ const loadDiscountProducts = async () => {
               <div className="space-y-3 flex-1">
                 {highlights.favorites.slice(0, 3).map((product, index) => (
                   <Link
-                    key={product._id}
+                    key={`favorite-${product._id}-${index}`}
                     to={buildProductPath(product)}
                     {...externalLinkProps}
                     className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-50 transition-colors group"
@@ -831,7 +917,7 @@ const loadDiscountProducts = async () => {
               <div className="space-y-3 flex-1">
                 {highlights.topRated.slice(0, 3).map((product, index) => (
                   <Link
-                    key={product._id}
+                    key={`top-rated-${product._id}-${index}`}
                     to={buildProductPath(product)}
                     {...externalLinkProps}
                     className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-50 transition-colors group"
@@ -911,9 +997,9 @@ const loadDiscountProducts = async () => {
               </div>
             ) : highlights.newProducts.length > 0 ? (
               <div className="space-y-3">
-                {highlights.newProducts.slice(0, 3).map((product) => (
+                {highlights.newProducts.slice(0, 3).map((product, index) => (
                   <Link
-                    key={product._id}
+                    key={`new-${product._id}-${index}`}
                     to={buildProductPath(product)}
                     {...externalLinkProps}
                     className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-50 transition-colors group"
@@ -977,9 +1063,9 @@ const loadDiscountProducts = async () => {
               </div>
             ) : highlights.usedProducts.length > 0 ? (
               <div className="space-y-3">
-                {highlights.usedProducts.slice(0, 3).map((product) => (
+                {highlights.usedProducts.slice(0, 3).map((product, index) => (
                   <Link
-                    key={product._id}
+                    key={`used-${product._id}-${index}`}
                     to={buildProductPath(product)}
                     {...externalLinkProps}
                     className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-50 transition-colors group"
@@ -1085,7 +1171,7 @@ const loadDiscountProducts = async () => {
             <p className="text-sm text-gray-500">Chargement des boutiques vérifiées…</p>
           </section>
         ) : verifiedShops.length ? (
-          <section className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100 space-y-4">
+          <section className="bg-gradient-to-br from-indigo-50 via-white to-indigo-100 rounded-2xl p-4 sm:p-6 shadow-sm border border-indigo-100 space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -1128,6 +1214,53 @@ const loadDiscountProducts = async () => {
                 </Link>
               ))}
             </div>
+        </section>
+        ) : null}
+
+        {certifiedProducts.length > 0 ? (
+          <section className="bg-gradient-to-br from-emerald-50 via-white to-emerald-100 rounded-2xl p-4 sm:p-6 shadow-sm border border-emerald-100 space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-emerald-500" />
+                  Produits certifiés
+                </h2>
+                <p className="text-sm text-gray-500">
+                  Les annonces garanties HDMarket par nos équipes de vérification.
+                </p>
+              </div>
+              <Link
+                to="/certified-products"
+                className="text-xs font-semibold text-indigo-600 hover:text-indigo-500"
+              >
+                Voir tous les certifiés
+                <ChevronRight size={16} />
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+              {certifiedProducts.map((product, index) => (
+                <Link
+                  key={`certified-${product._id}-${index}`}
+                  to={buildProductPath(product)}
+                  className="rounded-2xl border border-gray-100 bg-white p-3 text-xs text-gray-700 hover:border-indigo-200 hover:shadow-lg transition"
+                >
+                  <div className="flex items-start gap-2">
+                    <div className="h-12 w-12 overflow-hidden rounded-lg bg-gray-100">
+                      <img
+                        src={product.images?.[0] || '/api/placeholder/80/80'}
+                        alt={product.title}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[11px] uppercase tracking-wide text-emerald-600">Certifié</p>
+                      <p className="text-sm font-semibold text-gray-900 line-clamp-2">{product.title}</p>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">{Number(product.price).toLocaleString()} FCFA</p>
+                </Link>
+              ))}
+            </div>
           </section>
         ) : null}
 
@@ -1149,8 +1282,8 @@ const loadDiscountProducts = async () => {
           ) : items.length > 0 ? (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                {items.map((product) => (
-                  <ProductCard key={product._id} p={product} />
+                {items.map((product, index) => (
+                  <ProductCard key={`product-${product._id}-${index}`} p={product} />
                 ))}
               </div>
 

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
-    "seed:admin": "node ./seed/seedAdmin.js"
+    "seed:admin": "node ./seed/seedAdmin.js",
+    "normalize:phones": "node ./scripts/normalizePhones.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -23,7 +24,9 @@
     "mongoose": "^8.4.1",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
-    "multer-storage-cloudinary": "^4.0.0"
+    "multer-storage-cloudinary": "^4.0.0",
+    "socket.io": "^4.8.1",
+    "twilio": "^4.23.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

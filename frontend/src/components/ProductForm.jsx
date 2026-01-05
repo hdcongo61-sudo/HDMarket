@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import api from '../services/api';
-import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2 } from 'lucide-react';
+import AuthContext from '../context/AuthContext';
+import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video } from 'lucide-react';
 import categoryGroups from '../data/categories';
 
 const operatorPhones = {
@@ -9,27 +10,57 @@ const operatorPhones = {
 };
 
 const MAX_IMAGES = 3;
+const MAX_VIDEO_SIZE_MB = 20;
+const DeleteIcon = ({ className = '' }) => (
+  <svg
+    viewBox="0 0 24 24"
+    className={className}
+    aria-hidden="true"
+    focusable="false"
+  >
+    <path
+      fill="currentColor"
+      d="M9 3h6l1 2h5v2H3V5h5l1-2zm1 6h2v9h-2V9zm4 0h2v9h-2V9zM6 7h12l-1 14H7L6 7z"
+    />
+  </svg>
+);
 
-export default function ProductForm({ onCreated }) {
+export default function ProductForm(props) {
+  const { onCreated, onUpdated, initialValues, productId, submitLabel } = props;
   const [form, setForm] = useState({
     title: '',
     description: '',
     price: '',
     category: '',
     condition: 'used',
-    operator: 'MTN'
+    operator: 'MTN',
+    discount: ''
   });
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [imagePreviews, setImagePreviews] = useState([]);
+  const [existingImages, setExistingImages] = useState([]);
+  const [removedImages, setRemovedImages] = useState([]);
   const [imageError, setImageError] = useState('');
+  const { user } = useContext(AuthContext);
+  const canUploadVideo = Boolean(user?.shopVerified && user?.accountType === 'shop');
+  const [videoFile, setVideoFile] = useState(null);
+  const [videoError, setVideoError] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
 
   const handleImageChange = (e) => {
     const selectedFiles = Array.from(e.target.files || []);
     if (!selectedFiles.length) return;
-    const limitedFiles = selectedFiles.slice(0, MAX_IMAGES);
-    if (selectedFiles.length > MAX_IMAGES) {
-      setImageError(`Maximum ${MAX_IMAGES} photos. Seules les premières ont été conservées.`);
+    const maxSelectable = Math.max(0, MAX_IMAGES - existingImages.length);
+    if (maxSelectable === 0) {
+      setImageError(`Maximum ${MAX_IMAGES} photos au total. Supprimez une image pour en ajouter.`);
+      e.target.value = '';
+      return;
+    }
+    const limitedFiles = selectedFiles.slice(0, maxSelectable);
+    if (selectedFiles.length > maxSelectable) {
+      setImageError(`Maximum ${MAX_IMAGES} photos au total. Seules les premières ont été conservées.`);
     } else {
       setImageError('');
     }
@@ -50,26 +81,94 @@ export default function ProductForm({ onCreated }) {
     if (newFiles.length < MAX_IMAGES) setImageError('');
   };
 
-  const submit = async (e) => {
+  const removeExistingImage = (index) => {
+    const target = existingImages[index];
+    if (!target) return;
+    setExistingImages(existingImages.filter((_, i) => i !== index));
+    setRemovedImages((prev) => [...prev, target]);
+    if (existingImages.length - 1 + files.length < MAX_IMAGES) setImageError('');
+  };
+
+  const handleVideoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('video/')) {
+      setVideoError('Le fichier doit être une vidéo (MP4, MOV, ...).');
+      return;
+    }
+    if (file.size > MAX_VIDEO_SIZE_MB * 1024 * 1024) {
+      setVideoError(`La vidéo doit faire moins de ${MAX_VIDEO_SIZE_MB} Mo.`);
+      return;
+    }
+    setVideoError('');
+    setVideoFile(file);
+    e.target.value = '';
+  };
+
+  const removeVideo = () => {
+    setVideoFile(null);
+    setVideoError('');
+  };
+
+const submit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    if (videoFile) {
+      setIsUploadingVideo(true);
+      setUploadProgress(0);
+    }
     try {
       const data = new FormData();
-      Object.entries(form).forEach(([k, v]) => data.append(k, v));
+      Object.entries(form).forEach(([k, v]) => {
+        if (k === 'discount' && (v === '' || v === null || v === undefined)) return;
+        data.append(k, v);
+      });
       files.slice(0, MAX_IMAGES).forEach((f) => data.append('images', f));
-      const res = await api.post('/products', data, { headers: { 'Content-Type': 'multipart/form-data' } });
-      onCreated?.(res.data);
+      removedImages.forEach((image) => data.append('removeImages', image));
+      if (videoFile) {
+        data.append('video', videoFile);
+      }
+      const url = `/products${productId ? `/${productId}` : ''}`;
+      const method = productId ? 'put' : 'post';
+      const res = await api[method](url, data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (event) => {
+          if (event.total) {
+            const percentCompleted = Math.round((event.loaded * 100) / event.total);
+            setUploadProgress(percentCompleted);
+          }
+        }
+      });
+      if (productId) {
+        onUpdated?.(res.data);
+      } else {
+        onCreated?.(res.data);
+      }
       
       // Réinitialiser le formulaire
-      setForm({ title: '', description: '', price: '', category: '', condition: 'used', operator: 'MTN' });
+      setForm({
+        title: '',
+        description: '',
+        price: '',
+        category: '',
+        condition: 'used',
+        operator: 'MTN',
+        discount: ''
+      });
       setFiles([]);
       setImagePreviews([]);
+      setExistingImages([]);
+      setRemovedImages([]);
       setImageError('');
+      setVideoFile(null);
+      setVideoError('');
       
     } catch (e) {
       alert(e.response?.data?.message || e.message);
     } finally {
       setLoading(false);
+      setIsUploadingVideo(false);
+      setUploadProgress(0);
     }
   };
 
@@ -78,6 +177,37 @@ export default function ProductForm({ onCreated }) {
     return Math.round(price * 0.03);
   };
 
+  useEffect(() => {
+    if (!initialValues) {
+      setExistingImages([]);
+      setRemovedImages([]);
+      return;
+    }
+    setForm({
+      title: initialValues.title || '',
+      description: initialValues.description || '',
+      price: initialValues.price || '',
+      category: initialValues.category || '',
+      condition: initialValues.condition || 'new',
+      operator: initialValues.operator || 'MTN',
+      discount:
+        typeof initialValues.discount === 'number' || typeof initialValues.discount === 'string'
+          ? initialValues.discount
+          : ''
+    });
+    setExistingImages(Array.isArray(initialValues.images) ? initialValues.images : []);
+    setRemovedImages([]);
+  }, [initialValues]);
+
+  const isEditing = Boolean(productId);
+  const headerTitle = isEditing ? 'Modifier une annonce' : 'Publier une annonce';
+  const headerSubtitle = isEditing
+    ? 'Mettez à jour les informations de votre produit'
+    : 'Remplissez les détails de votre produit pour commencer à vendre';
+  const buttonLabel =
+    submitLabel || (isEditing ? 'Mettre à jour l’annonce' : 'Publier l’annonce');
+  const priceGridClass = isEditing ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2';
+
   return (
     <div className="max-w-2xl mx-auto">
       {/* En-tête du formulaire */}
@@ -85,8 +215,8 @@ export default function ProductForm({ onCreated }) {
         <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <Package className="w-8 h-8 text-white" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Publier une annonce</h1>
-        <p className="text-gray-500 text-sm">Remplissez les détails de votre produit pour commencer à vendre</p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">{headerTitle}</h1>
+        <p className="text-gray-500 text-sm">{headerSubtitle}</p>
       </div>
 
       <form onSubmit={submit} className="space-y-6 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
@@ -129,7 +259,7 @@ export default function ProductForm({ onCreated }) {
           </div>
 
           {/* Catégorie et Prix en ligne */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className={`grid ${priceGridClass} gap-4`}>
             {/* Catégorie */}
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
@@ -171,6 +301,35 @@ export default function ProductForm({ onCreated }) {
                 min="0"
               />
             </div>
+
+            {isEditing && (
+              <div className="space-y-2">
+                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                  <Tag className="w-4 h-4 text-amber-500" />
+                  <span>Remise (%)</span>
+                </label>
+                <input
+                  type="number"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all placeholder-gray-400"
+                  placeholder="Ex: 5"
+                  value={form.discount}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '') {
+                      setForm((prev) => ({ ...prev, discount: '' }));
+                      return;
+                    }
+                    const numeric = Math.max(0, Math.min(99, Number(value)));
+                    setForm((prev) => ({ ...prev, discount: numeric }));
+                  }}
+                  min="0"
+                  max="99"
+                />
+                <p className="text-[11px] text-gray-500">
+                  Laissez vide pour aucune remise. Le pourcentage maximum est de 99%.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Condition et Opérateur */}
@@ -252,9 +411,38 @@ export default function ProductForm({ onCreated }) {
           <div className="space-y-3">
             <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
               <Camera className="w-4 h-4 text-blue-500" />
-              <span>Photos {files.length > 0 && `(${files.length} sélectionnée${files.length > 1 ? 's' : ''})`}</span>
+              <span>
+                Photos{' '}
+                {(existingImages.length + files.length) > 0 &&
+                  `(${existingImages.length + files.length})`}
+              </span>
             </label>
             <p className="text-xs text-gray-500">Jusqu&apos;à {MAX_IMAGES} photos (PNG ou JPG, 10&nbsp;MB max chacun).</p>
+
+            {existingImages.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs text-gray-500">Images actuelles</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {existingImages.map((src, index) => (
+                    <div key={`${src}-${index}`} className="relative group">
+                      <img
+                        src={src}
+                        alt={`Image existante ${index + 1}`}
+                        className="w-full h-24 object-cover rounded-lg border border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeExistingImage(index)}
+                        className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center shadow-sm hover:bg-red-600 transition-colors"
+                        aria-label="Supprimer l'image"
+                      >
+                        <DeleteIcon className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             
             <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group">
               <Upload className="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2" />
@@ -288,9 +476,10 @@ export default function ProductForm({ onCreated }) {
                     <button
                       type="button"
                       onClick={() => removeImage(index)}
-                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                      className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center shadow-sm hover:bg-red-600 transition-colors"
+                      aria-label="Supprimer l'image"
                     >
-                      ×
+                      <DeleteIcon className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 ))}
@@ -298,6 +487,60 @@ export default function ProductForm({ onCreated }) {
             )}
           </div>
         </div>
+
+        {canUploadVideo ? (
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3 mb-2">
+              <div className="w-2 h-6 bg-gradient-to-b from-emerald-500 to-teal-500 rounded-full"></div>
+              <h2 className="text-lg font-semibold text-gray-900">Vidéo de présentation</h2>
+            </div>
+            <p className="text-sm text-gray-500">
+              Ajoutez une courte vidéo (MP4, MOV, WEBM) pour montrer le produit. Taille maximale {MAX_VIDEO_SIZE_MB} Mo.
+            </p>
+            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group">
+              <Video className="w-8 h-8 text-gray-400 group-hover:text-emerald-500 transition-colors mb-2" />
+              <span className="text-sm text-gray-500 text-center">Cliquez pour uploader votre vidéo</span>
+              <input
+                type="file"
+                accept="video/*"
+                onChange={handleVideoChange}
+                className="hidden"
+              />
+            </label>
+            {videoFile && (
+              <div className="flex items-center justify-between px-3 py-2 rounded-xl border border-gray-200 bg-white">
+                <span className="text-sm text-gray-700 truncate">{videoFile.name}</span>
+                <button
+                  type="button"
+                  onClick={removeVideo}
+                  className="text-xs font-semibold text-red-600 hover:text-red-500"
+                >
+                  Supprimer
+                </button>
+              </div>
+            )}
+            {videoError && <p className="text-xs text-red-500">{videoError}</p>}
+            {isUploadingVideo && (
+              <div className="mt-2 w-full rounded-full bg-gray-100 h-2 overflow-hidden">
+                <div
+                  className="h-full bg-indigo-600 transition-all duration-200"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-500 space-y-1">
+            <p className="font-semibold text-gray-700">Vidéo réservée aux boutiques certifiées</p>
+            <p>
+              Contactez un administrateur via{' '}
+              <a href="/help" className="font-semibold text-indigo-600 hover:underline">
+                le centre d’aide
+              </a>{' '}
+              pour valider votre boutique.
+            </p>
+          </div>
+        )}
 
         {/* Section Paiement */}
         <div className="space-y-4">
@@ -333,12 +576,12 @@ export default function ProductForm({ onCreated }) {
           {loading ? (
             <>
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              <span>Publication en cours...</span>
+              <span>{isEditing ? 'Mise à jour en cours...' : 'Publication en cours...'}</span>
             </>
           ) : (
             <>
               <Send className="w-5 h-5" />
-              <span>Publier l'annonce</span>
+              <span>{buttonLabel}</span>
             </>
           )}
         </button>

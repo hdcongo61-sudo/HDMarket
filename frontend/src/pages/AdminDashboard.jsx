@@ -3,7 +3,10 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import VerifiedBadge from '../components/VerifiedBadge';
 import AuthContext from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
+import { buildProductPath } from '../utils/links';
+import { Paperclip } from 'lucide-react';
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('fr-FR');
 const formatCurrency = (value) => `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
@@ -37,6 +40,16 @@ const formatMonthLabel = (key) => {
   const date = new Date(year, (month || 1) - 1);
   return date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 };
+
+function SectionStatCard({ label, value, helper }) {
+  return (
+    <div className="rounded-2xl border border-gray-100 bg-white/80 px-4 py-3 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</p>
+      <p className="text-2xl font-semibold text-gray-900">{value}</p>
+      {helper ? <p className="text-xs text-gray-400 mt-1">{helper}</p> : null}
+    </div>
+  );
+}
 
 const productStatusLabels = {
   pending: 'En attente',
@@ -103,6 +116,13 @@ export default function AdminDashboard() {
   const [verifyingShopId, setVerifyingShopId] = useState('');
   const [updatingUserId, setUpdatingUserId] = useState('');
   const [editingUser, setEditingUser] = useState(null);
+  const [complaints, setComplaints] = useState([]);
+  const [complaintsLoading, setComplaintsLoading] = useState(false);
+  const [complaintsError, setComplaintsError] = useState('');
+  const [complaintsFilter, setComplaintsFilter] = useState('pending');
+  const [complaintActionMessage, setComplaintActionMessage] = useState('');
+  const [complaintActionError, setComplaintActionError] = useState('');
+  const [complaintActioningId, setComplaintActioningId] = useState('');
   const [paymentActionMessage, setPaymentActionMessage] = useState('');
   const [paymentActionError, setPaymentActionError] = useState('');
   const [roleUpdatingId, setRoleUpdatingId] = useState('');
@@ -112,13 +132,26 @@ export default function AdminDashboard() {
   });
   const [activeAdminTab, setActiveAdminTab] = useState('overview');
   const externalLinkProps = useDesktopExternalLink();
+  const [prohibitedWords, setProhibitedWords] = useState([]);
+  const [newProhibitedWord, setNewProhibitedWord] = useState('');
+  const [prohibitedLoading, setProhibitedLoading] = useState(false);
+  const [prohibitedError, setProhibitedError] = useState('');
+  const [prohibitedMessage, setProhibitedMessage] = useState('');
+  const [remindersOpen, setRemindersOpen] = useState(false);
+  const [reminderOrders, setReminderOrders] = useState([]);
+  const [remindersLoading, setRemindersLoading] = useState(false);
+  const [remindersError, setRemindersError] = useState('');
+  const [reminderActioningId, setReminderActioningId] = useState('');
+  const { showToast } = useToast();
 
   const { user: authUser } = useContext(AuthContext);
   const isAdmin = authUser?.role === 'admin';
   const isManager = authUser?.role === 'manager';
+  const canAccessBackOffice = isAdmin || isManager;
   const canViewStats = isAdmin;
   const canManageUsers = isAdmin;
   const canManagePayments = isAdmin || isManager;
+  const canManageComplaints = isAdmin || isManager;
   const pageTitle = isManager ? 'Espace gestionnaire' : 'Tableau de bord administrateur';
   const pageSubtitle = isManager
     ? 'Validez les preuves de paiement et contrôlez la mise en ligne des annonces.'
@@ -128,8 +161,28 @@ export default function AdminDashboard() {
     if (canViewStats) tabs.push({ key: 'overview', label: 'Statistiques' });
     if (canManageUsers) tabs.push({ key: 'users', label: 'Utilisateurs' });
     if (canManagePayments) tabs.push({ key: 'payments', label: 'Paiements' });
+    if (canManageComplaints) tabs.push({ key: 'complaints', label: 'Réclamations' });
     return tabs;
-  }, [canViewStats, canManageUsers, canManagePayments]);
+  }, [canViewStats, canManageUsers, canManagePayments, canManageComplaints]);
+
+  const complaintStatusLabels = {
+    pending: 'En attente',
+    in_review: 'En cours',
+    resolved: 'Résolue'
+  };
+
+  const complaintStatusStyles = {
+    pending: 'bg-orange-100 text-orange-800',
+    in_review: 'bg-blue-100 text-blue-800',
+    resolved: 'bg-green-100 text-green-800'
+  };
+
+  const complaintStatusFilterOptions = [
+    { value: '', label: 'Toutes' },
+    { value: 'pending', label: 'En attente' },
+    { value: 'in_review', label: 'En cours' },
+    { value: 'resolved', label: 'Résolues' }
+  ];
 
   const filesBase = useMemo(() => {
     const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5010/api';
@@ -158,6 +211,53 @@ export default function AdminDashboard() {
       setStatsLoading(false);
     }
   }, []);
+
+  const loadReminderOrders = useCallback(async () => {
+    setRemindersLoading(true);
+    setRemindersError('');
+    try {
+      const [confirmedRes, deliveringRes] = await Promise.all([
+        api.get('/orders/admin', { params: { status: 'confirmed', limit: 30 } }),
+        api.get('/orders/admin', { params: { status: 'delivering', limit: 30 } })
+      ]);
+      const confirmedItems = Array.isArray(confirmedRes.data)
+        ? confirmedRes.data
+        : confirmedRes.data?.items || [];
+      const deliveringItems = Array.isArray(deliveringRes.data)
+        ? deliveringRes.data
+        : deliveringRes.data?.items || [];
+      const merged = [...confirmedItems, ...deliveringItems].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setReminderOrders(merged);
+    } catch (error) {
+      setRemindersError(
+        error.response?.data?.message ||
+          'Impossible de charger les commandes en attente de relance.'
+      );
+      setReminderOrders([]);
+    } finally {
+      setRemindersLoading(false);
+    }
+  }, []);
+
+  const handleSendReminder = useCallback(
+    async (orderId) => {
+      if (!orderId) return;
+      setReminderActioningId(orderId);
+      try {
+        const { data } = await api.post(`/orders/admin/${orderId}/reminder`);
+        showToast(data?.message || 'Rappel envoyé aux vendeurs.', { variant: 'success' });
+      } catch (error) {
+        const message =
+          error.response?.data?.message || 'Impossible d\'envoyer le rappel.';
+        showToast(message, { variant: 'error' });
+      } finally {
+        setReminderActioningId('');
+      }
+    },
+    [showToast]
+  );
 
   const loadPayments = useCallback(async () => {
     const params = new URLSearchParams();
@@ -257,6 +357,92 @@ export default function AdminDashboard() {
     }
   }, [userAccountFilter, userSearchValue]);
 
+  const loadComplaints = useCallback(async () => {
+    if (!canManageComplaints) {
+      setComplaints([]);
+      return;
+    }
+    setComplaintsLoading(true);
+    setComplaintsError('');
+    try {
+      const params = {};
+      if (complaintsFilter) params.status = complaintsFilter;
+      const { data } = await api.get('/admin/complaints', { params });
+      const normalized = Array.isArray(data)
+        ? data.map((item) => ({
+            ...item,
+            attachments: (Array.isArray(item.attachments) ? item.attachments : []).map((attachment) => ({
+              ...attachment,
+              url: normalizeUrl(attachment.path || attachment.url || '')
+            }))
+          }))
+        : [];
+      setComplaints(normalized);
+    } catch (e) {
+      setComplaintsError(
+        e.response?.data?.message || e.message || 'Erreur lors du chargement des réclamations.'
+      );
+    } finally {
+      setComplaintsLoading(false);
+    }
+  }, [canManageComplaints, complaintsFilter, normalizeUrl]);
+
+  const loadProhibitedWords = useCallback(async () => {
+    if (!canAccessBackOffice) return;
+    setProhibitedLoading(true);
+    setProhibitedError('');
+    try {
+      const { data } = await api.get('/admin/prohibited-words');
+      setProhibitedWords(Array.isArray(data) ? data : []);
+    } catch (error) {
+      setProhibitedError(
+        error.response?.data?.message || error.message || 'Impossible de charger les mots interdits.'
+      );
+      setProhibitedWords([]);
+    } finally {
+      setProhibitedLoading(false);
+    }
+  }, [canAccessBackOffice]);
+
+  const addProhibitedWord = useCallback(
+    async (event) => {
+      event.preventDefault();
+      if (!newProhibitedWord.trim()) return;
+      setProhibitedError('');
+      setProhibitedMessage('');
+      try {
+        const { data } = await api.post('/admin/prohibited-words', {
+          word: newProhibitedWord.trim()
+        });
+        setProhibitedWords((prev) => [...prev, data]);
+        setNewProhibitedWord('');
+        setProhibitedMessage('Mot ajouté à la liste.');
+      } catch (error) {
+        setProhibitedError(
+          error.response?.data?.message || error.message || 'Échec de l’ajout du mot interdit.'
+        );
+      }
+    },
+    [newProhibitedWord]
+  );
+
+  const removeProhibitedWord = useCallback(
+    async (id) => {
+      setProhibitedError('');
+      setProhibitedMessage('');
+      try {
+        await api.delete(`/admin/prohibited-words/${id}`);
+        setProhibitedWords((prev) => prev.filter((word) => word.id !== id));
+        setProhibitedMessage('Mot supprimé de la liste.');
+      } catch (error) {
+        setProhibitedError(
+          error.response?.data?.message || error.message || 'Impossible de supprimer le mot.'
+        );
+      }
+    },
+    []
+  );
+
   useEffect(() => {
     if (!canViewStats) return;
     loadStats();
@@ -315,6 +501,13 @@ export default function AdminDashboard() {
   }, [users.length, canManageUsers]);
 
   useEffect(() => {
+    if (canManageComplaints) return;
+    setComplaints([]);
+    setComplaintsLoading(false);
+    setComplaintsError('');
+  }, [canManageComplaints]);
+
+  useEffect(() => {
     const handleResize = () => {
       if (typeof window === 'undefined') return;
       setIsMobileView(window.innerWidth < 1024);
@@ -331,6 +524,16 @@ export default function AdminDashboard() {
       return stillValid ? prev : availableTabs[0].key;
     });
   }, [availableTabs]);
+
+  useEffect(() => {
+    if (!canManageComplaints) return;
+    loadComplaints();
+  }, [loadComplaints, canManageComplaints]);
+
+  useEffect(() => {
+    if (!canAccessBackOffice) return;
+    loadProhibitedWords();
+  }, [canAccessBackOffice, loadProhibitedWords]);
 
   const actOnPayment = useCallback(
     async (id, type) => {
@@ -393,6 +596,29 @@ export default function AdminDashboard() {
       }
     },
     [isAdmin, loadPayments, loadStats]
+  );
+
+  const handleComplaintStatusChange = useCallback(
+    async (complaintId, nextStatus) => {
+      if (!complaintId || !nextStatus) return;
+      setComplaintActionError('');
+      setComplaintActionMessage('');
+      setComplaintActioningId(complaintId);
+      try {
+        await api.patch(`/admin/complaints/${complaintId}/status`, { status: nextStatus });
+        setComplaintActionMessage('Statut de la réclamation mis à jour.');
+        showToast('Statut de la réclamation mis à jour.', { variant: 'success' });
+        await loadComplaints();
+      } catch (err) {
+        const message =
+          err.response?.data?.message || err.message || 'Impossible de mettre à jour le statut.';
+        setComplaintActionError(message);
+        showToast(message, { variant: 'error' });
+      } finally {
+        setComplaintActioningId('');
+      }
+    },
+    [loadComplaints, showToast]
   );
 
   const copyTransactionNumber = useCallback(async (reference) => {
@@ -505,11 +731,24 @@ export default function AdminDashboard() {
     [canViewStats, loadStats]
   );
 
-  const refreshAll = useCallback(() => {
-    if (canViewStats) loadStats();
-    if (canManagePayments) loadPayments();
-    if (canManageUsers) loadUsers();
-  }, [loadStats, loadPayments, loadUsers, canManagePayments, canManageUsers, canViewStats]);
+const refreshAll = useCallback(() => {
+  if (canViewStats) loadStats();
+  if (canManagePayments) loadPayments();
+  if (canManageUsers) loadUsers();
+  if (canAccessBackOffice) loadProhibitedWords();
+  if (canManageComplaints) loadComplaints();
+}, [
+  loadStats,
+  loadPayments,
+  loadUsers,
+  loadComplaints,
+  loadProhibitedWords,
+  canManagePayments,
+  canManageUsers,
+  canViewStats,
+  canManageComplaints,
+  canAccessBackOffice
+]);
 
   useEffect(() => {
     if (!paymentActionMessage && !paymentActionError) return;
@@ -520,8 +759,24 @@ export default function AdminDashboard() {
     return () => clearTimeout(timer);
   }, [paymentActionMessage, paymentActionError]);
 
+  useEffect(() => {
+    if (!complaintActionMessage && !complaintActionError) return;
+    const timer = setTimeout(() => {
+      setComplaintActionMessage('');
+      setComplaintActionError('');
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [complaintActionMessage, complaintActionError]);
+
+  useEffect(() => {
+    if (!remindersOpen) return;
+    loadReminderOrders();
+  }, [remindersOpen, loadReminderOrders]);
+
   const totalUserCount = stats?.users?.total || 0;
   const totalProductCount = stats?.products?.total || 0;
+  const orderStats = stats?.orders || {};
+  const orderByStatus = orderStats.byStatus || {};
   const cityStats = Array.isArray(stats?.demographics?.cities) ? stats.demographics.cities : [];
   const genderStats = Array.isArray(stats?.demographics?.genders) ? stats.demographics.genders : [];
   const productCityStats = Array.isArray(stats?.demographics?.productCities)
@@ -567,13 +822,21 @@ export default function AdminDashboard() {
           <h1 className="text-2xl font-bold text-gray-900">{pageTitle}</h1>
           <p className="text-sm text-gray-500">{pageSubtitle}</p>
         </div>
-        <button
-          type="button"
-          onClick={refreshAll}
-          className="inline-flex items-center justify-center rounded-md border border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        >
-          Actualiser
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={refreshAll}
+            className="inline-flex items-center justify-center rounded-md border border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            Actualiser
+          </button>
+          <Link
+            to="/admin/products"
+            className="inline-flex items-center justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            Produits & statistiques
+          </Link>
+        </div>
       </header>
       {isMobileView && availableTabs.length > 1 && (
         <div className="-mx-1 flex gap-2 overflow-x-auto pb-2">
@@ -652,6 +915,230 @@ export default function AdminDashboard() {
           </div>
         )}
           </section>
+
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Commandes globales</h2>
+              <button
+                type="button"
+                onClick={() => setRemindersOpen(true)}
+                className="text-xs font-semibold text-indigo-600 hover:underline"
+              >
+                Relances commandes
+              </button>
+            </div>
+            {statsError ? <p className="text-sm text-red-600">{statsError}</p> : null}
+            {statsLoading && !stats ? (
+              <p className="text-sm text-gray-500">Chargement des statistiques…</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <StatCard
+                  title="Commandes totales"
+                  value={formatNumber(orderStats.total || 0)}
+                  subtitle="Toutes les commandes"
+                />
+                <StatCard
+                  title="Confirmées"
+                  value={formatNumber(orderByStatus.confirmed?.count || 0)}
+                  subtitle="À préparer"
+                />
+                <StatCard
+                  title="En cours de livraison"
+                  value={formatNumber(orderByStatus.delivering?.count || 0)}
+                  subtitle="Expédiées"
+                />
+                <StatCard
+                  title="Livrées"
+                  value={formatNumber(orderByStatus.delivered?.count || 0)}
+                  subtitle="Terminées"
+                />
+                <StatCard
+                  title="Montant total"
+                  value={formatCurrency(orderStats.totalAmount || 0)}
+                  subtitle="Volume commandes"
+                  highlight
+                />
+                <StatCard
+                  title="Acomptes encaissés"
+                  value={formatCurrency(orderStats.paidAmount || 0)}
+                  subtitle="Paiements reçus"
+                />
+                <StatCard
+                  title="Reste à payer"
+                  value={formatCurrency(orderStats.remainingAmount || 0)}
+                  subtitle="Soldes ouverts"
+                />
+              </div>
+            )}
+          </section>
+
+          {remindersOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+              <div
+                className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+                onClick={() => setRemindersOpen(false)}
+              />
+              <div
+                className="relative w-full max-w-3xl rounded-3xl bg-white shadow-xl border border-gray-100 p-6"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-gray-500">Relances commandes</p>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Commandes confirmées &amp; en cours de livraison
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRemindersOpen(false)}
+                    className="h-9 w-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    aria-label="Fermer"
+                  >
+                    X
+                  </button>
+                </div>
+
+                {remindersLoading ? (
+                  <p className="text-sm text-gray-500">Chargement des commandes…</p>
+                ) : remindersError ? (
+                  <p className="text-sm text-red-600">{remindersError}</p>
+                ) : reminderOrders.length === 0 ? (
+                  <p className="text-sm text-gray-500">Aucune commande à relancer.</p>
+                ) : (
+                  <div className="space-y-3 max-h-[60vh] overflow-auto pr-1">
+                    {reminderOrders.map((order) => {
+                      const items = Array.isArray(order.items) ? order.items : [];
+                      const statusLabel =
+                        order.status === 'confirmed'
+                          ? 'Confirmée'
+                          : order.status === 'delivering'
+                          ? 'En cours de livraison'
+                          : 'Livrée';
+                      const sellersMap = new Map();
+                      items.forEach((item) => {
+                        const shopId =
+                          item.snapshot?.shopId ||
+                          item.product?.user?._id ||
+                          item.product?.user ||
+                          '';
+                        const shopName =
+                          item.snapshot?.shopName ||
+                          item.product?.user?.shopName ||
+                          item.product?.user?.name ||
+                          'Boutique';
+                        const phone = item.product?.user?.phone || '';
+                        const key = shopId ? String(shopId) : shopName;
+                        if (sellersMap.has(key)) return;
+                        sellersMap.set(key, { name: shopName, phone });
+                      });
+                      const sellers = Array.from(sellersMap.values());
+                      return (
+                        <div
+                          key={order._id}
+                          className="rounded-2xl border border-gray-100 p-4 flex flex-col gap-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <p className="text-sm font-semibold text-gray-900">
+                                Commande #{order._id.slice(-6)}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {order.customer?.name || 'Client'} · {order.deliveryCity}
+                              </p>
+                            </div>
+                            <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700">
+                              {statusLabel}
+                            </span>
+                          </div>
+                          {sellers.length > 0 && (
+                            <div className="text-xs text-gray-600 space-y-1">
+                              {sellers.map((seller) => (
+                                <p key={`${order._id}-${seller.name}`}>
+                                  Vendeur: {seller.name}
+                                  {seller.phone ? ` · ${seller.phone}` : ''}
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleSendReminder(order._id)}
+                              disabled={reminderActioningId === order._id}
+                              className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                            >
+                              Rappel
+                            </button>
+                            <Link
+                              to="/admin/orders"
+                              className="text-xs font-semibold text-indigo-600 hover:underline"
+                            >
+                              Voir dans commandes
+                            </Link>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {canAccessBackOffice && (
+            <section className="rounded-2xl border border-dashed border-gray-200 bg-white/70 p-4 shadow-sm space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Mots interdits</h3>
+                <p className="text-xs text-gray-500">
+                  Ajoutez les mots que les vendeurs ne doivent pas utiliser dans leurs annonces. Les annonces contenant ces mots seront bloquées.
+                </p>
+              </div>
+              <form onSubmit={addProhibitedWord} className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  type="text"
+                  placeholder="Ex : contrefaçon, interdit..."
+                  value={newProhibitedWord}
+                  onChange={(event) => setNewProhibitedWord(event.target.value)}
+                  className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  disabled={prohibitedLoading}
+                />
+                <button
+                  type="submit"
+                  disabled={prohibitedLoading}
+                  className="rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                >
+                  Ajouter
+                </button>
+              </form>
+              {prohibitedMessage && (
+                <p className="text-xs text-green-600">{prohibitedMessage}</p>
+              )}
+              {prohibitedError && (
+                <p className="text-xs text-red-600">{prohibitedError}</p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {prohibitedWords.map((item) => (
+                  <span
+                    key={item.id}
+                    className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700"
+                  >
+                    {item.word}
+                    <button
+                      type="button"
+                      onClick={() => removeProhibitedWord(item.id)}
+                      className="text-[11px] text-red-600 hover:text-red-500"
+                    >
+                      Supprimer
+                    </button>
+                  </span>
+                ))}
+                {!prohibitedWords.length && (
+                  <p className="text-xs text-gray-400">Aucun mot interdit défini pour l’instant.</p>
+                )}
+              </div>
+            </section>
+          )}
 
           {(cityStats.length > 0 || genderStats.length > 0 || productCityStats.length > 0 || productGenderStats.length > 0) && (
             <section className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
@@ -923,11 +1410,11 @@ export default function AdminDashboard() {
 
       {canManageUsers && shouldShowSection('users') && (
         <section className="rounded-lg border bg-white p-4 shadow-sm space-y-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Gestion des utilisateurs</h2>
-            <p className="text-xs text-gray-500">
-              Recherchez un compte particulier et convertissez-le en boutique si nécessaire.
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Gestion des utilisateurs</h2>
+              <p className="text-xs text-gray-500">
+                Recherchez un compte particulier et convertissez-le en boutique si nécessaire.
             </p>
             <Link
               to="/admin/users"
@@ -935,6 +1422,23 @@ export default function AdminDashboard() {
             >
               Ouvrir la gestion des suspensions →
             </Link>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <SectionStatCard
+              label="Utilisateurs"
+              value={formatNumber(stats?.users?.total)}
+              helper={`Boutiques : ${formatNumber(stats?.users?.shops)}`}
+            />
+            <SectionStatCard
+              label="Utilisateurs bloqués"
+              value={formatNumber(stats?.users?.blocked || 0)}
+              helper="À surveiller"
+            />
+            <SectionStatCard
+              label="Nouveaux (30j)"
+              value={formatNumber(stats?.users?.newLast30Days)}
+              helper="Indicateur 30 jours"
+            />
           </div>
           <form
             className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3"
@@ -1193,6 +1697,12 @@ export default function AdminDashboard() {
                           </div>
                         )}
                       </div>
+                      <Link
+                        to={`/admin/users/${user.id}/stats`}
+                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                      >
+                        Voir ses statistiques →
+                      </Link>
                     </div>
                   </div>
                 );
@@ -1355,42 +1865,48 @@ export default function AdminDashboard() {
                                 Convertir en boutique
                               </button>
                             )}
-                            <div className="border-t border-gray-100 pt-3">
-                              {isAdminRole ? (
-                                <p className="text-xs text-gray-500">Rôle administrateur non modifiable.</p>
-                              ) : (
-                                <div className="flex flex-col gap-2">
-                                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                                    Rôle actuel&nbsp;:{' '}
-                                    {isManagerRole ? 'Gestionnaire de ventes' : 'Utilisateur'}
-                                  </p>
-                                  <button
-                                    type="button"
-                                    className={`rounded px-3 py-1 text-xs font-semibold ${
-                                      isManagerRole
-                                        ? 'border border-amber-400 text-amber-700 hover:bg-amber-50'
-                                        : 'bg-amber-500 text-white hover:bg-amber-600'
-                                    } disabled:opacity-60`}
-                                    onClick={() => handleRoleUpdate(user.id, nextRole)}
-                                    disabled={roleUpdatingId === user.id || isSelf}
-                                  >
-                                    {roleUpdatingId === user.id
-                                      ? 'Mise à jour...'
-                                      : isManagerRole
-                                      ? 'Retirer le rôle gestionnaire'
-                                      : 'Nommer gestionnaire de ventes'}
-                                  </button>
-                                  {isSelf ? (
-                                    <p className="text-[11px] text-gray-500">
-                                      Vous ne pouvez pas modifier votre propre rôle.
-                                    </p>
-                                  ) : null}
-                                </div>
-                              )}
+                        <div className="border-t border-gray-100 pt-3">
+                          {isAdminRole ? (
+                            <p className="text-xs text-gray-500">Rôle administrateur non modifiable.</p>
+                          ) : (
+                            <div className="flex flex-col gap-2">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                                Rôle actuel&nbsp;:{' '}
+                                {isManagerRole ? 'Gestionnaire de ventes' : 'Utilisateur'}
+                              </p>
+                              <button
+                                type="button"
+                                className={`rounded px-3 py-1 text-xs font-semibold ${
+                                  isManagerRole
+                                    ? 'border border-amber-400 text-amber-700 hover:bg-amber-50'
+                                    : 'bg-amber-500 text-white hover:bg-amber-600'
+                                } disabled:opacity-60`}
+                                onClick={() => handleRoleUpdate(user.id, nextRole)}
+                                disabled={roleUpdatingId === user.id || isSelf}
+                              >
+                                {roleUpdatingId === user.id
+                                  ? 'Mise à jour...'
+                                  : isManagerRole
+                                  ? 'Retirer le rôle gestionnaire'
+                                  : 'Nommer gestionnaire de ventes'}
+                              </button>
+                              {isSelf ? (
+                                <p className="text-[11px] text-gray-500">
+                                  Vous ne pouvez pas modifier votre propre rôle.
+                                </p>
+                              ) : null}
                             </div>
-                          </div>
-                        </td>
-                      </tr>
+                          )}
+                        </div>
+                        <Link
+                          to={`/admin/users/${user.id}/stats`}
+                          className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                        >
+                          Voir ses statistiques →
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
                     );
                   })
                 ) : (
@@ -1442,12 +1958,29 @@ export default function AdminDashboard() {
 
       {canManagePayments && shouldShowSection('payments') && (
         <section className="rounded-lg border bg-white p-4 shadow-sm space-y-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Vérification des paiements</h2>
-            <p className="text-xs text-gray-500">
-              Validez ou rejetez les preuves de paiement envoyées par les vendeurs.
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Vérification des paiements</h2>
+              <p className="text-xs text-gray-500">
+                Validez ou rejetez les preuves de paiement envoyées par les vendeurs.
             </p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <SectionStatCard
+              label="En attente"
+              value={formatNumber(stats?.payments?.waiting)}
+              helper="Paiements non vérifiés"
+            />
+            <SectionStatCard
+              label="Validés"
+              value={formatNumber(stats?.payments?.verified)}
+              helper="Paiements acceptés"
+            />
+            <SectionStatCard
+              label="CA validé"
+              value={formatCurrency(stats?.payments?.revenue)}
+              helper="Total confirmé"
+            />
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
             {isMobileView ? (
@@ -1550,7 +2083,7 @@ export default function AdminDashboard() {
                 <div className="flex flex-wrap gap-2">
                   {p.product?._id && (
                     <Link
-                      to={`/product/${p.product._id}`}
+                      to={buildProductPath(p.product)}
                       {...externalLinkProps}
                       className="flex-1 min-w-[140px] rounded-lg border border-indigo-200 px-3 py-2 text-center text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
                     >
@@ -1680,7 +2213,7 @@ export default function AdminDashboard() {
                     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                       {p.product?._id ? (
                         <Link
-                          to={`/product/${p.product._id}`}
+                          to={buildProductPath(p.product)}
                           {...externalLinkProps}
                           className="rounded border border-indigo-200 px-3 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
                         >
@@ -1778,6 +2311,153 @@ export default function AdminDashboard() {
         </div>
         </>
         )}
+        </section>
+      )}
+
+      {canManageComplaints && shouldShowSection('complaints') && (
+        <section className="rounded-lg border bg-white p-4 shadow-sm space-y-4">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Réclamations</h2>
+              <p className="text-xs text-gray-500">
+                Consultez les plaintes déposées par les utilisateurs et attribuez un statut adapté.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+              <select
+                value={complaintsFilter}
+                onChange={(e) => setComplaintsFilter(e.target.value)}
+                className="rounded border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                {complaintStatusFilterOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={loadComplaints}
+                className="rounded border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                Actualiser
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <SectionStatCard
+              label="Total"
+              value={formatNumber(complaints.length)}
+              helper="Réclamations enregistrées"
+            />
+            <SectionStatCard
+              label="En attente"
+              value={formatNumber(complaints.filter((item) => item.status === 'pending').length)}
+              helper="Nouveau et non traité"
+            />
+            <SectionStatCard
+              label="Résolues"
+              value={formatNumber(complaints.filter((item) => item.status === 'resolved').length)}
+              helper="Confirmées"
+            />
+          </div>
+
+          {(complaintActionMessage || complaintActionError) && (
+            <div
+              className={`rounded-lg px-3 py-2 text-sm ${
+                complaintActionError ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'
+              }`}
+            >
+              {complaintActionError || complaintActionMessage}
+            </div>
+          )}
+
+          {complaintsLoading ? (
+            <p className="text-sm text-gray-500">Chargement des réclamations…</p>
+          ) : complaintsError ? (
+            <p className="text-sm text-red-600">{complaintsError}</p>
+          ) : (
+            <ul className="space-y-4">
+              {complaints.length ? (
+                complaints.map((complaint) => (
+                  <li key={complaint._id} className="space-y-3 rounded-2xl border border-gray-100 p-4">
+                    <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-gray-900">
+                          {complaint.subject || 'Sans objet'}
+                        </p>
+                      <p className="text-xs text-gray-500 flex flex-wrap gap-2">
+                        <span>
+                          {complaint.user?.name || 'Utilisateur anonyme'}
+                        </span>
+                        <span className="text-[11px] text-gray-400">
+                          {complaint.user?.email || 'Email introuvable'}
+                        </span>
+                        <span className="text-[11px] text-gray-400">
+                          {complaint.user?.phone || 'Téléphone non renseigné'}
+                        </span>
+                      </p>
+                        <p className="text-xs text-gray-400">{formatDateTime(complaint.createdAt)}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                            complaintStatusStyles[complaint.status] || 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          {complaintStatusLabels[complaint.status] || complaint.status}
+                        </span>
+                        <select
+                          value={complaint.status}
+                          onChange={(e) =>
+                            handleComplaintStatusChange(complaint._id, e.target.value)
+                          }
+                          disabled={complaintActioningId === complaint._id}
+                          className="rounded border border-gray-200 px-3 py-1 text-xs text-gray-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        >
+                          {Object.keys(complaintStatusLabels).map((statusKey) => (
+                            <option key={statusKey} value={statusKey}>
+                              {complaintStatusLabels[statusKey]}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-600 whitespace-pre-line break-words">
+                      {complaint.message}
+                    </p>
+                    {complaint.attachments?.length ? (
+                      <div className="flex flex-wrap gap-2">
+                        {complaint.attachments
+                          .filter((attachment) => attachment.url)
+                          .map((attachment, index) => (
+                            <a
+                              key={`${attachment.filename}-${index}`}
+                              href={attachment.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600 hover:border-rose-200"
+                            >
+                              <Paperclip className="w-3 h-3" />
+                              {attachment.originalName || attachment.filename}
+                            </a>
+                          ))}
+                      </div>
+                    ) : null}
+                    {complaint.adminNote ? (
+                      <p className="text-xs text-gray-500">
+                        <span className="font-semibold text-gray-700">Note admin :</span>{' '}
+                        {complaint.adminNote}
+                      </p>
+                    ) : null}
+                  </li>
+                ))
+              ) : (
+                <li className="text-sm text-gray-500">Aucune réclamation pour ce filtre.</li>
+              )}
+            </ul>
+          )}
         </section>
       )}
       </div>

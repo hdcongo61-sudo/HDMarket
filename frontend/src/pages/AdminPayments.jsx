@@ -4,6 +4,7 @@ import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import useIsMobile from '../hooks/useIsMobile';
+import { buildProductPath } from '../utils/links';
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('fr-FR');
 const formatCurrency = (value) => `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
@@ -203,13 +204,13 @@ export default function AdminPayments() {
   );
 
   const handleDisableListing = useCallback(
-    async (productId) => {
-      if (!productId) return;
+    async (productIdentifier) => {
+      if (!productIdentifier) return;
       setActionLoading(true);
       setActionMessage('');
       setActionError('');
       try {
-        await api.patch(`/products/${productId}/disable`);
+        await api.patch(`/products/${productIdentifier}/disable`);
         await loadPayments();
         setActionMessage("Annonce désactivée avec succès.");
       } catch (e) {
@@ -222,13 +223,13 @@ export default function AdminPayments() {
   );
 
   const handleEnableListing = useCallback(
-    async (productId) => {
-      if (!productId) return;
+    async (productIdentifier) => {
+      if (!productIdentifier) return;
       setActionLoading(true);
       setActionMessage('');
       setActionError('');
       try {
-        await api.patch(`/products/${productId}/enable`);
+        await api.patch(`/products/${productIdentifier}/enable`);
         await loadPayments();
         setActionMessage('Annonce réactivée avec succès.');
       } catch (e) {
@@ -526,9 +527,9 @@ export default function AdminPayments() {
                     </div>
                   ) : null}
                   <div className="flex flex-wrap gap-2">
-                    {payment.product?._id && (
+                    {payment.product && (
                       <Link
-                        to={`/product/${payment.product._id}`}
+                        to={buildProductPath(payment.product)}
                         {...externalLinkProps}
                         className="flex-1 min-w-[150px] rounded-lg border border-indigo-200 px-3 py-2 text-center text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
                       >
@@ -549,7 +550,9 @@ export default function AdminPayments() {
                     {payment.product?._id && payment.product?.status !== 'disabled' && (
                       <button
                         type="button"
-                        onClick={() => handleDisableListing(payment.product._id)}
+                        onClick={() =>
+                          handleDisableListing(payment.product?.slug || payment.product?._id)
+                        }
                         className="flex-1 min-w-[150px] rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
                         disabled={actionLoading}
                       >
@@ -559,7 +562,9 @@ export default function AdminPayments() {
                     {payment.product?._id && payment.product?.status === 'disabled' && (
                       <button
                         type="button"
-                        onClick={() => handleEnableListing(payment.product._id)}
+                        onClick={() =>
+                          handleEnableListing(payment.product?.slug || payment.product?._id)
+                        }
                         className="flex-1 min-w-[150px] rounded-lg border border-green-200 px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-50 disabled:opacity-60"
                         disabled={actionLoading}
                       >
@@ -658,9 +663,9 @@ export default function AdminPayments() {
                       </td>
                       <td className="p-2 border align-top">
                         <div className="flex flex-wrap gap-2">
-                          {payment.product?._id && (
+                          {payment.product && (
                             <Link
-                              to={`/product/${payment.product._id}`}
+                              to={buildProductPath(payment.product)}
                               {...externalLinkProps}
                               className="rounded border border-indigo-200 px-3 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
                             >
@@ -676,20 +681,24 @@ export default function AdminPayments() {
                               Copier la référence
                             </button>
                           ) : null}
-                          {payment.product?._id && payment.product?.status !== 'disabled' && (
+                          {payment.product?.status !== 'disabled' && payment.product && (
                             <button
                               type="button"
-                              onClick={() => handleDisableListing(payment.product._id)}
+                              onClick={() =>
+                                handleDisableListing(payment.product?.slug || payment.product?._id)
+                              }
                               className="rounded border border-red-200 px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
                               disabled={actionLoading}
                             >
                               Désactiver
                             </button>
                           )}
-                          {payment.product?._id && payment.product?.status === 'disabled' && (
+                          {payment.product?.status === 'disabled' && payment.product && (
                             <button
                               type="button"
-                              onClick={() => handleEnableListing(payment.product._id)}
+                              onClick={() =>
+                                handleEnableListing(payment.product?.slug || payment.product?._id)
+                              }
                               className="rounded border border-green-200 px-3 py-1 text-xs font-semibold text-green-700 hover:bg-green-50 disabled:opacity-60"
                               disabled={actionLoading}
                             >

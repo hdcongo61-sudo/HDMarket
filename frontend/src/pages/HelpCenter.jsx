@@ -324,29 +324,29 @@ export default function HelpCenter() {
           </ul>
         </section>
 
-        <section className="rounded-2xl border border-indigo-100 bg-white p-5 shadow-lg space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-indigo-50 p-3 text-indigo-600">
-              <FileText size={20} />
+        {isAdmin && (
+          <section className="rounded-2xl border border-indigo-100 bg-white p-5 shadow-lg space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-indigo-50 p-3 text-indigo-600">
+                <FileText size={20} />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Ajouter ou mettre à jour une condition
+                </h2>
+                <p className="text-sm text-gray-500">
+                  Ce formulaire vous permet de garder les conditions à jour sans écrire de code.
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">
-                Ajouter ou mettre à jour une condition
-              </h2>
-              <p className="text-sm text-gray-500">
-                Ce formulaire vous permet de garder les conditions à jour sans écrire de code.
-              </p>
-            </div>
-          </div>
 
-          {statusMessage && (
-            <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-              <AlertCircle size={16} />
-              {statusMessage}
-            </div>
-          )}
+            {statusMessage && (
+              <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                <AlertCircle size={16} />
+                {statusMessage}
+              </div>
+            )}
 
-          {isAdmin ? (
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div>
                 <label className="text-xs font-semibold uppercase text-gray-500">Titre</label>
@@ -391,13 +391,8 @@ export default function HelpCenter() {
                 )}
               </div>
             </form>
-          ) : (
-            <div className="rounded-xl border border-dashed border-indigo-200 bg-indigo-50/40 p-4 text-sm text-indigo-800">
-              Les modifications des conditions d&apos;utilisation sont limitées aux administrateurs.
-              Contactez ETS HD Tech Filial si vous avez besoin d&apos;ajouter une information.
-            </div>
-          )}
-        </section>
+          </section>
+        )}
       </div>
     </div>
   );

@@ -5,13 +5,15 @@ import Product from '../models/productModel.js';
 import Payment from '../models/paymentModel.js';
 import Comment from '../models/commentModel.js';
 import Rating from '../models/ratingModel.js';
+import Order from '../models/orderModel.js';
+import { createNotification } from '../utils/notificationService.js';
 
 const monthKey = (year, month) => `${year}-${String(month).padStart(2, '0')}`;
 
-const toAdminUserResponse = (user) => ({
-  id: user._id.toString(),
-  name: user.name,
-  email: user.email,
+  const toAdminUserResponse = (user) => ({
+    id: user._id.toString(),
+    name: user.name,
+    email: user.email,
   phone: user.phone,
   role: user.role,
   accountType: user.accountType,
@@ -26,9 +28,10 @@ const toAdminUserResponse = (user) => ({
         email: user.shopVerifiedBy.email
       }
     : null,
-  shopVerifiedAt: user.shopVerifiedAt || null,
-  createdAt: user.createdAt,
-  updatedAt: user.updatedAt,
+    shopVerifiedAt: user.shopVerifiedAt || null,
+    followersCount: Number(user.followersCount || 0),
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
   isBlocked: Boolean(user.isBlocked),
   blockedAt: user.blockedAt || null,
   blockedReason: user.blockedReason || ''
@@ -128,6 +131,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     paymentsRejected,
     totalRevenueAgg,
     revenueLast30Agg,
+    orderStatusAgg,
     favoritesAgg,
     totalComments,
     totalRatings,
@@ -164,6 +168,17 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     Payment.aggregate([
       { $match: { status: 'verified', createdAt: { $gte: thirtyDaysAgo } } },
       { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]),
+    Order.aggregate([
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+          totalAmount: { $sum: { $ifNull: ['$totalAmount', 0] } },
+          paidAmount: { $sum: { $ifNull: ['$paidAmount', 0] } },
+          remainingAmount: { $sum: { $ifNull: ['$remainingAmount', 0] } }
+        }
+      }
     ]),
     Product.aggregate([{ $group: { _id: null, total: { $sum: '$favoritesCount' } } }]),
     Comment.countDocuments(),
@@ -277,6 +292,35 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
   const totalRevenue = totalRevenueAgg[0]?.total || 0;
   const revenueLast30Days = revenueLast30Agg[0]?.total || 0;
   const totalFavorites = favoritesAgg[0]?.total || 0;
+  const orderStatuses = ['confirmed', 'delivering', 'delivered'];
+  const ordersByStatus = orderStatuses.reduce((acc, status) => {
+    acc[status] = { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0 };
+    return acc;
+  }, {});
+  orderStatusAgg.forEach((entry) => {
+    if (!entry || !ordersByStatus[entry._id]) return;
+    const totalAmount = Number(entry.totalAmount || 0);
+    const paidAmount = Number(entry.paidAmount || 0);
+    const remainingAmount = Number(entry.remainingAmount || 0);
+    const isDelivered = entry._id === 'delivered';
+    ordersByStatus[entry._id] = {
+      count: Number(entry.count || 0),
+      totalAmount,
+      paidAmount: isDelivered ? totalAmount : paidAmount,
+      remainingAmount: isDelivered ? 0 : remainingAmount
+    };
+  });
+  const orderTotals = orderStatuses.reduce(
+    (acc, status) => {
+      const data = ordersByStatus[status];
+      acc.total += Number(data.count || 0);
+      acc.totalAmount += Number(data.totalAmount || 0);
+      acc.paidAmount += Number(data.paidAmount || 0);
+      acc.remainingAmount += Number(data.remainingAmount || 0);
+      return acc;
+    },
+    { total: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0 }
+  );
 
   const topCategories = topCategoriesRaw.map((item) => ({
     category: item._id || 'Autres',
@@ -387,6 +431,13 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       comments: totalComments,
       ratings: totalRatings
     },
+    orders: {
+      total: orderTotals.total,
+      totalAmount: orderTotals.totalAmount,
+      paidAmount: orderTotals.paidAmount,
+      remainingAmount: orderTotals.remainingAmount,
+      byStatus: ordersByStatus
+    },
     demographics: {
       cities: cityStats,
       genders: genderStats,
@@ -424,7 +475,7 @@ export const listUsers = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(safeLimit)
     .select(
-      'name email phone role accountType shopName shopAddress shopLogo shopVerified shopVerifiedBy shopVerifiedAt createdAt updatedAt isBlocked blockedAt blockedReason'
+      'name email phone role accountType shopName shopAddress shopLogo shopVerified shopVerifiedBy shopVerifiedAt createdAt updatedAt isBlocked blockedAt blockedReason followersCount'
     )
     .populate('shopVerifiedBy', 'name email');
 
@@ -544,11 +595,24 @@ export const updateShopVerification = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Cet utilisateur n’est pas une boutique.' });
   }
 
-  user.shopVerified = Boolean(verified);
-  user.shopVerifiedBy = verified ? req.user.id : null;
-  user.shopVerifiedAt = verified ? new Date() : null;
+  const previouslyVerified = Boolean(user.shopVerified);
+  const shouldVerify = Boolean(verified);
+  user.shopVerified = shouldVerify;
+  user.shopVerifiedBy = shouldVerify ? req.user.id : null;
+  user.shopVerifiedAt = shouldVerify ? new Date() : null;
   await user.save();
   const populated = await user.populate('shopVerifiedBy', 'name email');
+  if (shouldVerify && !previouslyVerified) {
+    await createNotification({
+      userId: user._id,
+      actorId: req.user.id,
+      type: 'shop_verified',
+      metadata: {
+        shopName: user.shopName || '',
+        verifiedAt: user.shopVerifiedAt
+      }
+    });
+  }
   res.json(toAdminUserResponse(populated));
 });
 

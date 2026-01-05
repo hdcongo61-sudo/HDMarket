@@ -17,34 +17,17 @@ export const validate =
     next();
   };
 
+const identifierPattern = Joi.string().pattern(/^[^/]+$/, 'identifiant produit');
+
 export const schemas = {
   register: Joi.object({
     name: Joi.string().min(2).max(60).required(),
     email: Joi.string().email().required(),
     password: Joi.string().min(6).max(100).required(),
     phone: Joi.string().min(5).max(30).required(),
+    verificationCode: Joi.string().min(3).max(10).required(),
     role: Joi.string().valid('user', 'admin', 'manager').optional(),
-    accountType: Joi.string().valid('person', 'shop').default('person'),
-    shopName: Joi.when('accountType', {
-      is: 'shop',
-      then: Joi.string().min(2).max(120).required(),
-      otherwise: Joi.string().max(120).allow('', null)
-    }),
-    shopAddress: Joi.when('accountType', {
-      is: 'shop',
-      then: Joi.string().min(4).max(200).required(),
-      otherwise: Joi.string().max(200).allow('', null)
-    }),
-    shopDescription: Joi.when('accountType', {
-      is: 'shop',
-      then: Joi.string().min(10).max(1000).required(),
-      otherwise: Joi.string().max(1000).allow('', null)
-    }),
-    shopDescription: Joi.when('accountType', {
-      is: 'shop',
-      then: Joi.string().min(10).max(1000).required(),
-      otherwise: Joi.string().max(1000).allow('', null)
-    }),
+    accountType: Joi.string().valid('person').default('person'),
     address: Joi.string().min(4).max(200).required(),
     city: Joi.string()
       .valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo')
@@ -52,10 +35,26 @@ export const schemas = {
     gender: Joi.string().valid('homme', 'femme').required(),
     country: Joi.string().valid('République du Congo').optional()
   }),
+  registerSendCode: Joi.object({
+    phone: Joi.string().min(5).max(30).required()
+  }),
   login: Joi.object({
-    email: Joi.string().email().required(),
+    phone: Joi.string().min(5).max(30).required(),
     password: Joi.string().min(6).required(),
   }),
+  passwordForgot: Joi.object({
+    phone: Joi.string().min(5).max(30).required()
+  }),
+  passwordReset: Joi.object({
+    phone: Joi.string().min(5).max(30).required(),
+    verificationCode: Joi.string().min(3).max(10).required(),
+    newPassword: Joi.string().min(6).max(100).required()
+  }),
+  passwordChange: Joi.object({
+    verificationCode: Joi.string().min(3).max(10).required(),
+    newPassword: Joi.string().min(6).max(100).required()
+  }),
+  passwordSendCode: Joi.object({}).max(0),
   productCreate: Joi.object({
     title: Joi.string().min(2).max(120).required(),
     description: Joi.string().min(5).max(5000).required(),
@@ -70,14 +69,17 @@ export const schemas = {
     category: Joi.string().min(2).max(60),
     condition: Joi.string().valid('new', 'used'),
     discount: Joi.number().min(0).max(99.99),
+    removeImages: Joi.array().items(Joi.string().max(500)).max(3).single()
   }),
   commentCreate: Joi.object({
+    productId: Joi.string().hex().length(24).optional(),
     message: Joi.string().min(1).max(500).required(),
     parentId: Joi.string().hex().length(24).optional(),
     parentReadIds: Joi.array().items(Joi.string().hex().length(24)).optional()
   }),
   ratingUpsert: Joi.object({
     value: Joi.number().integer().min(1).max(5).required(),
+    productId: Joi.string().hex().length(24).optional()
   }),
   shopReviewUpsert: Joi.object({
     rating: Joi.number().integer().min(1).max(5).required(),
@@ -94,17 +96,24 @@ export const schemas = {
     name: Joi.string().min(2).max(60),
     email: Joi.string().email(),
     phone: Joi.string().min(5).max(30),
-    password: Joi.string().min(6).max(100),
     accountType: Joi.string().valid('person', 'shop'),
     shopName: Joi.string().min(2).max(120),
     shopAddress: Joi.string().min(4).max(200),
     shopDescription: Joi.string().min(10).max(1000),
+    shopHours: Joi.string().allow('', null),
     address: Joi.string().min(4).max(200),
     city: Joi.string().valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'),
     gender: Joi.string().valid('homme', 'femme')
   }).min(0),
   favoriteModify: Joi.object({
     productId: Joi.string().hex().length(24).required()
+  }),
+  prohibitedWordCreate: Joi.object({
+    word: Joi.string().min(2).max(50).required()
+  }),
+  complaintCreate: Joi.object({
+    subject: Joi.string().max(150).allow('', null),
+    message: Joi.string().min(5).max(1500).required()
   }),
   paymentCreate: Joi.object({
     productId: Joi.string().hex().length(24).required(),
@@ -117,6 +126,7 @@ export const schemas = {
     q: Joi.string().allow(''),
     category: Joi.string().allow(''),
     city: Joi.string().valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'),
+    certified: Joi.boolean().truthy('true').falsy('false'),
     minPrice: Joi.number().min(0),
     maxPrice: Joi.number().min(0),
     sort: Joi.string()
@@ -127,6 +137,15 @@ export const schemas = {
   }),
   idParam: Joi.object({
     id: Joi.string().hex().length(24).required()
+  }),
+  slugParam: Joi.object({
+    id: Joi.string()
+      .lowercase()
+      .pattern(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+      .required()
+  }),
+  identifierParam: Joi.object({
+    id: Joi.alternatives().try(Joi.string().hex().length(24), identifierPattern).required()
   }),
   adminUserAccountType: Joi.object({
     accountType: Joi.string().valid('person', 'shop').required(),
@@ -148,6 +167,9 @@ export const schemas = {
   adminShopVerification: Joi.object({
     verified: Joi.boolean().required()
   }),
+  adminProductCertification: Joi.object({
+    certified: Joi.boolean().required()
+  }),
   orderCreate: Joi.object({
     items: Joi.array()
       .items(
@@ -163,14 +185,39 @@ export const schemas = {
     deliveryCity: Joi.string().valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo').required(),
     trackingNote: Joi.string().max(500).allow('', null)
   }),
+  orderCheckout: Joi.object({
+    payerName: Joi.string().min(2).max(120).required(),
+    transactionCode: Joi.string().min(3).max(120).required()
+  }),
+  orderStatusUpdate: Joi.object({
+    status: Joi.string().valid('confirmed', 'delivering', 'delivered').required()
+  }),
+  sellerOrderStatusUpdate: Joi.object({
+    status: Joi.string().valid('confirmed', 'delivering', 'delivered').required()
+  }),
   orderUpdate: Joi.object({
     status: Joi.string().valid('confirmed', 'delivering', 'delivered'),
     deliveryAddress: Joi.string().min(4).max(300),
     deliveryCity: Joi.string().valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'),
-    trackingNote: Joi.string().max(500).allow('', null)
+    trackingNote: Joi.string().max(500).allow('', null),
+    deliveryGuyId: Joi.string().hex().length(24).allow('', null)
+  }).min(1),
+  deliveryGuyCreate: Joi.object({
+    name: Joi.string().min(2).max(80).required(),
+    phone: Joi.string().max(30).allow('', null),
+    active: Joi.boolean().optional()
+  }),
+  deliveryGuyUpdate: Joi.object({
+    name: Joi.string().min(2).max(80),
+    phone: Joi.string().max(30).allow('', null),
+    active: Joi.boolean()
   }).min(1),
   adminUserRole: Joi.object({
     role: Joi.string().valid('user', 'manager').required()
+  }),
+  complaintStatusUpdate: Joi.object({
+    status: Joi.string().valid('pending', 'in_review', 'resolved').required(),
+    note: Joi.string().max(500).allow('', null)
   }),
   notificationPreferencesUpdate: Joi.object({
     product_comment: Joi.boolean(),
@@ -183,6 +230,8 @@ export const schemas = {
     shop_review: Joi.boolean(),
     payment_pending: Joi.boolean(),
     order_created: Joi.boolean(),
+    order_received: Joi.boolean(),
+    order_reminder: Joi.boolean(),
     order_delivered: Joi.boolean()
   }).min(1)
 };

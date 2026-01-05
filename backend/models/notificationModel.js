@@ -8,19 +8,25 @@ const notificationSchema = new mongoose.Schema(
     shop: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
     type: {
       type: String,
-      enum: [
-        'product_comment',
-        'reply',
-        'favorite',
-        'rating',
-        'product_approval',
-        'product_rejection',
-        'promotional',
-        'shop_review',
-        'payment_pending',
-        'order_created',
-        'order_delivered'
-      ],
+    enum: [
+      'product_comment',
+      'reply',
+      'favorite',
+      'rating',
+      'product_approval',
+      'product_rejection',
+      'product_certified',
+      'shop_verified',
+      'promotional',
+      'shop_review',
+      'shop_follow',
+      'payment_pending',
+      'order_created',
+      'order_received',
+      'order_reminder',
+      'order_delivered',
+      'complaint_resolved'
+    ],
       required: true
     },
     metadata: {

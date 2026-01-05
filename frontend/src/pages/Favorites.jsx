@@ -8,6 +8,9 @@ const PAGE_SIZE = 12;
 export default function Favorites() {
   const { favorites, loading } = useContext(FavoriteContext);
   const [page, setPage] = useState(1);
+  const [isMobileView, setIsMobileView] = useState(() =>
+    typeof window === 'undefined' ? false : window.innerWidth <= 767
+  );
   const hasFavorites = favorites.length > 0;
   const totalPages = Math.max(1, Math.ceil(favorites.length / PAGE_SIZE));
 
@@ -16,17 +19,44 @@ export default function Favorites() {
   }, [favorites.length]);
 
   useEffect(() => {
+    const handleResize = () => {
+      if (typeof window === 'undefined') return;
+      setIsMobileView(window.innerWidth <= 767);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileView) return;
+    if (page >= totalPages) return;
+    const handleScroll = () => {
+      const threshold = 200;
+      if (
+        window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight - threshold
+      ) {
+        setPage((prev) => Math.min(prev + 1, totalPages));
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isMobileView, page, totalPages]);
+
+  useEffect(() => {
     if (page > totalPages) {
       setPage(totalPages);
     }
   }, [page, totalPages]);
 
   const paginatedFavorites = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return favorites.slice(start, start + PAGE_SIZE);
+    const end = page * PAGE_SIZE;
+    return favorites.slice(0, end);
   }, [favorites, page]);
 
   const renderPagination = () => {
+    if (isMobileView) return null;
     if (favorites.length <= PAGE_SIZE) return null;
 
     const visiblePages = Math.min(5, totalPages);

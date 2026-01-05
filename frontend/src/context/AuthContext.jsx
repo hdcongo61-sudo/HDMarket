@@ -19,7 +19,14 @@ const readPersistedUser = () => {
         parsed = {};
       }
     }
-    return { id: payload.id, role: payload.role, token, ...parsed };
+    const normalized = {
+      ...parsed,
+      shopHours: Array.isArray(parsed.shopHours) ? parsed.shopHours : [],
+      shopVerified: Boolean(parsed.shopVerified),
+      phoneVerified: Boolean(parsed.phoneVerified),
+      followingShops: Array.isArray(parsed.followingShops) ? parsed.followingShops : []
+    };
+    return { id: payload.id, role: payload.role, token, ...normalized };
   } catch {
     window.localStorage.removeItem('qm_token');
     window.localStorage.removeItem('qm_user');
@@ -46,11 +53,16 @@ export const AuthProvider = ({ children }) => {
       name: data.name,
       email: data.email,
       phone: data.phone,
+      phoneVerified: Boolean(data.phoneVerified),
       accountType: data.accountType || 'person',
       shopName: data.shopName || '',
       shopAddress: data.shopAddress || '',
       shopLogo: data.shopLogo || '',
+      shopBanner: data.shopBanner || '',
       shopDescription: data.shopDescription || '',
+      shopHours: Array.isArray(data.shopHours) ? data.shopHours : [],
+      shopVerified: Boolean(data.shopVerified),
+      followingShops: Array.isArray(data.followingShops) ? data.followingShops : [],
       country: data.country || 'République du Congo',
       address: data.address || '',
       city: data.city || '',

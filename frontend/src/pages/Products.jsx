@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
@@ -14,13 +14,18 @@ const SORT_OPTIONS = [
 const PAGE_SIZE = 12;
 
 export default function Products() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const categoryParam = (searchParams.get('category') || '').trim();
-  const [items, setItems] = useState([]);
+const [searchParams, setSearchParams] = useSearchParams();
+const categoryParam = (searchParams.get('category') || '').trim();
+const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [sort, setSort] = useState('new');
-  const [page, setPage] = useState(1);
+const pageParam = Number(searchParams.get('page'));
+const initialPageRef = useRef(Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1);
+const [page, setPage] = useState(initialPageRef.current);
+const [isMobileView, setIsMobileView] = useState(() =>
+  typeof window === 'undefined' ? false : window.innerWidth <= 767
+);
   const [totalPages, setTotalPages] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -30,10 +35,10 @@ export default function Products() {
     setCategoryFilter(categoryParam);
   }, [categoryParam]);
 
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
+const fetchProducts = useCallback(async () => {
+  setLoading(true);
+  setError('');
+  try {
       const params = {
         sort,
         page,
@@ -44,7 +49,7 @@ export default function Products() {
       const { data } = await api.get('/products/public', { params });
       const fetchedItems = Array.isArray(data) ? data : data?.items || [];
       const paginationMeta = Array.isArray(data) ? { pages: 1 } : data?.pagination || {};
-      setItems(fetchedItems);
+      setItems((prev) => (isMobileView && page > 1 ? [...prev, ...fetchedItems] : fetchedItems));
       setTotalPages(Math.max(1, Number(paginationMeta.pages) || 1));
     } catch (e) {
       setError(e.response?.data?.message || e.message || 'Impossible de charger les produits.');
@@ -54,8 +59,62 @@ export default function Products() {
   }, [page, sort, searchTerm, categoryFilter]);
 
   useEffect(() => {
+    initialPageRef.current = 1;
     setPage(1);
+    setItems([]);
+    setTotalPages(1);
   }, [sort, searchTerm, categoryFilter]);
+
+  useEffect(() => {
+    if (!isMobileView) return;
+    if (loading) return;
+    if (page >= totalPages) return;
+    const handleScroll = () => {
+      const threshold = 200;
+      if (
+        window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight - threshold
+      ) {
+        setPage((prev) => Math.min(prev + 1, totalPages));
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isMobileView, loading, page, totalPages]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (typeof window === 'undefined') return;
+      setIsMobileView(window.innerWidth <= 767);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (page === initialPageRef.current) {
+      setSearchParams((prev) => {
+        const params = new URLSearchParams(prev);
+        if (page === 1) {
+          params.delete('page');
+        } else {
+          params.set('page', String(page));
+        }
+        return params;
+      }, { replace: true });
+    } else {
+      setSearchParams((prev) => {
+        const params = new URLSearchParams(prev);
+        if (page === 1) {
+          params.delete('page');
+        } else {
+          params.set('page', String(page));
+        }
+        return params;
+      }, { replace: false });
+    }
+  }, [page, setSearchParams]);
 
   useEffect(() => {
     fetchProducts();
@@ -71,11 +130,11 @@ export default function Products() {
     setSearchTerm('');
   };
 
-  const paginationButtons = useMemo(() => {
-    const buttons = [];
-    const visiblePages = Math.min(5, totalPages);
-    for (let i = 1; i <= visiblePages; i += 1) {
-      buttons.push(
+const paginationButtons = useMemo(() => {
+  const buttons = [];
+  const visiblePages = Math.min(5, totalPages);
+  for (let i = 1; i <= visiblePages; i += 1) {
+    buttons.push(
         <button
           key={i}
           type="button"
@@ -90,8 +149,8 @@ export default function Products() {
         </button>
       );
     }
-    return buttons;
-  }, [page, totalPages]);
+  return buttons;
+}, [page, totalPages]);
 
   const categoryMeta = useMemo(() => getCategoryMeta(categoryFilter), [categoryFilter]);
 

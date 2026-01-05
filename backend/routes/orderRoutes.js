@@ -8,8 +8,13 @@ import {
   adminOrderStats,
   adminSearchCustomers,
   adminSearchProducts,
+  adminSendOrderReminder,
   adminUpdateOrder,
-  userListOrders
+  userCheckoutOrder,
+  userListOrders,
+  userUpdateOrderStatus,
+  sellerListOrders,
+  sellerUpdateOrderStatus
 } from '../controllers/orderController.js';
 
 const router = express.Router();
@@ -23,11 +28,26 @@ adminRouter.get('/stats', adminOrderStats);
 adminRouter.get('/customers', adminSearchCustomers);
 adminRouter.get('/products', adminSearchProducts);
 adminRouter.get('/', adminListOrders);
-adminRouter.post('/', validate(schemas.orderCreate), adminCreateOrder);
+adminRouter.post('/', requireRole(['admin']), validate(schemas.orderCreate), adminCreateOrder);
 adminRouter.patch('/:id', validate(schemas.idParam, 'params'), validate(schemas.orderUpdate), adminUpdateOrder);
+adminRouter.post('/:id/reminder', validate(schemas.idParam, 'params'), adminSendOrderReminder);
 
 router.use('/admin', adminRouter);
 
+router.post('/checkout', validate(schemas.orderCheckout), userCheckoutOrder);
+router.patch(
+  '/:id/status',
+  validate(schemas.idParam, 'params'),
+  validate(schemas.orderStatusUpdate),
+  userUpdateOrderStatus
+);
+router.get('/seller', sellerListOrders);
+router.patch(
+  '/seller/:id/status',
+  validate(schemas.idParam, 'params'),
+  validate(schemas.sellerOrderStatusUpdate),
+  sellerUpdateOrderStatus
+);
 router.get('/', userListOrders);
 
 export default router;

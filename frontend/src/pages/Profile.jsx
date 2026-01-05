@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, useCallback } from 'react';
+import React, { useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -10,9 +10,10 @@ import {
   TrendingUp, Users, Star, Award, Edit3, Image,
   Lock,
   Truck,
-  ClipboardList
+  ClipboardList, AlertTriangle, Paperclip, FileText
 } from 'lucide-react';
 import VerifiedBadge from '../components/VerifiedBadge';
+import { buildShopPath } from '../utils/links';
 
 const initialForm = {
   name: '',
@@ -122,6 +123,71 @@ const formatNumber = (value) => {
   return numberFormatter.format(parsed);
 };
 
+const formatComplaintDate = (value) =>
+  value
+    ? new Date(value).toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      })
+    : '';
+
+const SHOP_HOUR_DAY_DEFINITIONS = [
+  { key: 'monday', label: 'Lundi' },
+  { key: 'tuesday', label: 'Mardi' },
+  { key: 'wednesday', label: 'Mercredi' },
+  { key: 'thursday', label: 'Jeudi' },
+  { key: 'friday', label: 'Vendredi' },
+  { key: 'saturday', label: 'Samedi' },
+  { key: 'sunday', label: 'Dimanche' }
+];
+
+const createDefaultShopHours = () =>
+  SHOP_HOUR_DAY_DEFINITIONS.map((day) => ({
+    day: day.key,
+    label: day.label,
+    open: '',
+    close: '',
+    closed: true
+  }));
+
+const hydrateShopHoursFromUser = (value) => {
+  if (!Array.isArray(value) || !value.length) {
+    return createDefaultShopHours();
+  }
+  const map = new Map();
+  value.forEach((item) => {
+    if (!item || typeof item !== 'object') return;
+    const dayKey = typeof item.day === 'string' ? item.day : '';
+    const definition = SHOP_HOUR_DAY_DEFINITIONS.find((entry) => entry.key === dayKey);
+    if (!definition) return;
+    const closed =
+      typeof item.closed === 'boolean'
+        ? item.closed
+        : item.closed === 'true' || item.closed === '1' || item.closed === 1;
+    map.set(dayKey, {
+      day: dayKey,
+      label: definition.label,
+      open: typeof item.open === 'string' ? item.open : '',
+      close: typeof item.close === 'string' ? item.close : '',
+      closed
+    });
+  });
+  return SHOP_HOUR_DAY_DEFINITIONS.map((definition) => {
+    const saved = map.get(definition.key);
+    if (saved) {
+      return { ...saved, label: definition.label };
+    }
+    return {
+      day: definition.key,
+      label: definition.label,
+      open: '',
+      close: '',
+      closed: true
+    };
+  });
+};
+
 export default function Profile() {
   const { user, updateUser } = useContext(AuthContext);
   const { showToast } = useToast();
@@ -132,16 +198,38 @@ export default function Profile() {
   const [error, setError] = useState('');
   const [shopLogoFile, setShopLogoFile] = useState(null);
   const [shopLogoPreview, setShopLogoPreview] = useState('');
+  const [shopBannerFile, setShopBannerFile] = useState(null);
+  const [shopBannerPreview, setShopBannerPreview] = useState('');
+  const [heroBannerFile, setHeroBannerFile] = useState(null);
+  const [heroBannerPreview, setHeroBannerPreview] = useState('');
+  const [heroBannerSaving, setHeroBannerSaving] = useState(false);
+  const [heroBannerError, setHeroBannerError] = useState('');
+  const [heroBannerSuccess, setHeroBannerSuccess] = useState('');
+  const [shopHours, setShopHours] = useState(() => createDefaultShopHours());
   const [stats, setStats] = useState(() => createDefaultStats());
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [passwordCode, setPasswordCode] = useState('');
+  const [passwordCodeSent, setPasswordCodeSent] = useState(false);
+  const [passwordCodeSending, setPasswordCodeSending] = useState(false);
+  const [passwordCodeError, setPasswordCodeError] = useState('');
+  const [passwordCodeMessage, setPasswordCodeMessage] = useState('');
   const [activeTab, setActiveTab] = useState('profile');
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState('');
   const [ordersLoaded, setOrdersLoaded] = useState(false);
-  const userShopLink = user?.accountType === 'shop' ? `/shop/${user?._id || user?.id}` : null;
+  const [complaintSubject, setComplaintSubject] = useState('');
+  const [complaintMessage, setComplaintMessage] = useState('');
+  const [complaintFiles, setComplaintFiles] = useState([]);
+  const [complaintLoading, setComplaintLoading] = useState(false);
+  const [complaintError, setComplaintError] = useState('');
+  const [complaintFeedback, setComplaintFeedback] = useState('');
+  const [myComplaints, setMyComplaints] = useState([]);
+  const [complaintListLoading, setComplaintListLoading] = useState(false);
+  const [complaintListError, setComplaintListError] = useState('');
+  const userShopLink = user?.accountType === 'shop' ? buildShopPath(user) : null;
 
   const mobileHighlights = [
     { label: 'Annonces', value: stats.listings?.total || 0 },
@@ -150,17 +238,55 @@ export default function Profile() {
     { label: 'WhatsApp', value: stats.performance?.clicks || 0 }
   ];
 
+  const userComplaintStatusLabels = {
+    pending: 'En attente',
+    in_review: 'En cours',
+    resolved: 'Résolue'
+  };
+
+  const userComplaintStatusStyles = {
+    pending: 'bg-orange-100 text-orange-700',
+    in_review: 'bg-blue-100 text-blue-800',
+    resolved: 'bg-green-100 text-green-700'
+  };
+
+  const filesBase = useMemo(() => {
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5010/api';
+    return apiBase.replace(/\/api\/?$/, '');
+  }, []);
+
+  const normalizeUrl = useCallback(
+    (url) => {
+      if (!url) return '';
+      const cleaned = url.replace(/\\/g, '/');
+      if (/^https?:\/\//i.test(cleaned)) {
+        return cleaned;
+      }
+      return `${filesBase}/${cleaned.replace(/^\/+/, '')}`;
+    },
+    [filesBase]
+  );
+
   useEffect(
     () => () => {
       if (shopLogoPreview && shopLogoPreview.startsWith('blob:')) {
         URL.revokeObjectURL(shopLogoPreview);
       }
+      if (shopBannerPreview && shopBannerPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(shopBannerPreview);
+      }
+      if (heroBannerPreview && heroBannerPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(heroBannerPreview);
+      }
     },
-    [shopLogoPreview]
+    [shopLogoPreview, shopBannerPreview, heroBannerPreview]
   );
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setShopHours(createDefaultShopHours());
+      return;
+    }
     setForm((prev) => ({
       ...prev,
       name: user.name || '',
@@ -176,6 +302,34 @@ export default function Profile() {
       gender: user.gender || ''
     }));
     setShopLogoPreview(user.shopLogo || '');
+    setShopBannerPreview(user.shopBanner || '');
+    setShopHours(hydrateShopHoursFromUser(user.shopHours));
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || user.role !== 'admin') {
+      setHeroBannerPreview('');
+      setHeroBannerFile(null);
+      return;
+    }
+    let active = true;
+    const loadHeroBanner = async () => {
+      setHeroBannerError('');
+      try {
+        const { data } = await api.get('/settings/hero-banner');
+        if (!active) return;
+        setHeroBannerPreview(data?.heroBanner || '');
+      } catch (err) {
+        if (!active) return;
+        setHeroBannerError(
+          err.response?.data?.message || 'Impossible de charger la bannière du hero.'
+        );
+      }
+    };
+    loadHeroBanner();
+    return () => {
+      active = false;
+    };
   }, [user]);
 
   useEffect(() => {
@@ -243,6 +397,41 @@ export default function Profile() {
     }
   }, [activeTab, user, ordersLoaded, ordersLoading, fetchOrders]);
 
+  const loadUserComplaints = useCallback(async () => {
+    if (!user) {
+      setMyComplaints([]);
+      setComplaintListError('');
+      return;
+    }
+    setComplaintListLoading(true);
+    setComplaintListError('');
+    try {
+      const { data } = await api.get('/users/complaints');
+      const normalized = Array.isArray(data)
+        ? data.map((complaint) => ({
+            ...complaint,
+            attachments: (Array.isArray(complaint.attachments) ? complaint.attachments : []).map(
+              (attachment) => ({
+                ...attachment,
+                url: normalizeUrl(attachment.path || attachment.url || '')
+              })
+            )
+          }))
+        : [];
+      setMyComplaints(normalized);
+    } catch (err) {
+      setComplaintListError(
+        err.response?.data?.message || err.message || 'Impossible de charger vos réclamations.'
+      );
+    } finally {
+      setComplaintListLoading(false);
+    }
+  }, [normalizeUrl, user]);
+
+  useEffect(() => {
+    loadUserComplaints();
+  }, [loadUserComplaints]);
+
   const onChange = (e) => {
     const { name, value } = e.target;
     if (name === 'accountType') {
@@ -256,6 +445,8 @@ export default function Profile() {
       if (value !== 'shop') {
         setShopLogoFile(null);
         setShopLogoPreview('');
+        setShopBannerFile(null);
+        setShopBannerPreview('');
       }
       return;
     }
@@ -266,6 +457,9 @@ export default function Profile() {
     const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
     setShopLogoFile(file);
     if (file) {
+      if (shopLogoPreview && shopLogoPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(shopLogoPreview);
+      }
       setShopLogoPreview(URL.createObjectURL(file));
     }
   };
@@ -273,6 +467,149 @@ export default function Profile() {
   const removeLogo = () => {
     setShopLogoFile(null);
     setShopLogoPreview('');
+  };
+
+  const onBannerChange = (e) => {
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    setShopBannerFile(file);
+    if (file) {
+      if (shopBannerPreview && shopBannerPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(shopBannerPreview);
+      }
+      setShopBannerPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const removeBanner = () => {
+    setShopBannerFile(null);
+    setShopBannerPreview('');
+  };
+
+  const onHeroBannerChange = (e) => {
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    setHeroBannerFile(file);
+    setHeroBannerError('');
+    setHeroBannerSuccess('');
+    if (file) {
+      if (heroBannerPreview && heroBannerPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(heroBannerPreview);
+      }
+      setHeroBannerPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const saveHeroBanner = async () => {
+    if (!heroBannerFile) {
+      setHeroBannerError('Veuillez sélectionner une image pour la bannière.');
+      return;
+    }
+    setHeroBannerSaving(true);
+    setHeroBannerError('');
+    setHeroBannerSuccess('');
+    try {
+      const payload = new FormData();
+      payload.append('heroBanner', heroBannerFile);
+      const { data } = await api.put('/admin/hero-banner', payload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setHeroBannerPreview(data?.heroBanner || heroBannerPreview);
+      setHeroBannerFile(null);
+      setHeroBannerSuccess('Bannière mise à jour avec succès.');
+      showToast('Bannière mise à jour.', { variant: 'success' });
+    } catch (err) {
+      const message = err.response?.data?.message || "Impossible d'enregistrer la bannière.";
+      setHeroBannerError(message);
+      showToast(message, { variant: 'error' });
+    } finally {
+      setHeroBannerSaving(false);
+    }
+  };
+
+  const resetShopHours = () => {
+    setShopHours(createDefaultShopHours());
+  };
+
+  const updateShopHour = (day, changes) => {
+    setShopHours((prev) =>
+      prev.map((entry) => (entry.day === day ? { ...entry, ...changes } : entry))
+    );
+  };
+
+  const handleShopTimeChange = (day, field) => (event) => {
+    updateShopHour(day, { [field]: event.target.value });
+  };
+
+  const toggleShopHourClosed = (day, closed) => {
+    updateShopHour(day, { closed });
+  };
+
+  const handleComplaintFilesChange = (event) => {
+    const selectedFiles = Array.from(event.target.files || []);
+    if (!selectedFiles.length) return;
+    const remainingSlots = Math.max(0, 2 - complaintFiles.length);
+    const allowedFiles = selectedFiles.slice(0, remainingSlots);
+    if (!allowedFiles.length) {
+      setComplaintError('Vous pouvez ajouter au maximum 2 fichiers.');
+      event.target.value = '';
+      return;
+    }
+    if (selectedFiles.length > allowedFiles.length) {
+      setComplaintError('Maximum 2 fichiers autorisés, seuls les premiers ont été ajoutés.');
+    } else {
+      setComplaintError('');
+    }
+    setComplaintFiles((prev) => [...prev, ...allowedFiles]);
+    event.target.value = '';
+  };
+
+  const removeComplaintFile = (index) => {
+    setComplaintFiles((prev) => prev.filter((_, i) => i !== index));
+    setComplaintError('');
+  };
+
+  const sendPasswordChangeCode = async () => {
+    setPasswordCodeSending(true);
+    setPasswordCodeError('');
+    setPasswordCodeMessage('');
+    try {
+      await api.post('/users/password/send-code');
+      setPasswordCodeSent(true);
+      setPasswordCodeMessage('Code envoyé par SMS.');
+      showToast('Code envoyé par SMS.', { variant: 'success' });
+    } catch (err) {
+      const message = err.response?.data?.message || err.message || 'Impossible d’envoyer le code.';
+      setPasswordCodeError(message);
+      showToast(message, { variant: 'error' });
+    } finally {
+      setPasswordCodeSending(false);
+    }
+  };
+
+  const applyPasswordChange = async () => {
+    if (!form.password) return true;
+    if (!passwordCode.trim()) {
+      const message = 'Veuillez saisir le code SMS avant de modifier le mot de passe.';
+      setPasswordCodeError(message);
+      showToast(message, { variant: 'error' });
+      return false;
+    }
+    try {
+      await api.post('/users/password/change', {
+        verificationCode: passwordCode.trim(),
+        newPassword: form.password
+      });
+      setPasswordCode('');
+      setPasswordCodeSent(false);
+      setPasswordCodeError('');
+      setPasswordCodeMessage('Mot de passe mis à jour.');
+      showToast('Mot de passe mis à jour.', { variant: 'success' });
+      return true;
+    } catch (err) {
+      const message = err.response?.data?.message || err.message || 'Impossible de modifier le mot de passe.';
+      setPasswordCodeError(message);
+      showToast(message, { variant: 'error' });
+      return false;
+    }
   };
 
   const onSubmit = async (e) => {
@@ -299,6 +636,10 @@ export default function Profile() {
     setError('');
     setFeedback('');
     try {
+      if (form.password) {
+        const passwordUpdated = await applyPasswordChange();
+        if (!passwordUpdated) return;
+      }
       if (
         form.accountType === 'shop' &&
         (!form.shopName || !form.shopAddress || !form.shopDescription.trim())
@@ -310,14 +651,18 @@ export default function Profile() {
       }
 
       const payload = new FormData();
+      const normalizedShopHours = shopHours.map((entry) => ({
+        day: entry.day,
+        closed: Boolean(entry.closed),
+        open: entry.closed ? '' : entry.open || '',
+        close: entry.closed ? '' : entry.close || ''
+      }));
       payload.append('name', form.name);
       payload.append('email', form.email);
-      payload.append('phone', form.phone);
       payload.append('accountType', form.accountType);
       payload.append('city', form.city);
       payload.append('gender', form.gender);
       payload.append('address', form.address.trim());
-      if (form.password) payload.append('password', form.password);
       if (form.accountType === 'shop') {
         payload.append('shopName', form.shopName);
         payload.append('shopAddress', form.shopAddress);
@@ -325,6 +670,10 @@ export default function Profile() {
         if (shopLogoFile) {
           payload.append('shopLogo', shopLogoFile);
         }
+        if (user?.shopVerified && shopBannerFile) {
+          payload.append('shopBanner', shopBannerFile);
+        }
+        payload.append('shopHours', JSON.stringify(normalizedShopHours));
       }
 
       const { data } = await api.put('/users/profile', payload, {
@@ -348,6 +697,12 @@ export default function Profile() {
       }));
       setShopLogoPreview(data.shopLogo || '');
       setShopLogoFile(null);
+      setShopBannerPreview(data.shopBanner || '');
+      setShopBannerFile(null);
+      setPasswordCode('');
+      setPasswordCodeSent(false);
+      setPasswordCodeError('');
+      setPasswordCodeMessage('');
       
       // Redirection optionnelle après succès
       setTimeout(() => {
@@ -359,6 +714,38 @@ export default function Profile() {
       showToast(message, { variant: 'error' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const submitComplaint = async (event) => {
+    event.preventDefault();
+    setComplaintError('');
+    setComplaintFeedback('');
+    if (!complaintMessage.trim()) {
+      setComplaintError('Veuillez détailler votre réclamation.');
+      return;
+    }
+    setComplaintLoading(true);
+    try {
+      const payload = new FormData();
+      payload.append('subject', complaintSubject.trim());
+      payload.append('message', complaintMessage.trim());
+      complaintFiles.forEach((file) => payload.append('attachments', file));
+      await api.post('/users/complaints', payload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setComplaintFeedback('Votre réclamation a bien été envoyée.');
+      setComplaintSubject('');
+      setComplaintMessage('');
+      setComplaintFiles([]);
+      showToast('Réclamation envoyée', { variant: 'success' });
+      await loadUserComplaints();
+    } catch (err) {
+      const message = err.response?.data?.message || err.message || 'Une erreur est survenue.';
+      setComplaintError(message);
+      showToast(message, { variant: 'error' });
+    } finally {
+      setComplaintLoading(false);
     }
   };
 
@@ -442,7 +829,8 @@ export default function Profile() {
 
         {/* Section Profil */}
         {activeTab === 'profile' && (
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+          <>
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
             <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 mb-6">
               <div className="w-2 h-6 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full"></div>
               <h2 className="text-xl font-semibold text-gray-900">Informations personnelles</h2>
@@ -488,23 +876,22 @@ export default function Profile() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                    <Phone className="w-4 h-4 text-indigo-500" />
-                    <span>Téléphone *</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                      name="phone"
-                      value={form.phone}
-                      onChange={onChange}
-                      disabled={loading}
-                      required
-                    />
-                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  </div>
-                </div>
+            <div className="space-y-2">
+              <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                <Phone className="w-4 h-4 text-indigo-500" />
+                <span>Téléphone</span>
+              </label>
+              <div className="relative">
+                <input
+                  className="w-full px-4 py-3 pl-11 bg-gray-100 border border-gray-200 rounded-xl text-gray-600"
+                  value={form.phone}
+                  readOnly
+                  disabled
+                />
+                <span className="absolute top-2 right-3 text-[11px] text-gray-500">Non modifiable</span>
+                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              </div>
+            </div>
 
                 <div className="space-y-2">
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
@@ -707,6 +1094,75 @@ export default function Profile() {
                     </p>
                   </div>
 
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                        <Clock className="w-4 h-4 text-amber-500" />
+                        <span>Horaires d'ouverture</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={resetShopHours}
+                        disabled={loading}
+                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-500 disabled:opacity-50 transition-colors"
+                      >
+                        Réinitialiser
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Ces horaires sont indiqués aux acheteurs sur votre boutique publique.
+                    </p>
+                    <div className="space-y-2">
+                      {shopHours.map((entry) => (
+                        <div
+                          key={entry.day}
+                          className="flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">{entry.label}</p>
+                            <p className="text-xs text-gray-500">
+                              {entry.closed
+                                ? 'Fermé'
+                                : entry.open && entry.close
+                                ? `${entry.open} – ${entry.close}`
+                                : 'Horaires partiels'}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                            <input
+                              type="time"
+                              value={entry.open}
+                              onChange={handleShopTimeChange(entry.day, 'open')}
+                              disabled={entry.closed || loading}
+                              className="h-10 w-24 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                            />
+                            <span className="text-xs text-gray-400">à</span>
+                            <input
+                              type="time"
+                              value={entry.close}
+                              onChange={handleShopTimeChange(entry.day, 'close')}
+                              disabled={entry.closed || loading}
+                              className="h-10 w-24 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                            />
+                            <label className="flex items-center gap-1 text-xs text-gray-500">
+                              <input
+                                type="checkbox"
+                                checked={entry.closed}
+                                onChange={(event) => toggleShopHourClosed(entry.day, event.target.checked)}
+                                disabled={loading}
+                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                              <span>Fermé</span>
+                            </label>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Laissez un jour en fermée si vous n’êtes pas disponible ou si aucun horaire n’est défini.
+                    </p>
+                  </div>
+
                   {/* Logo boutique */}
                   <div className="space-y-3">
                     <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
@@ -749,6 +1205,107 @@ export default function Profile() {
                       )}
                     </div>
                   </div>
+
+                  {user?.shopVerified ? (
+                    <div className="space-y-3">
+                      <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                        <Image className="w-4 h-4 text-indigo-500" />
+                        <span>Bannière de la boutique</span>
+                      </label>
+                      <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group p-6">
+                        {shopBannerPreview ? (
+                          <div className="text-center w-full">
+                            <img
+                              src={shopBannerPreview}
+                              alt="Bannière boutique"
+                              className="h-32 w-full rounded-2xl object-cover mx-auto mb-3 border-2 border-indigo-200"
+                            />
+                            <p className="text-sm text-gray-600 mb-2">Bannière actuelle</p>
+                            <button
+                              type="button"
+                              onClick={removeBanner}
+                              className="text-sm text-red-600 hover:text-red-500"
+                            >
+                              Supprimer
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="text-center cursor-pointer">
+                            <Upload className="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2 mx-auto" />
+                            <span className="text-sm text-gray-500">
+                              <span className="text-indigo-600 font-medium">Cliquez pour uploader</span>
+                              <br />
+                              <span className="text-xs">PNG, JPG - 1200x400px recommandé</span>
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={onBannerChange}
+                              className="hidden"
+                            />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 text-xs text-indigo-700">
+                      La bannière est disponible uniquement pour les boutiques certifiées.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {user?.role === 'admin' && (
+                <div className="space-y-4 pt-6 border-t border-gray-100">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-2 h-6 bg-gradient-to-b from-indigo-500 to-blue-500 rounded-full"></div>
+                    <h3 className="text-lg font-semibold text-gray-900">Bannière du HERO (Accueil)</h3>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    Cette image s’affiche en arrière-plan du HERO sur la page d’accueil.
+                  </p>
+                  {heroBannerError && (
+                    <p className="text-sm text-red-600">{heroBannerError}</p>
+                  )}
+                  {heroBannerSuccess && (
+                    <p className="text-sm text-emerald-600">{heroBannerSuccess}</p>
+                  )}
+                  <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group p-6">
+                    {heroBannerPreview ? (
+                      <div className="text-center w-full">
+                        <img
+                          src={heroBannerPreview}
+                          alt="Bannière HERO"
+                          className="h-32 w-full rounded-2xl object-cover mx-auto mb-3 border-2 border-indigo-200"
+                        />
+                        <p className="text-sm text-gray-600 mb-2">Bannière actuelle</p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">Aucune bannière définie pour le moment.</p>
+                    )}
+                    <label className="text-center cursor-pointer">
+                      <Upload className="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2 mx-auto" />
+                      <span className="text-sm text-gray-500">
+                        <span className="text-indigo-600 font-medium">Cliquez pour uploader</span>
+                        <br />
+                        <span className="text-xs">PNG, JPG - 1600x600px recommandé</span>
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={onHeroBannerChange}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={saveHeroBanner}
+                    disabled={heroBannerSaving || !heroBannerFile}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {heroBannerSaving ? 'Mise à jour…' : 'Enregistrer la bannière'}
+                  </button>
                 </div>
               )}
 
@@ -806,6 +1363,41 @@ export default function Profile() {
                   </div>
                 </div>
 
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-700">Code SMS de sécurité</p>
+                      <p className="text-xs text-gray-500">
+                        Un code est requis pour confirmer la modification du mot de passe.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={sendPasswordChangeCode}
+                      disabled={passwordCodeSending || loading}
+                      className="px-4 py-2 rounded-xl border border-indigo-200 text-indigo-600 font-semibold hover:bg-indigo-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {passwordCodeSending
+                        ? 'Envoi...'
+                        : passwordCodeSent
+                        ? 'Renvoyer le code'
+                        : 'Envoyer le code'}
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <input
+                      className="w-full px-4 py-3 pl-11 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                      placeholder="Code reçu par SMS"
+                      value={passwordCode}
+                      onChange={(e) => setPasswordCode(e.target.value)}
+                      disabled={loading}
+                    />
+                    <Shield className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  </div>
+                  {passwordCodeError && <p className="text-sm text-red-600">{passwordCodeError}</p>}
+                  {passwordCodeMessage && <p className="text-sm text-emerald-600">{passwordCodeMessage}</p>}
+                </div>
+
                 <label className="flex items-center space-x-2 text-sm text-gray-500 cursor-pointer">
                   <input
                     type="checkbox"
@@ -853,7 +1445,196 @@ export default function Profile() {
                 </button>
               </div>
             </form>
+            <div className="mt-6 space-y-3 border-t border-gray-100 pt-6">
+              <div className="flex items-center justify-between text-sm font-semibold text-gray-700">
+                <span>Suivi de mes réclamations</span>
+                {complaintListLoading && (
+                  <span className="text-xs font-normal text-gray-500">Chargement…</span>
+                )}
+              </div>
+              {complaintListLoading ? (
+                <p className="text-xs text-gray-500">Chargement des réclamations en cours…</p>
+              ) : complaintListError ? (
+                <p className="text-xs text-red-600">{complaintListError}</p>
+              ) : myComplaints.length ? (
+                <ul className="space-y-3">
+                  {myComplaints.map((complaint) => (
+                    <li
+                      key={complaint._id}
+                      className="space-y-2 rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm text-gray-600 shadow-sm"
+                    >
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="space-y-1">
+                          <p className="text-gray-900">{complaint.subject || 'Sans objet'}</p>
+                          <p className="text-[11px] text-gray-500">
+                            {formatComplaintDate(complaint.createdAt)}
+                          </p>
+                        </div>
+                        <span
+                          className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                            userComplaintStatusStyles[complaint.status] || 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          {userComplaintStatusLabels[complaint.status] || complaint.status}
+                        </span>
+                      </div>
+                      <p className="text-gray-600 whitespace-pre-line break-words">{complaint.message}</p>
+                      {complaint.attachments?.length ? (
+                        <div className="flex flex-wrap gap-2">
+                          {complaint.attachments
+                            .filter((attachment) => attachment.url)
+                            .map((attachment, index) => (
+                              <a
+                                key={`${attachment.filename}-${index}`}
+                                href={attachment.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-600 hover:border-rose-200"
+                              >
+                                <Paperclip className="w-3 h-3" />
+                                {attachment.originalName || attachment.filename}
+                              </a>
+                            ))}
+                        </div>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-gray-500">Vous n’avez encore déposé aucune réclamation.</p>
+              )}
+            </div>
           </div>
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 mt-6">
+            <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 mb-4">
+              <div className="w-2 h-6 bg-gradient-to-b from-rose-500 to-pink-500 rounded-full"></div>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Réclamations</h2>
+                <p className="text-sm text-gray-500">
+                  Signalez un problème ou partagez une capture d’écran : vous pouvez joindre deux fichiers.
+                </p>
+              </div>
+            </div>
+            <form onSubmit={submitComplaint} className="space-y-4">
+              <div className="space-y-2">
+                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                  <FileText className="w-4 h-4 text-rose-500" />
+                  <span>Objet (facultatif)</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all"
+                    placeholder="Ex : Annonce non conforme"
+                    value={complaintSubject}
+                    onChange={(e) => {
+                      setComplaintSubject(e.target.value);
+                      if (complaintError) setComplaintError('');
+                    }}
+                    disabled={complaintLoading}
+                    maxLength={150}
+                  />
+                  <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                  <MessageCircle className="w-4 h-4 text-rose-500" />
+                  <span>Description *</span>
+                </label>
+                <textarea
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all placeholder-gray-400"
+                  rows={4}
+                  value={complaintMessage}
+                  onChange={(event) => {
+                    setComplaintMessage(event.target.value);
+                    if (complaintError) setComplaintError('');
+                  }}
+                  placeholder="Expliquez en détail votre problème pour que nos équipes puissent investiguer."
+                  disabled={complaintLoading}
+                  required
+                  maxLength={1500}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                  <Paperclip className="w-4 h-4 text-rose-500" />
+                  <span>Fichiers (max 2)</span>
+                </label>
+                <label className="flex items-center justify-between rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-xs font-semibold text-gray-600 hover:border-rose-300 hover:bg-rose-50 cursor-pointer">
+                  <span>Ajouter un fichier</span>
+                  <span className="text-[11px] text-gray-400">PNG, JPG, PDF</span>
+                  <input
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={handleComplaintFilesChange}
+                    disabled={complaintLoading}
+                  />
+                </label>
+                <p className="text-xs text-gray-500">
+                  Les pièces jointes sont visibles uniquement par nos modérateurs.
+                </p>
+              </div>
+              {complaintFiles.length > 0 && (
+                <div className="space-y-2">
+                  {complaintFiles.map((file, index) => (
+                    <div
+                      key={`${file.name}-${file.size}-${index}`}
+                      className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Paperclip className="w-4 h-4 text-gray-400" />
+                        <span className="truncate">{file.name}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeComplaintFile(index)}
+                        disabled={complaintLoading}
+                        className="text-xs font-semibold text-red-600 hover:text-red-500"
+                      >
+                        Supprimer
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(complaintError || complaintFeedback) && (
+                <div
+                  className={`flex items-center gap-2 text-sm ${
+                    complaintError ? 'text-red-600' : 'text-green-600'
+                  }`}
+                >
+                  {complaintError ? (
+                    <AlertTriangle className="w-4 h-4" />
+                  ) : (
+                    <CheckCircle className="w-4 h-4" />
+                  )}
+                  <span>{complaintError || complaintFeedback}</span>
+                </div>
+              )}
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={complaintLoading}
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:from-rose-600 hover:to-pink-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {complaintLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                      <span>Réclamation...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <AlertTriangle className="w-4 h-4" />
+                      <span>Envoyer la réclamation</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </>
         )}
 
         {/* Section Statistiques */}
@@ -1139,11 +1920,20 @@ export default function Profile() {
                               <p className="text-sm text-gray-500">Commande #{order._id.slice(-6)}</p>
                               <div className="mt-1 space-y-1 text-sm text-gray-700">
                                 {orderItems.map((item, idx) => (
-                                  <div key={`${order._id}-${idx}`} className="flex items-center gap-2">
-                                    <span className="font-medium text-gray-900">{item.snapshot?.title || 'Produit'}</span>
-                                    <span className="text-xs text-gray-500">
-                                      x{item.quantity} · {Number(item.snapshot?.price || 0).toLocaleString()} FCFA
-                                    </span>
+                                  <div key={`${order._id}-${idx}`} className="space-y-0.5">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium text-gray-900">
+                                        {item.snapshot?.title || 'Produit'}
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        x{item.quantity} · {Number(item.snapshot?.price || 0).toLocaleString()} FCFA
+                                      </span>
+                                    </div>
+                                    {item.snapshot?.confirmationNumber && (
+                                      <span className="text-[11px] text-indigo-600 font-semibold uppercase tracking-wide">
+                                        Code produit : {item.snapshot.confirmationNumber}
+                                      </span>
+                                    )}
                                   </div>
                                 ))}
                               </div>

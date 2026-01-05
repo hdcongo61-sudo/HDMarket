@@ -5,6 +5,9 @@ import Comment from '../models/commentModel.js';
 import Rating from '../models/ratingModel.js';
 import ShopReview from '../models/shopReviewModel.js';
 import { createNotification } from '../utils/notificationService.js';
+import { sanitizeShopHours } from '../utils/shopHours.js';
+import { buildIdentifierQuery } from '../utils/idResolver.js';
+import { ensureDocumentSlug } from '../utils/slugUtils.js';
 
 const formatShopReview = (review) => {
   if (!review) return null;
@@ -24,13 +27,22 @@ const formatShopReview = (review) => {
   };
 };
 
+const loadShopByIdentifier = async (identifier, projection = 'shopName shopAddress shopLogo shopBanner name createdAt shopVerified followersCount slug accountType phone shopDescription shopHours isBlocked') => {
+  const query = buildIdentifierQuery(identifier);
+  if (!Object.keys(query).length) return null;
+  const shop = await User.findOne(query).select(projection);
+  if (!shop) return null;
+  await ensureDocumentSlug({ document: shop, sourceValue: shop.shopName || shop.name });
+  return shop;
+};
+
 export const listShops = asyncHandler(async (req, res) => {
   const filters = { accountType: 'shop' };
   if (req.query?.verified === 'true') {
     filters.shopVerified = true;
   }
   const shops = await User.find(filters)
-    .select('shopName shopAddress shopLogo name createdAt shopVerified')
+    .select('shopName shopAddress shopLogo shopBanner name createdAt shopVerified followersCount')
     .sort({ shopName: 1, createdAt: 1 })
     .lean();
 
@@ -45,16 +57,40 @@ export const listShops = asyncHandler(async (req, res) => {
   ]);
 
   const productCountMap = new Map(productCounts.map((entry) => [String(entry._id), entry.count]));
+  let ratingMap = new Map();
+
+  if (shopIds.length) {
+    const ratingSummaries = await ShopReview.aggregate([
+      { $match: { shop: { $in: shopIds } } },
+      { $group: { _id: '$shop', average: { $avg: '$rating' }, count: { $sum: 1 } } }
+    ]);
+
+    ratingMap = new Map(
+      ratingSummaries.map((summary) => [
+        String(summary._id),
+        {
+          average: Number(summary.average?.toFixed(2) || 0),
+          count: summary.count || 0
+        }
+      ])
+    );
+  }
 
   const payload = shops.map((shop) => {
     const id = String(shop._id);
+    const ratingStats = ratingMap.get(id) || { average: 0, count: 0 };
     return {
       _id: shop._id,
+      slug: shop.slug,
       shopName: shop.shopName || shop.name,
       shopAddress: shop.shopAddress || '',
       shopLogo: shop.shopLogo || null,
+      shopBanner: shop.shopBanner || null,
       shopVerified: Boolean(shop.shopVerified),
+      followersCount: Number(shop.followersCount || 0),
       productCount: productCountMap.get(id) || 0,
+      ratingAverage: ratingStats.average,
+      ratingCount: ratingStats.count,
       createdAt: shop.createdAt
     };
   });
@@ -63,19 +99,32 @@ export const listShops = asyncHandler(async (req, res) => {
 });
 
 export const getShopProfile = asyncHandler(async (req, res) => {
-  const shop = await User.findById(req.params.id).select(
-    'name shopName phone accountType createdAt shopLogo shopAddress shopVerified shopDescription'
-  );
+  const shop = await loadShopByIdentifier(req.params.id, [
+    'name shopName phone accountType createdAt shopLogo shopBanner shopAddress shopVerified shopDescription shopHours isBlocked followersCount slug'
+  ].join(' '));
   if (!shop || shop.accountType !== 'shop') {
     return res.status(404).json({ message: 'Boutique introuvable.' });
   }
 
-  const productsRaw = await Product.find({
-    user: shop._id,
-    status: 'approved'
-  })
-    .sort('-createdAt')
-    .lean();
+  if (shop.isBlocked) {
+    return res.status(403).json({ message: 'Cette boutique a été suspendue.' });
+  }
+
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 12));
+  const skip = (page - 1) * limit;
+
+  const [totalProducts, productsRaw] = await Promise.all([
+    Product.countDocuments({ user: shop._id, status: 'approved' }),
+    Product.find({
+      user: shop._id,
+      status: 'approved'
+    })
+      .sort('-createdAt')
+      .skip(skip)
+      .limit(limit)
+      .lean()
+  ]);
 
   const productIds = productsRaw.map((item) => item._id);
   let commentStats = [];
@@ -136,7 +185,7 @@ export const getShopProfile = asyncHandler(async (req, res) => {
   const recentReviewsRaw = await ShopReview.find({ shop: shop._id })
     .sort({ createdAt: -1 })
     .limit(3)
-    .populate('user', 'name shopName shopLogo')
+    .populate('user', 'name shopName shopLogo slug')
     .lean();
 
   const recentReviews = recentReviewsRaw.map(formatShopReview);
@@ -148,21 +197,30 @@ export const getShopProfile = asyncHandler(async (req, res) => {
       ownerName: shop.name,
       phone: shop.phone,
       createdAt: shop.createdAt,
-      productCount: products.length,
+      productCount: totalProducts,
       shopLogo: shop.shopLogo || null,
+      shopBanner: shop.shopBanner || null,
       shopAddress: shop.shopAddress || null,
       shopVerified: Boolean(shop.shopVerified),
       shopDescription: shop.shopDescription || '',
+      followersCount: Number(shop.followersCount || 0),
       ratingAverage,
-      ratingCount
+      ratingCount,
+      shopHours: sanitizeShopHours(shop.shopHours || [])
     },
     products,
+    pagination: {
+      page,
+      limit,
+      total: totalProducts,
+      pages: Math.max(1, Math.ceil(totalProducts / limit) || 1)
+    },
     recentReviews
   });
 });
 
 export const getShopReviews = asyncHandler(async (req, res) => {
-  const shop = await User.findById(req.params.id).select('accountType');
+  const shop = await loadShopByIdentifier(req.params.id, 'accountType');
   if (!shop || shop.accountType !== 'shop') {
     return res.status(404).json({ message: 'Boutique introuvable.' });
   }
@@ -176,7 +234,7 @@ export const getShopReviews = asyncHandler(async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('user', 'name shopName shopLogo')
+      .populate('user', 'name shopName shopLogo slug')
       .lean(),
     ShopReview.countDocuments({ shop: shop._id }),
     ShopReview.aggregate([
@@ -198,13 +256,13 @@ export const getShopReviews = asyncHandler(async (req, res) => {
 });
 
 export const getMyShopReview = asyncHandler(async (req, res) => {
-  const shop = await User.findById(req.params.id).select('accountType');
+  const shop = await loadShopByIdentifier(req.params.id, 'accountType');
   if (!shop || shop.accountType !== 'shop') {
     return res.status(404).json({ message: 'Boutique introuvable.' });
   }
 
   const review = await ShopReview.findOne({ shop: shop._id, user: req.user.id })
-    .populate('user', 'name shopName shopLogo')
+    .populate('user', 'name shopName shopLogo slug')
     .lean();
 
   if (!review) {
@@ -240,7 +298,7 @@ export const upsertShopReview = asyncHandler(async (req, res) => {
     review = await ShopReview.create({ shop: shop._id, user: req.user.id, ...payload });
   }
 
-  await review.populate('user', 'name shopName shopLogo');
+  await review.populate('user', 'name shopName shopLogo slug');
 
   if (isNew) {
     await createNotification({

@@ -63,6 +63,7 @@ export default function ShopProfile() {
   const [allComments, setAllComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentsError, setCommentsError] = useState('');
+  const shopIdentifier = shop?.slug || shop?._id || slug;
 
   useEffect(() => {
     let active = true;
@@ -111,7 +112,7 @@ export default function ShopProfile() {
     }
     const loadUserReview = async () => {
       try {
-        const { data } = await api.get(`/shops/${slug}/reviews/user`);
+        const { data } = await api.get(`/shops/${shopIdentifier}/reviews/user`);
         if (!active) return;
         setUserReview(data);
         setReviewForm({ rating: data.rating || 0, comment: data.comment || '' });
@@ -216,6 +217,10 @@ export default function ShopProfile() {
   const ratingCount = Number(shop.ratingCount || 0);
 
   const hours = Array.isArray(shop.shopHours) ? shop.shopHours : [];
+  const todayKey = (() => {
+    const dayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    return dayKeys[new Date().getDay()] || 'monday';
+  })();
 
   const summaryStats = [
     { label: 'Produits disponibles', value: shop.productCount ?? products.length },
@@ -298,7 +303,7 @@ export default function ShopProfile() {
     setCommentsLoading(true);
     setCommentsError('');
     try {
-      const { data } = await api.get(`/shops/${slug}/reviews`, {
+      const { data } = await api.get(`/shops/${shopIdentifier}/reviews`, {
         params: { page: 1, limit: 50 }
       });
       setAllComments(Array.isArray(data.reviews) ? data.reviews : []);
@@ -336,7 +341,7 @@ export default function ShopProfile() {
     setReviewError('');
     setReviewSuccess('');
     try {
-      const target = shop?.slug || slug;
+      const target = shopIdentifier;
       const { data } = await api.post(`/shops/${target}/reviews`, reviewForm);
       setUserReview(data);
       setReviewForm({ rating: data.rating || 0, comment: data.comment || '' });
@@ -363,6 +368,16 @@ export default function ShopProfile() {
     <main className="bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 py-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 sm:px-6 lg:px-8 text-slate-900">
         <section className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 text-white shadow-2xl">
+          {shop.shopBanner && (
+            <div className="absolute inset-0">
+              <img
+                src={shop.shopBanner}
+                alt={`Bannière ${shop.shopName}`}
+                className="h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-slate-950/70" />
+            </div>
+          )}
           <div
             className="absolute inset-0 opacity-20"
             style={{
@@ -575,13 +590,23 @@ export default function ShopProfile() {
 
         <section className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]">
           <div className="space-y-6">
-            <article className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-semibold text-gray-900">Horaires d&apos;ouverture</h3>
-                <span className="text-xs uppercase tracking-[0.3em] text-gray-500">Données directes</span>
+            <article className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-6 py-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
+                    <Clock className="h-5 w-5 text-indigo-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-900">Horaires d&apos;ouverture</h3>
+                    <p className="text-xs text-slate-500">Planification communiquée par la boutique</p>
+                  </div>
+                </div>
+                <span className="rounded-full bg-slate-900/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Données directes
+                </span>
               </div>
               {hours.length ? (
-                <div className="mt-4 space-y-3">
+                <div className="space-y-3 px-6 py-5">
                   {hours.map((entry) => {
                     const dayLabel = DAY_LABELS[entry.day] || entry.day || 'Jour';
                     const timeLabel = entry.closed
@@ -589,20 +614,35 @@ export default function ShopProfile() {
                       : entry.open && entry.close
                         ? `${entry.open} – ${entry.close}`
                         : 'Horaires partiels';
+                    const isToday = entry.day === todayKey;
                     return (
                       <div
                         key={`${entry.day}-${entry.open}-${entry.close}`}
-                        className="flex items-center justify-between rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3"
+                        className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 shadow-sm ${
+                          isToday ? 'border-indigo-200 bg-indigo-50/60' : 'border-slate-100 bg-white'
+                        }`}
                       >
                         <div>
-                          <p className="text-sm font-semibold text-gray-900">{dayLabel}</p>
-                          <p className="text-xs text-gray-500">{timeLabel}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-slate-900">{dayLabel}</p>
+                            {isToday && (
+                              <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-indigo-600">
+                                Aujourd&apos;hui
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-500">{timeLabel}</p>
                         </div>
                         <span
-                          className={`text-xs font-semibold rounded-full px-3 py-1 ${
-                            entry.closed ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700'
+                          className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
+                            entry.closed ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-700'
                           }`}
                         >
+                          <span
+                            className={`h-2 w-2 rounded-full ${
+                              entry.closed ? 'bg-rose-500' : 'bg-emerald-500'
+                            }`}
+                          />
                           {entry.closed ? 'Fermé' : 'Ouvert'}
                         </span>
                       </div>
@@ -610,7 +650,9 @@ export default function ShopProfile() {
                   })}
                 </div>
               ) : (
-                <p className="mt-3 text-sm text-gray-500">Pas encore d’horaire organisé.</p>
+                <div className="px-6 py-5">
+                  <p className="text-sm text-slate-500">Pas encore d’horaire organisé.</p>
+                </div>
               )}
             </article>
 
@@ -665,7 +707,7 @@ export default function ShopProfile() {
           {filteredProducts.length ? (
             <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
               {filteredProducts.map((product) => (
-                <ProductCard key={product._id} p={product} />
+                <ProductCard key={product._id} p={product} hideMobileDiscountBadge />
               ))}
             </div>
           ) : (

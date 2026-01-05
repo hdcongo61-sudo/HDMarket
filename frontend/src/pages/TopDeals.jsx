@@ -2,45 +2,42 @@ import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
 
-const LIMIT = 60;
+const PAGE_LIMIT = 12;
 
 export default function TopDeals() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const fetchDeals = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const { data } = await api.get('/products/public', {
+        params: {
+          sort: 'discount',
+          limit: PAGE_LIMIT,
+          page
+        }
+      });
+      const fetched = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+      const filtered = fetched.filter((product) => Number(product.discount) > 0);
+      setItems(filtered);
+      setTotalPages(data?.pagination?.pages || 1);
+    } catch (e) {
+      setError(
+        e.response?.data?.message || e.message || "Impossible de charger les bonnes affaires."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    let active = true;
-    const controller = new AbortController();
-
-    const load = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const { data } = await api.get('/products/public/highlights', {
-          params: { limit: LIMIT },
-          signal: controller.signal
-        });
-        if (!active) return;
-        const deals = Array.isArray(data?.topDeals) ? data.topDeals : [];
-        setItems(deals);
-      } catch (e) {
-        if (controller.signal.aborted) return;
-        setError(e.response?.data?.message || e.message || "Impossible de charger les bonnes affaires.");
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    };
-
-    load();
-
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, []);
+    fetchDeals();
+  }, [page]);
 
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-8 space-y-8">
@@ -70,11 +67,36 @@ export default function TopDeals() {
           ))}
         </div>
       ) : items.length ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {items.map((product) => (
-            <ProductCard key={product._id} p={product} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {items.map((product) => (
+              <ProductCard key={product._id} p={product} />
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 text-xs text-gray-500">
+            <span>
+              Page {page} / {totalPages}
+            </span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                disabled={page <= 1}
+                className="rounded-full border border-gray-200 px-3 py-1 font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Précédent
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={page >= totalPages}
+                className="rounded-full border border-gray-200 px-3 py-1 font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Suivant
+              </button>
+            </div>
+          </div>
+        </>
       ) : (
         <p className="text-sm text-gray-500">
           Aucune bonne affaire disponible pour le moment. Revenez plus tard !
@@ -83,4 +105,3 @@ export default function TopDeals() {
     </div>
   );
 }
-

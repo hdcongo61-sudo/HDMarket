@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 const ToastContext = createContext({ showToast: () => {} });
 
@@ -51,6 +51,19 @@ export const ToastProvider = ({ children }) => {
     }),
     [showToast]
   );
+
+  useEffect(() => {
+    const handleNetworkError = (event) => {
+      const message =
+        event?.detail?.message ||
+        'Il semble que vous soyez hors ligne. Connectez-vous à Internet pour continuer.';
+      showToast(message, { variant: 'error' });
+    };
+    window.addEventListener('hdmarket:network-error', handleNetworkError);
+    return () => {
+      window.removeEventListener('hdmarket:network-error', handleNetworkError);
+    };
+  }, [showToast]);
 
   return (
     <ToastContext.Provider value={contextValue}>

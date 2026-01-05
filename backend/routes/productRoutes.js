@@ -33,19 +33,37 @@ router.get('/public', validate(schemas.publicQuery, 'query'), getPublicProducts)
 router.get('/public/:id/comments', getCommentsForProduct);
 router.get('/public/:id/ratings', getRatingSummary);
 router.get('/public/:id', getPublicProductById);
-router.post('/public/:id/whatsapp-click', validate(schemas.idParam, 'params'), registerWhatsappClick);
+router.post('/public/:id/whatsapp-click', validate(schemas.identifierParam, 'params'), registerWhatsappClick);
 
 // Détail protégé si non approuvé
-router.post('/:id/comments', protect, validate(schemas.commentCreate), addComment);
-router.get('/:id/rating', protect, getUserRating);
-router.put('/:id/rating', protect, validate(schemas.ratingUpsert), upsertRating);
-router.delete('/:id/rating', protect, deleteRating);
-router.get('/:id', protect, getProductById);
+router.post('/:id/comments', protect, validate(schemas.identifierParam, 'params'), validate(schemas.commentCreate), addComment);
+router.get('/:id/rating', protect, validate(schemas.identifierParam, 'params'), getUserRating);
+router.put('/:id/rating', protect, validate(schemas.identifierParam, 'params'), validate(schemas.ratingUpsert), upsertRating);
+router.delete('/:id/rating', protect, validate(schemas.identifierParam, 'params'), deleteRating);
+router.get('/:id', protect, validate(schemas.identifierParam, 'params'), getProductById);
 
 // User
-router.post('/', protect, upload.array('images', 3), validate(schemas.productCreate), createProduct);
+router.post(
+  '/',
+  protect,
+  upload.fields([
+    { name: 'images', maxCount: 3 },
+    { name: 'video', maxCount: 1 }
+  ]),
+  validate(schemas.productCreate),
+  createProduct
+);
 router.get('/', protect, getMyProducts);
-router.put('/:id', protect, upload.array('images', 3), validate(schemas.productUpdate), updateProduct);
+router.put(
+  '/:id',
+  protect,
+  upload.fields([
+    { name: 'images', maxCount: 3 },
+    { name: 'video', maxCount: 1 }
+  ]),
+  validate(schemas.productUpdate),
+  updateProduct
+);
 router.delete('/:id', protect, deleteProduct);
 router.patch('/:id/disable', protect, disableProduct);
 router.patch('/:id/enable', protect, enableProduct);

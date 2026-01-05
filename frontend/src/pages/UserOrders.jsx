@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api from '../services/api';
 import { ClipboardList, Package, Truck, CheckCircle, MapPin, Clock, ShieldCheck } from 'lucide-react';
+import { buildProductPath } from '../utils/links';
 
 const STATUS_LABELS = {
   confirmed: 'Commande confirmée',
@@ -45,6 +46,17 @@ const ORDER_FLOW = [
   }
 ];
 
+const formatOrderTimestamp = (value) =>
+  value
+    ? new Date(value).toLocaleString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    : null;
+
 const OrderProgress = ({ status }) => {
   const currentIndexRaw = ORDER_FLOW.findIndex((step) => step.id === status);
   const currentIndex = currentIndexRaw >= 0 ? currentIndexRaw : 0;
@@ -68,12 +80,12 @@ const OrderProgress = ({ status }) => {
               </div>
               <div className="flex-1">
                 <p className={`text-sm font-semibold ${reached ? 'text-gray-900' : 'text-gray-500'}`}>
-                  {step.label}
-                  {isCurrent && (
-                    <span className="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
-                      En cours
-                    </span>
-                  )}
+                {step.label}
+                {isCurrent && (
+                  <span className="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                    {step.id === 'delivered' ? 'Terminée' : 'En cours'}
+                  </span>
+                )}
                   {!isCurrent && reached && (
                     <span className="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-green-100 text-green-700">
                       Terminée
@@ -199,6 +211,19 @@ export default function UserOrders() {
                   : order.productSnapshot
                   ? [{ snapshot: order.productSnapshot, quantity: 1 }]
                   : [];
+              const computedTotal = orderItems.reduce(
+                (sum, item) =>
+                  sum + Number(item.snapshot?.price || 0) * Number(item.quantity || 1),
+                0
+              );
+              const totalAmount = Number(order.totalAmount ?? computedTotal);
+              const paidAmount = Number(order.paidAmount || 0);
+              const remainingAmount = Number(
+                order.remainingAmount ?? Math.max(0, totalAmount - paidAmount)
+              );
+              const showPayment = Boolean(
+                paidAmount || order.paymentTransactionCode || order.paymentName
+              );
               const createdBySelf =
                 order.createdBy?._id && order.customer?._id ? order.createdBy._id === order.customer._id : false;
               const createdByLabel = createdBySelf
@@ -211,11 +236,32 @@ export default function UserOrders() {
                       <p className="text-sm text-gray-500">Commande #{order._id.slice(-6)}</p>
                       <div className="text-sm text-gray-600 space-y-1 mt-1">
                         {orderItems.map((item) => (
-                          <div key={`${order._id}-${item.product || item.snapshot?.title}`} className="flex items-center gap-2">
-                            <span className="font-semibold text-gray-900">{item.snapshot?.title || 'Produit'}</span>
-                            <span className="text-xs text-gray-500">
-                              x{item.quantity} · {Number(item.snapshot?.price || 0).toLocaleString()} FCFA
-                            </span>
+                          <div
+                            key={`${order._id}-${item.product || item.snapshot?.title}`}
+                            className="space-y-0.5"
+                          >
+                            <div className="flex items-center gap-2">
+                              {item.product ? (
+                                <Link
+                                  to={buildProductPath(item.product)}
+                                  className="font-semibold text-gray-900 hover:text-indigo-600"
+                                >
+                                  {item.snapshot?.title || 'Produit'}
+                                </Link>
+                              ) : (
+                                <span className="font-semibold text-gray-900">
+                                  {item.snapshot?.title || 'Produit'}
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-500">
+                                x{item.quantity} · {Number(item.snapshot?.price || 0).toLocaleString()} FCFA
+                              </span>
+                            </div>
+                            {item.snapshot?.confirmationNumber && (
+                              <span className="text-[11px] text-indigo-600 font-semibold uppercase tracking-wide">
+                                Code produit : {item.snapshot.confirmationNumber}
+                              </span>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -255,30 +301,39 @@ export default function UserOrders() {
                     </div>
                   </div>
 
+                  {showPayment && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-600">
+                      <div>
+                        <p className="font-semibold text-gray-900">Paiement</p>
+                        <p>Acompte versé : {Number(paidAmount).toLocaleString()} FCFA</p>
+                        <p>Reste à payer : {Number(remainingAmount).toLocaleString()} FCFA</p>
+                      </div>
+                      <div className="space-y-1 text-xs text-gray-500">
+                        {order.paymentName && <p>Payeur : {order.paymentName}</p>}
+                        {order.paymentTransactionCode && (
+                          <p>Code transaction : {order.paymentTransactionCode}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <OrderProgress status={order.status} />
 
                   <div className="flex flex-wrap gap-4 text-xs text-gray-500">
                     <div className="flex items-center gap-1">
                       <Clock size={12} />
-                      Créée le{' '}
-                      {new Date(order.createdAt).toLocaleString('fr-FR', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
+                      Créée le {formatOrderTimestamp(order.createdAt)}
                     </div>
                     {order.shippedAt && (
                       <div className="flex items-center gap-1">
                         <Truck size={12} />
-                        Expédiée le {new Date(order.shippedAt).toLocaleDateString('fr-FR')}
+                        Expédiée le {formatOrderTimestamp(order.shippedAt)}
                       </div>
                     )}
                     {order.deliveredAt && (
                       <div className="flex items-center gap-1">
                         <CheckCircle size={12} />
-                        Livrée le {new Date(order.deliveredAt).toLocaleDateString('fr-FR')}
+                        Livrée le {formatOrderTimestamp(order.deliveredAt)}
                       </div>
                     )}
                   </div>

@@ -2,14 +2,14 @@ import React, { useContext, useState } from 'react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useNavigate, Navigate, useLocation, Link } from 'react-router-dom';
-import { Eye, EyeOff, LogIn, Mail, Lock, UserPlus, Shield, Smartphone } from 'lucide-react';
+import { Eye, EyeOff, LogIn, Lock, UserPlus, Shield, Smartphone } from 'lucide-react';
 
 export default function Login() {
   const { user, login } = useContext(AuthContext);
   const nav = useNavigate();
   const location = useLocation();
   const from = location.state?.from || '/';
-  const [form, setForm] = useState({ email: '', password: '' });
+  const [form, setForm] = useState({ phone: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -48,22 +48,24 @@ export default function Login() {
         {/* Carte du formulaire */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
           <form onSubmit={submit} className="space-y-6">
-            {/* Champ Email */}
+            {/* Champ Téléphone */}
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                <Mail className="w-4 h-4 text-indigo-500" />
-                <span>Adresse email</span>
+                <Smartphone className="w-4 h-4 text-indigo-500" />
+                <span>Numéro de téléphone</span>
               </label>
               <div className="relative">
                 <input
-                  type="email"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
                   className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
-                  placeholder="votre@email.com"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  placeholder="06 000 00 00"
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
                   required
                 />
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               </div>
             </div>
 
@@ -113,7 +115,7 @@ export default function Login() {
             {/* Bouton de connexion */}
             <button
               type="submit"
-              disabled={loading || !form.email || !form.password}
+              disabled={loading || !form.phone || !form.password}
               className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 shadow-lg"
             >
               {loading ? (

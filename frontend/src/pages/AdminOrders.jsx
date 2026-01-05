@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
+import { buildProductPath } from '../utils/links';
 import { CheckCircle, Search, Package, User, MapPin, Truck, Clock, ClipboardList, Plus, RefreshCcw, ArrowLeft } from 'lucide-react';
 
 const STATUS_LABELS = {
@@ -37,6 +38,10 @@ export default function AdminOrders() {
   const [createError, setCreateError] = useState('');
   const [createSuccess, setCreateSuccess] = useState('');
 
+  const [deliveryGuys, setDeliveryGuys] = useState([]);
+  const [deliveryGuysLoading, setDeliveryGuysLoading] = useState(false);
+  const [deliveryGuysError, setDeliveryGuysError] = useState('');
+
   const [customerQuery, setCustomerQuery] = useState('');
   const [productQuery, setProductQuery] = useState('');
   const [customerResults, setCustomerResults] = useState([]);
@@ -49,6 +54,232 @@ export default function AdminOrders() {
     deliveryCity: 'Brazzaville',
     trackingNote: ''
   });
+
+  const formatCurrency = (value) => Number(value || 0).toLocaleString('fr-FR');
+
+  const escapeHtml = (value) =>
+    String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const getOrderItems = (order) => {
+    if (order.items && order.items.length) return order.items;
+    if (order.productSnapshot) {
+      return [
+        {
+          snapshot: order.productSnapshot,
+          quantity: 1,
+          product: order.product?._id
+        }
+      ];
+    }
+    return [];
+  };
+
+  const openOrderPdf = (order) => {
+    const orderItems = getOrderItems(order);
+    const deliveryGuyName = escapeHtml(order.deliveryGuy?.name || '');
+    const deliveryGuyPhone = escapeHtml(order.deliveryGuy?.phone || '');
+    const computedTotal = orderItems.reduce((sum, item) => {
+      const price = Number(item.snapshot?.price || item.product?.price || 0);
+      const qty = Number(item.quantity || 1);
+      return sum + price * qty;
+    }, 0);
+    const orderTotal = Number(order.totalAmount ?? computedTotal);
+    const paidAmount = Number(order.paidAmount || 0);
+    const remainingAmount =
+      order.remainingAmount != null
+        ? Number(order.remainingAmount)
+        : Math.max(0, orderTotal - paidAmount);
+    const paymentName = escapeHtml(order.paymentName || 'Non renseigné');
+    const paymentTransactionCode = escapeHtml(
+      order.paymentTransactionCode || 'Non renseigné'
+    );
+    const rowsHtml = orderItems
+      .map((item, index) => {
+        const title = escapeHtml(item.snapshot?.title || 'Produit');
+        const shopName = escapeHtml(item.snapshot?.shopName || '');
+        const confirmation = escapeHtml(item.snapshot?.confirmationNumber || '');
+        const qty = Number(item.quantity || 1);
+        const price = formatCurrency(item.snapshot?.price || 0);
+        const lineTotal = formatCurrency((item.snapshot?.price || 0) * qty);
+        return `
+          <tr>
+            <td>${index + 1}</td>
+            <td>
+              <div class="title">${title}</div>
+              ${shopName ? `<div class="meta">Boutique: ${shopName}</div>` : ''}
+              ${confirmation ? `<div class="meta">Code: ${confirmation}</div>` : ''}
+            </td>
+            <td class="right">x${qty}</td>
+            <td class="right">${price} FCFA</td>
+            <td class="right">${lineTotal} FCFA</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const orderRef = escapeHtml(order._id || '');
+    const orderShort = escapeHtml(order._id?.slice(-6) || '');
+    const logoUrl = `${window.location.origin}/favicon.svg`;
+    const html = `
+      <!doctype html>
+      <html lang="fr">
+        <head>
+          <meta charset="utf-8" />
+          <title>Bon de commande et de livraison</title>
+          <style>
+            :root { color-scheme: light; }
+            * { box-sizing: border-box; }
+            body { font-family: "Helvetica Neue", Arial, sans-serif; margin: 32px; color: #111827; }
+            .page { position: relative; z-index: 1; }
+            .watermark {
+              position: fixed;
+              top: 45%;
+              left: 50%;
+              transform: translate(-50%, -50%) rotate(-18deg);
+              font-size: 40px;
+              letter-spacing: 0.4em;
+              text-transform: uppercase;
+              color: rgba(15, 23, 42, 0.08);
+              white-space: nowrap;
+              pointer-events: none;
+              z-index: 0;
+            }
+            .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #e5e7eb; padding-bottom: 16px; }
+            .brand { display: flex; align-items: center; gap: 12px; }
+            .logo { width: 40px; height: 40px; border-radius: 10px; border: 1px solid #e5e7eb; padding: 6px; }
+            .title { font-size: 22px; font-weight: 700; }
+            .badge { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: #6b7280; }
+            .meta-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 20px; }
+            .meta-box { border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px 14px; }
+            .meta-box h4 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.2em; color: #6b7280; }
+            .meta-box p { margin: 4px 0; font-size: 14px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+            th, td { border-bottom: 1px solid #e5e7eb; padding: 10px; text-align: left; font-size: 13px; vertical-align: top; }
+            th { background: #f9fafb; font-size: 12px; text-transform: uppercase; letter-spacing: 0.15em; color: #6b7280; }
+            .right { text-align: right; }
+            .total-row td { font-weight: 700; border-top: 2px solid #111827; }
+            .signature { margin-top: 32px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+            .signature-box { border: 1px dashed #cbd5f5; border-radius: 12px; padding: 16px; min-height: 90px; }
+            .signature-box h4 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.2em; color: #6b7280; }
+            .signature-line { margin-top: 24px; border-bottom: 1px solid #9ca3af; height: 1px; }
+            .notes { margin-top: 20px; font-size: 12px; color: #6b7280; }
+            .print-actions { margin-top: 24px; display: flex; justify-content: flex-end; }
+            .print-btn { padding: 10px 16px; border-radius: 999px; border: 1px solid #111827; background: #111827; color: #fff; font-weight: 600; cursor: pointer; }
+            .security { margin-top: 12px; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.2em; }
+            @media print {
+              body { margin: 0; }
+              .print-actions { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="watermark">HDMarket • Document Officiel</div>
+          <div class="page">
+            <div class="header">
+              <div class="brand">
+                <img src="${logoUrl}" alt="HDMarket" class="logo" />
+                <div>
+                  <div class="title">Bon de commande et de livraison</div>
+                  <div class="badge">HDMarket</div>
+                </div>
+              </div>
+              <div class="right">
+                <div class="badge">Commande #${orderShort}</div>
+                <div>${escapeHtml(new Date(order.createdAt).toLocaleDateString('fr-FR'))}</div>
+                <div class="security">Réf: ${orderRef}</div>
+              </div>
+            </div>
+
+            <div class="meta-grid">
+              <div class="meta-box">
+                <h4>Client</h4>
+                <p>${escapeHtml(order.customer?.name || 'Client')}</p>
+                <p>${escapeHtml(order.customer?.phone || '')}</p>
+                <p>${escapeHtml(order.customer?.email || '')}</p>
+              </div>
+            <div class="meta-box">
+              <h4>Livraison</h4>
+              <p>${escapeHtml(order.deliveryAddress || '')}</p>
+              <p>${escapeHtml(order.deliveryCity || '')}</p>
+              ${order.trackingNote ? `<p>${escapeHtml(order.trackingNote)}</p>` : ''}
+              ${deliveryGuyName ? `<p>Livreur: ${deliveryGuyName}${deliveryGuyPhone ? ` · ${deliveryGuyPhone}` : ''}</p>` : ''}
+            </div>
+            <div class="meta-box">
+              <h4>Paiement</h4>
+              <p>Acompte versé: ${formatCurrency(paidAmount)} FCFA</p>
+              <p>Reste à payer: ${formatCurrency(remainingAmount)} FCFA</p>
+              <p>Nom du payeur: ${paymentName}</p>
+              <p>Transaction: ${paymentTransactionCode}</p>
+            </div>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Article</th>
+                  <th class="right">Qté</th>
+                  <th class="right">Prix</th>
+                  <th class="right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+                <tr class="total-row">
+                  <td colspan="4" class="right">Total commande</td>
+                  <td class="right">${formatCurrency(orderTotal)} FCFA</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="signature">
+              <div class="signature-box">
+                <h4>Signature client</h4>
+                <div class="signature-line"></div>
+                <p class="notes">Nom & signature à la livraison.</p>
+              </div>
+              <div class="signature-box">
+                <h4>Signature livreur</h4>
+                <div class="signature-line"></div>
+                <p class="notes">Nom & signature.</p>
+              </div>
+            </div>
+
+            <p class="notes">
+              Ce document fait foi de bon de commande et de livraison. Merci de vérifier les articles avant signature.
+              Toute copie doit comporter la référence unique ${orderRef}.
+            </p>
+
+            <div class="print-actions">
+              <button class="print-btn" id="print-btn">Imprimer / PDF</button>
+            </div>
+
+            <script>
+              document.getElementById('print-btn').addEventListener('click', () => window.print());
+            </script>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const pdfWindow = window.open('', '_blank');
+    if (!pdfWindow) {
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      window.location.href = url;
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+      return;
+    }
+    pdfWindow.document.open();
+    pdfWindow.document.write(html);
+    pdfWindow.document.close();
+    pdfWindow.focus();
+  };
 
   const addProductToSelection = (product) => {
     setSelectedProducts((prev) => {
@@ -81,6 +312,21 @@ export default function AdminOrders() {
       console.error('Erreur stats commandes:', error);
     } finally {
       setStatsLoading(false);
+    }
+  }, []);
+
+  const loadDeliveryGuys = useCallback(async () => {
+    setDeliveryGuysLoading(true);
+    setDeliveryGuysError('');
+    try {
+      const { data } = await api.get('/admin/delivery-guys?limit=100');
+      const list = Array.isArray(data) ? data : data?.items || [];
+      setDeliveryGuys(list);
+    } catch (error) {
+      setDeliveryGuysError(error.response?.data?.message || 'Impossible de charger les livreurs.');
+      setDeliveryGuys([]);
+    } finally {
+      setDeliveryGuysLoading(false);
     }
   }, []);
 
@@ -144,7 +390,8 @@ export default function AdminOrders() {
     loadStats();
     loadCustomers();
     loadProducts();
-  }, [loadStats, loadCustomers, loadProducts]);
+    loadDeliveryGuys();
+  }, [loadStats, loadCustomers, loadProducts, loadDeliveryGuys]);
 
   useEffect(() => {
     loadOrders();
@@ -500,6 +747,17 @@ export default function AdminOrders() {
                         }
                       ]
                     : [];
+                const computedTotal = orderItems.reduce((sum, item) => {
+                  const price = Number(item.snapshot?.price || item.product?.price || 0);
+                  const qty = Number(item.quantity || 1);
+                  return sum + price * qty;
+                }, 0);
+                const orderTotal = Number(order.totalAmount ?? computedTotal);
+                const paidAmount = Number(order.paidAmount || 0);
+                const remainingAmount =
+                  order.remainingAmount != null
+                    ? Number(order.remainingAmount)
+                    : Math.max(0, orderTotal - paidAmount);
                 return (
                   <div key={order._id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
                     <div className="flex items-center justify-between">
@@ -526,16 +784,23 @@ export default function AdminOrders() {
                       <p className="text-xs text-gray-500">{order.customer?.phone}</p>
                       <p className="text-xs text-gray-500">{order.customer?.email}</p>
                     </div>
-                    <div className="space-y-1 text-sm text-gray-700">
-                      {orderItems.map((item) => (
-                        <div key={`${order._id}-${item.product}-${item.snapshot?.title}`} className="flex items-center justify-between gap-2">
-                          <span className="font-medium truncate">{item.snapshot?.title || 'Produit'}</span>
-                          <span className="text-xs text-gray-500">
-                            x{item.quantity} · {Number(item.snapshot?.price || 0).toLocaleString()} FCFA
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                      <div className="space-y-2 text-sm text-gray-700">
+                        {orderItems.map((item) => (
+                          <div key={`${order._id}-${item.product}-${item.snapshot?.title}`} className="space-y-0.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium truncate">{item.snapshot?.title || 'Produit'}</span>
+                              <span className="text-xs text-gray-500">
+                                x{item.quantity} · {Number(item.snapshot?.price || 0).toLocaleString()} FCFA
+                              </span>
+                            </div>
+                            {item.snapshot?.confirmationNumber && (
+                              <span className="text-[11px] text-indigo-600 font-semibold uppercase tracking-wide">
+                                Code produit : {item.snapshot.confirmationNumber}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     <div className="space-y-1 text-sm text-gray-700">
                       <p className="flex items-center gap-1">
                         <MapPin size={14} className="text-gray-500" />
@@ -545,6 +810,23 @@ export default function AdminOrders() {
                       {order.trackingNote && (
                         <p className="text-xs text-gray-500 italic">{order.trackingNote}</p>
                       )}
+                    </div>
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600 space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Paiement</p>
+                      <p>
+                        Acompte versé:{' '}
+                        <span className="font-semibold text-slate-900">
+                          {formatCurrency(paidAmount)} FCFA
+                        </span>
+                      </p>
+                      <p>
+                        Reste à payer:{' '}
+                        <span className="font-semibold text-slate-900">
+                          {formatCurrency(remainingAmount)} FCFA
+                        </span>
+                      </p>
+                      <p>Nom du payeur: {order.paymentName || 'Non renseigné'}</p>
+                      <p>Transaction: {order.paymentTransactionCode || 'Non renseigné'}</p>
                     </div>
                     <div className="space-y-2">
                       <select
@@ -558,6 +840,24 @@ export default function AdminOrders() {
                           </option>
                         ))}
                       </select>
+                      <select
+                        value={order.deliveryGuy?._id || ''}
+                        onChange={(e) =>
+                          handleUpdateOrder(order._id, { deliveryGuyId: e.target.value })
+                        }
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        disabled={deliveryGuysLoading}
+                      >
+                        <option value="">Assigner un livreur</option>
+                        {deliveryGuys.map((deliveryGuy) => (
+                          <option key={deliveryGuy._id} value={deliveryGuy._id}>
+                            {deliveryGuy.name}
+                          </option>
+                        ))}
+                      </select>
+                      {deliveryGuysError && (
+                        <p className="text-xs text-red-500">{deliveryGuysError}</p>
+                      )}
                       <textarea
                         className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                         rows={2}
@@ -568,6 +868,16 @@ export default function AdminOrders() {
                           })
                         }
                       />
+                      {order.status === 'confirmed' && (
+                        <button
+                          type="button"
+                          onClick={() => openOrderPdf(order)}
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+                        >
+                          <ClipboardList size={14} />
+                          Bon de commande (PDF)
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -599,6 +909,17 @@ export default function AdminOrders() {
                             }
                           ]
                         : [];
+                    const computedTotal = orderItems.reduce((sum, item) => {
+                      const price = Number(item.snapshot?.price || item.product?.price || 0);
+                      const qty = Number(item.quantity || 1);
+                      return sum + price * qty;
+                    }, 0);
+                    const orderTotal = Number(order.totalAmount ?? computedTotal);
+                    const paidAmount = Number(order.paidAmount || 0);
+                    const remainingAmount =
+                      order.remainingAmount != null
+                        ? Number(order.remainingAmount)
+                        : Math.max(0, orderTotal - paidAmount);
                     return (
                       <tr key={order._id} className="hover:bg-gray-50">
                         <td className="px-3 py-3 space-y-2">
@@ -606,13 +927,20 @@ export default function AdminOrders() {
                             <Package size={14} className="text-gray-400" />
                             Commande #{order._id.slice(-6)}
                           </div>
-                          <div className="space-y-1 text-xs text-gray-600">
+                          <div className="space-y-2 text-xs text-gray-600">
                             {orderItems.map((item) => (
-                              <div key={`${order._id}-${item.product}-${item.snapshot?.title}`}>
-                                <span className="font-semibold text-gray-900">{item.snapshot?.title || 'Produit'}</span>{' '}
-                                <span className="text-gray-500">
-                                  x{item.quantity} · {Number(item.snapshot?.price || 0).toLocaleString()} FCFA
-                                </span>
+                              <div key={`${order._id}-${item.product}-${item.snapshot?.title}`} className="space-y-0.5">
+                                <div>
+                                  <span className="font-semibold text-gray-900">{item.snapshot?.title || 'Produit'}</span>{' '}
+                                  <span className="text-gray-500">
+                                    x{item.quantity} · {Number(item.snapshot?.price || 0).toLocaleString()} FCFA
+                                  </span>
+                                </div>
+                                {item.snapshot?.confirmationNumber && (
+                                  <span className="block text-[11px] text-indigo-600 font-semibold uppercase tracking-wide">
+                                    Code produit : {item.snapshot.confirmationNumber}
+                                  </span>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -630,6 +958,24 @@ export default function AdminOrders() {
                           <div className="font-medium text-gray-900">{order.customer?.name}</div>
                           <div className="text-xs text-gray-500">{order.customer?.email}</div>
                           <div className="text-xs text-gray-500">{order.customer?.phone}</div>
+                          <div className="mt-2 space-y-1 text-[11px] text-gray-500">
+                            <div>
+                              Acompte versé:{' '}
+                              <span className="font-semibold text-gray-700">
+                                {formatCurrency(paidAmount)} FCFA
+                              </span>
+                            </div>
+                            <div>
+                              Reste à payer:{' '}
+                              <span className="font-semibold text-gray-700">
+                                {formatCurrency(remainingAmount)} FCFA
+                              </span>
+                            </div>
+                            <div>Nom du payeur: {order.paymentName || 'Non renseigné'}</div>
+                            <div>
+                              Transaction: {order.paymentTransactionCode || 'Non renseigné'}
+                            </div>
+                          </div>
                         </td>
                         <td className="px-3 py-3 text-xs text-gray-600">
                           <div>{order.deliveryAddress}</div>
@@ -655,6 +1001,24 @@ export default function AdminOrders() {
                               </option>
                             ))}
                           </select>
+                          <select
+                            value={order.deliveryGuy?._id || ''}
+                            onChange={(e) =>
+                              handleUpdateOrder(order._id, { deliveryGuyId: e.target.value })
+                            }
+                            className="w-full rounded-lg border border-gray-200 px-2 py-1 text-xs focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            disabled={deliveryGuysLoading}
+                          >
+                            <option value="">Assigner un livreur</option>
+                            {deliveryGuys.map((deliveryGuy) => (
+                              <option key={deliveryGuy._id} value={deliveryGuy._id}>
+                                {deliveryGuy.name}
+                              </option>
+                            ))}
+                          </select>
+                          {deliveryGuysError && (
+                            <p className="text-[11px] text-red-500">{deliveryGuysError}</p>
+                          )}
                           <textarea
                             className="w-full rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                             rows={2}
@@ -665,12 +1029,22 @@ export default function AdminOrders() {
                               })
                             }
                           />
+                          {order.status === 'confirmed' && (
+                            <button
+                              type="button"
+                              onClick={() => openOrderPdf(order)}
+                              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-100"
+                            >
+                              <ClipboardList size={12} />
+                              Bon de commande (PDF)
+                            </button>
+                          )}
                           <div className="text-xs text-indigo-600 space-y-1">
                             {orderItems.map((item) =>
                               item.product ? (
                                 <Link
                                   key={`${order._id}-${item.product}-${item.snapshot?.title}-link`}
-                                  to={`/product/${item.product}`}
+                                  to={buildProductPath(item.product)}
                                   {...externalLinkProps}
                                   className="block hover:text-indigo-500"
                                 >

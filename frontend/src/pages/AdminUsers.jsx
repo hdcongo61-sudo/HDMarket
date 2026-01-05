@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Ban, CheckCircle2, RefreshCw, Search } from 'lucide-react';
+import { buildShopPath } from '../utils/links';
 import api from '../services/api';
 import useIsMobile from '../hooks/useIsMobile';
 
@@ -12,6 +13,12 @@ const accountTypeLabels = {
 const roleLabels = {
   user: 'Utilisateur',
   admin: 'Administrateur'
+};
+
+const formatNumber = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return '0';
+  return parsed.toLocaleString('fr-FR');
 };
 
 const formatDate = (value) => {
@@ -354,7 +361,10 @@ export default function AdminUsers() {
                         <p className="text-xs text-gray-500 break-all">{user.email}</p>
                         <p className="text-xs text-gray-400">{user.phone || '—'}</p>
                         {user.accountType === 'shop' && user.shopName ? (
-                          <p className="text-xs font-semibold text-indigo-600">Boutique : {user.shopName}</p>
+                          <div className="text-xs space-y-1">
+                            <p className="font-semibold text-indigo-600">Boutique : {user.shopName}</p>
+                            <p className="text-gray-500">Abonnés : {formatNumber(user.followersCount)}</p>
+                          </div>
                         ) : null}
                       </div>
                       <span className="rounded-full bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700">
@@ -447,9 +457,18 @@ export default function AdminUsers() {
                             <span className="text-gray-500">{user.email}</span>
                             <span className="text-gray-400 text-xs">{user.phone}</span>
                             {user.accountType === 'shop' && user.shopName ? (
-                              <span className="text-indigo-600 text-xs font-semibold mt-1">
-                                Boutique : {user.shopName}
-                              </span>
+                              <div className="text-xs text-gray-500 mt-1 space-y-1">
+                                <span className="text-indigo-600 font-semibold">
+                                  Boutique : {user.shopName}
+                                </span>
+                                <p>Abonnés : {formatNumber(user.followersCount)}</p>
+                                <Link
+                                  to={buildShopPath(user)}
+                                  className="text-indigo-500 underline text-xs font-semibold"
+                                >
+                                  Voir la boutique
+                                </Link>
+                              </div>
                             ) : null}
                           </div>
                         </td>

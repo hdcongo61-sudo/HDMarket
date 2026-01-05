@@ -3,15 +3,22 @@ import mongoose from 'mongoose';
 import Rating from '../models/ratingModel.js';
 import Product from '../models/productModel.js';
 import { createNotification } from '../utils/notificationService.js';
+import { buildIdentifierQuery } from '../utils/idResolver.js';
+import { ensureDocumentSlug } from '../utils/slugUtils.js';
 
-const ensureProductVisible = async (productId) => {
-  if (!mongoose.isValidObjectId(productId)) {
+const ensureProductVisible = async (identifier, fallbackId = null) => {
+  const query = buildIdentifierQuery(identifier);
+  if (!Object.keys(query).length && !fallbackId) {
     throw Object.assign(new Error('Identifiant de produit invalide.'), { status: 400 });
   }
-  const product = await Product.findById(productId).select('status user title');
+  let product = Object.keys(query).length ? await Product.findOne(query).select('status user title') : null;
+  if (!product && fallbackId && mongoose.Types.ObjectId.isValid(fallbackId)) {
+    product = await Product.findById(fallbackId).select('status user title');
+  }
   if (!product || product.status !== 'approved') {
     throw Object.assign(new Error('Produit introuvable ou non publié.'), { status: 404 });
   }
+  await ensureDocumentSlug({ document: product, sourceValue: product.title });
   return product;
 };
 
@@ -42,29 +49,19 @@ export const getRatingSummary = asyncHandler(async (req, res) => {
 });
 
 export const getUserRating = asyncHandler(async (req, res) => {
-  if (!mongoose.isValidObjectId(req.params.id)) {
-    return res.status(400).json({ message: 'Identifiant de produit invalide.' });
-  }
-  const product = await Product.findById(req.params.id).select('status user');
-  if (!product) {
-    return res.status(404).json({ message: 'Produit introuvable.' });
-  }
-  if (
-    product.status !== 'approved' &&
-    product.user.toString() !== req.user.id &&
-    !['admin', 'manager'].includes(req.user.role)
-  ) {
-    return res.status(403).json({ message: 'Accès refusé.' });
-  }
-
+  const product = await ensureProductVisible(req.params.id, req.query.productId);
   const rating = await Rating.findOne({ product: product._id, user: req.user.id });
   res.json({ value: rating ? rating.value : null });
 });
 
 export const upsertRating = asyncHandler(async (req, res) => {
-  const product = await ensureProductVisible(req.params.id);
+  const product = await ensureProductVisible(req.params.id, req.body.productId);
 
   const { value } = req.body;
+
+  if (String(product.user) === req.user.id) {
+    return res.status(403).json({ message: 'Vous ne pouvez pas noter votre propre produit.' });
+  }
 
   const rating = await Rating.findOneAndUpdate(
     { product: product._id, user: req.user.id },
@@ -88,7 +85,7 @@ export const upsertRating = asyncHandler(async (req, res) => {
 });
 
 export const deleteRating = asyncHandler(async (req, res) => {
-  const product = await ensureProductVisible(req.params.id);
+  const product = await ensureProductVisible(req.params.id, req.query.productId);
 
   await Rating.findOneAndDelete({ product: product._id, user: req.user.id });
   res.status(204).end();

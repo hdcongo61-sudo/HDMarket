@@ -106,6 +106,12 @@ export default function PaymentForm({ product, onSubmitted }) {
                 <span className="text-gray-500">Prix du produit:</span>
                 <span className="font-medium text-gray-900">{Number(product.price).toLocaleString()} FCFA</span>
               </div>
+              {product.confirmationNumber && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Code produit:</span>
+                  <span className="font-semibold text-gray-900">{product.confirmationNumber}</span>
+                </div>
+              )}
             </div>
             <div className="space-y-3">
               <div className="flex justify-between">
@@ -169,6 +175,17 @@ export default function PaymentForm({ product, onSubmitted }) {
             </div>
           </div>
         </div>
+
+        {product.confirmationNumber && (
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-600">
+            <p className="font-semibold text-gray-900 text-[12px] mb-1">
+              Code produit : <span className="text-indigo-600">{product.confirmationNumber}</span>
+            </p>
+            <p>
+              Communiquez ce code à l’administrateur ou au support lorsque vous confirmez votre commande afin qu’il identifie rapidement l’annonce.
+            </p>
+          </div>
+        )}
 
         {/* Formulaire de paiement */}
         <form onSubmit={submit} className="space-y-4">

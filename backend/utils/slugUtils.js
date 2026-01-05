@@ -1,0 +1,48 @@
+import mongoose from 'mongoose';
+
+const slugifyText = (value) => {
+  if (!value) return '';
+  return value
+    .toString()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+};
+
+export const generateUniqueSlug = async (Model, baseValue, excludeId = null, slugField = 'slug') => {
+  if (!Model || typeof Model.exists !== 'function') {
+    throw new Error('Model is required to generate slug.');
+  }
+  const fallbackBase = slugifyText(baseValue) || `${Date.now()}`;
+  let candidate = fallbackBase;
+  let suffix = 0;
+  const buildQuery = (slug) => ({
+    [slugField]: slug,
+    ...(excludeId ? { _id: { $ne: excludeId } } : {})
+  });
+  // eslint-disable-next-line no-await-in-loop
+  while (await Model.exists(buildQuery(candidate))) {
+    suffix += 1;
+    candidate = `${fallbackBase}-${suffix}`;
+  }
+  return candidate;
+};
+
+export const ensureDocumentSlug = async ({ document, sourceValue, slugField = 'slug' }) => {
+  if (!document) return null;
+  if (document[slugField]) return document[slugField];
+  const value = typeof sourceValue === 'function' ? sourceValue(document) : sourceValue;
+  const slug = await generateUniqueSlug(document.constructor, value, document._id, slugField);
+  document[slugField] = slug;
+  await document.constructor.updateOne(
+    { _id: document._id },
+    { $set: { [slugField]: slug } }
+  );
+  return slug;
+};
+
+export const isIdentifierObjectId = (value) => mongoose.Types.ObjectId.isValid(value);

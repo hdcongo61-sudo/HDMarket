@@ -2,7 +2,7 @@ import React, { useContext, useState } from 'react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useNavigate, Navigate, useLocation, Link } from 'react-router-dom';
-import { Eye, EyeOff, UserPlus, User, Mail, Lock, Phone, Store, MapPin, Camera, Upload, CheckCircle2, ArrowLeft, Edit3 } from 'lucide-react';
+import { Eye, EyeOff, UserPlus, User, Mail, Lock, Phone, Store, MapPin, ShieldCheck } from 'lucide-react';
 
 export default function Register() {
   const { user, login } = useContext(AuthContext);
@@ -15,39 +15,40 @@ export default function Register() {
     password: '',
     phone: '',
     accountType: 'person',
-    shopName: '',
-    shopAddress: '',
     address: '',
-    shopLogo: null,
-    shopDescription: '',
     country: 'République du Congo',
     city: '',
     gender: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [shopLogoPreview, setShopLogoPreview] = useState(null);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
+  const [codeSending, setCodeSending] = useState(false);
+  const [codeMessage, setCodeMessage] = useState('');
+  const [codeError, setCodeError] = useState('');
   const cities = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
   const genderOptions = [
     { value: 'homme', label: 'Homme' },
     { value: 'femme', label: 'Femme' }
   ];
 
-  const handleShopLogoChange = (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (file) {
-      setForm({ ...form, shopLogo: file });
-      const previewUrl = URL.createObjectURL(file);
-      setShopLogoPreview(previewUrl);
+  const sendVerificationCode = async () => {
+    if (!form.phone.trim()) {
+      alert("Veuillez renseigner votre numéro de téléphone.");
+      return;
     }
-  };
-
-  const removeShopLogo = () => {
-    setForm({ ...form, shopLogo: null });
-    setShopLogoPreview(null);
-    // Nettoyer l'URL de l'image preview pour éviter les fuites mémoire
-    if (shopLogoPreview) {
-      URL.revokeObjectURL(shopLogoPreview);
+    setCodeSending(true);
+    setCodeError('');
+    setCodeMessage('');
+    try {
+      await api.post('/auth/register/send-code', { phone: form.phone });
+      setCodeSent(true);
+      setCodeMessage('Code envoyé par SMS. Vérifiez votre téléphone.');
+    } catch (error) {
+      setCodeError(error.response?.data?.message || error.message);
+    } finally {
+      setCodeSending(false);
     }
   };
 
@@ -61,6 +62,10 @@ export default function Register() {
       alert("Veuillez renseigner votre adresse complète.");
       return;
     }
+    if (!verificationCode.trim()) {
+      alert("Veuillez saisir le code de vérification reçu par SMS.");
+      return;
+    }
     setLoading(true);
     try {
       const payload = new FormData();
@@ -68,20 +73,12 @@ export default function Register() {
       payload.append('email', form.email);
       payload.append('password', form.password);
       payload.append('phone', form.phone);
-      payload.append('accountType', form.accountType);
+      payload.append('accountType', 'person');
       payload.append('country', 'République du Congo');
       payload.append('city', form.city);
       payload.append('gender', form.gender);
       payload.append('address', form.address.trim());
-      
-      if (form.accountType === 'shop') {
-        payload.append('shopName', form.shopName);
-        payload.append('shopAddress', form.shopAddress);
-        payload.append('shopDescription', form.shopDescription.trim());
-        if (form.shopLogo) {
-          payload.append('shopLogo', form.shopLogo);
-        }
-      }
+      payload.append('verificationCode', verificationCode.trim());
 
       const { data } = await api.post('/auth/register', payload, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -123,7 +120,7 @@ export default function Register() {
                 <h2 className="text-lg font-semibold text-gray-900">Informations personnelles</h2>
               </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Nom */}
                 <div className="space-y-2">
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
@@ -158,6 +155,35 @@ export default function Register() {
                     />
                     <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   </div>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                    <ShieldCheck className="w-4 h-4 text-indigo-500" />
+                    <span>Code de vérification SMS *</span>
+                  </label>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <div className="relative flex-1">
+                      <input
+                        className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+                        placeholder="Code reçu par SMS"
+                        value={verificationCode}
+                        onChange={(e) => setVerificationCode(e.target.value)}
+                        required
+                      />
+                      <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={sendVerificationCode}
+                      disabled={codeSending || !form.phone.trim()}
+                      className="px-4 py-3 rounded-xl border border-indigo-200 text-indigo-600 font-semibold hover:bg-indigo-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {codeSending ? 'Envoi...' : codeSent ? 'Renvoyer le code' : 'Envoyer le code'}
+                    </button>
+                  </div>
+                  {codeError && <p className="text-sm text-red-600">{codeError}</p>}
+                  {codeMessage && <p className="text-sm text-emerald-600">{codeMessage}</p>}
                 </div>
 
                 {/* Adresse personnelle */}
@@ -333,11 +359,7 @@ export default function Register() {
                     onChange={(e) =>
                       setForm((prev) => ({
                         ...prev,
-                        accountType: e.target.value,
-                        shopName: '',
-                        shopAddress: '',
-                        shopDescription: '',
-                        shopLogo: null
+                        accountType: e.target.value
                       }))
                     }
                     className="sr-only"
@@ -375,10 +397,7 @@ export default function Register() {
                     onChange={(e) =>
                       setForm((prev) => ({
                         ...prev,
-                        accountType: e.target.value,
-                        shopName: prev.shopName,
-                        shopAddress: prev.shopAddress,
-                        shopDescription: prev.shopDescription
+                        accountType: e.target.value
                       }))
                     }
                     className="sr-only"
@@ -405,133 +424,37 @@ export default function Register() {
               </div>
             </div>
 
-            {/* Informations boutique (conditionnel) */}
             {form.accountType === 'shop' && (
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="w-2 h-6 bg-gradient-to-b from-amber-500 to-orange-500 rounded-full"></div>
-                  <h2 className="text-lg font-semibold text-gray-900">Informations de la boutique</h2>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Nom boutique */}
-                  <div className="space-y-2">
-                    <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                      <Store className="w-4 h-4 text-amber-500" />
-                      <span>Nom de la boutique *</span>
-                    </label>
-                    <div className="relative">
-                      <input
-                        className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
-                        placeholder="Nom de votre boutique"
-                        value={form.shopName}
-                        onChange={(e) => setForm({ ...form, shopName: e.target.value })}
-                        required
-                      />
-                      <Store className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    </div>
-                  </div>
-
-                  {/* Adresse boutique */}
-                  <div className="space-y-2">
-                    <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                      <MapPin className="w-4 h-4 text-amber-500" />
-                      <span>Adresse *</span>
-                    </label>
-                    <div className="relative">
-                      <input
-                        className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
-                        placeholder="Adresse de votre boutique"
-                        value={form.shopAddress}
-                        onChange={(e) => setForm({ ...form, shopAddress: e.target.value })}
-                        required
-                      />
-                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                    <Edit3 className="w-4 h-4 text-amber-500" />
-                    <span>À propos de la boutique *</span>
-                  </label>
-                  <textarea
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400 text-sm"
-                    rows={4}
-                    placeholder="Décrivez vos produits, votre expertise et vos engagements..."
-                    value={form.shopDescription}
-                    onChange={(e) => setForm({ ...form, shopDescription: e.target.value })}
-                    required
-                  />
-                  <p className="text-xs text-gray-500">
-                    Ce texte apparaîtra sur votre page boutique pour rassurer vos clients.
-                  </p>
-                </div>
-
-                {/* Logo boutique - CORRECTION ICI */}
-                <div className="space-y-2">
-                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                    <Camera className="w-4 h-4 text-amber-500" />
-                    <span>Logo de la boutique {form.shopLogo ? '' : '*'}</span>
-                  </label>
-                  
-                  <label className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group p-6">
-                    {shopLogoPreview ? (
-                      <div className="text-center">
-                        <img
-                          src={shopLogoPreview}
-                          alt="Preview logo"
-                          className="w-20 h-20 rounded-xl object-cover mx-auto mb-3 border border-gray-200"
-                        />
-                        <p className="text-sm text-gray-600">Logo sélectionné</p>
-                        <button
-                          type="button"
-                          onClick={removeShopLogo}
-                          className="text-sm text-red-600 hover:text-red-500 mt-2"
-                        >
-                          Changer
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <Upload className="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2" />
-                        <span className="text-sm text-gray-500 text-center">
-                          <span className="text-indigo-600 font-medium">Cliquez pour uploader</span>
-                          <br />
-                          <span className="text-xs">PNG, JPG jusqu'à 5MB</span>
-                        </span>
-                      </>
-                    )}
-                    {/* CORRECTION : Le input file doit être DANS le label */}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleShopLogoChange}
-                      className="hidden"
-                    />
-                  </label>
-                  {!form.shopLogo && (
-                    <p className="text-xs text-gray-500">
-                      Le logo est recommandé pour une boutique professionnelle
-                    </p>
-                  )}
-                </div>
+              <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <p className="font-semibold text-amber-900">Boutique sous approbation</p>
+                <p>
+                  Seuls les administrateurs peuvent activer un compte boutique pour un utilisateur.
+                  Enregistrez-vous d'abord comme particulier puis{' '}
+                  <Link to="/help" className="font-semibold text-amber-900 underline">
+                    contactez l'équipe HDMarket
+                  </Link>{' '}
+                  pour demander la conversion.
+                </p>
+                <p className="text-xs text-amber-800">
+                  Votre compte restera un profil personnel tant que la conversion n'est pas validée.
+                </p>
               </div>
             )}
 
             {/* Bouton d'inscription */}
             <button
               type="submit"
-          disabled={
-            loading ||
-            !form.name ||
-            !form.email ||
-            !form.password ||
-            !form.phone ||
-            !form.address ||
-            (form.accountType === 'shop' && (!form.shopName || !form.shopAddress || !form.shopDescription.trim()))
-          }
+              disabled={
+                loading ||
+                !form.name ||
+                !form.email ||
+                !form.password ||
+                !form.phone ||
+                !form.address ||
+                !form.city ||
+                !form.gender ||
+                !verificationCode
+              }
               className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 shadow-lg"
             >
               {loading ? (

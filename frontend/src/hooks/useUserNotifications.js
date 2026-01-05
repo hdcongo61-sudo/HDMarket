@@ -10,8 +10,11 @@ const DEFAULT_PREFERENCES = Object.freeze({
   product_rejection: true,
   promotional: true,
   shop_review: true,
+  shop_follow: true,
   payment_pending: true,
   order_created: true,
+  order_received: true,
+  order_reminder: true,
   order_delivered: true
 });
 

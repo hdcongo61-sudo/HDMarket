@@ -7,7 +7,7 @@ import { ArrowLeft, Edit, Tag, FileText, Package, DollarSign, Save, Image, Alert
 import categoryGroups, { getCategoryMeta } from '../data/categories';
 
 export default function EditProduct() {
-  const { id } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
   const { showToast } = useToast();
@@ -40,7 +40,7 @@ export default function EditProduct() {
     const fetchProduct = async () => {
       try {
         setLoading(true);
-        const { data } = await api.get(`/products/${id}`);
+        const { data } = await api.get(`/products/${slug}`);
         if (!active) return;
         const ownerId = data.user?._id || data.user;
         if (user?.role !== 'admin' && ownerId && String(ownerId) !== user?.id) {
@@ -92,7 +92,7 @@ export default function EditProduct() {
         discount: form.discount,
         condition: form.condition
       };
-      await api.put(`/products/${id}`, payload);
+      await api.put(`/products/${slug}`, payload);
       showToast('Annonce mise à jour avec succès !', { variant: 'success' });
       navigate('/my');
     } catch (err) {

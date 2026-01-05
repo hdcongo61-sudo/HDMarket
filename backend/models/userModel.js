@@ -1,12 +1,15 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { WEEK_DAY_ORDER } from '../utils/shopHours.js';
+import { generateUniqueSlug } from '../utils/slugUtils.js';
 
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true },
     password: { type: String, required: true },
-    phone: { type: String, required: true },
+    phone: { type: String, required: true, unique: true },
+    phoneVerified: { type: Boolean, default: false },
     role: { type: String, enum: ['user', 'admin', 'manager'], default: 'user' },
     accountType: { type: String, enum: ['person', 'shop'], default: 'person' },
     country: { type: String, default: 'République du Congo' },
@@ -20,10 +23,24 @@ const userSchema = new mongoose.Schema(
     shopName: { type: String },
     shopAddress: { type: String },
     shopLogo: { type: String },
+    shopBanner: { type: String },
     shopVerified: { type: Boolean, default: false },
     shopDescription: { type: String, trim: true, default: '' },
+    shopHours: {
+      type: [
+        {
+          day: { type: String, enum: WEEK_DAY_ORDER },
+          open: { type: String, default: '' },
+          close: { type: String, default: '' },
+          closed: { type: Boolean, default: true }
+        }
+      ],
+      default: []
+    },
     shopVerifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     shopVerifiedAt: { type: Date, default: null },
+    followersCount: { type: Number, default: 0, min: 0 },
+    followingShops: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
     notificationPreferences: {
       product_comment: { type: Boolean, default: true },
@@ -36,6 +53,8 @@ const userSchema = new mongoose.Schema(
       shop_review: { type: Boolean, default: true },
       payment_pending: { type: Boolean, default: true },
       order_created: { type: Boolean, default: true },
+      order_received: { type: Boolean, default: true },
+      order_reminder: { type: Boolean, default: true },
       order_delivered: { type: Boolean, default: true }
     },
     notificationsReadAt: { type: Date },
@@ -45,6 +64,27 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+userSchema.add({
+  slug: { type: String, unique: true, index: true, lowercase: true, trim: true }
+});
+
+userSchema.pre('validate', async function (next) {
+  const needsSlug =
+    !this.slug ||
+    this.isModified('shopName') ||
+    this.isModified('name') ||
+    !this.shopName && this.isModified('name');
+  if (!needsSlug) return next();
+  try {
+    const base = this.shopName || this.name || String(this._id);
+    // eslint-disable-next-line no-await-in-loop
+    this.slug = await generateUniqueSlug(this.constructor, base, this._id, 'slug');
+  } catch (error) {
+    return next(error);
+  }
+  next();
+});
 
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();

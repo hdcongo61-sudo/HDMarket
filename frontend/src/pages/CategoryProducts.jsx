@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
 import categoryGroups, { getCategoryMeta } from '../data/categories';
 import { ChevronRight, ArrowLeft } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 
 const SORT_OPTIONS = [
   { value: 'new', label: 'Plus récents' },
@@ -17,16 +18,63 @@ export default function CategoryProducts() {
   const categoryMeta = useMemo(() => getCategoryMeta(categoryId), [categoryId]);
   const group = categoryMeta?.group ?? null;
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const pageParam = Number(searchParams.get('page'));
+  const initialPageRef = useRef(Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1);
+
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [sort, setSort] = useState('new');
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(initialPageRef.current);
   const [totalPages, setTotalPages] = useState(1);
+  const [isMobileView, setIsMobileView] = useState(() =>
+    typeof window === 'undefined' ? false : window.innerWidth <= 767
+  );
 
   useEffect(() => {
+    initialPageRef.current = 1;
     setPage(1);
   }, [categoryId]);
+
+  useEffect(() => {
+    initialPageRef.current = 1;
+    setPage(1);
+  }, [sort]);
+
+  useEffect(() => {
+    if (page === initialPageRef.current) {
+      setSearchParams((prev) => {
+        const params = new URLSearchParams(prev);
+        if (page === 1) {
+          params.delete('page');
+        } else {
+          params.set('page', String(page));
+        }
+        return params;
+      }, { replace: true });
+      return;
+    }
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      if (page === 1) {
+        params.delete('page');
+      } else {
+        params.set('page', String(page));
+      }
+      return params;
+    }, { replace: false });
+  }, [page, setSearchParams]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (typeof window === 'undefined') return;
+      setIsMobileView(window.innerWidth <= 767);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     if (!categoryMeta) {
@@ -55,7 +103,9 @@ export default function CategoryProducts() {
         if (!active) return;
         const fetched = Array.isArray(data) ? data : data?.items ?? [];
         const pagination = Array.isArray(data) ? { pages: 1 } : data?.pagination ?? {};
-        setItems(fetched);
+        setItems((prev) =>
+          isMobileView && page > 1 ? [...prev, ...fetched] : fetched
+        );
         setTotalPages(Math.max(1, Number(pagination.pages) || 1));
       } catch (e) {
         if (controller.signal.aborted) return;
@@ -71,7 +121,29 @@ export default function CategoryProducts() {
       active = false;
       controller.abort();
     };
-  }, [categoryMeta, sort, page]);
+  }, [categoryMeta, sort, page, isMobileView]);
+
+  useEffect(() => {
+    setItems([]);
+    setTotalPages(1);
+  }, [categoryMeta, sort]);
+
+  useEffect(() => {
+    if (!isMobileView) return;
+    if (loading) return;
+    if (page >= totalPages) return;
+    const handleScroll = () => {
+      const threshold = 200;
+      if (
+        window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight - threshold
+      ) {
+        setPage((prev) => Math.min(prev + 1, totalPages));
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isMobileView, loading, page, totalPages]);
 
   const renderPagination = () => {
     if (totalPages <= 1) return null;
@@ -91,6 +163,7 @@ export default function CategoryProducts() {
       );
     }
 
+    if (isMobileView) return null;
     return (
       <div className="flex items-center justify-center gap-2 pt-6 pb-[88px] md:pb-0">
         <button
