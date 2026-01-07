@@ -20,14 +20,15 @@ export const getCloudinaryFolder = (segments = []) => {
   return [getBaseFolder(), ...sanitizedSegments].join('/');
 };
 
-export const uploadToCloudinary = ({ buffer, resourceType = 'auto', folder }) => {
+export const uploadToCloudinary = ({ buffer, resourceType = 'auto', folder, options = {} }) => {
   ensureConfigured();
   return new Promise((resolve, reject) => {
     const uploadFolder = folder || getBaseFolder();
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: uploadFolder,
-        resource_type: resourceType
+        resource_type: resourceType,
+        ...options
       },
       (error, result) => {
         if (error) {

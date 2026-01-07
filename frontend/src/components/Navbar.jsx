@@ -100,6 +100,7 @@ export default function Navbar() {
   const [shops, setShops] = useState([]);
   const [shopsLoading, setShopsLoading] = useState(false);
   const [shopsError, setShopsError] = useState("");
+  const [appLogos, setAppLogos] = useState({ desktop: "", mobile: "" });
   const [isShopMenuOpen, setIsShopMenuOpen] = useState(false);
   const shopMenuCloseRef = useRef(null);
   const [isMobileLayout, setIsMobileLayout] = useState(() =>
@@ -107,6 +108,8 @@ export default function Navbar() {
   );
   const shouldHideSearchBar = isMenuOpen && isMobileLayout;
   const historyPanelOpenRef = useRef(isHistoryPanelOpen);
+  const desktopLogo = appLogos.desktop || appLogos.mobile;
+  const mobileLogo = appLogos.mobile || appLogos.desktop;
 
   const handleSearchBlur = () => {
     setTimeout(() => {
@@ -727,6 +730,29 @@ export default function Navbar() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const loadAppLogos = async () => {
+      try {
+        const { data } = await api.get("/settings/app-logo");
+        if (cancelled) return;
+        setAppLogos({
+          desktop: data?.appLogoDesktop || "",
+          mobile: data?.appLogoMobile || ""
+        });
+      } catch (error) {
+        if (!cancelled) {
+          setAppLogos({ desktop: "", mobile: "" });
+        }
+      }
+    };
+
+    loadAppLogos();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <>
       {/* 🎯 NAVBAR PRINCIPALE */}
@@ -736,15 +762,32 @@ export default function Navbar() {
             
             {/* === LOGO HDMarket === */}
             <Link to="/" className="flex items-center space-x-3 group">
-              <div className="w-9 h-9 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
-                <span className="text-white font-bold text-sm">HD</span>
-              </div>
-              <div className="hidden sm:flex flex-col">
-                <span className="text-xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                  HDMarket
-                </span>
-                <span className="text-xs text-gray-500 -mt-1">Marketplace Premium</span>
-              </div>
+              {desktopLogo || mobileLogo ? (
+                <>
+                  <img
+                    src={mobileLogo || desktopLogo}
+                    alt="Logo HDMarket"
+                    className="h-12 w-12 rounded-xl object-contain border border-gray-200 bg-white shadow-sm sm:hidden"
+                  />
+                  <img
+                    src={desktopLogo || mobileLogo}
+                    alt="Logo HDMarket"
+                    className="hidden h-18 w-auto max-w-[200px] object-contain sm:block"
+                  />
+                </>
+              ) : (
+                <>
+                  <div className="w-9 h-9 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
+                    <span className="text-white font-bold text-sm">HD</span>
+                  </div>
+                  <div className="hidden sm:flex flex-col">
+                    <span className="text-xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                      HDMarket
+                    </span>
+                    <span className="text-xs text-gray-500 -mt-1">Marketplace Premium</span>
+                  </div>
+                </>
+              )}
             </Link>
 
             {/* === PROFIL UTILISATEUR MOBILE & RACCOURCI BOUTIQUES === */}

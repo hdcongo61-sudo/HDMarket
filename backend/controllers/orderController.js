@@ -6,8 +6,62 @@ import User from '../models/userModel.js';
 import DeliveryGuy from '../models/deliveryGuyModel.js';
 import Cart from '../models/cartModel.js';
 import { createNotification } from '../utils/notificationService.js';
+import { isTwilioMessagingConfigured, sendSms } from '../utils/twilioMessaging.js';
 
 const ORDER_STATUS = ['confirmed', 'delivering', 'delivered'];
+
+const formatSmsAmount = (value) =>
+  Number(value || 0).toLocaleString('fr-FR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  });
+
+const buildSmsItemsSummary = (items = [], limit = 2) => {
+  const list = Array.isArray(items) ? items : [];
+  const parts = list.slice(0, limit).map((item) => {
+    const title = item?.snapshot?.title || item?.product?.title || 'Produit';
+    const qty = Number(item?.quantity || 0);
+    const price = item?.snapshot?.price;
+    const priceLabel = Number.isFinite(Number(price)) ? `${formatSmsAmount(price)} FCFA` : '';
+    const qtyLabel = qty > 1 ? ` x${qty}` : '';
+    return [title + qtyLabel, priceLabel].filter(Boolean).join(' @ ');
+  });
+  if (!parts.length) return '';
+  const remaining = list.length - parts.length;
+  return `Articles : ${parts.join(', ')}${remaining > 0 ? ` +${remaining}` : ''}`;
+};
+
+const buildOrderSmsDetails = (order) => {
+  if (!order) return '';
+  const itemsSummary = buildSmsItemsSummary(order.items);
+  const total = `Total : ${formatSmsAmount(order.totalAmount)} FCFA`;
+  const paidAmount =
+    Number(order.paidAmount || 0) ||
+    Math.round(Number(order.totalAmount || 0) * 0.25);
+  const deposit = paidAmount ? `Acompte : ${formatSmsAmount(paidAmount)} FCFA` : '';
+  const delivery = order.deliveryAddress
+    ? `Livraison : ${order.deliveryAddress}${order.deliveryCity ? `, ${order.deliveryCity}` : ''}`
+    : '';
+  return [itemsSummary, total, deposit, delivery].filter(Boolean).join(' | ');
+};
+
+const buildOrderConfirmedMessage = (order) =>
+  `HDMarket : Votre commande ${order._id} est confirmée. ${buildOrderSmsDetails(order)}`;
+
+const buildOrderDeliveringMessage = (order) =>
+  `HDMarket : Votre commande ${order._id} est en cours de livraison. ${buildOrderSmsDetails(
+    order
+  )}`;
+
+const sendOrderSms = async ({ phone, message, context }) => {
+  if (!phone || !isTwilioMessagingConfigured()) return;
+  try {
+    await sendSms(phone, message);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Order SMS failed', context, error?.message || error);
+  }
+};
 
 const baseOrderQuery = () =>
   Order.find()
@@ -167,11 +221,17 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
     allowSelf: true
   });
 
+  await sendOrderSms({
+    phone: customer.phone,
+    message: buildOrderConfirmedMessage(order),
+    context: `order_created:${order._id}`
+  });
+
   res.status(201).json(buildOrderResponse(populated));
 });
 
 export const userCheckoutOrder = asyncHandler(async (req, res) => {
-  const { payerName, transactionCode } = req.body;
+  const { payerName, transactionCode, payments } = req.body;
   const userId = req.user?.id || req.user?._id;
 
   const customer = await User.findById(userId).select('name email phone address city');
@@ -231,49 +291,108 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     throw error;
   }
 
-  const totalAmount = orderItems.reduce(
-    (sum, item) => sum + Number(item.snapshot?.price || 0) * Number(item.quantity || 1),
-    0
-  );
-  const paidAmount = Math.round(totalAmount * 0.25);
-  const remainingAmount = Math.max(0, totalAmount - paidAmount);
+  const missingSellerItem = orderItems.find((item) => !resolveItemShopId(item));
+  if (missingSellerItem) {
+    return res.status(400).json({ message: 'Vendeur introuvable pour un produit.' });
+  }
 
-  const order = await Order.create({
-    items: orderItems,
-    customer: customer._id,
-    createdBy: userId,
-    deliveryAddress: customer.address,
-    deliveryCity: customer.city,
-    trackingNote: '',
-    totalAmount,
-    paidAmount,
-    remainingAmount,
-    paymentName: payerName.trim(),
-    paymentTransactionCode: transactionCode.trim()
-  });
-
-  await Cart.updateOne({ user: userId }, { $set: { items: [] } });
-
-  const populated = await baseOrderQuery().findById(order._id);
-
-  const sellerNotifications = new Map();
+  const itemsBySeller = new Map();
   orderItems.forEach((item) => {
     const shopId = resolveItemShopId(item);
     if (!shopId) return;
     const shopKey = String(shopId);
-    if (!sellerNotifications.has(shopKey)) {
-      sellerNotifications.set(shopKey, []);
+    if (!itemsBySeller.has(shopKey)) {
+      itemsBySeller.set(shopKey, []);
     }
-    sellerNotifications.get(shopKey).push(item);
+    itemsBySeller.get(shopKey).push(item);
+  });
+
+  if (!itemsBySeller.size) {
+    return res.status(400).json({ message: 'Aucun vendeur associé à la commande.' });
+  }
+
+  const normalizedPayments = Array.isArray(payments) ? payments : [];
+  const paymentsBySeller = new Map();
+  if (normalizedPayments.length) {
+    for (const payment of normalizedPayments) {
+      if (!ensureObjectId(payment?.sellerId)) {
+        return res.status(400).json({ message: 'Vendeur invalide.' });
+      }
+      paymentsBySeller.set(String(payment.sellerId), {
+        payerName: payment?.payerName?.trim() || '',
+        transactionCode: payment?.transactionCode?.trim() || ''
+      });
+    }
+  }
+
+  const fallbackPayer = payerName?.trim() || '';
+  const fallbackTransaction = transactionCode?.trim() || '';
+  const usePaymentList = paymentsBySeller.size > 0;
+
+  if (!usePaymentList && itemsBySeller.size > 1) {
+    return res
+      .status(400)
+      .json({ message: 'Veuillez renseigner le nom et le code de transaction pour chaque vendeur.' });
+  }
+
+  if (!usePaymentList && (!fallbackPayer || !fallbackTransaction)) {
+    return res.status(400).json({ message: 'Veuillez renseigner le nom et le code de transaction.' });
+  }
+
+  if (usePaymentList) {
+    const missingPayments = Array.from(itemsBySeller.keys()).filter((sellerId) => {
+      const payment = paymentsBySeller.get(sellerId);
+      return !payment || !payment.payerName || !payment.transactionCode;
+    });
+    if (missingPayments.length) {
+      return res
+        .status(400)
+        .json({ message: 'Veuillez renseigner le nom et le code de transaction pour chaque vendeur.' });
+    }
+  }
+
+  const orderPayloads = Array.from(itemsBySeller.entries()).map(([sellerId, sellerItems]) => {
+    const totalAmount = sellerItems.reduce(
+      (sum, item) => sum + Number(item.snapshot?.price || 0) * Number(item.quantity || 1),
+      0
+    );
+    const paidAmount = Math.round(totalAmount * 0.25);
+    const remainingAmount = Math.max(0, totalAmount - paidAmount);
+    const paymentInfo = usePaymentList
+      ? paymentsBySeller.get(sellerId)
+      : { payerName: fallbackPayer, transactionCode: fallbackTransaction };
+
+    return {
+      sellerId,
+      items: sellerItems,
+      customer: customer._id,
+      createdBy: userId,
+      deliveryAddress: customer.address,
+      deliveryCity: customer.city,
+      trackingNote: '',
+      totalAmount,
+      paidAmount,
+      remainingAmount,
+      paymentName: paymentInfo.payerName,
+      paymentTransactionCode: paymentInfo.transactionCode
+    };
+  });
+
+  const createdOrders = await Order.create(
+    orderPayloads.map(({ sellerId, ...payload }) => payload)
+  );
+
+  await Cart.updateOne({ user: userId }, { $set: { items: [] } });
+
+  const populated = await baseOrderQuery().find({
+    _id: { $in: createdOrders.map((order) => order._id) }
   });
 
   await Promise.all(
-    Array.from(sellerNotifications.entries()).map(([sellerId, items]) => {
+    createdOrders.map((order, index) => {
+      const { sellerId, items } = orderPayloads[index];
       const itemCount = items.reduce((sum, item) => sum + Number(item.quantity || 1), 0);
-      const totalAmount = items.reduce(
-        (sum, item) => sum + Number(item.snapshot?.price || 0) * Number(item.quantity || 1),
-        0
-      );
+      const totalAmount = Number(order.totalAmount || 0);
       const productId = items[0]?.product || null;
       return createNotification({
         userId: sellerId,
@@ -289,20 +408,39 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     })
   );
 
-  await createNotification({
-    userId: customer._id,
-    actorId: userId,
-    type: 'order_created',
-    metadata: {
-      orderId: order._id,
-      deliveryCity: order.deliveryCity,
-      deliveryAddress: order.deliveryAddress,
-      status: 'confirmed'
-    },
-    allowSelf: true
-  });
+  await Promise.all(
+    createdOrders.map((order) =>
+      createNotification({
+        userId: customer._id,
+        actorId: userId,
+        type: 'order_created',
+        metadata: {
+          orderId: order._id,
+          deliveryCity: order.deliveryCity,
+          deliveryAddress: order.deliveryAddress,
+          status: 'confirmed'
+        },
+        allowSelf: true
+      })
+    )
+  );
 
-  res.status(201).json(buildOrderResponse(populated));
+  await Promise.all(
+    createdOrders.map((order) =>
+      sendOrderSms({
+        phone: customer.phone,
+        message: buildOrderConfirmedMessage(order),
+        context: `order_created:${order._id}`
+      })
+    )
+  );
+
+  const responseOrders = populated.map(buildOrderResponse);
+  if (responseOrders.length === 1) {
+    return res.status(201).json(responseOrders[0]);
+  }
+
+  res.status(201).json({ orders: responseOrders, count: responseOrders.length });
 });
 
 export const adminListOrders = asyncHandler(async (req, res) => {
@@ -369,6 +507,7 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
   const { status, deliveryAddress, deliveryCity, trackingNote, deliveryGuyId } = req.body;
   const previousStatus = order.status;
   let notifyConfirmed = false;
+  let notifyDelivering = false;
   let notifyDelivered = false;
   let deliveredTimestampAdded = false;
 
@@ -379,6 +518,7 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
     if (order.status !== status) {
       order.status = status;
       notifyConfirmed = status === 'confirmed';
+      notifyDelivering = status === 'delivering';
       notifyDelivered = status === 'delivered';
     }
     if (status === 'delivering' && !order.shippedAt) {
@@ -445,6 +585,15 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
         deliveredAt: order.deliveredAt
       },
       allowSelf: true
+    });
+  }
+
+  if (notifyDelivering && isTwilioMessagingConfigured()) {
+    const customer = await User.findById(order.customer).select('phone');
+    await sendOrderSms({
+      phone: customer?.phone,
+      message: buildOrderDeliveringMessage(order),
+      context: `order_delivering:${order._id}`
     });
   }
 
@@ -692,12 +841,15 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   }
 
   const { status } = req.body;
+  const previousStatus = order.status;
+  let notifyDelivering = false;
   if (!['confirmed', 'delivering', 'delivered'].includes(status)) {
     return res.status(400).json({ message: 'Statut invalide.' });
   }
 
   if (order.status !== status) {
     order.status = status;
+    notifyDelivering = status === 'delivering';
     if (status === 'delivering' && !order.shippedAt) {
       order.shippedAt = new Date();
     }
@@ -721,6 +873,15 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
         deliveredAt: order.deliveredAt
       },
       allowSelf: true
+    });
+  }
+
+  if (notifyDelivering && previousStatus !== 'delivering' && isTwilioMessagingConfigured()) {
+    const customer = await User.findById(order.customer).select('phone');
+    await sendOrderSms({
+      phone: customer?.phone,
+      message: buildOrderDeliveringMessage(order),
+      context: `order_delivering:${order._id}`
     });
   }
 

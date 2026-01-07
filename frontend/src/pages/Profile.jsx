@@ -200,6 +200,16 @@ export default function Profile() {
   const [shopLogoPreview, setShopLogoPreview] = useState('');
   const [shopBannerFile, setShopBannerFile] = useState(null);
   const [shopBannerPreview, setShopBannerPreview] = useState('');
+  const [appLogoDesktopFile, setAppLogoDesktopFile] = useState(null);
+  const [appLogoDesktopPreview, setAppLogoDesktopPreview] = useState('');
+  const [appLogoDesktopSaving, setAppLogoDesktopSaving] = useState(false);
+  const [appLogoDesktopError, setAppLogoDesktopError] = useState('');
+  const [appLogoDesktopSuccess, setAppLogoDesktopSuccess] = useState('');
+  const [appLogoMobileFile, setAppLogoMobileFile] = useState(null);
+  const [appLogoMobilePreview, setAppLogoMobilePreview] = useState('');
+  const [appLogoMobileSaving, setAppLogoMobileSaving] = useState(false);
+  const [appLogoMobileError, setAppLogoMobileError] = useState('');
+  const [appLogoMobileSuccess, setAppLogoMobileSuccess] = useState('');
   const [heroBannerFile, setHeroBannerFile] = useState(null);
   const [heroBannerPreview, setHeroBannerPreview] = useState('');
   const [heroBannerSaving, setHeroBannerSaving] = useState(false);
@@ -278,8 +288,14 @@ export default function Profile() {
       if (heroBannerPreview && heroBannerPreview.startsWith('blob:')) {
         URL.revokeObjectURL(heroBannerPreview);
       }
+      if (appLogoDesktopPreview && appLogoDesktopPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(appLogoDesktopPreview);
+      }
+      if (appLogoMobilePreview && appLogoMobilePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(appLogoMobilePreview);
+      }
     },
-    [shopLogoPreview, shopBannerPreview, heroBannerPreview]
+    [shopLogoPreview, shopBannerPreview, heroBannerPreview, appLogoDesktopPreview, appLogoMobilePreview]
   );
 
   useEffect(() => {
@@ -310,6 +326,10 @@ export default function Profile() {
     if (!user || user.role !== 'admin') {
       setHeroBannerPreview('');
       setHeroBannerFile(null);
+      setAppLogoDesktopPreview('');
+      setAppLogoDesktopFile(null);
+      setAppLogoMobilePreview('');
+      setAppLogoMobileFile(null);
       return;
     }
     let active = true;
@@ -326,7 +346,24 @@ export default function Profile() {
         );
       }
     };
+    const loadAppLogo = async () => {
+      setAppLogoDesktopError('');
+      setAppLogoMobileError('');
+      try {
+        const { data } = await api.get('/settings/app-logo');
+        if (!active) return;
+        setAppLogoDesktopPreview(data?.appLogoDesktop || '');
+        setAppLogoMobilePreview(data?.appLogoMobile || '');
+      } catch (err) {
+        if (!active) return;
+        const message =
+          err.response?.data?.message || "Impossible de charger les logos de l'application.";
+        setAppLogoDesktopError(message);
+        setAppLogoMobileError(message);
+      }
+    };
     loadHeroBanner();
+    loadAppLogo();
     return () => {
       active = false;
     };
@@ -485,6 +522,32 @@ export default function Profile() {
     setShopBannerPreview('');
   };
 
+  const onAppLogoDesktopChange = (e) => {
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    setAppLogoDesktopFile(file);
+    setAppLogoDesktopError('');
+    setAppLogoDesktopSuccess('');
+    if (file) {
+      if (appLogoDesktopPreview && appLogoDesktopPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(appLogoDesktopPreview);
+      }
+      setAppLogoDesktopPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const onAppLogoMobileChange = (e) => {
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    setAppLogoMobileFile(file);
+    setAppLogoMobileError('');
+    setAppLogoMobileSuccess('');
+    if (file) {
+      if (appLogoMobilePreview && appLogoMobilePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(appLogoMobilePreview);
+      }
+      setAppLogoMobilePreview(URL.createObjectURL(file));
+    }
+  };
+
   const onHeroBannerChange = (e) => {
     const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
     setHeroBannerFile(file);
@@ -522,6 +585,60 @@ export default function Profile() {
       showToast(message, { variant: 'error' });
     } finally {
       setHeroBannerSaving(false);
+    }
+  };
+
+  const saveAppLogoDesktop = async () => {
+    if (!appLogoDesktopFile) {
+      setAppLogoDesktopError('Veuillez sélectionner un logo desktop.');
+      return;
+    }
+    setAppLogoDesktopSaving(true);
+    setAppLogoDesktopError('');
+    setAppLogoDesktopSuccess('');
+    try {
+      const payload = new FormData();
+      payload.append('appLogoDesktop', appLogoDesktopFile);
+      const { data } = await api.put('/admin/app-logo/desktop', payload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setAppLogoDesktopPreview(data?.appLogoDesktop || appLogoDesktopPreview);
+      setAppLogoDesktopFile(null);
+      setAppLogoDesktopSuccess('Logo desktop mis à jour avec succès.');
+      showToast('Logo desktop mis à jour.', { variant: 'success' });
+    } catch (err) {
+      const message = err.response?.data?.message || "Impossible d'enregistrer le logo desktop.";
+      setAppLogoDesktopError(message);
+      showToast(message, { variant: 'error' });
+    } finally {
+      setAppLogoDesktopSaving(false);
+    }
+  };
+
+  const saveAppLogoMobile = async () => {
+    if (!appLogoMobileFile) {
+      setAppLogoMobileError('Veuillez sélectionner un logo mobile.');
+      return;
+    }
+    setAppLogoMobileSaving(true);
+    setAppLogoMobileError('');
+    setAppLogoMobileSuccess('');
+    try {
+      const payload = new FormData();
+      payload.append('appLogoMobile', appLogoMobileFile);
+      const { data } = await api.put('/admin/app-logo/mobile', payload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setAppLogoMobilePreview(data?.appLogoMobile || appLogoMobilePreview);
+      setAppLogoMobileFile(null);
+      setAppLogoMobileSuccess('Logo mobile mis à jour avec succès.');
+      showToast('Logo mobile mis à jour.', { variant: 'success' });
+    } catch (err) {
+      const message = err.response?.data?.message || "Impossible d'enregistrer le logo mobile.";
+      setAppLogoMobileError(message);
+      showToast(message, { variant: 'error' });
+    } finally {
+      setAppLogoMobileSaving(false);
     }
   };
 
@@ -1252,6 +1369,116 @@ export default function Profile() {
                       La bannière est disponible uniquement pour les boutiques certifiées.
                     </div>
                   )}
+                </div>
+              )}
+
+              {user?.role === 'admin' && (
+                <div className="space-y-4 pt-6 border-t border-gray-100">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-2 h-6 bg-gradient-to-b from-amber-500 to-orange-500 rounded-full"></div>
+                    <h3 className="text-lg font-semibold text-gray-900">Logos de l’application</h3>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    Deux versions sont utilisées dans la barre de navigation. Chaque logo sera converti en PNG.
+                  </p>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-3 rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-gray-900">Logo desktop</p>
+                        <span className="text-xs text-gray-500">Largeur recommandée</span>
+                      </div>
+                      {appLogoDesktopError && (
+                        <p className="text-sm text-red-600">{appLogoDesktopError}</p>
+                      )}
+                      {appLogoDesktopSuccess && (
+                        <p className="text-sm text-emerald-600">{appLogoDesktopSuccess}</p>
+                      )}
+                      <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-white hover:bg-gray-50 transition-colors group p-6">
+                        {appLogoDesktopPreview ? (
+                          <div className="text-center w-full">
+                            <img
+                              src={appLogoDesktopPreview}
+                              alt="Logo desktop"
+                              className="h-16 w-auto max-w-full object-contain mx-auto mb-3"
+                            />
+                            <p className="text-sm text-gray-600 mb-2">Logo actuel</p>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-500">Aucun logo défini.</p>
+                        )}
+                        <label className="text-center cursor-pointer">
+                          <Upload className="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2 mx-auto" />
+                          <span className="text-sm text-gray-500">
+                            <span className="text-indigo-600 font-medium">Cliquez pour uploader</span>
+                            <br />
+                            <span className="text-xs">PNG, JPG, WEBP - format horizontal</span>
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={onAppLogoDesktopChange}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={saveAppLogoDesktop}
+                        disabled={appLogoDesktopSaving || !appLogoDesktopFile}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                      >
+                        {appLogoDesktopSaving ? 'Mise à jour…' : 'Enregistrer le logo desktop'}
+                      </button>
+                    </div>
+                    <div className="space-y-3 rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-gray-900">Logo mobile</p>
+                        <span className="text-xs text-gray-500">Carré recommandé</span>
+                      </div>
+                      {appLogoMobileError && (
+                        <p className="text-sm text-red-600">{appLogoMobileError}</p>
+                      )}
+                      {appLogoMobileSuccess && (
+                        <p className="text-sm text-emerald-600">{appLogoMobileSuccess}</p>
+                      )}
+                      <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-white hover:bg-gray-50 transition-colors group p-6">
+                        {appLogoMobilePreview ? (
+                          <div className="text-center w-full">
+                            <img
+                              src={appLogoMobilePreview}
+                              alt="Logo mobile"
+                              className="h-16 w-16 rounded-2xl object-contain mx-auto mb-3 border border-gray-200 bg-white"
+                            />
+                            <p className="text-sm text-gray-600 mb-2">Logo actuel</p>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-500">Aucun logo défini.</p>
+                        )}
+                        <label className="text-center cursor-pointer">
+                          <Upload className="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2 mx-auto" />
+                          <span className="text-sm text-gray-500">
+                            <span className="text-indigo-600 font-medium">Cliquez pour uploader</span>
+                            <br />
+                            <span className="text-xs">PNG, JPG, WEBP - format carré</span>
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={onAppLogoMobileChange}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={saveAppLogoMobile}
+                        disabled={appLogoMobileSaving || !appLogoMobileFile}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                      >
+                        {appLogoMobileSaving ? 'Mise à jour…' : 'Enregistrer le logo mobile'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 

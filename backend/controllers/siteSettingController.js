@@ -18,6 +18,44 @@ export const getHeroBanner = asyncHandler(async (req, res) => {
   res.json({ heroBanner: settings?.heroBanner || null });
 });
 
+export const getAppLogo = asyncHandler(async (req, res) => {
+  const settings = await getSettings();
+  const legacyLogo = settings?.appLogo || null;
+  res.json({
+    appLogoDesktop: settings?.appLogoDesktop || legacyLogo,
+    appLogoMobile: settings?.appLogoMobile || legacyLogo
+  });
+});
+
+const createAppLogoUpdater = (fieldKey, folderSegment) =>
+  asyncHandler(async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ message: 'Veuillez sélectionner un logo.' });
+    }
+    if (!req.file.mimetype?.startsWith('image/')) {
+      return res.status(400).json({ message: 'Le fichier doit être une image.' });
+    }
+    if (!isCloudinaryConfigured()) {
+      return res
+        .status(503)
+        .json({ message: 'Cloudinary n’est pas configuré. Définissez CLOUDINARY_* pour publier des médias.' });
+    }
+    const folder = getCloudinaryFolder(['site', 'logo', folderSegment]);
+    const uploaded = await uploadToCloudinary({
+      buffer: req.file.buffer,
+      resourceType: 'image',
+      folder,
+      options: { format: 'png' }
+    });
+    const logoUrl = uploaded.secure_url || uploaded.url;
+    const settings = await SiteSetting.findOneAndUpdate(
+      { key: SETTINGS_KEY },
+      { [fieldKey]: logoUrl, updatedBy: req.user.id },
+      { new: true, upsert: true }
+    );
+    res.json({ [fieldKey]: settings[fieldKey] || logoUrl });
+  });
+
 export const updateHeroBanner = asyncHandler(async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'Veuillez sélectionner une image.' });
@@ -41,3 +79,6 @@ export const updateHeroBanner = asyncHandler(async (req, res) => {
   );
   res.json({ heroBanner: settings.heroBanner || heroBanner });
 });
+
+export const updateAppLogoDesktop = createAppLogoUpdater('appLogoDesktop', 'desktop');
+export const updateAppLogoMobile = createAppLogoUpdater('appLogoMobile', 'mobile');

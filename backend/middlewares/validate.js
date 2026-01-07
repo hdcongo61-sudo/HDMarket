@@ -185,10 +185,26 @@ export const schemas = {
     deliveryCity: Joi.string().valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo').required(),
     trackingNote: Joi.string().max(500).allow('', null)
   }),
-  orderCheckout: Joi.object({
-    payerName: Joi.string().min(2).max(120).required(),
-    transactionCode: Joi.string().min(3).max(120).required()
-  }),
+  orderCheckout: Joi.alternatives()
+    .try(
+      Joi.object({
+        payments: Joi.array()
+          .items(
+            Joi.object({
+              sellerId: Joi.string().hex().length(24).required(),
+              payerName: Joi.string().min(2).max(120).required(),
+              transactionCode: Joi.string().min(3).max(120).required()
+            })
+          )
+          .min(1)
+          .required()
+      }),
+      Joi.object({
+        payerName: Joi.string().min(2).max(120).required(),
+        transactionCode: Joi.string().min(3).max(120).required()
+      })
+    )
+    .required(),
   orderStatusUpdate: Joi.object({
     status: Joi.string().valid('confirmed', 'delivering', 'delivered').required()
   }),
