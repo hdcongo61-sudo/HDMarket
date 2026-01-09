@@ -104,7 +104,7 @@ export default function OrderCheckout() {
         })
       });
       await clearCart();
-      showToast('Commande confirmée. Merci pour votre acompte.', { variant: 'success' });
+      showToast('Commande enregistrée. Elle est en attente de validation.', { variant: 'success' });
       navigate('/orders');
     } catch (err) {
       const message = err.response?.data?.message || 'Impossible de confirmer la commande.';

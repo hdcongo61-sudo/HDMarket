@@ -8,7 +8,7 @@ import Cart from '../models/cartModel.js';
 import { createNotification } from '../utils/notificationService.js';
 import { isTwilioMessagingConfigured, sendSms } from '../utils/twilioMessaging.js';
 
-const ORDER_STATUS = ['confirmed', 'delivering', 'delivered'];
+const ORDER_STATUS = ['pending', 'confirmed', 'delivering', 'delivered'];
 
 const formatSmsAmount = (value) =>
   Number(value || 0).toLocaleString('fr-FR', {
@@ -45,8 +45,8 @@ const buildOrderSmsDetails = (order) => {
   return [itemsSummary, total, deposit, delivery].filter(Boolean).join(' | ');
 };
 
-const buildOrderConfirmedMessage = (order) =>
-  `HDMarket : Votre commande ${order._id} est confirmée. ${buildOrderSmsDetails(order)}`;
+const buildOrderPendingMessage = (order) =>
+  `HDMarket : Votre commande ${order._id} est en attente. ${buildOrderSmsDetails(order)}`;
 
 const buildOrderDeliveringMessage = (order) =>
   `HDMarket : Votre commande ${order._id} est en cours de livraison. ${buildOrderSmsDetails(
@@ -216,14 +216,14 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
       orderId: order._id,
       deliveryCity,
       deliveryAddress,
-      status: 'confirmed'
+      status: 'pending'
     },
     allowSelf: true
   });
 
   await sendOrderSms({
     phone: customer.phone,
-    message: buildOrderConfirmedMessage(order),
+    message: buildOrderPendingMessage(order),
     context: `order_created:${order._id}`
   });
 
@@ -418,7 +418,7 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
           orderId: order._id,
           deliveryCity: order.deliveryCity,
           deliveryAddress: order.deliveryAddress,
-          status: 'confirmed'
+          status: 'pending'
         },
         allowSelf: true
       })
@@ -429,7 +429,7 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     createdOrders.map((order) =>
       sendOrderSms({
         phone: customer.phone,
-        message: buildOrderConfirmedMessage(order),
+        message: buildOrderPendingMessage(order),
         context: `order_created:${order._id}`
       })
     )
@@ -843,7 +843,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   const { status } = req.body;
   const previousStatus = order.status;
   let notifyDelivering = false;
-  if (!['confirmed', 'delivering', 'delivered'].includes(status)) {
+  if (!['pending', 'confirmed', 'delivering', 'delivered'].includes(status)) {
     return res.status(400).json({ message: 'Statut invalide.' });
   }
 

@@ -49,10 +49,31 @@ export default function Home() {
   const [verifiedShops, setVerifiedShops] = useState([]);
   const [verifiedLoading, setVerifiedLoading] = useState(false);
   const [heroBanner, setHeroBanner] = useState('');
+  const [promoBanner, setPromoBanner] = useState('');
+  const [promoBannerLink, setPromoBannerLink] = useState('');
+  const [promoBannerStartAt, setPromoBannerStartAt] = useState('');
+  const [promoBannerEndAt, setPromoBannerEndAt] = useState('');
+  const [promoNow, setPromoNow] = useState(() => new Date());
 const cityList = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
 const externalLinkProps = useDesktopExternalLink();
 const formatCurrency = (value) =>
   `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
+  const defaultPromoBanner = '/promo-default.svg';
+  const parsePromoDate = useCallback((value) => {
+    if (!value) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed;
+  }, []);
+
+  const isPromoActive = useMemo(() => {
+    if (!promoBanner) return false;
+    const startDate = parsePromoDate(promoBannerStartAt);
+    const endDate = parsePromoDate(promoBannerEndAt);
+    if (startDate && promoNow < startDate) return false;
+    if (endDate && promoNow > endDate) return false;
+    return true;
+  }, [parsePromoDate, promoBanner, promoBannerEndAt, promoBannerStartAt, promoNow]);
 
   // === PARAMÈTRES DE RECHERCHE ===
   const params = useMemo(() => {
@@ -119,6 +140,37 @@ const loadProducts = async () => {
     return () => {
       active = false;
     };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadPromoBanner = async () => {
+      try {
+        const { data } = await api.get('/settings/promo-banner');
+        if (!active) return;
+        setPromoBanner(data?.promoBanner || '');
+        setPromoBannerLink(data?.promoBannerLink || '');
+        setPromoBannerStartAt(data?.promoBannerStartAt || '');
+        setPromoBannerEndAt(data?.promoBannerEndAt || '');
+      } catch (error) {
+        if (!active) return;
+        setPromoBanner('');
+        setPromoBannerLink('');
+        setPromoBannerStartAt('');
+        setPromoBannerEndAt('');
+      }
+    };
+    loadPromoBanner();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPromoNow(new Date());
+    }, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   // === CHARGEMENT DES PRODUITS EN VEDETTE ===
@@ -189,6 +241,42 @@ const loadDiscountProducts = async () => {
     setDiscountLoading(false);
   }
 };
+
+  const renderPromoBanner = () => {
+    if (!promoBanner) return null;
+    const bannerSrc = isPromoActive ? promoBanner : defaultPromoBanner;
+    const bannerLink = isPromoActive ? promoBannerLink : '/products';
+    const bannerImage = (
+      <img
+        src={bannerSrc}
+        alt="Bannière promotionnelle"
+        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+        loading="lazy"
+      />
+    );
+    const wrapperClass =
+      "group block w-full overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm";
+    if (bannerLink) {
+      if (bannerLink.startsWith('/')) {
+        return (
+          <Link to={bannerLink} {...externalLinkProps} className={wrapperClass}>
+            {bannerImage}
+          </Link>
+        );
+      }
+      return (
+        <a
+          href={bannerLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={wrapperClass}
+        >
+          {bannerImage}
+        </a>
+      );
+    }
+    return <div className={wrapperClass}>{bannerImage}</div>;
+  };
 
   // === EFFETS DE CHARGEMENT ===
   useEffect(() => {
@@ -367,6 +455,12 @@ const loadDiscountProducts = async () => {
             </div>
           </div>
         </section>
+
+        {promoBanner && (
+          <section>
+            {renderPromoBanner()}
+          </section>
+        )}
 
         {/* 🚚 PROMESSE LIVRAISON */}
         <section className="bg-white rounded-2xl border border-indigo-100 shadow-sm p-4 sm:p-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

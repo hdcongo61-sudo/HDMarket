@@ -248,7 +248,7 @@ export default function Notifications() {
       )
     },
     order_created: {
-      label: 'Commande confirmée',
+      label: 'Commande en attente',
       badgeClass: 'bg-blue-50 text-blue-700 border border-blue-200',
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

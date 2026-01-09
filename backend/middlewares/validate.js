@@ -206,13 +206,13 @@ export const schemas = {
     )
     .required(),
   orderStatusUpdate: Joi.object({
-    status: Joi.string().valid('confirmed', 'delivering', 'delivered').required()
+    status: Joi.string().valid('pending', 'confirmed', 'delivering', 'delivered').required()
   }),
   sellerOrderStatusUpdate: Joi.object({
-    status: Joi.string().valid('confirmed', 'delivering', 'delivered').required()
+    status: Joi.string().valid('pending', 'confirmed', 'delivering', 'delivered').required()
   }),
   orderUpdate: Joi.object({
-    status: Joi.string().valid('confirmed', 'delivering', 'delivered'),
+    status: Joi.string().valid('pending', 'confirmed', 'delivering', 'delivered'),
     deliveryAddress: Joi.string().min(4).max(300),
     deliveryCity: Joi.string().valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'),
     trackingNote: Joi.string().max(500).allow('', null),

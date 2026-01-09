@@ -36,12 +36,19 @@ export const listDeliveryGuysAdmin = asyncHandler(async (req, res) => {
   stats.forEach((entry) => {
     const deliveryGuyId = entry?._id?.deliveryGuy?.toString?.();
     if (!deliveryGuyId) return;
-    const current = statsMap.get(deliveryGuyId) || { totalAssigned: 0, delivering: 0, delivered: 0, confirmed: 0 };
+    const current = statsMap.get(deliveryGuyId) || {
+      totalAssigned: 0,
+      delivering: 0,
+      delivered: 0,
+      confirmed: 0,
+      pending: 0
+    };
     const status = entry._id?.status;
     current.totalAssigned += entry.count;
     if (status === 'delivering') current.delivering += entry.count;
     if (status === 'delivered') current.delivered += entry.count;
     if (status === 'confirmed') current.confirmed += entry.count;
+    if (status === 'pending') current.pending += entry.count;
     statsMap.set(deliveryGuyId, current);
   });
 
@@ -50,7 +57,8 @@ export const listDeliveryGuysAdmin = asyncHandler(async (req, res) => {
       totalAssigned: 0,
       delivering: 0,
       delivered: 0,
-      confirmed: 0
+      confirmed: 0,
+      pending: 0
     };
     return { ...item, stats: statsEntry };
   });

@@ -216,17 +216,21 @@ export default function AdminDashboard() {
     setRemindersLoading(true);
     setRemindersError('');
     try {
-      const [confirmedRes, deliveringRes] = await Promise.all([
+      const [pendingRes, confirmedRes, deliveringRes] = await Promise.all([
+        api.get('/orders/admin', { params: { status: 'pending', limit: 30 } }),
         api.get('/orders/admin', { params: { status: 'confirmed', limit: 30 } }),
         api.get('/orders/admin', { params: { status: 'delivering', limit: 30 } })
       ]);
+      const pendingItems = Array.isArray(pendingRes.data)
+        ? pendingRes.data
+        : pendingRes.data?.items || [];
       const confirmedItems = Array.isArray(confirmedRes.data)
         ? confirmedRes.data
         : confirmedRes.data?.items || [];
       const deliveringItems = Array.isArray(deliveringRes.data)
         ? deliveringRes.data
         : deliveringRes.data?.items || [];
-      const merged = [...confirmedItems, ...deliveringItems].sort(
+      const merged = [...pendingItems, ...confirmedItems, ...deliveringItems].sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       setReminderOrders(merged);
@@ -938,6 +942,11 @@ const refreshAll = useCallback(() => {
                   subtitle="Toutes les commandes"
                 />
                 <StatCard
+                  title="En attente"
+                  value={formatNumber(orderByStatus.pending?.count || 0)}
+                  subtitle="À valider"
+                />
+                <StatCard
                   title="Confirmées"
                   value={formatNumber(orderByStatus.confirmed?.count || 0)}
                   subtitle="À préparer"
@@ -986,7 +995,7 @@ const refreshAll = useCallback(() => {
                   <div>
                     <p className="text-xs uppercase tracking-wide text-gray-500">Relances commandes</p>
                     <h3 className="text-lg font-semibold text-gray-900">
-                      Commandes confirmées &amp; en cours de livraison
+                      Commandes en attente, confirmées &amp; en cours de livraison
                     </h3>
                   </div>
                   <button
@@ -1010,7 +1019,9 @@ const refreshAll = useCallback(() => {
                     {reminderOrders.map((order) => {
                       const items = Array.isArray(order.items) ? order.items : [];
                       const statusLabel =
-                        order.status === 'confirmed'
+                        order.status === 'pending'
+                          ? 'En attente'
+                          : order.status === 'confirmed'
                           ? 'Confirmée'
                           : order.status === 'delivering'
                           ? 'En cours de livraison'

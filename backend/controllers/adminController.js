@@ -292,7 +292,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
   const totalRevenue = totalRevenueAgg[0]?.total || 0;
   const revenueLast30Days = revenueLast30Agg[0]?.total || 0;
   const totalFavorites = favoritesAgg[0]?.total || 0;
-  const orderStatuses = ['confirmed', 'delivering', 'delivered'];
+  const orderStatuses = ['pending', 'confirmed', 'delivering', 'delivered'];
   const ordersByStatus = orderStatuses.reduce((acc, status) => {
     acc[status] = { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0 };
     return acc;

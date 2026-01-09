@@ -7,6 +7,10 @@ const siteSettingSchema = new mongoose.Schema(
     appLogo: { type: String, default: '' },
     appLogoDesktop: { type: String, default: '' },
     appLogoMobile: { type: String, default: '' },
+    promoBanner: { type: String, default: '' },
+    promoBannerLink: { type: String, default: '' },
+    promoBannerStartAt: { type: Date, default: null },
+    promoBannerEndAt: { type: Date, default: null },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
   },
   { timestamps: true }

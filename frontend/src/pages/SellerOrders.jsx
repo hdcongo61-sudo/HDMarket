@@ -7,12 +7,14 @@ import AuthContext from '../context/AuthContext';
 import { buildProductPath } from '../utils/links';
 
 const STATUS_LABELS = {
+  pending: 'En attente',
   confirmed: 'Confirmée',
   delivering: 'En cours de livraison',
   delivered: 'Livrée'
 };
 
 const STATUS_STYLES = {
+  pending: 'border-gray-200 bg-gray-50 text-gray-700',
   confirmed: 'border-yellow-200 bg-yellow-50 text-yellow-800',
   delivering: 'border-blue-200 bg-blue-50 text-blue-800',
   delivered: 'border-green-200 bg-green-50 text-green-800'
@@ -20,6 +22,7 @@ const STATUS_STYLES = {
 
 const STATUS_TABS = [
   { key: 'all', label: 'Toutes les commandes' },
+  { key: 'pending', label: 'En attente' },
   { key: 'confirmed', label: 'Confirmées' },
   { key: 'delivering', label: 'En cours de livraison' },
   { key: 'delivered', label: 'Livrées' }
@@ -227,6 +230,7 @@ export default function SellerOrders() {
                       </div>
                     </div>
                     <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border ${STATUS_STYLES[order.status]}`}>
+                      {order.status === 'pending' && <Clock size={14} />}
                       {order.status === 'confirmed' && <Package size={14} />}
                       {order.status === 'delivering' && <Truck size={14} />}
                       {order.status === 'delivered' && <CheckCircle size={14} />}
@@ -282,7 +286,7 @@ export default function SellerOrders() {
                       <button
                         type="button"
                         onClick={() => handleStatusUpdate(order._id, 'confirmed')}
-                        disabled={order.status === 'confirmed' || statusUpdatingId === order._id}
+                        disabled={order.status !== 'pending' || statusUpdatingId === order._id}
                         className="inline-flex items-center gap-2 rounded-full border border-yellow-200 bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700 hover:bg-yellow-100 disabled:opacity-50"
                       >
                         <Package size={12} />
@@ -300,7 +304,7 @@ export default function SellerOrders() {
                       <button
                         type="button"
                         onClick={() => handleStatusUpdate(order._id, 'delivered')}
-                        disabled={order.status === 'delivered' || statusUpdatingId === order._id}
+                        disabled={order.status !== 'delivering' || statusUpdatingId === order._id}
                         className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700 hover:bg-green-100 disabled:opacity-50"
                       >
                         <CheckCircle size={12} />

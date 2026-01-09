@@ -31,8 +31,8 @@ const orderSchema = new mongoose.Schema(
     deliveryGuy: { type: mongoose.Schema.Types.ObjectId, ref: 'DeliveryGuy' },
     status: {
       type: String,
-      enum: ['confirmed', 'delivering', 'delivered'],
-      default: 'confirmed'
+      enum: ['pending', 'confirmed', 'delivering', 'delivered'],
+      default: 'pending'
     },
     deliveryAddress: { type: String, required: true, trim: true },
     deliveryCity: {

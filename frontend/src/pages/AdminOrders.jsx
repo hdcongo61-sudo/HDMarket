@@ -6,12 +6,14 @@ import { buildProductPath } from '../utils/links';
 import { CheckCircle, Search, Package, User, MapPin, Truck, Clock, ClipboardList, Plus, RefreshCcw, ArrowLeft } from 'lucide-react';
 
 const STATUS_LABELS = {
+  pending: 'En attente',
   confirmed: 'Confirmée',
   delivering: 'En cours de livraison',
   delivered: 'Livrée'
 };
 
 const STATUS_CLASSES = {
+  pending: 'bg-gray-100 text-gray-700',
   confirmed: 'bg-yellow-100 text-yellow-800',
   delivering: 'bg-blue-100 text-blue-800',
   delivered: 'bg-green-100 text-green-800'
@@ -461,7 +463,7 @@ export default function AdminOrders() {
 
   const renderStatusTabs = () => (
     <div className="flex flex-wrap gap-2">
-      {['all', 'confirmed', 'delivering', 'delivered'].map((key) => (
+      {['all', 'pending', 'confirmed', 'delivering', 'delivered'].map((key) => (
         <button
           key={key}
           type="button"
@@ -494,7 +496,7 @@ export default function AdminOrders() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {['confirmed', 'delivering', 'delivered'].map((key) => (
+        {['pending', 'confirmed', 'delivering', 'delivered'].map((key) => (
           <div key={key} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
@@ -504,6 +506,7 @@ export default function AdminOrders() {
                 </p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                {key === 'pending' && <Clock className="w-5 h-5 text-gray-500" />}
                 {key === 'confirmed' && <Package className="w-5 h-5 text-yellow-600" />}
                 {key === 'delivering' && <Truck className="w-5 h-5 text-blue-600" />}
                 {key === 'delivered' && <CheckCircle className="w-5 h-5 text-green-600" />}

@@ -38,18 +38,26 @@ const createDefaultStats = () => ({
 });
 
 const ORDER_STATUS_LABELS = {
+  pending: 'En attente',
   confirmed: 'Commande confirmée',
   delivering: 'En cours de livraison',
   delivered: 'Commande terminée'
 };
 
 const ORDER_STATUS_STYLES = {
+  pending: 'border-gray-200 bg-gray-50 text-gray-700',
   confirmed: 'border-yellow-200 bg-yellow-50 text-yellow-800',
   delivering: 'border-blue-200 bg-blue-50 text-blue-800',
   delivered: 'border-green-200 bg-green-50 text-green-800'
 };
 
 const ORDER_FLOW = [
+  {
+    id: 'pending',
+    label: 'Commande en attente',
+    description: 'Votre commande est enregistrée et en attente de validation.',
+    icon: Clock
+  },
   {
     id: 'confirmed',
     label: 'Commande confirmée',
@@ -96,7 +104,11 @@ const OrderProgress = ({ status }) => {
                   {step.label}
                   {isCurrent && (
                     <span className="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
-                      En cours
+                      {step.id === 'pending'
+                        ? 'En attente'
+                        : step.id === 'delivered'
+                        ? 'Terminée'
+                        : 'En cours'}
                     </span>
                   )}
                   {!isCurrent && reached && (
@@ -215,6 +227,14 @@ export default function Profile() {
   const [heroBannerSaving, setHeroBannerSaving] = useState(false);
   const [heroBannerError, setHeroBannerError] = useState('');
   const [heroBannerSuccess, setHeroBannerSuccess] = useState('');
+  const [promoBannerFile, setPromoBannerFile] = useState(null);
+  const [promoBannerPreview, setPromoBannerPreview] = useState('');
+  const [promoBannerLink, setPromoBannerLink] = useState('');
+  const [promoBannerStartAt, setPromoBannerStartAt] = useState('');
+  const [promoBannerEndAt, setPromoBannerEndAt] = useState('');
+  const [promoBannerSaving, setPromoBannerSaving] = useState(false);
+  const [promoBannerError, setPromoBannerError] = useState('');
+  const [promoBannerSuccess, setPromoBannerSuccess] = useState('');
   const [shopHours, setShopHours] = useState(() => createDefaultShopHours());
   const [stats, setStats] = useState(() => createDefaultStats());
   const [statsLoading, setStatsLoading] = useState(false);
@@ -277,6 +297,13 @@ export default function Profile() {
     [filesBase]
   );
 
+  const formatDateInput = useCallback((value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toISOString().slice(0, 10);
+  }, []);
+
   useEffect(
     () => () => {
       if (shopLogoPreview && shopLogoPreview.startsWith('blob:')) {
@@ -294,8 +321,18 @@ export default function Profile() {
       if (appLogoMobilePreview && appLogoMobilePreview.startsWith('blob:')) {
         URL.revokeObjectURL(appLogoMobilePreview);
       }
+      if (promoBannerPreview && promoBannerPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(promoBannerPreview);
+      }
     },
-    [shopLogoPreview, shopBannerPreview, heroBannerPreview, appLogoDesktopPreview, appLogoMobilePreview]
+    [
+      shopLogoPreview,
+      shopBannerPreview,
+      heroBannerPreview,
+      appLogoDesktopPreview,
+      appLogoMobilePreview,
+      promoBannerPreview
+    ]
   );
 
   useEffect(() => {
@@ -330,6 +367,11 @@ export default function Profile() {
       setAppLogoDesktopFile(null);
       setAppLogoMobilePreview('');
       setAppLogoMobileFile(null);
+      setPromoBannerPreview('');
+      setPromoBannerFile(null);
+      setPromoBannerLink('');
+      setPromoBannerStartAt('');
+      setPromoBannerEndAt('');
       return;
     }
     let active = true;
@@ -362,8 +404,25 @@ export default function Profile() {
         setAppLogoMobileError(message);
       }
     };
+    const loadPromoBanner = async () => {
+      setPromoBannerError('');
+      try {
+        const { data } = await api.get('/settings/promo-banner');
+        if (!active) return;
+        setPromoBannerPreview(data?.promoBanner || '');
+        setPromoBannerLink(data?.promoBannerLink || '');
+        setPromoBannerStartAt(formatDateInput(data?.promoBannerStartAt));
+        setPromoBannerEndAt(formatDateInput(data?.promoBannerEndAt));
+      } catch (err) {
+        if (!active) return;
+        setPromoBannerError(
+          err.response?.data?.message || "Impossible de charger la bannière publicitaire."
+        );
+      }
+    };
     loadHeroBanner();
     loadAppLogo();
+    loadPromoBanner();
     return () => {
       active = false;
     };
@@ -561,6 +620,19 @@ export default function Profile() {
     }
   };
 
+  const onPromoBannerChange = (e) => {
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    setPromoBannerFile(file);
+    setPromoBannerError('');
+    setPromoBannerSuccess('');
+    if (file) {
+      if (promoBannerPreview && promoBannerPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(promoBannerPreview);
+      }
+      setPromoBannerPreview(URL.createObjectURL(file));
+    }
+  };
+
   const saveHeroBanner = async () => {
     if (!heroBannerFile) {
       setHeroBannerError('Veuillez sélectionner une image pour la bannière.');
@@ -585,6 +657,50 @@ export default function Profile() {
       showToast(message, { variant: 'error' });
     } finally {
       setHeroBannerSaving(false);
+    }
+  };
+
+  const savePromoBanner = async () => {
+    if (promoBannerStartAt && promoBannerEndAt) {
+      const startDate = new Date(promoBannerStartAt);
+      const endDate = new Date(promoBannerEndAt);
+      if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+        setPromoBannerError('Dates de bannière invalides.');
+        return;
+      }
+      if (endDate < startDate) {
+        setPromoBannerError('La date de fin doit être après la date de début.');
+        return;
+      }
+    }
+    setPromoBannerSaving(true);
+    setPromoBannerError('');
+    setPromoBannerSuccess('');
+    try {
+      const payload = new FormData();
+      if (promoBannerFile) {
+        payload.append('promoBanner', promoBannerFile);
+      }
+      payload.append('promoBannerLink', promoBannerLink.trim());
+      payload.append('promoBannerStartAt', promoBannerStartAt);
+      payload.append('promoBannerEndAt', promoBannerEndAt);
+      const { data } = await api.put('/admin/promo-banner', payload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setPromoBannerPreview(data?.promoBanner || promoBannerPreview);
+      setPromoBannerLink(data?.promoBannerLink || promoBannerLink);
+      setPromoBannerStartAt(formatDateInput(data?.promoBannerStartAt));
+      setPromoBannerEndAt(formatDateInput(data?.promoBannerEndAt));
+      setPromoBannerFile(null);
+      setPromoBannerSuccess('Bannière publicitaire mise à jour avec succès.');
+      showToast('Bannière publicitaire mise à jour.', { variant: 'success' });
+    } catch (err) {
+      const message =
+        err.response?.data?.message || "Impossible d'enregistrer la bannière publicitaire.";
+      setPromoBannerError(message);
+      showToast(message, { variant: 'error' });
+    } finally {
+      setPromoBannerSaving(false);
     }
   };
 
@@ -1485,6 +1601,91 @@ export default function Profile() {
               {user?.role === 'admin' && (
                 <div className="space-y-4 pt-6 border-t border-gray-100">
                   <div className="flex items-center space-x-3">
+                    <div className="w-2 h-6 bg-gradient-to-b from-pink-500 to-rose-500 rounded-full"></div>
+                    <h3 className="text-lg font-semibold text-gray-900">Bannière publicitaire</h3>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    Cette bannière apparaît sur la page d’accueil. Ajoutez un lien pour rediriger les visiteurs.
+                  </p>
+                  {promoBannerError && <p className="text-sm text-red-600">{promoBannerError}</p>}
+                  {promoBannerSuccess && (
+                    <p className="text-sm text-emerald-600">{promoBannerSuccess}</p>
+                  )}
+                  <div>
+                    <label className="text-xs font-semibold uppercase text-gray-500">Lien du banner</label>
+                    <input
+                      type="text"
+                      value={promoBannerLink}
+                      onChange={(e) => setPromoBannerLink(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="https://exemple.com/promo ou /products"
+                    />
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="text-xs font-semibold uppercase text-gray-500">Date de début</label>
+                      <input
+                        type="date"
+                        value={promoBannerStartAt}
+                        onChange={(e) => setPromoBannerStartAt(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold uppercase text-gray-500">Date de fin</label>
+                      <input
+                        type="date"
+                        value={promoBannerEndAt}
+                        onChange={(e) => setPromoBannerEndAt(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    En dehors de cette période, la bannière par défaut sera affichée.
+                  </p>
+                  <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group p-6">
+                    {promoBannerPreview ? (
+                      <div className="text-center w-full">
+                        <img
+                          src={promoBannerPreview}
+                          alt="Bannière publicitaire"
+                          className="h-28 w-full rounded-2xl object-cover mx-auto mb-3 border border-gray-200"
+                        />
+                        <p className="text-sm text-gray-600 mb-2">Bannière actuelle</p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">Aucune bannière définie pour le moment.</p>
+                    )}
+                    <label className="text-center cursor-pointer">
+                      <Upload className="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2 mx-auto" />
+                      <span className="text-sm text-gray-500">
+                        <span className="text-indigo-600 font-medium">Cliquez pour uploader</span>
+                        <br />
+                        <span className="text-xs">PNG, JPG - format large recommandé</span>
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={onPromoBannerChange}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={savePromoBanner}
+                    disabled={promoBannerSaving}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {promoBannerSaving ? 'Mise à jour…' : 'Enregistrer la bannière'}
+                  </button>
+                </div>
+              )}
+
+              {user?.role === 'admin' && (
+                <div className="space-y-4 pt-6 border-t border-gray-100">
+                  <div className="flex items-center space-x-3">
                     <div className="w-2 h-6 bg-gradient-to-b from-indigo-500 to-blue-500 rounded-full"></div>
                     <h3 className="text-lg font-semibold text-gray-900">Bannière du HERO (Accueil)</h3>
                   </div>
@@ -2178,6 +2379,7 @@ export default function Profile() {
                             <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border ${
                               ORDER_STATUS_STYLES[order.status] || 'border-gray-200 bg-gray-50 text-gray-600'
                             }`}>
+                              {order.status === 'pending' && <Clock size={14} />}
                               {order.status === 'confirmed' && <Package size={14} />}
                               {order.status === 'delivering' && <Truck size={14} />}
                               {order.status === 'delivered' && <CheckCircle size={14} />}

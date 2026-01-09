@@ -59,6 +59,7 @@ const DEFAULT_STATS = {
       remainingAmount: 0,
       totalItems: 0,
       byStatus: {
+        pending: { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0, items: 0 },
         confirmed: { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0, items: 0 },
         delivering: { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0, items: 0 },
         delivered: { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0, items: 0 }
@@ -68,6 +69,7 @@ const DEFAULT_STATS = {
       totalCount: 0,
       totalAmount: 0,
       byStatus: {
+        pending: { count: 0, totalAmount: 0 },
         confirmed: { count: 0, totalAmount: 0 },
         delivering: { count: 0, totalAmount: 0 },
         delivered: { count: 0, totalAmount: 0 }
@@ -568,6 +570,7 @@ export default function UserStats() {
                     Statuts
                   </p>
                   <div className="mt-1 space-y-1 text-xs text-gray-600">
+                    <p>En attente : {formatNumber(purchaseStats.byStatus?.pending?.count || 0)}</p>
                     <p>Confirmées : {formatNumber(purchaseStats.byStatus?.confirmed?.count || 0)}</p>
                     <p>En cours : {formatNumber(purchaseStats.byStatus?.delivering?.count || 0)}</p>
                     <p>Livrées : {formatNumber(purchaseStats.byStatus?.delivered?.count || 0)}</p>
@@ -609,7 +612,8 @@ export default function UserStats() {
                   <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
                     Statuts
                   </p>
-                  <div className="mt-1 grid grid-cols-3 gap-2 text-xs text-gray-600">
+                  <div className="mt-1 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-gray-600">
+                    <p>En attente : {formatNumber(salesStats.byStatus?.pending?.count || 0)}</p>
                     <p>Confirmées : {formatNumber(salesStats.byStatus?.confirmed?.count || 0)}</p>
                     <p>En cours : {formatNumber(salesStats.byStatus?.delivering?.count || 0)}</p>
                     <p>Livrées : {formatNumber(salesStats.byStatus?.delivered?.count || 0)}</p>
@@ -648,6 +652,14 @@ export default function UserStats() {
                   </button>
                 </div>
                 <div className="grid gap-3 text-sm">
+                  <div className="rounded-xl border border-gray-100 p-3">
+                    <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
+                      En attente
+                    </p>
+                    <p className="text-lg font-bold text-gray-900">
+                      {formatNumber(purchaseStats.byStatus?.pending?.items || 0)} produit(s)
+                    </p>
+                  </div>
                   <div className="rounded-xl border border-gray-100 p-3">
                     <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
                       Confirmées

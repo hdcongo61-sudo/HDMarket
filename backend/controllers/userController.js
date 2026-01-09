@@ -100,7 +100,7 @@ const collectUserStats = async (userId) => {
     throw err;
   }
 
-  const orderStatusKeys = ['confirmed', 'delivering', 'delivered'];
+  const orderStatusKeys = ['pending', 'confirmed', 'delivering', 'delivered'];
   const userObjectId = new mongoose.Types.ObjectId(userId);
 
   const [buyerAgg, sellerAgg] = await Promise.all([
@@ -836,7 +836,12 @@ export const getNotifications = asyncHandler(async (req, res) => {
       case 'order_created': {
         const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
         const city = metadata.deliveryCity ? ` pour ${metadata.deliveryCity}` : '';
-        const action = metadata.status === 'confirmed' ? 'confirmé' : 'créé';
+        let action = 'créé';
+        if (metadata.status === 'confirmed') {
+          action = 'confirmé';
+        } else if (metadata.status === 'pending') {
+          action = 'mis en attente';
+        }
         message = `${actorName} a ${action} votre commande ${orderId}${city}. Nous vous tiendrons informé des étapes de livraison.`;
         break;
       }

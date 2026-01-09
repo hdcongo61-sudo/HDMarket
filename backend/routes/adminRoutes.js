@@ -33,7 +33,7 @@ import {
   createChatTemplate,
   sendSupportMessage
 } from '../controllers/chatController.js';
-import { updateAppLogoDesktop, updateAppLogoMobile, updateHeroBanner } from '../controllers/siteSettingController.js';
+import { updateAppLogoDesktop, updateAppLogoMobile, updateHeroBanner, updatePromoBanner } from '../controllers/siteSettingController.js';
 import {
   listDeliveryGuysAdmin,
   createDeliveryGuyAdmin,
@@ -106,6 +106,7 @@ router.delete('/prohibited-words/:id', validate(schemas.idParam, 'params'), dele
 router.put('/hero-banner', upload.single('heroBanner'), updateHeroBanner);
 router.put('/app-logo/desktop', upload.single('appLogoDesktop'), updateAppLogoDesktop);
 router.put('/app-logo/mobile', upload.single('appLogoMobile'), updateAppLogoMobile);
+router.put('/promo-banner', upload.single('promoBanner'), updatePromoBanner);
 router.get('/delivery-guys', listDeliveryGuysAdmin);
 router.post(
   '/delivery-guys',
