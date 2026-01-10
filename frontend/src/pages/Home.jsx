@@ -255,7 +255,7 @@ const loadDiscountProducts = async () => {
       />
     );
     const wrapperClass =
-      "group block w-full overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm";
+      "group block w-full overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm aspect-[16/9] sm:aspect-[21/7] lg:aspect-[24/7]";
     if (bannerLink) {
       if (bannerLink.startsWith('/')) {
         return (

@@ -105,6 +105,10 @@ export default function UserStats() {
   const [orderedProducts, setOrderedProducts] = useState([]);
   const [orderedLoading, setOrderedLoading] = useState(false);
   const [orderedError, setOrderedError] = useState('');
+  const [showSalesModal, setShowSalesModal] = useState(false);
+  const [soldProducts, setSoldProducts] = useState([]);
+  const [soldLoading, setSoldLoading] = useState(false);
+  const [soldError, setSoldError] = useState('');
   const userShopLink = user?.accountType === 'shop' ? buildShopPath(user) : null;
 
   useEffect(() => {
@@ -283,6 +287,68 @@ export default function UserStats() {
       active = false;
     };
   }, [showOrdersModal]);
+
+  useEffect(() => {
+    if (!showSalesModal) return;
+    let active = true;
+
+    const loadSoldProducts = async () => {
+      setSoldLoading(true);
+      setSoldError('');
+      try {
+        const { data } = await api.get('/orders/seller?limit=100');
+        if (!active) return;
+        const orders = Array.isArray(data) ? data : data?.items || [];
+        const productMap = new Map();
+
+        orders.forEach((order) => {
+          const items = Array.isArray(order.items) ? order.items : [];
+          items.forEach((item) => {
+            const productId = item.product?._id || item.product || '';
+            const title = item.snapshot?.title || item.product?.title || 'Produit';
+            const key = productId || title;
+            const quantity = Number(item.quantity || 1);
+            const price = Number(item.snapshot?.price || item.product?.price || 0);
+            const lineTotal = price * quantity;
+            const existing = productMap.get(key);
+            if (existing) {
+              existing.quantity += quantity;
+              existing.totalEarned += lineTotal;
+              return;
+            }
+            productMap.set(key, {
+              key,
+              product: item.product || null,
+              title,
+              image: item.snapshot?.image || item.product?.images?.[0] || null,
+              quantity,
+              totalEarned: lineTotal
+            });
+          });
+        });
+
+        const list = Array.from(productMap.values()).sort(
+          (a, b) => b.totalEarned - a.totalEarned
+        );
+        setSoldProducts(list);
+      } catch (err) {
+        if (!active) return;
+        setSoldError(
+          err.response?.data?.message || 'Impossible de charger les produits vendus.'
+        );
+        setSoldProducts([]);
+      } finally {
+        if (active) {
+          setSoldLoading(false);
+        }
+      }
+    };
+
+    loadSoldProducts();
+    return () => {
+      active = false;
+    };
+  }, [showSalesModal]);
 
   const categoryMax = useMemo(() => {
     return stats.breakdown.categories.reduce((max, item) => Math.max(max, item.count || 0), 0) || 1;
@@ -589,7 +655,18 @@ export default function UserStats() {
                       : 'Aucune vente'}
                   </h2>
                 </div>
-                <span className="text-xs font-semibold text-emerald-600">Gains</span>
+                <div className="flex items-center gap-3">
+                  {salesStats.totalCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowSalesModal(true)}
+                      className="text-xs font-semibold text-emerald-600 hover:underline"
+                    >
+                      Produits vendus
+                    </button>
+                  )}
+                  <span className="text-xs font-semibold text-emerald-600">Gains</span>
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                 <div className="rounded-xl bg-emerald-50 p-3">
@@ -732,6 +809,101 @@ export default function UserStats() {
                       </div>
                     ) : (
                       <p className="text-sm text-gray-500 mt-2">Aucun produit commandé.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showSalesModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+              <div
+                className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+                onClick={() => setShowSalesModal(false)}
+              />
+              <div
+                className="relative w-full max-w-lg rounded-3xl bg-white shadow-xl border border-gray-100 p-6"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-gray-500">Produits vendus</p>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {salesStats.totalCount
+                        ? `${formatNumber(salesStats.totalCount)} commande(s)`
+                        : 'Aucune vente'}
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowSalesModal(false)}
+                    className="h-9 w-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    aria-label="Fermer"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="grid gap-3 text-sm">
+                  <div className="rounded-xl border border-gray-100 p-3">
+                    <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
+                      Statuts
+                    </p>
+                    <div className="mt-1 grid grid-cols-2 gap-2 text-xs text-gray-600">
+                      <p>En attente : {formatNumber(salesStats.byStatus?.pending?.count || 0)}</p>
+                      <p>Confirmées : {formatNumber(salesStats.byStatus?.confirmed?.count || 0)}</p>
+                      <p>En cours : {formatNumber(salesStats.byStatus?.delivering?.count || 0)}</p>
+                      <p>Livrées : {formatNumber(salesStats.byStatus?.delivered?.count || 0)}</p>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-gray-100 p-3">
+                    <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
+                      Produits vendus
+                    </p>
+                    {soldLoading ? (
+                      <p className="text-sm text-gray-500 mt-2">Chargement...</p>
+                    ) : soldError ? (
+                      <p className="text-sm text-red-600 mt-2">{soldError}</p>
+                    ) : soldProducts.length ? (
+                      <div className="mt-2 space-y-2">
+                        {soldProducts.map((product) => {
+                          const content = (
+                            <div className="flex items-center gap-3 rounded-xl border border-gray-100 p-2 hover:border-emerald-200 transition-colors">
+                              <div className="h-12 w-12 rounded-xl bg-gray-100 overflow-hidden">
+                                {product.image ? (
+                                  <img src={product.image} alt={product.title} className="h-full w-full object-cover" />
+                                ) : (
+                                  <div className="h-full w-full bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center text-emerald-600 text-sm font-semibold">
+                                    {product.title?.charAt(0) || 'P'}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-gray-900 truncate">{product.title}</p>
+                                <p className="text-xs text-gray-500">
+                                  {formatNumber(product.quantity)} article(s) · {formatCurrency(product.totalEarned)}
+                                </p>
+                              </div>
+                            </div>
+                          );
+
+                          if (!product.product) {
+                            return <div key={product.key}>{content}</div>;
+                          }
+
+                          return (
+                            <Link
+                              key={product.key}
+                              to={buildProductPath(product.product)}
+                              className="block"
+                            >
+                              {content}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 mt-2">Aucun produit vendu.</p>
                     )}
                   </div>
                 </div>

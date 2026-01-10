@@ -506,6 +506,7 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
 
   const { status, deliveryAddress, deliveryCity, trackingNote, deliveryGuyId } = req.body;
   const previousStatus = order.status;
+  let notifyPending = false;
   let notifyConfirmed = false;
   let notifyDelivering = false;
   let notifyDelivered = false;
@@ -517,6 +518,7 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
     }
     if (order.status !== status) {
       order.status = status;
+      notifyPending = status === 'pending';
       notifyConfirmed = status === 'confirmed';
       notifyDelivering = status === 'delivering';
       notifyDelivered = status === 'delivered';
@@ -562,6 +564,18 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
     deliveryCity: order.deliveryCity
   };
 
+  if (notifyPending && previousStatus !== 'pending') {
+    await createNotification({
+      userId: order.customer,
+      actorId: req.user.id,
+      type: 'order_created',
+      metadata: {
+        ...baseMetadata,
+        status: 'pending'
+      },
+      allowSelf: true
+    });
+  }
   if (notifyConfirmed && previousStatus !== 'confirmed') {
     await createNotification({
       userId: order.customer,
@@ -842,6 +856,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
 
   const { status } = req.body;
   const previousStatus = order.status;
+  let notifyPending = false;
   let notifyDelivering = false;
   if (!['pending', 'confirmed', 'delivering', 'delivered'].includes(status)) {
     return res.status(400).json({ message: 'Statut invalide.' });
@@ -849,6 +864,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
 
   if (order.status !== status) {
     order.status = status;
+    notifyPending = status === 'pending';
     notifyDelivering = status === 'delivering';
     if (status === 'delivering' && !order.shippedAt) {
       order.shippedAt = new Date();
@@ -861,6 +877,20 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   await order.save();
   const populated = await baseOrderQuery().findById(order._id);
 
+  if (notifyPending && previousStatus !== 'pending') {
+    await createNotification({
+      userId: order.customer,
+      actorId: userId,
+      type: 'order_created',
+      metadata: {
+        orderId: order._id,
+        deliveryAddress: order.deliveryAddress,
+        deliveryCity: order.deliveryCity,
+        status: 'pending'
+      },
+      allowSelf: true
+    });
+  }
   if (status === 'delivered') {
     await createNotification({
       userId: order.customer,
