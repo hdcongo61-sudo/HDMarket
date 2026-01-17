@@ -255,7 +255,7 @@ export default function ProductPreview() {
               </div>
 
               {relatedPicks.length ? (
-                <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
                   {relatedPicks.map((pick, index) => {
                     const ratingAverage = Number(pick.product?.ratingAverage || 0).toFixed(1);
                     const ratingCount = formatCount(pick.product?.ratingCount || 0);
@@ -264,23 +264,23 @@ export default function ProductPreview() {
                       <Link
                         key={`${pick.product?._id || 'product'}-${pick.image}-${index}`}
                         to={buildPreviewLink(pick.product)}
-                        className="flex gap-3 rounded-xl border border-gray-100 bg-white p-2 shadow-sm"
+                        className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
                       >
-                        <div className="h-24 w-24 overflow-hidden rounded-lg bg-gray-100">
+                        <div className="aspect-[4/5] w-full bg-gray-100">
                           <img
                             src={pick.image}
                             alt={pick.product?.title || 'Image liée'}
                             className="h-full w-full object-cover"
                           />
                         </div>
-                        <div className="flex-1 space-y-1">
-                          <p className="text-sm font-semibold text-gray-900 line-clamp-2">
+                        <div className="space-y-1 px-2 pb-3 pt-2">
+                          <p className="text-xs font-semibold text-gray-900 line-clamp-2">
                             {pick.product?.title}
                           </p>
-                          <p className="text-sm font-bold text-indigo-600">
+                          <p className="text-sm font-bold text-orange-600">
                             {formatCurrency(pick.product?.price)}
                           </p>
-                          <div className="flex items-center gap-3 text-xs text-gray-500">
+                          <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
                             <span className="inline-flex items-center gap-1">
                               <Star className="h-3 w-3 text-amber-400" />
                               {ratingAverage} ({ratingCount})

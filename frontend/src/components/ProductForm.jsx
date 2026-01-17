@@ -655,30 +655,31 @@ export default function ProductForm(props) {
           </div>
         )}
 
-        {/* Section Paiement */}
-        <div className="space-y-4">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="w-2 h-6 bg-gradient-to-b from-amber-500 to-orange-500 rounded-full"></div>
-            <h2 className="text-lg font-semibold text-gray-900">Validation de l'annonce</h2>
-          </div>
+        {!isEditing && (
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-2 h-6 bg-gradient-to-b from-amber-500 to-orange-500 rounded-full"></div>
+              <h2 className="text-lg font-semibold text-gray-900">Validation de l'annonce</h2>
+            </div>
 
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-3">
-            <div className="flex items-start space-x-3">
-              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div className="space-y-2">
-                <h3 className="font-semibold text-amber-800 text-sm">Commission de publication</h3>
-                <p className="text-amber-700 text-sm">
-                  Pour valider votre annonce, envoyez <span className="font-bold">{calculateCommission().toLocaleString()} FCFA</span> 
-                  (3% du prix) au numéro <span className="font-bold">{operatorPhones[form.operator]}</span> ({form.operator}).
-                </p>
-                <div className="flex items-center space-x-2 text-xs text-amber-600">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Votre annonce sera approuvée sous 24h après paiement</span>
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+              <div className="flex items-start space-x-3">
+                <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-amber-800 text-sm">Commission de publication</h3>
+                  <p className="text-amber-700 text-sm">
+                    Pour valider votre annonce, envoyez <span className="font-bold">{calculateCommission().toLocaleString()} FCFA</span> 
+                    (3% du prix) au numéro <span className="font-bold">{operatorPhones[form.operator]}</span> ({form.operator}).
+                  </p>
+                  <div className="flex items-center space-x-2 text-xs text-amber-600">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Votre annonce sera approuvée sous 24h après paiement</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Bouton de soumission */}
         <button

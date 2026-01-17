@@ -173,7 +173,7 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
         className="relative flex h-full w-full flex-col overflow-hidden"
       >
         {/* Image du produit */}
-        <div className="aspect-square bg-gray-100 flex items-center justify-center w-[300px] h-[300px] lg:w-[400px] lg:h-[400px] mx-auto">
+        <div className="aspect-square bg-gray-100 flex items-center justify-center w-full lg:w-[400px] lg:h-[400px] mx-auto">
           <img
             src={imageError ? "https://via.placeholder.com/400x400?text=HDMarket" : (p.images?.[0] || "https://via.placeholder.com/400x400")}
             alt={p.title}

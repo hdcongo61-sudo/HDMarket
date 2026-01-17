@@ -73,6 +73,7 @@ export default function ProductDetails() {
   const [certifyError, setCertifyError] = useState("");
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [modalZoom, setModalZoom] = useState(1);
+  const [isReviewsModalOpen, setIsReviewsModalOpen] = useState(false);
   const isMobileView = useIsMobile();
   const externalLinkProps = useDesktopExternalLink();
   const isAdminUser = user?.role === 'admin';
@@ -1519,7 +1520,7 @@ export default function ProductDetails() {
               <h3 className="text-sm font-semibold text-gray-900">Avis & notes</h3>
               <button
                 type="button"
-                onClick={() => setActiveTab('reviews')}
+                onClick={() => setIsReviewsModalOpen(true)}
                 className="text-xs font-semibold text-indigo-600"
               >
                 Voir tout
@@ -1561,6 +1562,60 @@ export default function ProductDetails() {
           <RelatedProducts relatedProducts={relatedProducts} product={product} />
         )}
       </main>
+
+      {isMobileView && isReviewsModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 px-4 py-6 sm:items-center"
+          onClick={() => setIsReviewsModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl bg-white p-4 shadow-xl max-h-[85vh] overflow-y-auto"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900">Avis & notes</h3>
+              <button
+                type="button"
+                onClick={() => setIsReviewsModalOpen(false)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200"
+                aria-label="Fermer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="mt-3 flex items-center gap-4 text-xs text-gray-600">
+              <div className="flex items-center gap-1">
+                <Star className="h-4 w-4 text-amber-400" />
+                <span className="font-semibold text-gray-900">{ratingAverage}</span>
+                <span>({ratingCount})</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <MessageCircle className="h-4 w-4" />
+                <span>{commentCount} commentaires</span>
+              </div>
+            </div>
+            <div className="mt-4 space-y-4">
+              {comments.length === 0 ? (
+                <p className="text-xs text-gray-500">Aucun avis pour le moment.</p>
+              ) : (
+                comments.map((comment) => (
+                  <CommentThread
+                    key={comment._id}
+                    comment={comment}
+                    user={user}
+                    replyingTo={replyingTo}
+                    setReplyingTo={setReplyingTo}
+                    replyText={replyText}
+                    setReplyText={setReplyText}
+                    onSubmitReply={handleSubmitReply}
+                    submittingComment={submittingComment}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {isImageModalOpen && (
         <div
