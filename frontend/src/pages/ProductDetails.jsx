@@ -15,12 +15,14 @@ import {
   AlertCircle,
   MapPin,
   Store,
+  ChevronLeft,
   ChevronRight,
   ZoomIn,
   Phone,
   Reply,
   CornerDownLeft,
-  Video
+  Video,
+  X
 } from "lucide-react";
 import AuthContext from "../context/AuthContext";
 import CartContext from "../context/CartContext";
@@ -28,14 +30,17 @@ import FavoriteContext from "../context/FavoriteContext";
 import api from "../services/api";
 import { buildWhatsappLink } from "../utils/whatsapp";
 import { buildProductShareUrl, buildProductPath, buildShopPath } from "../utils/links";
+import { recordProductView } from "../utils/recentViews";
 import VerifiedBadge from "../components/VerifiedBadge";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
+import useIsMobile from "../hooks/useIsMobile";
 
 export default function ProductDetails() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const authContextValue = useContext(AuthContext);
   const user = authContextValue?.user;
+  const updateUser = authContextValue?.updateUser;
   const { addItem, cart } = useContext(CartContext);
   const { toggleFavorite, isFavorite } = useContext(FavoriteContext);
   
@@ -45,10 +50,12 @@ export default function ProductDetails() {
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartFeedback, setCartFeedback] = useState("");
   const [selectedImage, setSelectedImage] = useState(0);
-  const [zoomImage, setZoomImage] = useState(false);
   const [whatsappClicks, setWhatsappClicks] = useState(0);
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [relatedProducts, setRelatedProducts] = useState([]);
+  const [shopGalleryProducts, setShopGalleryProducts] = useState([]);
+  const [isFollowingShop, setIsFollowingShop] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("description");
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
@@ -64,6 +71,10 @@ export default function ProductDetails() {
   const [isCertifying, setIsCertifying] = useState(false);
   const [certifyMessage, setCertifyMessage] = useState("");
   const [certifyError, setCertifyError] = useState("");
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [modalZoom, setModalZoom] = useState(1);
+  const isMobileView = useIsMobile();
+  const externalLinkProps = useDesktopExternalLink();
   const isAdminUser = user?.role === 'admin';
 
   const handleSessionExpired = useCallback(() => {
@@ -97,6 +108,49 @@ export default function ProductDetails() {
     product?.user &&
     user &&
     String(product.user._id || product.user.id) === String(user._id || user.id);
+
+  useEffect(() => {
+    if (!user || !product?.user?._id) {
+      setIsFollowingShop(false);
+      return;
+    }
+    const list = Array.isArray(user.followingShops) ? user.followingShops : [];
+    const following = list.some((entry) => String(entry) === String(product.user._id));
+    setIsFollowingShop(following);
+  }, [product?.user?._id, user?.followingShops, user]);
+
+  const handleFollowToggle = async () => {
+    if (!product?.user?._id) return;
+    if (!user) {
+      navigate('/login', { state: { from: `/product/${slug}` } });
+      return;
+    }
+    if (!isProfessional || !isShopVerified || isOwnProduct) return;
+    setFollowLoading(true);
+    try {
+      const response = isFollowingShop
+        ? await api.delete(`/users/shops/${product.user._id}/follow`)
+        : await api.post(`/users/shops/${product.user._id}/follow`);
+      setIsFollowingShop(!isFollowingShop);
+      if (typeof updateUser === 'function') {
+        const currentList = Array.isArray(user.followingShops) ? user.followingShops : [];
+        const normalized = currentList.map((entry) => String(entry));
+        const nextList = isFollowingShop
+          ? normalized.filter((entry) => entry !== String(product.user._id))
+          : Array.from(new Set([...normalized, String(product.user._id)]));
+        updateUser({ followingShops: nextList });
+      }
+      if (response?.data?.followersCount !== undefined) {
+        setProduct((prev) =>
+          prev ? { ...prev, user: { ...prev.user, followersCount: response.data.followersCount } } : prev
+        );
+      }
+    } catch (err) {
+      console.error('Erreur suivi boutique:', err);
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   // 🔄 CHARGEMENT DES DONNÉES
   useEffect(() => {
@@ -140,13 +194,16 @@ export default function ProductDetails() {
         setFavoriteCount(data.favoritesCount || 0);
         
         // Charger les commentaires et la note utilisateur
-        await Promise.all([
-          loadComments(
-            data.slug || data._id,
-            data.user?._id || data.user?.id
-          ),
-          loadUserRating(data._id)
-        ]);
+        if (data.status === 'approved') {
+          await Promise.all([
+            loadComments(data.slug || data._id),
+            loadUserRating(data._id)
+          ]);
+        } else {
+          setComments([]);
+          setUserRating(0);
+          setRating(0);
+        }
         
         // Charger les produits similaires
         if (data.category) {
@@ -183,38 +240,63 @@ export default function ProductDetails() {
   }, [slug]);
 
   useEffect(() => {
+    if (!product?._id) return;
+    recordProductView(product);
+  }, [product?._id, product?.category]);
+
+  useEffect(() => {
+    if (!isMobileView || !product || !isProfessional) {
+      setShopGalleryProducts([]);
+      return;
+    }
+
+    const shopId = product.user?.slug || product.user?._id;
+    if (!shopId) {
+      setShopGalleryProducts([]);
+      return;
+    }
+
+    let active = true;
+    const loadShopGallery = async () => {
+      try {
+        const { data } = await api.get(`/shops/${shopId}`, { params: { limit: 12 } });
+        const items = Array.isArray(data?.products) ? data.products : [];
+        const filtered = items.filter((item) => {
+          if (!item) return false;
+          if (product?._id && item._id && item._id === product._id) return false;
+          if (product?.slug && item.slug && item.slug === product.slug) return false;
+          return true;
+        });
+        if (active) setShopGalleryProducts(filtered);
+      } catch (error) {
+        if (active) setShopGalleryProducts([]);
+      }
+    };
+
+    loadShopGallery();
+    return () => {
+      active = false;
+    };
+  }, [isMobileView, isProfessional, product?._id, product?.slug, product?.user?._id, product?.user?.slug]);
+
+  useEffect(() => {
     setCertifyMessage("");
     setCertifyError("");
   }, [product?._id]);
 
   // 💬 CHARGEMENT DES COMMENTAIRES
-  const loadComments = async (identifier, ownerIdOverride) => {
+  const loadComments = async (identifier) => {
     const target = identifier || slug;
-    console.debug('loadComments target', { target, userId: user?.id });
     try {
       const { data } = await api.get(`/products/public/${target}/comments`);
       setComments(organizeComments(Array.isArray(data) ? data : []));
       return;
     } catch (error) {
-      const ownerId =
-        ownerIdOverride || product?.user?._id || product?.user?.id || undefined;
-      if (
-        error.response?.status === 404 &&
-        user &&
-        ownerId &&
-        String(ownerId) === String(user._id || user?.id)
-      ) {
-        console.debug('Retrying private comments after public 404', { target });
-        try {
-          const { data: privateData } = await api.get(`/products/${target}/comments`);
-          setComments(organizeComments(Array.isArray(privateData) ? privateData : []));
-          return;
-        } catch (innerError) {
-          console.error('Erreur chargement commentaires privés:', innerError);
-        }
-      } else {
-        console.error("Erreur chargement commentaires:", error);
+      if (error.response?.status === 404) {
+        setComments([]);
+        return;
       }
+      console.error("Erreur chargement commentaires:", error);
       setComments([]);
     }
   };
@@ -318,10 +400,7 @@ export default function ProductDetails() {
       const response = await api.post(`/products/${slug}/comments`, commentData);
       
       setNewComment("");
-      await loadComments(
-        product?.slug || product?._id,
-        product?.user?._id || product?.user?.id
-      );
+      await loadComments(product?.slug || product?._id);
       
     } catch (error) {
       if (error.response?.status === 401) {
@@ -360,10 +439,7 @@ export default function ProductDetails() {
       
       setReplyText("");
       setReplyingTo(null);
-      await loadComments(
-        product?.slug || product?._id,
-        product?.user?._id || product?.user?.id
-      );
+      await loadComments(product?.slug || product?._id);
       
     } catch (error) {
       if (error.response?.status === 401) {
@@ -512,6 +588,22 @@ export default function ProductDetails() {
   const daysSince = publishedDate ? Math.floor((Date.now() - publishedDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
   const isNewProduct = daysSince <= 7;
   const galleryImages = Array.isArray(product?.images) ? product.images.slice(0, 3) : [];
+  const shopGalleryImages = useMemo(() => {
+    const pool = [];
+    shopGalleryProducts.forEach((shopProduct) => {
+      const images = Array.isArray(shopProduct?.images) ? shopProduct.images : [];
+      images.forEach((src) => {
+        if (!src) return;
+        pool.push({ src, product: shopProduct });
+      });
+    });
+    const shuffled = [...pool];
+    for (let i = shuffled.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled.slice(0, 6);
+  }, [shopGalleryProducts]);
   const isShopVerified = Boolean(product?.user?.shopVerified);
   const shareLink = useMemo(() => {
     if (!product) return window.location.href;
@@ -529,6 +621,70 @@ export default function ProductDetails() {
   }, [galleryImages.length, selectedImage]);
 
   const displayedImage = galleryImages[selectedImage] || "https://via.placeholder.com/600x600";
+  const imageCursorClass = isMobileView ? "cursor-pointer" : "cursor-zoom-in";
+
+  const openImageModal = useCallback((index = selectedImage) => {
+    setSelectedImage(index);
+    setIsImageModalOpen(true);
+  }, [selectedImage]);
+
+  const closeImageModal = useCallback(() => {
+    setIsImageModalOpen(false);
+  }, []);
+
+  const handleImageClick = useCallback(() => {
+    openImageModal(selectedImage);
+  }, [openImageModal, selectedImage]);
+
+  const handleZoomButtonClick = useCallback((event) => {
+    event.stopPropagation();
+    openImageModal(selectedImage);
+  }, [openImageModal, selectedImage]);
+
+  const handleThumbnailClick = useCallback((index) => {
+    setSelectedImage(index);
+    openImageModal(index);
+  }, [openImageModal]);
+
+  const handleModalPrev = useCallback(() => {
+    if (!galleryImages.length) return;
+    setSelectedImage((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
+  }, [galleryImages.length]);
+
+  const handleModalNext = useCallback(() => {
+    if (!galleryImages.length) return;
+    setSelectedImage((prev) => (prev + 1) % galleryImages.length);
+  }, [galleryImages.length]);
+
+  useEffect(() => {
+    if (!isImageModalOpen) return;
+    setModalZoom(1);
+  }, [isImageModalOpen, selectedImage]);
+
+  const handleModalWheel = useCallback(
+    (event) => {
+      if (isMobileView) return;
+      event.preventDefault();
+      const direction = event.deltaY < 0 ? 1 : -1;
+      const step = event.ctrlKey ? 0.1 : 0.2;
+      setModalZoom((prev) => {
+        const next = prev + direction * step;
+        return Math.max(1, Math.min(3, Number(next.toFixed(2))));
+      });
+    },
+    [isMobileView]
+  );
+
+  useEffect(() => {
+    if (!isImageModalOpen || typeof document === "undefined") return undefined;
+    const { style } = document.body;
+    const previousOverflow = style.overflow;
+    style.overflow = "hidden";
+    return () => {
+      style.overflow = previousOverflow;
+    };
+  }, [isImageModalOpen]);
+
 
   // 🏗️ AFFICHAGE DU CHARGEMENT
   if (loading) {
@@ -591,7 +747,7 @@ export default function ProductDetails() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 🎯 NAVIGATION */}
-      <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
+      <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10 sm:z-40">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
@@ -703,20 +859,22 @@ export default function ProductDetails() {
           <div className="space-y-4">
             <div className="relative">
               <div 
-                className={`relative aspect-square bg-white rounded-2xl border border-gray-200 overflow-hidden cursor-${zoomImage ? 'zoom-out' : 'zoom-in'}`}
-                onClick={() => setZoomImage(!zoomImage)}
+                className={`relative aspect-square bg-white rounded-2xl border border-gray-200 overflow-hidden ${imageCursorClass}`}
+                onClick={handleImageClick}
               >
                 <img
                   src={displayedImage}
                   alt={product?.title || 'Produit'}
-                  className={`w-full h-full object-cover transition-transform duration-500 ${
-                    zoomImage ? 'scale-150' : 'scale-100'
-                  }`}
+                  className="w-full h-full object-cover transition-transform duration-500"
                 />
                 
                 {/* BOUTON FAVORI EN HAUT À DROITE */}
                 <button
-                  onClick={handleFavoriteToggle}
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleFavoriteToggle();
+                  }}
                   className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-110 group"
                 >
                   <Heart
@@ -754,7 +912,11 @@ export default function ProductDetails() {
                   )}
                 </div>
 
-                <button className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-lg hover:shadow-xl transition-all">
+                <button
+                  type="button"
+                  onClick={handleZoomButtonClick}
+                  className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-lg hover:shadow-xl transition-all"
+                >
                   <ZoomIn size={20} className="text-gray-700" />
                 </button>
               </div>
@@ -765,7 +927,8 @@ export default function ProductDetails() {
                 {galleryImages.map((image, index) => (
                   <button
                     key={index}
-                    onClick={() => setSelectedImage(index)}
+                    type="button"
+                    onClick={() => handleThumbnailClick(index)}
                     className={`aspect-square rounded-xl border-2 overflow-hidden transition-all ${
                       selectedImage === index 
                         ? 'border-indigo-500 ring-2 ring-indigo-200' 
@@ -950,13 +1113,29 @@ export default function ProductDetails() {
                   
                   {/* LIEN BOUTIQUE POUR LES PROFESSIONNELS */}
                   {isProfessional && shopIdentifier && (
-                    <Link
-                      to={buildShopPath(shopIdentifier)}
-                      className="flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors text-sm font-semibold"
-                    >
-                      <Store size={16} />
-                      <span>Voir la boutique</span>
-                    </Link>
+                    <div className="flex w-full flex-col gap-2 sm:w-auto">
+                      <Link
+                        to={buildShopPath(shopIdentifier)}
+                        className="flex w-full items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors text-sm font-semibold"
+                      >
+                        <Store size={16} />
+                        <span>Voir la boutique</span>
+                      </Link>
+                      {!isOwnProduct && (
+                        <button
+                          type="button"
+                          onClick={handleFollowToggle}
+                          disabled={followLoading || !isShopVerified}
+                          className={`flex w-full items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                            isFollowingShop
+                              ? 'border border-indigo-200 bg-white text-indigo-600 hover:bg-indigo-50'
+                              : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                          } ${(!isShopVerified || followLoading) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        >
+                          {followLoading ? 'Traitement…' : isFollowingShop ? 'Se désabonner' : 'Suivre la boutique ✨'}
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
                 {showPhone && (
@@ -1242,11 +1421,200 @@ export default function ProductDetails() {
           </div>
         </div>
 
+        {product?.pdf && (
+          <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-4 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-base font-semibold text-gray-900">Fiche produit (JPEG)</h3>
+            </div>
+            <div className="mt-4 relative overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
+              <img
+                src={product.pdf}
+                alt={`Fiche produit ${product.title || ''}`}
+                className="w-full h-auto object-contain bg-white"
+                loading="lazy"
+              />
+            </div>
+          </section>
+        )}
+
+        {isMobileView && isProfessional && (
+          <section className="mt-8 rounded-2xl border border-gray-200 bg-white p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-900">Photos de la boutique</h3>
+              <span className="text-xs text-gray-500">Sélection aléatoire</span>
+            </div>
+            {shopGalleryImages.length > 0 ? (
+              <div className="grid grid-cols-3 gap-2">
+                {shopGalleryImages.map((image) => (
+                  <Link
+                    key={`${image.product?._id || 'shop'}-${image.src}`}
+                    to={buildProductPath(image.product)}
+                    {...externalLinkProps}
+                    className="aspect-square overflow-hidden rounded-xl border border-gray-100"
+                  >
+                    <img
+                      src={image.src}
+                      alt={image.product?.title || 'Photo boutique'}
+                      className="w-full h-full object-cover"
+                    />
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div
+                    key={`shop-photo-skeleton-${index}`}
+                    className="aspect-square rounded-xl border border-gray-100 bg-gray-100 animate-pulse"
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {isMobileView && relatedProducts.length > 0 && (
+          <section className="mt-8 rounded-2xl border border-gray-200 bg-white p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-900">Produits similaires</h3>
+              <Link
+                to={`/products?category=${product.category}`}
+                className="text-xs font-semibold text-indigo-600"
+              >
+                Voir tout
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {relatedProducts.map((relatedProduct) => (
+                <Link
+                  key={relatedProduct._id}
+                  to={buildProductPath(relatedProduct)}
+                  {...externalLinkProps}
+                  className="overflow-hidden rounded-xl border border-gray-100 bg-gray-50 transition hover:shadow-sm"
+                >
+                  <div className="aspect-square bg-gray-100">
+                    <img
+                      src={relatedProduct.images?.[0] || "https://via.placeholder.com/300x300"}
+                      alt={relatedProduct.title}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="p-2">
+                    <p className="text-xs font-semibold text-gray-900 line-clamp-2">
+                      {relatedProduct.title}
+                    </p>
+                    <p className="text-sm font-bold text-indigo-600 mt-1">
+                      {Number(relatedProduct.price).toLocaleString()} FCFA
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {isMobileView && (
+          <section className="mt-8 rounded-2xl border border-gray-200 bg-white p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-900">Avis & notes</h3>
+              <button
+                type="button"
+                onClick={() => setActiveTab('reviews')}
+                className="text-xs font-semibold text-indigo-600"
+              >
+                Voir tout
+              </button>
+            </div>
+            <div className="flex items-center gap-4 text-xs text-gray-600">
+              <div className="flex items-center gap-1">
+                <Star className="h-4 w-4 text-amber-400" />
+                <span className="font-semibold text-gray-900">{ratingAverage}</span>
+                <span>({ratingCount})</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <MessageCircle className="h-4 w-4" />
+                <span>{commentCount} commentaires</span>
+              </div>
+            </div>
+            {comments.length > 0 ? (
+              <div className="mt-4 space-y-3">
+                {comments.slice(0, 2).map((comment) => (
+                  <div key={comment._id} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <span className="font-semibold text-gray-800">
+                        {comment.user?.name || 'Utilisateur'}
+                      </span>
+                      <span>{new Date(comment.createdAt).toLocaleDateString('fr-FR')}</span>
+                    </div>
+                    <p className="mt-2 text-sm text-gray-700 line-clamp-3">{comment.message}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 text-xs text-gray-500">Aucun avis pour le moment.</p>
+            )}
+          </section>
+        )}
+
         {/* 🎯 PRODUITS SIMILAIRES */}
-        {relatedProducts.length > 0 && (
+        {!isMobileView && relatedProducts.length > 0 && (
           <RelatedProducts relatedProducts={relatedProducts} product={product} />
         )}
       </main>
+
+      {isImageModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 py-6"
+          onClick={closeImageModal}
+        >
+          <div
+            className="relative w-full max-w-3xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div
+              className="max-h-[80vh] overflow-auto rounded-2xl bg-black"
+              onWheel={handleModalWheel}
+            >
+              <img
+                src={displayedImage}
+                alt={product?.title || 'Produit'}
+                className="block max-w-none object-contain"
+                style={{ width: `${modalZoom * 100}%`, height: 'auto' }}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={closeImageModal}
+              className="absolute right-3 top-3 rounded-full bg-white/90 p-2 text-gray-700 shadow"
+            >
+              <X size={18} />
+            </button>
+            {galleryImages.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleModalPrev}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-2 text-gray-700 shadow"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleModalNext}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-2 text-gray-700 shadow"
+                >
+                  <ChevronRight size={20} />
+                </button>
+                <div className="mt-3 flex items-center justify-center gap-2 text-xs text-white/80">
+                  <span>{selectedImage + 1}</span>
+                  <span>/</span>
+                  <span>{galleryImages.length}</span>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

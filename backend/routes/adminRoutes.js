@@ -106,7 +106,14 @@ router.delete('/prohibited-words/:id', validate(schemas.idParam, 'params'), dele
 router.put('/hero-banner', upload.single('heroBanner'), updateHeroBanner);
 router.put('/app-logo/desktop', upload.single('appLogoDesktop'), updateAppLogoDesktop);
 router.put('/app-logo/mobile', upload.single('appLogoMobile'), updateAppLogoMobile);
-router.put('/promo-banner', upload.single('promoBanner'), updatePromoBanner);
+router.put(
+  '/promo-banner',
+  upload.fields([
+    { name: 'promoBanner', maxCount: 1 },
+    { name: 'promoBannerMobile', maxCount: 1 }
+  ]),
+  updatePromoBanner
+);
 router.get('/delivery-guys', listDeliveryGuysAdmin);
 router.post(
   '/delivery-guys',

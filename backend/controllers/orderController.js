@@ -7,6 +7,7 @@ import DeliveryGuy from '../models/deliveryGuyModel.js';
 import Cart from '../models/cartModel.js';
 import { createNotification } from '../utils/notificationService.js';
 import { isTwilioMessagingConfigured, sendSms } from '../utils/twilioMessaging.js';
+import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
 
 const ORDER_STATUS = ['pending', 'confirmed', 'delivering', 'delivered'];
 
@@ -68,11 +69,35 @@ const baseOrderQuery = () =>
     .populate('customer', 'name email phone address city')
     .populate({
       path: 'items.product',
-      select: 'title price images status user',
+      select: 'title price images status user slug',
       populate: { path: 'user', select: 'name shopName phone' }
     })
     .populate('deliveryGuy', 'name phone active')
     .populate('createdBy', 'name email');
+
+const collectOrderProductRefs = (orders = []) => {
+  const list = Array.isArray(orders) ? orders : [orders];
+  const seen = new Set();
+  const products = [];
+  list.forEach((order) => {
+    const items = Array.isArray(order?.items) ? order.items : [];
+    items.forEach((item) => {
+      const product = item?.product;
+      if (!product || typeof product !== 'object') return;
+      const id = String(product._id || '');
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      products.push(product);
+    });
+  });
+  return products;
+};
+
+const ensureOrderProductSlugs = async (orders = []) => {
+  const productRefs = collectOrderProductRefs(orders);
+  if (!productRefs.length) return;
+  await ensureModelSlugsForItems({ Model: Product, items: productRefs, sourceValueKey: 'title' });
+};
 
 const ensureObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -207,6 +232,7 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
   });
 
   const populated = await baseOrderQuery().findById(order._id);
+  await ensureOrderProductSlugs([populated]);
 
   await createNotification({
     userId: customer._id,
@@ -387,6 +413,7 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
   const populated = await baseOrderQuery().find({
     _id: { $in: createdOrders.map((order) => order._id) }
   });
+  await ensureOrderProductSlugs(populated);
 
   await Promise.all(
     createdOrders.map((order, index) => {
@@ -481,6 +508,7 @@ export const adminListOrders = asyncHandler(async (req, res) => {
       .limit(pageSize),
     Order.countDocuments(filter)
   ]);
+  await ensureOrderProductSlugs(orders);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -588,6 +616,18 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
       allowSelf: true
     });
   }
+  if (notifyDelivering && previousStatus !== 'delivering') {
+    await createNotification({
+      userId: order.customer,
+      actorId: req.user.id,
+      type: 'order_delivering',
+      metadata: {
+        ...baseMetadata,
+        status: 'delivering'
+      },
+      allowSelf: true
+    });
+  }
   if (notifyDelivered && (previousStatus !== 'delivered' || deliveredTimestampAdded)) {
     await createNotification({
       userId: order.customer,
@@ -612,6 +652,7 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
   }
 
   const populated = await baseOrderQuery().findById(order._id);
+  await ensureOrderProductSlugs([populated]);
   res.json(buildOrderResponse(populated));
 });
 
@@ -722,7 +763,7 @@ export const adminSearchProducts = asyncHandler(async (req, res) => {
   const products = await Product.find(filter)
     .sort({ createdAt: -1 })
     .limit(20)
-    .select('title price images user status')
+    .select('title price images user status slug')
     .populate('user', 'shopName name slug');
   res.json(products);
 });
@@ -748,6 +789,7 @@ export const userListOrders = asyncHandler(async (req, res) => {
       .limit(pageSize),
     Order.countDocuments(filter)
   ]);
+  await ensureOrderProductSlugs(orders);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -790,6 +832,7 @@ export const userUpdateOrderStatus = asyncHandler(async (req, res) => {
 
   await order.save();
   const populated = await baseOrderQuery().findById(order._id);
+  await ensureOrderProductSlugs([populated]);
   res.json(buildOrderResponse(populated));
 });
 
@@ -814,6 +857,7 @@ export const sellerListOrders = asyncHandler(async (req, res) => {
       .limit(pageSize),
     Order.countDocuments(filter)
   ]);
+  await ensureOrderProductSlugs(orders);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const items = orders
@@ -857,6 +901,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   const { status } = req.body;
   const previousStatus = order.status;
   let notifyPending = false;
+  let notifyConfirmed = false;
   let notifyDelivering = false;
   if (!['pending', 'confirmed', 'delivering', 'delivered'].includes(status)) {
     return res.status(400).json({ message: 'Statut invalide.' });
@@ -865,6 +910,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   if (order.status !== status) {
     order.status = status;
     notifyPending = status === 'pending';
+    notifyConfirmed = status === 'confirmed';
     notifyDelivering = status === 'delivering';
     if (status === 'delivering' && !order.shippedAt) {
       order.shippedAt = new Date();
@@ -876,6 +922,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
 
   await order.save();
   const populated = await baseOrderQuery().findById(order._id);
+  await ensureOrderProductSlugs([populated]);
 
   if (notifyPending && previousStatus !== 'pending') {
     await createNotification({
@@ -887,6 +934,20 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
         deliveryAddress: order.deliveryAddress,
         deliveryCity: order.deliveryCity,
         status: 'pending'
+      },
+      allowSelf: true
+    });
+  }
+  if (notifyConfirmed && previousStatus !== 'confirmed') {
+    await createNotification({
+      userId: order.customer,
+      actorId: userId,
+      type: 'order_created',
+      metadata: {
+        orderId: order._id,
+        deliveryAddress: order.deliveryAddress,
+        deliveryCity: order.deliveryCity,
+        status: 'confirmed'
       },
       allowSelf: true
     });
@@ -912,6 +973,21 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
       phone: customer?.phone,
       message: buildOrderDeliveringMessage(order),
       context: `order_delivering:${order._id}`
+    });
+  }
+
+  if (notifyDelivering && previousStatus !== 'delivering') {
+    await createNotification({
+      userId: order.customer,
+      actorId: userId,
+      type: 'order_delivering',
+      metadata: {
+        orderId: order._id,
+        deliveryAddress: order.deliveryAddress,
+        deliveryCity: order.deliveryCity,
+        status: 'delivering'
+      },
+      allowSelf: true
     });
   }
 

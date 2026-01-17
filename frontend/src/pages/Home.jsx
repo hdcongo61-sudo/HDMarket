@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import ProductCard from "../components/ProductCard";
+import MobileSplash from "../components/MobileSplash";
 import categoryGroups from "../data/categories";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination, Autoplay } from "swiper/modules";
@@ -46,19 +47,32 @@ export default function Home() {
   const [highlightLoading, setHighlightLoading] = useState(false);
   const [discountProducts, setDiscountProducts] = useState([]);
   const [discountLoading, setDiscountLoading] = useState(false);
+  const [totalProducts, setTotalProducts] = useState(0);
   const [verifiedShops, setVerifiedShops] = useState([]);
   const [verifiedLoading, setVerifiedLoading] = useState(false);
   const [heroBanner, setHeroBanner] = useState('');
   const [promoBanner, setPromoBanner] = useState('');
+  const [promoBannerMobile, setPromoBannerMobile] = useState('');
   const [promoBannerLink, setPromoBannerLink] = useState('');
   const [promoBannerStartAt, setPromoBannerStartAt] = useState('');
   const [promoBannerEndAt, setPromoBannerEndAt] = useState('');
   const [promoNow, setPromoNow] = useState(() => new Date());
+  const [appLogoMobile, setAppLogoMobile] = useState('');
+  const [splashShown, setSplashShown] = useState(false);
 const cityList = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
 const externalLinkProps = useDesktopExternalLink();
 const formatCurrency = (value) =>
   `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
+const formatCount = (value) =>
+  Number(value || 0).toLocaleString('fr-FR');
   const defaultPromoBanner = '/promo-default.svg';
+  const buildHomeProductLink = useCallback(
+    (product) => {
+      if (!product?.slug) return buildProductPath(product);
+      return isMobileView ? `/product-preview/${product.slug}` : buildProductPath(product);
+    },
+    [isMobileView]
+  );
   const parsePromoDate = useCallback((value) => {
     if (!value) return null;
     const parsed = new Date(value);
@@ -74,6 +88,7 @@ const formatCurrency = (value) =>
     if (endDate && promoNow > endDate) return false;
     return true;
   }, [parsePromoDate, promoBanner, promoBannerEndAt, promoBannerStartAt, promoNow]);
+  const showMobileSplash = isMobileView && !splashShown && loading && page === 1;
 
   // === PARAMÈTRES DE RECHERCHE ===
   const params = useMemo(() => {
@@ -89,9 +104,13 @@ const loadProducts = async () => {
       const { data } = await api.get("/products/public", { params });
       const fetchedItems = Array.isArray(data) ? data : data.items || [];
       const pages = Array.isArray(data) ? 1 : data.pagination?.pages || 1;
+      const total = Array.isArray(data)
+        ? fetchedItems.length
+        : Number(data?.pagination?.total) || fetchedItems.length;
       
       setItems((prev) => (isMobileView && page > 1 ? [...prev, ...fetchedItems] : fetchedItems));
       setTotalPages(pages);
+      setTotalProducts(total);
     } catch (error) {
       console.error("Erreur chargement produits:", error);
     } finally {
@@ -144,17 +163,37 @@ const loadProducts = async () => {
 
   useEffect(() => {
     let active = true;
+    const loadAppLogo = async () => {
+      try {
+        const { data } = await api.get('/settings/app-logo');
+        if (!active) return;
+        setAppLogoMobile(data?.appLogoMobile || data?.appLogoDesktop || '');
+      } catch (error) {
+        if (!active) return;
+        setAppLogoMobile('');
+      }
+    };
+    loadAppLogo();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
     const loadPromoBanner = async () => {
       try {
         const { data } = await api.get('/settings/promo-banner');
         if (!active) return;
         setPromoBanner(data?.promoBanner || '');
+        setPromoBannerMobile(data?.promoBannerMobile || '');
         setPromoBannerLink(data?.promoBannerLink || '');
         setPromoBannerStartAt(data?.promoBannerStartAt || '');
         setPromoBannerEndAt(data?.promoBannerEndAt || '');
       } catch (error) {
         if (!active) return;
         setPromoBanner('');
+        setPromoBannerMobile('');
         setPromoBannerLink('');
         setPromoBannerStartAt('');
         setPromoBannerEndAt('');
@@ -165,6 +204,12 @@ const loadProducts = async () => {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!loading && page === 1) {
+      setSplashShown(true);
+    }
+  }, [loading, page]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -244,7 +289,8 @@ const loadDiscountProducts = async () => {
 
   const renderPromoBanner = () => {
     if (!promoBanner) return null;
-    const bannerSrc = isPromoActive ? promoBanner : defaultPromoBanner;
+    const activeBanner = isMobileView && promoBannerMobile ? promoBannerMobile : promoBanner;
+    const bannerSrc = isPromoActive ? activeBanner : defaultPromoBanner;
     const bannerLink = isPromoActive ? promoBannerLink : '/products';
     const bannerImage = (
       <img
@@ -406,6 +452,7 @@ const loadDiscountProducts = async () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <MobileSplash visible={showMobileSplash} logoSrc={appLogoMobile} label="HDMarket" />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-6">
         {/* 🚀 HERO SECTION MOBILE-FIRST */}
         <section className="relative bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800 rounded-2xl overflow-hidden shadow-lg">
@@ -434,7 +481,7 @@ const loadDiscountProducts = async () => {
             </h1>
 
             <p className="text-sm text-indigo-100 mb-6 max-w-md leading-relaxed">
-              Découvrez des milliers de produits vérifiés. Vendez et achetez en toute confiance.
+              Découvrez {formatCount(totalProducts)} produits vérifiés. Vendez et achetez en toute confiance.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-start items-start">
@@ -668,7 +715,7 @@ const loadDiscountProducts = async () => {
 
                   {/* LIEN DIRECT VERS LE PRODUIT */}
                   <Link
-                    to={buildProductPath(product)}
+                    to={buildHomeProductLink(product)}
                     {...externalLinkProps}
                     className="block w-full text-center bg-indigo-600 text-white text-xs font-semibold py-2 rounded-lg hover:bg-indigo-700 transition-colors"
                   >
@@ -763,7 +810,7 @@ const loadDiscountProducts = async () => {
 
                   {/* LIEN DIRECT VERS LE PRODUIT */}
                   <Link
-                    to={buildProductPath(product)}
+                    to={buildHomeProductLink(product)}
                     {...externalLinkProps}
                     className="block w-full text-center bg-green-600 text-white text-xs font-semibold py-2 rounded-lg hover:bg-green-700 transition-colors"
                   >
@@ -825,7 +872,7 @@ const loadDiscountProducts = async () => {
                   <SwiperSlide key={`city-${city}-${product._id}-${index}`}>
                     <div className="bg-white rounded-2xl border border-gray-100 p-3 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col gap-2 h-full">
                       <Link
-                        to={buildProductPath(product)}
+                        to={buildHomeProductLink(product)}
                         {...externalLinkProps}
                         className="relative block"
                       >
@@ -935,7 +982,7 @@ const loadDiscountProducts = async () => {
                 {highlights.favorites.slice(0, 3).map((product, index) => (
                   <Link
                     key={`favorite-${product._id}-${index}`}
-                    to={buildProductPath(product)}
+                    to={buildHomeProductLink(product)}
                     {...externalLinkProps}
                     className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-50 transition-colors group"
                   >
@@ -1012,7 +1059,7 @@ const loadDiscountProducts = async () => {
                 {highlights.topRated.slice(0, 3).map((product, index) => (
                   <Link
                     key={`top-rated-${product._id}-${index}`}
-                    to={buildProductPath(product)}
+                    to={buildHomeProductLink(product)}
                     {...externalLinkProps}
                     className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-50 transition-colors group"
                   >
@@ -1094,7 +1141,7 @@ const loadDiscountProducts = async () => {
                 {highlights.newProducts.slice(0, 3).map((product, index) => (
                   <Link
                     key={`new-${product._id}-${index}`}
-                    to={buildProductPath(product)}
+                    to={buildHomeProductLink(product)}
                     {...externalLinkProps}
                     className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-50 transition-colors group"
                   >
@@ -1160,7 +1207,7 @@ const loadDiscountProducts = async () => {
                 {highlights.usedProducts.slice(0, 3).map((product, index) => (
                   <Link
                     key={`used-${product._id}-${index}`}
-                    to={buildProductPath(product)}
+                    to={buildHomeProductLink(product)}
                     {...externalLinkProps}
                     className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-50 transition-colors group"
                   >
@@ -1335,7 +1382,7 @@ const loadDiscountProducts = async () => {
               {certifiedProducts.map((product, index) => (
                 <Link
                   key={`certified-${product._id}-${index}`}
-                  to={buildProductPath(product)}
+                  to={buildHomeProductLink(product)}
                   className="rounded-2xl border border-gray-100 bg-white p-3 text-xs text-gray-700 hover:border-indigo-200 hover:shadow-lg transition"
                 >
                   <div className="flex items-start gap-2">
@@ -1377,7 +1424,11 @@ const loadDiscountProducts = async () => {
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {items.map((product, index) => (
-                  <ProductCard key={`product-${product._id}-${index}`} p={product} />
+                  <ProductCard
+                    key={`product-${product._id}-${index}`}
+                    p={product}
+                    productLink={buildHomeProductLink(product)}
+                  />
                 ))}
               </div>
 

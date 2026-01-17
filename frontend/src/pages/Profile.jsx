@@ -229,6 +229,8 @@ export default function Profile() {
   const [heroBannerSuccess, setHeroBannerSuccess] = useState('');
   const [promoBannerFile, setPromoBannerFile] = useState(null);
   const [promoBannerPreview, setPromoBannerPreview] = useState('');
+  const [promoBannerMobileFile, setPromoBannerMobileFile] = useState(null);
+  const [promoBannerMobilePreview, setPromoBannerMobilePreview] = useState('');
   const [promoBannerLink, setPromoBannerLink] = useState('');
   const [promoBannerStartAt, setPromoBannerStartAt] = useState('');
   const [promoBannerEndAt, setPromoBannerEndAt] = useState('');
@@ -281,7 +283,7 @@ export default function Profile() {
   };
 
   const filesBase = useMemo(() => {
-    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5010/api';
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
     return apiBase.replace(/\/api\/?$/, '');
   }, []);
 
@@ -324,6 +326,9 @@ export default function Profile() {
       if (promoBannerPreview && promoBannerPreview.startsWith('blob:')) {
         URL.revokeObjectURL(promoBannerPreview);
       }
+      if (promoBannerMobilePreview && promoBannerMobilePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(promoBannerMobilePreview);
+      }
     },
     [
       shopLogoPreview,
@@ -331,7 +336,8 @@ export default function Profile() {
       heroBannerPreview,
       appLogoDesktopPreview,
       appLogoMobilePreview,
-      promoBannerPreview
+      promoBannerPreview,
+      promoBannerMobilePreview
     ]
   );
 
@@ -369,6 +375,8 @@ export default function Profile() {
       setAppLogoMobileFile(null);
       setPromoBannerPreview('');
       setPromoBannerFile(null);
+      setPromoBannerMobilePreview('');
+      setPromoBannerMobileFile(null);
       setPromoBannerLink('');
       setPromoBannerStartAt('');
       setPromoBannerEndAt('');
@@ -410,6 +418,7 @@ export default function Profile() {
         const { data } = await api.get('/settings/promo-banner');
         if (!active) return;
         setPromoBannerPreview(data?.promoBanner || '');
+        setPromoBannerMobilePreview(data?.promoBannerMobile || '');
         setPromoBannerLink(data?.promoBannerLink || '');
         setPromoBannerStartAt(formatDateInput(data?.promoBannerStartAt));
         setPromoBannerEndAt(formatDateInput(data?.promoBannerEndAt));
@@ -633,6 +642,19 @@ export default function Profile() {
     }
   };
 
+  const onPromoBannerMobileChange = (e) => {
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    setPromoBannerMobileFile(file);
+    setPromoBannerError('');
+    setPromoBannerSuccess('');
+    if (file) {
+      if (promoBannerMobilePreview && promoBannerMobilePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(promoBannerMobilePreview);
+      }
+      setPromoBannerMobilePreview(URL.createObjectURL(file));
+    }
+  };
+
   const saveHeroBanner = async () => {
     if (!heroBannerFile) {
       setHeroBannerError('Veuillez sélectionner une image pour la bannière.');
@@ -681,6 +703,9 @@ export default function Profile() {
       if (promoBannerFile) {
         payload.append('promoBanner', promoBannerFile);
       }
+      if (promoBannerMobileFile) {
+        payload.append('promoBannerMobile', promoBannerMobileFile);
+      }
       payload.append('promoBannerLink', promoBannerLink.trim());
       payload.append('promoBannerStartAt', promoBannerStartAt);
       payload.append('promoBannerEndAt', promoBannerEndAt);
@@ -688,10 +713,12 @@ export default function Profile() {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setPromoBannerPreview(data?.promoBanner || promoBannerPreview);
+      setPromoBannerMobilePreview(data?.promoBannerMobile || promoBannerMobilePreview);
       setPromoBannerLink(data?.promoBannerLink || promoBannerLink);
       setPromoBannerStartAt(formatDateInput(data?.promoBannerStartAt));
       setPromoBannerEndAt(formatDateInput(data?.promoBannerEndAt));
       setPromoBannerFile(null);
+      setPromoBannerMobileFile(null);
       setPromoBannerSuccess('Bannière publicitaire mise à jour avec succès.');
       showToast('Bannière publicitaire mise à jour.', { variant: 'success' });
     } catch (err) {
@@ -1644,33 +1671,63 @@ export default function Profile() {
                   <p className="text-xs text-gray-500">
                     En dehors de cette période, la bannière par défaut sera affichée.
                   </p>
-                  <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group p-6">
-                    {promoBannerPreview ? (
-                      <div className="text-center w-full">
-                        <img
-                          src={promoBannerPreview}
-                          alt="Bannière publicitaire"
-                          className="h-28 w-full rounded-2xl object-cover mx-auto mb-3 border border-gray-200"
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group p-6">
+                      {promoBannerPreview ? (
+                        <div className="text-center w-full">
+                          <img
+                            src={promoBannerPreview}
+                            alt="Bannière publicitaire"
+                            className="h-28 w-full rounded-2xl object-cover mx-auto mb-3 border border-gray-200"
+                          />
+                          <p className="text-sm text-gray-600 mb-2">Bannière desktop</p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500">Aucune bannière desktop définie.</p>
+                      )}
+                      <label className="text-center cursor-pointer">
+                        <Upload className="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2 mx-auto" />
+                        <span className="text-sm text-gray-500">
+                          <span className="text-indigo-600 font-medium">Cliquez pour uploader</span>
+                          <br />
+                          <span className="text-xs">PNG, JPG - format large recommandé</span>
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={onPromoBannerChange}
+                          className="hidden"
                         />
-                        <p className="text-sm text-gray-600 mb-2">Bannière actuelle</p>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500">Aucune bannière définie pour le moment.</p>
-                    )}
-                    <label className="text-center cursor-pointer">
-                      <Upload className="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2 mx-auto" />
-                      <span className="text-sm text-gray-500">
-                        <span className="text-indigo-600 font-medium">Cliquez pour uploader</span>
-                        <br />
-                        <span className="text-xs">PNG, JPG - format large recommandé</span>
-                      </span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={onPromoBannerChange}
-                        className="hidden"
-                      />
-                    </label>
+                      </label>
+                    </div>
+                    <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group p-6">
+                      {promoBannerMobilePreview ? (
+                        <div className="text-center w-full">
+                          <img
+                            src={promoBannerMobilePreview}
+                            alt="Bannière publicitaire mobile"
+                            className="h-28 w-full rounded-2xl object-cover mx-auto mb-3 border border-gray-200"
+                          />
+                          <p className="text-sm text-gray-600 mb-2">Bannière mobile</p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500">Aucune bannière mobile définie.</p>
+                      )}
+                      <label className="text-center cursor-pointer">
+                        <Upload className="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2 mx-auto" />
+                        <span className="text-sm text-gray-500">
+                          <span className="text-indigo-600 font-medium">Cliquez pour uploader</span>
+                          <br />
+                          <span className="text-xs">PNG, JPG - format mobile recommandé</span>
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={onPromoBannerMobileChange}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
                   </div>
                   <button
                     type="button"

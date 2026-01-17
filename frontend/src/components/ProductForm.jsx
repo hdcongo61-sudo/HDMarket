@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
-import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video } from 'lucide-react';
+import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2 } from 'lucide-react';
 import categoryGroups from '../data/categories';
 
 const operatorPhones = {
@@ -11,6 +11,7 @@ const operatorPhones = {
 
 const MAX_IMAGES = 3;
 const MAX_VIDEO_SIZE_MB = 20;
+const MAX_PDF_SIZE_MB = 10;
 const DeleteIcon = ({ className = '' }) => (
   <svg
     viewBox="0 0 24 24"
@@ -44,8 +45,13 @@ export default function ProductForm(props) {
   const [imageError, setImageError] = useState('');
   const { user } = useContext(AuthContext);
   const canUploadVideo = Boolean(user?.shopVerified && user?.accountType === 'shop');
+  const canUploadPdf = user?.accountType === 'shop';
   const [videoFile, setVideoFile] = useState(null);
   const [videoError, setVideoError] = useState('');
+  const [pdfFile, setPdfFile] = useState(null);
+  const [pdfError, setPdfError] = useState('');
+  const [existingPdf, setExistingPdf] = useState(null);
+  const [removePdf, setRemovePdf] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
 
@@ -110,7 +116,29 @@ export default function ProductForm(props) {
     setVideoError('');
   };
 
-const submit = async (e) => {
+  const handlePdfChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      setPdfError('Le fichier doit être un PDF.');
+      return;
+    }
+    if (file.size > MAX_PDF_SIZE_MB * 1024 * 1024) {
+      setPdfError(`Le PDF doit faire moins de ${MAX_PDF_SIZE_MB} Mo.`);
+      return;
+    }
+    setPdfError('');
+    setPdfFile(file);
+    setRemovePdf(false);
+    e.target.value = '';
+  };
+
+  const removePdfFile = () => {
+    setPdfFile(null);
+    setPdfError('');
+  };
+
+  const submit = async (e) => {
     e.preventDefault();
     setLoading(true);
     if (videoFile) {
@@ -127,6 +155,12 @@ const submit = async (e) => {
       removedImages.forEach((image) => data.append('removeImages', image));
       if (videoFile) {
         data.append('video', videoFile);
+      }
+      if (pdfFile) {
+        data.append('pdf', pdfFile);
+      }
+      if (removePdf) {
+        data.append('removePdf', 'true');
       }
       const url = `/products${productId ? `/${productId}` : ''}`;
       const method = productId ? 'put' : 'post';
@@ -162,6 +196,10 @@ const submit = async (e) => {
       setImageError('');
       setVideoFile(null);
       setVideoError('');
+      setPdfFile(null);
+      setPdfError('');
+      setExistingPdf(null);
+      setRemovePdf(false);
       
     } catch (e) {
       alert(e.response?.data?.message || e.message);
@@ -180,6 +218,8 @@ const submit = async (e) => {
   useEffect(() => {
     if (!initialValues) {
       setExistingImages([]);
+      setExistingPdf(null);
+      setRemovePdf(false);
       setRemovedImages([]);
       return;
     }
@@ -196,6 +236,8 @@ const submit = async (e) => {
           : ''
     });
     setExistingImages(Array.isArray(initialValues.images) ? initialValues.images : []);
+    setExistingPdf(initialValues.pdf || null);
+    setRemovePdf(false);
     setRemovedImages([]);
   }, [initialValues]);
 
@@ -539,6 +581,77 @@ const submit = async (e) => {
               </a>{' '}
               pour valider votre boutique.
             </p>
+          </div>
+        )}
+
+        {canUploadPdf && (
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3 mb-2">
+              <div className="w-2 h-6 bg-gradient-to-b from-slate-500 to-gray-500 rounded-full"></div>
+              <h2 className="text-lg font-semibold text-gray-900">Fiche produit (PDF)</h2>
+            </div>
+            <p className="text-sm text-gray-500">
+              Ajoutez un document PDF pour détailler votre produit. Taille maximale {MAX_PDF_SIZE_MB} Mo.
+            </p>
+            {existingPdf && !pdfFile && !removePdf && (
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                <div>
+                  <span className="font-medium">PDF actuel :</span>{' '}
+                  <a
+                    href={existingPdf}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-indigo-600 hover:underline"
+                  >
+                    Ouvrir
+                  </a>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRemovePdf(true)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-600 transition hover:bg-red-100"
+                  aria-label="Supprimer le PDF"
+                  title="Supprimer le PDF"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+            {removePdf && (
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                <span>Le PDF sera supprimé lors de l’enregistrement.</span>
+                <button
+                  type="button"
+                  onClick={() => setRemovePdf(false)}
+                  className="text-xs font-semibold text-red-600 hover:text-red-500"
+                >
+                  Annuler
+                </button>
+              </div>
+            )}
+            <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group">
+              <FileText className="w-8 h-8 text-gray-400 group-hover:text-slate-600 transition-colors mb-2" />
+              <span className="text-sm text-gray-500 text-center">Cliquez pour uploader un PDF</span>
+              <input
+                type="file"
+                accept="application/pdf"
+                onChange={handlePdfChange}
+                className="hidden"
+              />
+            </label>
+            {pdfFile && (
+              <div className="flex items-center justify-between px-3 py-2 rounded-xl border border-gray-200 bg-white">
+                <span className="text-sm text-gray-700 truncate">{pdfFile.name}</span>
+                <button
+                  type="button"
+                  onClick={removePdfFile}
+                  className="text-xs font-semibold text-red-600 hover:text-red-500"
+                >
+                  Supprimer
+                </button>
+              </div>
+            )}
+            {pdfError && <p className="text-xs text-red-500">{pdfError}</p>}
           </div>
         )}
 

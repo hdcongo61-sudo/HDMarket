@@ -7,7 +7,7 @@ import ShopReview from '../models/shopReviewModel.js';
 import { createNotification } from '../utils/notificationService.js';
 import { sanitizeShopHours } from '../utils/shopHours.js';
 import { buildIdentifierQuery } from '../utils/idResolver.js';
-import { ensureDocumentSlug } from '../utils/slugUtils.js';
+import { ensureDocumentSlug, ensureModelSlugsForItems } from '../utils/slugUtils.js';
 
 const formatShopReview = (review) => {
   if (!review) return null;
@@ -125,6 +125,7 @@ export const getShopProfile = asyncHandler(async (req, res) => {
       .limit(limit)
       .lean()
   ]);
+  await ensureModelSlugsForItems({ Model: Product, items: productsRaw, sourceValueKey: 'title' });
 
   const productIds = productsRaw.map((item) => item._id);
   let commentStats = [];

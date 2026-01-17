@@ -7,8 +7,12 @@ import Rating from '../models/ratingModel.js';
 import Order from '../models/orderModel.js';
 import Notification from '../models/notificationModel.js';
 import SearchHistory from '../models/searchHistoryModel.js';
+import ProductView from '../models/productViewModel.js';
+import PushToken from '../models/pushTokenModel.js';
 import { registerNotificationStream } from '../utils/notificationEmitter.js';
 import { createNotification } from '../utils/notificationService.js';
+import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
+import { buildIdentifierQuery } from '../utils/idResolver.js';
 import {
   uploadToCloudinary,
   getCloudinaryFolder,
@@ -34,6 +38,7 @@ const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   order_created: true,
   order_received: true,
   order_reminder: true,
+  order_delivering: true,
   order_delivered: true
 });
 
@@ -87,7 +92,7 @@ const collectUserStats = async (userId) => {
   const [products, userDoc] = await Promise.all([
     Product.find({ user: userId })
       .select(
-        '_id status favoritesCount whatsappClicks views title price images createdAt category condition city payment advertismentSpend'
+        '_id status favoritesCount whatsappClicks views title price images createdAt category condition city payment advertismentSpend slug'
       )
       .populate('payment', 'amount status')
       .lean(),
@@ -99,6 +104,8 @@ const collectUserStats = async (userId) => {
     err.status = 404;
     throw err;
   }
+
+  await ensureModelSlugsForItems({ Model: Product, items: products, sourceValueKey: 'title' });
 
   const orderStatusKeys = ['pending', 'confirmed', 'delivering', 'delivered'];
   const userObjectId = new mongoose.Types.ObjectId(userId);
@@ -304,6 +311,7 @@ const collectUserStats = async (userId) => {
     .slice(0, 5)
     .map((product) => ({
       _id: product._id,
+      slug: product.slug,
       title: product.title,
       status: product.status,
       price: product.price,
@@ -477,6 +485,36 @@ export const getFollowingShops = asyncHandler(async (req, res) => {
   res.json(payload);
 });
 
+export const registerPushToken = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const token = req.body?.token?.trim();
+  if (!token) {
+    return res.status(400).json({ message: 'Token push requis.' });
+  }
+  const platform = req.body?.platform || 'unknown';
+  const deviceId = req.body?.deviceId?.trim() || '';
+  const saved = await PushToken.findOneAndUpdate(
+    { token },
+    {
+      user: userId,
+      platform,
+      deviceId,
+      lastSeenAt: new Date()
+    },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
+  res.json({ token: saved.token, platform: saved.platform });
+});
+
+export const unregisterPushToken = asyncHandler(async (req, res) => {
+  const token = req.body?.token?.trim();
+  if (!token) {
+    return res.status(400).json({ message: 'Token push requis.' });
+  }
+  await PushToken.deleteOne({ user: req.user.id, token });
+  res.json({ message: 'Token supprimé.' });
+});
+
 export const addSearchHistory = asyncHandler(async (req, res) => {
   const { query = '', metadata = {} } = req.body || {};
   const normalized = typeof query === 'string' ? query.trim() : '';
@@ -513,6 +551,50 @@ export const deleteSearchHistoryEntry = asyncHandler(async (req, res) => {
 export const clearSearchHistory = asyncHandler(async (req, res) => {
   const { deletedCount } = await SearchHistory.deleteMany({ user: req.user.id });
   res.json({ success: true, deletedCount: Number(deletedCount || 0) });
+});
+
+export const addProductView = asyncHandler(async (req, res) => {
+  const query = buildIdentifierQuery(req.params.id);
+  if (!Object.keys(query).length) {
+    return res.status(400).json({ message: 'Identifiant produit invalide.' });
+  }
+  const product = await Product.findOne(query).select('_id category status');
+  if (!product || product.status !== 'approved') {
+    return res.status(404).json({ message: 'Produit introuvable ou non publié.' });
+  }
+
+  const view = await ProductView.findOneAndUpdate(
+    { user: req.user.id, product: product._id },
+    {
+      $set: {
+        category: product.category || '',
+        lastViewedAt: new Date()
+      },
+      $inc: { viewsCount: 1 }
+    },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
+
+  res.status(201).json({
+    id: String(view.product),
+    category: view.category || '',
+    visitedAt: view.lastViewedAt ? view.lastViewedAt.getTime() : Date.now()
+  });
+});
+
+export const getProductViews = asyncHandler(async (req, res) => {
+  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+  const views = await ProductView.find({ user: req.user.id })
+    .sort('-lastViewedAt')
+    .limit(limit)
+    .lean();
+  res.json(
+    views.map((view) => ({
+      id: String(view.product),
+      category: view.category || '',
+      visitedAt: view.lastViewedAt ? new Date(view.lastViewedAt).getTime() : 0
+    }))
+  );
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
@@ -722,7 +804,7 @@ export const getNotifications = asyncHandler(async (req, res) => {
     Notification.find({ user: req.user.id })
       .sort({ createdAt: -1 })
       .limit(50)
-      .populate('product', 'title status')
+      .populate('product', 'title status slug')
       .populate('shop', 'shopName name')
       .populate('actor', 'name email'),
     User.findById(req.user.id).select('notificationPreferences')
@@ -743,6 +825,7 @@ export const getNotifications = asyncHandler(async (req, res) => {
     const product = notification.product
       ? {
           _id: notification.product._id,
+          slug: notification.product.slug,
           title: notification.product.title,
           status: notification.product.status
         }
@@ -794,6 +877,9 @@ export const getNotifications = asyncHandler(async (req, res) => {
       case 'product_rejection':
         message = `${actorName} a rejeté votre annonce${productLabel}. Contactez l'équipe support pour plus d'informations.`;
         break;
+      case 'product_certified':
+        message = `${actorName} a certifié votre annonce${productLabel}.`;
+        break;
       case 'promotional': {
         const discountValue = Number(metadata.discount ?? 0);
         const hasDiscount = Number.isFinite(discountValue) && discountValue > 0;
@@ -814,6 +900,11 @@ export const getNotifications = asyncHandler(async (req, res) => {
         message = snippet
           ? `${actorName} a laissé un avis sur ${shopLabel}${ratingText} : ${snippet}`
           : `${actorName} a laissé un avis sur ${shopLabel}${ratingText}.`;
+        break;
+      }
+      case 'shop_verified': {
+        const shopLabel = shopInfo?.shopName || shopInfo?.name || metadata.shopName || 'votre boutique';
+        message = `${actorName} a vérifié ${shopLabel}.`;
         break;
       }
       case 'complaint_resolved': {
@@ -861,6 +952,12 @@ export const getNotifications = asyncHandler(async (req, res) => {
         const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
         const city = metadata.deliveryCity ? ` pour ${metadata.deliveryCity}` : '';
         message = `${actorName} vous rappelle d'accélérer la commande ${orderId}${city}.`;
+        break;
+      }
+      case 'order_delivering': {
+        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
+        const city = metadata.deliveryCity ? ` pour ${metadata.deliveryCity}` : '';
+        message = `Votre commande ${orderId} est en cours de livraison${city}.`;
         break;
       }
       case 'order_delivered': {
@@ -993,6 +1090,7 @@ export const getFavorites = asyncHandler(async (req, res) => {
   })
     .lean()
     .exec();
+  await ensureModelSlugsForItems({ Model: Product, items: productsRaw, sourceValueKey: 'title' });
 
   const productIds = productsRaw.map((item) => item._id);
 

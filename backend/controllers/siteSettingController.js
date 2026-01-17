@@ -54,6 +54,7 @@ export const getPromoBanner = asyncHandler(async (req, res) => {
   const settings = await getSettings();
   res.json({
     promoBanner: settings?.promoBanner || null,
+    promoBannerMobile: settings?.promoBannerMobile || null,
     promoBannerLink: settings?.promoBannerLink || '',
     promoBannerStartAt: settings?.promoBannerStartAt || null,
     promoBannerEndAt: settings?.promoBannerEndAt || null
@@ -117,7 +118,9 @@ export const updateAppLogoDesktop = createAppLogoUpdater('appLogoDesktop', 'desk
 export const updateAppLogoMobile = createAppLogoUpdater('appLogoMobile', 'mobile');
 
 export const updatePromoBanner = asyncHandler(async (req, res) => {
-  const hasFile = Boolean(req.file);
+  const promoBannerFile = req.files?.promoBanner?.[0] || req.file || null;
+  const promoBannerMobileFile = req.files?.promoBannerMobile?.[0] || null;
+  const hasFile = Boolean(promoBannerFile || promoBannerMobileFile);
   const hasLink = typeof req.body?.promoBannerLink === 'string';
   const startResult = parsePromoDate(req.body?.promoBannerStartAt, 'start');
   const endResult = parsePromoDate(req.body?.promoBannerEndAt, 'end');
@@ -128,10 +131,13 @@ export const updatePromoBanner = asyncHandler(async (req, res) => {
   if (startResult.error || endResult.error) {
     return res.status(400).json({ message: 'Dates de bannière invalides.' });
   }
-  if (hasFile && !req.file.mimetype?.startsWith('image/')) {
+  if (promoBannerFile && !promoBannerFile.mimetype?.startsWith('image/')) {
     return res.status(400).json({ message: 'Le fichier doit être une image.' });
   }
-  if (hasFile && !isCloudinaryConfigured()) {
+  if (promoBannerMobileFile && !promoBannerMobileFile.mimetype?.startsWith('image/')) {
+    return res.status(400).json({ message: 'Le fichier doit être une image.' });
+  }
+  if ((promoBannerFile || promoBannerMobileFile) && !isCloudinaryConfigured()) {
     return res
       .status(503)
       .json({ message: 'Cloudinary n’est pas configuré. Définissez CLOUDINARY_* pour publier des médias.' });
@@ -151,14 +157,23 @@ export const updatePromoBanner = asyncHandler(async (req, res) => {
   ) {
     return res.status(400).json({ message: 'La date de fin doit être après la date de début.' });
   }
-  if (hasFile) {
+  if (promoBannerFile) {
     const folder = getCloudinaryFolder(['site', 'promo']);
     const uploaded = await uploadToCloudinary({
-      buffer: req.file.buffer,
+      buffer: promoBannerFile.buffer,
       resourceType: 'image',
       folder
     });
     updates.promoBanner = uploaded.secure_url || uploaded.url;
+  }
+  if (promoBannerMobileFile) {
+    const folder = getCloudinaryFolder(['site', 'promo', 'mobile']);
+    const uploaded = await uploadToCloudinary({
+      buffer: promoBannerMobileFile.buffer,
+      resourceType: 'image',
+      folder
+    });
+    updates.promoBannerMobile = uploaded.secure_url || uploaded.url;
   }
   if (hasLink) {
     updates.promoBannerLink = req.body.promoBannerLink.trim();
@@ -172,6 +187,7 @@ export const updatePromoBanner = asyncHandler(async (req, res) => {
 
   res.json({
     promoBanner: settings?.promoBanner || updates.promoBanner || null,
+    promoBannerMobile: settings?.promoBannerMobile || updates.promoBannerMobile || null,
     promoBannerLink: settings?.promoBannerLink || updates.promoBannerLink || '',
     promoBannerStartAt: settings?.promoBannerStartAt || updates.promoBannerStartAt || null,
     promoBannerEndAt: settings?.promoBannerEndAt || updates.promoBannerEndAt || null

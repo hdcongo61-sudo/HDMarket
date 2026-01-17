@@ -2,9 +2,10 @@ import asyncHandler from 'express-async-handler';
 import mongoose from 'mongoose';
 import Cart from '../models/cartModel.js';
 import Product from '../models/productModel.js';
+import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
 
 const productSelectFields =
-  'title price discount priceBeforeDiscount images status category user city country whatsappClicks';
+  'title price discount priceBeforeDiscount images status category user city country whatsappClicks slug';
 
 const getItemProductId = (item) => {
   if (!item) return null;
@@ -40,6 +41,8 @@ const populateCart = async (userId) => {
   });
   if (!cart) return null;
   await sanitizeCart(cart);
+  const productRefs = cart.items.map((item) => item.product).filter(Boolean);
+  await ensureModelSlugsForItems({ Model: Product, items: productRefs, sourceValueKey: 'title' });
   return cart;
 };
 
@@ -81,6 +84,7 @@ const formatCart = (cart) => {
       return {
         product: {
           _id: product._id,
+          slug: product.slug,
           title: product.title,
           price: product.price,
           discount: product.discount,

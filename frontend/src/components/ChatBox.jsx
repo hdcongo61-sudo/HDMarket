@@ -32,7 +32,7 @@ const ChatBox = () => {
   const socketRef = useRef(null);
   const lastSentTriggerRef = useRef(null);
 
-  const endpoint = (import.meta.env.VITE_API_URL || 'http://localhost:5010/api').replace(/\/api$/, '');
+  const endpoint = (import.meta.env.VITE_API_URL || 'http://localhost:5001/api').replace(/\/api$/, '');
 
   useEffect(() => {
     if (!token) {

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "882664621680",
+    "project_id": "hdmarketcg",
+    "storage_bucket": "hdmarketcg.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:882664621680:android:3bd7890e51e3b2dbf0d6b5",
+        "android_client_info": {
+          "package_name": "com.hdmarket.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCIlI0zsdw2M4sgRzWw4gYWAm4-4k_H5rM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -15,6 +15,7 @@ const DEFAULT_PREFERENCES = Object.freeze({
   order_created: true,
   order_received: true,
   order_reminder: true,
+  order_delivering: true,
   order_delivered: true
 });
 
@@ -122,7 +123,7 @@ export default function useUserNotifications(enabled) {
       };
     }
 
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5010/api';
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
     const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
     const streamUrl = new URL('users/notifications/stream', normalizedBase);
     streamUrl.searchParams.set('token', token);

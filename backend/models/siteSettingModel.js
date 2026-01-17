@@ -8,6 +8,7 @@ const siteSettingSchema = new mongoose.Schema(
     appLogoDesktop: { type: String, default: '' },
     appLogoMobile: { type: String, default: '' },
     promoBanner: { type: String, default: '' },
+    promoBannerMobile: { type: String, default: '' },
     promoBannerLink: { type: String, default: '' },
     promoBannerStartAt: { type: Date, default: null },
     promoBannerEndAt: { type: Date, default: null },

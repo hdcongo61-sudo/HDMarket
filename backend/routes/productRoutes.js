@@ -48,7 +48,8 @@ router.post(
   protect,
   upload.fields([
     { name: 'images', maxCount: 3 },
-    { name: 'video', maxCount: 1 }
+    { name: 'video', maxCount: 1 },
+    { name: 'pdf', maxCount: 1 }
   ]),
   validate(schemas.productCreate),
   createProduct
@@ -59,7 +60,8 @@ router.put(
   protect,
   upload.fields([
     { name: 'images', maxCount: 3 },
-    { name: 'video', maxCount: 1 }
+    { name: 'video', maxCount: 1 },
+    { name: 'pdf', maxCount: 1 }
   ]),
   validate(schemas.productUpdate),
   updateProduct

@@ -21,6 +21,10 @@ import {
   followShop,
   unfollowShop,
   getFollowingShops,
+  registerPushToken,
+  unregisterPushToken,
+  addProductView,
+  getProductViews,
   addSearchHistory,
   getSearchHistory,
   deleteSearchHistoryEntry,
@@ -68,9 +72,13 @@ router.post(
 router.post('/shops/:id/follow', validate(schemas.idParam, 'params'), followShop);
 router.delete('/shops/:id/follow', validate(schemas.idParam, 'params'), unfollowShop);
 router.get('/shops/following', getFollowingShops);
+router.post('/product-views/:id', validate(schemas.identifierParam, 'params'), addProductView);
+router.get('/product-views', getProductViews);
 router.post('/search-history', addSearchHistory);
 router.get('/search-history', getSearchHistory);
 router.delete('/search-history/:id', validate(schemas.idParam, 'params'), deleteSearchHistoryEntry);
 router.delete('/search-history', clearSearchHistory);
+router.post('/push-tokens', validate(schemas.pushTokenRegister), registerPushToken);
+router.delete('/push-tokens', validate(schemas.pushTokenRemove), unregisterPushToken);
 
 export default router;

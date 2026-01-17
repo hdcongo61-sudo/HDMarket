@@ -481,7 +481,7 @@ export default function UserStats() {
               </div>
             ) : followedShops.length ? (
               <div className="grid gap-3 sm:grid-cols-2">
-                {followedShops.slice(0, 4).map((shop) => (
+                {followedShops.map((shop) => (
                   <Link
                     key={shop._id}
                     to={buildShopPath(shop)}

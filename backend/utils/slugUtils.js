@@ -46,3 +46,37 @@ export const ensureDocumentSlug = async ({ document, sourceValue, slugField = 's
 };
 
 export const isIdentifierObjectId = (value) => mongoose.Types.ObjectId.isValid(value);
+
+export const ensureModelSlugsForItems = async ({
+  Model,
+  items = [],
+  slugField = 'slug',
+  sourceValueKey = 'title',
+  sourceValue
+} = {}) => {
+  if (!Model || typeof Model.find !== 'function') return items;
+  const list = Array.isArray(items) ? items : [];
+  const missingIds = list
+    .filter((item) => item && !item[slugField] && item._id)
+    .map((item) => item._id);
+  if (!missingIds.length) return list;
+
+  const docs = await Model.find({ _id: { $in: missingIds } });
+  const slugMap = new Map();
+  for (const doc of docs) {
+    const value =
+      typeof sourceValue === 'function'
+        ? sourceValue(doc)
+        : sourceValue ?? doc[sourceValueKey];
+    // eslint-disable-next-line no-await-in-loop
+    await ensureDocumentSlug({ document: doc, sourceValue: value, slugField });
+    slugMap.set(String(doc._id), doc[slugField]);
+  }
+
+  list.forEach((item) => {
+    const slug = slugMap.get(String(item?._id));
+    if (slug) item[slugField] = slug;
+  });
+
+  return list;
+};

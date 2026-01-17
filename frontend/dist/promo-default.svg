@@ -1,0 +1,8 @@
+<svg width="1200" height="320" viewBox="0 0 1200 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="320" fill="#FDE68A" />
+  <rect x="40" y="40" width="1120" height="240" rx="32" fill="#F59E0B" />
+  <circle cx="1020" cy="160" r="90" fill="#FDE68A" />
+  <text x="90" y="155" font-family="Verdana" font-size="46" fill="#111827">Offres du jour</text>
+  <text x="90" y="210" font-family="Verdana" font-size="22" fill="#111827">Explorez les produits HDMarket</text>
+  <text x="975" y="170" font-family="Verdana" font-size="26" fill="#B45309">-30%</text>
+</svg>

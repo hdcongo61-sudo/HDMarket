@@ -1,5 +1,6 @@
 import Notification from '../models/notificationModel.js';
 import { emitNotification } from './notificationEmitter.js';
+import { sendPushNotification } from './pushService.js';
 
 export const createNotification = async ({
   userId,
@@ -34,6 +35,28 @@ export const createNotification = async ({
       event: type,
       notificationId: notification._id
     });
+
+    notification
+      .populate([
+        { path: 'actor', select: 'name' },
+        { path: 'product', select: 'title' },
+        { path: 'shop', select: 'shopName name' }
+      ])
+      .then((populated) => {
+        const actorName = populated?.actor?.name || 'Quelqu’un';
+        const productTitle = populated?.product?.title || '';
+        const shopName = populated?.shop?.shopName || populated?.shop?.name || '';
+        return sendPushNotification({
+          notification: populated,
+          actorName,
+          productTitle,
+          shopName
+        });
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error('Push notification failed', error);
+      });
 
     return notification;
   } catch (error) {

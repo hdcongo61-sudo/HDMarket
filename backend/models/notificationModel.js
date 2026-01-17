@@ -22,6 +22,7 @@ const notificationSchema = new mongoose.Schema(
       'shop_follow',
       'payment_pending',
       'order_created',
+      'order_delivering',
       'order_received',
       'order_reminder',
       'order_delivered',

@@ -17,6 +17,7 @@ const productSchema = new mongoose.Schema(
     priceBeforeDiscount: { type: Number, min: 0 },
     images: [{ type: String }],
     video: { type: String },
+    pdf: { type: String },
     category: { type: String, required: true },
     condition: { type: String, enum: ['new', 'used'], default: 'new' },
     lastStatusBeforeDisable: {

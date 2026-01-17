@@ -20,6 +20,7 @@ const DEFAULT_NOTIFICATION_PREFERENCES = {
   order_created: true,
   order_received: true,
   order_reminder: true,
+  order_delivering: true,
   order_delivered: true
 };
 
@@ -102,6 +103,7 @@ const NotificationPreferences = ({ preferences, onUpdate }) => {
               { key: 'shop_follow', label: 'Nouveaux abonnés' },
               { key: 'payment_pending', label: 'Paiements à valider' },
               { key: 'order_created', label: 'Commandes confirmées' },
+              { key: 'order_delivering', label: 'Commandes en livraison' },
               { key: 'order_received', label: 'Nouvelles commandes' },
               { key: 'order_reminder', label: 'Relances commandes' },
               { key: 'order_delivered', label: 'Commandes livrées' }
@@ -253,6 +255,15 @@ export default function Notifications() {
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 7l1.5 12.5A2 2 0 006.5 21h11a2 2 0 002-1.5L21 7M8 7V4a2 2 0 012-2h4a2 2 0 012 2v3" />
+        </svg>
+      )
+    },
+    order_delivering: {
+      label: 'Commande en livraison',
+      badgeClass: 'bg-indigo-50 text-indigo-700 border border-indigo-200',
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h13v6H3V7zm13 3h2.5l2.5 3v3h-5v-6zm-9 6a2 2 0 11-4 0m15 0a2 2 0 11-4 0" />
         </svg>
       )
     },
@@ -526,6 +537,7 @@ export default function Notifications() {
     { key: 'shop_review', label: 'Avis boutique', count: alerts.filter(a => a.type === 'shop_review').length },
     { key: 'payment_pending', label: 'Paiements à valider', count: alerts.filter(a => a.type === 'payment_pending').length },
     { key: 'order_created', label: 'Commandes confirmées', count: alerts.filter(a => a.type === 'order_created').length },
+    { key: 'order_delivering', label: 'Commandes en livraison', count: alerts.filter(a => a.type === 'order_delivering').length },
     { key: 'order_received', label: 'Nouvelles commandes', count: alerts.filter(a => a.type === 'order_received').length },
     { key: 'order_reminder', label: 'Relances commandes', count: alerts.filter(a => a.type === 'order_reminder').length },
     { key: 'order_delivered', label: 'Commandes livrées', count: alerts.filter(a => a.type === 'order_delivered').length }

@@ -353,8 +353,8 @@ export default function Navbar() {
       }
       return '/shops/verified';
     }
-    if (hasSlug || targetId) {
-      return buildProductPath(hasSlug ? { slug: targetSlug } : { _id: targetId });
+    if (hasSlug) {
+      return buildProductPath({ slug: targetSlug });
     }
     return '/shops/verified';
   };
@@ -393,7 +393,7 @@ export default function Navbar() {
       navigate(buildShopPath(item));
       return;
     }
-    if (item?._id || item?.slug) {
+    if (item?.slug) {
       navigate(buildProductPath(item));
     }
   };
@@ -767,12 +767,12 @@ export default function Navbar() {
                   <img
                     src={mobileLogo || desktopLogo}
                     alt="Logo HDMarket"
-                    className="h-12 w-12 rounded-xl object-contain border border-gray-200 bg-white shadow-sm sm:hidden"
+                    className="h-14 w-14 rounded-xl object-contain border border-gray-200 bg-white shadow-sm sm:hidden"
                   />
                   <img
                     src={desktopLogo || mobileLogo}
                     alt="Logo HDMarket"
-                    className="hidden h-18 w-auto max-w-[200px] object-contain sm:block"
+                    className="hidden h-20 w-auto max-w-[200px] object-contain sm:block"
                   />
                 </>
               ) : (
@@ -1351,6 +1351,21 @@ export default function Navbar() {
               >
                 <Store size={20} />
                 Boutiques
+              </NavLink>
+
+              <NavLink
+                to="/suggestions"
+                onClick={() => setIsMenuOpen(false)}
+                className={({ isActive }) => 
+                  `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                    isActive 
+                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg' 
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
+                  }`
+                }
+              >
+                <Sparkles size={20} />
+                Suggestions
               </NavLink>
 
               {/* Utilisateur connecté mobile - TOUJOURS AFFICHER "Mes annonces" */}

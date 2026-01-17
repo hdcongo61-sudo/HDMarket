@@ -55,6 +55,7 @@ const userSchema = new mongoose.Schema(
       order_created: { type: Boolean, default: true },
       order_received: { type: Boolean, default: true },
       order_reminder: { type: Boolean, default: true },
+      order_delivering: { type: Boolean, default: true },
       order_delivered: { type: Boolean, default: true }
     },
     notificationsReadAt: { type: Date },

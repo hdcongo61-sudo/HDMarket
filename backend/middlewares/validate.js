@@ -69,7 +69,9 @@ export const schemas = {
     category: Joi.string().min(2).max(60),
     condition: Joi.string().valid('new', 'used'),
     discount: Joi.number().min(0).max(99.99),
-    removeImages: Joi.array().items(Joi.string().max(500)).max(3).single()
+    removeImages: Joi.array().items(Joi.string().max(500)).max(3).single(),
+    removeVideo: Joi.boolean().truthy('true').falsy('false'),
+    removePdf: Joi.boolean().truthy('true').falsy('false')
   }),
   commentCreate: Joi.object({
     productId: Joi.string().hex().length(24).optional(),
@@ -248,6 +250,15 @@ export const schemas = {
     order_created: Joi.boolean(),
     order_received: Joi.boolean(),
     order_reminder: Joi.boolean(),
+    order_delivering: Joi.boolean(),
     order_delivered: Joi.boolean()
-  }).min(1)
+  }).min(1),
+  pushTokenRegister: Joi.object({
+    token: Joi.string().trim().required(),
+    platform: Joi.string().valid('ios', 'android', 'web', 'unknown').optional(),
+    deviceId: Joi.string().trim().allow('', null)
+  }),
+  pushTokenRemove: Joi.object({
+    token: Joi.string().trim().required()
+  })
 };

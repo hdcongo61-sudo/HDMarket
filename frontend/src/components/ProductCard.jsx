@@ -7,6 +7,7 @@ import FavoriteContext from '../context/FavoriteContext';
 import api from '../services/api';
 import { buildWhatsappLink } from '../utils/whatsapp';
 import { buildProductPath, buildShopPath } from '../utils/links';
+import { recordProductView } from '../utils/recentViews';
 import VerifiedBadge from './VerifiedBadge';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 
@@ -18,7 +19,7 @@ import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
  * Mobile-first et responsive
  */
 
-export default function ProductCard({ p, hideMobileDiscountBadge = false }) {
+export default function ProductCard({ p, hideMobileDiscountBadge = false, productLink, onProductClick }) {
   const { user } = useContext(AuthContext);
   const { addItem, cart } = useContext(CartContext);
   const navigate = useNavigate();
@@ -35,6 +36,8 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false }) {
   const [whatsappClicks, setWhatsappClicks] = useState(p.whatsappClicks || 0);
   const [favoriteCount, setFavoriteCount] = useState(p.favoritesCount || 0);
   const externalLinkProps = useDesktopExternalLink();
+  const resolvedProductLink = productLink || buildProductPath(p);
+  const handleProductClick = onProductClick || recordProductView;
   
   const whatsappLink = useMemo(
     () => buildWhatsappLink(p, p?.user?.phone || p?.contactPhone),
@@ -163,9 +166,14 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false }) {
     <div className="group relative flex h-full w-full flex-col rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
       
       {/* 🖼️ SECTION IMAGE AVEC BADGES */}
-      <Link to={buildProductPath(p)} {...externalLinkProps} className="relative flex h-full w-full flex-col overflow-hidden">
+      <Link
+        to={resolvedProductLink}
+        {...externalLinkProps}
+        onClick={() => handleProductClick?.(p)}
+        className="relative flex h-full w-full flex-col overflow-hidden"
+      >
         {/* Image du produit */}
-        <div className="aspect-square bg-gray-100 flex items-center justify-center">
+        <div className="aspect-square bg-gray-100 flex items-center justify-center w-[300px] h-[300px] lg:w-[400px] lg:h-[400px] mx-auto">
           <img
             src={imageError ? "https://via.placeholder.com/400x400?text=HDMarket" : (p.images?.[0] || "https://via.placeholder.com/400x400")}
             alt={p.title}

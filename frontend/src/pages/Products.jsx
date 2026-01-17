@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
 import { getCategoryMeta } from '../data/categories';
+import { recordProductView } from '../utils/recentViews';
 
 const SORT_OPTIONS = [
   { value: 'new', label: 'Plus récents' },
@@ -266,7 +267,11 @@ const paginationButtons = useMemo(() => {
         ) : items.length ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {items.map((product) => (
-              <ProductCard key={product._id} p={product} />
+              <ProductCard
+                key={product._id}
+                p={product}
+                onProductClick={recordProductView}
+              />
             ))}
           </div>
         ) : (

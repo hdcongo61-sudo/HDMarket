@@ -1,6 +1,7 @@
 import asyncHandler from 'express-async-handler';
 import Product from '../models/productModel.js';
 import User from '../models/userModel.js';
+import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
 
 export const globalSearch = asyncHandler(async (req, res) => {
   const { q } = req.query;
@@ -38,9 +39,11 @@ export const globalSearch = asyncHandler(async (req, res) => {
     .sort('-createdAt')
     .limit(8)
     .lean();
+  await ensureModelSlugsForItems({ Model: Product, items: products, sourceValueKey: 'title' });
 
   const formattedProducts = products.map((product) => ({
     _id: product._id,
+    slug: product.slug,
     title: product.title,
     category: product.category,
     price: product.price,

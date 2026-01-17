@@ -23,6 +23,7 @@ import Products from './pages/Products';
 import CityProducts from './pages/CityProducts';
 import ProtectedRoute from './components/ProtectedRoute';
 import ProductDetails from './pages/ProductDetails';
+import ProductPreview from './pages/ProductPreview';
 import EditProduct from './pages/EditProduct';
 import Cart from './pages/Cart';
 import Profile from './pages/Profile';
@@ -44,11 +45,14 @@ import AdminProductBoosts from './pages/AdminProductBoosts';
 import AdminProducts from './pages/AdminProducts';
 import AdminUserStats from './pages/AdminUserStats';
 import CertifiedProducts from './pages/CertifiedProducts';
+import Suggestions from './pages/Suggestions';
+import PushNotificationsManager from './components/PushNotificationsManager';
 
 export default function App() {
   usePreventNewTabOnMobile();
   return (
     <BrowserRouter>
+      <PushNotificationsManager />
       <ScrollToTop />
       <Navbar />
       <main className="pt-20 sm:pt-24 md:pt-32 pb-24 md:pb-0">
@@ -58,6 +62,7 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/product/:slug" element={<ProductDetails />} />
+          <Route path="/product-preview/:slug" element={<ProductPreview />} />
           <Route path="/shop/:slug" element={<ShopProfile />} />
           <Route path="/shops/verified" element={<VerifiedShops />} />
           <Route path="/help" element={<HelpCenter />} />
@@ -70,6 +75,7 @@ export default function App() {
           <Route path="/products" element={<Products />} />
           <Route path="/cities" element={<CityProducts />} />
           <Route path="/categories/:categoryId" element={<CategoryProducts />} />
+          <Route path="/suggestions" element={<Suggestions />} />
           <Route
             path="/favorites"
             element={

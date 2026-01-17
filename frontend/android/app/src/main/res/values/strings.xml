@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">HDMarket</string>
+    <string name="title_activity_main">HDMarket</string>
+    <string name="package_name">com.hdmarket.app</string>
+    <string name="custom_url_scheme">com.hdmarket.app</string>
+</resources>

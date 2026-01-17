@@ -12,7 +12,7 @@ import {
   isCloudinaryConfigured
 } from '../utils/cloudinaryUploader.js';
 import { buildIdentifierQuery } from '../utils/idResolver.js';
-import { ensureDocumentSlug } from '../utils/slugUtils.js';
+import { ensureDocumentSlug, ensureModelSlugsForItems } from '../utils/slugUtils.js';
 
 const MAX_PRODUCT_IMAGES = 3;
 const SHOP_SELECT_FIELDS =
@@ -26,17 +26,36 @@ const ensureProductSlug = async (productDoc) => {
 };
 
 const isVideoFile = (mimetype) => typeof mimetype === 'string' && mimetype.startsWith('video/');
+const isPdfFile = (mimetype) => typeof mimetype === 'string' && mimetype === 'application/pdf';
 
-const getProductMediaFolder = (resourceType) =>
-  getCloudinaryFolder(['products', resourceType === 'video' ? 'videos' : 'images']);
+const getProductMediaFolder = (resourceType) => {
+  if (resourceType === 'video') return getCloudinaryFolder(['products', 'videos']);
+  if (resourceType === 'pdf') return getCloudinaryFolder(['products', 'documents']);
+  return getCloudinaryFolder(['products', 'images']);
+};
 
 const uploadProductMedia = async (file) => {
   const resourceType = isVideoFile(file.mimetype) ? 'video' : 'image';
-  const folder = getProductMediaFolder(resourceType);
+  const folder = getProductMediaFolder(resourceType === 'video' ? 'video' : 'image');
   const uploaded = await uploadToCloudinary({
     buffer: file.buffer,
     resourceType,
     folder
+  });
+  return uploaded.secure_url || uploaded.url;
+};
+
+const uploadProductPdfPreview = async (file) => {
+  const folder = getProductMediaFolder('pdf');
+  const uploaded = await uploadToCloudinary({
+    buffer: file.buffer,
+    resourceType: 'image',
+    folder,
+    options: {
+      format: 'jpg',
+      page: 1,
+      quality: 'auto:eco'
+    }
   });
   return uploaded.secure_url || uploaded.url;
 };
@@ -139,10 +158,12 @@ export const createProduct = asyncHandler(async (req, res) => {
   }
   const ownerCity = seller.city || 'Brazzaville';
   const ownerCountry = seller.country || 'République du Congo';
-  const isVerifiedShop = seller.accountType === 'shop' && Boolean(seller.shopVerified);
+  const isShop = seller.accountType === 'shop';
+  const isVerifiedShop = isShop && Boolean(seller.shopVerified);
 
   const imageFiles = getUploadedFiles(req.files, 'images');
   const videoFiles = getUploadedFiles(req.files, 'video');
+  const pdfFiles = getUploadedFiles(req.files, 'pdf');
 
   if (imageFiles.length > MAX_PRODUCT_IMAGES) {
     return res.status(400).json({
@@ -156,13 +177,25 @@ export const createProduct = asyncHandler(async (req, res) => {
     });
   }
 
+  if (pdfFiles.length > 1) {
+    return res.status(400).json({
+      message: 'Vous ne pouvez importer qu’un seul document PDF par annonce.'
+    });
+  }
+
   if (videoFiles.length && !isVerifiedShop) {
     return res.status(403).json({
       message: 'Seules les boutiques certifiées peuvent ajouter une vidéo produit.'
     });
   }
 
-  if (!isCloudinaryConfigured() && (imageFiles.length || videoFiles.length)) {
+  if (pdfFiles.length && !isShop) {
+    return res.status(403).json({
+      message: 'Seules les boutiques peuvent ajouter un document PDF.'
+    });
+  }
+
+  if (!isCloudinaryConfigured() && (imageFiles.length || videoFiles.length || pdfFiles.length)) {
     return res
       .status(503)
       .json({ message: 'Cloudinary n’est pas configuré. Définissez CLOUDINARY_* pour publier des médias.' });
@@ -192,6 +225,20 @@ export const createProduct = asyncHandler(async (req, res) => {
     }
   }
 
+  let pdfUrl;
+  if (pdfFiles.length) {
+    const [pdfFile] = pdfFiles;
+    if (!isPdfFile(pdfFile.mimetype)) {
+      return res.status(400).json({ message: 'Le fichier doit être un PDF valide.' });
+    }
+    try {
+      pdfUrl = await uploadProductPdfPreview(pdfFile);
+    } catch (error) {
+      console.error('Erreur upload PDF produit', error);
+      return res.status(500).json({ message: 'Erreur lors de l’upload du PDF.' });
+    }
+  }
+
   const product = await Product.create({
     title,
     description,
@@ -202,6 +249,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     priceBeforeDiscount,
     images,
     video: videoUrl,
+    pdf: pdfUrl,
     user: req.user.id,
     status: 'pending',
     city: ownerCity,
@@ -285,6 +333,7 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   ]);
 
   await Product.populate(itemsRaw, { path: 'user', select: SHOP_SELECT_FIELDS });
+  await ensureModelSlugsForItems({ Model: Product, items: itemsRaw, sourceValueKey: 'title' });
 
   const productIds = itemsRaw.map((item) => item._id);
 
@@ -413,6 +462,7 @@ export const getPublicHighlights = asyncHandler(async (req, res) => {
   cityProductsRaw.forEach(pushUnique);
   const combinedDocs = Array.from(combinedMap.values());
   await Product.populate(combinedDocs, { path: 'user', select: SHOP_SELECT_FIELDS });
+  await ensureModelSlugsForItems({ Model: Product, items: combinedDocs, sourceValueKey: 'title' });
 
   const productIds = combinedDocs.map((doc) => doc._id);
 
@@ -508,6 +558,9 @@ export const getMyProducts = asyncHandler(async (req, res) => {
   const products = await Product.find({ user: req.user.id })
     .populate('payment')
     .sort('-createdAt');
+  if (products.length) {
+    await Promise.all(products.map((product) => ensureProductSlug(product)));
+  }
   res.json(products);
 });
 
@@ -517,6 +570,9 @@ export const getAllProductsAdmin = asyncHandler(async (req, res) => {
   const products = await Product.find(query)
     .populate('user', `name email phone accountType shopName shopAddress shopLogo city country shopVerified slug`)
     .populate('payment');
+  if (products.length) {
+    await Promise.all(products.map((product) => ensureProductSlug(product)));
+  }
   res.json(products);
 });
 
@@ -576,6 +632,8 @@ export const listAdminProducts = asyncHandler(async (req, res) => {
       ])
     ]);
 
+  await ensureModelSlugsForItems({ Model: Product, items, sourceValueKey: 'title' });
+
   const statusCounts = statusCountsRaw.reduce((acc, entry) => {
     if (!entry?._id) return acc;
     acc[entry._id] = entry.count;
@@ -627,7 +685,8 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
   const seller =
     (await User.findById(req.user.id).select('shopVerified accountType')) || null;
-  const isVerifiedShop = seller?.accountType === 'shop' && Boolean(seller?.shopVerified);
+  const isShop = seller?.accountType === 'shop';
+  const isVerifiedShop = isShop && Boolean(seller?.shopVerified);
   if (!seller) {
     return res.status(404).json({ message: 'Utilisateur introuvable' });
   }
@@ -692,7 +751,8 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
   const imageFiles = getUploadedFiles(req.files, 'images');
   const videoFiles = getUploadedFiles(req.files, 'video');
-  const hasUploads = imageFiles.length + videoFiles.length > 0;
+  const pdfFiles = getUploadedFiles(req.files, 'pdf');
+  const hasUploads = imageFiles.length + videoFiles.length + pdfFiles.length > 0;
 
   if (videoFiles.length > 1) {
     return res.status(400).json({
@@ -700,9 +760,21 @@ export const updateProduct = asyncHandler(async (req, res) => {
     });
   }
 
+  if (pdfFiles.length > 1) {
+    return res.status(400).json({
+      message: 'Vous ne pouvez importer qu’un seul document PDF par annonce.'
+    });
+  }
+
   if (videoFiles.length && !isVerifiedShop) {
     return res.status(403).json({
       message: 'Seules les boutiques certifiées peuvent ajouter une vidéo produit.'
+    });
+  }
+
+  if (pdfFiles.length && !isShop) {
+    return res.status(403).json({
+      message: 'Seules les boutiques peuvent ajouter un document PDF.'
     });
   }
 
@@ -734,8 +806,12 @@ export const updateProduct = asyncHandler(async (req, res) => {
     }
   }
 
-  if (req.body?.removeVideo === 'true') {
+  if (req.body?.removeVideo === true || req.body?.removeVideo === 'true') {
     product.video = undefined;
+  }
+
+  if (req.body?.removePdf === true || req.body?.removePdf === 'true') {
+    product.pdf = undefined;
   }
 
   if (videoFiles.length) {
@@ -748,6 +824,19 @@ export const updateProduct = asyncHandler(async (req, res) => {
     } catch (error) {
       console.error('Erreur upload vidéo produit', error);
       return res.status(500).json({ message: 'Erreur lors de l’upload de la vidéo.' });
+    }
+  }
+
+  if (pdfFiles.length) {
+    const [pdfFile] = pdfFiles;
+    if (!isPdfFile(pdfFile.mimetype)) {
+      return res.status(400).json({ message: 'Le fichier doit être un PDF valide.' });
+    }
+    try {
+      product.pdf = await uploadProductPdfPreview(pdfFile);
+    } catch (error) {
+      console.error('Erreur upload PDF produit', error);
+      return res.status(500).json({ message: 'Erreur lors de l’upload du PDF.' });
     }
   }
 
@@ -906,6 +995,8 @@ export const listBoostProductCandidatesAdmin = asyncHandler(async (req, res) => 
       .lean(),
     Product.countDocuments(filter)
   ]);
+
+  await ensureModelSlugsForItems({ Model: Product, items, sourceValueKey: 'title' });
 
   res.json({
     items,

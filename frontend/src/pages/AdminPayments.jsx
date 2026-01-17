@@ -77,7 +77,7 @@ export default function AdminPayments() {
   const isMobileView = useIsMobile(1023);
 
   const filesBase = useMemo(() => {
-    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5010/api';
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
     return apiBase.replace(/\/api\/?$/, '');
   }, []);
 

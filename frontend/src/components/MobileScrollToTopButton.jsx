@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom';
 
 const MOBILE_BREAKPOINT = 768;
 const SCROLL_BOTTOM_OFFSET = 120;
-const TARGET_PATHS = ['/', '/products', '/notifications'];
+const TARGET_PATHS = ['/', '/products', '/notifications', '/suggestions'];
 
 const MOBILE_NAV_HEIGHT = 70;
 const SCROLL_BUTTON_GAP = 18;

@@ -81,7 +81,10 @@ export const createPayment = asyncHandler(async (req, res) => {
 });
 
 export const getMyPayments = asyncHandler(async (req, res) => {
-  const payments = await Payment.find({ user: req.user.id }).populate('product', 'title price status images');
+  const payments = await Payment.find({ user: req.user.id }).populate(
+    'product',
+    'title price status images slug'
+  );
   res.json(payments);
 });
 
@@ -119,7 +122,7 @@ export const listPaymentsAdmin = asyncHandler(async (req, res) => {
 
   const payments = await Payment.find(query)
     .populate('user', 'name email')
-    .populate('product', 'title price status images')
+    .populate('product', 'title price status images slug')
     .populate('validatedBy', 'name email');
   res.json(payments);
 });
