@@ -62,6 +62,10 @@ const allowedOrigins = new Set([
   'http://127.0.0.1:4173',
   'http://localhost:3000',
   'http://127.0.0.1:3000',
+  'http://localhost',
+  'https://localhost',
+  'capacitor://localhost',
+  'ionic://localhost',
   'https://hdmarket.onrender.com',
   ...envOrigins
 ]);
