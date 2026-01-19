@@ -1,2 +1,11 @@
 @import "tailwindcss";
 @import "tailwindcss-safe-area";
+
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select,
+  [contenteditable="true"] {
+    font-size: 16px;
+  }
+}
