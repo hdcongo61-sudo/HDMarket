@@ -55,7 +55,10 @@ export default function App() {
       <PushNotificationsManager />
       <ScrollToTop />
       <Navbar />
-      <main className="pt-20 sm:pt-24 md:pt-32 pb-24 md:pb-0">
+      <main
+        className="pt-20 sm:pt-24 md:pt-32 pb-24 md:pb-0"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 5rem)' }}
+      >
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
