@@ -42,13 +42,39 @@ export default function usePushNotifications(user) {
       // ignore registration errors
     });
 
-    const receivedListener = PushNotifications.addListener('pushNotificationReceived', () => {
+    const resolveNotificationLink = (payload) => {
+      const data = payload?.notification?.data || payload?.data || {};
+      const rawLink = data.url || data.link || data.deeplink || data.path;
+      if (!rawLink || typeof rawLink !== 'string') return null;
+      const trimmed = rawLink.trim();
+      if (!trimmed) return null;
+      if (trimmed.startsWith('http')) return trimmed;
+      if (trimmed.startsWith('/')) return trimmed;
+      return `/${trimmed}`;
+    };
+
+    const receivedListener = PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      const link = resolveNotificationLink(notification);
+      if (link && typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('hdmarket:notification-link', {
+            detail: { link },
+            bubbles: true,
+            cancelable: false
+          })
+        );
+      }
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('hdmarket:notifications-refresh'));
       }
     });
 
-    const actionListener = PushNotifications.addListener('pushNotificationActionPerformed', () => {
+    const actionListener = PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+      const link = resolveNotificationLink(notification);
+      if (link && typeof window !== 'undefined') {
+        window.location.assign(link);
+        return;
+      }
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('hdmarket:notifications-refresh'));
       }

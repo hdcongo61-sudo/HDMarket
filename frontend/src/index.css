@@ -1,6 +1,17 @@
 @import "tailwindcss";
 @import "tailwindcss-safe-area";
 
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
 @media (max-width: 767px) {
   input,
   textarea,
