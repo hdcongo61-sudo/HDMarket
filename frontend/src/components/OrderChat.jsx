@@ -182,6 +182,19 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
     }
   }, [encryptionEnabled, user?._id, encryptionKey]);
 
+  // Filter messages based on search query (must be before any conditional return to satisfy Rules of Hooks)
+  const filteredMessages = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return messages;
+    }
+    const query = searchQuery.toLowerCase().trim();
+    return messages.filter((msg) => {
+      const text = (msg.text || '').toLowerCase();
+      const senderName = (msg.sender?.name || msg.sender?.shopName || '').toLowerCase();
+      return text.includes(query) || senderName.includes(query);
+    });
+  }, [messages, searchQuery]);
+
   const loadMessages = async () => {
     if (!order?._id) return;
     try {
@@ -436,19 +449,6 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
     : isCustomer
       ? seller?.name || 'Vendeur'
       : order?.customer?.name || 'Client';
-
-  // Filter messages based on search query
-  const filteredMessages = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return messages;
-    }
-    const query = searchQuery.toLowerCase().trim();
-    return messages.filter((msg) => {
-      const text = (msg.text || '').toLowerCase();
-      const senderName = (msg.sender?.name || msg.sender?.shopName || '').toLowerCase();
-      return text.includes(query) || senderName.includes(query);
-    });
-  }, [messages, searchQuery]);
 
   const messageGroups = groupMessagesByDate(filteredMessages);
 

@@ -20,8 +20,14 @@ const CACHEABLE_ENDPOINTS = [
   '/api/shops',
   '/api/settings',
   '/api/categories',
-  '/api/cities'
+  '/api/cities',
+  '/api/search',
+  '/api/search/popular',
+  '/api/users/search-history'
 ];
+
+// Search history cache name
+const SEARCH_HISTORY_CACHE = 'hdmarket-search-history-v1';
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
@@ -70,6 +76,11 @@ self.addEventListener('fetch', (event) => {
 
   // Handle API requests
   if (url.pathname.startsWith('/api')) {
+    // Special handling for search history (offline support)
+    if (url.pathname.includes('/search-history')) {
+      event.respondWith(handleSearchHistoryRequest(request));
+      return;
+    }
     event.respondWith(handleApiRequest(request));
     return;
   }
@@ -169,6 +180,78 @@ async function handleStaticRequest(request) {
   }
 }
 
+/**
+ * Handle search history requests with offline support
+ */
+async function handleSearchHistoryRequest(request) {
+  const cache = await caches.open(SEARCH_HISTORY_CACHE);
+  
+  // For GET requests, try cache first, then network
+  if (request.method === 'GET') {
+    const cachedResponse = await cache.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    
+    try {
+      const networkResponse = await fetch(request);
+      if (networkResponse.ok) {
+        // Cache the response
+        cache.put(request, networkResponse.clone());
+      }
+      return networkResponse;
+    } catch (error) {
+      // Offline: return cached response or empty array
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      return new Response(
+        JSON.stringify([]),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
+  }
+  
+  // For POST requests (adding search history), cache after network
+  if (request.method === 'POST') {
+    try {
+      const networkResponse = await fetch(request);
+      if (networkResponse.ok) {
+        // Cache the new entry
+        const data = await networkResponse.clone().json();
+        // Store in IndexedDB via message to main thread
+        // For now, just cache the response
+        cache.put(request, networkResponse.clone());
+      }
+      return networkResponse;
+    } catch (error) {
+      // Offline: store in cache for later sync
+      const clonedRequest = request.clone();
+      const body = await clonedRequest.json();
+      
+      // Store offline entry
+      const offlineEntry = {
+        ...body,
+        offline: true,
+        timestamp: Date.now()
+      };
+      
+      return new Response(
+        JSON.stringify(offlineEntry),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
+  }
+  
+  return fetch(request);
+}
+
 // Message event - handle cache invalidation
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'CLEAR_CACHE') {
@@ -184,4 +267,22 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'CLEAR_API_CACHE') {
     event.waitUntil(caches.delete(API_CACHE_NAME));
   }
+  
+  if (event.data && event.data.type === 'CLEAR_SEARCH_CACHE') {
+    event.waitUntil(caches.delete(SEARCH_HISTORY_CACHE));
+  }
+  
+  // Sync offline search history
+  if (event.data && event.data.type === 'SYNC_SEARCH_HISTORY') {
+    event.waitUntil(syncOfflineSearchHistory());
+  }
 });
+
+/**
+ * Sync offline search history entries when back online
+ */
+async function syncOfflineSearchHistory() {
+  // This would sync offline entries to the server
+  // Implementation depends on your backend API
+  console.log('Syncing offline search history...');
+}

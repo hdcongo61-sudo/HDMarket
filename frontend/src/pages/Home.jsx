@@ -61,6 +61,7 @@ export default function Home() {
   const [promoNow, setPromoNow] = useState(() => new Date());
   const [appLogoMobile, setAppLogoMobile] = useState('');
   const [splashShown, setSplashShown] = useState(false);
+  const [topProductsTab, setTopProductsTab] = useState('favorites');
 const cityList = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
 const externalLinkProps = useDesktopExternalLink();
 const formatCurrency = (value) =>
@@ -810,1177 +811,437 @@ const loadDiscountProducts = async () => {
     );
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50">
-      <MobileSplash visible={showMobileSplash} logoSrc={appLogoMobile} label="HDMarket" />
-      {isMobileView ? renderMobileHome() : (
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8">
-        {/* 🚀 HERO SECTION ENHANCED */}
-        <section className="relative bg-gradient-to-br from-indigo-900 via-indigo-800 to-purple-900 rounded-3xl overflow-hidden shadow-2xl">
-          {heroBanner && (
-            <div className="absolute inset-0">
-              <img
-                src={heroBanner}
-                alt="Bannière HDMarket"
-                className="h-full w-full object-cover"
-                loading="lazy"
-              />
-              <div className="absolute inset-0 bg-gradient-to-br from-slate-950/70 via-indigo-950/70 to-purple-950/70" />
-            </div>
-          )}
-          <div className="relative z-10 px-6 py-8 sm:py-12 lg:py-16 text-left">
-            <div className="inline-flex items-center px-4 py-2 bg-white/15 backdrop-blur-md rounded-full border border-white/30 mb-6 shadow-lg">
-              <Star className="w-4 h-4 text-yellow-300 mr-2 animate-pulse" fill="currentColor" />
-              <span className="text-sm text-white font-semibold">Marketplace Premium</span>
-            </div>
+  // === DESKTOP WIDE MULTI-ZONE LAYOUT (Proposal A) ===
+  const renderDesktopHome = () => {
+    const allDeals = [
+      ...highlights.topDeals.slice(0, 4),
+      ...discountProducts.filter(p => !highlights.topDeals.some(d => d._id === p._id)).slice(0, 4)
+    ].slice(0, 4);
 
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-5 leading-tight">
-              Votre Marché
-              <span className="block bg-gradient-to-r from-yellow-300 via-yellow-400 to-yellow-300 bg-clip-text text-transparent animate-gradient">
-                Digital
-              </span>
-            </h1>
+    const topProductsTabData = {
+      favorites: { items: highlights.favorites, icon: Heart, label: 'Top Favoris', link: '/top-favorites', iconColor: 'text-pink-600', bgColor: 'bg-pink-600' },
+      topRated: { items: highlights.topRated, icon: Star, label: 'Top Notés', link: '/top-ranking', iconColor: 'text-amber-600', bgColor: 'bg-amber-600' },
+      newProducts: { items: highlights.newProducts, icon: Sparkles, label: 'Neufs', link: '/top-new', iconColor: 'text-sky-600', bgColor: 'bg-sky-600' },
+      usedProducts: { items: highlights.usedProducts, icon: RefreshCcw, label: 'Occasion', link: '/top-used', iconColor: 'text-slate-600', bgColor: 'bg-slate-600' }
+    };
+    const activeTabData = topProductsTabData[topProductsTab] || topProductsTabData.favorites;
 
-            <p className="text-base sm:text-lg text-indigo-100 mb-8 max-w-lg leading-relaxed font-medium">
-              Découvrez <span className="font-bold text-yellow-300">{formatCount(totalProducts)}</span> produits vérifiés. Vendez et achetez en toute confiance.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-4 justify-start items-start">
+    return (
+      <main className="max-w-[1400px] 2xl:max-w-[1600px] mx-auto px-6 lg:px-8 py-5 space-y-5">
+        {/* Category Pills Bar */}
+        <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar items-center">
+          <Link
+            to="/products"
+            {...externalLinkProps}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-indigo-600 text-white text-sm font-bold whitespace-nowrap shadow-sm hover:bg-indigo-700 transition-colors"
+          >
+            <LayoutGrid className="w-4 h-4" />
+            Tout
+          </Link>
+          {categoryGroups.map((group) => {
+            const Icon = group.icon;
+            return (
               <Link
-                to="/my"
-                className="group inline-flex items-center px-6 py-3.5 bg-white text-gray-900 font-semibold rounded-3xl hover:bg-gray-50 transition-all duration-200 active:scale-95 shadow-sm text-base"
+                key={group.id}
+                to={`/categories/${group.options?.[0]?.value || ''}`}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-gray-200 text-sm font-semibold text-gray-700 whitespace-nowrap shadow-sm hover:border-indigo-300 hover:text-indigo-600 transition-colors"
               >
-                <Zap className="w-5 h-5 mr-2" />
-                Publier un produit
+                {Icon && <Icon className="w-4 h-4 text-indigo-500 flex-shrink-0" />}
+                <span>{group.label.split(' & ')[0]}</span>
               </Link>
-              <Link
-                to="/products"
-                {...externalLinkProps}
-                className="inline-flex items-center px-6 py-3.5 bg-white/15 backdrop-blur-md text-white font-semibold rounded-3xl border border-white/30 hover:bg-white/25 transition-all duration-200 active:scale-95 text-base shadow-sm"
-              >
-                Explorer le marché
-                <ChevronRight className="w-5 h-5 ml-2" />
-              </Link>
-            </div>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setCategoryModalOpen(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-100 text-sm font-semibold text-gray-600 whitespace-nowrap hover:bg-gray-200 transition-colors"
+          >
+            Tout voir <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Zone 1: Hero (65%) + Flash Deals Panel (35%) */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-5">
+          {/* Hero Banner */}
+          <div className="flex flex-col gap-4">
+            <section className="relative bg-gradient-to-br from-indigo-900 via-indigo-800 to-purple-900 rounded-2xl overflow-hidden shadow-lg" style={{ minHeight: '300px' }}>
+              {heroBanner && (
+                <div className="absolute inset-0">
+                  <img src={heroBanner} alt="Bannière HDMarket" className="h-full w-full object-cover" loading="lazy" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-slate-950/70 via-indigo-950/70 to-purple-950/70" />
+                </div>
+              )}
+              <div className="relative z-10 px-6 py-8 lg:py-10 text-left">
+                <div className="inline-flex items-center px-3 py-1.5 bg-white/15 backdrop-blur-md rounded-full border border-white/30 mb-4 shadow-lg">
+                  <Star className="w-3.5 h-3.5 text-yellow-300 mr-1.5" fill="currentColor" />
+                  <span className="text-xs text-white font-semibold">Marketplace Premium</span>
+                </div>
+                <h1 className="text-3xl lg:text-4xl font-black text-white mb-3 leading-tight">
+                  Votre Marché
+                  <span className="block bg-gradient-to-r from-yellow-300 via-yellow-400 to-yellow-300 bg-clip-text text-transparent">Digital</span>
+                </h1>
+                <p className="text-sm text-indigo-100 mb-5 max-w-md leading-relaxed">
+                  Découvrez <span className="font-bold text-yellow-300">{formatCount(totalProducts)}</span> produits vérifiés. Vendez et achetez en toute confiance.
+                </p>
+                <div className="flex gap-3">
+                  <Link to="/my" className="inline-flex items-center px-5 py-2.5 bg-white text-gray-900 font-semibold rounded-xl hover:bg-gray-50 transition-all text-sm shadow-sm">
+                    <Zap className="w-4 h-4 mr-1.5" /> Publier
+                  </Link>
+                  <Link to="/products" {...externalLinkProps} className="inline-flex items-center px-5 py-2.5 bg-white/15 backdrop-blur-md text-white font-semibold rounded-xl border border-white/30 hover:bg-white/25 transition-all text-sm">
+                    Explorer <ChevronRight className="w-4 h-4 ml-1" />
+                  </Link>
+                </div>
+              </div>
+            </section>
+
+            {/* Promo Banner (below hero, full width of left column) */}
+            {promoBanner && (() => {
+              const bannerSrc = isPromoActive ? promoBanner : defaultPromoBanner;
+              const bannerLink = isPromoActive ? promoBannerLink : '/products';
+              const img = <img src={bannerSrc} alt="Promo" className="h-full w-full object-cover" loading="lazy" />;
+              const cls = "block w-full overflow-hidden rounded-xl shadow-sm aspect-[21/7]";
+              if (bannerLink?.startsWith('/')) return <Link to={bannerLink} {...externalLinkProps} className={cls}>{img}</Link>;
+              if (bannerLink) return <a href={bannerLink} target="_blank" rel="noopener noreferrer" className={cls}>{img}</a>;
+              return <div className={cls}>{img}</div>;
+            })()}
           </div>
-        </section>
 
-        {promoBanner && (
+          {/* Flash Deals Panel */}
+          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center">
+                  <Zap className="w-4 h-4 text-white" />
+                </div>
+                <h2 className="text-base font-bold text-gray-900">Flash Deals</h2>
+              </div>
+              <Link to="/top-deals" {...externalLinkProps} className="text-xs font-semibold text-indigo-600 flex items-center hover:text-indigo-500">
+                Voir tout <ChevronRight className="w-3 h-3 ml-0.5" />
+              </Link>
+            </div>
+            {highlightLoading ? (
+              <div className="grid grid-cols-2 gap-3 flex-1">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="animate-pulse bg-gray-100 rounded-xl aspect-square" />
+                ))}
+              </div>
+            ) : allDeals.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3 flex-1">
+                {allDeals.map((product, idx) => (
+                  <Link
+                    key={`deal-panel-${product._id}-${idx}`}
+                    to={buildHomeProductLink(product)}
+                    {...externalLinkProps}
+                    className="group bg-gray-50 rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-indigo-200 transition-all"
+                  >
+                    <div className="relative aspect-square bg-gray-100">
+                      <img src={product.images?.[0] || '/api/placeholder/200/200'} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
+                      {product.discount > 0 && (
+                        <span className="absolute top-1.5 left-1.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow">-{product.discount}%</span>
+                      )}
+                    </div>
+                    <div className="p-2">
+                      <p className="text-sm font-bold text-gray-900">{Number(product.price || 0).toLocaleString()} F</p>
+                      {product.priceBeforeDiscount > product.price && (
+                        <p className="text-[10px] text-gray-400 line-through">{Number(product.priceBeforeDiscount).toLocaleString()} F</p>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+                <Zap className="w-6 h-6 mr-2 text-gray-300" /> Aucun deal en cours
+              </div>
+            )}
+          </section>
+        </div>
+
+        {/* Zone 2: Best Sellers Row (5 columns) */}
+        {!topSalesLoading && topSalesProducts.length > 0 && (
           <section>
-            {renderPromoBanner()}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4 text-white" />
+                </div>
+                <h2 className="text-lg font-bold text-gray-900">Meilleures ventes</h2>
+              </div>
+              <Link to="/top-sales" {...externalLinkProps} className="text-sm font-semibold text-indigo-600 flex items-center hover:text-indigo-500">
+                Voir tout <ChevronRight className="w-4 h-4 ml-0.5" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-3 lg:grid-cols-5 gap-4">
+              {topSalesProducts.slice(0, 5).map((product, idx) => (
+                <Link
+                  key={`bestseller-d-${product._id}-${idx}`}
+                  to={buildHomeProductLink(product)}
+                  {...externalLinkProps}
+                  className="group bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md hover:border-indigo-200 transition-all"
+                >
+                  <div className="relative aspect-square bg-gray-100">
+                    <img src={product.images?.[0] || '/api/placeholder/200/200'} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
+                    {idx < 3 && (
+                      <span className={`absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg ${
+                        idx === 0 ? 'bg-yellow-500' : idx === 1 ? 'bg-gray-400' : 'bg-amber-600'
+                      }`}>
+                        {idx + 1}
+                      </span>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <p className="text-sm font-medium text-gray-700 truncate">{product.title}</p>
+                    <p className="text-sm font-bold text-gray-900 mt-0.5">{Number(product.price || 0).toLocaleString()} FCFA</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </section>
         )}
 
-        {/* 🚚 PROMESSE LIVRAISON ENHANCED */}
-        <section className="bg-gradient-to-br from-white to-emerald-50/30 rounded-3xl border-2 border-emerald-200/50 shadow-xl p-6 sm:p-8 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between hover:shadow-2xl transition-shadow duration-300">
-          <div className="flex items-start gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg ring-4 ring-emerald-100">
-              <Truck className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">
-                Livraison gratuite HDMarket
-              </p>
-              <h2 className="text-2xl font-black text-gray-900 mb-3">
-                0 FCFA de frais dans la ville de la boutique, sous 48h
-              </h2>
-              <p className="text-sm text-gray-700 leading-relaxed max-w-2xl">
-                Dès que votre paiement est vérifié et la commande confirmée par nos équipes, nous livrons gratuitement
-                dans la ville où se trouve la boutique en moins de 48h. Disponible à Brazzaville, Pointe-Noire, Oyo,
-                Ouesso et bien plus encore.
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 text-sm font-bold px-5 py-3 border-2 border-emerald-200 shadow-md">
-              <Shield size={16} className="text-emerald-600" />
-              Paiement confirmé
-            </span>
-            <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-50 to-blue-50 text-indigo-700 text-sm font-bold px-5 py-3 border-2 border-indigo-200 shadow-md">
-              <Clock size={16} className="text-indigo-600" />
-              Livraison 48h
-            </span>
-          </div>
-        </section>
-
-        {/* 🛡️ SECTION AVANTAGES ENHANCED */}
-        <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[
-            { icon: Shield, title: "Sécurisé", desc: "Paiements protégés", color: "indigo" },
-            { icon: Truck, title: "Livraison gratuite", desc: "< 48h dans la ville du vendeur", color: "emerald" },
-            { icon: Award, title: "Qualité", desc: "Produits vérifiés", color: "amber" },
-            { icon: Heart, title: "Confiance", desc: "Avis authentiques", color: "rose" }
-          ].map((item, index) => {
-            const colorClasses = {
-              indigo: "bg-indigo-100 text-indigo-600 border-indigo-200 hover:bg-indigo-50",
-              emerald: "bg-emerald-100 text-emerald-600 border-emerald-200 hover:bg-emerald-50",
-              amber: "bg-amber-100 text-amber-600 border-amber-200 hover:bg-amber-50",
-              rose: "bg-rose-100 text-rose-600 border-rose-200 hover:bg-rose-50"
-            };
-            const classes = colorClasses[item.color];
-            return (
-              <div key={index} className="group bg-white rounded-2xl p-5 text-center shadow-md border-2 border-gray-100 hover:shadow-xl hover:scale-105 transition-all duration-300">
-                <div className={`w-12 h-12 ${classes} rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform`}>
-                  <item.icon className="w-6 h-6" />
+        {/* Zone 3: Shops (35%) + Tabbed Top Products (65%) */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-5">
+          {/* Verified Shops Panel */}
+          <section className="bg-indigo-50/60 rounded-2xl border border-indigo-100 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 bg-emerald-500 rounded-lg flex items-center justify-center">
+                  <Shield className="w-3.5 h-3.5 text-white" />
                 </div>
-                <h3 className="font-bold text-gray-900 text-sm mb-2">{item.title}</h3>
-                <p className="text-xs text-gray-600 leading-relaxed">{item.desc}</p>
+                <h2 className="text-base font-bold text-gray-900">Boutiques vérifiées</h2>
               </div>
-            );
-          })}
-        </section>
-
-        {/* 🗂️ CATÉGORIES - DESIGN CUSTOM */}
-        <section className="relative overflow-hidden">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-200/60 dark:border-gray-700/50 shadow-lg" style={{ marginTop: '6px', marginBottom: '6px', paddingLeft: '20px', paddingRight: '20px', paddingTop: '23px', paddingBottom: '23px' }}>
-            {/* Header avec style plus organique */}
-            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
+              <Link to="/shops/verified" {...externalLinkProps} className="text-xs font-semibold text-indigo-600 hover:text-indigo-500">
+                Voir tout
+              </Link>
+            </div>
+            {verifiedLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 animate-pulse">
+                    <div className="w-10 h-10 bg-gray-200 rounded-lg" />
+                    <div className="flex-1 space-y-1.5"><div className="h-3 bg-gray-200 rounded w-3/4" /><div className="h-2.5 bg-gray-200 rounded w-1/2" /></div>
+                  </div>
+                ))}
+              </div>
+            ) : verifiedShops.length > 0 ? (
               <div className="space-y-2">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-100/80 dark:bg-indigo-900/30 border border-indigo-200/50 dark:border-indigo-800/50 w-fit">
-                  <LayoutGrid className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                  <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider">Catégories</span>
-                </div>
-                <h2 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight">
-                  Explorez nos univers
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-300 max-w-md">
-                  Trouvez exactement ce que vous cherchez parmi nos collections soigneusement organisées
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setCategoryModalOpen(true)}
-                className="group flex items-center gap-2 px-5 py-2.5 rounded-3xl bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 active:scale-95 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-sm"
-              >
-                <span>Tout voir</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Grille de catégories avec design unique */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-              {categoryGroups.map((group, index) => {
-                const Icon = group.icon;
-                const targetSlug = group.options?.[0]?.value || '';
-                
-                // Couleurs uniques par catégorie pour un look plus personnalisé
-                const categoryStyles = [
-                  { bg: 'bg-blue-50 dark:bg-blue-900/20', icon: 'text-blue-600 dark:text-blue-400', border: 'border-blue-200/50 dark:border-blue-800/50', hover: 'hover:bg-blue-100 dark:hover:bg-blue-900/30' },
-                  { bg: 'bg-pink-50 dark:bg-pink-900/20', icon: 'text-pink-600 dark:text-pink-400', border: 'border-pink-200/50 dark:border-pink-800/50', hover: 'hover:bg-pink-100 dark:hover:bg-pink-900/30' },
-                  { bg: 'bg-emerald-50 dark:bg-emerald-900/20', icon: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200/50 dark:border-emerald-800/50', hover: 'hover:bg-emerald-100 dark:hover:bg-emerald-900/30' },
-                  { bg: 'bg-amber-50 dark:bg-amber-900/20', icon: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200/50 dark:border-amber-800/50', hover: 'hover:bg-amber-100 dark:hover:bg-amber-900/30' },
-                  { bg: 'bg-purple-50 dark:bg-purple-900/20', icon: 'text-purple-600 dark:text-purple-400', border: 'border-purple-200/50 dark:border-purple-800/50', hover: 'hover:bg-purple-100 dark:hover:bg-purple-900/30' },
-                  { bg: 'bg-red-50 dark:bg-red-900/20', icon: 'text-red-600 dark:text-red-400', border: 'border-red-200/50 dark:border-red-800/50', hover: 'hover:bg-red-100 dark:hover:bg-red-900/30' },
-                  { bg: 'bg-violet-50 dark:bg-violet-900/20', icon: 'text-violet-600 dark:text-violet-400', border: 'border-violet-200/50 dark:border-violet-800/50', hover: 'hover:bg-violet-100 dark:hover:bg-violet-900/30' },
-                  { bg: 'bg-slate-50 dark:bg-slate-900/20', icon: 'text-slate-600 dark:text-slate-400', border: 'border-slate-200/50 dark:border-slate-800/50', hover: 'hover:bg-slate-100 dark:hover:bg-slate-900/30' }
-                ];
-                
-                const style = categoryStyles[index % categoryStyles.length];
-                
-                return (
+                {verifiedShops.map((shop) => (
                   <Link
-                    key={group.id}
-                    to={`/categories/${targetSlug}`}
-                    className={`group relative overflow-hidden rounded-2xl ${style.bg} border ${style.border} backdrop-blur-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-gray-900/50 active:scale-[0.98] ${style.hover}`}
+                    key={shop._id}
+                    to={buildShopPath(shop)}
+                    className="flex items-center gap-3 rounded-xl bg-white border border-gray-100 hover:border-indigo-200 hover:shadow-sm transition-all p-3"
                   >
-                    <div className="p-5 sm:p-6 flex flex-col items-center gap-4">
-                      {/* Icône avec effet de profondeur */}
-                      <div className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/80 dark:bg-gray-800/80 border-2 ${style.border} flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:rotate-3 group-hover:scale-110`}>
-                        <div className="absolute inset-0 rounded-2xl bg-white/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                        {Icon ? (
-                          <Icon className={`relative w-8 h-8 sm:w-10 sm:h-10 ${style.icon} transition-transform duration-300 group-hover:scale-110`} />
-                        ) : null}
-                      </div>
-                      
-                      {/* Label avec style amélioré */}
-                      <div className="text-center space-y-1">
-                        <p className="text-sm sm:text-base font-bold text-gray-900 dark:text-white leading-tight group-hover:text-gray-800 dark:group-hover:text-gray-100 transition-colors">
-                          {group.label.split(' & ')[0]}
-                        </p>
-                        {group.label.includes(' & ') && (
-                          <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-                            {group.label.split(' & ')[1]}
-                          </p>
-                        )}
-                      </div>
-                      
-                      {/* Indicateur de hover */}
-                      <div className={`absolute bottom-0 left-0 right-0 h-1 ${style.bg.replace('bg-', 'bg-').replace('-50', '-600').replace('-100', '-600')} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+                    <img src={shop.shopLogo || '/api/placeholder/40/40'} alt={shop.shopName} className="w-10 h-10 rounded-lg object-cover border border-gray-100" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{shop.shopName}</p>
+                      <p className="text-xs text-gray-500 truncate">{shop.shopAddress || 'Adresse non renseignée'}</p>
                     </div>
+                    <span className="text-xs text-emerald-600 font-semibold whitespace-nowrap">{shop.productCount || 0} annonces</span>
                   </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-gray-400 text-sm">Aucune boutique vérifiée</div>
+            )}
+          </section>
+
+          {/* Tabbed Top Products Widget */}
+          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-gray-900">Tendances</h2>
+              <Link to={activeTabData.link} {...externalLinkProps} className="text-xs font-semibold text-indigo-600 hover:text-indigo-500 flex items-center">
+                Voir tout <ChevronRight className="w-3 h-3 ml-0.5" />
+              </Link>
+            </div>
+            {/* Tab buttons */}
+            <div className="flex gap-1 mb-4 bg-gray-100 rounded-xl p-1">
+              {Object.entries(topProductsTabData).map(([key, tab]) => {
+                const TabIcon = tab.icon;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setTopProductsTab(key)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all flex-1 justify-center ${
+                      topProductsTab === key
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    <TabIcon className="w-3.5 h-3.5" />
+                    {tab.label}
+                  </button>
                 );
               })}
             </div>
-          </div>
-        </section>
-        {isCategoryModalOpen && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6"
-            onClick={() => setCategoryModalOpen(false)}
-          >
-            <div
-              className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-3xl bg-white dark:bg-gray-800 border border-gray-200/60 dark:border-gray-700/50 shadow-2xl"
-              onClick={(event) => event.stopPropagation()}
-            >
-              {/* Header amélioré */}
-              <div className="sticky top-0 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-gray-700/50 px-6 py-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-100/80 dark:bg-indigo-900/30 border border-indigo-200/50 dark:border-indigo-800/50 w-fit mb-2">
-                      <LayoutGrid className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                      <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider">Toutes les catégories</span>
-                    </div>
-                    <h3 className="text-xl font-black text-gray-900 dark:text-white">Explorer nos univers</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Sélectionnez une catégorie pour découvrir nos produits</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setCategoryModalOpen(false)}
-                    className="flex-shrink-0 w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center transition-colors text-gray-600 dark:text-gray-400"
-                    aria-label="Fermer"
+            {/* Tab content - 3 products in a row */}
+            {highlightLoading ? (
+              <div className="grid grid-cols-3 gap-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="animate-pulse bg-gray-100 rounded-xl aspect-square" />
+                ))}
+              </div>
+            ) : activeTabData.items.length > 0 ? (
+              <div className="grid grid-cols-3 gap-4">
+                {activeTabData.items.slice(0, 3).map((product, index) => (
+                  <Link
+                    key={`trend-${topProductsTab}-${product._id}-${index}`}
+                    to={buildHomeProductLink(product)}
+                    {...externalLinkProps}
+                    className="group bg-gray-50 rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-indigo-200 transition-all"
                   >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-              
-              {/* Contenu scrollable */}
-              <div className="max-h-[calc(90vh-120px)] overflow-y-auto px-6 py-6">
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {categoryGroups.map((group, index) => {
-                    const Icon = group.icon;
-                    
-                    // Même système de couleurs que la section principale
-                    const categoryStyles = [
-                      { bg: 'from-blue-500/10 to-cyan-500/10', icon: 'text-blue-600 dark:text-blue-400', border: 'border-blue-200/50 dark:border-blue-800/50', hover: 'hover:from-blue-500/20 hover:to-cyan-500/20' },
-                      { bg: 'from-pink-500/10 to-rose-500/10', icon: 'text-pink-600 dark:text-pink-400', border: 'border-pink-200/50 dark:border-pink-800/50', hover: 'hover:from-pink-500/20 hover:to-rose-500/20' },
-                      { bg: 'from-emerald-500/10 to-teal-500/10', icon: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200/50 dark:border-emerald-800/50', hover: 'hover:from-emerald-500/20 hover:to-teal-500/20' },
-                      { bg: 'from-amber-500/10 to-orange-500/10', icon: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200/50 dark:border-amber-800/50', hover: 'hover:from-amber-500/20 hover:to-orange-500/20' },
-                      { bg: 'from-purple-500/10 to-indigo-500/10', icon: 'text-purple-600 dark:text-purple-400', border: 'border-purple-200/50 dark:border-purple-800/50', hover: 'hover:from-purple-500/20 hover:to-indigo-500/20' },
-                      { bg: 'from-red-500/10 to-rose-500/10', icon: 'text-red-600 dark:text-red-400', border: 'border-red-200/50 dark:border-red-800/50', hover: 'hover:from-red-500/20 hover:to-rose-500/20' },
-                      { bg: 'from-violet-500/10 to-purple-500/10', icon: 'text-violet-600 dark:text-violet-400', border: 'border-violet-200/50 dark:border-violet-800/50', hover: 'hover:from-violet-500/20 hover:to-purple-500/20' },
-                      { bg: 'from-slate-500/10 to-gray-500/10', icon: 'text-slate-600 dark:text-slate-400', border: 'border-slate-200/50 dark:border-slate-800/50', hover: 'hover:from-slate-500/20 hover:to-gray-500/20' }
-                    ];
-                    
-                    const style = categoryStyles[index % categoryStyles.length];
-                    
-                    return (
-                      <Link
-                        key={group.id}
-                        to={`/categories/${group.options?.[0]?.value || ''}`}
-                        onClick={() => setCategoryModalOpen(false)}
-                        className={`group relative overflow-hidden rounded-2xl ${style.bg} border ${style.border} backdrop-blur-sm transition-all duration-300 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98] ${style.hover}`}
-                      >
-                        <div className="p-5 flex flex-col items-center gap-3 text-center">
-                          <div className={`relative w-16 h-16 rounded-2xl bg-white/80 dark:bg-gray-800/80 border-2 ${style.border} flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:rotate-3 group-hover:scale-110`}>
-                            <div className="absolute inset-0 rounded-2xl bg-white/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                            {Icon ? (
-                              <Icon className={`relative w-8 h-8 ${style.icon} transition-transform duration-300 group-hover:scale-110`} />
-                            ) : null}
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">
-                              {group.label}
-                            </p>
-                            <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
-                              {group.description}
-                            </p>
-                          </div>
-                          <div className={`absolute bottom-0 left-0 right-0 h-1 ${style.bg.replace('bg-', 'bg-').replace('-50', '-600').replace('-100', '-600')} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+                    <div className="relative aspect-square bg-gray-100">
+                      <img src={product.images?.[0] || '/api/placeholder/200/200'} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
+                      <span className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow ${
+                        index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : 'bg-amber-600'
+                      }`}>
+                        {index + 1}
+                      </span>
+                    </div>
+                    <div className="p-3">
+                      <p className="text-sm font-medium text-gray-700 truncate group-hover:text-indigo-600 transition-colors">{product.title}</p>
+                      <p className="text-sm font-bold text-gray-900 mt-0.5">{Number(product.price || 0).toLocaleString()} FCFA</p>
+                      {topProductsTab === 'favorites' && (
+                        <div className="flex items-center gap-1 mt-1 text-xs text-gray-500">
+                          <Heart className="w-3 h-3 text-rose-500" fill="currentColor" />
+                          <span>{product.favoritesCount || 0}</span>
                         </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 🔥 BONNES AFFAIRES - ENHANCED */}
-        <section className="bg-gradient-to-br from-white to-red-50/20 rounded-3xl p-6 sm:p-8 shadow-xl border-2 border-red-100/50">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-red-500 via-orange-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg ring-4 ring-red-100">
-                <Zap className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-black text-gray-900">Bonnes Affaires</h2>
-                <p className="text-gray-600 text-sm font-medium">Prix imbattables du moment</p>
-              </div>
-            </div>
-            {!highlightLoading && highlights.topDeals.length > 0 && (
-              <Link to="/top-deals" className="group inline-flex items-center px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-3xl hover:bg-blue-700 transition-all duration-200 active:scale-95 shadow-sm text-sm">
-                Tout voir <ChevronRight className="w-4 h-4 ml-2" />
-              </Link>
-            )}
-          </div>
-
-          {highlightLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {Array.from({ length: 4 }).map((_, idx) => (
-                <div key={idx} className="animate-pulse">
-                  <div className="bg-gray-200 rounded-lg aspect-square mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded mb-1"></div>
-                  <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-                </div>
-              ))}
-            </div>
-          ) : highlights.topDeals.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {highlights.topDeals.slice(0, 6).map((product, idx) => (
-                <div key={`top-deal-${product._id}-${idx}`} className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl border-2 border-gray-100 hover:border-red-200 transition-all duration-300">
-                  <div className="relative bg-gradient-to-br from-gray-100 to-gray-200 aspect-square overflow-hidden">
-                    <img
-                      src={product.images?.[0] || "/api/placeholder/200/200"}
-                      alt={product.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
-                    {product.discount > 0 && (
-                      <div className="absolute top-3 left-3 bg-gradient-to-br from-red-500 to-red-600 text-white text-sm font-black px-3 py-1.5 rounded-xl shadow-xl ring-2 ring-white/50">
-                        -{product.discount}%
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="p-4">
-                    {/* PRIX BIEN VISIBLE */}
-                    <div className="mb-3">
-                      <div className="flex items-baseline space-x-2 mb-1">
-                        <span className="text-xl font-black text-gray-900">
-                          {Number(product.price || 0).toLocaleString()} FCFA
-                        </span>
-                        {product.priceBeforeDiscount > product.price && (
-                          <span className="text-sm text-gray-500 line-through font-medium">
-                            {Number(product.priceBeforeDiscount).toLocaleString()} FCFA
-                          </span>
-                        )}
-                      </div>
-                      {product.discount > 0 && (
-                        <div className="text-sm text-red-600 font-bold">
-                          Économisez {Math.round((product.priceBeforeDiscount - product.price) / 100) * 100} FCFA
+                      )}
+                      {topProductsTab === 'topRated' && (
+                        <div className="flex items-center gap-1 mt-1 text-xs text-gray-500">
+                          <Star className="w-3 h-3 text-yellow-400" fill="currentColor" />
+                          <span className="font-semibold text-gray-700">{Number(product.ratingAverage || 0).toFixed(1)}</span>
+                          <span>({product.ratingCount || 0})</span>
                         </div>
                       )}
                     </div>
-
-                    {/* LIEN DIRECT VERS LE PRODUIT */}
-                    <Link
-                      to={buildHomeProductLink(product)}
-                      {...externalLinkProps}
-                      className="block w-full text-center bg-gradient-to-r from-indigo-600 to-indigo-700 text-white text-sm font-bold py-3 rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all shadow-md hover:shadow-lg transform hover:scale-105"
-                    >
-                      Voir l'offre
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-6 text-gray-500">
-              <Zap className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-              <p className="text-sm">Aucune bonne affaire pour le moment</p>
-            </div>
-          )}
-        </section>
-
-        {/* 🏷️ PRODUITS EN PROMOTION - ENHANCED */}
-        <section className="bg-gradient-to-br from-white to-emerald-50/30 rounded-3xl p-6 sm:p-8 shadow-xl border-2 border-emerald-100/50">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg ring-4 ring-emerald-100">
-                <Tag className="w-6 h-6 text-white" />
+                  </Link>
+                ))}
               </div>
-              <div>
-                <h2 className="text-2xl font-black text-gray-900">Produits en Promotion</h2>
-                <p className="text-gray-600 text-sm font-medium">Réductions exceptionnelles</p>
-              </div>
-            </div>
-            {!discountLoading && discountProducts.length > 0 && (
-              <Link 
-                to="/top-discounts" 
-                className="group inline-flex items-center px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-3xl hover:bg-blue-700 transition-all duration-200 active:scale-95 shadow-sm text-sm"
-              >
-                Tout voir <ChevronRight className="w-4 h-4 ml-2" />
-              </Link>
+            ) : (
+              <div className="text-center py-8 text-gray-400 text-sm">Aucun produit dans cette catégorie</div>
             )}
+          </section>
+        </div>
+
+        {/* Découvrir plus: quick-links to dedicated pages */}
+        <section className="hidden lg:block">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-sm font-semibold text-gray-600">Découvrir plus</span>
           </div>
-
-          {discountLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-              {Array.from({ length: 4 }).map((_, idx) => (
-                <div key={idx} className="animate-pulse">
-                  <div className="bg-gray-200 rounded-lg aspect-square mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded mb-1"></div>
-                  <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-                </div>
-              ))}
-            </div>
-          ) : discountProducts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {discountProducts.slice(0, 8).map((product, idx) => (
-                <div key={`discount-${product._id}-${idx}`} className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl border-2 border-gray-100 hover:border-emerald-200 transition-all duration-300">
-                  <div className="relative bg-gradient-to-br from-gray-100 to-gray-200 aspect-square overflow-hidden">
-                    <img
-                      src={product.images?.[0] || "/api/placeholder/200/200"}
-                      alt={product.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
-                    {/* BADGE DE PROMOTION BIEN VISIBLE */}
-                    <div className="absolute top-3 left-3 bg-gradient-to-br from-emerald-500 to-green-600 text-white text-sm font-black px-3 py-1.5 rounded-xl shadow-xl ring-2 ring-white/50">
-                      -{product.discount}%
-                    </div>
-                    {/* COMPTEUR D'ÉCONOMIE */}
-                    <div className="absolute top-3 right-3 bg-gradient-to-br from-red-500 to-red-600 text-white text-[10px] font-black px-2 py-1 rounded-lg shadow-lg">
-                      ÉCONOMIE
-                    </div>
-                  </div>
-                  
-                  <div className="p-4">
-                    {/* INFORMATIONS PRODUIT */}
-                    <div className="mb-3">
-                      <h3 className="font-bold text-gray-900 text-sm mb-2 line-clamp-2 min-h-[2.5rem]">
-                        {product.title}
-                      </h3>
-                      
-                      {/* PRIX AVEC RÉDUCTION BIEN VISIBLE */}
-                      <div className="space-y-2">
-                        <div className="flex items-baseline space-x-2">
-                          <span className="text-lg font-black text-gray-900">
-                            {Number(product.price || 0).toLocaleString()} FCFA
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500 line-through font-medium">
-                            {Number(product.priceBeforeDiscount).toLocaleString()} FCFA
-                          </span>
-                          <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">
-                            Économie {Math.round((product.priceBeforeDiscount - product.price) / 100) * 100} FCFA
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* LIEN DIRECT VERS LE PRODUIT */}
-                    <Link
-                      to={buildHomeProductLink(product)}
-                      {...externalLinkProps}
-                      className="block w-full text-center bg-gradient-to-r from-emerald-600 to-green-600 text-white text-sm font-bold py-3 rounded-xl hover:from-emerald-700 hover:to-green-700 transition-all shadow-md hover:shadow-lg transform hover:scale-105"
-                    >
-                      Profiter de l'offre
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-6 text-gray-500">
-              <Tag className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-              <p className="text-sm">Aucune promotion en cours</p>
-              <p className="text-xs text-gray-400 mt-1">Revenez bientôt pour découvrir nos offres</p>
-            </div>
-          )}
-        </section>
-
-        {/* 🏆 PRODUITS LES PLUS VENDUS - ENHANCED */}
-        <section className="bg-gradient-to-br from-white to-orange-50/20 rounded-3xl p-6 sm:p-8 shadow-xl border-2 border-orange-100/50">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-amber-600 rounded-2xl flex items-center justify-center shadow-lg ring-4 ring-orange-100">
-                <TrendingUp className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-black text-gray-900">Produits les plus vendus</h2>
-                <p className="text-gray-600 text-sm font-medium">Best-sellers basés sur les ventes réelles</p>
-              </div>
-            </div>
-            {!topSalesLoading && topSalesProducts.length > 0 && (
-              <Link 
-                to="/top-sales" 
-                className="group inline-flex items-center px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-3xl hover:bg-blue-700 transition-all duration-200 active:scale-95 shadow-sm text-sm"
-              >
-                Tout voir <ChevronRight className="w-4 h-4 ml-2" />
-              </Link>
-            )}
-          </div>
-
-          {topSalesLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {Array.from({ length: 6 }).map((_, idx) => (
-                <div key={idx} className="animate-pulse">
-                  <div className="bg-gray-200 rounded-lg aspect-square mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded mb-1"></div>
-                  <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-                </div>
-              ))}
-            </div>
-          ) : topSalesProducts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {topSalesProducts.slice(0, 6).map((product, idx) => (
-                <div key={`top-sales-${product._id}-${idx}`} className="relative group">
-                  {/* Ranking Badge Enhanced */}
-                  {idx < 3 && (
-                    <div className="absolute -top-3 -left-3 z-30">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-2xl ring-4 ring-white ${
-                        idx === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-500' :
-                        idx === 1 ? 'bg-gradient-to-br from-gray-400 to-gray-500' :
-                        'bg-gradient-to-br from-amber-500 to-amber-600'
-                      }`}>
-                        <Award className="w-6 h-6 text-white" />
-                      </div>
-                      <div className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-white/80 flex items-center justify-center text-xs font-black">
-                        {idx + 1}
-                      </div>
-                    </div>
-                  )}
-                  <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl border-2 border-gray-100 hover:border-orange-200 transition-all duration-300 transform hover:scale-105">
-                    <ProductCard
-                      p={product}
-                      productLink={buildHomeProductLink(product)}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-6 text-gray-500">
-              <ShoppingBag className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-              <p className="text-sm">Aucun produit vendu pour le moment</p>
-              <p className="text-xs text-gray-400 mt-1">Les best-sellers apparaîtront ici une fois que des commandes seront confirmées</p>
-            </div>
-          )}
-        </section>
-
-        {/* 🌆 PRODUITS PAR VILLE */}
-        {cityList.map((city) => {
-          const products = (cityHighlights[city] || []).slice(0, 8);
-          if (!products.length) return null;
-          return (
-            <section
-              key={city}
-              className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100"
+          <div className="flex flex-wrap gap-2">
+            <Link
+              to="/cities"
+              {...externalLinkProps}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-indigo-50 border border-gray-100 hover:border-indigo-200 text-gray-700 hover:text-indigo-700 font-medium text-sm transition-all"
             >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center">
-                    <MapPin className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-gray-900">{city}</h2>
-                    <p className="text-gray-500 text-xs">Annonces publiées depuis {city}</p>
-                  </div>
-                </div>
-                <Link
-                  to={`/cities?city=${encodeURIComponent(city)}`}
-                  {...externalLinkProps}
-                  className="text-indigo-600 hover:text-indigo-500 text-xs font-semibold flex items-center"
-                >
-                  Tout voir <ChevronRight className="w-3 h-3 ml-1" />
-                </Link>
-              </div>
-
-              <Swiper
-                modules={[Navigation, Pagination, Autoplay]}
-                spaceBetween={16}
-                slidesPerView={1}
-                navigation
-                pagination={{ clickable: true }}
-                autoplay={{ delay: 4500, disableOnInteraction: false }}
-                breakpoints={{
-                  640: { slidesPerView: 2 },
-                  1024: { slidesPerView: 4 }
-                }}
-              >
-                {products.map((product, index) => (
-                  <SwiperSlide key={`city-${city}-${product._id}-${index}`}>
-                    <div className="bg-white rounded-2xl border border-gray-100 p-3 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col gap-2 h-full">
-                      <Link
-                        to={buildHomeProductLink(product)}
-                        {...externalLinkProps}
-                        className="relative block"
-                      >
-                        <img
-                          src={product.images?.[0] || "/api/placeholder/200/200"}
-                          alt={product.title}
-                          className="w-full aspect-square rounded-xl object-cover"
-                        />
-                        {product.discount > 0 && (
-                          <span className="absolute top-2 left-2 px-2 py-1 text-[10px] font-semibold rounded-full bg-rose-500 text-white">
-                            -{product.discount}%
-                          </span>
-                        )}
-                          <span className="absolute top-2 right-2 px-2 py-1 text-[10px] font-semibold rounded-full bg-white/90 text-gray-700">
-                            {product.condition === 'new' ? 'Neuf' : 'Occasion'}
-                          </span>
-                      </Link>
-
-                      <div className="flex items-center justify-between text-sm font-bold text-gray-900">
-                        <span>{Number(product.price || 0).toLocaleString()} FCFA</span>
-                        {product.priceBeforeDiscount > product.price && (
-                          <span className="text-xs text-gray-500 font-medium line-through">
-                            {Number(product.priceBeforeDiscount).toLocaleString()}
-                          </span>
-                        )}
-                      </div>
-
-                      <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">{product.title}</h3>
-                      {product.shopName && (
-                        <p className="text-xs text-gray-500 flex items-center justify-between">
-                          <span>{product.shopName}</span>
-                          <span className="text-[10px] text-indigo-600 font-semibold">
-                            {product.condition === 'new' ? 'Neuf' : 'Occasion'}
-                          </span>
-                        </p>
-                      )}
-
-                    </div>
-                  </SwiperSlide>
-                ))}
-              </Swiper>
-            </section>
-          );
-        })}
-
-        <section className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">Explorer toutes les villes</h2>
-              <p className="text-xs text-gray-500">
-                Retrouvez la liste complète des annonces par ville et découvrez les vendeurs proches de vous.
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Link
-                to="/cities"
-                {...externalLinkProps}
-                className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100"
-              >
-                Parcourir les villes
-              </Link>
-              <Link
-                to="/products"
-                {...externalLinkProps}
-                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-indigo-600 hover:bg-gray-50"
-              >
-                Voir tous les produits
-              </Link>
-            </div>
+              <MapPin className="w-4 h-4" />
+              Par ville
+            </Link>
+            <Link
+              to="/top-favorites"
+              {...externalLinkProps}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-indigo-50 border border-gray-100 hover:border-indigo-200 text-gray-700 hover:text-indigo-700 font-medium text-sm transition-all"
+            >
+              <Heart className="w-4 h-4" />
+              Favoris
+            </Link>
+            <Link
+              to="/top-ranking"
+              {...externalLinkProps}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-indigo-50 border border-gray-100 hover:border-indigo-200 text-gray-700 hover:text-indigo-700 font-medium text-sm transition-all"
+            >
+              <Star className="w-4 h-4" />
+              Mieux notés
+            </Link>
+            <Link
+              to="/top-new"
+              {...externalLinkProps}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-indigo-50 border border-gray-100 hover:border-indigo-200 text-gray-700 hover:text-indigo-700 font-medium text-sm transition-all"
+            >
+              <Sparkles className="w-4 h-4" />
+              Nouveautés
+            </Link>
+            <Link
+              to="/top-used"
+              {...externalLinkProps}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-indigo-50 border border-gray-100 hover:border-indigo-200 text-gray-700 hover:text-indigo-700 font-medium text-sm transition-all"
+            >
+              <Clock className="w-4 h-4" />
+              Occasions
+            </Link>
+            <Link
+              to="/certified-products"
+              {...externalLinkProps}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-indigo-50 border border-gray-100 hover:border-indigo-200 text-gray-700 hover:text-indigo-700 font-medium text-sm transition-all"
+            >
+              <Shield className="w-4 h-4" />
+              Produits certifiés
+            </Link>
           </div>
         </section>
 
-        {/* 🏆 TOP PRODUITS */}
-        <section className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {/* Top Favoris */}
-          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100 h-full flex flex-col">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-pink-600 rounded-xl flex items-center justify-center">
-                  <Heart className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 text-sm">Top Favoris</h3>
-                  <p className="text-gray-500 text-xs">Les plus enregistrés</p>
-                </div>
-              </div>
-              <Link to="/top-favorites" className="text-indigo-600 hover:text-indigo-500 text-xs font-semibold">
-                Voir tout
-              </Link>
-            </div>
-
-            {highlightLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 3 }).map((_, idx) => (
-                  <div key={idx} className="flex items-center space-x-3 animate-pulse">
-                    <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
-                    <div className="flex-1 space-y-2">
-                      <div className="h-3 bg-gray-200 rounded"></div>
-                      <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : highlights.favorites.length > 0 ? (
-              <div className="space-y-3 flex-1">
-                {highlights.favorites.slice(0, 3).map((product, index) => (
-                  <Link
-                    key={`favorite-${product._id}-${index}`}
-                    to={buildHomeProductLink(product)}
-                    {...externalLinkProps}
-                    className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-50 transition-colors group"
-                  >
-                    <div className="flex items-center justify-center w-6">
-                      <span className={`text-xs font-bold ${
-                        index === 0 ? "text-yellow-500" :
-                        index === 1 ? "text-gray-400" :
-                        "text-amber-600"
-                      }`}>
-                        #{index + 1}
-                      </span>
-                    </div>
-                    <img
-                      src={product.images?.[0] || "/api/placeholder/60/60"}
-                      alt={product.title}
-                      className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 text-xs truncate group-hover:text-indigo-600 transition-colors">
-                        {product.title}
-                      </p>
-                      <p className="text-gray-500 text-xs">
-                        {Number(product.price || 0).toLocaleString()} FCFA
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="flex items-center justify-end space-x-1 text-xs text-gray-500">
-                        <Heart className="w-3 h-3 text-rose-500" fill="currentColor" />
-                        <span>{product.favoritesCount || 0}</span>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-4 text-gray-500">
-                <Heart className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                <p className="text-xs">Soyez le premier à ajouter en favoris !</p>
-              </div>
-            )}
-          </div>
-
-          {/* Top Notés */}
-          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100 h-full flex flex-col">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-amber-600 rounded-xl flex items-center justify-center">
-                  <Star className="w-4 h-4 text-white" fill="currentColor" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 text-sm">Top Notés</h3>
-                  <p className="text-gray-500 text-xs">Les mieux évalués</p>
-                </div>
-              </div>
-              <Link to="/top-ranking" className="text-indigo-600 hover:text-indigo-500 text-xs font-semibold">
-                Voir tout
-              </Link>
-            </div>
-
-            {highlightLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 3 }).map((_, idx) => (
-                  <div key={idx} className="flex items-center space-x-3 animate-pulse">
-                    <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
-                    <div className="flex-1 space-y-2">
-                      <div className="h-3 bg-gray-200 rounded"></div>
-                      <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : highlights.topRated.length > 0 ? (
-              <div className="space-y-3 flex-1">
-                {highlights.topRated.slice(0, 3).map((product, index) => (
-                  <Link
-                    key={`top-rated-${product._id}-${index}`}
-                    to={buildHomeProductLink(product)}
-                    {...externalLinkProps}
-                    className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-50 transition-colors group"
-                  >
-                    <div className="flex items-center justify-center w-6">
-                      <span className={`text-xs font-bold ${
-                        index === 0 ? "text-yellow-500" :
-                        index === 1 ? "text-gray-400" :
-                        "text-amber-600"
-                      }`}>
-                        #{index + 1}
-                      </span>
-                    </div>
-                    <img
-                      src={product.images?.[0] || "/api/placeholder/60/60"}
-                      alt={product.title}
-                      className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 text-xs truncate group-hover:text-indigo-600 transition-colors">
-                        {product.title}
-                      </p>
-                      <p className="text-gray-500 text-xs">
-                        {Number(product.price || 0).toLocaleString()} FCFA
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="flex items-center justify-end space-x-1 text-xs">
-                        <Star className="w-3 h-3 text-yellow-400" fill="currentColor" />
-                        <span className="font-semibold text-gray-900">
-                          {Number(product.ratingAverage || 0).toFixed(1)}
-                        </span>
-                      </div>
-                      <p className="text-gray-500 text-xs">{product.ratingCount || 0} avis</p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-4 text-gray-500">
-                <Star className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                <p className="text-xs">Les premières évaluations arrivent bientôt !</p>
-              </div>
-            )}
-          </div>
-
-          </div>
-
-          {/* Produits Neufs */}
-          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-sky-600 rounded-xl flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 text-sm">Produits Neufs</h3>
-                  <p className="text-gray-500 text-xs">Dernières nouveautés en boutique</p>
-                </div>
-              </div>
-              <Link to="/top-new" className="text-indigo-600 hover:text-indigo-500 text-xs font-semibold">
-                Voir tout
-              </Link>
-            </div>
-
-            {highlightLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 3 }).map((_, idx) => (
-                  <div key={idx} className="flex items-center space-x-3 animate-pulse">
-                    <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
-                    <div className="flex-1 space-y-2">
-                      <div className="h-3 bg-gray-200 rounded"></div>
-                      <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : highlights.newProducts.length > 0 ? (
-              <div className="space-y-3">
-                {highlights.newProducts.slice(0, 3).map((product, index) => (
-                  <Link
-                    key={`new-${product._id}-${index}`}
-                    to={buildHomeProductLink(product)}
-                    {...externalLinkProps}
-                    className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-50 transition-colors group"
-                  >
-                    <img
-                      src={product.images?.[0] || "/api/placeholder/60/60"}
-                      alt={product.title}
-                      className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 text-xs truncate group-hover:text-indigo-600 transition-colors">
-                        {product.title}
-                      </p>
-                      <p className="text-gray-500 text-xs">
-                        {Number(product.price || 0).toLocaleString()} FCFA
-                      </p>
-                    </div>
-                    <div className="text-right text-xs text-gray-500">
-                      <p className="font-semibold text-indigo-600">Neuf</p>
-                      <p className="text-[10px]">Ajouté récemment</p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-4 text-gray-500">
-                <Sparkles className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                <p className="text-xs">Aucun produit neuf pour le moment.</p>
-              </div>
-            )}
-          </div>
-
-          {/* Produits d'occasion */}
-          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-slate-600 rounded-xl flex items-center justify-center">
-                  <RefreshCcw className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 text-sm">Produits d'occasion</h3>
-                  <p className="text-gray-500 text-xs">Sélection vérifiée par la communauté</p>
-                </div>
-              </div>
-              <Link to="/top-used" className="text-indigo-600 hover:text-indigo-500 text-xs font-semibold">
-                Voir tout
-              </Link>
-            </div>
-
-            {highlightLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 3 }).map((_, idx) => (
-                  <div key={idx} className="flex items-center space-x-3 animate-pulse">
-                    <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
-                    <div className="flex-1 space-y-2">
-                      <div className="h-3 bg-gray-200 rounded"></div>
-                      <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : highlights.usedProducts.length > 0 ? (
-              <div className="space-y-3">
-                {highlights.usedProducts.slice(0, 3).map((product, index) => (
-                  <Link
-                    key={`used-${product._id}-${index}`}
-                    to={buildHomeProductLink(product)}
-                    {...externalLinkProps}
-                    className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-50 transition-colors group"
-                  >
-                    <img
-                      src={product.images?.[0] || "/api/placeholder/60/60"}
-                      alt={product.title}
-                      className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 text-xs truncate group-hover:text-indigo-600 transition-colors">
-                        {product.title}
-                      </p>
-                      <p className="text-gray-500 text-xs">
-                        {Number(product.price || 0).toLocaleString()} FCFA
-                      </p>
-                    </div>
-                    <div className="text-right text-xs text-gray-500">
-                      <p className="font-semibold text-slate-600">Occasion</p>
-                      <p className="text-[10px]">Bon état garanti</p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-4 text-gray-500">
-                <RefreshCcw className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                <p className="text-xs">Aucune annonce d'occasion pour l'instant.</p>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* 🎯 FILTRES ET TRI RAPIDE - ENHANCED */}
-        <section className="bg-gradient-to-br from-white to-indigo-50/20 rounded-3xl p-6 sm:p-8 shadow-xl border-2 border-indigo-100/50">
-          <div className="flex flex-col gap-6">
-            <div>
-              <p className="text-sm font-bold text-indigo-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-                <LayoutGrid className="w-4 h-4" />
-                Filtrer les meilleures offres
-              </p>
-              <div className="flex flex-wrap gap-3">
-                {[
-                  { value: '', label: 'Toutes' },
-                  { value: 'electronics', label: 'Électronique' },
-                  { value: 'fashion', label: 'Mode' },
-                  { value: 'home', label: 'Maison' },
-                  { value: 'sports', label: 'Sports' }
-                ].map((option) => (
-                  <button
-                    key={option.value || 'all'}
-                    type="button"
-                    onClick={() => {
-                      setCategory(option.value);
-                      setPage(1);
-                    }}
-                    className={`px-5 py-2.5 rounded-3xl text-sm font-semibold transition-all duration-200 active:scale-95 ${
-                      category === option.value
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 shadow-sm'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            <div>
-              <p className="text-sm font-bold text-purple-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" />
-                Trier par
-              </p>
-              <div className="flex flex-wrap gap-3">
-                {[
-                  { value: 'new', label: 'Nouveautés' },
-                  { value: 'price_asc', label: 'Prix ↑' },
-                  { value: 'price_desc', label: 'Prix ↓' },
-                  { value: 'discount', label: 'Remises' }
-                ].map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => {
-                      setSort(option.value);
-                      setPage(1);
-                    }}
-                    className={`px-5 py-2.5 rounded-3xl text-sm font-semibold transition-all duration-200 active:scale-95 ${
-                      sort === option.value
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 shadow-sm'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 🛡️ BOUTIQUES VÉRIFIÉES */}
-        {verifiedLoading ? (
-          <section className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <p className="text-sm text-gray-500">Chargement des boutiques vérifiées…</p>
-          </section>
-        ) : verifiedShops.length ? (
-          <section className="bg-indigo-50 rounded-2xl p-4 sm:p-6 shadow-sm border border-indigo-100 space-y-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-emerald-500" />
-                  Boutiques vérifiées
-                </h2>
-                <p className="text-sm text-gray-500">
-                  Vendeurs certifiés par ETS HD Tech Filial
-                </p>
-              </div>
-              <Link
-                to="/shops/verified"
-                className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-500"
+        {/* Zone 4: Inline Filters + Product Grid */}
+        <section>
+          {/* Inline filter bar */}
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <h2 className="text-xl font-bold text-gray-900">
+              Tous les produits
+              <span className="text-sm font-normal text-gray-500 ml-2">({formatCount(totalProducts)})</span>
+            </h2>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Sort dropdown */}
+              <select
+                value={sort}
+                onChange={(e) => { setSort(e.target.value); setPage(1); }}
+                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer"
               >
-                Voir toutes les boutiques
-                <ChevronRight size={16} />
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {verifiedShops.map((shop) => (
-                <Link
-                  key={shop._id}
-                  to={buildShopPath(shop)}
-                  className="flex items-center gap-3 rounded-xl border border-gray-100 hover:border-indigo-200 hover:shadow-md transition-all bg-white p-4"
-                >
-                  <img
-                    src={shop.shopLogo || '/api/placeholder/60/60'}
-                    alt={shop.shopName}
-                    className="h-12 w-12 rounded-xl object-cover border border-indigo-100"
-                  />
-                  <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">{shop.shopName}</p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {shop.shopAddress || 'Adresse non renseignée'}
-                    </p>
-                    <div className="text-xs text-emerald-600 font-semibold mt-1">
-                      {shop.productCount || 0} annonce{shop.productCount > 1 ? 's' : ''}
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-        </section>
-        ) : null}
-
-        {certifiedProducts.length > 0 ? (
-          <section className="bg-emerald-50 rounded-2xl p-4 sm:p-6 shadow-sm border border-emerald-100 space-y-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-emerald-500" />
-                  Produits certifiés
-                </h2>
-                <p className="text-sm text-gray-500">
-                  Les annonces garanties HDMarket par nos équipes de vérification.
-                </p>
-              </div>
-              <Link
-                to="/certified-products"
-                className="text-xs font-semibold text-indigo-600 hover:text-indigo-500"
+                <option value="new">Nouveautés</option>
+                <option value="price_asc">Prix croissant</option>
+                <option value="price_desc">Prix décroissant</option>
+                <option value="discount">Remises</option>
+              </select>
+              {/* Category filter */}
+              <select
+                value={category}
+                onChange={(e) => { setCategory(e.target.value); setPage(1); }}
+                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer"
               >
-                Voir tous les certifiés
-                <ChevronRight size={16} />
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-              {certifiedProducts.map((product, index) => (
-                <Link
-                  key={`certified-${product._id}-${index}`}
-                  to={buildHomeProductLink(product)}
-                  className="rounded-2xl border border-gray-100 bg-white p-3 text-xs text-gray-700 hover:border-indigo-200 hover:shadow-lg transition"
-                >
-                  <div className="flex items-start gap-2">
-                    <div className="h-12 w-12 overflow-hidden rounded-lg bg-gray-100">
-                      <img
-                        src={product.images?.[0] || '/api/placeholder/80/80'}
-                        alt={product.title}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-[11px] uppercase tracking-wide text-emerald-600">Certifié</p>
-                      <p className="text-sm font-semibold text-gray-900 line-clamp-2">{product.title}</p>
-                    </div>
-                  </div>
-                  <p className="mt-2 text-xs text-gray-500">{Number(product.price).toLocaleString()} FCFA</p>
-                </Link>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {/* 📦 TOUS LES PRODUITS AVEC PAGINATION - ENHANCED */}
-        <section className="bg-white rounded-3xl p-6 sm:p-8 shadow-xl border-2 border-gray-100">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-black text-gray-900 mb-2">Tous les Produits</h2>
-              <p className="text-gray-600 text-sm font-medium">
-                <span className="font-bold text-indigo-600">{items.length}</span> produits disponibles
-              </p>
+                <option value="">Toutes catégories</option>
+                <option value="electronics">Électronique</option>
+                <option value="fashion">Mode</option>
+                <option value="home">Maison</option>
+                <option value="sports">Sports</option>
+              </select>
             </div>
           </div>
 
+          {/* Product grid - 4-5 columns */}
           {loading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-5">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="animate-pulse bg-gradient-to-br from-gray-200 to-gray-300 rounded-2xl h-64 shadow-md"></div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <div key={i} className="animate-pulse bg-gray-200 rounded-xl h-64" />
               ))}
             </div>
           ) : items.length > 0 ? (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 lg:gap-5">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {items.map((product, index) => (
-                  <div 
-                    key={`product-${product._id}-${index}`} 
-                    className="transform hover:scale-105 transition-transform duration-300 w-full h-full"
-                  >
-                    <ProductCard
-                      p={product}
-                      productLink={buildHomeProductLink(product)}
-                    />
+                  <div key={`product-d-${product._id}-${index}`} className="hover:shadow-md transition-shadow rounded-xl overflow-hidden">
+                    <ProductCard p={product} productLink={buildHomeProductLink(product)} />
                   </div>
                 ))}
               </div>
-
-              {/* PAGINATION MOBILE-FIRST */}
               {renderPagination()}
             </>
           ) : (
-            <div className="text-center py-12 bg-gradient-to-br from-gray-50 to-white rounded-3xl border-2 border-gray-200 shadow-lg">
-              <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
-                <Search className="w-10 h-10 text-gray-400" />
-              </div>
-              <h3 className="text-xl font-black text-gray-900 mb-3">Aucun produit trouvé</h3>
-              <p className="text-gray-600 text-base mb-6 font-medium">
-                Modifiez vos critères de filtrage
-              </p>
+            <div className="text-center py-12 bg-gray-50 rounded-2xl border border-gray-200">
+              <Search className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Aucun produit trouvé</h3>
+              <p className="text-gray-500 text-sm mb-4">Modifiez vos critères de filtrage</p>
               <button
-                onClick={() => {
-                  setCategory("");
-                  setSort("new");
-                  setPage(1);
-                }}
-                className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-3xl hover:bg-blue-700 transition-all duration-200 active:scale-95 shadow-sm text-base"
+                onClick={() => { setCategory(''); setSort('new'); setPage(1); }}
+                className="px-5 py-2.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors text-sm"
               >
                 Réinitialiser les filtres
               </button>
@@ -1988,6 +1249,82 @@ const loadDiscountProducts = async () => {
           )}
         </section>
       </main>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50">
+      <MobileSplash visible={showMobileSplash} logoSrc={appLogoMobile} label="HDMarket" />
+      {isMobileView ? renderMobileHome() : renderDesktopHome()}
+
+      {/* Category Modal (shared between mobile and desktop) */}
+      {isCategoryModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6"
+          onClick={() => setCategoryModalOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-3xl bg-white dark:bg-gray-800 border border-gray-200/60 dark:border-gray-700/50 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-gray-700/50 px-6 py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-100/80 dark:bg-indigo-900/30 border border-indigo-200/50 dark:border-indigo-800/50 w-fit mb-2">
+                    <LayoutGrid className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider">Toutes les catégories</span>
+                  </div>
+                  <h3 className="text-xl font-black text-gray-900 dark:text-white">Explorer nos univers</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Sélectionnez une catégorie pour découvrir nos produits</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCategoryModalOpen(false)}
+                  className="flex-shrink-0 w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center transition-colors text-gray-600 dark:text-gray-400"
+                  aria-label="Fermer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            <div className="max-h-[calc(90vh-120px)] overflow-y-auto px-6 py-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {categoryGroups.map((group, index) => {
+                  const Icon = group.icon;
+                  const categoryStyles = [
+                    { bg: 'from-blue-500/10 to-cyan-500/10', icon: 'text-blue-600 dark:text-blue-400', border: 'border-blue-200/50 dark:border-blue-800/50', hover: 'hover:from-blue-500/20 hover:to-cyan-500/20' },
+                    { bg: 'from-pink-500/10 to-rose-500/10', icon: 'text-pink-600 dark:text-pink-400', border: 'border-pink-200/50 dark:border-pink-800/50', hover: 'hover:from-pink-500/20 hover:to-rose-500/20' },
+                    { bg: 'from-emerald-500/10 to-teal-500/10', icon: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200/50 dark:border-emerald-800/50', hover: 'hover:from-emerald-500/20 hover:to-teal-500/20' },
+                    { bg: 'from-amber-500/10 to-orange-500/10', icon: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200/50 dark:border-amber-800/50', hover: 'hover:from-amber-500/20 hover:to-orange-500/20' },
+                    { bg: 'from-purple-500/10 to-indigo-500/10', icon: 'text-purple-600 dark:text-purple-400', border: 'border-purple-200/50 dark:border-purple-800/50', hover: 'hover:from-purple-500/20 hover:to-indigo-500/20' },
+                    { bg: 'from-red-500/10 to-rose-500/10', icon: 'text-red-600 dark:text-red-400', border: 'border-red-200/50 dark:border-red-800/50', hover: 'hover:from-red-500/20 hover:to-rose-500/20' },
+                    { bg: 'from-violet-500/10 to-purple-500/10', icon: 'text-violet-600 dark:text-violet-400', border: 'border-violet-200/50 dark:border-violet-800/50', hover: 'hover:from-violet-500/20 hover:to-purple-500/20' },
+                    { bg: 'from-slate-500/10 to-gray-500/10', icon: 'text-slate-600 dark:text-slate-400', border: 'border-slate-200/50 dark:border-slate-800/50', hover: 'hover:from-slate-500/20 hover:to-gray-500/20' }
+                  ];
+                  const style = categoryStyles[index % categoryStyles.length];
+                  return (
+                    <Link
+                      key={group.id}
+                      to={`/categories/${group.options?.[0]?.value || ''}`}
+                      onClick={() => setCategoryModalOpen(false)}
+                      className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${style.bg} border ${style.border} backdrop-blur-sm transition-all duration-300 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98] ${style.hover}`}
+                    >
+                      <div className="p-5 flex flex-col items-center gap-3 text-center">
+                        <div className={`relative w-16 h-16 rounded-2xl bg-white/80 dark:bg-gray-800/80 border-2 ${style.border} flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:rotate-3 group-hover:scale-110`}>
+                          {Icon ? <Icon className={`relative w-8 h-8 ${style.icon}`} /> : null}
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">{group.label}</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">{group.description}</p>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
