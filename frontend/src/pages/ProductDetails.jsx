@@ -1246,6 +1246,18 @@ export default function ProductDetails() {
               </div>
             </div>
 
+            {/* Lien vers les messages de commande (infos avant achat) */}
+            {user && (
+              <Link
+                to="/orders/messages"
+                {...externalLinkProps}
+                className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-700 hover:bg-indigo-100 hover:border-indigo-200 transition-colors text-sm font-medium"
+              >
+                <MessageCircle className="w-4 h-4 flex-shrink-0" />
+                <span>Des questions sur une commande ? Consultez vos messages avec les vendeurs</span>
+              </Link>
+            )}
+
             {/* 📱 SOCIAL MEDIA SHARE BUTTONS */}
             <div className="bg-gradient-to-r from-gray-50 to-indigo-50 rounded-2xl p-4 border border-gray-200">
               <p className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
