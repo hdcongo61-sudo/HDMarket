@@ -12,7 +12,17 @@ import {
   Star,
   Sparkles,
   Clock,
-  X
+  X,
+  Eye,
+  ShoppingBag,
+  DollarSign,
+  Users,
+  Award,
+  Activity,
+  Calendar,
+  Target,
+  Zap,
+  MapPin
 } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import api from '../services/api';
@@ -62,7 +72,8 @@ const DEFAULT_STATS = {
         pending: { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0, items: 0 },
         confirmed: { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0, items: 0 },
         delivering: { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0, items: 0 },
-        delivered: { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0, items: 0 }
+        delivered: { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0, items: 0 },
+        cancelled: { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0, items: 0 }
       }
     },
     sales: {
@@ -72,23 +83,62 @@ const DEFAULT_STATS = {
         pending: { count: 0, totalAmount: 0 },
         confirmed: { count: 0, totalAmount: 0 },
         delivering: { count: 0, totalAmount: 0 },
-        delivered: { count: 0, totalAmount: 0 }
+        delivered: { count: 0, totalAmount: 0 },
+        cancelled: { count: 0, totalAmount: 0 }
       }
     }
   }
 };
 
-const SummaryCard = ({ icon: Icon, label, value, accent }) => (
-  <div className={`rounded-2xl p-5 text-white bg-gradient-to-br ${accent} shadow-lg`}>
-    <div className="flex items-center justify-between mb-3">
-      <div className="rounded-xl bg-white/20 p-2">
-        <Icon className="w-5 h-5" />
+const StatCard = ({ icon: Icon, label, value, subtitle, gradient, iconBg, trend }) => (
+  <div className="group relative overflow-hidden rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300">
+    <div className={`absolute inset-0 ${gradient.replace('from-', 'bg-').split(' ')[0]} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}></div>
+    <div className="relative p-6">
+      <div className="flex items-start justify-between mb-4">
+        <div className={`p-3 rounded-xl ${iconBg} shadow-sm`}>
+          <Icon className="w-6 h-6 text-white" />
+        </div>
+        {trend && (
+          <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 border border-emerald-200">
+            <TrendingUp className="w-3 h-3 text-emerald-600" />
+            <span className="text-xs font-bold text-emerald-700">{trend}</span>
+          </div>
+        )}
       </div>
-      <span className="text-2xl font-bold">{formatNumber(value)}</span>
+      <div className="space-y-1">
+        <p className="text-sm font-medium text-gray-600">{label}</p>
+        <p className="text-3xl font-bold text-gray-900">{value}</p>
+        {subtitle && (
+          <p className="text-xs text-gray-500 mt-2">{subtitle}</p>
+        )}
+      </div>
     </div>
-    <p className="text-sm text-white/90 font-medium">{label}</p>
   </div>
 );
+
+const MetricCard = ({ title, value, subtitle, icon: Icon, color = "indigo" }) => {
+  const colorClasses = {
+    indigo: { icon: "bg-indigo-600", bg: "bg-indigo-50", border: "border-indigo-100", text: "text-indigo-600" },
+    emerald: { icon: "bg-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100", text: "text-emerald-600" },
+    amber: { icon: "bg-amber-600", bg: "bg-amber-50", border: "border-amber-100", text: "text-amber-600" },
+    purple: { icon: "bg-purple-600", bg: "bg-purple-50", border: "border-purple-100", text: "text-purple-600" },
+    rose: { icon: "bg-rose-600", bg: "bg-rose-50", border: "border-rose-100", text: "text-rose-600" }
+  };
+  const classes = colorClasses[color] || colorClasses.indigo;
+
+  return (
+    <div className={`rounded-xl border ${classes.border} ${classes.bg} p-4`}>
+      <div className="flex items-center justify-between mb-2">
+        <div className={`p-2 rounded-lg ${classes.icon}`}>
+          <Icon className="w-4 h-4 text-white" />
+        </div>
+        <span className="text-2xl font-bold text-gray-900">{value}</span>
+      </div>
+      <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">{title}</p>
+      {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
+    </div>
+  );
+};
 
 export default function UserStats() {
   const { user } = useContext(AuthContext);
@@ -98,8 +148,6 @@ export default function UserStats() {
   const [error, setError] = useState('');
   const [searchHistory, setSearchHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [followedShops, setFollowedShops] = useState([]);
-  const [followedLoading, setFollowedLoading] = useState(false);
   const [showFollowedModal, setShowFollowedModal] = useState(false);
   const [showOrdersModal, setShowOrdersModal] = useState(false);
   const [orderedProducts, setOrderedProducts] = useState([]);
@@ -133,6 +181,7 @@ export default function UserStats() {
           timeline: data?.timeline || [],
           topProducts: data?.topProducts || [],
           advertismentSpend: data?.advertismentSpend ?? prev.advertismentSpend ?? 0,
+          followedShops: Array.isArray(data?.followedShops) ? data.followedShops : [],
           orders: {
             ...DEFAULT_STATS.orders,
             ...(data?.orders || {}),
@@ -195,30 +244,10 @@ export default function UserStats() {
     };
   }, [user]);
 
-  useEffect(() => {
-    let mounted = true;
-    const loadFollowed = async () => {
-      if (!user) {
-        setFollowedShops([]);
-        return;
-      }
-      setFollowedLoading(true);
-      try {
-        const { data } = await api.get('/users/shops/following');
-        if (!mounted) return;
-        setFollowedShops(Array.isArray(data) ? data : []);
-      } catch {
-        if (!mounted) return;
-        setFollowedShops([]);
-      } finally {
-        if (mounted) setFollowedLoading(false);
-      }
-    };
-    loadFollowed();
-    return () => {
-      mounted = false;
-    };
-  }, [user]);
+  const followedShops = useMemo(
+    () => (Array.isArray(stats.followedShops) ? stats.followedShops : []),
+    [stats.followedShops]
+  );
 
   useEffect(() => {
     if (!user && !loading) {
@@ -366,572 +395,475 @@ export default function UserStats() {
 
   if (!user) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Connectez-vous pour voir vos statistiques</h1>
-        <p className="text-gray-600 mb-6">Vos performances et insights personnalisés sont accessibles après authentification.</p>
-        <Link
-          to="/login"
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Retour à la connexion
-        </Link>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-16">
+        <div className="max-w-md w-full text-center space-y-6">
+          <div className="mx-auto w-20 h-20 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-xl">
+            <BarChart3 className="w-10 h-10 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Accès aux statistiques</h1>
+            <p className="text-gray-600">Connectez-vous pour visualiser vos performances et insights personnalisés.</p>
+          </div>
+          <Link
+            to="/login"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Se connecter
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 py-12">
+          <div className="space-y-8">
+            {/* Header skeleton */}
+            <div className="space-y-4">
+              <div className="h-8 bg-gray-200 rounded-xl w-64 animate-pulse"></div>
+              <div className="h-4 bg-gray-200 rounded-lg w-96 animate-pulse"></div>
+            </div>
+            {/* Cards skeleton */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-40 bg-white rounded-2xl border border-gray-100 animate-pulse"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-16">
+        <div className="max-w-md w-full bg-white rounded-2xl border border-red-200 shadow-xl p-8 text-center">
+          <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+            <X className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Erreur de chargement</h2>
+          <p className="text-sm text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors"
+          >
+            Réessayer
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm uppercase tracking-wide text-gray-500">Analyse</p>
-          <h1 className="text-2xl font-bold text-gray-900">Statistiques de votre activité</h1>
-          <p className="text-gray-600 text-sm">
-            Suivez les performances de votre boutique et l'impact de vos publications.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2 items-center">
-          <Link
-            to="/my"
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-          >
-            <Package className="w-4 h-4" />
-            Mes annonces
-          </Link>
-          {userShopLink && (
-            <Link
-              to={userShopLink}
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-            >
-              <Store className="w-4 h-4" />
-              Ma boutique publique
-            </Link>
-          )}
-          <Link
-            to="/profile"
-            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
-          >
-            <Store className="w-4 h-4" />
-            Mon profil
-          </Link>
-          <div className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700">
-            <BarChart3 className="w-4 h-4 text-indigo-500" />
-            Budget annonces : {formatCurrency(stats.advertismentSpend)}
+    <div className="min-h-screen bg-gray-50">
+      {/* Header Section */}
+      <div className="bg-indigo-600 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+                  <BarChart3 className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white/80 uppercase tracking-wide">Tableau de bord</p>
+                  <h1 className="text-3xl font-bold">Statistiques & Performance</h1>
+                </div>
+              </div>
+              <p className="text-white/90 text-sm max-w-2xl">
+                Analysez vos performances, suivez votre croissance et optimisez votre présence sur HDMarket.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                to="/my"
+                className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition-all"
+              >
+                <Package className="w-4 h-4" />
+                Mes annonces
+              </Link>
+              {userShopLink && (
+                <Link
+                  to={userShopLink}
+                  className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition-all"
+                >
+                  <Store className="w-4 h-4" />
+                  Ma boutique
+                </Link>
+              )}
+              <Link
+                to="/profile"
+                className="inline-flex items-center gap-2 rounded-xl bg-white text-indigo-600 px-4 py-2.5 text-sm font-semibold hover:bg-white/90 transition-all shadow-lg"
+              >
+                <Users className="w-4 h-4" />
+                Mon profil
+              </Link>
+            </div>
           </div>
         </div>
       </div>
 
-      {loading ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
-          <div className="mx-auto h-10 w-10 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-sm text-gray-500 mt-4">Chargement des statistiques…</p>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 pb-12">
+        {/* Key Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <StatCard
+            icon={Package}
+            label="Annonces totales"
+            value={formatNumber(stats.listings.total)}
+            subtitle={`${formatNumber(stats.listings.approved)} approuvées`}
+            gradient="bg-indigo-600"
+            iconBg="bg-indigo-600"
+          />
+          <StatCard
+            icon={Heart}
+            label="Favoris reçus"
+            value={formatNumber(stats.engagement.favoritesReceived)}
+            subtitle={`${formatNumber(stats.engagement.commentsReceived)} commentaires`}
+            gradient="bg-pink-600"
+            iconBg="bg-pink-600"
+          />
+          <StatCard
+            icon={Eye}
+            label="Vues totales"
+            value={formatNumber(stats.performance.views)}
+            subtitle={`${formatNumber(stats.performance.clicks)} clics WhatsApp`}
+            gradient="bg-purple-600"
+            iconBg="bg-purple-600"
+          />
+          <StatCard
+            icon={DollarSign}
+            label="Budget annonces"
+            value={formatCurrency(stats.advertismentSpend)}
+            subtitle="Total des frais confirmés"
+            gradient="bg-emerald-600"
+            iconBg="bg-emerald-600"
+          />
         </div>
-      ) : error ? (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
-          <h2 className="text-lg font-semibold text-red-800 mb-2">Impossible de charger les données</h2>
-          <p className="text-sm text-red-600">{error}</p>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {/* Résumé */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <SummaryCard icon={Package} label="Annonces totales" value={stats.listings.total} accent="from-indigo-500 to-blue-600" />
-            <SummaryCard icon={CheckCircle} label="Approuvées" value={stats.listings.approved} accent="from-emerald-500 to-green-600" />
-            <SummaryCard icon={Heart} label="Favoris reçus" value={stats.engagement.favoritesReceived} accent="from-pink-500 to-rose-600" />
-            <SummaryCard icon={MessageCircle} label="Contacts WhatsApp" value={stats.performance.clicks} accent="from-purple-500 to-indigo-600" />
-            <SummaryCard icon={Store} label="Boutiques suivies" value={stats.engagement.shopsFollowed} accent="from-emerald-500 to-teal-600" />
-            <div className="rounded-2xl p-5 bg-white border border-gray-100 flex flex-col gap-2">
-              <p className="text-sm font-semibold text-gray-600">Dépenses annonces</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats.advertismentSpend)}</p>
-              <p className="text-xs text-gray-500">Total des frais confirmés pour vos publications.</p>
+
+        {/* Orders & Sales Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Purchases */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-indigo-50 border-b border-gray-100 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-indigo-600">
+                    <ShoppingBag className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">Mes commandes</h2>
+                    <p className="text-sm text-gray-600">{formatNumber(purchaseStats.totalCount)} commande(s)</p>
+                  </div>
+                </div>
+                {purchaseStats.totalItems > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowOrdersModal(true)}
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                  >
+                    Voir détails
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <MetricCard
+                  title="Total dépensé"
+                  value={formatCurrency(purchaseStats.totalAmount)}
+                  icon={DollarSign}
+                  color="indigo"
+                />
+                <MetricCard
+                  title="Acompte versé"
+                  value={formatCurrency(purchaseStats.paidAmount)}
+                  icon={CheckCircle}
+                  color="emerald"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <MetricCard
+                  title="Reste à payer"
+                  value={formatCurrency(purchaseStats.remainingAmount)}
+                  icon={Target}
+                  color="amber"
+                />
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                  <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Statuts</p>
+                  <div className="space-y-1 text-xs text-gray-600">
+                    <div className="flex justify-between">
+                      <span>En attente:</span>
+                      <span className="font-semibold">{formatNumber(purchaseStats.byStatus?.pending?.count || 0)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Confirmées:</span>
+                      <span className="font-semibold">{formatNumber(purchaseStats.byStatus?.confirmed?.count || 0)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>En cours:</span>
+                      <span className="font-semibold">{formatNumber(purchaseStats.byStatus?.delivering?.count || 0)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Livrées:</span>
+                      <span className="font-semibold">{formatNumber(purchaseStats.byStatus?.delivered?.count || 0)}</span>
+                    </div>
+                    <div className="flex justify-between pt-1 border-t border-gray-200">
+                      <span className="text-red-600">Annulées:</span>
+                      <span className="font-semibold text-red-600">{formatNumber(purchaseStats.byStatus?.cancelled?.count || 0)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm uppercase tracking-wide text-gray-500">Boutiques suivies</p>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  {stats.engagement.shopsFollowed ? `${stats.engagement.shopsFollowed} boutique(s)` : 'Aucune boutique suivie'}
-                </h2>
+          {/* Sales */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-emerald-50 border-b border-gray-100 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-emerald-600">
+                    <TrendingUp className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">Mes ventes</h2>
+                    <p className="text-sm text-gray-600">{formatNumber(salesStats.totalCount)} commande(s)</p>
+                  </div>
+                </div>
+                {salesStats.totalCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowSalesModal(true)}
+                    className="text-xs font-semibold text-emerald-600 hover:text-emerald-700"
+                  >
+                    Voir détails
+                  </button>
+                )}
               </div>
-              <div className="flex items-center gap-3">
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <MetricCard
+                  title="Gains estimés"
+                  value={formatCurrency(salesStats.totalAmount)}
+                  icon={DollarSign}
+                  color="emerald"
+                />
+                <MetricCard
+                  title="Commandes"
+                  value={formatNumber(salesStats.totalCount)}
+                  icon={Package}
+                  color="purple"
+                />
+              </div>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-3">Répartition par statut</p>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="flex justify-between items-center p-2 rounded-lg bg-white">
+                    <span className="text-gray-600">En attente</span>
+                    <span className="font-bold text-gray-900">{formatNumber(salesStats.byStatus?.pending?.count || 0)}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 rounded-lg bg-white">
+                    <span className="text-gray-600">Confirmées</span>
+                    <span className="font-bold text-gray-900">{formatNumber(salesStats.byStatus?.confirmed?.count || 0)}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 rounded-lg bg-white">
+                    <span className="text-gray-600">En cours</span>
+                    <span className="font-bold text-gray-900">{formatNumber(salesStats.byStatus?.delivering?.count || 0)}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 rounded-lg bg-white">
+                    <span className="text-gray-600">Livrées</span>
+                    <span className="font-bold text-gray-900">{formatNumber(salesStats.byStatus?.delivered?.count || 0)}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 rounded-lg bg-red-50 border border-red-200 col-span-2">
+                    <span className="text-red-600 font-semibold">Annulées</span>
+                    <span className="font-bold text-red-700">{formatNumber(salesStats.byStatus?.cancelled?.count || 0)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Engagement & Performance */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Followed Shops */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-purple-50 border-b border-gray-100 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-purple-600">
+                    <Store className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">Boutiques suivies</h2>
+                    <p className="text-sm text-gray-600">{formatNumber(stats.engagement.shopsFollowed)} boutique(s)</p>
+                  </div>
+                </div>
                 {followedShops.length > 0 && (
                   <button
                     type="button"
                     onClick={() => setShowFollowedModal(true)}
-                    className="text-xs font-semibold text-indigo-600 hover:underline"
+                    className="text-xs font-semibold text-purple-600 hover:text-purple-700"
                   >
                     Voir toutes
                   </button>
                 )}
-                <Link
-                  to="/shops/verified"
-                  className="text-xs font-semibold text-indigo-600 hover:underline"
-                >
-                  Explorer les boutiques
-                </Link>
               </div>
             </div>
-            {followedLoading ? (
-              <div className="space-y-2">
-                {[1, 2].map((item) => (
-                  <div key={item} className="h-12 rounded-2xl bg-gray-100 animate-pulse" />
-                ))}
-              </div>
-            ) : followedShops.length ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {followedShops.map((shop) => (
-                  <Link
-                    key={shop._id}
-                    to={buildShopPath(shop)}
-                    className="flex items-center gap-3 rounded-2xl border border-gray-100 p-3 hover:border-indigo-200 transition-colors"
-                  >
-                    <div className="h-12 w-12 rounded-xl bg-gray-100 overflow-hidden">
-                      {shop.shopLogo ? (
-                        <img src={shop.shopLogo} alt={shop.shopName} className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="h-full w-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center text-indigo-500 text-sm font-semibold">
-                          {shop.shopName?.charAt(0) || 'B'}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-gray-900">{shop.shopName}</p>
-                      <p className="text-xs text-gray-500">
-                        {shop.followersCount?.toLocaleString('fr-FR') || 0} abonné(s)
-                      </p>
-                    </div>
-                    {shop.shopVerified && (
-                      <span className="text-emerald-600 text-xs font-semibold">Certifiée</span>
-                    )}
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500">Suivez des boutiques pour les retrouver facilement ici.</p>
-            )}
-          </div>
-
-          {showFollowedModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-              <div
-                className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-                onClick={() => setShowFollowedModal(false)}
-              />
-              <div
-                className="relative w-full max-w-2xl rounded-3xl bg-white shadow-xl border border-gray-100 p-6"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-gray-500">Boutiques suivies</p>
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {followedShops.length ? `${followedShops.length} boutique(s)` : 'Aucune boutique suivie'}
-                    </h3>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowFollowedModal(false)}
-                    className="h-9 w-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                    aria-label="Fermer"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-                {followedLoading ? (
-                  <div className="space-y-3">
-                    {[1, 2, 3].map((item) => (
-                      <div key={item} className="h-12 rounded-2xl bg-gray-100 animate-pulse" />
-                    ))}
-                  </div>
-                ) : followedShops.length ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {followedShops.map((shop) => (
-                      <Link
-                        key={shop._id}
-                        to={buildShopPath(shop)}
-                        className="flex items-center gap-3 rounded-2xl border border-gray-100 p-3 hover:border-indigo-200 transition-colors"
-                        onClick={() => setShowFollowedModal(false)}
-                      >
-                        <div className="h-12 w-12 rounded-xl bg-gray-100 overflow-hidden">
-                          {shop.shopLogo ? (
-                            <img src={shop.shopLogo} alt={shop.shopName} className="h-full w-full object-cover" />
-                          ) : (
-                            <div className="h-full w-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center text-indigo-500 text-sm font-semibold">
-                              {shop.shopName?.charAt(0) || 'B'}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-semibold text-gray-900">{shop.shopName}</p>
-                          <p className="text-xs text-gray-500">
-                            {shop.followersCount?.toLocaleString('fr-FR') || 0} abonné(s)
-                          </p>
-                        </div>
-                        {shop.shopVerified && (
-                          <span className="text-emerald-600 text-xs font-semibold">Certifiée</span>
-                        )}
-                      </Link>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-500">Suivez des boutiques pour les retrouver facilement ici.</p>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm uppercase tracking-wide text-gray-500">Commandes</p>
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    {purchaseStats.totalCount
-                      ? `${formatNumber(purchaseStats.totalCount)} commande(s)`
-                      : 'Aucune commande'}
-                  </h2>
-                </div>
-                <div className="flex items-center gap-3">
-                  {purchaseStats.totalItems > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setShowOrdersModal(true)}
-                      className="text-xs font-semibold text-indigo-600 hover:underline"
-                    >
-                      Produits commandés
-                    </button>
-                  )}
-                  <span className="text-xs font-semibold text-indigo-600">Dépenses</span>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                <div className="rounded-xl bg-indigo-50 p-3">
-                  <p className="text-xs uppercase tracking-wide text-indigo-600 font-semibold">
-                    Total dépensé
-                  </p>
-                  <p className="text-lg font-bold text-indigo-700">
-                    {formatCurrency(purchaseStats.totalAmount)}
-                  </p>
-                </div>
-                <div className="rounded-xl bg-emerald-50 p-3">
-                  <p className="text-xs uppercase tracking-wide text-emerald-600 font-semibold">
-                    Acompte versé
-                  </p>
-                  <p className="text-lg font-bold text-emerald-700">
-                    {formatCurrency(purchaseStats.paidAmount)}
-                  </p>
-                </div>
-                <div className="rounded-xl bg-amber-50 p-3">
-                  <p className="text-xs uppercase tracking-wide text-amber-600 font-semibold">
-                    Reste à payer
-                  </p>
-                  <p className="text-lg font-bold text-amber-700">
-                    {formatCurrency(purchaseStats.remainingAmount)}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-gray-100 p-3">
-                  <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
-                    Statuts
-                  </p>
-                  <div className="mt-1 space-y-1 text-xs text-gray-600">
-                    <p>En attente : {formatNumber(purchaseStats.byStatus?.pending?.count || 0)}</p>
-                    <p>Confirmées : {formatNumber(purchaseStats.byStatus?.confirmed?.count || 0)}</p>
-                    <p>En cours : {formatNumber(purchaseStats.byStatus?.delivering?.count || 0)}</p>
-                    <p>Livrées : {formatNumber(purchaseStats.byStatus?.delivered?.count || 0)}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm uppercase tracking-wide text-gray-500">Ventes</p>
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    {salesStats.totalCount
-                      ? `${formatNumber(salesStats.totalCount)} commande(s)`
-                      : 'Aucune vente'}
-                  </h2>
-                </div>
-                <div className="flex items-center gap-3">
-                  {salesStats.totalCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setShowSalesModal(true)}
-                      className="text-xs font-semibold text-emerald-600 hover:underline"
-                    >
-                      Produits vendus
-                    </button>
-                  )}
-                  <span className="text-xs font-semibold text-emerald-600">Gains</span>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                <div className="rounded-xl bg-emerald-50 p-3">
-                  <p className="text-xs uppercase tracking-wide text-emerald-600 font-semibold">
-                    Gains estimés
-                  </p>
-                  <p className="text-lg font-bold text-emerald-700">
-                    {formatCurrency(salesStats.totalAmount)}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-gray-100 p-3">
-                  <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
-                    Commandes reçues
-                  </p>
-                  <p className="text-lg font-bold text-gray-900">
-                    {formatNumber(salesStats.totalCount)}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-gray-100 p-3 sm:col-span-2">
-                  <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
-                    Statuts
-                  </p>
-                  <div className="mt-1 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-gray-600">
-                    <p>En attente : {formatNumber(salesStats.byStatus?.pending?.count || 0)}</p>
-                    <p>Confirmées : {formatNumber(salesStats.byStatus?.confirmed?.count || 0)}</p>
-                    <p>En cours : {formatNumber(salesStats.byStatus?.delivering?.count || 0)}</p>
-                    <p>Livrées : {formatNumber(salesStats.byStatus?.delivered?.count || 0)}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {showOrdersModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-              <div
-                className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-                onClick={() => setShowOrdersModal(false)}
-              />
-              <div
-                className="relative w-full max-w-lg rounded-3xl bg-white shadow-xl border border-gray-100 p-6"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-gray-500">Produits commandés</p>
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {purchaseStats.totalItems
-                        ? `${formatNumber(purchaseStats.totalItems)} produit(s)`
-                        : 'Aucun produit commandé'}
-                    </h3>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowOrdersModal(false)}
-                    className="h-9 w-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                    aria-label="Fermer"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-                <div className="grid gap-3 text-sm">
-                  <div className="rounded-xl border border-gray-100 p-3">
-                    <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
-                      En attente
-                    </p>
-                    <p className="text-lg font-bold text-gray-900">
-                      {formatNumber(purchaseStats.byStatus?.pending?.items || 0)} produit(s)
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-gray-100 p-3">
-                    <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
-                      Confirmées
-                    </p>
-                    <p className="text-lg font-bold text-gray-900">
-                      {formatNumber(purchaseStats.byStatus?.confirmed?.items || 0)} produit(s)
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-gray-100 p-3">
-                    <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
-                      En cours de livraison
-                    </p>
-                    <p className="text-lg font-bold text-gray-900">
-                      {formatNumber(purchaseStats.byStatus?.delivering?.items || 0)} produit(s)
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-gray-100 p-3">
-                    <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
-                      Livrées
-                    </p>
-                    <p className="text-lg font-bold text-gray-900">
-                      {formatNumber(purchaseStats.byStatus?.delivered?.items || 0)} produit(s)
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-gray-100 p-3">
-                    <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
-                      Produits commandés
-                    </p>
-                    {orderedLoading ? (
-                      <p className="text-sm text-gray-500 mt-2">Chargement...</p>
-                    ) : orderedError ? (
-                      <p className="text-sm text-red-600 mt-2">{orderedError}</p>
-                    ) : orderedProducts.length ? (
-                      <div className="mt-2 space-y-2">
-                        {orderedProducts.map((product) => {
-                          const content = (
-                            <div className="flex items-center gap-3 rounded-xl border border-gray-100 p-2 hover:border-indigo-200 transition-colors">
-                              <div className="h-12 w-12 rounded-xl bg-gray-100 overflow-hidden">
-                                {product.image ? (
-                                  <img src={product.image} alt={product.title} className="h-full w-full object-cover" />
-                                ) : (
-                                  <div className="h-full w-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center text-indigo-500 text-sm font-semibold">
-                                    {product.title?.charAt(0) || 'P'}
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-gray-900 truncate">{product.title}</p>
-                                <p className="text-xs text-gray-500">
-                                  {formatNumber(product.quantity)} article(s) · {formatCurrency(product.totalSpent)}
-                                </p>
-                              </div>
-                            </div>
-                          );
-
-                          if (!product.product) {
-                            return <div key={product.key}>{content}</div>;
-                          }
-
-                          return (
-                            <Link
-                              key={product.key}
-                              to={buildProductPath(product.product)}
-                              className="block"
-                            >
-                              {content}
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500 mt-2">Aucun produit commandé.</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {showSalesModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-              <div
-                className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-                onClick={() => setShowSalesModal(false)}
-              />
-              <div
-                className="relative w-full max-w-lg rounded-3xl bg-white shadow-xl border border-gray-100 p-6"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-gray-500">Produits vendus</p>
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {salesStats.totalCount
-                        ? `${formatNumber(salesStats.totalCount)} commande(s)`
-                        : 'Aucune vente'}
-                    </h3>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowSalesModal(false)}
-                    className="h-9 w-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                    aria-label="Fermer"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-                <div className="grid gap-3 text-sm">
-                  <div className="rounded-xl border border-gray-100 p-3">
-                    <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
-                      Statuts
-                    </p>
-                    <div className="mt-1 grid grid-cols-2 gap-2 text-xs text-gray-600">
-                      <p>En attente : {formatNumber(salesStats.byStatus?.pending?.count || 0)}</p>
-                      <p>Confirmées : {formatNumber(salesStats.byStatus?.confirmed?.count || 0)}</p>
-                      <p>En cours : {formatNumber(salesStats.byStatus?.delivering?.count || 0)}</p>
-                      <p>Livrées : {formatNumber(salesStats.byStatus?.delivered?.count || 0)}</p>
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-gray-100 p-3">
-                    <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
-                      Produits vendus
-                    </p>
-                    {soldLoading ? (
-                      <p className="text-sm text-gray-500 mt-2">Chargement...</p>
-                    ) : soldError ? (
-                      <p className="text-sm text-red-600 mt-2">{soldError}</p>
-                    ) : soldProducts.length ? (
-                      <div className="mt-2 space-y-2">
-                        {soldProducts.map((product) => {
-                          const content = (
-                            <div className="flex items-center gap-3 rounded-xl border border-gray-100 p-2 hover:border-emerald-200 transition-colors">
-                              <div className="h-12 w-12 rounded-xl bg-gray-100 overflow-hidden">
-                                {product.image ? (
-                                  <img src={product.image} alt={product.title} className="h-full w-full object-cover" />
-                                ) : (
-                                  <div className="h-full w-full bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center text-emerald-600 text-sm font-semibold">
-                                    {product.title?.charAt(0) || 'P'}
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-gray-900 truncate">{product.title}</p>
-                                <p className="text-xs text-gray-500">
-                                  {formatNumber(product.quantity)} article(s) · {formatCurrency(product.totalEarned)}
-                                </p>
-                              </div>
-                            </div>
-                          );
-
-                          if (!product.product) {
-                            return <div key={product.key}>{content}</div>;
-                          }
-
-                          return (
-                            <Link
-                              key={product.key}
-                              to={buildProductPath(product.product)}
-                              className="block"
-                            >
-                              {content}
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500 mt-2">Aucun produit vendu.</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Breakdown */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-white border border-gray-100 rounded-2xl p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <BarChart3 className="w-5 h-5 text-indigo-500" />
-                <h2 className="text-lg font-semibold text-gray-900">Catégories les plus actives</h2>
-              </div>
-              {stats.breakdown.categories.length === 0 ? (
-                <p className="text-sm text-gray-500">Publiez des annonces pour voir vos catégories performantes.</p>
-              ) : (
+            <div className="p-6">
+              {loading ? (
                 <div className="space-y-3">
-                  {stats.breakdown.categories.map((cat) => (
-                    <div key={cat.category} className="space-y-1">
-                      <div className="flex items-center justify-between text-sm text-gray-600">
-                        <span className="capitalize">{cat.category}</span>
-                        <span className="font-semibold text-gray-900">{formatNumber(cat.count)}</span>
+                  {[1, 2].map((item) => (
+                    <div key={item} className="h-16 rounded-xl bg-gray-100 animate-pulse" />
+                  ))}
+                </div>
+              ) : followedShops.length ? (
+                <div className="space-y-3">
+                  {followedShops.slice(0, 3).map((shop) => (
+                    <Link
+                      key={shop._id || shop.id}
+                      to={buildShopPath(shop)}
+                      className="flex items-center gap-3 rounded-xl border border-gray-100 p-3 hover:border-purple-200 hover:bg-purple-50/50 transition-all group"
+                    >
+                      <div className="h-12 w-12 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0">
+                        {shop.shopLogo ? (
+                          <img src={shop.shopLogo} alt={shop.shopName || shop.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="h-full w-full bg-purple-100 flex items-center justify-center text-purple-600 text-sm font-bold">
+                            {(shop.shopName || shop.name)?.charAt(0) || 'B'}
+                          </div>
+                        )}
                       </div>
-                      <div className="h-2 rounded-full bg-gray-100">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 group-hover:text-purple-600 transition-colors truncate">{shop.shopName || shop.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {formatNumber(shop.followersCount || 0)} abonné(s)
+                        </p>
+                      </div>
+                      {shop.shopVerified && (
+                        <Award className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                      )}
+                    </Link>
+                  ))}
+                  {followedShops.length > 3 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowFollowedModal(true)}
+                      className="w-full text-center text-sm font-semibold text-purple-600 hover:text-purple-700 py-2"
+                    >
+                      Voir {followedShops.length - 3} autre(s) boutique(s)
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Store className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-sm text-gray-500 mb-4">Aucune boutique suivie</p>
+                  <Link
+                    to="/shops/verified"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-purple-600 hover:text-purple-700"
+                  >
+                    Explorer les boutiques
+                    <ArrowLeft className="w-4 h-4 rotate-180" />
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Performance Metrics */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-blue-50 border-b border-gray-100 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-blue-600">
+                  <Activity className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Performance</h2>
+                  <p className="text-sm text-gray-600">Indicateurs clés</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-2 gap-4">
+                <MetricCard
+                  title="Taux de conversion"
+                  value={`${stats.performance.conversion}%`}
+                  subtitle="Basé sur vos annonces"
+                  icon={Target}
+                  color="blue"
+                />
+                <MetricCard
+                  title="Commentaires"
+                  value={formatNumber(stats.engagement.commentsReceived)}
+                  subtitle="Interactions clients"
+                  icon={MessageCircle}
+                  color="purple"
+                />
+                <MetricCard
+                  title="Favoris sauvegardés"
+                  value={formatNumber(stats.engagement.favoritesSaved)}
+                  subtitle="Dans votre liste"
+                  icon={Heart}
+                  color="rose"
+                />
+                <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="p-2 rounded-lg bg-amber-600">
+                      <Zap className="w-4 h-4 text-white" />
+                    </div>
+                  </div>
+                  <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1">Statut annonces</p>
+                  <p className="text-sm text-gray-600">
+                    {formatNumber(stats.listings.pending)} en attente
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {formatNumber(stats.listings.rejected)} rejetées
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Categories & Timeline */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Categories */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-indigo-50 border-b border-gray-100 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-indigo-600">
+                  <BarChart3 className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Catégories actives</h2>
+                  <p className="text-sm text-gray-600">Répartition de vos annonces</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              {stats.breakdown.categories.length === 0 ? (
+                <div className="text-center py-8">
+                  <BarChart3 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-sm text-gray-500">Publiez des annonces pour voir vos catégories</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {stats.breakdown.categories.map((cat) => (
+                    <div key={cat.category} className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-semibold text-gray-900 capitalize">{cat.category}</span>
+                        <span className="text-gray-600 font-bold">{formatNumber(cat.count)}</span>
+                      </div>
+                      <div className="h-2.5 rounded-full bg-gray-100 overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500"
-                          style={{ width: `${(cat.count / categoryMax) * 100}%` }}
+                          className="h-full rounded-full bg-indigo-600 transition-all duration-500"
+                          style={{ width: `${Math.min((cat.count / categoryMax) * 100, 100)}%` }}
                         ></div>
                       </div>
                     </div>
@@ -939,102 +871,484 @@ export default function UserStats() {
                 </div>
               )}
             </div>
-
-            <div className="bg-white border border-gray-100 rounded-2xl p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="w-5 h-5 text-green-500" />
-                <h2 className="text-lg font-semibold text-gray-900">Performance globale</h2>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="rounded-xl bg-green-50 border border-green-100 p-4">
-                  <p className="text-xs uppercase text-green-800 font-semibold">Conversion estimée</p>
-                  <p className="text-3xl font-bold text-green-700 mt-1">{stats.performance.conversion}%</p>
-                  <p className="text-xs text-green-600 mt-1">Basé sur vos annonces approuvées</p>
-                </div>
-                <div className="rounded-xl bg-blue-50 border border-blue-100 p-4">
-                  <p className="text-xs uppercase text-blue-800 font-semibold">Commentaires reçus</p>
-                  <p className="text-3xl font-bold text-blue-700 mt-1">{formatNumber(stats.engagement.commentsReceived)}</p>
-                  <p className="text-xs text-blue-600 mt-1">Interactions clients</p>
-                </div>
-                <div className="rounded-xl bg-purple-50 border border-purple-100 p-4">
-                  <p className="text-xs uppercase text-purple-800 font-semibold">Favoris sauvegardés</p>
-                  <p className="text-3xl font-bold text-purple-700 mt-1">{formatNumber(stats.engagement.favoritesSaved)}</p>
-                  <p className="text-xs text-purple-600 mt-1">Dans votre liste personnelle</p>
-                </div>
-                <div className="rounded-xl bg-amber-50 border border-amber-100 p-4">
-                  <p className="text-xs uppercase text-amber-800 font-semibold">Statut des annonces</p>
-                  <p className="text-sm text-amber-700 mt-1">
-                    {formatNumber(stats.listings.pending)} en attente • {formatNumber(stats.listings.rejected)} rejetées
-                  </p>
-                  <p className="text-xs text-amber-600 mt-1">Pensez à suivre vos dossiers</p>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Timeline */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-5 h-5 text-pink-500" />
-              <h2 className="text-lg font-semibold text-gray-900">Publications récentes</h2>
-            </div>
-            {timeline.length === 0 ? (
-              <p className="text-sm text-gray-500">Publiez vos premières annonces pour voir l'activité mensuelle.</p>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                {timeline.map((item) => (
-                  <div key={`${item.year}-${item.month}`} className="rounded-xl border border-gray-100 p-3 text-center">
-                    <p className="text-xs uppercase text-gray-500">{item.label}</p>
-                    <p className="text-xl font-bold text-gray-900">{formatNumber(item.count)}</p>
-                    <p className="text-[11px] text-gray-500">{formatNumber(item.favorites)} favoris • {formatNumber(item.clicks)} clics</p>
-                  </div>
-                ))}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-pink-50 border-b border-gray-100 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-pink-600">
+                  <Calendar className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Activité mensuelle</h2>
+                  <p className="text-sm text-gray-600">Publications récentes</p>
+                </div>
               </div>
-            )}
-          </div>
-
-          {/* Top products */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Star className="w-5 h-5 text-amber-500" />
-              <h2 className="text-lg font-semibold text-gray-900">Meilleures annonces</h2>
             </div>
-            {stats.topProducts.length === 0 ? (
-              <p className="text-sm text-gray-500">Dès que vos annonces reçoivent des interactions, elles apparaîtront ici.</p>
-            ) : (
-              <div className="space-y-4">
-                {stats.topProducts.map((product) => (
-                  <div
-                    key={product._id}
-                    className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-2xl border border-gray-100 hover:border-indigo-200 transition-colors"
-                  >
-                    <div className="flex items-center gap-4 flex-1">
-                      <img
-                        src={product.image || '/api/placeholder/80/80'}
-                        alt={product.title}
-                        className="w-16 h-16 rounded-xl object-cover border"
-                      />
-                      <div className="space-y-1">
-                        <Link
-                          to={buildProductPath(product)}
-                          className="font-semibold text-gray-900 hover:text-indigo-600"
-                        >
-                          {product.title}
-                        </Link>
-                        <p className="text-sm text-gray-500 capitalize">{product.category || 'Sans catégorie'}</p>
-                        <p className="text-sm font-semibold text-gray-900">
-                          {Number(product.price || 0).toLocaleString('fr-FR')} FCFA
-                        </p>
+            <div className="p-6">
+              {timeline.length === 0 ? (
+                <div className="text-center py-8">
+                  <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-sm text-gray-500">Publiez vos premières annonces</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {timeline.map((item) => (
+                    <div key={`${item.year}-${item.month}`} className="rounded-xl border border-gray-100 bg-white p-4 text-center hover:border-pink-200 transition-colors">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{item.label}</p>
+                      <p className="text-2xl font-bold text-gray-900 mb-1">{formatNumber(item.count)}</p>
+                      <div className="flex items-center justify-center gap-3 text-[10px] text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <Heart className="w-3 h-3 text-pink-500" />
+                          {formatNumber(item.favorites)}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MessageCircle className="w-3 h-3 text-green-500" />
+                          {formatNumber(item.clicks)}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
-                      <span className="inline-flex items-center gap-1"><Heart className="w-4 h-4 text-pink-500" /> {formatNumber(product.favorites)}</span>
-                      <span className="inline-flex items-center gap-1"><MessageCircle className="w-4 h-4 text-green-500" /> {formatNumber(product.whatsappClicks)}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Top Products */}
+        {stats.topProducts.length > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-amber-50 border-b border-gray-100 px-6 py-4">
+              <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-amber-600">
+                  <Star className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Meilleures annonces</h2>
+                  <p className="text-sm text-gray-600">Vos produits les plus performants</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                {stats.topProducts.map((product, index) => (
+                  <div
+                    key={product._id}
+                    className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-amber-200 hover:bg-amber-50/30 transition-all group"
+                  >
+                    <div className="flex-shrink-0">
+                      <div className="w-12 h-12 rounded-lg bg-amber-600 flex items-center justify-center text-white font-bold text-sm">
+                        #{index + 1}
+                      </div>
+                    </div>
+                    <img
+                      src={product.image || '/api/placeholder/80/80'}
+                      alt={product.title}
+                      className="w-16 h-16 rounded-xl object-cover border border-gray-200"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <Link
+                        to={buildProductPath(product)}
+                        className="font-semibold text-gray-900 hover:text-amber-600 transition-colors block truncate"
+                      >
+                        {product.title}
+                      </Link>
+                      <p className="text-sm text-gray-500 capitalize truncate">{product.category || 'Sans catégorie'}</p>
+                      <p className="text-sm font-bold text-gray-900 mt-1">
+                        {formatCurrency(product.price || 0)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm">
+                      <div className="flex items-center gap-1 text-pink-600">
+                        <Heart className="w-4 h-4" />
+                        <span className="font-semibold">{formatNumber(product.favorites)}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-green-600">
+                        <MessageCircle className="w-4 h-4" />
+                        <span className="font-semibold">{formatNumber(product.whatsappClicks)}</span>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
-            )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Followed Shops Modal */}
+      {showFollowedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+          <div
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity"
+            onClick={() => setShowFollowedModal(false)}
+          />
+          <div
+            className="relative w-full max-w-3xl rounded-3xl bg-white shadow-2xl border border-gray-100 max-h-[90vh] overflow-hidden flex flex-col"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-purple-600 text-white px-6 py-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+                    <Store className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-white/80 uppercase tracking-wide">Boutiques suivies</p>
+                    <h3 className="text-xl font-bold mt-1">
+                      {followedShops.length ? `${followedShops.length} boutique(s)` : 'Aucune boutique suivie'}
+                    </h3>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowFollowedModal(false)}
+                  className="h-10 w-10 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all"
+                  aria-label="Fermer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {loading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3, 4].map((item) => (
+                    <div key={item} className="h-20 rounded-xl bg-gray-100 animate-pulse" />
+                  ))}
+                </div>
+              ) : followedShops.length ? (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {followedShops.map((shop) => (
+                    <Link
+                      key={shop._id || shop.id}
+                      to={buildShopPath(shop)}
+                      className="group flex items-center gap-4 rounded-xl border-2 border-gray-100 bg-white p-4 hover:border-purple-300 hover:shadow-lg transition-all duration-200"
+                      onClick={() => setShowFollowedModal(false)}
+                    >
+                      <div className="relative flex-shrink-0">
+                        <div className="h-16 w-16 rounded-xl bg-gray-100 overflow-hidden ring-2 ring-gray-100 group-hover:ring-purple-200 transition-all">
+                          {shop.shopLogo ? (
+                            <img src={shop.shopLogo} alt={shop.shopName || shop.name} className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="h-full w-full bg-purple-100 flex items-center justify-center text-purple-600 text-lg font-bold">
+                              {(shop.shopName || shop.name)?.charAt(0) || 'B'}
+                            </div>
+                          )}
+                        </div>
+                        {shop.shopVerified && (
+                          <div className="absolute -top-1 -right-1 p-1 bg-white rounded-full shadow-md">
+                            <Award className="w-4 h-4 text-emerald-600" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-gray-900 truncate group-hover:text-purple-600 transition-colors">{shop.shopName || shop.name}</p>
+                        <div className="flex items-center gap-3 mt-1 flex-wrap">
+                          {shop.city && (
+                            <div className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-gray-400" />
+                              <p className="text-xs text-gray-500">{shop.city}</p>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1">
+                            <Users className="w-3 h-3 text-gray-400" />
+                            <p className="text-xs text-gray-500">
+                              {formatNumber(shop.followersCount || 0)} abonné(s)
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <ArrowLeft className="w-5 h-5 text-gray-300 group-hover:text-purple-600 rotate-180 transition-colors flex-shrink-0" />
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="mx-auto w-20 h-20 rounded-2xl bg-purple-100 flex items-center justify-center mb-4">
+                    <Store className="w-10 h-10 text-purple-600" />
+                  </div>
+                  <h4 className="text-lg font-bold text-gray-900 mb-2">Aucune boutique suivie</h4>
+                  <p className="text-sm text-gray-500 mb-6">Commencez à suivre vos boutiques préférées pour les retrouver facilement</p>
+                  <Link
+                    to="/shops/verified"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-purple-600 text-white font-semibold hover:bg-purple-700 shadow-lg hover:shadow-xl transition-all"
+                    onClick={() => setShowFollowedModal(false)}
+                  >
+                    <Store className="w-4 h-4" />
+                    Explorer les boutiques
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ordered Products Modal */}
+      {showOrdersModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+          <div
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity"
+            onClick={() => setShowOrdersModal(false)}
+          />
+          <div
+            className="relative w-full max-w-4xl rounded-3xl bg-white shadow-2xl border border-gray-100 max-h-[90vh] overflow-hidden flex flex-col"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-indigo-600 text-white px-6 py-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+                    <ShoppingBag className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-white/80 uppercase tracking-wide">Produits commandés</p>
+                    <h3 className="text-xl font-bold mt-1">
+                      {purchaseStats.totalItems
+                        ? `${formatNumber(purchaseStats.totalItems)} produit(s)`
+                        : 'Aucun produit commandé'}
+                    </h3>
+                    <p className="text-sm text-white/80 mt-1">
+                      Total dépensé: {formatCurrency(purchaseStats.totalAmount)}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowOrdersModal(false)}
+                  className="h-10 w-10 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all"
+                  aria-label="Fermer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {orderedLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3, 4, 5].map((item) => (
+                    <div key={item} className="h-20 rounded-xl bg-gray-100 animate-pulse" />
+                  ))}
+                </div>
+              ) : orderedError ? (
+                <div className="text-center py-12">
+                  <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                    <X className="w-8 h-8 text-red-600" />
+                  </div>
+                  <h4 className="text-lg font-bold text-gray-900 mb-2">Erreur de chargement</h4>
+                  <p className="text-sm text-red-600">{orderedError}</p>
+                </div>
+              ) : orderedProducts.length ? (
+                <div className="space-y-3">
+                  {orderedProducts.map((product, index) => {
+                    const content = (
+                      <div className="group flex items-center gap-4 rounded-xl border-2 border-gray-100 bg-white p-4 hover:border-indigo-300 hover:shadow-lg transition-all duration-200">
+                        <div className="flex-shrink-0">
+                          <div className="w-12 h-12 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
+                            #{index + 1}
+                          </div>
+                        </div>
+                        <div className="h-16 w-16 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0 ring-2 ring-gray-100 group-hover:ring-indigo-200 transition-all">
+                          {product.image ? (
+                            <img src={product.image} alt={product.title} className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="h-full w-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-sm font-bold">
+                              {product.title?.charAt(0) || 'P'}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">{product.title}</p>
+                          <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <Package className="w-3 h-3" />
+                              {formatNumber(product.quantity)} article(s)
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <DollarSign className="w-3 h-3" />
+                              {formatCurrency(product.totalSpent)}
+                            </span>
+                          </div>
+                        </div>
+                        {product.product && (
+                          <ArrowLeft className="w-5 h-5 text-gray-300 group-hover:text-indigo-600 rotate-180 transition-colors flex-shrink-0" />
+                        )}
+                      </div>
+                    );
+
+                    if (!product.product) {
+                      return <div key={product.key}>{content}</div>;
+                    }
+
+                    return (
+                      <Link
+                        key={product.key}
+                        to={buildProductPath(product.product)}
+                        className="block"
+                      >
+                        {content}
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="mx-auto w-20 h-20 rounded-2xl bg-indigo-100 flex items-center justify-center mb-4">
+                    <ShoppingBag className="w-10 h-10 text-indigo-600" />
+                  </div>
+                  <h4 className="text-lg font-bold text-gray-900 mb-2">Aucun produit commandé</h4>
+                  <p className="text-sm text-gray-500 mb-6">Vos produits commandés apparaîtront ici</p>
+                  <Link
+                    to="/orders"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all"
+                    onClick={() => setShowOrdersModal(false)}
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                    Voir mes commandes
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sold Products Modal */}
+      {showSalesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+          <div
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity"
+            onClick={() => setShowSalesModal(false)}
+          />
+          <div
+            className="relative w-full max-w-4xl rounded-3xl bg-white shadow-2xl border border-gray-100 max-h-[90vh] overflow-hidden flex flex-col"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-emerald-600 text-white px-6 py-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+                    <TrendingUp className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-white/80 uppercase tracking-wide">Produits vendus</p>
+                    <h3 className="text-xl font-bold mt-1">
+                      {salesStats.totalCount
+                        ? `${formatNumber(salesStats.totalCount)} commande(s)`
+                        : 'Aucune vente'}
+                    </h3>
+                    <p className="text-sm text-white/80 mt-1">
+                      Gains estimés: {formatCurrency(salesStats.totalAmount)}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowSalesModal(false)}
+                  className="h-10 w-10 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all"
+                  aria-label="Fermer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {soldLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3, 4, 5].map((item) => (
+                    <div key={item} className="h-20 rounded-xl bg-gray-100 animate-pulse" />
+                  ))}
+                </div>
+              ) : soldError ? (
+                <div className="text-center py-12">
+                  <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                    <X className="w-8 h-8 text-red-600" />
+                  </div>
+                  <h4 className="text-lg font-bold text-gray-900 mb-2">Erreur de chargement</h4>
+                  <p className="text-sm text-red-600">{soldError}</p>
+                </div>
+              ) : soldProducts.length ? (
+                <div className="space-y-3">
+                  {soldProducts.map((product, index) => {
+                    const content = (
+                      <div className="group flex items-center gap-4 rounded-xl border-2 border-gray-100 bg-white p-4 hover:border-emerald-300 hover:shadow-lg transition-all duration-200">
+                        <div className="flex-shrink-0">
+                          <div className="w-12 h-12 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold text-sm">
+                            #{index + 1}
+                          </div>
+                        </div>
+                        <div className="h-16 w-16 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0 ring-2 ring-gray-100 group-hover:ring-emerald-200 transition-all">
+                          {product.image ? (
+                            <img src={product.image} alt={product.title} className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="h-full w-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-sm font-bold">
+                              {product.title?.charAt(0) || 'P'}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-gray-900 truncate group-hover:text-emerald-600 transition-colors">{product.title}</p>
+                          <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <Package className="w-3 h-3" />
+                              {formatNumber(product.quantity)} article(s)
+                            </span>
+                            <span className="flex items-center gap-1 font-semibold text-emerald-600">
+                              <DollarSign className="w-3 h-3" />
+                              {formatCurrency(product.totalEarned)}
+                            </span>
+                          </div>
+                        </div>
+                        {product.product && (
+                          <ArrowLeft className="w-5 h-5 text-gray-300 group-hover:text-emerald-600 rotate-180 transition-colors flex-shrink-0" />
+                        )}
+                      </div>
+                    );
+
+                    if (!product.product) {
+                      return <div key={product.key}>{content}</div>;
+                    }
+
+                    return (
+                      <Link
+                        key={product.key}
+                        to={buildProductPath(product.product)}
+                        className="block"
+                      >
+                        {content}
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="mx-auto w-20 h-20 rounded-2xl bg-emerald-100 flex items-center justify-center mb-4">
+                    <TrendingUp className="w-10 h-10 text-emerald-600" />
+                  </div>
+                  <h4 className="text-lg font-bold text-gray-900 mb-2">Aucun produit vendu</h4>
+                  <p className="text-sm text-gray-500 mb-6">Vos produits vendus apparaîtront ici une fois que vous recevrez des commandes</p>
+                  <Link
+                    to="/seller/orders"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 shadow-lg hover:shadow-xl transition-all"
+                    onClick={() => setShowSalesModal(false)}
+                  >
+                    <TrendingUp className="w-4 h-4" />
+                    Voir mes ventes
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

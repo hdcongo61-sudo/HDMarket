@@ -16,7 +16,8 @@ const DEFAULT_PREFERENCES = Object.freeze({
   order_received: true,
   order_reminder: true,
   order_delivering: true,
-  order_delivered: true
+  order_delivered: true,
+  feedback_read: true
 });
 
 const buildDefaultPreferences = () => ({ ...DEFAULT_PREFERENCES });
@@ -113,7 +114,18 @@ export default function useUserNotifications(enabled) {
       };
     }
 
-    const token = window.localStorage.getItem('qm_token');
+    let token = window.localStorage.getItem('qm_token');
+    // Handle token that may be JSON-stringified (has quotes around it)
+    if (token) {
+      try {
+        const parsed = JSON.parse(token);
+        if (typeof parsed === 'string') {
+          token = parsed;
+        }
+      } catch {
+        // Token is already a plain string, use as-is
+      }
+    }
     if (!token) {
       closeSource();
       clearRetry();

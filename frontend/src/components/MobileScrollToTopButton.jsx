@@ -38,21 +38,29 @@ export default function MobileScrollToTopButton() {
       return undefined;
     }
 
+    let rafId = null;
     const handleScroll = () => {
-      const scrollY = window.scrollY || window.pageYOffset;
-      const viewportHeight = window.innerHeight;
-      const docHeight =
-        document.documentElement?.scrollHeight ||
-        document.body?.scrollHeight ||
-        0;
-      const nearBottom =
-        scrollY + viewportHeight >= docHeight - SCROLL_BOTTOM_OFFSET;
-      setShowButton(nearBottom);
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const scrollY = window.scrollY || window.pageYOffset;
+        const viewportHeight = window.innerHeight;
+        const docHeight =
+          document.documentElement?.scrollHeight ||
+          document.body?.scrollHeight ||
+          0;
+        const nearBottom =
+          scrollY + viewportHeight >= docHeight - SCROLL_BOTTOM_OFFSET;
+        setShowButton((prev) => (prev === nearBottom ? prev : nearBottom));
+      });
     };
 
     handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, [isTargetPage, isMobile]);
 
   useEffect(() => {

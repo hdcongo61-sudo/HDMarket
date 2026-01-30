@@ -165,6 +165,31 @@ export default function AdminPayments() {
     loadPayments();
   }, [loadPayments]);
 
+  // Listen for payment status changes from other pages
+  useEffect(() => {
+    const handlePaymentStatusChange = () => {
+      loadPayments();
+      loadStats();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadPayments();
+        loadStats();
+      }
+    };
+
+    window.addEventListener('paymentStatusChanged', handlePaymentStatusChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handlePaymentStatusChange);
+    
+    return () => {
+      window.removeEventListener('paymentStatusChanged', handlePaymentStatusChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handlePaymentStatusChange);
+    };
+  }, [loadPayments, loadStats]);
+
   useEffect(() => {
     const handler = setTimeout(() => {
       setSearchValue(searchDraft.trim());
@@ -194,6 +219,11 @@ export default function AdminPayments() {
         await api.put(`/payments/admin/${id}/${type === 'verify' ? 'verify' : 'reject'}`);
         await Promise.all([loadPayments(), loadStats()]);
         setActionMessage(type === 'verify' ? 'Paiement validé avec succès.' : 'Paiement rejeté.');
+        
+        // Emit custom event to notify other pages
+        window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
+          detail: { paymentId: id, status: type === 'verify' ? 'verified' : 'rejected' }
+        }));
       } catch (e) {
         setActionError(e.response?.data?.message || e.message || 'Action impossible sur ce paiement.');
       } finally {

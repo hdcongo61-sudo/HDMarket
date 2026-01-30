@@ -11,7 +11,12 @@ const userSchema = new mongoose.Schema(
     phone: { type: String, required: true, unique: true },
     phoneVerified: { type: Boolean, default: false },
     role: { type: String, enum: ['user', 'admin', 'manager'], default: 'user' },
+    canReadFeedback: { type: Boolean, default: false },
+    canVerifyPayments: { type: Boolean, default: false },
+    canManageBoosts: { type: Boolean, default: false },
     accountType: { type: String, enum: ['person', 'shop'], default: 'person' },
+    accountTypeChangedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    accountTypeChangedAt: { type: Date, default: null },
     country: { type: String, default: 'République du Congo' },
     city: {
       type: String,
@@ -49,6 +54,7 @@ const userSchema = new mongoose.Schema(
       rating: { type: Boolean, default: true },
       product_approval: { type: Boolean, default: true },
       product_rejection: { type: Boolean, default: true },
+      product_boosted: { type: Boolean, default: true },
       promotional: { type: Boolean, default: true },
       shop_review: { type: Boolean, default: true },
       payment_pending: { type: Boolean, default: true },
@@ -56,7 +62,11 @@ const userSchema = new mongoose.Schema(
       order_received: { type: Boolean, default: true },
       order_reminder: { type: Boolean, default: true },
       order_delivering: { type: Boolean, default: true },
-      order_delivered: { type: Boolean, default: true }
+      order_delivered: { type: Boolean, default: true },
+      review_reminder: { type: Boolean, default: true },
+      order_address_updated: { type: Boolean, default: true },
+      order_message: { type: Boolean, default: true },
+      feedback_read: { type: Boolean, default: true }
     },
     notificationsReadAt: { type: Date },
     isBlocked: { type: Boolean, default: false },

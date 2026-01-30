@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, ShieldCheck, Smartphone, Lock, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, ShieldCheck, Mail, Lock, ArrowLeft } from 'lucide-react';
 import api from '../services/api';
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    phone: '',
+    email: '',
     verificationCode: '',
     newPassword: '',
     confirmPassword: ''
@@ -19,17 +19,17 @@ export default function ForgotPassword() {
   const [error, setError] = useState('');
 
   const sendCode = async () => {
-    if (!form.phone.trim()) {
-      setError('Veuillez saisir votre numéro de téléphone.');
+    if (!form.email.trim()) {
+      setError('Veuillez saisir votre adresse email.');
       return;
     }
     setCodeSending(true);
     setError('');
     setMessage('');
     try {
-      await api.post('/auth/password/forgot', { phone: form.phone });
+      await api.post('/auth/password/forgot', { email: form.email });
       setCodeSent(true);
-      setMessage('Code envoyé par SMS. Vérifiez votre téléphone.');
+      setMessage('Code envoyé par email. Vérifiez votre boîte de réception.');
     } catch (err) {
       setError(err.response?.data?.message || err.message);
     } finally {
@@ -42,7 +42,7 @@ export default function ForgotPassword() {
     setError('');
     setMessage('');
     if (!form.verificationCode.trim()) {
-      setError('Veuillez saisir le code reçu par SMS.');
+      setError('Veuillez saisir le code reçu par email.');
       return;
     }
     if (!form.newPassword) {
@@ -56,7 +56,7 @@ export default function ForgotPassword() {
     setLoading(true);
     try {
       await api.post('/auth/password/reset', {
-        phone: form.phone,
+        email: form.email,
         verificationCode: form.verificationCode.trim(),
         newPassword: form.newPassword
       });
@@ -72,42 +72,42 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <div className="flex justify-center mb-6">
-            <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl flex items-center justify-center shadow-lg">
+            <div className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-lg">
               <ShieldCheck className="w-10 h-10 text-white" />
             </div>
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Réinitialiser le mot de passe</h1>
-          <p className="text-gray-500">Recevez un code SMS pour sécuriser la réinitialisation</p>
+          <p className="text-gray-500">Recevez un code par email pour sécuriser la réinitialisation</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
           <form onSubmit={submit} className="space-y-6">
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                <Smartphone className="w-4 h-4 text-indigo-500" />
-                <span>Numéro de téléphone</span>
+                <Mail className="w-4 h-4 text-indigo-500" />
+                <span>Adresse email</span>
               </label>
               <div className="relative">
                 <input
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
                   className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
-                  placeholder="06 000 00 00"
-                  value={form.phone}
-                  onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
+                  placeholder="votre@email.com"
+                  value={form.email}
+                  onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
                   required
                 />
-                <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               </div>
               <button
                 type="button"
                 onClick={sendCode}
-                disabled={codeSending || !form.phone.trim()}
+                disabled={codeSending || !form.email.trim()}
                 className="w-full mt-3 py-3 rounded-xl border border-indigo-200 text-indigo-600 font-semibold hover:bg-indigo-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {codeSending ? 'Envoi...' : codeSent ? 'Renvoyer le code' : 'Envoyer le code'}
@@ -122,7 +122,7 @@ export default function ForgotPassword() {
               <div className="relative">
                 <input
                   className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
-                  placeholder="Code reçu par SMS"
+                  placeholder="Code reçu par email"
                   value={form.verificationCode}
                   onChange={(e) => setForm((prev) => ({ ...prev, verificationCode: e.target.value }))}
                   required
@@ -190,7 +190,7 @@ export default function ForgotPassword() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 shadow-lg"
+              className="w-full py-4 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 shadow-lg"
             >
               {loading ? (
                 <>

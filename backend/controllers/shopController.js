@@ -41,6 +41,8 @@ export const listShops = asyncHandler(async (req, res) => {
   if (req.query?.verified === 'true') {
     filters.shopVerified = true;
   }
+  const includeImages = req.query?.withImages === 'true';
+  const imageLimit = Math.max(1, Math.min(Number(req.query?.imageLimit) || 6, 12));
   const shops = await User.find(filters)
     .select('shopName shopAddress shopLogo shopBanner name createdAt shopVerified followersCount')
     .sort({ shopName: 1, createdAt: 1 })
@@ -76,9 +78,40 @@ export const listShops = asyncHandler(async (req, res) => {
     );
   }
 
+  let imageMap = new Map();
+  if (includeImages && shopIds.length) {
+    const imageAgg = await Product.aggregate([
+      {
+        $match: {
+          user: { $in: shopIds },
+          status: 'approved',
+          images: { $exists: true, $ne: [] }
+        }
+      },
+      { $project: { user: 1, images: 1 } },
+      { $unwind: '$images' },
+      { $group: { _id: '$user', images: { $addToSet: '$images' } } }
+    ]);
+    imageMap = new Map(
+      imageAgg.map((entry) => [String(entry._id), Array.isArray(entry.images) ? entry.images : []])
+    );
+  }
+
+  const pickRandomImages = (images, limit) => {
+    const pool = Array.isArray(images) ? images.filter(Boolean) : [];
+    if (pool.length <= limit) return pool;
+    const shuffled = [...pool];
+    for (let i = shuffled.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled.slice(0, limit);
+  };
+
   const payload = shops.map((shop) => {
     const id = String(shop._id);
     const ratingStats = ratingMap.get(id) || { average: 0, count: 0 };
+    const sampleImages = includeImages ? pickRandomImages(imageMap.get(id) || [], imageLimit) : [];
     return {
       _id: shop._id,
       slug: shop.slug,
@@ -91,7 +124,8 @@ export const listShops = asyncHandler(async (req, res) => {
       productCount: productCountMap.get(id) || 0,
       ratingAverage: ratingStats.average,
       ratingCount: ratingStats.count,
-      createdAt: shop.createdAt
+      createdAt: shop.createdAt,
+      sampleImages
     };
   });
 
@@ -120,6 +154,7 @@ export const getShopProfile = asyncHandler(async (req, res) => {
       user: shop._id,
       status: 'approved'
     })
+      .select('_id title price images category condition city createdAt slug salesCount favoritesCount whatsappClicks views discount priceBeforeDiscount')
       .sort('-createdAt')
       .skip(skip)
       .limit(limit)

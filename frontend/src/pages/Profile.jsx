@@ -31,10 +31,41 @@ const initialForm = {
   gender: ''
 };
 
+const buildOrderStatusDefaults = (extraFields = {}) => ({
+  pending: { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0, items: 0, ...extraFields },
+  confirmed: { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0, items: 0, ...extraFields },
+  delivering: { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0, items: 0, ...extraFields },
+  delivered: { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0, items: 0, ...extraFields },
+  cancelled: { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0, items: 0, ...extraFields }
+});
+
+const buildSalesStatusDefaults = () => ({
+  pending: { count: 0, totalAmount: 0 },
+  confirmed: { count: 0, totalAmount: 0 },
+  delivering: { count: 0, totalAmount: 0 },
+  delivered: { count: 0, totalAmount: 0 },
+  cancelled: { count: 0, totalAmount: 0 }
+});
+
 const createDefaultStats = () => ({
   listings: { total: 0, approved: 0, pending: 0, rejected: 0, disabled: 0 },
   engagement: { favoritesReceived: 0, commentsReceived: 0, favoritesSaved: 0 },
-  performance: { views: 0, clicks: 0, conversion: 0 }
+  performance: { views: 0, clicks: 0, conversion: 0 },
+  orders: {
+    purchases: {
+      totalCount: 0,
+      totalAmount: 0,
+      paidAmount: 0,
+      remainingAmount: 0,
+      totalItems: 0,
+      byStatus: buildOrderStatusDefaults()
+    },
+    sales: {
+      totalCount: 0,
+      totalAmount: 0,
+      byStatus: buildSalesStatusDefaults()
+    }
+  }
 });
 
 const ORDER_STATUS_LABELS = {
@@ -135,6 +166,8 @@ const formatNumber = (value) => {
   return numberFormatter.format(parsed);
 };
 
+const formatCurrency = (value) => `${formatNumber(value)} FCFA`;
+
 const formatComplaintDate = (value) =>
   value
     ? new Date(value).toLocaleDateString('fr-FR', {
@@ -212,31 +245,6 @@ export default function Profile() {
   const [shopLogoPreview, setShopLogoPreview] = useState('');
   const [shopBannerFile, setShopBannerFile] = useState(null);
   const [shopBannerPreview, setShopBannerPreview] = useState('');
-  const [appLogoDesktopFile, setAppLogoDesktopFile] = useState(null);
-  const [appLogoDesktopPreview, setAppLogoDesktopPreview] = useState('');
-  const [appLogoDesktopSaving, setAppLogoDesktopSaving] = useState(false);
-  const [appLogoDesktopError, setAppLogoDesktopError] = useState('');
-  const [appLogoDesktopSuccess, setAppLogoDesktopSuccess] = useState('');
-  const [appLogoMobileFile, setAppLogoMobileFile] = useState(null);
-  const [appLogoMobilePreview, setAppLogoMobilePreview] = useState('');
-  const [appLogoMobileSaving, setAppLogoMobileSaving] = useState(false);
-  const [appLogoMobileError, setAppLogoMobileError] = useState('');
-  const [appLogoMobileSuccess, setAppLogoMobileSuccess] = useState('');
-  const [heroBannerFile, setHeroBannerFile] = useState(null);
-  const [heroBannerPreview, setHeroBannerPreview] = useState('');
-  const [heroBannerSaving, setHeroBannerSaving] = useState(false);
-  const [heroBannerError, setHeroBannerError] = useState('');
-  const [heroBannerSuccess, setHeroBannerSuccess] = useState('');
-  const [promoBannerFile, setPromoBannerFile] = useState(null);
-  const [promoBannerPreview, setPromoBannerPreview] = useState('');
-  const [promoBannerMobileFile, setPromoBannerMobileFile] = useState(null);
-  const [promoBannerMobilePreview, setPromoBannerMobilePreview] = useState('');
-  const [promoBannerLink, setPromoBannerLink] = useState('');
-  const [promoBannerStartAt, setPromoBannerStartAt] = useState('');
-  const [promoBannerEndAt, setPromoBannerEndAt] = useState('');
-  const [promoBannerSaving, setPromoBannerSaving] = useState(false);
-  const [promoBannerError, setPromoBannerError] = useState('');
-  const [promoBannerSuccess, setPromoBannerSuccess] = useState('');
   const [shopHours, setShopHours] = useState(() => createDefaultShopHours());
   const [stats, setStats] = useState(() => createDefaultStats());
   const [statsLoading, setStatsLoading] = useState(false);
@@ -261,6 +269,16 @@ export default function Profile() {
   const [myComplaints, setMyComplaints] = useState([]);
   const [complaintListLoading, setComplaintListLoading] = useState(false);
   const [complaintListError, setComplaintListError] = useState('');
+  const [improvementSubject, setImprovementSubject] = useState('');
+  const [improvementBody, setImprovementBody] = useState('');
+  const [improvementLoading, setImprovementLoading] = useState(false);
+  const [improvementError, setImprovementError] = useState('');
+  const [improvementSuccess, setImprovementSuccess] = useState('');
+  const [improvementStats, setImprovementStats] = useState({ total: 0, remaining: 5 });
+  const [improvementItems, setImprovementItems] = useState([]);
+  const [improvementListLoading, setImprovementListLoading] = useState(false);
+  const [improvementListError, setImprovementListError] = useState('');
+  const [improvementModalItem, setImprovementModalItem] = useState(null);
   const userShopLink = user?.accountType === 'shop' ? buildShopPath(user) : null;
 
   const mobileHighlights = [
@@ -299,13 +317,6 @@ export default function Profile() {
     [filesBase]
   );
 
-  const formatDateInput = useCallback((value) => {
-    if (!value) return '';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    return date.toISOString().slice(0, 10);
-  }, []);
-
   useEffect(
     () => () => {
       if (shopLogoPreview && shopLogoPreview.startsWith('blob:')) {
@@ -314,31 +325,8 @@ export default function Profile() {
       if (shopBannerPreview && shopBannerPreview.startsWith('blob:')) {
         URL.revokeObjectURL(shopBannerPreview);
       }
-      if (heroBannerPreview && heroBannerPreview.startsWith('blob:')) {
-        URL.revokeObjectURL(heroBannerPreview);
-      }
-      if (appLogoDesktopPreview && appLogoDesktopPreview.startsWith('blob:')) {
-        URL.revokeObjectURL(appLogoDesktopPreview);
-      }
-      if (appLogoMobilePreview && appLogoMobilePreview.startsWith('blob:')) {
-        URL.revokeObjectURL(appLogoMobilePreview);
-      }
-      if (promoBannerPreview && promoBannerPreview.startsWith('blob:')) {
-        URL.revokeObjectURL(promoBannerPreview);
-      }
-      if (promoBannerMobilePreview && promoBannerMobilePreview.startsWith('blob:')) {
-        URL.revokeObjectURL(promoBannerMobilePreview);
-      }
     },
-    [
-      shopLogoPreview,
-      shopBannerPreview,
-      heroBannerPreview,
-      appLogoDesktopPreview,
-      appLogoMobilePreview,
-      promoBannerPreview,
-      promoBannerMobilePreview
-    ]
+    [shopLogoPreview, shopBannerPreview]
   );
 
   useEffect(() => {
@@ -366,78 +354,6 @@ export default function Profile() {
   }, [user]);
 
   useEffect(() => {
-    if (!user || user.role !== 'admin') {
-      setHeroBannerPreview('');
-      setHeroBannerFile(null);
-      setAppLogoDesktopPreview('');
-      setAppLogoDesktopFile(null);
-      setAppLogoMobilePreview('');
-      setAppLogoMobileFile(null);
-      setPromoBannerPreview('');
-      setPromoBannerFile(null);
-      setPromoBannerMobilePreview('');
-      setPromoBannerMobileFile(null);
-      setPromoBannerLink('');
-      setPromoBannerStartAt('');
-      setPromoBannerEndAt('');
-      return;
-    }
-    let active = true;
-    const loadHeroBanner = async () => {
-      setHeroBannerError('');
-      try {
-        const { data } = await api.get('/settings/hero-banner');
-        if (!active) return;
-        setHeroBannerPreview(data?.heroBanner || '');
-      } catch (err) {
-        if (!active) return;
-        setHeroBannerError(
-          err.response?.data?.message || 'Impossible de charger la bannière du hero.'
-        );
-      }
-    };
-    const loadAppLogo = async () => {
-      setAppLogoDesktopError('');
-      setAppLogoMobileError('');
-      try {
-        const { data } = await api.get('/settings/app-logo');
-        if (!active) return;
-        setAppLogoDesktopPreview(data?.appLogoDesktop || '');
-        setAppLogoMobilePreview(data?.appLogoMobile || '');
-      } catch (err) {
-        if (!active) return;
-        const message =
-          err.response?.data?.message || "Impossible de charger les logos de l'application.";
-        setAppLogoDesktopError(message);
-        setAppLogoMobileError(message);
-      }
-    };
-    const loadPromoBanner = async () => {
-      setPromoBannerError('');
-      try {
-        const { data } = await api.get('/settings/promo-banner');
-        if (!active) return;
-        setPromoBannerPreview(data?.promoBanner || '');
-        setPromoBannerMobilePreview(data?.promoBannerMobile || '');
-        setPromoBannerLink(data?.promoBannerLink || '');
-        setPromoBannerStartAt(formatDateInput(data?.promoBannerStartAt));
-        setPromoBannerEndAt(formatDateInput(data?.promoBannerEndAt));
-      } catch (err) {
-        if (!active) return;
-        setPromoBannerError(
-          err.response?.data?.message || "Impossible de charger la bannière publicitaire."
-        );
-      }
-    };
-    loadHeroBanner();
-    loadAppLogo();
-    loadPromoBanner();
-    return () => {
-      active = false;
-    };
-  }, [user]);
-
-  useEffect(() => {
     if (!user) {
       setStats(createDefaultStats());
       setStatsError('');
@@ -456,10 +372,30 @@ export default function Profile() {
         const { data } = await api.get('/users/profile/stats');
         if (!active) return;
         const baseline = createDefaultStats();
+        const purchases = data?.orders?.purchases || {};
+        const sales = data?.orders?.sales || {};
         setStats({
           listings: { ...baseline.listings, ...(data?.listings || {}) },
           engagement: { ...baseline.engagement, ...(data?.engagement || {}) },
-          performance: { ...baseline.performance, ...(data?.performance || {}) }
+          performance: { ...baseline.performance, ...(data?.performance || {}) },
+          orders: {
+            purchases: {
+              ...baseline.orders.purchases,
+              ...purchases,
+              byStatus: {
+                ...baseline.orders.purchases.byStatus,
+                ...(purchases.byStatus || {})
+              }
+            },
+            sales: {
+              ...baseline.orders.sales,
+              ...sales,
+              byStatus: {
+                ...baseline.orders.sales.byStatus,
+                ...(sales.byStatus || {})
+              }
+            }
+          }
         });
       } catch (err) {
         if (!active) return;
@@ -537,6 +473,40 @@ export default function Profile() {
     loadUserComplaints();
   }, [loadUserComplaints]);
 
+  const loadImprovementFeedback = useCallback(async () => {
+    if (!user) {
+      setImprovementStats({ total: 0, remaining: 5 });
+      setImprovementItems([]);
+      setImprovementListError('');
+      return;
+    }
+    setImprovementListLoading(true);
+    setImprovementListError('');
+    try {
+      const { data } = await api.get('/users/feedback');
+      const items = Array.isArray(data?.items) ? data.items : [];
+      setImprovementItems(items);
+      setImprovementStats({
+        total: Number(data?.total || items.length || 0),
+        remaining: Number.isFinite(Number(data?.remaining))
+          ? Number(data.remaining)
+          : Math.max(0, 5 - Number(data?.total || items.length || 0))
+      });
+    } catch (err) {
+      setImprovementStats({ total: 0, remaining: 5 });
+      setImprovementItems([]);
+      setImprovementListError(
+        err.response?.data?.message || err.message || 'Impossible de charger vos avis.'
+      );
+    } finally {
+      setImprovementListLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadImprovementFeedback();
+  }, [loadImprovementFeedback]);
+
   const onChange = (e) => {
     const { name, value } = e.target;
     if (name === 'accountType') {
@@ -590,201 +560,6 @@ export default function Profile() {
     setShopBannerPreview('');
   };
 
-  const onAppLogoDesktopChange = (e) => {
-    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
-    setAppLogoDesktopFile(file);
-    setAppLogoDesktopError('');
-    setAppLogoDesktopSuccess('');
-    if (file) {
-      if (appLogoDesktopPreview && appLogoDesktopPreview.startsWith('blob:')) {
-        URL.revokeObjectURL(appLogoDesktopPreview);
-      }
-      setAppLogoDesktopPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const onAppLogoMobileChange = (e) => {
-    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
-    setAppLogoMobileFile(file);
-    setAppLogoMobileError('');
-    setAppLogoMobileSuccess('');
-    if (file) {
-      if (appLogoMobilePreview && appLogoMobilePreview.startsWith('blob:')) {
-        URL.revokeObjectURL(appLogoMobilePreview);
-      }
-      setAppLogoMobilePreview(URL.createObjectURL(file));
-    }
-  };
-
-  const onHeroBannerChange = (e) => {
-    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
-    setHeroBannerFile(file);
-    setHeroBannerError('');
-    setHeroBannerSuccess('');
-    if (file) {
-      if (heroBannerPreview && heroBannerPreview.startsWith('blob:')) {
-        URL.revokeObjectURL(heroBannerPreview);
-      }
-      setHeroBannerPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const onPromoBannerChange = (e) => {
-    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
-    setPromoBannerFile(file);
-    setPromoBannerError('');
-    setPromoBannerSuccess('');
-    if (file) {
-      if (promoBannerPreview && promoBannerPreview.startsWith('blob:')) {
-        URL.revokeObjectURL(promoBannerPreview);
-      }
-      setPromoBannerPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const onPromoBannerMobileChange = (e) => {
-    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
-    setPromoBannerMobileFile(file);
-    setPromoBannerError('');
-    setPromoBannerSuccess('');
-    if (file) {
-      if (promoBannerMobilePreview && promoBannerMobilePreview.startsWith('blob:')) {
-        URL.revokeObjectURL(promoBannerMobilePreview);
-      }
-      setPromoBannerMobilePreview(URL.createObjectURL(file));
-    }
-  };
-
-  const saveHeroBanner = async () => {
-    if (!heroBannerFile) {
-      setHeroBannerError('Veuillez sélectionner une image pour la bannière.');
-      return;
-    }
-    setHeroBannerSaving(true);
-    setHeroBannerError('');
-    setHeroBannerSuccess('');
-    try {
-      const payload = new FormData();
-      payload.append('heroBanner', heroBannerFile);
-      const { data } = await api.put('/admin/hero-banner', payload, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setHeroBannerPreview(data?.heroBanner || heroBannerPreview);
-      setHeroBannerFile(null);
-      setHeroBannerSuccess('Bannière mise à jour avec succès.');
-      showToast('Bannière mise à jour.', { variant: 'success' });
-    } catch (err) {
-      const message = err.response?.data?.message || "Impossible d'enregistrer la bannière.";
-      setHeroBannerError(message);
-      showToast(message, { variant: 'error' });
-    } finally {
-      setHeroBannerSaving(false);
-    }
-  };
-
-  const savePromoBanner = async () => {
-    if (promoBannerStartAt && promoBannerEndAt) {
-      const startDate = new Date(promoBannerStartAt);
-      const endDate = new Date(promoBannerEndAt);
-      if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-        setPromoBannerError('Dates de bannière invalides.');
-        return;
-      }
-      if (endDate < startDate) {
-        setPromoBannerError('La date de fin doit être après la date de début.');
-        return;
-      }
-    }
-    setPromoBannerSaving(true);
-    setPromoBannerError('');
-    setPromoBannerSuccess('');
-    try {
-      const payload = new FormData();
-      if (promoBannerFile) {
-        payload.append('promoBanner', promoBannerFile);
-      }
-      if (promoBannerMobileFile) {
-        payload.append('promoBannerMobile', promoBannerMobileFile);
-      }
-      payload.append('promoBannerLink', promoBannerLink.trim());
-      payload.append('promoBannerStartAt', promoBannerStartAt);
-      payload.append('promoBannerEndAt', promoBannerEndAt);
-      const { data } = await api.put('/admin/promo-banner', payload, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setPromoBannerPreview(data?.promoBanner || promoBannerPreview);
-      setPromoBannerMobilePreview(data?.promoBannerMobile || promoBannerMobilePreview);
-      setPromoBannerLink(data?.promoBannerLink || promoBannerLink);
-      setPromoBannerStartAt(formatDateInput(data?.promoBannerStartAt));
-      setPromoBannerEndAt(formatDateInput(data?.promoBannerEndAt));
-      setPromoBannerFile(null);
-      setPromoBannerMobileFile(null);
-      setPromoBannerSuccess('Bannière publicitaire mise à jour avec succès.');
-      showToast('Bannière publicitaire mise à jour.', { variant: 'success' });
-    } catch (err) {
-      const message =
-        err.response?.data?.message || "Impossible d'enregistrer la bannière publicitaire.";
-      setPromoBannerError(message);
-      showToast(message, { variant: 'error' });
-    } finally {
-      setPromoBannerSaving(false);
-    }
-  };
-
-  const saveAppLogoDesktop = async () => {
-    if (!appLogoDesktopFile) {
-      setAppLogoDesktopError('Veuillez sélectionner un logo desktop.');
-      return;
-    }
-    setAppLogoDesktopSaving(true);
-    setAppLogoDesktopError('');
-    setAppLogoDesktopSuccess('');
-    try {
-      const payload = new FormData();
-      payload.append('appLogoDesktop', appLogoDesktopFile);
-      const { data } = await api.put('/admin/app-logo/desktop', payload, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setAppLogoDesktopPreview(data?.appLogoDesktop || appLogoDesktopPreview);
-      setAppLogoDesktopFile(null);
-      setAppLogoDesktopSuccess('Logo desktop mis à jour avec succès.');
-      showToast('Logo desktop mis à jour.', { variant: 'success' });
-    } catch (err) {
-      const message = err.response?.data?.message || "Impossible d'enregistrer le logo desktop.";
-      setAppLogoDesktopError(message);
-      showToast(message, { variant: 'error' });
-    } finally {
-      setAppLogoDesktopSaving(false);
-    }
-  };
-
-  const saveAppLogoMobile = async () => {
-    if (!appLogoMobileFile) {
-      setAppLogoMobileError('Veuillez sélectionner un logo mobile.');
-      return;
-    }
-    setAppLogoMobileSaving(true);
-    setAppLogoMobileError('');
-    setAppLogoMobileSuccess('');
-    try {
-      const payload = new FormData();
-      payload.append('appLogoMobile', appLogoMobileFile);
-      const { data } = await api.put('/admin/app-logo/mobile', payload, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setAppLogoMobilePreview(data?.appLogoMobile || appLogoMobilePreview);
-      setAppLogoMobileFile(null);
-      setAppLogoMobileSuccess('Logo mobile mis à jour avec succès.');
-      showToast('Logo mobile mis à jour.', { variant: 'success' });
-    } catch (err) {
-      const message = err.response?.data?.message || "Impossible d'enregistrer le logo mobile.";
-      setAppLogoMobileError(message);
-      showToast(message, { variant: 'error' });
-    } finally {
-      setAppLogoMobileSaving(false);
-    }
-  };
-
   const resetShopHours = () => {
     setShopHours(createDefaultShopHours());
   };
@@ -834,8 +609,8 @@ export default function Profile() {
     try {
       await api.post('/users/password/send-code');
       setPasswordCodeSent(true);
-      setPasswordCodeMessage('Code envoyé par SMS.');
-      showToast('Code envoyé par SMS.', { variant: 'success' });
+      setPasswordCodeMessage('Code envoyé par email.');
+      showToast('Code envoyé par email.', { variant: 'success' });
     } catch (err) {
       const message = err.response?.data?.message || err.message || 'Impossible d’envoyer le code.';
       setPasswordCodeError(message);
@@ -848,7 +623,7 @@ export default function Profile() {
   const applyPasswordChange = async () => {
     if (!form.password) return true;
     if (!passwordCode.trim()) {
-      const message = 'Veuillez saisir le code SMS avant de modifier le mot de passe.';
+      const message = 'Veuillez saisir le code reçu par email avant de modifier le mot de passe.';
       setPasswordCodeError(message);
       showToast(message, { variant: 'error' });
       return false;
@@ -977,6 +752,60 @@ export default function Profile() {
     }
   };
 
+  const submitImprovementFeedback = async (event) => {
+    event.preventDefault();
+    setImprovementError('');
+    setImprovementSuccess('');
+    if (!improvementSubject.trim()) {
+      setImprovementError('Veuillez renseigner un sujet.');
+      return;
+    }
+    if (!improvementBody.trim()) {
+      setImprovementError('Veuillez détailler votre avis.');
+      return;
+    }
+    if (improvementStats.remaining <= 0) {
+      setImprovementError('Vous avez atteint la limite de 5 avis.');
+      return;
+    }
+    setImprovementLoading(true);
+    try {
+      const { data } = await api.post('/users/feedback', {
+        subject: improvementSubject.trim(),
+        body: improvementBody.trim()
+      });
+      setImprovementSuccess('Merci ! Votre avis a été envoyé.');
+      setImprovementSubject('');
+      setImprovementBody('');
+      if (data?.feedback) {
+        setImprovementItems((prev) => [data.feedback, ...prev].slice(0, 5));
+      }
+      if (typeof data?.remaining === 'number') {
+        setImprovementStats((prev) => ({
+          total: prev.total + 1,
+          remaining: data.remaining
+        }));
+      } else {
+        await loadImprovementFeedback();
+      }
+    } catch (err) {
+      const message =
+        err.response?.data?.message || err.message || 'Impossible d’envoyer votre avis.';
+      setImprovementError(message);
+    } finally {
+      setImprovementLoading(false);
+    }
+  };
+
+  const openImprovementModal = (item) => {
+    if (!item) return;
+    setImprovementModalItem(item);
+  };
+
+  const closeImprovementModal = () => {
+    setImprovementModalItem(null);
+  };
+
   const submitComplaint = async (event) => {
     event.preventDefault();
     setComplaintError('');
@@ -1013,7 +842,7 @@ export default function Profile() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <User className="w-8 h-8 text-white" />
           </div>
           <p className="text-gray-500">Vous devez être connecté pour accéder à votre profil.</p>
@@ -1027,7 +856,7 @@ export default function Profile() {
       <div className="max-w-6xl mx-auto px-4 py-6">
         {/* En-tête */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-20 h-20 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <User className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Mon Profil</h1>
@@ -1092,7 +921,7 @@ export default function Profile() {
           <>
             <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
             <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 mb-6">
-              <div className="w-2 h-6 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full"></div>
+              <div className="w-2 h-6 bg-indigo-600 rounded-full"></div>
               <h2 className="text-xl font-semibold text-gray-900">Informations personnelles</h2>
             </div>
 
@@ -1218,6 +1047,7 @@ export default function Profile() {
                   <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
                     <Users className="w-4 h-4 text-indigo-500" />
                     Genre *
+                    <span className="text-[11px] text-gray-500">Non modifiable</span>
                   </span>
                   <div className="grid grid-cols-2 gap-3">
                     {[
@@ -1226,10 +1056,10 @@ export default function Profile() {
                     ].map((option) => (
                       <label
                         key={option.value}
-                        className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-colors cursor-pointer ${
+                        className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-colors ${
                           form.gender === option.value
                             ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                            : 'border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-600'
+                            : 'border-gray-200 bg-gray-50 text-gray-600'
                         }`}
                       >
                         <input
@@ -1237,9 +1067,8 @@ export default function Profile() {
                           name="gender"
                           value={option.value}
                           checked={form.gender === option.value}
-                          onChange={onChange}
                           className="sr-only"
-                          disabled={loading}
+                          disabled
                         />
                         {option.label}
                       </label>
@@ -1286,7 +1115,7 @@ export default function Profile() {
               {form.accountType === 'shop' && (
                 <div className="space-y-6 pt-6 border-t border-gray-100">
                   <div className="flex items-center space-x-3 flex-wrap gap-y-2">
-                    <div className="w-2 h-6 bg-gradient-to-b from-amber-500 to-orange-500 rounded-full"></div>
+                    <div className="w-2 h-6 bg-amber-600 rounded-full"></div>
                     <h3 className="text-lg font-semibold text-gray-900">Informations de la boutique</h3>
                     <VerifiedBadge verified={Boolean(user?.shopVerified)} />
                     <span className="text-xs text-gray-500">
@@ -1515,289 +1344,10 @@ export default function Profile() {
                 </div>
               )}
 
-              {user?.role === 'admin' && (
-                <div className="space-y-4 pt-6 border-t border-gray-100">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-6 bg-gradient-to-b from-amber-500 to-orange-500 rounded-full"></div>
-                    <h3 className="text-lg font-semibold text-gray-900">Logos de l’application</h3>
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    Deux versions sont utilisées dans la barre de navigation. Chaque logo sera converti en PNG.
-                  </p>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-3 rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-gray-900">Logo desktop</p>
-                        <span className="text-xs text-gray-500">Largeur recommandée</span>
-                      </div>
-                      {appLogoDesktopError && (
-                        <p className="text-sm text-red-600">{appLogoDesktopError}</p>
-                      )}
-                      {appLogoDesktopSuccess && (
-                        <p className="text-sm text-emerald-600">{appLogoDesktopSuccess}</p>
-                      )}
-                      <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-white hover:bg-gray-50 transition-colors group p-6">
-                        {appLogoDesktopPreview ? (
-                          <div className="text-center w-full">
-                            <img
-                              src={appLogoDesktopPreview}
-                              alt="Logo desktop"
-                              className="h-16 w-auto max-w-full object-contain mx-auto mb-3"
-                            />
-                            <p className="text-sm text-gray-600 mb-2">Logo actuel</p>
-                          </div>
-                        ) : (
-                          <p className="text-sm text-gray-500">Aucun logo défini.</p>
-                        )}
-                        <label className="text-center cursor-pointer">
-                          <Upload className="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2 mx-auto" />
-                          <span className="text-sm text-gray-500">
-                            <span className="text-indigo-600 font-medium">Cliquez pour uploader</span>
-                            <br />
-                            <span className="text-xs">PNG, JPG, WEBP - format horizontal</span>
-                          </span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={onAppLogoDesktopChange}
-                            className="hidden"
-                          />
-                        </label>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={saveAppLogoDesktop}
-                        disabled={appLogoDesktopSaving || !appLogoDesktopFile}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
-                      >
-                        {appLogoDesktopSaving ? 'Mise à jour…' : 'Enregistrer le logo desktop'}
-                      </button>
-                    </div>
-                    <div className="space-y-3 rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-gray-900">Logo mobile</p>
-                        <span className="text-xs text-gray-500">Carré recommandé</span>
-                      </div>
-                      {appLogoMobileError && (
-                        <p className="text-sm text-red-600">{appLogoMobileError}</p>
-                      )}
-                      {appLogoMobileSuccess && (
-                        <p className="text-sm text-emerald-600">{appLogoMobileSuccess}</p>
-                      )}
-                      <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-white hover:bg-gray-50 transition-colors group p-6">
-                        {appLogoMobilePreview ? (
-                          <div className="text-center w-full">
-                            <img
-                              src={appLogoMobilePreview}
-                              alt="Logo mobile"
-                              className="h-16 w-16 rounded-2xl object-contain mx-auto mb-3 border border-gray-200 bg-white"
-                            />
-                            <p className="text-sm text-gray-600 mb-2">Logo actuel</p>
-                          </div>
-                        ) : (
-                          <p className="text-sm text-gray-500">Aucun logo défini.</p>
-                        )}
-                        <label className="text-center cursor-pointer">
-                          <Upload className="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2 mx-auto" />
-                          <span className="text-sm text-gray-500">
-                            <span className="text-indigo-600 font-medium">Cliquez pour uploader</span>
-                            <br />
-                            <span className="text-xs">PNG, JPG, WEBP - format carré</span>
-                          </span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={onAppLogoMobileChange}
-                            className="hidden"
-                          />
-                        </label>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={saveAppLogoMobile}
-                        disabled={appLogoMobileSaving || !appLogoMobileFile}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
-                      >
-                        {appLogoMobileSaving ? 'Mise à jour…' : 'Enregistrer le logo mobile'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {user?.role === 'admin' && (
-                <div className="space-y-4 pt-6 border-t border-gray-100">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-6 bg-gradient-to-b from-pink-500 to-rose-500 rounded-full"></div>
-                    <h3 className="text-lg font-semibold text-gray-900">Bannière publicitaire</h3>
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    Cette bannière apparaît sur la page d’accueil. Ajoutez un lien pour rediriger les visiteurs.
-                  </p>
-                  {promoBannerError && <p className="text-sm text-red-600">{promoBannerError}</p>}
-                  {promoBannerSuccess && (
-                    <p className="text-sm text-emerald-600">{promoBannerSuccess}</p>
-                  )}
-                  <div>
-                    <label className="text-xs font-semibold uppercase text-gray-500">Lien du banner</label>
-                    <input
-                      type="text"
-                      value={promoBannerLink}
-                      onChange={(e) => setPromoBannerLink(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      placeholder="https://exemple.com/promo ou /products"
-                    />
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <label className="text-xs font-semibold uppercase text-gray-500">Date de début</label>
-                      <input
-                        type="date"
-                        value={promoBannerStartAt}
-                        onChange={(e) => setPromoBannerStartAt(e.target.value)}
-                        className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold uppercase text-gray-500">Date de fin</label>
-                      <input
-                        type="date"
-                        value={promoBannerEndAt}
-                        onChange={(e) => setPromoBannerEndAt(e.target.value)}
-                        className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    En dehors de cette période, la bannière par défaut sera affichée.
-                  </p>
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group p-6">
-                      {promoBannerPreview ? (
-                        <div className="text-center w-full">
-                          <img
-                            src={promoBannerPreview}
-                            alt="Bannière publicitaire"
-                            className="h-28 w-full rounded-2xl object-cover mx-auto mb-3 border border-gray-200"
-                          />
-                          <p className="text-sm text-gray-600 mb-2">Bannière desktop</p>
-                        </div>
-                      ) : (
-                        <p className="text-sm text-gray-500">Aucune bannière desktop définie.</p>
-                      )}
-                      <label className="text-center cursor-pointer">
-                        <Upload className="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2 mx-auto" />
-                        <span className="text-sm text-gray-500">
-                          <span className="text-indigo-600 font-medium">Cliquez pour uploader</span>
-                          <br />
-                          <span className="text-xs">PNG, JPG - format large recommandé</span>
-                        </span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={onPromoBannerChange}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
-                    <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group p-6">
-                      {promoBannerMobilePreview ? (
-                        <div className="text-center w-full">
-                          <img
-                            src={promoBannerMobilePreview}
-                            alt="Bannière publicitaire mobile"
-                            className="h-28 w-full rounded-2xl object-cover mx-auto mb-3 border border-gray-200"
-                          />
-                          <p className="text-sm text-gray-600 mb-2">Bannière mobile</p>
-                        </div>
-                      ) : (
-                        <p className="text-sm text-gray-500">Aucune bannière mobile définie.</p>
-                      )}
-                      <label className="text-center cursor-pointer">
-                        <Upload className="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2 mx-auto" />
-                        <span className="text-sm text-gray-500">
-                          <span className="text-indigo-600 font-medium">Cliquez pour uploader</span>
-                          <br />
-                          <span className="text-xs">PNG, JPG - format mobile recommandé</span>
-                        </span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={onPromoBannerMobileChange}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={savePromoBanner}
-                    disabled={promoBannerSaving}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
-                  >
-                    {promoBannerSaving ? 'Mise à jour…' : 'Enregistrer la bannière'}
-                  </button>
-                </div>
-              )}
-
-              {user?.role === 'admin' && (
-                <div className="space-y-4 pt-6 border-t border-gray-100">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-6 bg-gradient-to-b from-indigo-500 to-blue-500 rounded-full"></div>
-                    <h3 className="text-lg font-semibold text-gray-900">Bannière du HERO (Accueil)</h3>
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    Cette image s’affiche en arrière-plan du HERO sur la page d’accueil.
-                  </p>
-                  {heroBannerError && (
-                    <p className="text-sm text-red-600">{heroBannerError}</p>
-                  )}
-                  {heroBannerSuccess && (
-                    <p className="text-sm text-emerald-600">{heroBannerSuccess}</p>
-                  )}
-                  <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group p-6">
-                    {heroBannerPreview ? (
-                      <div className="text-center w-full">
-                        <img
-                          src={heroBannerPreview}
-                          alt="Bannière HERO"
-                          className="h-32 w-full rounded-2xl object-cover mx-auto mb-3 border-2 border-indigo-200"
-                        />
-                        <p className="text-sm text-gray-600 mb-2">Bannière actuelle</p>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500">Aucune bannière définie pour le moment.</p>
-                    )}
-                    <label className="text-center cursor-pointer">
-                      <Upload className="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2 mx-auto" />
-                      <span className="text-sm text-gray-500">
-                        <span className="text-indigo-600 font-medium">Cliquez pour uploader</span>
-                        <br />
-                        <span className="text-xs">PNG, JPG - 1600x600px recommandé</span>
-                      </span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={onHeroBannerChange}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={saveHeroBanner}
-                    disabled={heroBannerSaving || !heroBannerFile}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
-                  >
-                    {heroBannerSaving ? 'Mise à jour…' : 'Enregistrer la bannière'}
-                  </button>
-                </div>
-              )}
-
               {/* Mot de passe - CORRECTION ICI */}
               <div className="space-y-6 pt-6 border-t border-gray-100">
                 <div className="flex items-center space-x-3">
-                  <div className="w-2 h-6 bg-gradient-to-b from-green-500 to-emerald-500 rounded-full"></div>
+                  <div className="w-2 h-6 bg-emerald-600 rounded-full"></div>
                   <h3 className="text-lg font-semibold text-gray-900">Sécurité</h3>
                 </div>
 
@@ -1851,7 +1401,7 @@ export default function Profile() {
                 <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-3">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-gray-700">Code SMS de sécurité</p>
+                      <p className="text-sm font-semibold text-gray-700">Code de vérification email</p>
                       <p className="text-xs text-gray-500">
                         Un code est requis pour confirmer la modification du mot de passe.
                       </p>
@@ -1872,7 +1422,7 @@ export default function Profile() {
                   <div className="relative">
                     <input
                       className="w-full px-4 py-3 pl-11 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                      placeholder="Code reçu par SMS"
+                      placeholder="Code reçu par email"
                       value={passwordCode}
                       onChange={(e) => setPasswordCode(e.target.value)}
                       disabled={loading}
@@ -1914,7 +1464,7 @@ export default function Profile() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center space-x-2 shadow-lg"
+                  className="px-8 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center space-x-2 shadow-lg"
                 >
                   {loading ? (
                     <>
@@ -1992,7 +1542,221 @@ export default function Profile() {
           </div>
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 mt-6">
             <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 mb-4">
-              <div className="w-2 h-6 bg-gradient-to-b from-rose-500 to-pink-500 rounded-full"></div>
+              <div className="w-2 h-6 bg-emerald-600 rounded-full"></div>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Avis sur l’amélioration</h2>
+                <p className="text-sm text-gray-500">
+                  Partagez vos idées pour améliorer HDMarket. Limité à 5 avis par utilisateur.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 mb-6">
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-wide text-gray-500">Vos avis envoyés</p>
+                <span className="text-xs font-semibold text-gray-500">
+                  {improvementStats.total} / 5
+                </span>
+              </div>
+              {improvementListLoading ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 2 }).map((_, index) => (
+                    <div
+                      key={`improvement-skeleton-${index}`}
+                      className="animate-pulse rounded-2xl border border-gray-100 bg-gray-50 p-4"
+                    >
+                      <div className="h-4 w-1/2 rounded bg-gray-200" />
+                      <div className="mt-2 h-3 w-3/4 rounded bg-gray-200" />
+                    </div>
+                  ))}
+                </div>
+              ) : improvementListError ? (
+                <p className="text-sm text-red-600">{improvementListError}</p>
+              ) : improvementItems.length === 0 ? (
+                <p className="text-sm text-gray-500">Aucun avis envoyé pour le moment.</p>
+              ) : (
+                <div className="space-y-2">
+                  {improvementItems.map((item) => {
+                    const isRead = Boolean(item.readAt);
+                    return (
+                      <button
+                        type="button"
+                        key={item._id}
+                        onClick={() => openImprovementModal(item)}
+                        className="w-full text-left rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm hover:border-emerald-200 transition-colors"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">{item.subject}</p>
+                            <p className="text-xs text-gray-500">
+                              {formatComplaintDate(item.createdAt)}
+                            </p>
+                          </div>
+                          <span
+                            className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
+                              isRead
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-amber-100 text-amber-700'
+                            }`}
+                          >
+                            {isRead ? 'Lu' : 'Non lu'}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-xs text-gray-600 line-clamp-2">
+                          {item.body}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={submitImprovementFeedback} className="space-y-4">
+              <div className="space-y-2">
+                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                  <FileText className="w-4 h-4 text-emerald-500" />
+                  <span>Sujet *</span>
+                </label>
+                <input
+                  type="text"
+                  className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                  placeholder="Ex : Nouvelle fonctionnalité"
+                  value={improvementSubject}
+                  onChange={(event) => {
+                    setImprovementSubject(event.target.value);
+                    if (improvementError) setImprovementError('');
+                    if (improvementSuccess) setImprovementSuccess('');
+                  }}
+                  maxLength={150}
+                  disabled={improvementLoading}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                  <MessageCircle className="w-4 h-4 text-emerald-500" />
+                  <span>Votre avis *</span>
+                </label>
+                <textarea
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all placeholder-gray-400"
+                  rows={4}
+                  value={improvementBody}
+                  onChange={(event) => {
+                    setImprovementBody(event.target.value);
+                    if (improvementError) setImprovementError('');
+                    if (improvementSuccess) setImprovementSuccess('');
+                  }}
+                  placeholder="Expliquez votre idée ou votre suggestion."
+                  disabled={improvementLoading}
+                  maxLength={2000}
+                  required
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500">
+                <span>
+                  {improvementStats.remaining > 0
+                    ? `Il vous reste ${improvementStats.remaining} avis sur 5.`
+                    : 'Limite atteinte : 5 avis envoyés.'}
+                </span>
+                <span>{improvementStats.total} envoyé{improvementStats.total > 1 ? 's' : ''}</span>
+              </div>
+
+              {(improvementError || improvementSuccess) && (
+                <div
+                  className={`flex items-center gap-2 text-sm ${
+                    improvementError ? 'text-red-600' : 'text-green-600'
+                  }`}
+                >
+                  {improvementError ? (
+                    <AlertTriangle className="w-4 h-4" />
+                  ) : (
+                    <CheckCircle className="w-4 h-4" />
+                  )}
+                  <span>{improvementError || improvementSuccess}</span>
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={improvementLoading || improvementStats.remaining <= 0}
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {improvementLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                      <span>Envoi...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <MessageCircle className="w-4 h-4" />
+                      <span>Envoyer l’avis</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {improvementModalItem && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+              <div
+                className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+                onClick={closeImprovementModal}
+              />
+              <div
+                className="relative w-full max-w-lg rounded-3xl bg-white shadow-xl border border-gray-100 p-6"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-gray-500">
+                      Avis sur l’amélioration
+                    </p>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {improvementModalItem.subject}
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeImprovementModal}
+                    className="h-9 w-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    aria-label="Fermer"
+                  >
+                    X
+                  </button>
+                </div>
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>{formatComplaintDate(improvementModalItem.createdAt)}</span>
+                    <span
+                      className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
+                        improvementModalItem.readAt
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-amber-100 text-amber-700'
+                      }`}
+                    >
+                      {improvementModalItem.readAt ? 'Lu' : 'Non lu'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-700 whitespace-pre-line">
+                    {improvementModalItem.body}
+                  </p>
+                  {improvementModalItem.readAt && (
+                    <p className="text-xs text-gray-500">
+                      Lu le {formatComplaintDate(improvementModalItem.readAt)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 mt-6">
+            <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 mb-4">
+              <div className="w-2 h-6 bg-rose-600 rounded-full"></div>
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">Réclamations</h2>
                 <p className="text-sm text-gray-500">
@@ -2102,7 +1866,7 @@ export default function Profile() {
                 <button
                   type="submit"
                   disabled={complaintLoading}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:from-rose-600 hover:to-pink-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {complaintLoading ? (
                     <div className="flex items-center gap-2">
@@ -2128,7 +1892,7 @@ export default function Profile() {
             {/* En-tête statistiques */}
             <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
               <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 mb-6">
-                <div className="w-2 h-6 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full"></div>
+                <div className="w-2 h-6 bg-blue-600 rounded-full"></div>
                 <h2 className="text-xl font-semibold text-gray-900">Vue d'ensemble</h2>
               </div>
 
@@ -2149,30 +1913,30 @@ export default function Profile() {
                       label: 'Annonces totales', 
                       value: stats.listings.total, 
                       icon: Package,
-                      color: 'from-blue-500 to-cyan-500'
+                      color: 'bg-blue-600'
                     },
                     { 
                       label: 'Favoris reçus', 
                       value: stats.engagement.favoritesReceived, 
                       icon: Heart,
-                      color: 'from-pink-500 to-rose-500'
+                      color: 'bg-pink-600'
                     },
                     { 
                       label: 'Commentaires', 
                       value: stats.engagement.commentsReceived, 
                       icon: MessageCircle,
-                      color: 'from-green-500 to-emerald-500'
+                      color: 'bg-emerald-600'
                     },
                     { 
                       label: 'Vues totales', 
                       value: stats.performance.views, 
                       icon: TrendingUp,
-                      color: 'from-purple-500 to-indigo-500'
+                      color: 'bg-purple-600'
                     }
                   ].map((stat, index) => {
                     const Icon = stat.icon;
                     return (
-                      <div key={index} className={`bg-gradient-to-br ${stat.color} text-white rounded-2xl p-6 shadow-lg`}>
+                      <div key={index} className={`${stat.color} text-white rounded-2xl p-6 shadow-lg`}>
                         <div className="flex items-center justify-between mb-4">
                           <Icon className="w-8 h-8 text-white opacity-90" />
                           <span className="text-2xl font-bold">{formatNumber(stat.value)}</span>
@@ -2187,7 +1951,7 @@ export default function Profile() {
 
             {/* Détails des statistiques */}
             {!statsLoading && !statsError && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Statistiques annonces */}
                 <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
@@ -2240,6 +2004,64 @@ export default function Profile() {
                     })}
                   </div>
                 </div>
+
+                {/* Commandes */}
+                <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                    <ClipboardList className="w-5 h-5 text-indigo-500" />
+                    <span>Commandes</span>
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Achats</p>
+                      {[
+                        { label: 'Total', value: stats.orders?.purchases?.totalCount || 0 },
+                        { label: 'En attente', value: stats.orders?.purchases?.byStatus?.pending?.count || 0 },
+                        { label: 'Confirmées', value: stats.orders?.purchases?.byStatus?.confirmed?.count || 0 },
+                        { label: 'En livraison', value: stats.orders?.purchases?.byStatus?.delivering?.count || 0 },
+                        { label: 'Livrées', value: stats.orders?.purchases?.byStatus?.delivered?.count || 0 }
+                      ].map((item) => (
+                        <div key={`purchases-${item.label}`} className="flex items-center justify-between p-2 rounded-xl bg-gray-50">
+                          <span className="text-xs font-medium text-gray-700">{item.label}</span>
+                          <span className="text-sm font-semibold text-gray-900">{formatNumber(item.value)}</span>
+                        </div>
+                      ))}
+                      {[
+                        { label: 'Montant total', value: stats.orders?.purchases?.totalAmount || 0 },
+                        { label: 'Acompte payé', value: stats.orders?.purchases?.paidAmount || 0 },
+                        { label: 'Reste à payer', value: stats.orders?.purchases?.remainingAmount || 0 }
+                      ].map((item) => (
+                        <div key={`purchases-amount-${item.label}`} className="flex items-center justify-between p-2 rounded-xl bg-indigo-50/60">
+                          <span className="text-xs font-medium text-gray-700">{item.label}</span>
+                          <span className="text-sm font-semibold text-indigo-700">{formatCurrency(item.value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {user?.accountType === 'shop' && (
+                      <div className="space-y-2 pt-3 border-t border-gray-100">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Ventes</p>
+                        {[
+                          { label: 'Total', value: stats.orders?.sales?.totalCount || 0 },
+                          { label: 'En attente', value: stats.orders?.sales?.byStatus?.pending?.count || 0 },
+                          { label: 'Confirmées', value: stats.orders?.sales?.byStatus?.confirmed?.count || 0 },
+                          { label: 'En livraison', value: stats.orders?.sales?.byStatus?.delivering?.count || 0 },
+                          { label: 'Livrées', value: stats.orders?.sales?.byStatus?.delivered?.count || 0 }
+                        ].map((item) => (
+                          <div key={`sales-${item.label}`} className="flex items-center justify-between p-2 rounded-xl bg-gray-50">
+                            <span className="text-xs font-medium text-gray-700">{item.label}</span>
+                            <span className="text-sm font-semibold text-gray-900">{formatNumber(item.value)}</span>
+                          </div>
+                        ))}
+                        <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-50/60">
+                          <span className="text-xs font-medium text-gray-700">Chiffre d’affaires</span>
+                          <span className="text-sm font-semibold text-emerald-700">
+                            {formatCurrency(stats.orders?.sales?.totalAmount || 0)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -2249,7 +2071,7 @@ export default function Profile() {
         {activeTab === 'performance' && (
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
             <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 mb-6">
-              <div className="w-2 h-6 bg-gradient-to-b from-purple-500 to-pink-500 rounded-full"></div>
+              <div className="w-2 h-6 bg-purple-600 rounded-full"></div>
               <h2 className="text-xl font-semibold text-gray-900">Performance et Insights</h2>
             </div>
 
@@ -2262,7 +2084,7 @@ export default function Profile() {
                 </h3>
                 
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100">
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-purple-50 border border-purple-100">
                     <div>
                       <p className="text-sm font-medium text-purple-900">Score d'engagement</p>
                       <p className="text-2xl font-bold text-purple-600">
@@ -2272,7 +2094,7 @@ export default function Profile() {
                     <Award className="w-8 h-8 text-purple-500" />
                   </div>
 
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-100">
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-blue-50 border border-blue-100">
                     <div>
                       <p className="text-sm font-medium text-blue-900">Taux d'approbation</p>
                       <p className="text-2xl font-bold text-blue-600">
@@ -2338,7 +2160,14 @@ export default function Profile() {
                 <h2 className="text-2xl font-bold text-gray-900">Mes commandes</h2>
                 <p className="text-sm text-gray-500">Retrouvez toutes les commandes créées par l’administrateur.</p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
+                <Link
+                  to="/orders/draft"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 text-amber-700 text-sm font-semibold hover:from-amber-100 hover:to-orange-100 transition-all duration-200 active:scale-95 shadow-sm"
+                >
+                  <Clock className="w-4 h-4" />
+                  Brouillons
+                </Link>
                 <span className="text-sm text-gray-500">Total : {orders.length}</span>
                 <button
                   type="button"

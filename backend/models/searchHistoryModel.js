@@ -7,9 +7,22 @@ const searchHistorySchema = new mongoose.Schema(
     metadata: {
       type: mongoose.Schema.Types.Mixed,
       default: {}
+    },
+    isPinned: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+    pinnedAt: {
+      type: Date,
+      default: null
     }
   },
   { timestamps: true }
 );
+
+// Compound index for efficient queries
+searchHistorySchema.index({ user: 1, isPinned: -1, createdAt: -1 });
+searchHistorySchema.index({ user: 1, createdAt: -1 });
 
 export default mongoose.model('SearchHistory', searchHistorySchema);

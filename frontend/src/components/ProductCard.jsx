@@ -1,6 +1,6 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Heart, Star, Eye, ShoppingCart, MessageCircle, Zap, Clock, ShieldCheck } from 'lucide-react';
+import { Heart, Star, Eye, ShoppingCart, MessageCircle, Zap, Clock, ShieldCheck, TrendingUp, Award, ChevronLeft, ChevronRight } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import CartContext from '../context/CartContext';
 import FavoriteContext from '../context/FavoriteContext';
@@ -10,6 +10,7 @@ import { buildProductPath, buildShopPath } from '../utils/links';
 import { recordProductView } from '../utils/recentViews';
 import VerifiedBadge from './VerifiedBadge';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
+import useIsMobile from '../hooks/useIsMobile';
 
 /**
  * 🎨 PRODUCT CARD PREMIUM HDMarket
@@ -29,6 +30,13 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
   const [addError, setAddError] = useState('');
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const carouselIntervalRef = useRef(null);
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [imagesLoaded, setImagesLoaded] = useState({});
+  const isMobile = useIsMobile();
   
   const inCart = Boolean(user && cart?.items?.some((item) => item.product?._id === p._id));
   const { toggleFavorite, isFavorite } = useContext(FavoriteContext);
@@ -38,6 +46,136 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
   const externalLinkProps = useDesktopExternalLink();
   const resolvedProductLink = productLink || buildProductPath(p);
   const handleProductClick = onProductClick || recordProductView;
+
+  // Get all product images
+  const productImages = useMemo(() => {
+    const images = Array.isArray(p.images) ? p.images.filter(Boolean) : [];
+    return images.length > 0 ? images : ['https://via.placeholder.com/400x400'];
+  }, [p.images]);
+
+  const hasMultipleImages = productImages.length > 1;
+  const shouldShowCarousel = hasMultipleImages; // Enable carousel for multiple images
+  const shouldAutoCarousel = false; // Auto-carousel disabled - manual only
+
+  // Preload ALL images immediately to prevent blank slides
+  useEffect(() => {
+    const preloadImage = (src, index) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous'; // Handle CORS if needed
+
+      img.onload = () => {
+        setImagesLoaded((prev) => {
+          // Only update if not already loaded to prevent unnecessary re-renders
+          if (prev[index] === true) return prev;
+          return { ...prev, [index]: true };
+        });
+      };
+
+      img.onerror = () => {
+        setImagesLoaded((prev) => {
+          if (prev[index] === false) return prev;
+          return { ...prev, [index]: false };
+        });
+      };
+
+      img.src = src;
+    };
+
+    // Preload ALL images when component mounts or images change
+    // This runs for both single and multiple images to ensure immediate loading
+    productImages.forEach((image, index) => {
+      if (image && image !== 'https://via.placeholder.com/400x400') {
+        preloadImage(image, index);
+      } else {
+        // Mark placeholder as loaded
+        setImagesLoaded((prev) => ({ ...prev, [index]: true }));
+      }
+    });
+  }, [productImages, p.title]);
+
+  // Navigate to next/previous image
+  const goToNextImage = useCallback(() => {
+    if (isTransitioning) return;
+    setIsTransitioning(true);
+    setCurrentImageIndex((prev) => (prev + 1) % productImages.length);
+    setTimeout(() => setIsTransitioning(false), 500);
+  }, [isTransitioning, productImages.length]);
+
+  const goToPreviousImage = useCallback(() => {
+    if (isTransitioning) return;
+    setIsTransitioning(true);
+    setCurrentImageIndex((prev) => (prev - 1 + productImages.length) % productImages.length);
+    setTimeout(() => setIsTransitioning(false), 500);
+  }, [isTransitioning, productImages.length]);
+
+  // Auto carousel for multiple images (both mobile and desktop)
+  useEffect(() => {
+    if (!shouldAutoCarousel) return;
+    
+    carouselIntervalRef.current = setInterval(() => {
+      setCurrentImageIndex((prev) => {
+        if (isTransitioning) return prev;
+        setIsTransitioning(true);
+        setTimeout(() => setIsTransitioning(false), 500);
+        return (prev + 1) % productImages.length;
+      });
+    }, 4000); // Change image every 4 seconds
+
+    return () => {
+      if (carouselIntervalRef.current) {
+        clearInterval(carouselIntervalRef.current);
+      }
+    };
+  }, [shouldAutoCarousel, productImages.length, isTransitioning]);
+
+  // Reset carousel on hover pause
+  const handleMouseEnter = () => {
+    if (carouselIntervalRef.current) {
+      clearInterval(carouselIntervalRef.current);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (shouldAutoCarousel && !isMobile) {
+      carouselIntervalRef.current = setInterval(() => {
+        setCurrentImageIndex((prev) => {
+          if (isTransitioning) return prev;
+          setIsTransitioning(true);
+          setTimeout(() => setIsTransitioning(false), 500);
+          return (prev + 1) % productImages.length;
+        });
+      }, 4000);
+    }
+  };
+
+  // Touch handlers for swipe on mobile
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e) => {
+    touchEndX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) return;
+    
+    const distance = touchStartX.current - touchEndX.current;
+    const minSwipeDistance = 50;
+
+    if (Math.abs(distance) > minSwipeDistance) {
+      if (distance > 0) {
+        // Swipe left - next image
+        goToNextImage();
+      } else {
+        // Swipe right - previous image
+        goToPreviousImage();
+      }
+    }
+
+    touchStartX.current = 0;
+    touchEndX.current = 0;
+  };
   
   const whatsappLink = useMemo(
     () => buildWhatsappLink(p, p?.user?.phone || p?.contactPhone),
@@ -110,8 +248,8 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
   
   const conditionLabel = p?.condition === 'new' ? 'Neuf' : 'Occasion';
   const conditionColor = p?.condition === 'new' 
-    ? 'from-emerald-500 to-green-500' 
-    : 'from-amber-500 to-orange-500';
+    ? 'bg-emerald-600' 
+    : 'bg-amber-600';
 
   // === GESTION DES INTERACTIONS ===
   const handleFavoriteToggle = async (event) => {
@@ -162,64 +300,209 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
     }
   };
 
+  // Calculate sales indicators - Use real sales data if available, otherwise estimate based on engagement
+  const salesCount = useMemo(() => {
+    // If product has a real salesCount field, use it
+    if (typeof p.salesCount === 'number' && p.salesCount > 0) {
+      return p.salesCount;
+    }
+    
+    // Otherwise, estimate based on engagement metrics
+    // This is an approximation, not real sales data
+    const views = p.views || 0;
+    const favorites = p.favoritesCount || 0;
+    const comments = p.commentCount || 0;
+    const whatsapp = whatsappClicks || 0;
+    
+    // More realistic estimation: lower conversion rates
+    const estimatedSales = Math.floor(
+      (views * 0.02) + // 2% view-to-sale conversion
+      (favorites * 1.5) + // Favorites indicate interest
+      (comments * 2) + // Comments show engagement
+      (whatsapp * 0.8) // WhatsApp clicks are strong signals
+    );
+    
+    return estimatedSales;
+  }, [p.views, p.favoritesCount, p.commentCount, p.salesCount, whatsappClicks]);
+  
+  const hasRealSalesData = typeof p.salesCount === 'number' && p.salesCount > 0;
+
+  const formatSalesCount = (count) => {
+    if (count >= 10000) return `${(count / 1000).toFixed(0)}k+`;
+    if (count >= 1000) return `${(count / 1000).toFixed(1)}k+`;
+    return `${count}`;
+  };
+
+  const isHotSale = salesCount >= 3000;
+  const isBestSeller = salesCount >= 10000;
+
   return (
-    <div className="group relative flex h-full w-full flex-col rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
-      
-      {/* 🖼️ SECTION IMAGE AVEC BADGES */}
+    <div 
+      className="group relative flex h-full w-full flex-col bg-white overflow-hidden rounded-xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {/* 🖼️ SECTION IMAGE AVEC CAROUSEL */}
       <Link
         to={resolvedProductLink}
         {...externalLinkProps}
         onClick={() => handleProductClick?.(p)}
-        className="relative flex h-full w-full flex-col overflow-hidden"
+        className={`relative aspect-square bg-gray-100 overflow-hidden ${hasMultipleImages ? 'touch-pan-y' : ''}`}
+        {...(hasMultipleImages && {
+          onTouchStart: handleTouchStart,
+          onTouchMove: handleTouchMove,
+          onTouchEnd: handleTouchEnd
+        })}
       >
-        {/* Image du produit */}
-        <div className="aspect-square bg-gray-100 flex items-center justify-center w-full lg:w-[400px] lg:h-[400px] mx-auto">
-          <img
-            src={imageError ? "https://via.placeholder.com/400x400?text=HDMarket" : (p.images?.[0] || "https://via.placeholder.com/400x400")}
-            alt={p.title}
-            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
-              imageLoaded ? 'opacity-100' : 'opacity-0'
-            }`}
-            onLoad={() => setImageLoaded(true)}
-            onError={() => setImageError(true)}
-          />
-          
-          {/* Skeleton loader */}
-          {!imageLoaded && (
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse"></div>
-          )}
-        </div>
+        {shouldShowCarousel ? (
+          /* Image Carousel with smooth sliding - Only when multiple images */
+          <div className="relative w-full h-full overflow-hidden">
+            <div
+              className="flex h-full transition-transform duration-500 ease-in-out"
+              style={{
+                transform: `translateX(-${currentImageIndex * 100}%)`,
+                width: '100%',
+                willChange: 'transform'
+              }}
+            >
+              {productImages.map((image, index) => {
+                const isImageError = imagesLoaded[index] === false;
+                const imageSrc = isImageError ? "https://via.placeholder.com/400x400?text=HDMarket" : image;
+                const isImageLoaded = imagesLoaded[index] === true;
 
-        {/* 🔖 BADGES SUPERPOSÉS */}
-        {hasDiscount && (
-          <span className="sm:hidden absolute top-3 left-3 z-20 inline-flex items-center rounded-full bg-gradient-to-r from-red-500 to-pink-500 px-3 py-1 text-[11px] font-semibold text-white shadow-lg">
-            -{p.discount}%
-          </span>
+                return (
+                  <div
+                    key={`${p._id}-img-${index}-${image}`}
+                    className="relative w-full h-full flex-shrink-0"
+                    style={{
+                      minWidth: '100%',
+                      width: '100%'
+                    }}
+                  >
+                    {/* Show loading skeleton while image loads */}
+                    {!isImageLoaded && !isImageError && (
+                      <div className="absolute inset-0 bg-gray-200 animate-pulse z-10"></div>
+                    )}
+
+                    <img
+                      src={imageSrc}
+                      alt={`${p.title} - Image ${index + 1}`}
+                      className="w-full h-full object-cover"
+                      style={{
+                        opacity: 1,
+                        visibility: 'visible',
+                        display: 'block'
+                      }}
+                      onLoad={() => {
+                        setImagesLoaded((prev) => ({ ...prev, [index]: true }));
+                        if (index === 0) setImageLoaded(true);
+                      }}
+                      onError={() => {
+                        setImagesLoaded((prev) => ({ ...prev, [index]: false }));
+                        if (index === 0) setImageError(true);
+                      }}
+                      loading="eager"
+                      fetchpriority={index <= 1 ? "high" : "auto"}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Carousel Indicators - Only for multiple images */}
+            <div className="absolute bottom-2 sm:bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 sm:gap-2 z-30 bg-black/40 backdrop-blur-sm px-2 sm:px-3 py-1 sm:py-1.5 rounded-full">
+              {productImages.map((_, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!isTransitioning) {
+                      setIsTransitioning(true);
+                      setCurrentImageIndex(index);
+                      setTimeout(() => setIsTransitioning(false), 500);
+                    }
+                  }}
+                  className={`rounded-full transition-all duration-300 ${
+                    index === currentImageIndex 
+                      ? 'w-2 h-2 sm:w-2.5 sm:h-2.5 bg-white shadow-lg' 
+                      : 'w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white/60 hover:bg-white/80'
+                  }`}
+                  aria-label={`Go to image ${index + 1}`}
+                />
+              ))}
+            </div>
+
+            {/* Navigation arrows (desktop only) */}
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  goToPreviousImage();
+                }}
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-30 bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-lg hover:bg-white transition-all opacity-0 group-hover:opacity-100 hover:scale-110 hidden sm:flex items-center justify-center"
+                aria-label="Previous image"
+              >
+                <ChevronLeft className="w-4 h-4 text-gray-700" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  goToNextImage();
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-30 bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-lg hover:bg-white transition-all opacity-0 group-hover:opacity-100 hover:scale-110 hidden sm:flex items-center justify-center"
+                aria-label="Next image"
+              >
+                <ChevronRight className="w-4 h-4 text-gray-700" />
+              </button>
+            </>
+          </div>
+        ) : (
+          /* Single Image - No carousel */
+          <div className="relative w-full h-full">
+            <img
+              src={imageError ? "https://via.placeholder.com/400x400?text=HDMarket" : productImages[0]}
+              alt={p.title}
+              className="w-full h-full object-cover"
+              onLoad={() => setImageLoaded(true)}
+              onError={() => setImageError(true)}
+              loading="eager"
+            />
+            
+            {/* Skeleton loader */}
+            {!imageLoaded && (
+              <div className="absolute inset-0 bg-gray-200 animate-pulse z-10"></div>
+            )}
+          </div>
         )}
-        <div className="hidden sm:flex absolute top-3 left-3 flex-col space-y-2">
-          {/* Badge Promotion */}
+
+        {/* 🔖 BADGES PROMOTIONNELS TAOBAO STYLE */}
+        <div className="absolute top-1.5 sm:top-2 left-1.5 sm:left-2 z-20 flex flex-col gap-1 sm:gap-1.5">
+          {/* Badge Promotion Principal */}
           {hasDiscount && (
-            <span className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg">
+            <div className="bg-red-600 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded sm:rounded-md text-[9px] sm:text-[10px] font-black shadow-lg border border-white/20">
               -{p.discount}%
-            </span>
+            </div>
           )}
           
-          {/* Badge Nouveau */}
-          {isNew && (
-            <span className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg">
-              Nouveau
-            </span>
+          {/* Badge 年货补贴周 Style */}
+          {(hasDiscount || isNew) && (
+            <div className="bg-orange-600 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
+              {isNew ? 'Nouveau' : 'Promo'}
+            </div>
           )}
-          
-          {/* Badge Condition */}
-          <span className={`bg-gradient-to-r ${conditionColor} text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg`}>
-            {conditionLabel}
-          </span>
+
+          {/* Badge Certifié */}
           {p.certified && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700 shadow-sm">
-              <ShieldCheck className="h-3 w-3" />
+            <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-emerald-500 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
+              <ShieldCheck className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
               Certifié
-            </span>
+            </div>
           )}
         </div>
 
@@ -227,147 +510,175 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
         <button
           type="button"
           onClick={(event) => handleFavoriteToggle(event)}
-          className="absolute top-3 right-3 z-30 bg-white/90 backdrop-blur-sm p-2.5 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 group/fav"
+          className="absolute top-1.5 sm:top-2 right-1.5 sm:right-2 z-30 bg-white/95 backdrop-blur-sm p-1 sm:p-1.5 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 group/fav"
           aria-label={isInFavorites ? 'Retirer des favoris' : 'Ajouter aux favoris'}
         >
           <Heart
-            size={20}
-            className={`transition-all duration-300 ${
+            size={14}
+            className={`sm:w-4 sm:h-4 transition-all duration-300 ${
               isInFavorites 
                 ? 'text-red-500 transform scale-110' 
                 : 'text-gray-600 group-hover/fav:text-red-400'
             }`}
-            strokeWidth={1.5}
+            strokeWidth={2}
             fill={isInFavorites ? 'currentColor' : 'none'}
           />
         </button>
 
-        {/* 📊 OVERLAY STATISTIQUES */}
-        <div className="hidden sm:flex absolute bottom-3 left-3 right-3 justify-between items-center text-white text-xs">
-          <div className="bg-black/60 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center space-x-1">
-            <Eye size={12} />
-            <span>{p.views || 0}</span>
-          </div>
-          <div className="bg-black/60 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center space-x-1">
-            <MessageCircle size={12} />
-            <span>{commentCount}</span>
+        {/* 📊 INDICATEURS DE VENTE TAOBAO STYLE */}
+        <div className="absolute bottom-1.5 sm:bottom-2 left-1.5 sm:left-2 right-1.5 sm:right-2 z-20">
+          <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+            {/* Badge Vendu/Engagement */}
+            {salesCount > 0 && (
+              <div className="bg-black/70 backdrop-blur-sm text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[9px] sm:text-[10px] font-bold">
+                {hasRealSalesData ? 'Vendu' : 'Engagement'} {formatSalesCount(salesCount)}
+              </div>
+            )}
+            
+            {/* Badge Hot Sale */}
+            {isHotSale && (
+              <div className="bg-orange-600 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[9px] sm:text-[10px] font-bold">
+                Tendance {formatSalesCount(salesCount)}
+              </div>
+            )}
+
+            {/* Badge Best Seller */}
+            {isBestSeller && (
+              <div className="bg-purple-600 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[9px] sm:text-[10px] font-bold flex items-center gap-0.5 sm:gap-1">
+                <Award className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                TOP VENTE
+              </div>
+            )}
           </div>
         </div>
       </Link>
 
-      {/* 📦 MOBILE SUMMARY */}
-      <div className="sm:hidden space-y-2 px-4 py-3">
-        <div className="flex items-center justify-between text-xs text-slate-500">
-          <span className="uppercase tracking-widest">{p.condition === 'new' ? 'Neuf' : 'Occasion'}</span>
-          <span>{publishedLabel}</span>
-        </div>
-        <div className="flex items-center justify-between text-base font-semibold text-slate-900">
-          <span className="text-sm font-semibold sm:text-base">{price} FCFA</span>
-          {hasDiscount && !hideMobileDiscountBadge && (
-            <span className="text-xs font-semibold uppercase text-red-500">-{p.discount}%</span>
+      {/* 📦 INFOS PRODUIT TAOBAO STYLE */}
+      <div className="flex-1 flex flex-col px-2 sm:px-3 py-2 sm:py-3 space-y-1.5 sm:space-y-2 min-h-0">
+        {/* Titre du produit */}
+        <h3 className="text-xs sm:text-sm font-bold text-gray-900 line-clamp-2 leading-tight min-h-[2rem] sm:min-h-[2.5rem]">
+          {p.title}
+        </h3>
+
+        {/* Prix avec réduction */}
+        <div className="flex items-baseline gap-1.5 sm:gap-2 flex-wrap">
+          <div className="flex items-baseline gap-0.5 sm:gap-1">
+            <span className="text-[10px] sm:text-xs text-gray-500">FCFA</span>
+            <span className="text-base sm:text-lg font-black text-red-600">
+              {hasDiscount ? Number(p.priceAfterDiscount || p.price).toLocaleString() : Number(p.price).toLocaleString()}
+            </span>
+          </div>
+          {originalPrice && (
+            <span className="text-[10px] sm:text-xs text-gray-400 line-through">
+              {originalPrice} FCFA
+            </span>
+          )}
+          {hasDiscount && (
+            <span className="text-[9px] sm:text-[10px] font-bold text-red-500 bg-red-50 px-1 sm:px-1.5 py-0.5 rounded">
+              Prix promo
+            </span>
           )}
         </div>
-        <div className="flex items-center justify-between text-xs text-slate-500">
-          <span className="flex items-center gap-1">
-            <Star className="h-3 w-3 text-amber-500" />
-            {ratingAverage}
-          </span>
-          <span className="flex items-center gap-1">
-            <MessageCircle className="h-3 w-3" />
-            {commentCount}
-          </span>
-          <span className="flex items-center gap-1">
-            <Zap className="h-3 w-3" />
-            {whatsappClicks}
-          </span>
-        </div>
-      </div>
 
-      {/* 📦 INFOS PRODUIT */}
-      <div className="hidden flex-1 flex-col gap-3 px-4 py-3 sm:flex">
-        <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-xs uppercase tracking-[0.3em] text-indigo-500">{p.category || 'Produit'}</p>
-            <h3 className="text-base font-semibold text-slate-900 truncate">{p.title}</h3>
-          </div>
-          <div className="text-right">
-            <p className="text-2xl font-bold text-slate-900">
-              {hasDiscount ? Number(p.priceAfterDiscount || p.price).toLocaleString() : Number(p.price).toLocaleString()}
-            </p>
-            {originalPrice && (
-              <p className="text-xs text-slate-500 line-through">{originalPrice}</p>
+        {/* Stats Row */}
+        <div className="flex items-center gap-2 sm:gap-3 text-[9px] sm:text-[10px] text-gray-500 flex-wrap">
+          {ratingAverage > 0 && (
+            <div className="flex items-center gap-0.5 sm:gap-1">
+              <Star className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-500 fill-amber-500" />
+              <span className="font-semibold text-gray-700">{ratingAverage}</span>
+              {ratingCount > 0 && (
+                <span className="text-gray-500 hidden sm:inline">({formatSalesCount(ratingCount)})</span>
+              )}
+            </div>
+          )}
+          {commentCount > 0 && (
+            <div className="flex items-center gap-0.5 sm:gap-1">
+              <MessageCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              <span>{formatSalesCount(commentCount)}</span>
+            </div>
+          )}
+          {salesCount > 0 && (
+            <div className="flex items-center gap-0.5 sm:gap-1 text-orange-600">
+              <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              <span className="font-semibold">
+                {hasRealSalesData ? 'Vendu' : 'Engagement'} {formatSalesCount(salesCount)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Badges de fonctionnalités */}
+        {p.certified && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded text-[9px] font-semibold border border-emerald-200">
+              <ShieldCheck className="w-2.5 h-2.5" />
+              Garanti authentique
+            </span>
+            {conditionLabel === 'Neuf' && (
+              <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[9px] font-semibold border border-blue-200">
+                Neuf
+              </span>
             )}
           </div>
-        </div>
+        )}
 
-        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-          <div className="flex items-center gap-1">
-            <Star className="h-3 w-3 text-amber-500" />
-            <span>{ratingAverage}</span>
-            <span className="text-[11px] text-slate-400">({ratingCount})</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <MessageCircle className="h-3 w-3" />
-            <span>{commentCount} commentaires</span>
-          </div>
-          {publishedLabel && (
-            <span className="text-[11px] uppercase tracking-[0.2em] text-slate-400">{publishedLabel}</span>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between text-xs text-slate-500">
-          <div className="flex min-w-0 items-center gap-2">
-            {isShopVerified && shopLogoSrc && (
+        {/* Boutique info */}
+        {isShopVerified && (
+          <div className="flex items-center gap-1.5 pt-1">
+            {shopLogoSrc && (
               <img
                 src={shopLogoSrc}
                 alt={p.user?.shopName || 'Logo boutique'}
-                className="h-5 w-5 rounded-full border border-slate-200 object-cover"
+                className="h-4 w-4 rounded-full border border-gray-200 object-cover"
                 loading="lazy"
               />
             )}
             <Link
               to={buildShopPath(p.user)}
               {...externalLinkProps}
-              className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 truncate hover:text-indigo-600"
+              className="text-[10px] font-semibold text-gray-600 truncate hover:text-indigo-600"
             >
               {p.user?.shopName || 'Boutique HDMarket'}
             </Link>
+            <VerifiedBadge verified showLabel={false} className="text-[8px]" />
           </div>
-          {isShopVerified && <VerifiedBadge verified className="text-[10px]" />}
-        </div>
+        )}
 
+        {/* 🛒 BOUTON AJOUTER AU PANIER */}
+        {!isOwner && (
+          <div className="pt-2 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleAddToCart();
+              }}
+              disabled={adding || inCart}
+              className={`w-full inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl sm:rounded-3xl text-[10px] sm:text-xs font-semibold transition-all duration-200 active:scale-95 shadow-sm ${
+                inCart
+                  ? 'bg-gray-100 text-gray-500 cursor-not-allowed opacity-60'
+                  : adding
+                  ? 'bg-blue-400 text-white cursor-wait'
+                  : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md'
+              }`}
+            >
+              <ShoppingCart size={12} className="sm:w-4 sm:h-4" />
+              <span>
+                {inCart ? 'Déjà au panier' : adding ? 'Ajout...' : 'Ajouter au panier'}
+              </span>
+            </button>
+          </div>
+        )}
+
+        {/* Messages de feedback */}
         {feedback && (
-          <p className="text-xs text-emerald-600">{feedback}</p>
+          <p className="text-[10px] text-emerald-600 font-semibold">{feedback}</p>
         )}
         {addError && (
-          <p className="text-xs text-red-600">{addError}</p>
+          <p className="text-[10px] text-red-600">{addError}</p>
         )}
-
-        <div className="mt-auto flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            disabled={adding || inCart}
-            className={`flex-1 rounded-2xl bg-gradient-to-r from-indigo-600 to-cyan-600 px-3 py-2 text-center text-xs font-semibold text-white transition hover:opacity-90 ${
-              (adding || inCart) ? 'cursor-not-allowed opacity-60' : ''
-            }`}
-          >
-            {adding ? 'Ajout en cours…' : inCart ? 'Dans le panier' : 'Ajouter au panier'}
-          </button>
-          <a
-            href={whatsappLink}
-            target="_blank"
-            rel="noreferrer"
-            onClick={handleWhatsappClick}
-            className="flex-1 rounded-2xl border border-slate-200 px-3 py-2 text-center text-xs font-semibold text-slate-700 transition hover:border-slate-400"
-          >
-            Contacter via WhatsApp
-          </a>
-        </div>
       </div>
-
-      {/* ✨ EFFET DE SURVOL AVANCÉ */}
-      <div className="absolute inset-0 border-2 border-transparent group-hover:border-indigo-200 rounded-2xl pointer-events-none transition-all duration-300"></div>
     </div>
   );
 }

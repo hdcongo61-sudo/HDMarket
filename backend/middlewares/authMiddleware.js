@@ -11,19 +11,25 @@ export const protect = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select('role isBlocked blockedReason');
+    const user = await User.findById(decoded.id).select('role isBlocked blockedReason canReadFeedback canVerifyPayments canManageBoosts');
     if (!user) {
       return res.status(401).json({ message: 'Not authorized' });
     }
     if (user.isBlocked) {
       const reason = user.blockedReason ? ` Motif : ${user.blockedReason}` : '';
       return res.status(403).json({
-        message: `Votre compte est suspendu. Contactez l’administrateur pour plus d’informations.${reason}`,
+        message: `Votre compte est suspendu. Contactez l'administrateur pour plus d'informations.${reason}`,
         reason: user.blockedReason || '',
         code: 'ACCOUNT_BLOCKED'
       });
     }
-    req.user = { id: user._id.toString(), role: user.role };
+    req.user = {
+      id: user._id.toString(),
+      role: user.role,
+      canReadFeedback: user.canReadFeedback,
+      canVerifyPayments: user.canVerifyPayments,
+      canManageBoosts: user.canManageBoosts
+    };
     if (req.query?.token) {
       delete req.query.token;
     }

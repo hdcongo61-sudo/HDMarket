@@ -21,9 +21,9 @@ import {
 import { hydrateShopHours, sanitizeShopHours } from '../utils/shopHours.js';
 import {
   checkVerificationCode,
-  isTwilioConfigured,
+  isEmailConfigured,
   sendVerificationCode
-} from '../utils/twilioVerify.js';
+} from '../utils/firebaseVerification.js';
 
 const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   product_comment: true,
@@ -32,6 +32,7 @@ const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   rating: true,
   product_approval: true,
   product_rejection: true,
+  product_boosted: true,
   promotional: true,
   shop_review: true,
   payment_pending: true,
@@ -39,7 +40,8 @@ const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   order_received: true,
   order_reminder: true,
   order_delivering: true,
-  order_delivered: true
+  order_delivered: true,
+  feedback_read: true
 });
 
 const mergeNotificationPreferences = (prefs = {}) => {
@@ -74,6 +76,9 @@ const sanitizeUser = (user) => ({
   followingShops: Array.isArray(user.followingShops)
     ? user.followingShops.map((shopId) => shopId.toString())
     : [],
+  canReadFeedback: Boolean(user.canReadFeedback),
+  canVerifyPayments: Boolean(user.canVerifyPayments),
+  canManageBoosts: Boolean(user.canManageBoosts),
   createdAt: user.createdAt,
   updatedAt: user.updatedAt
 });
@@ -107,7 +112,7 @@ const collectUserStats = async (userId) => {
 
   await ensureModelSlugsForItems({ Model: Product, items: products, sourceValueKey: 'title' });
 
-  const orderStatusKeys = ['pending', 'confirmed', 'delivering', 'delivered'];
+  const orderStatusKeys = ['pending', 'confirmed', 'delivering', 'delivered', 'cancelled'];
   const userObjectId = new mongoose.Types.ObjectId(userId);
 
   const [buyerAgg, sellerAgg] = await Promise.all([
@@ -331,14 +336,18 @@ const collectUserStats = async (userId) => {
       _id: { $in: followedShopIds },
       accountType: 'shop'
     })
-      .select('shopName name slug city followersCount')
+      .select('shopName name slug city followersCount shopLogo shopVerified')
       .lean();
     followedShopsDetails = shops.map((shop) => ({
       id: shop._id.toString(),
+      _id: shop._id,
       name: shop.shopName || shop.name,
-      slug: shop.slug,
+      shopName: shop.shopName || shop.name,
+      slug: shop.slug || '',
       city: shop.city || '',
-      followersCount: Number(shop.followersCount || 0)
+      followersCount: Number(shop.followersCount || 0),
+      shopLogo: shop.shopLogo || null,
+      shopVerified: Boolean(shop.shopVerified)
     }));
   }
 
@@ -469,17 +478,20 @@ export const getFollowingShops = asyncHandler(async (req, res) => {
   }
   const shops = await User.find({ _id: { $in: followedIds }, accountType: 'shop' })
     .select(
-      'shopName shopAddress shopLogo shopVerified followersCount createdAt name'
+      'shopName shopAddress shopLogo shopVerified followersCount createdAt name city slug'
     )
     .sort({ shopName: 1 })
     .lean();
   const payload = shops.map((shop) => ({
     _id: shop._id,
     shopName: shop.shopName || shop.name,
+    name: shop.name,
     shopAddress: shop.shopAddress || '',
     shopLogo: shop.shopLogo || null,
     shopVerified: Boolean(shop.shopVerified),
     followersCount: Number(shop.followersCount || 0),
+    city: shop.city || '',
+    slug: shop.slug || '',
     createdAt: shop.createdAt
   }));
   res.json(payload);
@@ -530,11 +542,56 @@ export const addSearchHistory = asyncHandler(async (req, res) => {
 });
 
 export const getSearchHistory = asyncHandler(async (req, res) => {
-  const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
-  const history = await SearchHistory.find({ user: req.user.id })
-    .sort('-createdAt')
-    .limit(limit)
+  const { limit, search, groupByDate } = req.query;
+  const limitNum = Math.min(100, Math.max(1, Number(limit) || 50));
+  
+  let query = { user: req.user.id };
+  
+  // Search within history
+  if (search && search.trim()) {
+    const searchRegex = new RegExp(search.trim(), 'i');
+    query.query = searchRegex;
+  }
+  
+  const history = await SearchHistory.find(query)
+    .sort({ isPinned: -1, createdAt: -1 })
+    .limit(limitNum)
     .lean();
+  
+  // Group by date if requested
+  if (groupByDate === 'true') {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    const thisWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    
+    const grouped = {
+      pinned: [],
+      today: [],
+      yesterday: [],
+      thisWeek: [],
+      older: []
+    };
+    
+    history.forEach((entry) => {
+      const entryDate = new Date(entry.createdAt);
+      
+      if (entry.isPinned) {
+        grouped.pinned.push(entry);
+      } else if (entryDate >= today) {
+        grouped.today.push(entry);
+      } else if (entryDate >= yesterday) {
+        grouped.yesterday.push(entry);
+      } else if (entryDate >= thisWeek) {
+        grouped.thisWeek.push(entry);
+      } else {
+        grouped.older.push(entry);
+      }
+    });
+    
+    return res.json(grouped);
+  }
+  
   res.json(history);
 });
 
@@ -549,8 +606,88 @@ export const deleteSearchHistoryEntry = asyncHandler(async (req, res) => {
 });
 
 export const clearSearchHistory = asyncHandler(async (req, res) => {
-  const { deletedCount } = await SearchHistory.deleteMany({ user: req.user.id });
+  const { dateRange } = req.body || {};
+  
+  let query = { user: req.user.id };
+  
+  // Clear by date range if provided
+  if (dateRange) {
+    const now = new Date();
+    let startDate;
+    
+    switch (dateRange) {
+      case 'today':
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        query.createdAt = { $gte: startDate };
+        break;
+      case 'yesterday':
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+        query.createdAt = { $gte: yesterday, $lt: today };
+        break;
+      case 'week':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        query.createdAt = { $gte: startDate };
+        break;
+      case 'month':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        query.createdAt = { $gte: startDate };
+        break;
+      case 'all':
+        // No date filter, delete all
+        break;
+      default:
+        // Invalid range, return error
+        return res.status(400).json({ message: 'Plage de dates invalide.' });
+    }
+  }
+  
+  const { deletedCount } = await SearchHistory.deleteMany(query);
   res.json({ success: true, deletedCount: Number(deletedCount || 0) });
+});
+
+// Pin/unpin search history entry
+export const togglePinSearchHistory = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const entry = await SearchHistory.findOne({ _id: id, user: req.user.id });
+  
+  if (!entry) {
+    return res.status(404).json({ message: 'Historique introuvable.' });
+  }
+  
+  entry.isPinned = !entry.isPinned;
+  entry.pinnedAt = entry.isPinned ? new Date() : null;
+  await entry.save();
+  
+  res.json(entry);
+});
+
+// Export search history
+export const exportSearchHistory = asyncHandler(async (req, res) => {
+  const { format = 'json' } = req.query;
+  
+  const history = await SearchHistory.find({ user: req.user.id })
+    .sort({ isPinned: -1, createdAt: -1 })
+    .lean();
+  
+  if (format === 'csv') {
+    const csvHeader = 'Query,Type,Date,Pinned\n';
+    const csvRows = history.map((entry) => {
+      const type = entry.metadata?.type || 'product';
+      const date = new Date(entry.createdAt).toLocaleDateString('fr-FR');
+      const pinned = entry.isPinned ? 'Yes' : 'No';
+      const query = `"${entry.query.replace(/"/g, '""')}"`;
+      return `${query},${type},${date},${pinned}`;
+    }).join('\n');
+    
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="search-history-${Date.now()}.csv"`);
+    res.send(csvHeader + csvRows);
+  } else {
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="search-history-${Date.now()}.json"`);
+    res.json(history);
+  }
 });
 
 export const addProductView = asyncHandler(async (req, res) => {
@@ -763,35 +900,37 @@ export const updateProfile = asyncHandler(async (req, res) => {
 });
 
 export const sendPasswordChangeCode = asyncHandler(async (req, res) => {
-  if (!isTwilioConfigured()) {
+  if (!isEmailConfigured()) {
     return res.status(503).json({
       message:
-        'Twilio n’est pas configuré. Définissez TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN et TWILIO_VERIFY_SERVICE_SID.'
+        "Email n'est pas configuré. Définissez EMAIL_USER et EMAIL_PASSWORD."
     });
   }
-  const user = await User.findById(req.user.id).select('phone');
-  if (!user || !user.phone) {
-    return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  const user = await User.findById(req.user.id).select('email');
+  if (!user || !user.email) {
+    return res.status(404).json({ message: 'Utilisateur introuvable ou email manquant.' });
   }
-  await sendVerificationCode(user.phone, 'sms');
-  res.json({ message: 'Code envoyé.' });
+  await sendVerificationCode(user.email, 'password_change');
+  res.json({ message: 'Code de vérification envoyé par email.' });
 });
 
 export const changePassword = asyncHandler(async (req, res) => {
   const { verificationCode, newPassword } = req.body;
-  if (!isTwilioConfigured()) {
+  if (!isEmailConfigured()) {
     return res.status(503).json({
       message:
-        'Twilio n’est pas configuré. Définissez TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN et TWILIO_VERIFY_SERVICE_SID.'
+        "Email n'est pas configuré. Définissez EMAIL_USER et EMAIL_PASSWORD."
     });
   }
-  const user = await User.findById(req.user.id);
-  if (!user) {
-    return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  const user = await User.findById(req.user.id).select('email');
+  if (!user || !user.email) {
+    return res.status(404).json({ message: 'Utilisateur introuvable ou email manquant.' });
   }
-  const verificationCheck = await checkVerificationCode(user.phone, verificationCode);
+  const verificationCheck = await checkVerificationCode(user.email, verificationCode, 'password_change');
   if (verificationCheck?.status !== 'approved') {
-    return res.status(400).json({ message: 'Code de vérification invalide.' });
+    return res.status(400).json({ 
+      message: verificationCheck?.message || 'Code de vérification invalide.' 
+    });
   }
   user.password = newPassword;
   user.phoneVerified = true;
@@ -912,6 +1051,11 @@ export const getNotifications = asyncHandler(async (req, res) => {
         message = `${actorName} a marqué votre réclamation${subjectLabel} comme résolue.`;
         break;
       }
+      case 'feedback_read': {
+        const subjectLabel = metadata.subject ? ` (${metadata.subject})` : '';
+        message = `${actorName} a lu votre avis d’amélioration${subjectLabel}. Merci pour votre retour.`;
+        break;
+      }
       case 'payment_pending': {
         const amountValue = Number(metadata.amount || 0);
         const amountText = Number.isFinite(amountValue) && amountValue > 0
@@ -969,6 +1113,24 @@ export const getNotifications = asyncHandler(async (req, res) => {
           ? ` le ${deliveredAtDate.toLocaleDateString('fr-FR')}`
           : '';
         message = `${actorName} a marqué la commande ${orderId} comme livrée${address}${city}${deliveredAt}. Merci pour votre confiance.`;
+        break;
+      }
+      case 'review_reminder': {
+        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
+        const productCount = metadata.productCount || 1;
+        const productText = productCount === 1 ? 'produit' : 'produits';
+        const productLabel = productCount > 1 ? `vos ${productCount} ${productText}` : 'votre produit';
+        message = `Votre commande ${orderId} a été livrée il y a plus d'une heure. Partagez votre expérience en notant ${productLabel} !`;
+        break;
+      }
+      case 'order_address_updated': {
+        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
+        message = `L'adresse de livraison de la commande ${orderId} a été modifiée par le client.`;
+        break;
+      }
+      case 'order_message': {
+        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
+        message = `${actorName} vous a envoyé un message concernant la commande ${orderId}.`;
         break;
       }
       default:

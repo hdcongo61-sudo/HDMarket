@@ -6,6 +6,7 @@ import Rating from '../models/ratingModel.js';
 import User from '../models/userModel.js';
 import ProhibitedWord from '../models/prohibitedWordModel.js';
 import { createNotification } from '../utils/notificationService.js';
+import { invalidateProductCache } from '../utils/cache.js';
 import {
   uploadToCloudinary,
   getCloudinaryFolder,
@@ -256,6 +257,9 @@ export const createProduct = asyncHandler(async (req, res) => {
     country: ownerCountry
   });
 
+  // Invalidate product cache after creation
+  invalidateProductCache();
+
   res.status(201).json(product);
 });
 
@@ -267,31 +271,78 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     maxPrice,
     city: cityParam,
     certified,
+    condition: conditionParam,
+    shopVerified,
+    hasDiscount,
+    minRating,
+    minFavorites,
+    minSales,
     sort = 'new',
     page = 1,
     limit = 12
   } = req.query;
 
   const filter = { status: 'approved' };
+  
+  // Certified filter
   if (certified === 'true') {
     filter.certified = true;
   } else if (certified === 'false') {
     filter.certified = false;
   }
 
+  // Boosted filter - check date range for currently active boosts
   if (req.query?.boosted === 'true') {
+    const now = new Date();
     filter.boosted = true;
+    // Add date range conditions: either no dates set (always boosted) or current date is within range
+    const existingOr = filter.$or;
+    filter.$and = filter.$and || [];
+    
+    // Boost date range condition: product is currently boosted based on dates
+    filter.$and.push({
+      $or: [
+        // Products with no date range (always boosted)
+        { boostStartDate: null, boostEndDate: null },
+        // Products where boost has started (no start date or start date <= now) and hasn't ended (no end date or end date >= now)
+        {
+          $and: [
+            {
+              $or: [
+                { boostStartDate: null },
+                { boostStartDate: { $lte: now } }
+              ]
+            },
+            {
+              $or: [
+                { boostEndDate: null },
+                { boostEndDate: { $gte: now } }
+              ]
+            }
+          ]
+        }
+      ]
+    });
+    
+    // Preserve existing $or conditions if they exist
+    if (existingOr && existingOr.length > 0) {
+      filter.$and.push({ $or: existingOr });
+      delete filter.$or;
+    }
   }
 
+  // Search query
   if (q) {
     const matcher = new RegExp(q.trim(), 'i');
     filter.$or = [{ title: matcher }, { description: matcher }];
   }
 
+  // Category filter
   if (category) {
     filter.category = new RegExp(`^${category.trim()}$`, 'i');
   }
 
+  // City filter
   if (cityParam) {
     const normalizedCity = cityParam.trim();
     if (['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'].includes(normalizedCity)) {
@@ -299,10 +350,40 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     }
   }
 
+  // Condition filter (new/used)
+  if (conditionParam) {
+    const normalizedCondition = conditionParam.trim().toLowerCase();
+    if (['new', 'used'].includes(normalizedCondition)) {
+      filter.condition = normalizedCondition;
+    }
+  }
+
+  // Price range filter
   if (minPrice !== undefined || maxPrice !== undefined) {
     filter.price = {};
-    if (minPrice !== undefined) filter.price.$gte = minPrice;
-    if (maxPrice !== undefined) filter.price.$lte = maxPrice;
+    if (minPrice !== undefined) filter.price.$gte = Number(minPrice);
+    if (maxPrice !== undefined) filter.price.$lte = Number(maxPrice);
+  }
+
+  // Discount filter
+  if (hasDiscount === 'true') {
+    filter.discount = { $gt: 0 };
+  }
+
+  // Favorites count filter
+  if (minFavorites !== undefined) {
+    const minFav = Number(minFavorites);
+    if (!Number.isNaN(minFav) && minFav >= 0) {
+      filter.favoritesCount = { $gte: minFav };
+    }
+  }
+
+  // Sales count filter
+  if (minSales !== undefined) {
+    const minSalesCount = Number(minSales);
+    if (!Number.isNaN(minSalesCount) && minSalesCount >= 0) {
+      filter.salesCount = { $gte: minSalesCount };
+    }
   }
 
   const sortOptions = {
@@ -323,14 +404,60 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   const blockedSellerIds = await getBlockedSellerIdsSet();
   const activeFilter = applyBlockedUsersToFilter(filter, blockedSellerIds);
   const baseSort = { boosted: -1, boostScore: -1 };
-  const [itemsRaw, total] = await Promise.all([
+  
+  // If filtering by shopVerified, we need to filter after populate
+  const needsPostFilter = shopVerified === 'true' || minRating !== undefined;
+  
+  const [itemsRaw, totalBeforeFilter] = await Promise.all([
     Product.find(activeFilter)
       .sort({ ...baseSort, ...(sortOptions[sort] || sortOptions.new) })
       .skip(skip)
-      .limit(pageSize)
+      .limit(needsPostFilter ? pageSize * 2 : pageSize) // Fetch more if we need to filter
       .lean(),
     Product.countDocuments(activeFilter)
   ]);
+  
+  // Post-process to ensure currently boosted products (within date range) appear first
+  // This ensures products outside their boost date range don't appear before non-boosted products
+  const now = new Date();
+  const nowTime = now.getTime();
+  itemsRaw.sort((a, b) => {
+    // Check if products are currently boosted (within date range)
+    const aIsCurrentlyBoosted = a.boosted && (
+      (!a.boostStartDate || new Date(a.boostStartDate).getTime() <= nowTime) &&
+      (!a.boostEndDate || new Date(a.boostEndDate).getTime() >= nowTime)
+    );
+    const bIsCurrentlyBoosted = b.boosted && (
+      (!b.boostStartDate || new Date(b.boostStartDate).getTime() <= nowTime) &&
+      (!b.boostEndDate || new Date(b.boostEndDate).getTime() >= nowTime)
+    );
+    
+    // Currently boosted products should always appear first
+    if (aIsCurrentlyBoosted && !bIsCurrentlyBoosted) return -1;
+    if (!aIsCurrentlyBoosted && bIsCurrentlyBoosted) return 1;
+    
+    // If both are currently boosted, sort by boostScore (higher first)
+    if (aIsCurrentlyBoosted && bIsCurrentlyBoosted) {
+      const scoreDiff = (b.boostScore || 0) - (a.boostScore || 0);
+      if (scoreDiff !== 0) return scoreDiff;
+    }
+    
+    // For non-boosted or expired boosts, maintain the original sort order
+    // by comparing the sort fields
+    if (sort === 'price_asc') {
+      return (a.price || 0) - (b.price || 0);
+    }
+    if (sort === 'price_desc') {
+      return (b.price || 0) - (a.price || 0);
+    }
+    if (sort === 'discount') {
+      const discountDiff = (b.discount || 0) - (a.discount || 0);
+      if (discountDiff !== 0) return discountDiff;
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    }
+    // Default: newest first
+    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+  });
 
   await Product.populate(itemsRaw, { path: 'user', select: SHOP_SELECT_FIELDS });
   await ensureModelSlugsForItems({ Model: Product, items: itemsRaw, sourceValueKey: 'title' });
@@ -359,6 +486,104 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     ])
   );
 
+  // Filter by shopVerified if requested (after populate)
+  let filteredItems = itemsRaw;
+  if (shopVerified === 'true') {
+    filteredItems = itemsRaw.filter((item) => item.user?.shopVerified === true);
+  }
+
+  let items = filteredItems.map((item) => {
+    const commentCount = commentMap.get(String(item._id)) || 0;
+    const rating = ratingMap.get(String(item._id)) || { average: 0, count: 0 };
+    return {
+      ...item,
+      commentCount,
+      ratingAverage: rating.average,
+      ratingCount: rating.count,
+      isCurrentlyBoosted: isProductCurrentlyBoosted(item)
+    };
+  });
+
+  // Filter by minimum rating if requested
+  if (minRating !== undefined) {
+    const minRatingValue = Number(minRating);
+    if (!Number.isNaN(minRatingValue) && minRatingValue >= 0 && minRatingValue <= 5) {
+      items = items.filter((item) => item.ratingAverage >= minRatingValue);
+    }
+  }
+
+  // Limit to page size after post-filtering
+  if (needsPostFilter) {
+    items = items.slice(0, pageSize);
+  }
+
+  // For post-filtered results, we can't know exact total without full scan
+  // Use a reasonable estimate based on current results
+  let total = totalBeforeFilter;
+  if ((shopVerified === 'true' || minRating !== undefined) && page === 1) {
+    // On first page, if we have fewer results than page size, that's likely close to total
+    if (items.length < pageSize) {
+      total = items.length;
+    }
+  }
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize) || 1);
+
+  res.json({
+    items,
+    pagination: {
+      page: pageNumber,
+      limit: pageSize,
+      total,
+      pages: totalPages
+    }
+  });
+});
+
+export const getTopSales = asyncHandler(async (req, res) => {
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 12));
+  const skip = (page - 1) * limit;
+
+  const filter = { status: 'approved', salesCount: { $gt: 0 } };
+
+  const [itemsRaw, total] = await Promise.all([
+    Product.find(filter)
+      .sort({ salesCount: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Product.countDocuments(filter)
+  ]);
+
+  await Product.populate(itemsRaw, { path: 'user', select: SHOP_SELECT_FIELDS });
+  await ensureModelSlugsForItems({ Model: Product, items: itemsRaw, sourceValueKey: 'title' });
+
+  const productIds = itemsRaw.map((item) => item._id);
+
+  let commentStats = [];
+  let ratingStats = [];
+  if (productIds.length) {
+    [commentStats, ratingStats] = await Promise.all([
+      Comment.aggregate([
+        { $match: { product: { $in: productIds } } },
+        { $group: { _id: '$product', count: { $sum: 1 } } }
+      ]),
+      Rating.aggregate([
+        { $match: { product: { $in: productIds } } },
+        { $group: { _id: '$product', average: { $avg: '$value' }, count: { $sum: 1 } } }
+      ])
+    ]);
+  }
+
+  const commentMap = new Map(commentStats.map((stat) => [String(stat._id), stat.count]));
+  const ratingMap = new Map(
+    ratingStats.map((stat) => [
+      String(stat._id),
+      { average: Number(stat.average?.toFixed(2) ?? 0), count: stat.count }
+    ])
+  );
+
   const items = itemsRaw.map((item) => {
     const commentCount = commentMap.get(String(item._id)) || 0;
     const rating = ratingMap.get(String(item._id)) || { average: 0, count: 0 };
@@ -370,13 +595,13 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     };
   });
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize) || 1);
+  const totalPages = Math.max(1, Math.ceil(total / limit) || 1);
 
   res.json({
     items,
     pagination: {
-      page: pageNumber,
-      limit: pageSize,
+      page,
+      limit,
       total,
       pages: totalPages
     }
@@ -879,6 +1104,9 @@ export const updateProduct = asyncHandler(async (req, res) => {
     }
   }
 
+  // Invalidate product cache after update
+  invalidateProductCache();
+
   res.json(product);
 });
 
@@ -890,6 +1118,10 @@ export const deleteProduct = asyncHandler(async (req, res) => {
   if (product.user.toString() !== req.user.id && req.user.role !== 'admin')
     return res.status(403).json({ message: 'Forbidden' });
   await product.deleteOne();
+  
+  // Invalidate product cache after deletion
+  invalidateProductCache();
+  
   res.json({ message: 'Deleted' });
 });
 
@@ -909,6 +1141,10 @@ export const disableProduct = asyncHandler(async (req, res) => {
   product.disabledByAdmin = isModerator;
   product.disabledBySuspension = false;
   await product.save();
+  
+  // Invalidate product cache after disable
+  invalidateProductCache();
+  
   res.json(product);
 });
 
@@ -948,7 +1184,132 @@ export const enableProduct = asyncHandler(async (req, res) => {
   product.disabledByAdmin = false;
   product.disabledBySuspension = false;
   await product.save();
+  
+  // Invalidate product cache after enable
+  invalidateProductCache();
+  
   res.json(product);
+});
+
+/**
+ * Bulk enable products
+ */
+export const bulkEnableProducts = asyncHandler(async (req, res) => {
+  const { productIds } = req.body;
+  if (!Array.isArray(productIds) || productIds.length === 0) {
+    return res.status(400).json({ message: 'Liste de produits requise.' });
+  }
+
+  const products = await Product.find({
+    _id: { $in: productIds },
+    user: req.user.id
+  }).populate('payment', 'status');
+
+  if (products.length === 0) {
+    return res.status(404).json({ message: 'Aucun produit trouvé ou autorisé.' });
+  }
+
+  const productIdsToUpdate = products.map((p) => p._id);
+  
+  // Restore status based on payment and previous status
+  for (const product of products) {
+    const paymentStatus = product.payment?.status || null;
+    let restoredStatus = product.lastStatusBeforeDisable;
+
+    if (paymentStatus === 'verified') {
+      restoredStatus = 'approved';
+    } else if (!restoredStatus) {
+      restoredStatus = paymentStatus ? 'pending' : 'approved';
+    }
+
+    if (restoredStatus === 'disabled' || !restoredStatus) {
+      restoredStatus = 'approved';
+    }
+
+    product.status = restoredStatus;
+    product.lastStatusBeforeDisable = null;
+    product.disabledByAdmin = false;
+    product.disabledBySuspension = false;
+    await product.save();
+  }
+
+  await invalidateProductCache();
+  res.json({
+    message: `${products.length} produit(s) réactivé(s) avec succès.`,
+    count: products.length
+  });
+});
+
+/**
+ * Bulk disable products
+ */
+export const bulkDisableProducts = asyncHandler(async (req, res) => {
+  const { productIds } = req.body;
+  if (!Array.isArray(productIds) || productIds.length === 0) {
+    return res.status(400).json({ message: 'Liste de produits requise.' });
+  }
+
+  const products = await Product.find({
+    _id: { $in: productIds },
+    user: req.user.id
+  });
+
+  if (products.length === 0) {
+    return res.status(404).json({ message: 'Aucun produit trouvé ou autorisé.' });
+  }
+
+  const productIdsToUpdate = products.map((p) => p._id);
+  
+  // Save previous status and disable
+  for (const product of products) {
+    if (product.status !== 'disabled') {
+      product.lastStatusBeforeDisable = product.status;
+    }
+    product.status = 'disabled';
+    product.disabledByAdmin = false;
+    product.disabledBySuspension = false;
+    await product.save();
+  }
+
+  await invalidateProductCache();
+  res.json({
+    message: `${products.length} produit(s) désactivé(s) avec succès.`,
+    count: products.length
+  });
+});
+
+/**
+ * Bulk delete products
+ */
+export const bulkDeleteProducts = asyncHandler(async (req, res) => {
+  const { productIds } = req.body;
+  if (!Array.isArray(productIds) || productIds.length === 0) {
+    return res.status(400).json({ message: 'Liste de produits requise.' });
+  }
+
+  const products = await Product.find({
+    _id: { $in: productIds },
+    user: req.user.id
+  });
+
+  if (products.length === 0) {
+    return res.status(404).json({ message: 'Aucun produit trouvé ou autorisé.' });
+  }
+
+  const productIdsToDelete = products.map((p) => p._id);
+
+  // Delete related comments and ratings
+  await Promise.all([
+    Comment.deleteMany({ product: { $in: productIdsToDelete } }),
+    Rating.deleteMany({ product: { $in: productIdsToDelete } }),
+    Product.deleteMany({ _id: { $in: productIdsToDelete } })
+  ]);
+
+  await invalidateProductCache();
+  res.json({
+    message: `${products.length} produit(s) supprimé(s) avec succès.`,
+    count: products.length
+  });
 });
 
 export const listBoostProductCandidatesAdmin = asyncHandler(async (req, res) => {
@@ -970,6 +1331,32 @@ export const listBoostProductCandidatesAdmin = asyncHandler(async (req, res) => 
   if (boostedFilter !== undefined) {
     if (boostedFilter === 'true' || boostedFilter === true) {
       filter.boosted = true;
+      // Add date range check for currently active boosts
+      const now = new Date();
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [
+          // Products with no date range (always boosted)
+          { boostStartDate: null, boostEndDate: null },
+          // Products where boost has started and hasn't ended
+          {
+            $and: [
+              {
+                $or: [
+                  { boostStartDate: null },
+                  { boostStartDate: { $lte: now } }
+                ]
+              },
+              {
+                $or: [
+                  { boostEndDate: null },
+                  { boostEndDate: { $gte: now } }
+                ]
+              }
+            ]
+          }
+        ]
+      });
     } else if (boostedFilter === 'false' || boostedFilter === false) {
       filter.boosted = false;
     }
@@ -1009,20 +1396,197 @@ export const listBoostProductCandidatesAdmin = asyncHandler(async (req, res) => 
   });
 });
 
+// Helper function to check if a product is currently boosted based on date range
+export const isProductCurrentlyBoosted = (product) => {
+  if (!product.boosted) return false;
+  
+  const now = new Date();
+  const hasStartDate = product.boostStartDate !== null && product.boostStartDate !== undefined;
+  const hasEndDate = product.boostEndDate !== null && product.boostEndDate !== undefined;
+  
+  // If no dates are set, consider it always boosted (backward compatibility)
+  if (!hasStartDate && !hasEndDate) {
+    return true;
+  }
+  
+  // Check if current date is within the boost range
+  if (hasStartDate && now < new Date(product.boostStartDate)) {
+    return false; // Boost hasn't started yet
+  }
+  
+  if (hasEndDate && now > new Date(product.boostEndDate)) {
+    return false; // Boost has ended
+  }
+  
+  return true;
+};
+
 export const toggleProductBoost = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const { boostStartDate, boostEndDate } = req.body;
+  
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ message: 'Identifiant produit invalide.' });
   }
-  const product = await Product.findById(id);
+  
+  // Check permissions
+  const isAdmin = req.user.role === 'admin';
+  const canManageBoosts = req.user.canManageBoosts === true;
+  if (!isAdmin && !canManageBoosts) {
+    return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à gérer les boosts.' });
+  }
+  
+  // Validate date range if provided
+  if (boostStartDate && boostEndDate) {
+    const start = new Date(boostStartDate);
+    const end = new Date(boostEndDate);
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({ message: 'Dates de boost invalides.' });
+    }
+    
+    if (start >= end) {
+      return res.status(400).json({ message: 'La date de fin doit être postérieure à la date de début.' });
+    }
+    
+    // Check if end date is in the past
+    if (end < new Date()) {
+      return res.status(400).json({ message: 'La date de fin ne peut pas être dans le passé.' });
+    }
+  }
+  
+  const product = await Product.findById(id).populate('user', '_id');
   if (!product) return res.status(404).json({ message: 'Produit introuvable.' });
+  
+  const wasBoosted = product.boosted;
   product.boosted = !product.boosted;
   product.boostScore = product.boosted ? Date.now() : 0;
+  
+  // Store who boosted the product and when
+  if (product.boosted) {
+    // Fetch the user who is boosting to get their name
+    const boosterUser = await User.findById(req.user.id).select('name');
+    product.boostedBy = req.user.id;
+    product.boostedAt = new Date();
+    product.boostedByName = boosterUser?.name || 'Administrateur';
+    
+    // Set boost date range if provided
+    if (boostStartDate) {
+      product.boostStartDate = new Date(boostStartDate);
+    } else {
+      product.boostStartDate = new Date(); // Default to now if not provided
+    }
+    
+    if (boostEndDate) {
+      product.boostEndDate = new Date(boostEndDate);
+    } else {
+      product.boostEndDate = null; // No end date means boost indefinitely
+    }
+  } else {
+    // Clear boost information when unboosting
+    product.boostedBy = null;
+    product.boostedAt = null;
+    product.boostedByName = null;
+    product.boostStartDate = null;
+    product.boostEndDate = null;
+  }
+  
   await product.save();
+  
+  // Send notification to product owner when product is boosted (not when unboosted)
+  if (product.boosted && !wasBoosted && product.user) {
+    await createNotification({
+      userId: product.user._id,
+      actorId: req.user.id,
+      productId: product._id,
+      type: 'product_boosted',
+      metadata: {
+        productTitle: product.title,
+        boostedByName: product.boostedByName,
+        boostStartDate: product.boostStartDate,
+        boostEndDate: product.boostEndDate
+      },
+      allowSelf: true
+    });
+  }
+  
   res.json({
     _id: product._id,
     boosted: product.boosted,
-    boostScore: product.boostScore
+    boostScore: product.boostScore,
+    boostedBy: product.boostedBy,
+    boostedAt: product.boostedAt,
+    boostedByName: product.boostedByName,
+    boostStartDate: product.boostStartDate,
+    boostEndDate: product.boostEndDate,
+    isCurrentlyBoosted: isProductCurrentlyBoosted(product)
+  });
+});
+
+export const getBoostStatistics = asyncHandler(async (req, res) => {
+  const isAdmin = req.user.role === 'admin';
+  const canManageBoosts = req.user.canManageBoosts === true;
+  if (!isAdmin && !canManageBoosts) {
+    return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à voir les statistiques de boost.' });
+  }
+
+  const [
+    totalBoosted,
+    totalNonBoosted,
+    boostedByCategory,
+    recentBoosts,
+    topBoostedProducts,
+    boostedToday,
+    boostedThisWeek,
+    boostedThisMonth
+  ] = await Promise.all([
+    Product.countDocuments({ status: 'approved', boosted: true }),
+    Product.countDocuments({ status: 'approved', boosted: false }),
+    Product.aggregate([
+      { $match: { status: 'approved', boosted: true } },
+      { $group: { _id: '$category', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 10 }
+    ]),
+    Product.find({ status: 'approved', boosted: true })
+      .sort({ boostScore: -1 })
+      .limit(5)
+      .select('title boostScore createdAt')
+      .populate('user', 'shopName name')
+      .lean(),
+    Product.find({ status: 'approved', boosted: true })
+      .sort({ boostScore: -1 })
+      .limit(10)
+      .select('title price favoritesCount salesCount boostScore')
+      .populate('user', 'shopName name')
+      .lean(),
+    Product.countDocuments({
+      status: 'approved',
+      boosted: true,
+      boostScore: { $gte: new Date().setHours(0, 0, 0, 0) }
+    }),
+    Product.countDocuments({
+      status: 'approved',
+      boosted: true,
+      boostScore: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+    }),
+    Product.countDocuments({
+      status: 'approved',
+      boosted: true,
+      boostScore: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+    })
+  ]);
+
+  res.json({
+    totalBoosted,
+    totalNonBoosted,
+    totalProducts: totalBoosted + totalNonBoosted,
+    boostedToday,
+    boostedThisWeek,
+    boostedThisMonth,
+    boostedByCategory,
+    recentBoosts,
+    topBoostedProducts
   });
 });
 
@@ -1079,4 +1643,84 @@ export const registerWhatsappClick = asyncHandler(async (req, res) => {
   }
 
   res.json({ whatsappClicks: product.whatsappClicks });
+});
+
+// Get product analytics
+export const getProductAnalytics = asyncHandler(async (req, res) => {
+  const query = buildIdentifierQuery(req.params.id);
+  const product = await Product.findOne(query).select('_id user favoritesCount whatsappClicks salesCount createdAt');
+  
+  if (!product) {
+    return res.status(404).json({ message: 'Produit introuvable.' });
+  }
+
+  // Check if user owns the product or is admin/manager
+  const isOwner = String(product.user) === String(req.user.id);
+  const isAdmin = ['admin', 'manager'].includes(req.user.role);
+  
+  if (!isOwner && !isAdmin) {
+    return res.status(403).json({ message: 'Accès non autorisé.' });
+  }
+
+  // Import ProductView dynamically to avoid circular dependencies
+  const ProductView = (await import('../models/productViewModel.js')).default;
+
+  // Get total views count from ProductView
+  const viewsAggregation = await ProductView.aggregate([
+    { $match: { product: product._id } },
+    {
+      $group: {
+        _id: null,
+        totalViews: { $sum: '$viewsCount' },
+        uniqueViewers: { $addToSet: '$user' }
+      }
+    }
+  ]);
+
+  const totalViews = viewsAggregation.length > 0 ? viewsAggregation[0].totalViews : 0;
+  const uniqueViewers = viewsAggregation.length > 0 ? viewsAggregation[0].uniqueViewers.length : 0;
+
+  // Get views over time (last 30 days)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const viewsOverTime = await ProductView.aggregate([
+    { $match: { product: product._id, lastViewedAt: { $gte: thirtyDaysAgo } } },
+    {
+      $group: {
+        _id: {
+          $dateToString: { format: '%Y-%m-%d', date: '$lastViewedAt' }
+        },
+        views: { $sum: '$viewsCount' }
+      }
+    },
+    { $sort: { _id: 1 } }
+  ]);
+
+  // Format views over time for chart
+  const viewsTimeline = [];
+  const today = new Date();
+  for (let i = 29; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split('T')[0];
+    const dayData = viewsOverTime.find((v) => v._id === dateStr);
+    viewsTimeline.push({
+      date: dateStr,
+      views: dayData ? dayData.views : 0
+    });
+  }
+
+  res.json({
+    productId: product._id,
+    metrics: {
+      totalViews,
+      uniqueViewers,
+      favoritesCount: product.favoritesCount || 0,
+      whatsappClicks: product.whatsappClicks || 0,
+      salesCount: product.salesCount || 0
+    },
+    viewsOverTime: viewsTimeline,
+    createdAt: product.createdAt
+  });
 });

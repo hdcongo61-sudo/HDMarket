@@ -1,10 +1,37 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Clock, MapPin, Phone, Star, Users, Edit3, X } from 'lucide-react';
+import {
+  Clock,
+  MapPin,
+  Phone,
+  Star,
+  Users,
+  Edit3,
+  X,
+  Heart,
+  ShoppingCart,
+  TrendingUp,
+  Award,
+  CheckCircle,
+  MessageCircle,
+  Share2,
+  Filter,
+  Grid3x3,
+  List,
+  Sparkles,
+  Mail,
+  Globe,
+  Calendar,
+  Package,
+  Eye,
+  ThumbsUp
+} from 'lucide-react';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
 import AuthContext from '../context/AuthContext';
 import VerifiedBadge from '../components/VerifiedBadge';
+import { buildProductPath } from '../utils/links';
+import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 
 const DAY_LABELS = {
   monday: 'Lundi',
@@ -22,6 +49,12 @@ const formatCount = (value) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return '0';
   return numberFormatter.format(parsed);
+};
+
+const formatCurrency = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return '0 FCFA';
+  return `${numberFormatter.format(parsed)} FCFA`;
 };
 
 const formatDate = (value) => {
@@ -63,7 +96,11 @@ export default function ShopProfile() {
   const [allComments, setAllComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentsError, setCommentsError] = useState('');
+  const [topSellingProducts, setTopSellingProducts] = useState([]);
+  const [topSellingLoading, setTopSellingLoading] = useState(false);
+  const [topSellingError, setTopSellingError] = useState('');
   const shopIdentifier = shop?.slug || shop?._id || slug;
+  const externalLinkProps = useDesktopExternalLink();
 
   useEffect(() => {
     let active = true;
@@ -73,15 +110,28 @@ export default function ShopProfile() {
         const { data } = await api.get(`/shops/${slug}`);
         if (!active) return;
         setShop(data.shop);
-        setProducts(Array.isArray(data.products) ? data.products : []);
+        const loadedProducts = Array.isArray(data.products) ? data.products : [];
+        setProducts(loadedProducts);
         setRecentReviews(Array.isArray(data.recentReviews) ? data.recentReviews : []);
         setError('');
+        
+        // Extract top selling products from loaded products
+        if (loadedProducts.length > 0) {
+          const withSales = loadedProducts
+            .filter((p) => Number(p.salesCount || 0) > 0)
+            .sort((a, b) => Number(b.salesCount || 0) - Number(a.salesCount || 0))
+            .slice(0, 5);
+          setTopSellingProducts(withSales);
+          setTopSellingLoading(false);
+        }
       } catch (e) {
         if (!active) return;
         setError(e.response?.data?.message || e.message || 'Boutique introuvable.');
         setShop(null);
         setProducts([]);
         setRecentReviews([]);
+        setTopSellingProducts([]);
+        setTopSellingLoading(false);
       } finally {
         if (active) setLoading(false);
       }
@@ -91,6 +141,74 @@ export default function ShopProfile() {
       active = false;
     };
   }, [slug, reloadKey]);
+
+  // Fetch top selling products for the shop (fetch more if needed)
+  useEffect(() => {
+    if (!shop?._id || topSellingProducts.length > 0) {
+      return;
+    }
+    
+    // If we already have products with sales, no need to fetch more
+    if (products.length > 0) {
+      const withSales = products
+        .filter((p) => Number(p.salesCount || 0) > 0)
+        .sort((a, b) => Number(b.salesCount || 0) - Number(a.salesCount || 0))
+        .slice(0, 5);
+      if (withSales.length > 0) {
+        setTopSellingProducts(withSales);
+        return;
+      }
+    }
+    
+    // Only fetch more if we don't have enough products with sales
+    let active = true;
+    const fetchTopSelling = async () => {
+      setTopSellingLoading(true);
+      setTopSellingError('');
+      try {
+        // Fetch more products from the shop to find top sellers
+        const { data: shopData } = await api.get(`/shops/${slug}`, {
+          params: { limit: 100 }
+        });
+        if (!active) return;
+        const shopProducts = Array.isArray(shopData?.products) ? shopData.products : [];
+        
+        // Combine with already loaded products
+        const allProducts = [...products, ...shopProducts];
+        const uniqueProducts = Array.from(
+          new Map(allProducts.map((p) => [String(p._id), p])).values()
+        );
+        
+        // Filter products with salesCount > 0 and sort by salesCount
+        const withSales = uniqueProducts
+          .filter((p) => Number(p.salesCount || 0) > 0)
+          .sort((a, b) => Number(b.salesCount || 0) - Number(a.salesCount || 0))
+          .slice(0, 5);
+        
+        setTopSellingProducts(withSales);
+        
+        if (withSales.length === 0 && uniqueProducts.length > 0) {
+          setTopSellingError('Aucun produit avec des ventes enregistrées.');
+        }
+      } catch (err) {
+        if (!active) return;
+        console.error('Error fetching top selling products:', err);
+        setTopSellingError('Impossible de charger les produits les plus vendus.');
+      } finally {
+        if (active) setTopSellingLoading(false);
+      }
+    };
+    
+    // Only fetch if we have less than 5 products with sales
+    const currentWithSales = products.filter((p) => Number(p.salesCount || 0) > 0);
+    if (currentWithSales.length < 5) {
+      fetchTopSelling();
+    }
+    
+    return () => {
+      active = false;
+    };
+  }, [shop?._id, slug]);
 
   useEffect(() => {
     setActiveCategory('all');
@@ -234,8 +352,9 @@ export default function ShopProfile() {
     ? (
       <a
         href={`tel:${shop.phone}`}
-        className="inline-flex items-center justify-center rounded-full bg-white/20 px-5 py-2 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/30"
+        className="group inline-flex items-center justify-center gap-2 rounded-xl bg-white/20 px-6 py-3 text-sm font-bold text-white backdrop-blur-md transition-all duration-300 hover:bg-white/30 hover:scale-105 hover:shadow-lg"
       >
+        <Phone size={18} className="transition-transform duration-300 group-hover:scale-110" />
         Appeler la boutique
       </a>
     )
@@ -243,8 +362,9 @@ export default function ShopProfile() {
       <Link
         to="/login"
         state={{ from: `/shop/${slug}` }}
-        className="inline-flex items-center justify-center rounded-full border border-white/60 px-5 py-2 text-sm font-semibold text-white transition hover:border-white"
+        className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-white/60 bg-white/10 px-6 py-3 text-sm font-bold text-white backdrop-blur-md transition-all duration-300 hover:border-white hover:bg-white/20 hover:scale-105"
       >
+        <Phone size={18} />
         Connectez-vous pour appeler
       </Link>
     );
@@ -289,12 +409,16 @@ export default function ShopProfile() {
       type="button"
       onClick={handleFollowToggle}
       disabled={followLoading || !shop?.shopVerified}
-      className={`inline-flex items-center justify-center rounded-full border px-5 py-2 text-sm font-semibold transition motion-safe:hover:scale-105 motion-safe:animate-pulse ${
+      className={`group inline-flex items-center justify-center gap-2 rounded-xl border-2 px-6 py-3 text-sm font-bold transition-all duration-300 ${
         isFollowing
-          ? 'border-white/60 bg-white/20 text-white hover:bg-white/30'
-          : 'border-white text-white hover:bg-white/10'
-      } ${(!shop?.shopVerified || followLoading) ? 'opacity-50 cursor-not-allowed motion-safe:animate-none' : ''}`}
+          ? 'border-white/60 bg-gradient-to-r from-emerald-500/30 to-teal-500/30 text-white backdrop-blur-md hover:from-emerald-500/40 hover:to-teal-500/40 hover:scale-105 hover:shadow-lg'
+          : 'border-white/60 bg-white/10 text-white backdrop-blur-md hover:bg-white/20 hover:scale-105'
+      } ${(!shop?.shopVerified || followLoading) ? 'opacity-50 cursor-not-allowed hover:scale-100' : ''}`}
     >
+      <Heart 
+        size={18} 
+        className={`transition-all duration-300 ${isFollowing ? 'fill-white text-white' : ''} ${!followLoading ? 'group-hover:scale-110' : ''}`}
+      />
       {followLoading ? 'Traitement...' : followLabel}
     </button>
   );
@@ -451,63 +575,105 @@ export default function ShopProfile() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm font-serif text-slate-800">
+        {/* Premium Reviews Section */}
+        <section className="rounded-3xl border border-gray-200/60 bg-gradient-to-br from-white to-gray-50/50 p-8 shadow-xl">
           <article className="space-y-6">
             <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-base font-semibold text-slate-900">Commentaires récents</h3>
-                <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Sélection</p>
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-100 to-orange-100">
+                  <Star size={24} className="text-amber-600 fill-amber-600" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900">Avis & Commentaires</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {ratingCount} avis • Note moyenne {formatRatingLabel(ratingAverage)}/5
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={openCommentsModal}
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500 transition hover:border-slate-400"
+                className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 transition-all duration-200 hover:bg-indigo-100 hover:border-indigo-300 hover:scale-105"
               >
+                <MessageCircle size={16} />
                 Voir tous les commentaires
               </button>
             </div>
+            
+            {/* Rating Distribution (if we have reviews) */}
+            {ratingCount > 0 && (
+              <div className="rounded-2xl border border-gray-200 bg-white p-6">
+                <div className="flex items-center justify-center gap-3 mb-4">
+                  <div className="text-center">
+                    <div className="text-5xl font-black bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">
+                      {formatRatingLabel(ratingAverage)}
+                    </div>
+                    <div className="flex items-center justify-center gap-1 mt-2">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          size={20}
+                          className={star <= Math.round(ratingAverage) ? 'text-amber-400 fill-amber-400' : 'text-gray-300'}
+                        />
+                      ))}
+                    </div>
+                    <p className="text-sm text-gray-600 mt-2">{formatCount(ratingCount)} avis vérifiés</p>
+                  </div>
+                </div>
+              </div>
+            )}
             {reviewSuccess && (
-              <p className="mt-3 text-xs text-emerald-600">{reviewSuccess}</p>
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 flex items-center gap-3">
+                <CheckCircle size={20} className="text-emerald-600 flex-shrink-0" />
+                <p className="text-sm font-medium text-emerald-800">{reviewSuccess}</p>
+              </div>
             )}
             {showReviewForm && (
-              <form className="space-y-4" onSubmit={handleReviewSubmit}>
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold text-slate-700">Votre note</p>
+              <form className="space-y-5 rounded-2xl border border-gray-200 bg-white p-6" onSubmit={handleReviewSubmit}>
+                <div className="space-y-3">
+                  <label className="text-sm font-bold text-gray-900">Votre note</label>
                   <div className="flex items-center gap-2">
                     {ratingOptions.map((value) => (
                       <button
                         type="button"
                         key={`rating-${value}`}
                         onClick={() => setReviewForm((prev) => ({ ...prev, rating: value }))}
-                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                        className={`group flex items-center gap-1.5 rounded-xl border-2 px-4 py-2.5 text-sm font-bold transition-all duration-200 ${
                           reviewForm.rating === value
-                            ? 'border-slate-900 bg-slate-900 text-white'
-                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400'
+                            ? 'border-amber-500 bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 scale-105 shadow-md'
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-amber-300 hover:bg-amber-50'
                         }`}
                       >
-                        <Star className="inline-block h-3 w-3 text-amber-500" />
-                        <span className="ml-1">{value}</span>
+                        <Star 
+                          size={16} 
+                          className={reviewForm.rating === value ? 'text-amber-500 fill-amber-500' : 'text-gray-400'} 
+                        />
+                        <span>{value}</span>
                       </button>
                     ))}
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700">Commentaire</label>
+                <div className="space-y-3">
+                  <label className="text-sm font-bold text-gray-900">Votre commentaire</label>
                   <textarea
                     value={reviewForm.comment}
                     onChange={(event) =>
                       setReviewForm((prev) => ({ ...prev, comment: event.target.value }))
                     }
-                    rows={3}
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                    rows={4}
+                    className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 transition-all duration-200 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"
                     placeholder="Partagez votre expérience avec cette boutique..."
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  {reviewError && <p className="text-xs text-red-600">{reviewError}</p>}
+                  {reviewError && (
+                    <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+                      <p className="text-xs font-medium text-red-800">{reviewError}</p>
+                    </div>
+                  )}
                   {!user && (
-                    <p className="text-xs text-slate-500">
-                      <Link to="/login" state={{ from: `/shop/${slug}` }} className="text-indigo-600">
+                    <p className="text-xs text-gray-600">
+                      <Link to="/login" state={{ from: `/shop/${slug}` }} className="font-semibold text-indigo-600 hover:text-indigo-700">
                         Connectez-vous
                       </Link>{' '}
                       pour laisser un commentaire.
@@ -517,7 +683,7 @@ export default function ShopProfile() {
                 <button
                   type="submit"
                   disabled={reviewSubmitting || !user}
-                  className="w-full rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                  className="w-full rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-3 text-sm font-bold text-white shadow-lg transition-all duration-200 hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
                   {reviewSubmitting
                     ? 'Envoi en cours…'
@@ -528,14 +694,17 @@ export default function ShopProfile() {
               </form>
             )}
             {!showReviewForm && hasOwnComment && (
-              <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                <p>Votre commentaire est publié.</p>
+              <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <CheckCircle size={20} className="text-emerald-600" />
+                  <p className="text-sm font-semibold text-emerald-900">Votre commentaire est publié.</p>
+                </div>
                 <button
                   type="button"
                   onClick={() => setIsEditingReview(true)}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500"
+                  className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 transition-all duration-200 hover:bg-emerald-100"
                 >
-                  <Edit3 className="h-4 w-4" />
+                  <Edit3 size={14} />
                   Modifier
                 </button>
               </div>
@@ -550,58 +719,79 @@ export default function ShopProfile() {
                   return (
                     <div
                       key={review._id}
-                      className="rounded-2xl border border-slate-100 bg-slate-50 p-4 leading-relaxed text-sm"
+                      className="group rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-indigo-200"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Star className="h-4 w-4 text-amber-500" />
-                          <span className="text-sm font-semibold text-slate-800">
-                            {formatRatingLabel(review.rating)}
-                          </span>
-                          <span className="text-xs italic text-slate-500">
-                            {review.user?.name || review.user?.shopName || 'Utilisateur'}
-                          </span>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3 flex-1">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-100 to-purple-100">
+                            <span className="text-sm font-bold text-indigo-600">
+                              {(review.user?.name || review.user?.shopName || 'U').charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="flex items-center gap-1">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <Star
+                                    key={star}
+                                    size={14}
+                                    className={star <= review.rating ? 'text-amber-400 fill-amber-400' : 'text-gray-300'}
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-sm font-bold text-gray-900">
+                                {formatRatingLabel(review.rating)}
+                              </span>
+                            </div>
+                            <p className="text-xs font-semibold text-gray-700 mb-1">
+                              {review.user?.name || review.user?.shopName || 'Utilisateur'}
+                            </p>
+                            <p className="text-sm text-gray-600 leading-relaxed">
+                              {review.comment || 'Pas de commentaire fourni.'}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs text-slate-400">{formatDate(review.createdAt)}</span>
+                        <div className="flex flex-col items-end gap-2">
+                          <span className="text-xs text-gray-400">{formatDate(review.createdAt)}</span>
                           {isOwnReview && (
                             <button
                               type="button"
                               onClick={() => handleEditReview(review)}
-                              className="inline-flex items-center justify-center rounded-full p-1 text-slate-500 hover:bg-white/70"
+                              className="inline-flex items-center justify-center rounded-lg p-2 text-gray-500 transition-all duration-200 hover:bg-gray-100 hover:text-indigo-600"
                             >
-                              <Edit3 className="h-4 w-4" />
+                              <Edit3 size={14} />
                             </button>
                           )}
                         </div>
                       </div>
-                      <p className="mt-3 text-sm text-slate-700">
-                        {review.comment || 'Pas de commentaire fourni.'}
-                      </p>
                     </div>
                   );
                 })
               ) : (
-                <p className="text-sm text-slate-500">Aucun commentaire publié pour le moment.</p>
+                <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+                  <MessageCircle size={32} className="text-gray-400 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-gray-600">Aucun commentaire publié pour le moment.</p>
+                </div>
               )}
             </div>
           </article>
         </section>
 
+        {/* Premium Hours & Rating Section */}
         <section className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]">
           <div className="space-y-6">
-            <article className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-6 py-4">
+            <article className="overflow-hidden rounded-3xl border border-gray-200/60 bg-gradient-to-br from-white to-gray-50/30 shadow-xl">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-gradient-to-r from-indigo-50/50 via-white to-purple-50/30 px-6 py-5">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
-                    <Clock className="h-5 w-5 text-indigo-500" />
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100">
+                    <Clock className="h-6 w-6 text-indigo-600" />
                   </div>
                   <div>
-                    <h3 className="text-base font-semibold text-slate-900">Horaires d&apos;ouverture</h3>
-                    <p className="text-xs text-slate-500">Planification communiquée par la boutique</p>
+                    <h3 className="text-lg font-bold text-gray-900">Horaires d&apos;ouverture</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">Planification communiquée par la boutique</p>
                   </div>
                 </div>
-                <span className="rounded-full bg-slate-900/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                <span className="rounded-full bg-indigo-100 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-indigo-700 border border-indigo-200">
                   Données directes
                 </span>
               </div>
@@ -667,24 +857,140 @@ export default function ShopProfile() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Catalogue</p>
-              <h2 className="text-2xl font-semibold text-gray-900">Produits de la boutique</h2>
-              <p className="text-sm text-gray-500">{filteredProducts.length} produit{filteredProducts.length > 1 ? 's' : ''} affiché{filteredProducts.length > 1 ? 's' : ''}</p>
+        {/* Top Selling Products Section */}
+        <section className="rounded-3xl border border-gray-200/60 bg-gradient-to-br from-emerald-50/30 via-white to-teal-50/20 p-8 shadow-xl">
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100 shadow-md">
+                  <TrendingUp size={24} className="text-emerald-600" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Produits les plus vendus</h2>
+                  <p className="text-sm text-gray-500 mt-1">Les 5 meilleures ventes de cette boutique</p>
+                </div>
+              </div>
+              <div className="hidden sm:flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-100 to-teal-100 px-4 py-2 border border-emerald-200 shadow-sm">
+                <Award size={18} className="text-emerald-600" />
+                <span className="text-xs font-bold text-emerald-700">Top Ventes</span>
+              </div>
+            </div>
+            
+            {topSellingLoading ? (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="animate-pulse rounded-2xl border border-gray-200 bg-gray-100 aspect-square" />
+                ))}
+              </div>
+            ) : topSellingError && topSellingProducts.length === 0 ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-center gap-3">
+                <X size={20} className="text-red-600 flex-shrink-0" />
+                <p className="text-sm font-medium text-red-800">{topSellingError}</p>
+              </div>
+            ) : topSellingProducts.length > 0 ? (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
+                {topSellingProducts.map((product, index) => (
+                  <div
+                    key={product._id}
+                    className="group relative overflow-hidden rounded-2xl border-2 border-gray-200 bg-white shadow-sm transition-all duration-300 hover:border-emerald-300 hover:shadow-lg hover:scale-105"
+                  >
+                    {/* Rank Badge */}
+                    <div className="absolute top-2 left-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-lg ring-2 ring-white">
+                      <span className="text-sm font-black">#{index + 1}</span>
+                    </div>
+                    
+                    {/* Product Image */}
+                    <Link
+                      to={buildProductPath(product)}
+                      {...externalLinkProps}
+                      className="block aspect-square overflow-hidden bg-gray-100"
+                    >
+                      <img
+                        src={product.images?.[0] || product.image || '/api/placeholder/200/200'}
+                        alt={product.title}
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
+                        loading="lazy"
+                      />
+                    </Link>
+                    
+                    {/* Product Info */}
+                    <div className="p-3 space-y-2">
+                      <Link
+                        to={buildProductPath(product)}
+                        {...externalLinkProps}
+                        className="block"
+                      >
+                        <h3 className="text-xs font-bold text-gray-900 line-clamp-2 group-hover:text-emerald-600 transition-colors">
+                          {product.title}
+                        </h3>
+                      </Link>
+                      
+                      {/* Price */}
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-sm font-black text-gray-900">
+                          {formatCurrency(product.price)}
+                        </span>
+                        {product.priceBeforeDiscount && product.priceBeforeDiscount > product.price && (
+                          <span className="text-[10px] text-gray-400 line-through">
+                            {formatCurrency(product.priceBeforeDiscount)}
+                          </span>
+                        )}
+                      </div>
+                      
+                      {/* Sales Count Badge */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 border border-emerald-200">
+                          <TrendingUp size={10} className="text-emerald-600" />
+                          <span className="text-[10px] font-bold text-emerald-700">
+                            {formatCount(product.salesCount || 0)} vente{product.salesCount > 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        {product.ratingAverage > 0 && (
+                          <div className="flex items-center gap-0.5">
+                            <Star size={10} className="text-amber-400 fill-amber-400" />
+                            <span className="text-[10px] font-semibold text-gray-600">
+                              {Number(product.ratingAverage).toFixed(1)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+                <TrendingUp size={32} className="text-gray-400 mx-auto mb-3" />
+                <p className="text-sm font-medium text-gray-600">Aucun produit vendu pour le moment.</p>
+              </div>
+            )}
+          </section>
+
+        {/* Premium Products Section */}
+        <section className="rounded-3xl border border-gray-200/60 bg-gradient-to-br from-white to-gray-50/30 p-8 shadow-xl">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100">
+                <Package size={24} className="text-indigo-600" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Produits de la boutique</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  {filteredProducts.length} produit{filteredProducts.length > 1 ? 's' : ''} disponible{filteredProducts.length > 1 ? 's' : ''}
+                </p>
+              </div>
             </div>
             {categories.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setActiveCategory('all')}
-                  className={`rounded-full border px-4 py-1 text-xs font-semibold transition ${
+                  className={`inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-xs font-bold transition-all duration-200 ${
                     activeCategory === 'all'
-                      ? 'border-indigo-500 bg-indigo-50 text-indigo-600'
-                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                      ? 'border-indigo-500 bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 shadow-md scale-105'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-indigo-300 hover:bg-indigo-50'
                   }`}
                 >
+                  <Grid3x3 size={14} />
                   Tous
                 </button>
                 {categories.map((category) => (
@@ -692,10 +998,10 @@ export default function ShopProfile() {
                     key={category}
                     type="button"
                     onClick={() => setActiveCategory(category)}
-                    className={`rounded-full border px-4 py-1 text-xs font-semibold transition ${
+                    className={`inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-xs font-bold transition-all duration-200 ${
                       activeCategory === category
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-600'
-                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                        ? 'border-indigo-500 bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 shadow-md scale-105'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-indigo-300 hover:bg-indigo-50'
                     }`}
                   >
                     {category}
@@ -726,41 +1032,83 @@ export default function ShopProfile() {
             </div>
           )}
         </section>
+        {/* Premium Comments Modal */}
         {showCommentsModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-8">
-            <div className="relative w-full max-w-3xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-slate-900">Tous les commentaires</h3>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-8">
+            <div className="relative w-full max-w-4xl rounded-3xl border border-gray-200 bg-white shadow-2xl max-h-[90vh] flex flex-col">
+              <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-gray-200 bg-white px-6 py-5 rounded-t-3xl">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-100 to-orange-100">
+                    <MessageCircle size={20} className="text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">Tous les commentaires</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">{allComments.length} commentaire{allComments.length > 1 ? 's' : ''}</p>
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={closeCommentsModal}
-                  className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition-all duration-200 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700"
+                  aria-label="Fermer"
                 >
-                  <X className="h-4 w-4" />
+                  <X size={20} />
                 </button>
               </div>
-              <div className="mt-4 h-[60vh] space-y-4 overflow-y-auto pr-2">
+              <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
                 {commentsLoading ? (
-                  <p className="text-sm text-slate-500">Chargement des commentaires…</p>
+                  <div className="flex items-center justify-center py-12">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+                      <p className="text-sm font-medium text-gray-600">Chargement des commentaires…</p>
+                    </div>
+                  </div>
                 ) : commentsError ? (
-                  <p className="text-sm text-red-600">{commentsError}</p>
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-center gap-3">
+                    <X size={20} className="text-red-600 flex-shrink-0" />
+                    <p className="text-sm font-medium text-red-800">{commentsError}</p>
+                  </div>
                 ) : !allComments.length ? (
-                  <p className="text-sm text-slate-500">Aucun commentaire pour cette boutique.</p>
+                  <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
+                    <MessageCircle size={48} className="text-gray-400 mx-auto mb-4" />
+                    <p className="text-sm font-medium text-gray-600">Aucun commentaire pour cette boutique.</p>
+                  </div>
                 ) : (
                   allComments.map((review) => (
                     <div
                       key={`modal-${review._id}`}
-                      className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-700"
+                      className="group rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-indigo-200"
                     >
-                      <div className="flex items-center justify-between text-xs text-slate-500">
-                        <span>{review.user?.name || review.user?.shopName || 'Utilisateur'}</span>
-                        <span>{formatDate(review.createdAt)}</span>
+                      <div className="flex items-start gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex-shrink-0">
+                          <span className="text-base font-bold text-indigo-600">
+                            {(review.user?.name || review.user?.shopName || 'U').charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-3 mb-2">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-bold text-gray-900">
+                                {review.user?.name || review.user?.shopName || 'Utilisateur'}
+                              </p>
+                              <div className="flex items-center gap-1">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <Star
+                                    key={star}
+                                    size={14}
+                                    className={star <= review.rating ? 'text-amber-400 fill-amber-400' : 'text-gray-300'}
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-xs font-semibold text-gray-600">
+                                {formatRatingLabel(review.rating)}
+                              </span>
+                            </div>
+                            <span className="text-xs text-gray-400 whitespace-nowrap">{formatDate(review.createdAt)}</span>
+                          </div>
+                          <p className="text-sm text-gray-700 leading-relaxed">{review.comment || 'Pas de commentaire.'}</p>
+                        </div>
                       </div>
-                      <div className="mt-1 flex items-center gap-2 text-slate-800">
-                        <Star className="h-4 w-4 text-amber-500" />
-                        <span className="text-sm font-semibold">{formatRatingLabel(review.rating)}</span>
-                      </div>
-                      <p className="mt-2 text-sm text-slate-700">{review.comment || 'Pas de commentaire.'}</p>
                     </div>
                   ))
                 )}

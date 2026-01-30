@@ -1,11 +1,13 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import FavoriteContext from '../context/FavoriteContext';
 import ProductCard from '../components/ProductCard';
 
 const PAGE_SIZE = 12;
 
 export default function Favorites() {
+  const navigate = useNavigate();
   const { favorites, loading } = useContext(FavoriteContext);
   const [page, setPage] = useState(1);
   const [isMobileView, setIsMobileView] = useState(() =>
@@ -128,13 +130,20 @@ export default function Favorites() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-8 space-y-8 pb-12 md:pb-16">
+    <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 space-y-4 sm:space-y-8 pb-12 md:pb-16">
       <header className="text-center sm:text-left">
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-2 mb-4 text-sm font-semibold text-gray-600 hover:text-indigo-600 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Retour
+        </button>
         <p className="text-sm uppercase tracking-wide text-indigo-600 font-semibold">
           Vos favoris
         </p>
-        <h1 className="text-3xl font-bold text-gray-900 mt-1">Articles enregistrés</h1>
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-xl sm:text-3xl font-bold text-gray-900 mt-1">Articles enregistrés</h1>
+        <p className="text-xs sm:text-base text-gray-600 mt-2">
           Retrouvez rapidement les produits que vous avez ajoutés à votre liste de souhaits.
         </p>
       </header>
@@ -145,7 +154,7 @@ export default function Favorites() {
         </div>
       ) : hasFavorites ? (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 lg:gap-5">
             {paginatedFavorites.map((product) => (
               <ProductCard key={product._id} p={product} />
             ))}

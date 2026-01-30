@@ -13,9 +13,25 @@ import {
   userCheckoutOrder,
   userListOrders,
   userUpdateOrderStatus,
+  userUpdateOrderAddress,
   sellerListOrders,
-  sellerUpdateOrderStatus
+  sellerUpdateOrderStatus,
+  sellerCancelOrder,
+  saveDraftOrder,
+  getDraftOrders,
+  deleteDraftOrder
 } from '../controllers/orderController.js';
+import { checkOrderReviewReminderStatus } from '../controllers/reviewReminderController.js';
+import {
+  getOrderMessages,
+  sendOrderMessage,
+  getUnreadCount,
+  getAllOrderConversations,
+  uploadOrderMessageAttachment,
+  addOrderMessageReaction,
+  removeOrderMessageReaction
+} from '../controllers/orderMessageController.js';
+import { chatUpload } from '../utils/chatUpload.js';
 
 const router = express.Router();
 
@@ -35,19 +51,50 @@ adminRouter.post('/:id/reminder', validate(schemas.idParam, 'params'), adminSend
 router.use('/admin', adminRouter);
 
 router.post('/checkout', validate(schemas.orderCheckout), userCheckoutOrder);
+router.post('/draft', saveDraftOrder);
+router.get('/draft', getDraftOrders);
+router.delete('/draft/:id', validate(schemas.idParam, 'params'), deleteDraftOrder);
+router.get('/seller', sellerListOrders);
 router.patch(
   '/:id/status',
   validate(schemas.idParam, 'params'),
   validate(schemas.orderStatusUpdate),
   userUpdateOrderStatus
 );
-router.get('/seller', sellerListOrders);
+router.patch(
+  '/:id/address',
+  validate(schemas.idParam, 'params'),
+  validate(schemas.orderAddressUpdate),
+  userUpdateOrderAddress
+);
 router.patch(
   '/seller/:id/status',
   validate(schemas.idParam, 'params'),
   validate(schemas.sellerOrderStatusUpdate),
   sellerUpdateOrderStatus
 );
+router.post(
+  '/seller/:id/cancel',
+  validate(schemas.idParam, 'params'),
+  validate(schemas.sellerCancelOrder),
+  sellerCancelOrder
+);
+// Order messages routes (must be before /:id routes to avoid conflicts)
+router.get('/messages/conversations', getAllOrderConversations);
+router.get('/messages/unread', getUnreadCount);
+
 router.get('/', userListOrders);
+router.get('/:id/review-reminder-check', validate(schemas.idParam, 'params'), checkOrderReviewReminderStatus);
+
+// Order messages routes for specific order
+router.get('/:orderId/messages', getOrderMessages);
+router.post(
+  '/:orderId/messages',
+  validate(schemas.orderMessage),
+  sendOrderMessage
+);
+router.post('/messages/upload', chatUpload.single('file'), uploadOrderMessageAttachment);
+router.post('/messages/:messageId/reactions', addOrderMessageReaction);
+router.delete('/messages/:messageId/reactions', removeOrderMessageReaction);
 
 export default router;

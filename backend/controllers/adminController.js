@@ -6,7 +6,10 @@ import Payment from '../models/paymentModel.js';
 import Comment from '../models/commentModel.js';
 import Rating from '../models/ratingModel.js';
 import Order from '../models/orderModel.js';
+import ImprovementFeedback from '../models/improvementFeedbackModel.js';
+import AccountTypeChange from '../models/accountTypeChangeModel.js';
 import { createNotification } from '../utils/notificationService.js';
+import { updateProductSalesCount } from '../utils/salesCalculator.js';
 
 const monthKey = (year, month) => `${year}-${String(month).padStart(2, '0')}`;
 
@@ -14,14 +17,16 @@ const monthKey = (year, month) => `${year}-${String(month).padStart(2, '0')}`;
     id: user._id.toString(),
     name: user.name,
     email: user.email,
-  phone: user.phone,
-  role: user.role,
-  accountType: user.accountType,
-  shopName: user.shopName || '',
-  shopAddress: user.shopAddress || '',
-  shopLogo: user.shopLogo || '',
-  shopVerified: Boolean(user.shopVerified),
-  shopVerifiedBy: user.shopVerifiedBy
+    phone: user.phone,
+    role: user.role,
+    accountType: user.accountType,
+    accountTypeChangedBy: user.accountTypeChangedBy,
+    accountTypeChangedAt: user.accountTypeChangedAt,
+    shopName: user.shopName || '',
+    shopAddress: user.shopAddress || '',
+    shopLogo: user.shopLogo || '',
+    shopVerified: Boolean(user.shopVerified),
+    shopVerifiedBy: user.shopVerifiedBy
     ? {
         id: user.shopVerifiedBy._id.toString(),
         name: user.shopVerifiedBy.name,
@@ -135,6 +140,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     favoritesAgg,
     totalComments,
     totalRatings,
+    unreadFeedback,
     topCategoriesRaw,
     recentUsersRaw,
     recentProductsRaw,
@@ -183,6 +189,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     Product.aggregate([{ $group: { _id: null, total: { $sum: '$favoritesCount' } } }]),
     Comment.countDocuments(),
     Rating.countDocuments(),
+    ImprovementFeedback.countDocuments({ readAt: null }),
     Product.aggregate([
       { $match: { status: 'approved' } },
       {
@@ -431,6 +438,9 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       comments: totalComments,
       ratings: totalRatings
     },
+    feedback: {
+      unread: unreadFeedback
+    },
     orders: {
       total: orderTotals.total,
       totalAmount: orderTotals.totalAmount,
@@ -451,6 +461,356 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       products: recentProducts,
       payments: latestPayments
     }
+  });
+});
+
+// Analytics endpoints for real-time dashboard
+export const getSalesTrends = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { days = 30 } = req.query;
+  const daysNum = Number(days);
+  const validDays = [7, 30, 90].includes(daysNum) ? daysNum : 30;
+
+  const now = new Date();
+  const startDate = new Date(now);
+  startDate.setDate(startDate.getDate() - validDays);
+
+  // Get sales data grouped by day
+  const salesData = await Order.aggregate([
+    {
+      $match: {
+        createdAt: { $gte: startDate, $lte: now },
+        status: { $ne: 'cancelled' }
+      }
+    },
+    {
+      $group: {
+        _id: {
+          year: { $year: '$createdAt' },
+          month: { $month: '$createdAt' },
+          day: { $dayOfMonth: '$createdAt' }
+        },
+        count: { $sum: 1 },
+        totalRevenue: { $sum: '$totalAmount' },
+        avgOrderValue: { $avg: '$totalAmount' }
+      }
+    },
+    { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } }
+  ]);
+
+  // Format data for chart
+  const trends = salesData.map((item) => {
+    const date = new Date(item._id.year, item._id.month - 1, item._id.day);
+    return {
+      date: date.toISOString().split('T')[0],
+      label: date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
+      orders: item.count,
+      revenue: item.totalRevenue || 0,
+      avgOrderValue: Math.round(item.avgOrderValue || 0)
+    };
+  });
+
+  res.json({ period: validDays, trends });
+});
+
+export const getOrderHeatmap = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  // Get orders grouped by hour of day
+  const heatmapData = await Order.aggregate([
+    {
+      $match: {
+        createdAt: { $gte: thirtyDaysAgo, $lte: now }
+      }
+    },
+    {
+      $group: {
+        _id: { $hour: '$createdAt' },
+        count: { $sum: 1 },
+        totalRevenue: { $sum: '$totalAmount' }
+      }
+    },
+    { $sort: { _id: 1 } }
+  ]);
+
+  // Format for heatmap (24 hours)
+  const heatmap = Array.from({ length: 24 }, (_, hour) => {
+    const data = heatmapData.find((d) => d._id === hour);
+    return {
+      hour,
+      label: `${String(hour).padStart(2, '0')}:00`,
+      count: data?.count || 0,
+      revenue: data?.totalRevenue || 0
+    };
+  });
+
+  res.json({ heatmap });
+});
+
+export const getConversionMetrics = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  // Get product views (approximated by viewsCount)
+  const totalViews = await Product.aggregate([
+    {
+      $group: {
+        _id: null,
+        totalViews: { $sum: '$viewsCount' }
+      }
+    }
+  ]);
+
+  // Get unique visitors (users who viewed products)
+  const uniqueVisitors = await User.countDocuments({
+    createdAt: { $gte: thirtyDaysAgo }
+  });
+
+  // Get orders
+  const ordersData = await Order.aggregate([
+    {
+      $match: {
+        createdAt: { $gte: thirtyDaysAgo, $lte: now }
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        totalOrders: { $sum: 1 },
+        uniqueCustomers: { $addToSet: '$customer' }
+      }
+    }
+  ]);
+
+  const totalOrders = ordersData[0]?.totalOrders || 0;
+  const uniqueCustomers = ordersData[0]?.uniqueCustomers?.length || 0;
+  const totalViewsCount = totalViews[0]?.totalViews || 0;
+
+  // Calculate conversion rates
+  const visitorToOrderRate = uniqueVisitors > 0
+    ? ((uniqueCustomers / uniqueVisitors) * 100).toFixed(2)
+    : 0;
+  const viewToOrderRate = totalViewsCount > 0
+    ? ((totalOrders / totalViewsCount) * 100).toFixed(4)
+    : 0;
+
+  // Get conversion funnel data
+  const funnel = await Order.aggregate([
+    {
+      $match: {
+        createdAt: { $gte: thirtyDaysAgo, $lte: now }
+      }
+    },
+    {
+      $group: {
+        _id: '$status',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  res.json({
+    period: 30,
+    metrics: {
+      totalViews: totalViewsCount,
+      uniqueVisitors,
+      uniqueCustomers,
+      totalOrders,
+      visitorToOrderRate: parseFloat(visitorToOrderRate),
+      viewToOrderRate: parseFloat(viewToOrderRate)
+    },
+    funnel: funnel.reduce((acc, item) => {
+      acc[item._id] = item.count;
+      return acc;
+    }, {})
+  });
+});
+
+export const getCohortAnalysis = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const now = new Date();
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+
+  // Get users grouped by signup month
+  const userCohorts = await User.aggregate([
+    {
+      $match: {
+        createdAt: { $gte: sixMonthsAgo, $lte: now }
+      }
+    },
+    {
+      $group: {
+        _id: {
+          year: { $year: '$createdAt' },
+          month: { $month: '$createdAt' }
+        },
+        users: { $push: '$_id' }
+      }
+    },
+    { $sort: { '_id.year': 1, '_id.month': 1 } }
+  ]);
+
+  // For each cohort, check retention (users who made orders)
+  const cohorts = await Promise.all(
+    userCohorts.map(async (cohort) => {
+      const cohortDate = new Date(cohort._id.year, cohort._id.month - 1, 1);
+      const cohortKey = `${cohort._id.year}-${String(cohort._id.month).padStart(2, '0')}`;
+      
+      // Count users who made at least one order
+      const activeUsers = await Order.distinct('customer', {
+        customer: { $in: cohort.users },
+        createdAt: { $gte: cohortDate }
+      });
+
+      // Get orders by month for this cohort
+      const ordersByMonth = await Order.aggregate([
+        {
+          $match: {
+            customer: { $in: cohort.users },
+            createdAt: { $gte: cohortDate }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              year: { $year: '$createdAt' },
+              month: { $month: '$createdAt' }
+            },
+            count: { $sum: 1 },
+            revenue: { $sum: '$totalAmount' }
+          }
+        },
+        { $sort: { '_id.year': 1, '_id.month': 1 } }
+      ]);
+
+      return {
+        cohort: cohortKey,
+        label: cohortDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }),
+        totalUsers: cohort.users.length,
+        activeUsers: activeUsers.length,
+        retentionRate: cohort.users.length > 0
+          ? ((activeUsers.length / cohort.users.length) * 100).toFixed(2)
+          : 0,
+        ordersByMonth: ordersByMonth.map((item) => ({
+          period: `${item._id.year}-${String(item._id.month).padStart(2, '0')}`,
+          orders: item.count,
+          revenue: item.revenue || 0
+        }))
+      };
+    })
+  );
+
+  res.json({ cohorts });
+});
+
+export const getOrdersByHour = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { hour } = req.query;
+  const hourNum = Number(hour);
+  
+  if (Number.isNaN(hourNum) || hourNum < 0 || hourNum > 23) {
+    return res.status(400).json({ message: 'Heure invalide. Doit être entre 0 et 23.' });
+  }
+
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  // Get orders created at the specified hour in the last 30 days using aggregation
+  const ordersAgg = await Order.aggregate([
+    {
+      $match: {
+        createdAt: {
+          $gte: thirtyDaysAgo,
+          $lte: now
+        }
+      }
+    },
+    {
+      $addFields: {
+        orderHour: { $hour: '$createdAt' }
+      }
+    },
+    {
+      $match: {
+        orderHour: hourNum
+      }
+    },
+    {
+      $sort: { createdAt: -1 }
+    },
+    {
+      $limit: 100
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'customer',
+        foreignField: '_id',
+        as: 'customerData'
+      }
+    },
+    {
+      $unwind: { path: '$customerData', preserveNullAndEmptyArrays: true }
+    },
+    {
+      $lookup: {
+        from: 'products',
+        localField: 'items.product',
+        foreignField: '_id',
+        as: 'productData'
+      }
+    }
+  ]);
+
+  // Populate items with product data
+  const orders = await Promise.all(
+    ordersAgg.map(async (order) => {
+      const customer = order.customerData ? {
+        name: order.customerData.name,
+        email: order.customerData.email,
+        phone: order.customerData.phone
+      } : null;
+
+      const items = (order.items || []).map((item) => {
+        const productId = item.product?.toString() || item.product;
+        const product = order.productData?.find((p) => p._id.toString() === productId);
+        
+        return {
+          product: product ? {
+            title: product.title,
+            price: product.price,
+            image: Array.isArray(product.images) ? product.images[0] : null
+          } : item.snapshot,
+          quantity: item.quantity || 1
+        };
+      });
+
+      return {
+        id: order._id,
+        customer,
+        items,
+        status: order.status,
+        totalAmount: order.totalAmount || 0,
+        paidAmount: order.paidAmount || 0,
+        remainingAmount: order.remainingAmount || 0,
+        deliveryAddress: order.deliveryAddress,
+        deliveryCity: order.deliveryCity,
+        deliveryCode: order.deliveryCode,
+        createdAt: order.createdAt
+      };
+    })
+  );
+
+  res.json({
+    hour: hourNum,
+    count: orders.length,
+    orders
   });
 });
 
@@ -485,7 +845,7 @@ export const listUsers = asyncHandler(async (req, res) => {
 export const updateUserAccountType = asyncHandler(async (req, res) => {
   ensureAdminRole(req);
   const { id } = req.params;
-  const { accountType, shopName, shopAddress, shopLogo } = req.body;
+  const { accountType, shopName, shopAddress, shopLogo, reason } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
@@ -494,11 +854,42 @@ export const updateUserAccountType = asyncHandler(async (req, res) => {
   const user = await User.findById(id);
   if (!user) return res.status(404).json({ message: 'Utilisateur introuvable.' });
 
+  // Store previous state for tracking
+  const previousType = user.accountType;
+  const previousShopData = {
+    shopName: user.shopName || null,
+    shopAddress: user.shopAddress || null,
+    shopLogo: user.shopLogo || null,
+    shopVerified: user.shopVerified || false
+  };
+
+  // Check if there's an actual change
+  if (previousType === accountType) {
+    // Allow updating shop details even if accountType hasn't changed
+    if (accountType === 'shop' && (shopName || shopAddress)) {
+      user.shopName = shopName || user.shopName;
+      user.shopAddress = shopAddress || user.shopAddress;
+      if (typeof shopLogo !== 'undefined') {
+        user.shopLogo = shopLogo || '';
+      }
+      user.accountTypeChangedBy = req.user.id;
+      user.accountTypeChangedAt = new Date();
+      await user.save();
+      
+      const populated = await user.populate('shopVerifiedBy', 'name email');
+      return res.json({
+        message: 'Informations de la boutique mises a jour.',
+        user: toAdminUserResponse(populated)
+      });
+    }
+    return res.status(400).json({ message: 'Le type de compte est deja ' + accountType + '.' });
+  }
+
   if (accountType === 'shop') {
     if (!shopName || !shopAddress) {
       return res
         .status(400)
-        .json({ message: 'Veuillez renseigner le nom et l’adresse de la boutique.' });
+        .json({ message: "Veuillez renseigner le nom et l'adresse de la boutique." });
     }
     user.accountType = 'shop';
     user.shopName = shopName;
@@ -521,10 +912,37 @@ export const updateUserAccountType = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Type de compte invalide.' });
   }
 
+  // Track who made the change and when
+  user.accountTypeChangedBy = req.user.id;
+  user.accountTypeChangedAt = new Date();
+
   await user.save();
 
+  // Create change history record
+  try {
+    await AccountTypeChange.create({
+      user: user._id,
+      changedBy: req.user.id,
+      previousType,
+      newType: accountType,
+      previousShopData,
+      newShopData: {
+        shopName: accountType === 'shop' ? shopName : null,
+        shopAddress: accountType === 'shop' ? shopAddress : null,
+        shopLogo: accountType === 'shop' ? (shopLogo || '') : null
+      },
+      reason: reason || ''
+    });
+  } catch (error) {
+    console.error('Failed to create account type change record:', error);
+    // Don't fail the request if history tracking fails
+  }
+
   const populated = await user.populate('shopVerifiedBy', 'name email');
-  res.json(toAdminUserResponse(populated));
+  res.json({
+    message: `Type de compte mis a jour vers : ${accountType === 'shop' ? 'Boutique' : 'Particulier'}.`,
+    user: toAdminUserResponse(populated)
+  });
 });
 
 export const blockUser = asyncHandler(async (req, res) => {
@@ -647,6 +1065,23 @@ export const updateUserRole = asyncHandler(async (req, res) => {
   res.json(toAdminUserResponse(populated));
 });
 
+export const updateAllProductSalesCount = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  try {
+    const result = await updateProductSalesCount();
+    res.json({
+      message: 'Mise à jour des ventes réussie',
+      updated: result.updated,
+      withSales: result.withSales
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: 'Erreur lors de la mise à jour des ventes',
+      error: error.message
+    });
+  }
+});
+
 export const listVerifiedShopsAdmin = asyncHandler(async (req, res) => {
   ensureAdminRole(req);
   const shops = await User.find({ accountType: 'shop', shopVerified: true })
@@ -671,4 +1106,124 @@ export const listVerifiedShopsAdmin = asyncHandler(async (req, res) => {
         : null
     }))
   );
+});
+
+export const getUserAccountTypeHistory = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { userId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
+  }
+
+  const history = await AccountTypeChange.find({ user: userId })
+    .sort({ createdAt: -1 })
+    .populate('changedBy', 'name email')
+    .lean();
+
+  res.json({
+    history,
+    total: history.length
+  });
+});
+
+export const listPaymentVerifiers = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+
+  const verifiers = await User.find({ canVerifyPayments: true })
+    .select('_id name email phone canVerifyPayments')
+    .sort({ name: 1 })
+    .lean();
+
+  const formattedVerifiers = verifiers.map(verifier => ({
+    id: verifier._id.toString(),
+    name: verifier.name,
+    email: verifier.email,
+    phone: verifier.phone,
+    canVerifyPayments: Boolean(verifier.canVerifyPayments)
+  }));
+
+  res.json({ verifiers: formattedVerifiers });
+});
+
+export const listBoostManagers = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const managers = await User.find({ canManageBoosts: true })
+    .select('_id name email phone canManageBoosts')
+    .sort({ name: 1 })
+    .lean();
+  res.json(
+    managers.map((manager) => ({
+      _id: manager._id.toString(),
+      name: manager.name,
+      email: manager.email,
+      phone: manager.phone,
+      canManageBoosts: Boolean(manager.canManageBoosts)
+    }))
+  );
+});
+
+export const toggleBoostManager = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { userId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
+  }
+  const user = await User.findById(userId);
+  if (!user) {
+    return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  }
+  
+  if (user.role === 'admin') {
+    return res.status(400).json({ message: 'Impossible de modifier les permissions d\'un administrateur.' });
+  }
+  
+  user.canManageBoosts = !user.canManageBoosts;
+  await user.save();
+  res.json({
+    message: user.canManageBoosts
+      ? 'Utilisateur ajouté comme gestionnaire de boosts.'
+      : 'Permission de gestion des boosts retirée.',
+    user: {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      canManageBoosts: user.canManageBoosts
+    }
+  });
+});
+
+export const togglePaymentVerifier = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { userId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  }
+
+  if (user.role === 'admin') {
+    return res.status(400).json({ message: 'Impossible de modifier les permissions d\'un administrateur.' });
+  }
+
+  // Toggle the permission
+  user.canVerifyPayments = !user.canVerifyPayments;
+  await user.save();
+
+  res.json({
+    message: user.canVerifyPayments
+      ? 'Utilisateur ajouté comme vérificateur de paiements.'
+      : 'Permission de vérificateur de paiements retirée.',
+    user: {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      canVerifyPayments: user.canVerifyPayments
+    }
+  });
 });

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, Sparkles, Star } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Sparkles, Star, Heart, ShoppingCart, Store, TrendingUp, Zap, ChevronRight, Eye } from 'lucide-react';
 import api from '../services/api';
 import { buildProductPath } from '../utils/links';
 import useIsMobile from '../hooks/useIsMobile';
@@ -182,124 +182,251 @@ export default function ProductPreview() {
     return buildProductPath(item);
   };
 
+  // Filter out current product from related picks
+  const filteredRelatedPicks = useMemo(() => {
+    if (!product) return relatedPicks;
+    const currentKey = getProductKey(product);
+    return relatedPicks.filter((pick) => {
+      const pickKey = getProductKey(pick?.product);
+      return pickKey && pickKey !== currentKey;
+    });
+  }, [relatedPicks, product]);
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto w-full max-w-2xl px-4 pb-10 pt-4 space-y-4">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-indigo-50/30">
+      <div className="mx-auto w-full max-w-2xl px-3 sm:px-4 pb-20 pt-4 sm:pt-6 space-y-5 sm:space-y-6">
+        {/* Back Button - Enhanced */}
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-gray-900"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-3xl bg-white border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-all duration-200 active:scale-95 shadow-sm"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="h-5 w-5" />
           Retour
         </button>
 
         {loading ? (
-          <div className="space-y-4">
-            <div className="animate-pulse rounded-2xl border border-gray-200 bg-white p-4">
-              <div className="flex gap-4">
-                <div className="h-24 w-24 rounded-xl bg-gray-200" />
-                <div className="flex-1 space-y-3">
-                  <div className="h-4 w-3/4 rounded bg-gray-200" />
-                  <div className="h-4 w-1/2 rounded bg-gray-200" />
-                  <div className="h-8 w-32 rounded bg-gray-200" />
+          <div className="space-y-6">
+            {/* Product Card Skeleton */}
+            <div className="animate-pulse rounded-3xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-lg">
+              <div className="flex gap-5">
+                <div className="h-32 w-32 rounded-2xl bg-gray-200 dark:bg-gray-700" />
+                <div className="flex-1 space-y-4">
+                  <div className="h-5 w-3/4 rounded-lg bg-gray-200 dark:bg-gray-700" />
+                  <div className="h-6 w-1/2 rounded-lg bg-gray-200 dark:bg-gray-700" />
+                  <div className="h-4 w-2/3 rounded-lg bg-gray-200 dark:bg-gray-700" />
+                  <div className="h-10 w-40 rounded-xl bg-gray-200 dark:bg-gray-700" />
                 </div>
               </div>
             </div>
-            <div className="animate-pulse rounded-2xl border border-gray-200 bg-white p-4">
-              <div className="h-4 w-32 rounded bg-gray-200 mb-3" />
-              <div className="aspect-square rounded-xl bg-gray-200" />
+            {/* Inspiration Skeleton */}
+            <div className="animate-pulse rounded-3xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-lg">
+              <div className="h-5 w-32 rounded-lg bg-gray-200 dark:bg-gray-700 mb-4" />
+              <div className="grid grid-cols-2 gap-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="aspect-[4/5] rounded-2xl bg-gray-200 dark:bg-gray-700" />
+                ))}
+              </div>
             </div>
           </div>
         ) : error ? (
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-600">
-            {error}
+          <div className="rounded-3xl border-2 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-8 text-center shadow-lg">
+            <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Zap className="w-8 h-8 text-red-600 dark:text-red-400" />
+            </div>
+            <p className="text-red-700 dark:text-red-400 font-semibold text-base">{error}</p>
           </div>
         ) : product ? (
-          <div className="space-y-4">
-            <section className="rounded-2xl border border-gray-200 bg-white p-4">
-              <div className="flex gap-4">
-                <div className="h-24 w-24 overflow-hidden rounded-xl bg-gray-100">
-                  <img
-                    src={product.images?.[0] || 'https://via.placeholder.com/120x120'}
-                    alt={product.title}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-                <div className="flex-1 space-y-2">
-                  <h1 className="text-base font-semibold text-gray-900 line-clamp-2">
-                    {product.title}
-                  </h1>
-                  <p className="text-sm font-bold text-indigo-600">
-                    {formatCurrency(product.price)}
-                  </p>
-                  {product?.user?.shopName && (
-                    <p className="text-xs text-gray-500">{product.user.shopName}</p>
-                  )}
-                  <Link
-                    to={productLink}
-                    className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white"
-                  >
-                    Voir le produit
-                  </Link>
+          <div className="space-y-6">
+            {/* Product Card - Enhanced */}
+            <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-white via-indigo-50/40 to-purple-50/40 dark:from-gray-800 dark:via-gray-800 dark:to-indigo-950/20 border-2 border-indigo-300/60 dark:border-indigo-800/50 shadow-2xl">
+              {/* Decorative gradient bar */}
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+              
+              <div className="p-6 sm:p-8">
+                <div className="flex gap-5 sm:gap-6">
+                  {/* Product Image Enhanced */}
+                  <div className="relative flex-shrink-0">
+                    <div className="h-32 w-32 sm:h-40 sm:w-40 overflow-hidden rounded-3xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 shadow-2xl ring-4 ring-white dark:ring-gray-700">
+                      <img
+                        src={product.images?.[0] || 'https://via.placeholder.com/128x128'}
+                        alt={product.title}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    {product.discount > 0 && (
+                      <div className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 via-pink-500 to-red-600 text-white text-xs font-black px-3 py-1.5 rounded-full shadow-2xl ring-2 ring-white">
+                        -{product.discount}%
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Product Info Enhanced */}
+                  <div className="flex-1 min-w-0 space-y-3 sm:space-y-4">
+                    <div>
+                      <h1 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white line-clamp-2 leading-tight mb-3">
+                        {product.title}
+                      </h1>
+                      <div className="flex items-baseline gap-3">
+                        <p className="text-2xl sm:text-3xl font-black text-indigo-600 dark:text-indigo-400">
+                          {formatCurrency(product.price)}
+                        </p>
+                        {product.priceBeforeDiscount && product.priceBeforeDiscount > product.price && (
+                          <p className="text-base sm:text-lg text-gray-500 dark:text-gray-400 line-through font-bold">
+                            {formatCurrency(product.priceBeforeDiscount)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {product?.user?.shopName && (
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                          <Store className="w-3.5 h-3.5 text-white" />
+                        </div>
+                        <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 truncate">
+                          {product.user.shopName}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Rating & Stats */}
+                    {(product.ratingAverage || product.commentCount) && (
+                      <div className="flex items-center gap-3 text-xs">
+                        {product.ratingAverage > 0 && (
+                          <div className="flex items-center gap-1">
+                            <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
+                            <span className="font-bold text-gray-700 dark:text-gray-300">
+                              {Number(product.ratingAverage).toFixed(1)}
+                            </span>
+                            {product.ratingCount > 0 && (
+                              <span className="text-gray-500 dark:text-gray-400">
+                                ({formatCount(product.ratingCount)})
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {product.commentCount > 0 && (
+                          <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                            <MessageCircle className="h-3.5 w-3.5" />
+                            <span>{formatCount(product.commentCount)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* CTA Button Enhanced */}
+                    <Link
+                      to={productLink}
+                      className="inline-flex items-center justify-center gap-2 w-full rounded-3xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 hover:shadow-md transition-all duration-200 active:scale-95"
+                    >
+                      <Eye className="w-5 h-5" />
+                      Voir le produit
+                      <ChevronRight className="w-5 h-5" />
+                    </Link>
+                  </div>
                 </div>
               </div>
             </section>
 
-            <section className="rounded-2xl border border-gray-200 bg-white p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-amber-500" />
-                  <h2 className="text-sm font-semibold text-gray-900">Inspiration</h2>
+            {/* Inspiration Section - Enhanced */}
+            <section className="rounded-3xl border-2 border-gray-200/60 dark:border-gray-700/50 bg-white dark:bg-gray-800 shadow-2xl overflow-hidden">
+              {/* Section Header Enhanced */}
+              <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 dark:from-amber-900/20 dark:to-orange-900/20 px-6 py-5 border-b-2 border-amber-200 dark:border-gray-700">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-amber-400 via-orange-500 to-amber-600 rounded-2xl flex items-center justify-center shadow-lg ring-2 ring-white">
+                    <Sparkles className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-gray-900 dark:text-white">Inspiration</h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">Produits similaires pour vous</p>
+                  </div>
                 </div>
               </div>
 
-              {relatedPicks.length ? (
-                <div className="grid grid-cols-2 gap-3">
-                  {relatedPicks.map((pick, index) => {
-                    const ratingAverage = Number(pick.product?.ratingAverage || 0).toFixed(1);
-                    const ratingCount = formatCount(pick.product?.ratingCount || 0);
-                    const commentCount = formatCount(pick.product?.commentCount || 0);
-                    return (
-                      <Link
-                        key={`${pick.product?._id || 'product'}-${pick.image}-${index}`}
-                        to={buildPreviewLink(pick.product)}
-                        className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
-                      >
-                        <div className="aspect-[4/5] w-full bg-gray-100">
-                          <img
-                            src={pick.image}
-                            alt={pick.product?.title || 'Image liée'}
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                        <div className="space-y-1 px-2 pb-3 pt-2">
-                          <p className="text-xs font-semibold text-gray-900 line-clamp-2">
-                            {pick.product?.title}
-                          </p>
-                          <p className="text-sm font-bold text-orange-600">
-                            {formatCurrency(pick.product?.price)}
-                          </p>
-                          <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
-                            <span className="inline-flex items-center gap-1">
-                              <Star className="h-3 w-3 text-amber-400" />
-                              {ratingAverage} ({ratingCount})
-                            </span>
-                            <span className="inline-flex items-center gap-1">
-                              <MessageCircle className="h-3 w-3" />
-                              {commentCount}
-                            </span>
+              {/* Products Grid Enhanced */}
+              <div className="p-5 sm:p-6">
+                {filteredRelatedPicks.length ? (
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                    {filteredRelatedPicks.map((pick, index) => {
+                      const ratingAverage = Number(pick.product?.ratingAverage || 0).toFixed(1);
+                      const ratingCount = formatCount(pick.product?.ratingCount || 0);
+                      const commentCount = formatCount(pick.product?.commentCount || 0);
+                      const hasDiscount = pick.product?.discount > 0 && pick.product?.priceBeforeDiscount > pick.product?.price;
+                      
+                      return (
+                        <Link
+                          key={`${pick.product?._id || 'product'}-${pick.image}-${index}`}
+                          to={buildPreviewLink(pick.product)}
+                          className="group relative overflow-hidden rounded-3xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-[1.03] active:scale-95"
+                        >
+                          {/* Image Container Enhanced */}
+                          <div className="relative aspect-[4/5] w-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 overflow-hidden">
+                            <img
+                              src={pick.image}
+                              alt={pick.product?.title || 'Produit'}
+                              className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                            />
+                            {/* Discount Badge Enhanced */}
+                            {hasDiscount && (
+                              <div className="absolute top-3 left-3 bg-gradient-to-r from-red-500 via-pink-500 to-red-600 text-white text-[11px] font-black px-2.5 py-1.5 rounded-full shadow-2xl ring-2 ring-white">
+                                -{pick.product.discount}%
+                              </div>
+                            )}
+                            {/* Hover Overlay Enhanced */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                           </div>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-xs text-gray-500">
-                  Aucune image liée pour le moment.
-                </div>
-              )}
+
+                          {/* Product Info Enhanced */}
+                          <div className="p-3 sm:p-4 space-y-2.5">
+                            <p className="text-xs sm:text-sm font-black text-gray-900 dark:text-white line-clamp-2 leading-tight min-h-[2.5rem] group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                              {pick.product?.title}
+                            </p>
+                            <div className="flex items-baseline gap-2">
+                              <p className="text-base sm:text-lg font-black text-indigo-600 dark:text-indigo-400">
+                                {formatCurrency(pick.product?.price)}
+                              </p>
+                              {hasDiscount && (
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400 line-through font-bold">
+                                  {formatCurrency(pick.product.priceBeforeDiscount)}
+                                </p>
+                              )}
+                            </div>
+                            {/* Stats Enhanced */}
+                            <div className="flex items-center gap-2.5 text-[10px] sm:text-[11px]">
+                              {ratingAverage > 0 && (
+                                <span className="inline-flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg">
+                                  <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
+                                  <span className="font-black text-gray-700 dark:text-gray-300">{ratingAverage}</span>
+                                  {ratingCount > 0 && <span className="text-gray-500">({ratingCount})</span>}
+                                </span>
+                              )}
+                              {commentCount > 0 && (
+                                <span className="inline-flex items-center gap-1 bg-blue-50 px-2 py-1 rounded-lg">
+                                  <MessageCircle className="h-3.5 w-3.5 text-blue-600" />
+                                  <span className="font-semibold text-gray-700">{commentCount}</span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 p-12 text-center">
+                    <div className="w-16 h-16 bg-gray-200 dark:bg-gray-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <Sparkles className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                      Aucune inspiration pour le moment
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500">
+                      D'autres produits similaires apparaîtront ici
+                    </p>
+                  </div>
+                )}
+              </div>
             </section>
           </div>
         ) : null}

@@ -36,10 +36,16 @@ const productSchema = new mongoose.Schema(
     },
     whatsappClicks: { type: Number, default: 0, min: 0 },
     favoritesCount: { type: Number, default: 0, min: 0 },
+    salesCount: { type: Number, default: 0, min: 0 },
     disabledByAdmin: { type: Boolean, default: false },
     disabledBySuspension: { type: Boolean, default: false },
     boosted: { type: Boolean, default: false },
     boostScore: { type: Number, default: 0 },
+    boostedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    boostedAt: { type: Date, default: null },
+    boostedByName: { type: String, default: null },
+    boostStartDate: { type: Date, default: null },
+    boostEndDate: { type: Date, default: null },
     certified: { type: Boolean, default: false },
     certifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     certifiedAt: { type: Date, default: null }
@@ -50,6 +56,7 @@ const productSchema = new mongoose.Schema(
 // Indexes for search & sorting
 productSchema.index({ title: 'text', description: 'text' });
 productSchema.index({ status: 1, category: 1, price: 1, createdAt: -1 });
+productSchema.index({ salesCount: -1, status: 1 });
 
 productSchema.add({
   slug: { type: String, unique: true, index: true, lowercase: true, trim: true }

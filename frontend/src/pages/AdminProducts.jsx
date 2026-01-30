@@ -8,7 +8,23 @@ import {
   RefreshCcw,
   ChevronRight,
   ShieldCheck,
-  Tag as TagIcon
+  Tag as TagIcon,
+  Package,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  TrendingUp,
+  BarChart3,
+  Settings,
+  Eye,
+  Image as ImageIcon,
+  User,
+  Mail,
+  Phone,
+  Calendar,
+  DollarSign,
+  ArrowLeft,
+  Sparkles
 } from 'lucide-react';
 import api from '../services/api';
 import categoryGroups from '../data/categories';
@@ -49,13 +65,48 @@ const formatDate = (value) =>
       })
     : '—';
 
-const StatCard = ({ title, value, helper }) => (
-  <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
-    <p className="text-xs uppercase tracking-wide text-gray-500">{title}</p>
-    <p className="text-2xl font-semibold text-gray-900">{value}</p>
-    {helper ? <p className="text-xs text-gray-500 mt-1">{helper}</p> : null}
-  </div>
-);
+const StatCard = ({ title, value, helper, icon: Icon, highlight, trend }) => {
+  const iconColors = highlight
+    ? 'from-indigo-500 to-purple-600'
+    : 'from-gray-400 to-gray-500';
+  
+  return (
+    <div className={`group relative overflow-hidden rounded-2xl border transition-all duration-300 ${
+      highlight
+        ? 'border-indigo-200/60 bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/30 shadow-md hover:shadow-lg'
+        : 'border-gray-200/60 bg-gradient-to-br from-white to-gray-50/50 shadow-sm hover:shadow-md hover:border-indigo-200/40'
+    }`}>
+      <div className="p-5">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex-1">
+            <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${highlight ? 'text-indigo-700' : 'text-gray-600'}`}>
+              {title}
+            </p>
+            <p className={`text-3xl font-bold mb-1 ${highlight ? 'bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent' : 'text-gray-900'}`}>
+              {value}
+            </p>
+            {helper && (
+              <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1">
+                {trend && (
+                  <TrendingUp size={12} className={trend > 0 ? 'text-green-500' : 'text-red-500'} />
+                )}
+                {helper}
+              </p>
+            )}
+          </div>
+          {Icon && (
+            <div className={`ml-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${iconColors} text-white shadow-sm transition-transform duration-300 group-hover:scale-110 group-hover:shadow-md`}>
+              <Icon size={22} strokeWidth={2.5} />
+            </div>
+          )}
+        </div>
+      </div>
+      {highlight && (
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/0 via-purple-500/0 to-pink-500/0 transition-opacity duration-300 group-hover:from-indigo-500/5 group-hover:via-purple-500/5 group-hover:to-pink-500/5" />
+      )}
+    </div>
+  );
+};
 
 const categoryOptions = categoryGroups.flatMap((group) =>
   group.options.map((option) => ({
@@ -179,81 +230,106 @@ export default function AdminProducts() {
   const topCategories = stats?.topCategories || [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 sm:px-6 lg:px-8">
-        <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Gestion des produits</h1>
-            <p className="text-sm text-gray-500">
-              Visualisez les annonces, filtrez-les et certifiez celles qui respectent la charte HDMarket.
-            </p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/20">
+      <div className="max-w-7xl mx-auto px-4 py-8 space-y-8 sm:px-6 lg:px-8">
+        <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between pb-6 border-b border-gray-200/60">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 shadow-lg">
+                <Package size={24} className="text-white" strokeWidth={2.5} />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-indigo-900 to-purple-900 bg-clip-text text-transparent">
+                  Gestion des produits
+                </h1>
+                <p className="text-sm text-gray-600 mt-1">
+                  Visualisez les annonces, filtrez-les et certifiez celles qui respectent la charte HDMarket.
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-3">
             <Link
               to="/admin"
-              className="inline-flex items-center gap-2 rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
             >
+              <ArrowLeft size={16} />
               Retour au tableau
             </Link>
             <button
               type="button"
               onClick={fetchProducts}
-              className="inline-flex items-center gap-2 rounded-md border border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
+              className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 transition-all duration-200 hover:bg-indigo-100 hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
             >
-              <RefreshCcw className="h-4 w-4" />
+              <RefreshCcw size={16} className="transition-transform duration-300 hover:rotate-180" />
               Actualiser
             </button>
           </div>
         </header>
 
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Produits total" value={totalProducts} helper={`${totalPages} page(s)`} />
+        <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard 
+            title="Produits total" 
+            value={totalProducts} 
+            helper={`${totalPages} page(s)`}
+            icon={Package}
+          />
           <StatCard
             title="Produits certifiés"
             value={stats?.certifiedCount ?? 0}
             helper={`${stats?.uncertifiedCount ?? 0} non certifiés`}
+            icon={ShieldCheck}
+            highlight
           />
           <StatCard
             title="Certifications en attente"
             value={statusCards[0]?.value || 0}
             helper="Suivre les validations"
+            icon={Clock}
           />
           <StatCard
             title="Produits désactivés"
             value={statusCards[3]?.value || 0}
             helper="Vérifier les suspensions"
+            icon={AlertCircle}
           />
         </section>
 
-        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-          <div className="flex flex-col gap-3">
+        <section className="rounded-2xl border border-gray-200/60 bg-gradient-to-br from-white to-indigo-50/20 p-6 shadow-sm">
+          <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-                Filtres rapides
-              </h2>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100">
+                  <Filter size={20} className="text-indigo-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Filtres rapides</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">Recherchez et filtrez les produits</p>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={resetFilters}
-                className="inline-flex items-center gap-1 rounded-2xl border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-600 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-700"
               >
-                <Filter className="h-4 w-4" />
+                <X size={14} />
                 Réinitialiser
               </button>
             </div>
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-4">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
                     setPage(1);
                   }}
-                  placeholder="Rechercher par titre ou description"
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 pl-9 text-sm focus:border-indigo-500 focus:outline-none"
+                  placeholder="Rechercher par titre ou description..."
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 pl-11 text-sm shadow-sm transition-all duration-200 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                 <select
                   value={statusFilter}
                   onChange={(e) => {

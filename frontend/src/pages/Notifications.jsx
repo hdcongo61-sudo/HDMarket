@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Star, Users } from 'lucide-react';
+import { Star, Users, Bell, Settings, Check, X, Trash2, Filter, ChevronDown, Clock, MessageSquare, Heart, Package, ShoppingBag, AlertCircle, CheckCircle2, XCircle, Tag, Store, CreditCard, Truck, Timer, BellRing, Archive, Sparkles } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import useUserNotifications, { triggerNotificationsRefresh } from '../hooks/useUserNotifications';
 import api from '../services/api';
@@ -21,38 +21,40 @@ const DEFAULT_NOTIFICATION_PREFERENCES = {
   order_received: true,
   order_reminder: true,
   order_delivering: true,
-  order_delivered: true
+  order_delivered: true,
+  order_cancelled: true,
+  feedback_read: true
 };
 
 const formatDateTime = (value) => {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  
+
   const now = new Date();
   const diffMs = now - date;
   const diffMins = Math.floor(diffMs / (1000 * 60));
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  
+
   if (diffMins < 1) return 'À l\'instant';
   if (diffMins < 60) return `Il y a ${diffMins} min`;
   if (diffHours < 24) return `Il y a ${diffHours} h`;
   if (diffDays === 1) return 'Hier';
   if (diffDays < 7) return `Il y a ${diffDays} j`;
-  
-  return date.toLocaleDateString('fr-FR', { 
-    day: 'numeric', 
+
+  return date.toLocaleDateString('fr-FR', {
+    day: 'numeric',
     month: 'short',
     year: diffDays > 365 ? 'numeric' : undefined
   });
 };
 
-// New: Notification preferences component
+// Notification preferences component
 const NotificationPreferences = ({ preferences, onUpdate }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  
+
   const handleToggle = async (type) => {
     setSaving(true);
     const updated = { ...preferences, [type]: !preferences[type] };
@@ -65,68 +67,97 @@ const NotificationPreferences = ({ preferences, onUpdate }) => {
       setSaving(false);
     }
   };
-  
+
   return (
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all duration-200 shadow-sm hover:shadow-md active:scale-95"
       >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-        Préférences
+        <Settings className="w-4 h-4" />
+        <span className="hidden sm:inline">Préférences</span>
+        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
-      
+
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-10 p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">Préférences de notification</h3>
-            <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-gray-600">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          
-          <div className="space-y-3">
-            {[
-              { key: 'product_comment', label: 'Nouveaux commentaires' },
-              { key: 'reply', label: 'Réponses à mes commentaires' },
-              { key: 'favorite', label: 'Ajouts aux favoris' },
-              { key: 'rating', label: 'Nouvelles notes' },
-              { key: 'product_approval', label: "Approbations d'annonce" },
-              { key: 'product_rejection', label: "Rejets d'annonce" },
-              { key: 'promotional', label: 'Promotions appliquées' },
-              { key: 'shop_review', label: 'Avis sur ma boutique' },
-              { key: 'shop_follow', label: 'Nouveaux abonnés' },
-              { key: 'payment_pending', label: 'Paiements à valider' },
-              { key: 'order_created', label: 'Commandes confirmées' },
-              { key: 'order_delivering', label: 'Commandes en livraison' },
-              { key: 'order_received', label: 'Nouvelles commandes' },
-              { key: 'order_reminder', label: 'Relances commandes' },
-              { key: 'order_delivered', label: 'Commandes livrées' }
-            ].map(({ key, label }) => (
-              <div key={key} className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">{label}</span>
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border-2 border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+            <div className="bg-gradient-to-br from-indigo-600 via-indigo-600 to-purple-600 px-6 py-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-white text-base flex items-center gap-2">
+                    <Sparkles className="w-4 h-4" />
+                    Préférences
+                  </h3>
+                  <p className="text-indigo-100 text-xs mt-1">Personnalisez vos alertes</p>
+                </div>
                 <button
-                  onClick={() => handleToggle(key)}
-                  disabled={saving}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    preferences[key] ? 'bg-indigo-600' : 'bg-gray-200'
-                  }`}
+                  onClick={() => setIsOpen(false)}
+                  className="text-white/80 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10 active:scale-95"
                 >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      preferences[key] ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-            ))}
+            </div>
+
+            <div className="max-h-96 overflow-y-auto p-4 space-y-1.5">
+              {[
+                { key: 'product_comment', label: 'Nouveaux commentaires', icon: MessageSquare },
+                { key: 'reply', label: 'Réponses à mes commentaires', icon: MessageSquare },
+                { key: 'favorite', label: 'Ajouts aux favoris', icon: Heart },
+                { key: 'rating', label: 'Nouvelles notes', icon: Star },
+                { key: 'product_approval', label: "Approbations d'annonce", icon: CheckCircle2 },
+                { key: 'product_rejection', label: "Rejets d'annonce", icon: XCircle },
+                { key: 'promotional', label: 'Promotions appliquées', icon: Tag },
+                { key: 'shop_review', label: 'Avis sur ma boutique', icon: Star },
+                { key: 'shop_follow', label: 'Nouveaux abonnés', icon: Users },
+                { key: 'payment_pending', label: 'Paiements à valider', icon: CreditCard },
+                { key: 'order_created', label: 'Commandes confirmées', icon: ShoppingBag },
+                { key: 'order_delivering', label: 'Commandes en livraison', icon: Truck },
+                { key: 'order_received', label: 'Nouvelles commandes', icon: Package },
+                { key: 'order_reminder', label: 'Relances commandes', icon: Timer },
+                { key: 'order_delivered', label: 'Commandes livrées', icon: CheckCircle2 },
+                { key: 'order_cancelled', label: 'Commandes annulées', icon: XCircle },
+                { key: 'feedback_read', label: 'Avis lus', icon: Check }
+              ].map(({ key, label, icon: Icon }) => (
+                <div
+                  key={key}
+                  className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 ${
+                      preferences[key]
+                        ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-900/50'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-400 group-hover:bg-gray-200 dark:group-hover:bg-gray-600'
+                    }`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{label}</span>
+                  </div>
+                  <button
+                    onClick={() => handleToggle(key)}
+                    disabled={saving}
+                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 ${
+                      preferences[key]
+                        ? 'bg-indigo-600 dark:bg-indigo-500'
+                        : 'bg-gray-300 dark:bg-gray-600'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-300 ${
+                        preferences[key] ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
@@ -159,140 +190,90 @@ export default function Notifications() {
   }, [counts?.preferences]);
 
   const typeConfig = {
-    product_comment: { 
-      label: 'Commentaire', 
-      badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-        </svg>
-      )
+    product_comment: {
+      label: 'Commentaire',
+      badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800',
+      icon: <MessageSquare className="w-4 h-4" />
     },
-    reply: { 
-      label: 'Réponse', 
-      badgeClass: 'bg-blue-50 text-blue-700 border border-blue-200',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-        </svg>
-      )
+    reply: {
+      label: 'Réponse',
+      badgeClass: 'bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800',
+      icon: <MessageSquare className="w-4 h-4" />
     },
-    favorite: { 
-      label: 'Favori', 
-      badgeClass: 'bg-rose-50 text-rose-700 border border-rose-200',
-      icon: (
-        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-        </svg>
-      )
+    favorite: {
+      label: 'Favori',
+      badgeClass: 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800',
+      icon: <Heart className="w-4 h-4" />
     },
-    rating: { 
-      label: 'Note', 
-      badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-        </svg>
-      )
+    rating: {
+      label: 'Note',
+      badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800',
+      icon: <Star className="w-4 h-4" />
     },
     product_approval: {
       label: 'Approbation',
-      badgeClass: 'bg-green-50 text-green-700 border border-green-200',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-        </svg>
-      )
+      badgeClass: 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800',
+      icon: <CheckCircle2 className="w-4 h-4" />
     },
     product_rejection: {
       label: 'Rejet',
-      badgeClass: 'bg-red-50 text-red-700 border border-red-200',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      )
+      badgeClass: 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800',
+      icon: <XCircle className="w-4 h-4" />
     },
     promotional: {
       label: 'Promotion',
-      badgeClass: 'bg-orange-50 text-orange-700 border border-orange-200',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M4 4v5a2 2 0 002 2h5l9 9V13a2 2 0 00-2-2h-5L4 4z" />
-        </svg>
-      )
+      badgeClass: 'bg-orange-50 text-orange-700 border border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800',
+      icon: <Tag className="w-4 h-4" />
     },
     shop_review: {
       label: 'Avis boutique',
-      badgeClass: 'bg-indigo-50 text-indigo-700 border border-indigo-200',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7l1.664 8.319A2 2 0 006.632 17h10.736a2 2 0 001.968-1.681L21 7" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 7h14M7 7V5a2 2 0 012-2h6a2 2 0 012 2v2" />
-        </svg>
-      )
+      badgeClass: 'bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800',
+      icon: <Store className="w-4 h-4" />
     },
     shop_follow: {
       label: 'Abonnés boutique',
-      badgeClass: 'bg-cyan-50 text-cyan-700 border border-cyan-200',
-      icon: (
-        <Users className="w-4 h-4" />
-      )
+      badgeClass: 'bg-cyan-50 text-cyan-700 border border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-400 dark:border-cyan-800',
+      icon: <Users className="w-4 h-4" />
     },
     payment_pending: {
       label: 'Paiement en attente',
-      badgeClass: 'bg-yellow-50 text-yellow-700 border border-yellow-200',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 21h6a2 2 0 002-2v-3a2 2 0 00-2-2H9m6 0l-2-2m0 0l-2 2m2-2v6" />
-        </svg>
-      )
+      badgeClass: 'bg-yellow-50 text-yellow-700 border border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800',
+      icon: <CreditCard className="w-4 h-4" />
     },
     order_created: {
       label: 'Commande en attente',
-      badgeClass: 'bg-blue-50 text-blue-700 border border-blue-200',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 7l1.5 12.5A2 2 0 006.5 21h11a2 2 0 002-1.5L21 7M8 7V4a2 2 0 012-2h4a2 2 0 012 2v3" />
-        </svg>
-      )
+      badgeClass: 'bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800',
+      icon: <ShoppingBag className="w-4 h-4" />
     },
     order_delivering: {
       label: 'Commande en livraison',
-      badgeClass: 'bg-indigo-50 text-indigo-700 border border-indigo-200',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h13v6H3V7zm13 3h2.5l2.5 3v3h-5v-6zm-9 6a2 2 0 11-4 0m15 0a2 2 0 11-4 0" />
-        </svg>
-      )
+      badgeClass: 'bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800',
+      icon: <Truck className="w-4 h-4" />
     },
     order_received: {
       label: 'Nouvelle commande',
-      badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 7l1.5 12.5A2 2 0 006.5 21h11a2 2 0 002-1.5L21 7M8 7V4a2 2 0 012-2h4a2 2 0 012 2v3" />
-        </svg>
-      )
+      badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800',
+      icon: <Package className="w-4 h-4" />
     },
     order_reminder: {
       label: 'Relance commande',
-      badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      )
+      badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800',
+      icon: <Timer className="w-4 h-4" />
     },
     order_delivered: {
       label: 'Commande livrée',
-      badgeClass: 'bg-green-50 text-green-700 border border-green-200',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2a2 2 0 012-2h2l4-5V4H9m0 13h6m-6 0v2a2 2 0 002 2h2a2 2 0 002-2v-2m-6 0H5a2 2 0 01-2-2V7m16 0h1a2 2 0 012 2v6a2 2 0 01-2 2h-1" />
-        </svg>
-      )
+      badgeClass: 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800',
+      icon: <CheckCircle2 className="w-4 h-4" />
+    },
+    order_cancelled: {
+      label: 'Commande annulée',
+      badgeClass: 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800',
+      icon: <XCircle className="w-4 h-4" />
+    },
+    feedback_read: {
+      label: 'Avis lu',
+      badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800',
+      icon: <Check className="w-4 h-4" />
     }
   };
 
@@ -319,168 +300,204 @@ export default function Notifications() {
     const productStatus = alert.product?.status;
     const config = typeConfig[alert.type] || {
       label: 'Notification',
-      badgeClass: 'bg-gray-100 text-gray-700 border border-gray-200',
-      icon: null
+      badgeClass: 'bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600',
+      icon: <Bell className="w-4 h-4" />
     };
 
     return (
       <div
         key={alert._id}
-        className={`group relative p-6 rounded-2xl transition-all duration-200 ${
-          isUnread 
-            ? 'bg-white border-l-4 border-l-indigo-500 shadow-sm hover:shadow-md' 
-            : 'bg-gray-50/50 border-l-4 border-l-gray-200 hover:bg-white'
+        className={`group relative rounded-2xl transition-all duration-300 overflow-hidden ${
+          isUnread
+            ? 'bg-gradient-to-br from-white via-white to-indigo-50/30 dark:from-gray-800 dark:via-gray-800 dark:to-indigo-900/10 border-2 border-indigo-300 dark:border-indigo-700 shadow-md hover:shadow-xl'
+            : 'bg-white/80 dark:bg-gray-800/80 border-2 border-gray-200/80 dark:border-gray-700/80 hover:bg-white dark:hover:bg-gray-800 hover:shadow-lg hover:border-gray-300 dark:hover:border-gray-600'
         }`}
       >
-        {/* Unread indicator */}
+        {/* Unread indicator bar */}
         {isUnread && (
-          <div className="absolute -left-2 top-1/2 transform -translate-y-1/2">
-            <div className="w-3 h-3 bg-indigo-500 rounded-full animate-pulse" />
-          </div>
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600" />
         )}
 
-        <div className="flex gap-4">
-          {/* Icon */}
-          <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${
-            isUnread ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-500'
-          }`}>
-            {config.icon}
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${config.badgeClass}`}>
-                  {config.icon}
-                  {config.label}
-                </span>
-                <span className="text-xs text-gray-500">{formatDateTime(alert.createdAt)}</span>
-                {isUnread && (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600">
-                    <svg className="w-2 h-2 fill-current" viewBox="0 0 8 8">
-                      <circle cx="4" cy="4" r="4" />
-                    </svg>
-                    Nouveau
+        <div className="p-4 sm:p-5">
+          <div className="flex flex-col gap-3 sm:gap-4">
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-3 mb-2.5 sm:mb-3">
+                <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${config.badgeClass}`}>
+                    {config.icon}
+                    <span className="hidden sm:inline">{config.label}</span>
                   </span>
-                )}
-              </div>
-              
-              {/* Action buttons */}
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                {isUnread && (
-                  <button
-                    onClick={() => handleMarkRead([alert._id])}
-                    className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                    title="Marquer comme lu"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </button>
-                )}
-                <button
-                  onClick={() => handleDeleteNotification(alert._id)}
-                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Supprimer"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {/* User info */}
-            {alert.user?.name && (
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-6 h-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-medium">
-                  {alert.user.name.charAt(0).toUpperCase()}
+                  <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span className="font-medium">{formatDateTime(alert.createdAt)}</span>
+                  </div>
+                  {isUnread && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-gradient-to-r from-red-100 to-pink-100 dark:from-red-900/30 dark:to-pink-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
+                      <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                      <span className="hidden sm:inline">Nouveau</span>
+                    </span>
+                  )}
                 </div>
-                <span className="text-sm font-medium text-gray-900">{alert.user.name}</span>
+
+                {/* Action buttons */}
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  {isUnread && (
+                    <button
+                      onClick={() => handleMarkRead([alert._id])}
+                      className="p-2 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all duration-200 active:scale-95"
+                      title="Marquer comme lu"
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleDeleteNotification(alert._id)}
+                    className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200 active:scale-95"
+                    title="Supprimer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-            )}
 
-            {/* Parent message for replies */}
-            {alert.type === 'reply' && alert.parent?.message && (
-              <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                <p className="text-xs text-gray-600 mb-1 font-medium">Votre commentaire :</p>
-                <p className="text-sm text-gray-700 italic">"{alert.parent.message}"</p>
-              </div>
-            )}
+              {/* User info */}
+              {alert.user?.name && (
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md ring-2 ring-white dark:ring-gray-800">
+                    {alert.user.name.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-sm font-semibold text-gray-900 dark:text-white">{alert.user.name}</span>
+                </div>
+              )}
 
-            {/* Main message */}
-            <p className="text-gray-800 leading-relaxed mb-3">{alert.message}</p>
-
-            {alert.type === 'shop_review' && alert.metadata?.rating && (
-              <div className="flex items-center gap-2 text-sm text-amber-600 font-semibold mb-2">
-                <Star size={14} className="text-amber-500" />
-                <span>Note : {Number(alert.metadata.rating).toFixed(1)}/5</span>
-              </div>
-            )}
-
-            {alert.type === 'shop_review' && alert.metadata?.comment && (
-              <div className="p-3 bg-gray-50 rounded-xl border border-gray-100 mb-3 text-sm text-gray-700 italic">
-                "{alert.metadata.comment}"
-              </div>
-            )}
-
-            {alert.type === 'payment_pending' && (user?.role === 'admin' || user?.role === 'manager') && (
-              <div className="mt-2">
-                <Link
-                  to="/admin"
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
-                >
-                  Accéder à la vérification des paiements
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
-              </div>
-            )}
-
-            {/* Product link */}
-            {alert.product && (
-              <div className="mt-3 pt-3 border-t border-gray-100 space-y-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigate(buildProductPath(alert.product));
-                    if (isUnread) {
-                      handleMarkRead([alert._id]);
-                    }
-                  }}
-                  className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors group/link"
-                >
-                  <svg className="w-4 h-4 transition-transform group-hover/link:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                  Voir l'annonce : {alert.product.title}
-                </button>
-                {productStatus && productStatus !== 'approved' && (
-                  <p className="flex items-center gap-2 text-xs text-gray-500">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                    Annonce actuellement « {productStatus === 'pending' ? 'En attente' : productStatus} ».
+              {/* Parent message for replies */}
+              {alert.type === 'reply' && alert.parent?.message && (
+                <div className="mb-3.5 p-3.5 bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-700/50 dark:to-gray-700/30 rounded-xl border-l-4 border-indigo-400">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-1.5 font-semibold uppercase tracking-wide flex items-center gap-1.5">
+                    <MessageSquare className="w-3 h-3" />
+                    Votre commentaire
                   </p>
-                )}
-              </div>
-            )}
+                  <p className="text-sm text-gray-700 dark:text-gray-300 italic leading-relaxed">"{alert.parent.message}"</p>
+                </div>
+              )}
 
-            {!alert.product && alert.shop && (
-              <div className="mt-3 pt-3 border-t border-gray-100">
-                <Link
-                  to={buildShopPath(alert.shop)}
-                  className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors group/link"
-                >
-                  <svg className="w-4 h-4 transition-transform group-hover/link:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 7l1.664 8.319A2 2 0 007.632 17h8.736a2 2 0 001.968-1.681L20 7M9 21h6" />
-                  </svg>
-                  Voir la boutique : {alert.shop.shopName || alert.shop.name || 'Boutique'}
-                </Link>
-              </div>
-            )}
+              {/* Main message */}
+              <p className="text-sm sm:text-base text-gray-800 dark:text-gray-200 leading-relaxed mb-3.5 font-medium">{alert.message}</p>
+
+              {alert.type === 'shop_review' && alert.metadata?.rating && (
+                <div className="flex items-center gap-2 mb-3 px-3.5 py-2.5 bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/20 dark:to-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-800">
+                  <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                  <span className="text-sm font-bold text-amber-700 dark:text-amber-400">
+                    Note : {Number(alert.metadata.rating).toFixed(1)}/5
+                  </span>
+                </div>
+              )}
+
+              {alert.type === 'shop_review' && alert.metadata?.comment && (
+                <div className="p-3.5 bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-700/50 dark:to-gray-700/30 rounded-xl border-l-4 border-indigo-400 mb-3.5">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-1.5 font-semibold uppercase tracking-wide flex items-center gap-1.5">
+                    <MessageSquare className="w-3 h-3" />
+                    Commentaire
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 italic leading-relaxed">"{alert.metadata.comment}"</p>
+                </div>
+              )}
+
+              {alert.type === 'payment_pending' && (user?.role === 'admin' || user?.role === 'manager') && (
+                <div className="mt-4 pt-4 border-t-2 border-gray-200 dark:border-gray-700">
+                  <Link
+                    to="/admin"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg active:scale-95"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span className="truncate">Vérifier paiements</span>
+                  </Link>
+                </div>
+              )}
+
+              {alert.type === 'order_delivered' && alert.metadata?.orderId && (
+                <div className="mt-4 pt-4 border-t-2 border-gray-200 dark:border-gray-700">
+                  <Link
+                    to={`/orders/delivered?orderId=${alert.metadata.orderId}`}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-emerald-700 dark:text-emerald-400 bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-900/20 dark:to-emerald-900/10 hover:from-emerald-100 hover:to-emerald-100 dark:hover:from-emerald-900/30 dark:hover:to-emerald-900/20 transition-all duration-200 border-2 border-emerald-200 dark:border-emerald-800 active:scale-95"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span className="truncate">Voir commande livrée</span>
+                  </Link>
+                </div>
+              )}
+
+              {alert.type === 'order_cancelled' && (
+                <div className="mt-4 space-y-3">
+                  {alert.metadata?.reason && (
+                    <div className="p-3.5 bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-900/10 rounded-xl border-l-4 border-red-400">
+                      <p className="text-xs text-red-600 dark:text-red-400 mb-1.5 font-semibold uppercase tracking-wide flex items-center gap-1.5">
+                        <XCircle className="w-3 h-3" />
+                        Raison de l'annulation
+                      </p>
+                      <p className="text-sm text-red-700 dark:text-red-300 italic leading-relaxed">"{alert.metadata.reason}"</p>
+                    </div>
+                  )}
+                  {alert.metadata?.orderId && (
+                    <div className="pt-4 border-t-2 border-gray-200 dark:border-gray-700">
+                      <Link
+                        to={`/orders?status=cancelled&orderId=${alert.metadata.orderId}`}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-red-700 dark:text-red-400 bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-900/10 hover:from-red-100 hover:to-red-100 dark:hover:from-red-900/30 dark:hover:to-red-900/20 transition-all duration-200 border-2 border-red-200 dark:border-red-800 active:scale-95"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        Voir commande annulée
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Product link */}
+              {alert.product && (
+                <div className="mt-4 pt-4 border-t-2 border-gray-200 dark:border-gray-700 space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigate(buildProductPath(alert.product));
+                      if (isUnread) {
+                        handleMarkRead([alert._id]);
+                      }
+                    }}
+                    className="w-full sm:w-auto inline-flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-indigo-700 dark:text-indigo-400 bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/20 dark:to-indigo-900/10 hover:from-indigo-100 hover:to-indigo-100 dark:hover:from-indigo-900/30 dark:hover:to-indigo-900/20 transition-all duration-200 border-2 border-indigo-200 dark:border-indigo-800 group/link active:scale-95"
+                  >
+                    <Package className="w-4 h-4 flex-shrink-0" />
+                    <span className="truncate flex-1 text-left">
+                      <span className="hidden sm:inline">Voir l'annonce : </span>
+                      {alert.product.title}
+                    </span>
+                  </button>
+                  {productStatus && productStatus !== 'approved' && (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                      <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                      <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                        Annonce actuellement « {productStatus === 'pending' ? 'En attente' : productStatus} »
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!alert.product && alert.shop && (
+                <div className="mt-4 pt-4 border-t-2 border-gray-200 dark:border-gray-700">
+                  <Link
+                    to={buildShopPath(alert.shop)}
+                    className="w-full sm:w-auto inline-flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-indigo-700 dark:text-indigo-400 bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/20 dark:to-indigo-900/10 hover:from-indigo-100 hover:to-indigo-100 dark:hover:from-indigo-900/30 dark:hover:to-indigo-900/20 transition-all duration-200 border-2 border-indigo-200 dark:border-indigo-800 group/link active:scale-95"
+                  >
+                    <Store className="w-4 h-4 flex-shrink-0" />
+                    <span className="truncate flex-1 text-left">
+                      <span className="hidden sm:inline">Voir la boutique : </span>
+                      {alert.shop.shopName || alert.shop.name || 'Boutique'}
+                    </span>
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -525,43 +542,45 @@ export default function Notifications() {
   };
 
   const filterOptions = [
-    { key: 'all', label: 'Toutes', count: alerts.length },
-    { key: 'unread', label: 'Non lues', count: unreadAlerts.length },
-    { key: 'product_comment', label: 'Commentaires', count: alerts.filter(a => a.type === 'product_comment').length },
-    { key: 'reply', label: 'Réponses', count: alerts.filter(a => a.type === 'reply').length },
-    { key: 'favorite', label: 'Favoris', count: alerts.filter(a => a.type === 'favorite').length },
-    { key: 'rating', label: 'Notes', count: alerts.filter(a => a.type === 'rating').length },
-    { key: 'product_approval', label: 'Approbations', count: alerts.filter(a => a.type === 'product_approval').length },
-    { key: 'product_rejection', label: 'Rejets', count: alerts.filter(a => a.type === 'product_rejection').length },
-    { key: 'promotional', label: 'Promotions', count: alerts.filter(a => a.type === 'promotional').length },
-    { key: 'shop_review', label: 'Avis boutique', count: alerts.filter(a => a.type === 'shop_review').length },
-    { key: 'payment_pending', label: 'Paiements à valider', count: alerts.filter(a => a.type === 'payment_pending').length },
-    { key: 'order_created', label: 'Commandes confirmées', count: alerts.filter(a => a.type === 'order_created').length },
-    { key: 'order_delivering', label: 'Commandes en livraison', count: alerts.filter(a => a.type === 'order_delivering').length },
-    { key: 'order_received', label: 'Nouvelles commandes', count: alerts.filter(a => a.type === 'order_received').length },
-    { key: 'order_reminder', label: 'Relances commandes', count: alerts.filter(a => a.type === 'order_reminder').length },
-    { key: 'order_delivered', label: 'Commandes livrées', count: alerts.filter(a => a.type === 'order_delivered').length }
+    { key: 'all', label: 'Toutes', count: alerts.length, icon: Bell },
+    { key: 'unread', label: 'Non lues', count: unreadAlerts.length, icon: BellRing },
+    { key: 'product_comment', label: 'Commentaires', count: alerts.filter(a => a.type === 'product_comment').length, icon: MessageSquare },
+    { key: 'reply', label: 'Réponses', count: alerts.filter(a => a.type === 'reply').length, icon: MessageSquare },
+    { key: 'favorite', label: 'Favoris', count: alerts.filter(a => a.type === 'favorite').length, icon: Heart },
+    { key: 'rating', label: 'Notes', count: alerts.filter(a => a.type === 'rating').length, icon: Star },
+    { key: 'product_approval', label: 'Approbations', count: alerts.filter(a => a.type === 'product_approval').length, icon: CheckCircle2 },
+    { key: 'product_rejection', label: 'Rejets', count: alerts.filter(a => a.type === 'product_rejection').length, icon: XCircle },
+    { key: 'promotional', label: 'Promotions', count: alerts.filter(a => a.type === 'promotional').length, icon: Tag },
+    { key: 'shop_review', label: 'Avis boutique', count: alerts.filter(a => a.type === 'shop_review').length, icon: Store },
+    { key: 'payment_pending', label: 'Paiements', count: alerts.filter(a => a.type === 'payment_pending').length, icon: CreditCard },
+    { key: 'order_created', label: 'Commandes confirmées', count: alerts.filter(a => a.type === 'order_created').length, icon: ShoppingBag },
+    { key: 'order_delivering', label: 'En livraison', count: alerts.filter(a => a.type === 'order_delivering').length, icon: Truck },
+    { key: 'order_received', label: 'Nouvelles commandes', count: alerts.filter(a => a.type === 'order_received').length, icon: Package },
+    { key: 'order_reminder', label: 'Relances', count: alerts.filter(a => a.type === 'order_reminder').length, icon: Timer },
+    { key: 'order_delivered', label: 'Livrées', count: alerts.filter(a => a.type === 'order_delivered').length, icon: CheckCircle2 },
+    { key: 'order_cancelled', label: 'Annulées', count: alerts.filter(a => a.type === 'order_cancelled').length, icon: XCircle },
+    { key: 'feedback_read', label: 'Avis lus', count: alerts.filter(a => a.type === 'feedback_read').length, icon: Check }
   ];
 
   const renderFilterButtons = ({ variant = 'stack', closeOnSelect = false } = {}) =>
-    filterOptions.map(({ key, label, count }) => {
+    filterOptions.map(({ key, label, count, icon: Icon }) => {
       const isActive = activeFilter === key;
       const isPill = variant === 'pills';
       const baseClasses = isPill
-        ? `flex-shrink-0 inline-flex items-center gap-2 whitespace-nowrap rounded-full border px-4 py-2 text-sm transition-colors ${
+        ? `flex-shrink-0 inline-flex items-center gap-2 whitespace-nowrap rounded-full border-2 px-3.5 py-2 text-sm font-bold transition-all duration-200 active:scale-95 ${
             isActive
-              ? 'bg-indigo-600 text-white border-indigo-600'
-              : 'bg-white border-gray-200 text-gray-600'
+              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-transparent shadow-lg'
+              : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md'
           }`
-        : `w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm transition-colors ${
+        : `w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-semibold transition-all duration-200 active:scale-[0.98] ${
             isActive
-              ? 'bg-indigo-50 text-indigo-700 font-medium'
-              : 'text-gray-600 hover:bg-gray-50'
+              ? 'bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 text-indigo-700 dark:text-indigo-400 border-2 border-indigo-300 dark:border-indigo-700 shadow-sm'
+              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 border-2 border-transparent hover:border-gray-200 dark:hover:border-gray-700'
           }`;
       const badgeClasses = isPill
-        ? `text-xs font-semibold ${isActive ? 'text-white/90' : 'text-gray-500'}`
-        : `px-2 py-1 rounded-full text-xs ${
-            isActive ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'
+        ? `text-xs font-bold px-2 py-0.5 rounded-full ${isActive ? 'bg-white/25 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`
+        : `px-2 py-0.5 rounded-full text-xs font-bold ${
+            isActive ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
           }`;
 
       return (
@@ -575,7 +594,10 @@ export default function Notifications() {
           }}
           className={baseClasses}
         >
-          <span>{label}</span>
+          <span className="flex items-center gap-2">
+            {Icon && <Icon className="w-4 h-4" />}
+            {label}
+          </span>
           <span className={badgeClasses}>{count}</span>
         </button>
       );
@@ -584,14 +606,12 @@ export default function Notifications() {
   if (!user) {
     return (
       <main className="max-w-4xl mx-auto p-6">
-        <div className="text-center py-12">
-          <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
+        <div className="text-center py-16 sm:py-20">
+          <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
+            <Bell className="w-10 h-10 sm:w-12 sm:h-12 text-indigo-600 dark:text-indigo-400" />
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Connectez-vous</h2>
-          <p className="text-gray-600 max-w-sm mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white mb-3">Connectez-vous</h2>
+          <p className="text-gray-600 dark:text-gray-400 max-w-sm mx-auto leading-relaxed">
             Connectez-vous à votre compte pour consulter vos notifications et rester informé des dernières activités.
           </p>
         </div>
@@ -600,203 +620,223 @@ export default function Notifications() {
   }
 
   return (
-    <main className="max-w-6xl mx-auto px-4 py-6 sm:px-6 space-y-8">
-      {/* Header */}
-      <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Notifications</h1>
-          <p className="text-gray-600 text-sm sm:text-base">
-            Suivez les dernières interactions sur vos annonces et commentaires
-          </p>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
-          <div className="hidden sm:flex items-center justify-start gap-3">
-            <NotificationPreferences preferences={preferences} onUpdate={setPreferences} />
-          </div>
-          
-          {unreadAlerts.length > 0 && (
-            <button
-              type="button"
-              onClick={handleMarkAllRead}
-              disabled={marking}
-              className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
-            >
-              {marking ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Traitement...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Tout marquer comme lu
-                </>
-              )}
-            </button>
-          )}
-        </div>
-      </header>
-
-      {/* Mobile filters & stats */}
-      <div className="space-y-4 lg:hidden">
-        <div className="grid grid-cols-2 gap-3 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 p-4 text-white">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-indigo-100">Total</p>
-            <p className="text-2xl font-semibold">{alerts.length}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-indigo-100">Non lues</p>
-            <p className="inline-flex items-center gap-2 text-2xl font-semibold">
-              {unreadAlerts.length}
-              {Boolean(unreadAlerts.length) && (
-                <span className="text-xs font-medium bg-white/20 px-2 py-0.5 rounded-full">New</span>
-              )}
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-gray-200 p-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-900">Filtres rapides</h3>
-            <button
-              type="button"
-              onClick={() => setMobileFiltersOpen((prev) => !prev)}
-              className="flex items-center gap-1 text-xs font-medium text-gray-500"
-            >
-              {mobileFiltersOpen ? 'Masquer' : 'Plus'}
-              <svg
-                className={`w-4 h-4 transition-transform ${mobileFiltersOpen ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-          </div>
-
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {renderFilterButtons({ variant: 'pills' })}
-          </div>
-
-          {mobileFiltersOpen && (
-            <div className="space-y-1">
-              {renderFilterButtons({ variant: 'stack', closeOnSelect: true })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Stats & Filters */}
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Filters */}
-        <div className="hidden lg:block lg:w-64 flex-shrink-0">
-          <div className="sticky top-6 space-y-6">
-            {/* Quick Stats */}
-            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-5 text-white">
-              <h3 className="font-semibold mb-3">Aperçu</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-indigo-100">Total</span>
-                  <span className="font-semibold">{alerts.length}</span>
+    <main className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/30 dark:from-gray-900 dark:via-gray-900 dark:to-indigo-950/20">
+      <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 space-y-6">
+        {/* Header - Redesigned with gradient */}
+        <header className="bg-gradient-to-br from-white via-white to-indigo-50/50 dark:from-gray-800 dark:via-gray-800 dark:to-indigo-900/20 rounded-3xl p-6 sm:p-8 border-2 border-gray-200/60 dark:border-gray-700/50 shadow-xl">
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-3">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg ring-4 ring-indigo-100 dark:ring-indigo-900/30">
+                  <Bell className="w-7 h-7 text-white" />
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-indigo-100">Non lues</span>
-                  <span className="font-semibold bg-white/20 px-2 py-1 rounded-full text-xs">
+                <div>
+                  <h1 className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-gray-900 via-indigo-900 to-purple-900 dark:from-white dark:via-indigo-200 dark:to-purple-200 bg-clip-text text-transparent">
+                    Notifications
+                  </h1>
+                  <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1 font-medium">
+                    {unreadAlerts.length > 0
+                      ? `${unreadAlerts.length} nouvelle${unreadAlerts.length > 1 ? 's' : ''} notification${unreadAlerts.length > 1 ? 's' : ''}`
+                      : 'Toutes vos notifications sont à jour'
+                    }
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <NotificationPreferences preferences={preferences} onUpdate={setPreferences} />
+
+              {unreadAlerts.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleMarkAllRead}
+                  disabled={marking}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-3 text-sm font-bold text-white transition-all hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl active:scale-95"
+                >
+                  {marking ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Traitement...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-5 h-5" />
+                      <span>Tout marquer comme lu</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* Mobile filters & stats */}
+        <div className="space-y-4 lg:hidden">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl p-5 text-white shadow-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <Bell className="w-5 h-5 opacity-90" />
+                <p className="text-xs uppercase tracking-wide text-white/80 font-bold">Total</p>
+              </div>
+              <p className="text-4xl font-black">{alerts.length}</p>
+            </div>
+            <div className="bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl p-5 text-white shadow-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                <p className="text-xs uppercase tracking-wide text-white/80 font-bold">Non lues</p>
+              </div>
+              <p className="text-4xl font-black">{unreadAlerts.length}</p>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border-2 border-gray-200 dark:border-gray-700 p-5 shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Filter className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">Filtres</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileFiltersOpen((prev) => !prev)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors active:scale-95"
+              >
+                {mobileFiltersOpen ? 'Masquer' : 'Voir tout'}
+                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${mobileFiltersOpen ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+              {renderFilterButtons({ variant: 'pills' })}
+            </div>
+
+            {mobileFiltersOpen && (
+              <div className="mt-4 pt-4 border-t-2 border-gray-200 dark:border-gray-700 space-y-1.5">
+                {renderFilterButtons({ variant: 'stack', closeOnSelect: true })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Stats & Filters */}
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Filters sidebar */}
+          <div className="hidden lg:block lg:w-80 flex-shrink-0">
+            <div className="sticky top-6 space-y-4">
+              {/* Quick Stats */}
+              <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-3xl p-6 text-white shadow-2xl">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-11 h-11 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center ring-2 ring-white/30">
+                    <BellRing className="w-6 h-6" />
+                  </div>
+                  <h3 className="font-black text-xl">Aperçu</h3>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center p-4 bg-white/15 backdrop-blur-sm rounded-xl border border-white/20">
+                    <span className="text-white/90 font-semibold">Total</span>
+                    <span className="font-black text-2xl">{alerts.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-4 bg-white/15 backdrop-blur-sm rounded-xl border border-white/20">
+                    <span className="text-white/90 font-semibold">Non lues</span>
+                    <span className="font-black text-2xl bg-white/30 backdrop-blur-sm px-3 py-1 rounded-lg">
+                      {unreadAlerts.length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Filter Options */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl border-2 border-gray-200 dark:border-gray-700 p-5 shadow-lg">
+                <div className="flex items-center gap-2 mb-4">
+                  <Filter className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  <h3 className="font-bold text-gray-900 dark:text-white">Filtrer par</h3>
+                </div>
+                <div className="space-y-1.5 max-h-[600px] overflow-y-auto">
+                  {renderFilterButtons()}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Notifications List */}
+          <div className="flex-1 min-w-0">
+            {loading && (
+              <div className="flex items-center justify-center py-20">
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-14 h-14 border-4 border-indigo-200 dark:border-indigo-800 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin" />
+                  <span className="text-gray-600 dark:text-gray-400 font-semibold">Chargement des notifications...</span>
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-900/10 border-2 border-red-300 dark:border-red-800 rounded-3xl p-8 text-center shadow-xl">
+                <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
+                </div>
+                <p className="text-red-700 dark:text-red-400 font-bold text-lg mb-2">Erreur de chargement</p>
+                <p className="text-red-600 dark:text-red-500 text-sm">{error}</p>
+              </div>
+            )}
+
+            {markError && (
+              <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-2xl p-4 mb-6">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                  <p className="text-red-700 dark:text-red-400 text-sm font-medium">{markError}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Unread Notifications */}
+            {unreadAlerts.length > 0 && (activeFilter === 'all' || activeFilter === 'unread') && (
+              <section className="space-y-4 mb-8">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-1.5 h-10 bg-gradient-to-b from-indigo-600 to-purple-600 rounded-full shadow-lg" />
+                  <h2 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white">Non lues</h2>
+                  <span className="bg-gradient-to-r from-red-600 to-pink-600 text-white text-xs font-bold px-3.5 py-1.5 rounded-full shadow-lg ring-2 ring-red-100 dark:ring-red-900/30">
                     {unreadAlerts.length}
                   </span>
                 </div>
-              </div>
-            </div>
+                <div className="space-y-4">
+                  {unreadAlerts.map((alert) => renderAlert(alert, true))}
+                </div>
+              </section>
+            )}
 
-            {/* Filter Options */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-4">
-              <h3 className="font-semibold text-gray-900 mb-3">Filtrer par</h3>
-              <div className="space-y-1">
-                {renderFilterButtons()}
+            {/* Read Notifications */}
+            {readAlerts.length > 0 && (activeFilter === 'all' || activeFilter !== 'unread') && (
+              <section className="space-y-4">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-1.5 h-10 bg-gray-400 rounded-full" />
+                  <h2 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white">
+                    {activeFilter === 'all' ? 'Notifications lues' : 'Notifications'}
+                  </h2>
+                </div>
+                <div className="space-y-4">
+                  {readAlerts.map((alert) => renderAlert(alert, false))}
+                </div>
+              </section>
+            )}
+
+            {/* Empty States */}
+            {!loading && !error && filteredAlerts.length === 0 && (
+              <div className="text-center py-20">
+                <div className="w-28 h-28 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
+                  <Archive className="w-14 h-14 text-gray-400 dark:text-gray-500" />
+                </div>
+                <h3 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white mb-3">
+                  {activeFilter === 'all' ? 'Aucune notification' : 'Aucune notification correspondante'}
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto leading-relaxed">
+                  {activeFilter === 'all'
+                    ? 'Les notifications concernant vos annonces et commentaires apparaîtront ici.'
+                    : 'Aucune notification ne correspond aux filtres sélectionnés.'
+                  }
+                </p>
               </div>
-            </div>
+            )}
           </div>
-        </div>
-
-        {/* Notifications List */}
-        <div className="flex-1">
-          {loading && (
-            <div className="flex items-center justify-center py-12">
-              <div className="flex items-center gap-3 text-gray-600">
-                <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                <span>Chargement des notifications...</span>
-              </div>
-            </div>
-          )}
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
-              <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <p className="text-red-700 font-medium mb-2">Erreur de chargement</p>
-              <p className="text-red-600 text-sm">{error}</p>
-            </div>
-          )}
-
-          {markError && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-              <p className="text-red-700 text-sm">{markError}</p>
-            </div>
-          )}
-
-          {/* Unread Notifications */}
-          {unreadAlerts.length > 0 && (activeFilter === 'all' || activeFilter === 'unread') && (
-            <section className="space-y-4 mb-8">
-              <div className="flex items-center gap-3">
-                <h2 className="text-xl font-semibold text-gray-900">Non lues</h2>
-                <span className="bg-red-500 text-white text-xs font-medium px-2 py-1 rounded-full">
-                  {unreadAlerts.length}
-                </span>
-              </div>
-              <div className="space-y-3">
-                {unreadAlerts.map((alert) => renderAlert(alert, true))}
-              </div>
-            </section>
-          )}
-
-          {/* Read Notifications */}
-          {readAlerts.length > 0 && (activeFilter === 'all' || activeFilter !== 'unread') && (
-            <section className="space-y-4">
-              <h2 className="text-xl font-semibold text-gray-900">
-                {activeFilter === 'all' ? 'Notifications lues' : 'Notifications'}
-              </h2>
-              <div className="space-y-3">
-                {readAlerts.map((alert) => renderAlert(alert, false))}
-              </div>
-            </section>
-          )}
-
-          {/* Empty States */}
-          {!loading && !error && filteredAlerts.length === 0 && (
-            <div className="text-center py-16">
-              <div className="w-24 h-24 bg-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                {activeFilter === 'all' ? 'Aucune notification' : 'Aucune notification correspondante'}
-              </h3>
-              <p className="text-gray-600 max-w-sm mx-auto">
-                {activeFilter === 'all' 
-                  ? 'Les notifications concernant vos annonces et commentaires apparaîtront ici.'
-                  : 'Aucune notification ne correspond aux filtres sélectionnés.'
-                }
-              </p>
-            </div>
-          )}
         </div>
       </div>
     </main>

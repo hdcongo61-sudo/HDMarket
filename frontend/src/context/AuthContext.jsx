@@ -1,51 +1,59 @@
 import React, { createContext, useEffect, useState } from 'react';
 import api from '../services/api';
 import { jwtDecode } from 'jwt-decode';
+import storage from '../utils/storage';
 
 const AuthContext = createContext();
 
-const readPersistedUser = () => {
+const readPersistedUser = async () => {
   if (typeof window === 'undefined') return null;
-  const token = window.localStorage.getItem('qm_token');
-  if (!token) return null;
   try {
+    const token = await storage.get('qm_token');
+    if (!token) return null;
+    
     const payload = jwtDecode(token);
-    const stored = window.localStorage.getItem('qm_user');
-    let parsed = {};
-    if (stored) {
-      try {
-        parsed = JSON.parse(stored);
-      } catch {
-        parsed = {};
-      }
-    }
+    const stored = await storage.get('qm_user');
+    const parsed = stored || {};
+    
     const normalized = {
       ...parsed,
       shopHours: Array.isArray(parsed.shopHours) ? parsed.shopHours : [],
       shopVerified: Boolean(parsed.shopVerified),
       phoneVerified: Boolean(parsed.phoneVerified),
-      followingShops: Array.isArray(parsed.followingShops) ? parsed.followingShops : []
+      followingShops: Array.isArray(parsed.followingShops) ? parsed.followingShops : [],
+      canReadFeedback: Boolean(parsed.canReadFeedback),
+      canVerifyPayments: Boolean(parsed.canVerifyPayments),
+      canManageBoosts: Boolean(parsed.canManageBoosts)
     };
     return { id: payload.id, role: payload.role, token, ...normalized };
   } catch {
-    window.localStorage.removeItem('qm_token');
-    window.localStorage.removeItem('qm_user');
+    await storage.remove('qm_token');
+    await storage.remove('qm_user');
     return null;
   }
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => readPersistedUser()); // {id, name, email, role}
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const persistUser = (data) => {
+  // Load persisted user on mount
+  useEffect(() => {
+    readPersistedUser().then((userData) => {
+      setUser(userData);
+      setLoading(false);
+    });
+  }, []);
+
+  const persistUser = async (data) => {
     const { token: _token, ...rest } = data || {};
     try {
-      localStorage.setItem('qm_user', JSON.stringify(rest));
+      await storage.set('qm_user', rest);
     } catch {}
   };
 
-  const login = (data) => {
-    localStorage.setItem('qm_token', data.token);
+  const login = async (data) => {
+    await storage.set('qm_token', data.token);
     const userData = {
       id: data._id,
       role: data.role,
@@ -63,18 +71,21 @@ export const AuthProvider = ({ children }) => {
       shopHours: Array.isArray(data.shopHours) ? data.shopHours : [],
       shopVerified: Boolean(data.shopVerified),
       followingShops: Array.isArray(data.followingShops) ? data.followingShops : [],
+      canReadFeedback: Boolean(data.canReadFeedback),
+      canVerifyPayments: Boolean(data.canVerifyPayments),
+      canManageBoosts: Boolean(data.canManageBoosts),
       country: data.country || 'République du Congo',
       address: data.address || '',
       city: data.city || '',
       gender: data.gender || ''
     };
-    persistUser(userData);
+    await persistUser(userData);
     setUser(userData);
   };
 
-  const logout = () => {
-    localStorage.removeItem('qm_token');
-    localStorage.removeItem('qm_user');
+  const logout = async () => {
+    await storage.remove('qm_token');
+    await storage.remove('qm_user');
     setUser(null);
   };
 
@@ -100,7 +111,7 @@ export const AuthProvider = ({ children }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.token]);
 
-  const updateUser = (patch) => {
+  const updateUser = async (patch) => {
     setUser((prev) => {
       if (!prev) return prev;
       const next = { ...prev, ...patch };

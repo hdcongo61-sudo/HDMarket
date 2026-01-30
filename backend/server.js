@@ -30,6 +30,7 @@ import User from './models/userModel.js';
 import ChatMessage from './models/chatMessageModel.js';
 import { setChatSocket } from './sockets/chatSocket.js';
 import { requestTracker, getDailyRequestStats } from './middlewares/requestTracker.js';
+import { sendReviewReminders } from './utils/reviewReminder.js';
 
 connectDB();
 
@@ -183,20 +184,51 @@ io.on('connection', (socket) => {
   socket.join('support');
   socket.emit('connected', { user: socket.data.user });
 
-  socket.on('sendMessage', async ({ text, metadata }) => {
-    if (!text) return;
+  socket.on('sendMessage', async ({ text, encryptedText, encryptionData, attachments, voiceMessage, metadata }) => {
+    if (!text && !encryptedText && !attachments?.length && !voiceMessage) return;
     const isGuest = String(socket.data.user.id || '').startsWith('guest-');
-    const message = await ChatMessage.create({
+    
+    const messageData = {
       user: isGuest ? undefined : socket.data.user.id,
       username: socket.data.user.name,
-      text,
-      metadata,
-      from: socket.data.user.role === 'admin' ? 'support' : 'user'
-    });
+      from: socket.data.user.role === 'admin' ? 'support' : 'user',
+      metadata: metadata || {}
+    };
+    
+    // Handle encrypted messages
+    if (encryptedText && encryptionData) {
+      messageData.encryptedText = encryptedText;
+      messageData.encryptionKey = encryptionData.key;
+      messageData.metadata = {
+        ...messageData.metadata,
+        iv: encryptionData.iv,
+        tag: encryptionData.tag,
+        salt: encryptionData.salt
+      };
+    } else if (text) {
+      messageData.text = text;
+    }
+    
+    // Handle attachments
+    if (attachments && attachments.length > 0) {
+      messageData.attachments = attachments;
+    }
+    
+    // Handle voice messages
+    if (voiceMessage) {
+      messageData.voiceMessage = voiceMessage;
+    }
+    
+    const message = await ChatMessage.create(messageData);
     const payload = {
       id: message._id.toString(),
       from: message.from,
-      text: message.text,
+      text: message.text || (encryptedText ? '[Message chiffré]' : ''),
+      encryptedText: message.encryptedText,
+      encryptionKey: message.encryptionKey,
+      attachments: message.attachments,
+      voiceMessage: message.voiceMessage,
+      reactions: message.reactions,
       username: message.username,
       metadata: message.metadata,
       createdAt: message.createdAt
@@ -206,4 +238,29 @@ io.on('connection', (socket) => {
 });
 
 const port = process.env.PORT || 5010;
-httpServer.listen(port, () => console.log(`Server running on port ${port}`));
+httpServer.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+  
+  // Schedule review reminder checks every hour
+  // Check for delivered orders that are 1+ hour old and send review reminders
+  const REVIEW_REMINDER_INTERVAL = 60 * 60 * 1000; // 1 hour
+  
+  const runReviewReminders = async () => {
+    try {
+      const result = await sendReviewReminders();
+      if (result.sent > 0) {
+        console.log(`Review reminders: ${result.sent} sent, ${result.processed} processed`);
+      }
+    } catch (error) {
+      console.error('Error running review reminders:', error);
+    }
+  };
+  
+  // Run immediately on startup (with a 5 minute delay to let server stabilize)
+  setTimeout(runReviewReminders, 5 * 60 * 1000);
+  
+  // Then run every hour
+  setInterval(runReviewReminders, REVIEW_REMINDER_INTERVAL);
+  
+  console.log('Review reminder scheduler started (runs every hour)');
+});

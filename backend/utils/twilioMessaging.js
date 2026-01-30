@@ -1,5 +1,5 @@
 import twilio from 'twilio';
-import { normalizePhone } from './twilioVerify.js';
+import { normalizePhone } from './firebaseVerification.js';
 
 const getTwilioMessagingConfig = () => ({
   accountSid: process.env.TWILIO_ACCOUNT_SID,

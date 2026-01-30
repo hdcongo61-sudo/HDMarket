@@ -117,6 +117,10 @@ export const schemas = {
     subject: Joi.string().max(150).allow('', null),
     message: Joi.string().min(5).max(1500).required()
   }),
+  feedbackCreate: Joi.object({
+    subject: Joi.string().min(3).max(150).required(),
+    body: Joi.string().min(10).max(2000).required()
+  }),
   paymentCreate: Joi.object({
     productId: Joi.string().hex().length(24).required(),
     payerName: Joi.string().min(2).max(120).required(),
@@ -208,17 +212,52 @@ export const schemas = {
     )
     .required(),
   orderStatusUpdate: Joi.object({
-    status: Joi.string().valid('pending', 'confirmed', 'delivering', 'delivered').required()
+    status: Joi.string().valid('pending', 'confirmed', 'delivering', 'delivered', 'cancelled').required()
   }),
+  orderAddressUpdate: Joi.object({
+    deliveryAddress: Joi.string().min(4).max(300).required(),
+    deliveryCity: Joi.string().valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo').required()
+  }),
+  orderMessage: Joi.object({
+    text: Joi.string().trim().min(0).max(1000).allow('', null),
+    recipientId: Joi.string().hex().length(24).allow('', null),
+    encryptedText: Joi.string().allow('', null),
+    encryptionData: Joi.object({
+      iv: Joi.string(),
+      tag: Joi.string(),
+      salt: Joi.string(),
+      key: Joi.string()
+    }).allow(null),
+    attachments: Joi.array().items(Joi.object({
+      type: Joi.string().valid('image', 'document', 'audio').required(),
+      url: Joi.string().required(),
+      filename: Joi.string().required(),
+      size: Joi.number(),
+      mimeType: Joi.string()
+    })).allow(null),
+    voiceMessage: Joi.object({
+      url: Joi.string().required(),
+      duration: Joi.number(),
+      type: Joi.string().default('audio')
+    }).allow(null)
+  }).or('text', 'encryptedText', 'attachments', 'voiceMessage'),
   sellerOrderStatusUpdate: Joi.object({
-    status: Joi.string().valid('pending', 'confirmed', 'delivering', 'delivered').required()
+    status: Joi.string().valid('pending', 'confirmed', 'delivering', 'delivered', 'cancelled').required()
+  }),
+  sellerCancelOrder: Joi.object({
+    reason: Joi.string().trim().min(5).max(500).required().messages({
+      'string.empty': 'La raison de l\'annulation est requise.',
+      'string.min': 'La raison de l\'annulation doit contenir au moins 5 caractères.',
+      'any.required': 'La raison de l\'annulation est requise.'
+    })
   }),
   orderUpdate: Joi.object({
-    status: Joi.string().valid('pending', 'confirmed', 'delivering', 'delivered'),
+    status: Joi.string().valid('pending', 'confirmed', 'delivering', 'delivered', 'cancelled'),
     deliveryAddress: Joi.string().min(4).max(300),
     deliveryCity: Joi.string().valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'),
     trackingNote: Joi.string().max(500).allow('', null),
-    deliveryGuyId: Joi.string().hex().length(24).allow('', null)
+    deliveryGuyId: Joi.string().hex().length(24).allow('', null),
+    cancellationReason: Joi.string().max(500).allow('', null)
   }).min(1),
   deliveryGuyCreate: Joi.object({
     name: Joi.string().min(2).max(80).required(),
@@ -251,7 +290,12 @@ export const schemas = {
     order_received: Joi.boolean(),
     order_reminder: Joi.boolean(),
     order_delivering: Joi.boolean(),
-    order_delivered: Joi.boolean()
+    order_delivered: Joi.boolean(),
+    review_reminder: Joi.boolean(),
+    order_address_updated: Joi.boolean(),
+    order_message: Joi.boolean(),
+    order_cancelled: Joi.boolean(),
+    feedback_read: Joi.boolean()
   }).min(1),
   pushTokenRegister: Joi.object({
     token: Joi.string().trim().required(),
@@ -260,5 +304,8 @@ export const schemas = {
   }),
   pushTokenRemove: Joi.object({
     token: Joi.string().trim().required()
+  }),
+  bulkProductAction: Joi.object({
+    productIds: Joi.array().items(Joi.string().hex().length(24)).min(1).max(100).required()
   })
 };

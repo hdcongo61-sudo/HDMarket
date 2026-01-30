@@ -112,6 +112,11 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       body = `${actorName} a certifié votre annonce${productLabel}.`;
       break;
     }
+    case 'product_boosted': {
+      title = 'Annonce boostée';
+      body = `${actorName} a boosté votre annonce${productLabel}. Elle sera maintenant mise en avant.`;
+      break;
+    }
     case 'promotional': {
       const discountValue = Number(metadata.discount ?? 0);
       const hasDiscount = Number.isFinite(discountValue) && discountValue > 0;
@@ -198,10 +203,39 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       body = `Votre commande ${orderId} a été livrée.`;
       break;
     }
+    case 'review_reminder': {
+      const productCount = metadata.productCount || 1;
+      const productText = productCount === 1 ? 'produit' : 'produits';
+      title = 'Donnez votre avis';
+      body = `Votre commande ${orderId} a été livrée. Partagez votre expérience en notant ${productCount > 1 ? `vos ${productCount} ${productText}` : 'votre produit'} !`;
+      break;
+    }
+    case 'order_address_updated': {
+      title = 'Adresse modifiée';
+      body = `L'adresse de livraison de la commande ${orderId} a été modifiée.`;
+      break;
+    }
+    case 'order_message': {
+      title = 'Nouveau message';
+      body = `${actorName} vous a envoyé un message concernant la commande ${orderId}.`;
+      break;
+    }
+    case 'order_cancelled': {
+      const reason = metadata.reason ? ` Raison: ${metadata.reason}` : '';
+      title = 'Commande annulée';
+      body = `Votre commande ${orderId} a été annulée par le vendeur.${reason}`;
+      break;
+    }
     case 'complaint_resolved': {
       const subjectLabel = metadata.subject ? ` (${metadata.subject})` : '';
       title = 'Réclamation résolue';
       body = `${actorName} a marqué votre réclamation${subjectLabel} comme résolue.`;
+      break;
+    }
+    case 'feedback_read': {
+      const subjectLabel = metadata.subject ? ` (${metadata.subject})` : '';
+      title = 'Avis lu';
+      body = `${actorName} a lu votre avis d’amélioration${subjectLabel}.`;
       break;
     }
     default:
@@ -230,15 +264,35 @@ export const sendPushNotification = async ({
   const { title, body } = buildPushPayload({ notification, actorName, productTitle, shopName });
   const productId = notification.product?._id || notification.product || '';
   const shopId = notification.shop?._id || notification.shop || '';
+  const orderId = notification.metadata?.orderId ? String(notification.metadata.orderId) : '';
+  
+  // Build deeplink URL based on notification type
+  let url = '';
+  const notificationType = notification.type || '';
+  if (notificationType.startsWith('order_')) {
+    // For order-related notifications, link to orders page
+    const status = notification.metadata?.status || '';
+    if (status && ['pending', 'confirmed', 'delivering', 'delivered', 'cancelled'].includes(status)) {
+      url = `/orders/${status}`;
+    } else {
+      url = '/orders';
+    }
+  } else if (productId) {
+    url = `/product/${notification.product?.slug || productId}`;
+  } else if (shopId) {
+    url = `/shop/${notification.shop?.slug || shopId}`;
+  }
+  
   const payload = {
     tokens: tokens.map((item) => item.token),
     notification: { title, body },
     data: {
       type: notification.type || 'notification',
       notificationId: String(notification._id || ''),
-      orderId: notification.metadata?.orderId ? String(notification.metadata.orderId) : '',
+      orderId,
       productId: productId ? String(productId) : '',
-      shopId: shopId ? String(shopId) : ''
+      shopId: shopId ? String(shopId) : '',
+      ...(url ? { url } : {})
     }
   };
 

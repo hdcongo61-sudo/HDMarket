@@ -31,7 +31,7 @@ const orderSchema = new mongoose.Schema(
     deliveryGuy: { type: mongoose.Schema.Types.ObjectId, ref: 'DeliveryGuy' },
     status: {
       type: String,
-      enum: ['pending', 'confirmed', 'delivering', 'delivered'],
+      enum: ['pending', 'confirmed', 'delivering', 'delivered', 'cancelled'],
       default: 'pending'
     },
     deliveryAddress: { type: String, required: true, trim: true },
@@ -47,12 +47,26 @@ const orderSchema = new mongoose.Schema(
     paymentName: { type: String, trim: true, default: '' },
     paymentTransactionCode: { type: String, trim: true, default: '' },
     shippedAt: { type: Date },
-    deliveredAt: { type: Date }
+    deliveredAt: { type: Date },
+    cancelledAt: { type: Date },
+    cancellationReason: { type: String, trim: true, default: '' },
+    cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    deliveryCode: { type: String, unique: true, sparse: true, trim: true },
+    isDraft: { type: Boolean, default: false },
+    draftPayments: {
+      type: [{
+        sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        payerName: { type: String, trim: true, default: '' },
+        transactionCode: { type: String, trim: true, default: '' }
+      }],
+      default: []
+    }
   },
   { timestamps: true }
 );
 
 orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ customer: 1, createdAt: -1 });
+orderSchema.index({ customer: 1, isDraft: 1, createdAt: -1 });
 
 export default mongoose.model('Order', orderSchema);

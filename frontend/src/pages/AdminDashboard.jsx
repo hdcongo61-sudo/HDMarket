@@ -1,12 +1,52 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell
+} from 'recharts';
 import api from '../services/api';
 import VerifiedBadge from '../components/VerifiedBadge';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import { buildProductPath } from '../utils/links';
-import { Paperclip } from 'lucide-react';
+import {
+  Paperclip,
+  Users,
+  Store,
+  Package,
+  DollarSign,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  BarChart3,
+  Settings,
+  RefreshCw,
+  Search,
+  Filter,
+  Eye,
+  X,
+  ChevronRight,
+  Activity,
+  ShoppingCart,
+  MessageSquare,
+  Shield,
+  FileText,
+  Calendar,
+  MapPin,
+  Phone,
+  Mail
+} from 'lucide-react';
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('fr-FR');
 const formatCurrency = (value) => `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
@@ -41,12 +81,22 @@ const formatMonthLabel = (key) => {
   return date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 };
 
-function SectionStatCard({ label, value, helper }) {
+function SectionStatCard({ label, value, helper, icon: Icon }) {
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white/80 px-4 py-3 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</p>
-      <p className="text-2xl font-semibold text-gray-900">{value}</p>
-      {helper ? <p className="text-xs text-gray-400 mt-1">{helper}</p> : null}
+    <div className="group relative overflow-hidden rounded-2xl border border-gray-200/60 bg-gradient-to-br from-white to-gray-50/50 px-5 py-4 shadow-sm transition-all duration-300 hover:shadow-md hover:border-indigo-200/60">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">{label}</p>
+          <p className="text-2xl font-bold text-gray-900 mb-1">{value}</p>
+          {helper ? <p className="text-xs text-gray-500 mt-1">{helper}</p> : null}
+        </div>
+        {Icon && (
+          <div className="ml-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 text-indigo-600 transition-transform duration-300 group-hover:scale-110">
+            <Icon size={20} strokeWidth={2} />
+          </div>
+        )}
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/0 to-purple-500/0 transition-opacity duration-300 group-hover:from-indigo-500/5 group-hover:to-purple-500/5" />
     </div>
   );
 }
@@ -86,12 +136,45 @@ const getPaymentSortValue = (payment, prioritizeUpdated = false) => {
 const PAYMENTS_PER_PAGE = 10;
 const USERS_PER_PAGE = 10;
 
-function StatCard({ title, value, subtitle, highlight }) {
+function StatCard({ title, value, subtitle, highlight, icon: Icon, trend }) {
+  const iconColors = highlight
+    ? 'from-indigo-500 to-purple-600'
+    : 'from-gray-400 to-gray-500';
+  
   return (
-    <div className="rounded-lg border bg-white p-4 shadow-sm space-y-1">
-      <p className="text-sm font-medium text-gray-500">{title}</p>
-      <p className={`text-2xl font-semibold ${highlight ? 'text-indigo-600' : 'text-gray-900'}`}>{value}</p>
-      {subtitle ? <p className="text-xs text-gray-500">{subtitle}</p> : null}
+    <div className={`group relative overflow-hidden rounded-2xl border transition-all duration-300 ${
+      highlight
+        ? 'border-indigo-200/60 bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/30 shadow-md hover:shadow-lg'
+        : 'border-gray-200/60 bg-gradient-to-br from-white to-gray-50/50 shadow-sm hover:shadow-md hover:border-indigo-200/40'
+    }`}>
+      <div className="p-5">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex-1">
+            <p className={`text-sm font-semibold mb-1 ${highlight ? 'text-indigo-700' : 'text-gray-600'}`}>
+              {title}
+            </p>
+            <p className={`text-3xl font-bold mb-1 ${highlight ? 'bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent' : 'text-gray-900'}`}>
+              {value}
+            </p>
+            {subtitle && (
+              <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1">
+                {trend && (
+                  <TrendingUp size={12} className={trend > 0 ? 'text-green-500' : 'text-red-500'} />
+                )}
+                {subtitle}
+              </p>
+            )}
+          </div>
+          {Icon && (
+            <div className={`ml-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${iconColors} text-white shadow-sm transition-transform duration-300 group-hover:scale-110 group-hover:shadow-md`}>
+              <Icon size={22} strokeWidth={2.5} />
+            </div>
+          )}
+        </div>
+      </div>
+      {highlight && (
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/0 via-purple-500/0 to-pink-500/0 transition-opacity duration-300 group-hover:from-indigo-500/5 group-hover:via-purple-500/5 group-hover:to-pink-500/5" />
+      )}
     </div>
   );
 }
@@ -105,6 +188,19 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState('');
+  const [salesTrends, setSalesTrends] = useState(null);
+  const [salesTrendsLoading, setSalesTrendsLoading] = useState(false);
+  const [salesTrendsPeriod, setSalesTrendsPeriod] = useState(30);
+  const [orderHeatmap, setOrderHeatmap] = useState(null);
+  const [orderHeatmapLoading, setOrderHeatmapLoading] = useState(false);
+  const [conversionMetrics, setConversionMetrics] = useState(null);
+  const [conversionLoading, setConversionLoading] = useState(false);
+  const [cohortAnalysis, setCohortAnalysis] = useState(null);
+  const [cohortLoading, setCohortLoading] = useState(false);
+  const [selectedHour, setSelectedHour] = useState(null);
+  const [hourOrders, setHourOrders] = useState([]);
+  const [hourOrdersLoading, setHourOrdersLoading] = useState(false);
+  const [hourOrdersError, setHourOrdersError] = useState('');
   const [userSearchDraft, setUserSearchDraft] = useState('');
   const [userSearchValue, setUserSearchValue] = useState('');
   const [userAccountFilter, setUserAccountFilter] = useState('person');
@@ -132,11 +228,6 @@ export default function AdminDashboard() {
   });
   const [activeAdminTab, setActiveAdminTab] = useState('overview');
   const externalLinkProps = useDesktopExternalLink();
-  const [prohibitedWords, setProhibitedWords] = useState([]);
-  const [newProhibitedWord, setNewProhibitedWord] = useState('');
-  const [prohibitedLoading, setProhibitedLoading] = useState(false);
-  const [prohibitedError, setProhibitedError] = useState('');
-  const [prohibitedMessage, setProhibitedMessage] = useState('');
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [reminderOrders, setReminderOrders] = useState([]);
   const [remindersLoading, setRemindersLoading] = useState(false);
@@ -209,6 +300,69 @@ export default function AdminDashboard() {
       setStatsError(e.response?.data?.message || e.message || 'Erreur lors du chargement des statistiques.');
     } finally {
       setStatsLoading(false);
+    }
+  }, []);
+
+  const loadSalesTrends = useCallback(async () => {
+    setSalesTrendsLoading(true);
+    try {
+      const { data } = await api.get(`/admin/analytics/sales-trends?days=${salesTrendsPeriod}`);
+      setSalesTrends(data);
+    } catch (e) {
+      console.error('Error loading sales trends:', e);
+    } finally {
+      setSalesTrendsLoading(false);
+    }
+  }, [salesTrendsPeriod]);
+
+  const loadOrderHeatmap = useCallback(async () => {
+    setOrderHeatmapLoading(true);
+    try {
+      const { data } = await api.get('/admin/analytics/order-heatmap');
+      setOrderHeatmap(data);
+    } catch (e) {
+      console.error('Error loading order heatmap:', e);
+    } finally {
+      setOrderHeatmapLoading(false);
+    }
+  }, []);
+
+  const loadConversionMetrics = useCallback(async () => {
+    setConversionLoading(true);
+    try {
+      const { data } = await api.get('/admin/analytics/conversion');
+      setConversionMetrics(data);
+    } catch (e) {
+      console.error('Error loading conversion metrics:', e);
+    } finally {
+      setConversionLoading(false);
+    }
+  }, []);
+
+  const loadCohortAnalysis = useCallback(async () => {
+    setCohortLoading(true);
+    try {
+      const { data } = await api.get('/admin/analytics/cohorts');
+      setCohortAnalysis(data);
+    } catch (e) {
+      console.error('Error loading cohort analysis:', e);
+    } finally {
+      setCohortLoading(false);
+    }
+  }, []);
+
+  const loadOrdersByHour = useCallback(async (hour) => {
+    setHourOrdersLoading(true);
+    setHourOrdersError('');
+    try {
+      const { data } = await api.get(`/admin/analytics/orders-by-hour?hour=${hour}`);
+      setHourOrders(data.orders || []);
+      setSelectedHour(hour);
+    } catch (e) {
+      setHourOrdersError(e.response?.data?.message || 'Erreur lors du chargement des commandes.');
+      setHourOrders([]);
+    } finally {
+      setHourOrdersLoading(false);
     }
   }, []);
 
@@ -391,66 +545,17 @@ export default function AdminDashboard() {
     }
   }, [canManageComplaints, complaintsFilter, normalizeUrl]);
 
-  const loadProhibitedWords = useCallback(async () => {
-    if (!canAccessBackOffice) return;
-    setProhibitedLoading(true);
-    setProhibitedError('');
-    try {
-      const { data } = await api.get('/admin/prohibited-words');
-      setProhibitedWords(Array.isArray(data) ? data : []);
-    } catch (error) {
-      setProhibitedError(
-        error.response?.data?.message || error.message || 'Impossible de charger les mots interdits.'
-      );
-      setProhibitedWords([]);
-    } finally {
-      setProhibitedLoading(false);
-    }
-  }, [canAccessBackOffice]);
 
-  const addProhibitedWord = useCallback(
-    async (event) => {
-      event.preventDefault();
-      if (!newProhibitedWord.trim()) return;
-      setProhibitedError('');
-      setProhibitedMessage('');
-      try {
-        const { data } = await api.post('/admin/prohibited-words', {
-          word: newProhibitedWord.trim()
-        });
-        setProhibitedWords((prev) => [...prev, data]);
-        setNewProhibitedWord('');
-        setProhibitedMessage('Mot ajouté à la liste.');
-      } catch (error) {
-        setProhibitedError(
-          error.response?.data?.message || error.message || 'Échec de l’ajout du mot interdit.'
-        );
-      }
-    },
-    [newProhibitedWord]
-  );
 
-  const removeProhibitedWord = useCallback(
-    async (id) => {
-      setProhibitedError('');
-      setProhibitedMessage('');
-      try {
-        await api.delete(`/admin/prohibited-words/${id}`);
-        setProhibitedWords((prev) => prev.filter((word) => word.id !== id));
-        setProhibitedMessage('Mot supprimé de la liste.');
-      } catch (error) {
-        setProhibitedError(
-          error.response?.data?.message || error.message || 'Impossible de supprimer le mot.'
-        );
-      }
-    },
-    []
-  );
 
   useEffect(() => {
     if (!canViewStats) return;
     loadStats();
-  }, [loadStats, canViewStats]);
+    loadSalesTrends();
+    loadOrderHeatmap();
+    loadConversionMetrics();
+    loadCohortAnalysis();
+  }, [loadStats, loadSalesTrends, loadOrderHeatmap, loadConversionMetrics, loadCohortAnalysis, canViewStats]);
 
   useEffect(() => {
     if (!canManagePayments) return;
@@ -533,11 +638,6 @@ export default function AdminDashboard() {
     if (!canManageComplaints) return;
     loadComplaints();
   }, [loadComplaints, canManageComplaints]);
-
-  useEffect(() => {
-    if (!canAccessBackOffice) return;
-    loadProhibitedWords();
-  }, [canAccessBackOffice, loadProhibitedWords]);
 
   const actOnPayment = useCallback(
     async (id, type) => {
@@ -739,14 +839,12 @@ const refreshAll = useCallback(() => {
   if (canViewStats) loadStats();
   if (canManagePayments) loadPayments();
   if (canManageUsers) loadUsers();
-  if (canAccessBackOffice) loadProhibitedWords();
   if (canManageComplaints) loadComplaints();
 }, [
   loadStats,
   loadPayments,
   loadUsers,
   loadComplaints,
-  loadProhibitedWords,
   canManagePayments,
   canManageUsers,
   canViewStats,
@@ -809,6 +907,104 @@ const refreshAll = useCallback(() => {
   const paymentsRangeStart = payments.length ? (paymentsPage - 1) * PAYMENTS_PER_PAGE + 1 : 0;
   const paymentsRangeEnd = payments.length ? Math.min(paymentsPage * PAYMENTS_PER_PAGE, payments.length) : 0;
 
+  const { overdueReminderOrders, regularReminderOrders } = useMemo(() => {
+    if (!reminderOrders.length) {
+      return { overdueReminderOrders: [], regularReminderOrders: [] };
+    }
+    const now = Date.now();
+    const thresholdMs = 48 * 60 * 60 * 1000;
+    const overdue = [];
+    const regular = [];
+    reminderOrders.forEach((order) => {
+      if (order?.status === 'delivered') return;
+      const createdAt = order?.createdAt ? new Date(order.createdAt).getTime() : 0;
+      const isOverdue = createdAt && now - createdAt >= thresholdMs;
+      if (isOverdue) {
+        overdue.push(order);
+      } else {
+        regular.push(order);
+      }
+    });
+    return { overdueReminderOrders: overdue, regularReminderOrders: regular };
+  }, [reminderOrders]);
+
+  const renderReminderOrderCard = (order) => {
+    const items = Array.isArray(order.items) ? order.items : [];
+    const statusLabel =
+      order.status === 'pending'
+        ? 'En attente'
+        : order.status === 'confirmed'
+        ? 'Confirmée'
+        : order.status === 'delivering'
+        ? 'En cours de livraison'
+        : 'Livrée';
+    const sellersMap = new Map();
+    items.forEach((item) => {
+      const shopId =
+        item.snapshot?.shopId ||
+        item.product?.user?._id ||
+        item.product?.user ||
+        '';
+      const shopName =
+        item.snapshot?.shopName ||
+        item.product?.user?.shopName ||
+        item.product?.user?.name ||
+        'Boutique';
+      const phone = item.product?.user?.phone || '';
+      const key = shopId ? String(shopId) : shopName;
+      if (sellersMap.has(key)) return;
+      sellersMap.set(key, { name: shopName, phone });
+    });
+    const sellers = Array.from(sellersMap.values());
+
+    return (
+      <div
+        key={order._id}
+        className="rounded-2xl border border-gray-100 p-4 flex flex-col gap-3"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">
+              Commande #{order._id.slice(-6)}
+            </p>
+            <p className="text-xs text-gray-500">
+              {order.customer?.name || 'Client'} · {order.deliveryCity}
+            </p>
+          </div>
+          <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700">
+            {statusLabel}
+          </span>
+        </div>
+        {sellers.length > 0 && (
+          <div className="text-xs text-gray-600 space-y-1">
+            {sellers.map((seller) => (
+              <p key={`${order._id}-${seller.name}`}>
+                Vendeur: {seller.name}
+                {seller.phone ? ` · ${seller.phone}` : ''}
+              </p>
+            ))}
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => handleSendReminder(order._id)}
+            disabled={reminderActioningId === order._id}
+            className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+          >
+            Rappel
+          </button>
+          <Link
+            to="/admin/orders"
+            className="text-xs font-semibold text-indigo-600 hover:underline"
+          >
+            Voir dans commandes
+          </Link>
+        </div>
+      </div>
+    );
+  };
+
   const shouldShowSection = (key) => !isMobileView || activeAdminTab === key;
 
   const paymentFilterOptions = [
@@ -819,40 +1015,58 @@ const refreshAll = useCallback(() => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 sm:px-6 lg:px-8">
-      <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{pageTitle}</h1>
-          <p className="text-sm text-gray-500">{pageSubtitle}</p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/20">
+      <div className="max-w-7xl mx-auto px-4 py-8 space-y-8 sm:px-6 lg:px-8">
+      <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between pb-6 border-b border-gray-200/60">
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 shadow-lg">
+              <Settings size={24} className="text-white" strokeWidth={2.5} />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-indigo-900 to-purple-900 bg-clip-text text-transparent">
+                {pageTitle}
+              </h1>
+              <p className="text-sm text-gray-600 mt-1">{pageSubtitle}</p>
+            </div>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-3">
           <button
             type="button"
             onClick={refreshAll}
-            className="inline-flex items-center justify-center rounded-md border border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           >
+            <RefreshCw size={16} className="transition-transform duration-300 hover:rotate-180" />
             Actualiser
           </button>
           <Link
-            to="/admin/products"
-            className="inline-flex items-center justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            to="/admin/settings"
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           >
+            <Settings size={16} />
+            App Settings
+          </Link>
+          <Link
+            to="/admin/products"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          >
+            <BarChart3 size={16} />
             Produits & statistiques
           </Link>
         </div>
       </header>
       {isMobileView && availableTabs.length > 1 && (
-        <div className="-mx-1 flex gap-2 overflow-x-auto pb-2">
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {availableTabs.map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => setActiveAdminTab(tab.key)}
-              className={`flex-shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
+              className={`flex-shrink-0 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200 ${
                 activeAdminTab === tab.key
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'bg-white text-gray-600 border border-gray-200'
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg scale-105'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50'
               }`}
             >
               {tab.label}
@@ -863,119 +1077,175 @@ const refreshAll = useCallback(() => {
 
       {canViewStats && shouldShowSection('overview') && (
         <>
-          <section className="space-y-3">
+          <section className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Vue d'ensemble</h2>
-          {stats?.generatedAt && (
-            <span className="text-xs text-gray-500">Mise à jour&nbsp;: {formatDateTime(stats.generatedAt)}</span>
-          )}
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100">
+              <Activity size={20} className="text-indigo-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Vue d'ensemble</h2>
+              {stats?.generatedAt && (
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Dernière mise à jour&nbsp;: {formatDateTime(stats.generatedAt)}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
-        {statsError ? <p className="text-sm text-red-600">{statsError}</p> : null}
+        {statsError ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-center gap-3">
+            <AlertCircle size={20} className="text-red-600 flex-shrink-0" />
+            <p className="text-sm font-medium text-red-800">{statsError}</p>
+          </div>
+        ) : null}
         {statsLoading && !stats ? (
-          <p className="text-sm text-gray-500">Chargement des statistiques…</p>
+          <div className="flex items-center justify-center py-12">
+            <div className="flex flex-col items-center gap-3">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+              <p className="text-sm font-medium text-gray-600">Chargement des statistiques…</p>
+            </div>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
               title="Utilisateurs inscrits"
               value={formatNumber(stats?.users?.total)}
               subtitle={`${formatNumber(stats?.users?.newLast30Days)} nouveaux sur 30 jours`}
+              icon={Users}
+              trend={stats?.users?.newLast30Days > 0 ? 1 : -1}
             />
             <StatCard
               title="Boutiques actives"
               value={formatNumber(stats?.users?.shops)}
               subtitle={`${formatNumber(stats?.users?.admins)} administrateurs`}
+              icon={Store}
             />
             <StatCard
               title="Annonces actives"
               value={formatNumber(stats?.products?.total)}
               subtitle={`${formatNumber(stats?.products?.approved)} publiées`}
+              icon={Package}
             />
             <StatCard
               title="Annonces en attente"
               value={formatNumber(stats?.products?.pending)}
               subtitle={`${formatNumber(stats?.products?.rejected)} rejetées`}
+              icon={Clock}
             />
             <StatCard
               title="Paiements en attente"
               value={formatNumber(stats?.payments?.waiting)}
               subtitle={`${formatNumber(stats?.payments?.verified)} validés`}
+              icon={DollarSign}
             />
             <StatCard
               title="Commentaires"
               value={formatNumber(stats?.engagement?.comments)}
               subtitle={`${formatNumber(stats?.engagement?.ratings)} évaluations`}
+              icon={MessageSquare}
             />
             <StatCard
               title="CA total"
               value={formatCurrency(stats?.payments?.revenue)}
               subtitle={`${formatCurrency(stats?.payments?.revenueLast30Days)} sur 30 jours`}
               highlight
+              icon={TrendingUp}
+              trend={stats?.payments?.revenueLast30Days > 0 ? 1 : -1}
             />
             <StatCard
               title="Favoris enregistrés"
               value={formatNumber(stats?.engagement?.favorites)}
               subtitle="Total cumulé"
+              icon={ShoppingCart}
             />
           </div>
         )}
           </section>
 
-          <section className="space-y-3">
+          <section className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Commandes globales</h2>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100">
+                  <ShoppingCart size={20} className="text-emerald-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Commandes globales</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">Suivi des commandes et livraisons</p>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => setRemindersOpen(true)}
-                className="text-xs font-semibold text-indigo-600 hover:underline"
+                className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 transition-all duration-200 hover:bg-indigo-100 hover:border-indigo-300"
               >
+                <Clock size={16} />
                 Relances commandes
               </button>
             </div>
-            {statsError ? <p className="text-sm text-red-600">{statsError}</p> : null}
+            {statsError ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-center gap-3">
+                <AlertCircle size={20} className="text-red-600 flex-shrink-0" />
+                <p className="text-sm font-medium text-red-800">{statsError}</p>
+              </div>
+            ) : null}
             {statsLoading && !stats ? (
-              <p className="text-sm text-gray-500">Chargement des statistiques…</p>
+              <div className="flex items-center justify-center py-12">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+                  <p className="text-sm font-medium text-gray-600">Chargement des statistiques…</p>
+                </div>
+              </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard
                   title="Commandes totales"
                   value={formatNumber(orderStats.total || 0)}
                   subtitle="Toutes les commandes"
+                  icon={FileText}
                 />
                 <StatCard
                   title="En attente"
                   value={formatNumber(orderByStatus.pending?.count || 0)}
                   subtitle="À valider"
+                  icon={Clock}
                 />
                 <StatCard
                   title="Confirmées"
                   value={formatNumber(orderByStatus.confirmed?.count || 0)}
                   subtitle="À préparer"
+                  icon={CheckCircle}
                 />
                 <StatCard
                   title="En cours de livraison"
                   value={formatNumber(orderByStatus.delivering?.count || 0)}
                   subtitle="Expédiées"
+                  icon={Package}
                 />
                 <StatCard
                   title="Livrées"
                   value={formatNumber(orderByStatus.delivered?.count || 0)}
                   subtitle="Terminées"
+                  icon={CheckCircle}
                 />
                 <StatCard
                   title="Montant total"
                   value={formatCurrency(orderStats.totalAmount || 0)}
                   subtitle="Volume commandes"
                   highlight
+                  icon={TrendingUp}
                 />
                 <StatCard
                   title="Acomptes encaissés"
                   value={formatCurrency(orderStats.paidAmount || 0)}
                   subtitle="Paiements reçus"
+                  icon={DollarSign}
                 />
                 <StatCard
                   title="Reste à payer"
                   value={formatCurrency(orderStats.remainingAmount || 0)}
                   subtitle="Soldes ouverts"
+                  icon={AlertCircle}
                 />
               </div>
             )}
@@ -1015,140 +1285,414 @@ const refreshAll = useCallback(() => {
                 ) : reminderOrders.length === 0 ? (
                   <p className="text-sm text-gray-500">Aucune commande à relancer.</p>
                 ) : (
-                  <div className="space-y-3 max-h-[60vh] overflow-auto pr-1">
-                    {reminderOrders.map((order) => {
-                      const items = Array.isArray(order.items) ? order.items : [];
-                      const statusLabel =
-                        order.status === 'pending'
-                          ? 'En attente'
-                          : order.status === 'confirmed'
-                          ? 'Confirmée'
-                          : order.status === 'delivering'
-                          ? 'En cours de livraison'
-                          : 'Livrée';
-                      const sellersMap = new Map();
-                      items.forEach((item) => {
-                        const shopId =
-                          item.snapshot?.shopId ||
-                          item.product?.user?._id ||
-                          item.product?.user ||
-                          '';
-                        const shopName =
-                          item.snapshot?.shopName ||
-                          item.product?.user?.shopName ||
-                          item.product?.user?.name ||
-                          'Boutique';
-                        const phone = item.product?.user?.phone || '';
-                        const key = shopId ? String(shopId) : shopName;
-                        if (sellersMap.has(key)) return;
-                        sellersMap.set(key, { name: shopName, phone });
-                      });
-                      const sellers = Array.from(sellersMap.values());
-                      return (
-                        <div
-                          key={order._id}
-                          className="rounded-2xl border border-gray-100 p-4 flex flex-col gap-3"
-                        >
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div>
-                              <p className="text-sm font-semibold text-gray-900">
-                                Commande #{order._id.slice(-6)}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {order.customer?.name || 'Client'} · {order.deliveryCity}
-                              </p>
-                            </div>
-                            <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700">
-                              {statusLabel}
-                            </span>
-                          </div>
-                          {sellers.length > 0 && (
-                            <div className="text-xs text-gray-600 space-y-1">
-                              {sellers.map((seller) => (
-                                <p key={`${order._id}-${seller.name}`}>
-                                  Vendeur: {seller.name}
-                                  {seller.phone ? ` · ${seller.phone}` : ''}
-                                </p>
-                              ))}
-                            </div>
-                          )}
-                          <div className="flex flex-wrap items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleSendReminder(order._id)}
-                              disabled={reminderActioningId === order._id}
-                              className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
-                            >
-                              Rappel
-                            </button>
-                            <Link
-                              to="/admin/orders"
-                              className="text-xs font-semibold text-indigo-600 hover:underline"
-                            >
-                              Voir dans commandes
-                            </Link>
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div className="space-y-4 max-h-[60vh] overflow-auto pr-1">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs uppercase tracking-wide text-rose-600">
+                          Commandes +48h non livrées
+                        </p>
+                        <span className="text-xs font-semibold text-rose-600">
+                          {overdueReminderOrders.length}
+                        </span>
+                      </div>
+                      {overdueReminderOrders.length === 0 ? (
+                        <p className="text-sm text-gray-500">
+                          Aucune commande en retard pour le moment.
+                        </p>
+                      ) : (
+                        overdueReminderOrders.map(renderReminderOrderCard)
+                      )}
+                    </div>
+
+                    <div className="space-y-3">
+                      <p className="text-xs uppercase tracking-wide text-gray-500">
+                        Autres commandes à relancer
+                      </p>
+                      {regularReminderOrders.length === 0 ? (
+                        <p className="text-sm text-gray-500">
+                          Aucune autre commande à relancer.
+                        </p>
+                      ) : (
+                        regularReminderOrders.map(renderReminderOrderCard)
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {canAccessBackOffice && (
-            <section className="rounded-2xl border border-dashed border-gray-200 bg-white/70 p-4 shadow-sm space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Mots interdits</h3>
-                <p className="text-xs text-gray-500">
-                  Ajoutez les mots que les vendeurs ne doivent pas utiliser dans leurs annonces. Les annonces contenant ces mots seront bloquées.
-                </p>
+          {/* Analytics Charts Section */}
+          {canViewStats && (
+            <section className="space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100">
+                  <BarChart3 size={20} className="text-indigo-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Analytics en Temps Réel</h3>
+                  <p className="text-xs text-gray-600 mt-0.5">
+                    Graphiques interactifs et analyses détaillées de l'activité
+                  </p>
+                </div>
               </div>
-              <form onSubmit={addProhibitedWord} className="flex flex-col gap-2 sm:flex-row">
-                <input
-                  type="text"
-                  placeholder="Ex : contrefaçon, interdit..."
-                  value={newProhibitedWord}
-                  onChange={(event) => setNewProhibitedWord(event.target.value)}
-                  className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                  disabled={prohibitedLoading}
-                />
-                <button
-                  type="submit"
-                  disabled={prohibitedLoading}
-                  className="rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                >
-                  Ajouter
-                </button>
-              </form>
-              {prohibitedMessage && (
-                <p className="text-xs text-green-600">{prohibitedMessage}</p>
-              )}
-              {prohibitedError && (
-                <p className="text-xs text-red-600">{prohibitedError}</p>
-              )}
-              <div className="flex flex-wrap gap-2">
-                {prohibitedWords.map((item) => (
-                  <span
-                    key={item.id}
-                    className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700"
-                  >
-                    {item.word}
-                    <button
-                      type="button"
-                      onClick={() => removeProhibitedWord(item.id)}
-                      className="text-[11px] text-red-600 hover:text-red-500"
-                    >
-                      Supprimer
-                    </button>
-                  </span>
-                ))}
-                {!prohibitedWords.length && (
-                  <p className="text-xs text-gray-400">Aucun mot interdit défini pour l’instant.</p>
+
+              {/* Sales Trends Chart */}
+              <div className="rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-base font-semibold text-gray-900">Tendances de Vente</h4>
+                  <div className="flex gap-2">
+                    {[7, 30, 90].map((days) => (
+                      <button
+                        key={days}
+                        type="button"
+                        onClick={() => {
+                          setSalesTrendsPeriod(days);
+                          loadSalesTrends();
+                        }}
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                          salesTrendsPeriod === days
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {days}j
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {salesTrendsLoading ? (
+                  <div className="h-64 flex items-center justify-center">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+                  </div>
+                ) : salesTrends?.trends?.length ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={salesTrends.trends}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis dataKey="label" stroke="#6b7280" fontSize={12} />
+                      <YAxis yAxisId="left" stroke="#6b7280" fontSize={12} />
+                      <YAxis yAxisId="right" orientation="right" stroke="#10b981" fontSize={12} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'white',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px'
+                        }}
+                        formatter={(value, name) => {
+                          if (name === 'Revenus (FCFA)') {
+                            return `${Number(value).toLocaleString('fr-FR')} FCFA`;
+                          }
+                          return value;
+                        }}
+                      />
+                      <Legend />
+                      <Line
+                        yAxisId="left"
+                        type="monotone"
+                        dataKey="orders"
+                        stroke="#4f46e5"
+                        strokeWidth={2}
+                        name="Commandes"
+                        dot={{ r: 4 }}
+                      />
+                      <Line
+                        yAxisId="right"
+                        type="monotone"
+                        dataKey="revenue"
+                        stroke="#10b981"
+                        strokeWidth={2}
+                        name="Revenus (FCFA)"
+                        dot={{ r: 4 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-sm text-gray-500 text-center py-12">Aucune donnée disponible</p>
                 )}
               </div>
+
+              {/* Order Heatmap */}
+              <div className="rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
+                <h4 className="text-base font-semibold text-gray-900 mb-4">Heatmap des Heures de Pointe</h4>
+                {orderHeatmapLoading ? (
+                  <div className="h-64 flex items-center justify-center">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+                  </div>
+                ) : orderHeatmap?.heatmap?.length ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={orderHeatmap.heatmap}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis dataKey="label" stroke="#6b7280" fontSize={12} />
+                      <YAxis stroke="#6b7280" fontSize={12} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'white',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px'
+                        }}
+                        formatter={(value, name) => {
+                          if (name === 'Commandes') {
+                            return [`${value} commandes`, name];
+                          }
+                          return [value, name];
+                        }}
+                      />
+                      <Bar 
+                        dataKey="count" 
+                        name="Commandes" 
+                        fill="#4f46e5" 
+                        radius={[8, 8, 0, 0]}
+                        onClick={(data) => {
+                          if (data && typeof data.hour === 'number') {
+                            loadOrdersByHour(data.hour);
+                          }
+                        }}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {orderHeatmap.heatmap.map((entry, index) => {
+                          const intensity = entry.count / Math.max(...orderHeatmap.heatmap.map((h) => h.count));
+                          const isSelected = selectedHour === entry.hour;
+                          return (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={isSelected 
+                                ? `rgba(79, 70, 229, 1)` 
+                                : `rgba(79, 70, 229, ${Math.max(0.3, intensity)})`
+                              }
+                              stroke={isSelected ? '#1e1b4b' : 'none'}
+                              strokeWidth={isSelected ? 2 : 0}
+                            />
+                          );
+                        })}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-sm text-gray-500 text-center py-12">Aucune donnée disponible</p>
+                )}
+              </div>
+
+              {/* Conversion Metrics */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
+                  <h4 className="text-base font-semibold text-gray-900 mb-4">Métriques de Conversion</h4>
+                  {conversionLoading ? (
+                    <div className="h-48 flex items-center justify-center">
+                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+                    </div>
+                  ) : conversionMetrics ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-lg">
+                        <span className="text-sm text-gray-700">Visiteurs uniques</span>
+                        <span className="text-lg font-bold text-indigo-600">
+                          {conversionMetrics.metrics.uniqueVisitors.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                        <span className="text-sm text-gray-700">Clients uniques</span>
+                        <span className="text-lg font-bold text-green-600">
+                          {conversionMetrics.metrics.uniqueCustomers.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                        <span className="text-sm text-gray-700">Taux de conversion</span>
+                        <span className="text-lg font-bold text-purple-600">
+                          {conversionMetrics.metrics.visitorToOrderRate}%
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
+                        <span className="text-sm text-gray-700">Vues totales</span>
+                        <span className="text-lg font-bold text-amber-600">
+                          {conversionMetrics.metrics.totalViews.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-8">Aucune donnée disponible</p>
+                  )}
+                </div>
+
+                {/* Cohort Analysis */}
+                <div className="rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
+                  <h4 className="text-base font-semibold text-gray-900 mb-4">Analyse de Cohort</h4>
+                  {cohortLoading ? (
+                    <div className="h-48 flex items-center justify-center">
+                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+                    </div>
+                  ) : cohortAnalysis?.cohorts?.length ? (
+                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                      {cohortAnalysis.cohorts.slice(-6).map((cohort) => (
+                        <div key={cohort.cohort} className="p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-semibold text-gray-900">{cohort.label}</span>
+                            <span className="text-xs text-gray-500">
+                              {cohort.retentionRate}% rétention
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-4 text-xs text-gray-600">
+                            <span>{cohort.totalUsers} utilisateurs</span>
+                            <span>{cohort.activeUsers} actifs</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-8">Aucune donnée disponible</p>
+                  )}
+                </div>
+              </div>
             </section>
+          )}
+
+          {/* Orders by Hour Modal */}
+          {selectedHour !== null && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+              <div
+                className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+                onClick={() => {
+                  setSelectedHour(null);
+                  setHourOrders([]);
+                }}
+              />
+              <div
+                className="relative w-full max-w-4xl max-h-[90vh] rounded-3xl bg-white shadow-xl border border-gray-100 p-6 flex flex-col"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-gray-500">Commandes par heure</p>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Commandes créées à {String(selectedHour).padStart(2, '0')}:00
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Derniers 30 jours · {hourOrders.length} commande{hourOrders.length > 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedHour(null);
+                      setHourOrders([]);
+                    }}
+                    className="h-9 w-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors"
+                    aria-label="Fermer"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto pr-2">
+                  {hourOrdersLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+                    </div>
+                  ) : hourOrdersError ? (
+                    <p className="text-sm text-red-600 text-center py-8">{hourOrdersError}</p>
+                  ) : hourOrders.length === 0 ? (
+                    <p className="text-sm text-gray-500 text-center py-12">Aucune commande trouvée pour cette heure.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {hourOrders.map((order) => (
+                        <div
+                          key={order.id}
+                          className="rounded-xl border border-gray-200 bg-gray-50 p-4 hover:bg-gray-100 transition-colors"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-sm font-semibold text-gray-900">
+                                  {order.customer?.name || 'Client inconnu'}
+                                </span>
+                                <span
+                                  className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                                    order.status === 'delivered'
+                                      ? 'bg-green-100 text-green-800'
+                                      : order.status === 'cancelled'
+                                      ? 'bg-red-100 text-red-800'
+                                      : order.status === 'delivering'
+                                      ? 'bg-blue-100 text-blue-800'
+                                      : order.status === 'confirmed'
+                                      ? 'bg-yellow-100 text-yellow-800'
+                                      : 'bg-gray-100 text-gray-800'
+                                  }`}
+                                >
+                                  {order.status === 'pending'
+                                    ? 'En attente'
+                                    : order.status === 'confirmed'
+                                    ? 'Confirmée'
+                                    : order.status === 'delivering'
+                                    ? 'En livraison'
+                                    : order.status === 'delivered'
+                                    ? 'Livrée'
+                                    : 'Annulée'}
+                                </span>
+                              </div>
+                              {order.customer?.email && (
+                                <p className="text-xs text-gray-600">{order.customer.email}</p>
+                              )}
+                              {order.customer?.phone && (
+                                <p className="text-xs text-gray-600">{order.customer.phone}</p>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-bold text-gray-900">
+                                {formatCurrency(order.totalAmount || 0)}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {formatDateTime(order.createdAt)}
+                              </p>
+                            </div>
+                          </div>
+
+                          {order.items?.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-gray-200">
+                              <p className="text-xs font-semibold text-gray-700 mb-2">Articles:</p>
+                              <div className="space-y-1">
+                                {order.items.slice(0, 3).map((item, idx) => (
+                                  <div key={idx} className="flex items-center justify-between text-xs">
+                                    <span className="text-gray-700">
+                                      {item.product?.title || item.snapshot?.title || 'Produit'} × {item.quantity || 1}
+                                    </span>
+                                    {item.product?.price && (
+                                      <span className="text-gray-600">
+                                        {formatCurrency(item.product.price * (item.quantity || 1))}
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                                {order.items.length > 3 && (
+                                  <p className="text-xs text-gray-500">
+                                    +{order.items.length - 3} autre{order.items.length - 3 > 1 ? 's' : ''}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {order.deliveryAddress && (
+                            <div className="mt-2 pt-2 border-t border-gray-200">
+                              <p className="text-xs text-gray-600">
+                                <MapPin size={12} className="inline mr-1" />
+                                {order.deliveryAddress}
+                                {order.deliveryCity && `, ${order.deliveryCity}`}
+                              </p>
+                            </div>
+                          )}
+
+                          {order.deliveryCode && (
+                            <div className="mt-2">
+                              <span className="text-xs font-semibold text-indigo-600">
+                                Code: {order.deliveryCode}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
 
           {(cityStats.length > 0 || genderStats.length > 0 || productCityStats.length > 0 || productGenderStats.length > 0) && (

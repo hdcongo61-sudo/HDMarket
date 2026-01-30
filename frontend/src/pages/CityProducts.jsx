@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
@@ -7,6 +8,7 @@ import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 const cityOptions = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
 
 export default function CityProducts() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -132,11 +134,18 @@ export default function CityProducts() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6">
+        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
-            <p className="text-sm text-gray-500">
+            <button
+              onClick={() => navigate(-1)}
+              className="inline-flex items-center gap-2 mb-3 sm:mb-4 text-sm font-semibold text-gray-600 hover:text-indigo-600 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Retour
+            </button>
+            <h1 className="text-xl sm:text-3xl font-bold text-gray-900">{title}</h1>
+            <p className="text-xs sm:text-sm text-gray-500">
               Consultez les annonces publiées depuis nos principales villes de la République du Congo.
             </p>
           </div>
@@ -166,20 +175,20 @@ export default function CityProducts() {
         )}
 
         {loading ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                <div className="mb-3 h-48 rounded-xl bg-gray-100 animate-pulse" />
-                <div className="space-y-2">
-                  <div className="h-4 rounded bg-gray-100 animate-pulse" />
-                  <div className="h-4 w-2/3 rounded bg-gray-100 animate-pulse" />
-                  <div className="h-4 w-1/3 rounded bg-gray-100 animate-pulse" />
+              <div key={index} className="rounded-2xl border border-gray-200 bg-white p-2 sm:p-4 shadow-sm">
+                <div className="mb-2 sm:mb-3 aspect-square rounded-xl bg-gray-100 animate-pulse" />
+                <div className="space-y-1.5 sm:space-y-2">
+                  <div className="h-3 sm:h-4 rounded bg-gray-100 animate-pulse" />
+                  <div className="h-3 sm:h-4 w-2/3 rounded bg-gray-100 animate-pulse" />
+                  <div className="h-3 sm:h-4 w-1/3 rounded bg-gray-100 animate-pulse" />
                 </div>
               </div>
             ))}
           </div>
         ) : items.length ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {items.map((product) => (
               <ProductCard key={product._id} p={product} />
             ))}

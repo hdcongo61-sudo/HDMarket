@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { SlidersHorizontal } from 'lucide-react';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
 import { getCategoryMeta } from '../data/categories';
@@ -35,6 +36,15 @@ const [isMobileView, setIsMobileView] = useState(() =>
   useEffect(() => {
     setCategoryFilter(categoryParam);
   }, [categoryParam]);
+
+  // Initialize search from URL parameter
+  const searchParam = searchParams.get('search') || '';
+  useEffect(() => {
+    if (searchParam) {
+      setSearchInput(searchParam);
+      setSearchTerm(searchParam);
+    }
+  }, [searchParam]);
 
 const fetchProducts = useCallback(async () => {
   setLoading(true);
@@ -123,12 +133,31 @@ const fetchProducts = useCallback(async () => {
 
   const handleSearchSubmit = (event) => {
     event.preventDefault();
-    setSearchTerm(searchInput.trim());
+    const trimmedSearch = searchInput.trim();
+    setSearchTerm(trimmedSearch);
+    // Update URL with search parameter
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      if (trimmedSearch) {
+        params.set('search', trimmedSearch);
+      } else {
+        params.delete('search');
+      }
+      params.delete('page'); // Reset to page 1 on new search
+      return params;
+    }, { replace: true });
   };
 
   const clearSearch = () => {
     setSearchInput('');
     setSearchTerm('');
+    // Remove search parameter from URL
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      params.delete('search');
+      params.delete('page'); // Reset to page 1
+      return params;
+    }, { replace: true });
   };
 
 const paginationButtons = useMemo(() => {
@@ -164,14 +193,21 @@ const paginationButtons = useMemo(() => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Tous les produits</h1>
-            <p className="text-sm text-gray-500">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6">
+        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
+          <div className="flex-1">
+            <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Tous les produits</h1>
+            <p className="text-xs sm:text-sm text-gray-500">
               Parcourez les annonces disponibles sur HDMarket et découvrez les nouveautés.
             </p>
           </div>
+          <Link
+            to="/search"
+            className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            Recherche avancée
+          </Link>
           <form
             onSubmit={handleSearchSubmit}
             className="w-full md:w-auto flex flex-col sm:flex-row gap-2 sm:items-center"
@@ -205,8 +241,8 @@ const paginationButtons = useMemo(() => {
           </form>
         </header>
 
-        <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div className="flex items-center gap-2 text-sm text-gray-500">
+        <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-500 flex-wrap">
             <span>
               {items.length} résultat{items.length > 1 ? 's' : ''} affiché{items.length > 1 ? 's' : ''}
             </span>
@@ -226,15 +262,15 @@ const paginationButtons = useMemo(() => {
               </button>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <label htmlFor="sort-options" className="text-sm text-gray-600">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <label htmlFor="sort-options" className="text-xs sm:text-sm text-gray-600">
               Trier par
             </label>
             <select
               id="sort-options"
               value={sort}
               onChange={(event) => setSort(event.target.value)}
-              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              className="rounded-lg sm:rounded-xl border border-gray-200 bg-white px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
             >
               {SORT_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -252,20 +288,20 @@ const paginationButtons = useMemo(() => {
         )}
 
         {loading ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                <div className="mb-3 h-48 rounded-xl bg-gray-100 animate-pulse" />
-                <div className="space-y-2">
-                  <div className="h-4 rounded bg-gray-100 animate-pulse" />
-                  <div className="h-4 w-2/3 rounded bg-gray-100 animate-pulse" />
-                  <div className="h-4 w-1/3 rounded bg-gray-100 animate-pulse" />
+              <div key={index} className="rounded-xl border border-gray-200 bg-white p-2 sm:p-4 shadow-sm">
+                <div className="mb-2 sm:mb-3 aspect-square rounded-lg bg-gray-100 animate-pulse" />
+                <div className="space-y-1.5 sm:space-y-2">
+                  <div className="h-3 sm:h-4 rounded bg-gray-100 animate-pulse" />
+                  <div className="h-3 sm:h-4 w-2/3 rounded bg-gray-100 animate-pulse" />
+                  <div className="h-3 sm:h-4 w-1/3 rounded bg-gray-100 animate-pulse" />
                 </div>
               </div>
             ))}
           </div>
         ) : items.length ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {items.map((product) => (
               <ProductCard
                 key={product._id}

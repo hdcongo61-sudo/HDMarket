@@ -1,8 +1,9 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useRef, useCallback } from 'react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
-import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2 } from 'lucide-react';
+import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2 } from 'lucide-react';
 import categoryGroups from '../data/categories';
+import ProductCard from './ProductCard';
 
 const operatorPhones = {
   MTN: '069822930',
@@ -54,11 +55,26 @@ export default function ProductForm(props) {
   const [removePdf, setRemovePdf] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [isCompressingVideo, setIsCompressingVideo] = useState(false);
+  const [compressionProgress, setCompressionProgress] = useState(0);
+  const [originalVideoSize, setOriginalVideoSize] = useState(0);
+  
+  // Image cropping states
+  const [croppingImage, setCroppingImage] = useState(null);
+  const [cropData, setCropData] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [imageScale, setImageScale] = useState(1);
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+  const cropCanvasRef = useRef(null);
+  const cropContainerRef = useRef(null);
+  const imageRef = useRef(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   const handleImageChange = (e) => {
     const selectedFiles = Array.from(e.target.files || []);
     if (!selectedFiles.length) return;
-    const maxSelectable = Math.max(0, MAX_IMAGES - existingImages.length);
+    const maxSelectable = Math.max(0, MAX_IMAGES - existingImages.length - files.length);
     if (maxSelectable === 0) {
       setImageError(`Maximum ${MAX_IMAGES} photos au total. Supprimez une image pour en ajouter.`);
       e.target.value = '';
@@ -70,13 +86,199 @@ export default function ProductForm(props) {
     } else {
       setImageError('');
     }
-    setFiles(limitedFiles);
-    const previews = limitedFiles.map((file) => ({
-      url: URL.createObjectURL(file),
-      name: file.name
-    }));
-    setImagePreviews(previews);
+    
+    // Open crop modal for first image
+    if (limitedFiles.length > 0) {
+      const firstFile = limitedFiles[0];
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setCroppingImage({
+          file: firstFile,
+          url: event.target.result,
+          index: files.length
+        });
+        // Initialize crop area
+        setTimeout(() => {
+          initializeCropArea(event.target.result);
+        }, 100);
+      };
+      reader.readAsDataURL(firstFile);
+    }
+    
+    // If multiple files, add rest to queue
+    if (limitedFiles.length > 1) {
+      const remainingFiles = limitedFiles.slice(1);
+      setFiles((prev) => [...prev, ...remainingFiles.map(f => ({ file: f, cropped: false }))]);
+    }
+    
     e.target.value = '';
+  };
+
+  const initializeCropArea = (imageUrl) => {
+    const img = new Image();
+    img.onload = () => {
+      const container = cropContainerRef.current;
+      if (!container) return;
+      
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      const imgAspect = img.width / img.height;
+      const containerAspect = containerWidth / containerHeight;
+      
+      let displayWidth, displayHeight;
+      if (imgAspect > containerAspect) {
+        displayWidth = containerWidth;
+        displayHeight = containerWidth / imgAspect;
+      } else {
+        displayHeight = containerHeight;
+        displayWidth = containerHeight * imgAspect;
+      }
+      
+      setImageScale(displayWidth / img.width);
+      setImagePosition({
+        x: (containerWidth - displayWidth) / 2,
+        y: (containerHeight - displayHeight) / 2
+      });
+      
+      // Initialize crop area (square, centered)
+      const cropSize = Math.min(displayWidth, displayHeight) * 0.8;
+      setCropData({
+        x: (containerWidth - cropSize) / 2,
+        y: (containerHeight - cropSize) / 2,
+        width: cropSize,
+        height: cropSize
+      });
+    };
+    img.src = imageUrl;
+  };
+
+  const handleCropMouseDown = (e) => {
+    if (!croppingImage) return;
+    setIsDragging(true);
+    const rect = cropContainerRef.current.getBoundingClientRect();
+    setDragStart({
+      x: e.clientX - rect.left - cropData.x,
+      y: e.clientY - rect.top - cropData.y
+    });
+  };
+
+  const handleCropMouseMove = (e) => {
+    if (!isDragging || !croppingImage || !cropContainerRef.current) return;
+    
+    const rect = cropContainerRef.current.getBoundingClientRect();
+    const newX = e.clientX - rect.left - dragStart.x;
+    const newY = e.clientY - rect.top - dragStart.y;
+    
+    const maxX = rect.width - cropData.width;
+    const maxY = rect.height - cropData.height;
+    
+    setCropData({
+      ...cropData,
+      x: Math.max(0, Math.min(maxX, newX)),
+      y: Math.max(0, Math.min(maxY, newY))
+    });
+  };
+
+  const handleCropMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleCropResize = (e, corner) => {
+    if (!croppingImage || !cropContainerRef.current) return;
+    
+    const rect = cropContainerRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    let newCropData = { ...cropData };
+    
+    if (corner === 'se') {
+      newCropData.width = Math.max(100, Math.min(rect.width - cropData.x, mouseX - cropData.x));
+      newCropData.height = newCropData.width; // Keep square
+    } else if (corner === 'nw') {
+      const newWidth = Math.max(100, cropData.x + cropData.width - mouseX);
+      newCropData.x = mouseX;
+      newCropData.width = newWidth;
+      newCropData.height = newWidth;
+    }
+    
+    // Constrain to container
+    if (newCropData.x + newCropData.width > rect.width) {
+      newCropData.width = rect.width - newCropData.x;
+      newCropData.height = newCropData.width;
+    }
+    if (newCropData.y + newCropData.height > rect.height) {
+      newCropData.height = rect.height - newCropData.y;
+      newCropData.width = newCropData.height;
+    }
+    
+    setCropData(newCropData);
+  };
+
+  const cropImage = useCallback(() => {
+    if (!croppingImage || !imageRef.current) return null;
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = imageRef.current;
+    
+    // Calculate actual crop coordinates on original image
+    const scaleX = img.naturalWidth / img.width;
+    const scaleY = img.naturalHeight / img.height;
+    
+    const cropX = (cropData.x - imagePosition.x) * scaleX;
+    const cropY = (cropData.y - imagePosition.y) * scaleY;
+    const cropWidth = cropData.width * scaleX;
+    const cropHeight = cropData.height * scaleY;
+    
+    canvas.width = cropWidth;
+    canvas.height = cropHeight;
+    
+    ctx.drawImage(
+      img,
+      cropX, cropY, cropWidth, cropHeight,
+      0, 0, cropWidth, cropHeight
+    );
+    
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        const file = new File([blob], croppingImage.file.name, {
+          type: croppingImage.file.type,
+          lastModified: Date.now()
+        });
+        resolve(file);
+      }, croppingImage.file.type, 0.95);
+    });
+  }, [croppingImage, cropData, imagePosition]);
+
+  const handleCropConfirm = async () => {
+    const croppedFile = await cropImage();
+    if (!croppedFile) return;
+    
+    const newPreview = {
+      url: URL.createObjectURL(croppedFile),
+      name: croppingImage.file.name
+    };
+    
+    setFiles((prev) => {
+      const updated = [...prev];
+      updated[croppingImage.index] = { file: croppedFile, cropped: true };
+      return updated;
+    });
+    
+    setImagePreviews((prev) => {
+      const updated = [...prev];
+      updated[croppingImage.index] = newPreview;
+      return updated;
+    });
+    
+    setCroppingImage(null);
+    setImageError('');
+  };
+
+  const handleCropCancel = () => {
+    setCroppingImage(null);
+    setCropData({ x: 0, y: 0, width: 0, height: 0 });
   };
 
   const removeImage = (index) => {
@@ -95,25 +297,182 @@ export default function ProductForm(props) {
     if (existingImages.length - 1 + files.length < MAX_IMAGES) setImageError('');
   };
 
-  const handleVideoChange = (e) => {
+  const handleVideoChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    
     if (!file.type.startsWith('video/')) {
       setVideoError('Le fichier doit être une vidéo (MP4, MOV, ...).');
+      e.target.value = '';
       return;
     }
-    if (file.size > MAX_VIDEO_SIZE_MB * 1024 * 1024) {
-      setVideoError(`La vidéo doit faire moins de ${MAX_VIDEO_SIZE_MB} Mo.`);
-      return;
-    }
+    
+    setOriginalVideoSize(file.size);
     setVideoError('');
-    setVideoFile(file);
-    e.target.value = '';
+    
+    // If file is larger than 20MB, compress it
+    if (file.size > MAX_VIDEO_SIZE_MB * 1024 * 1024) {
+      setIsCompressingVideo(true);
+      setCompressionProgress(0);
+      
+      try {
+        const videoElement = document.createElement('video');
+        videoElement.preload = 'metadata';
+        videoElement.muted = true;
+        videoElement.playsInline = true;
+        videoElement.crossOrigin = 'anonymous';
+        
+        const videoUrl = URL.createObjectURL(file);
+        videoElement.src = videoUrl;
+        
+        // Wait for metadata to load
+        await new Promise((resolve, reject) => {
+          videoElement.onloadedmetadata = () => {
+            if (videoElement.videoWidth === 0 || videoElement.videoHeight === 0) {
+              reject(new Error('Impossible de lire les dimensions de la vidéo'));
+            } else {
+              resolve();
+            }
+          };
+          videoElement.onerror = () => reject(new Error('Erreur lors du chargement de la vidéo'));
+        });
+        
+        // Create canvas with original resolution
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = videoElement.videoWidth;
+        canvas.height = videoElement.videoHeight;
+        
+        // Calculate target bitrate to achieve ~20MB while keeping resolution
+        const duration = videoElement.duration;
+        const targetSizeBytes = MAX_VIDEO_SIZE_MB * 1024 * 1024 * 0.95; // 95% of max to be safe
+        const targetBitrate = Math.max(500000, Math.floor((targetSizeBytes * 8) / duration)); // Min 500kbps, max based on target size
+        
+        // Get best supported MIME type
+        let mimeType = 'video/webm;codecs=vp9';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = 'video/webm;codecs=vp8';
+          if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = 'video/webm';
+            if (!MediaRecorder.isTypeSupported(mimeType)) {
+              mimeType = 'video/mp4';
+            }
+          }
+        }
+        
+        // Create stream from canvas
+        const stream = canvas.captureStream(30); // 30 fps
+        const chunks = [];
+        let totalSize = 0;
+        
+        const mediaRecorder = new MediaRecorder(stream, {
+          mimeType: mimeType,
+          videoBitsPerSecond: targetBitrate
+        });
+        
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data && event.data.size > 0) {
+            chunks.push(event.data);
+          }
+        };
+        
+        mediaRecorder.onstop = () => {
+          setCompressionProgress(100);
+          setTimeout(() => {
+            const blob = new Blob(chunks, { type: mimeType });
+            const fileExtension = mimeType.includes('webm') ? 'webm' : 'mp4';
+            const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, '') + '.' + fileExtension, {
+              type: blob.type,
+              lastModified: Date.now()
+            });
+            
+            setVideoFile(compressedFile);
+            setIsCompressingVideo(false);
+            setCompressionProgress(0);
+            URL.revokeObjectURL(videoUrl);
+            e.target.value = '';
+          }, 300);
+        };
+        
+        mediaRecorder.onerror = (error) => {
+          console.error('Compression error:', error);
+          setVideoError('Erreur lors de la compression. Veuillez essayer avec une autre vidéo.');
+          setIsCompressingVideo(false);
+          setCompressionProgress(0);
+          URL.revokeObjectURL(videoUrl);
+          e.target.value = '';
+        };
+        
+        // Start recording
+        mediaRecorder.start(100); // Collect data every 100ms
+        
+        // Seek to start and play
+        videoElement.currentTime = 0;
+        await videoElement.play();
+        
+        // Draw frames to canvas
+        const drawFrame = () => {
+          if (videoElement.ended || videoElement.paused || videoElement.readyState < 2) {
+            if (videoElement.ended) {
+              setCompressionProgress(98);
+              setTimeout(() => {
+                mediaRecorder.stop();
+              }, 100);
+            } else {
+              requestAnimationFrame(drawFrame);
+            }
+            return;
+          }
+          
+          try {
+            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            
+            // Update progress based on current time (most accurate)
+            const timeProgress = Math.min(98, (videoElement.currentTime / duration) * 100);
+            setCompressionProgress(timeProgress);
+            
+            // Advance video by one frame (30fps = ~0.033s per frame)
+            if (!videoElement.ended) {
+              videoElement.currentTime += 0.033;
+              requestAnimationFrame(drawFrame);
+            } else {
+              setCompressionProgress(99);
+              setTimeout(() => {
+                mediaRecorder.stop();
+              }, 200);
+            }
+          } catch (error) {
+            console.error('Frame drawing error:', error);
+            setCompressionProgress(100);
+            mediaRecorder.stop();
+          }
+        };
+        
+        // Wait a bit for video to be ready, then start drawing
+        setTimeout(() => {
+          drawFrame();
+        }, 100);
+        
+      } catch (error) {
+        console.error('Video compression error:', error);
+        setVideoError('Erreur lors de la compression. Le fichier est peut-être trop volumineux ou corrompu. Veuillez essayer avec une vidéo plus courte.');
+        setIsCompressingVideo(false);
+        setCompressionProgress(0);
+        e.target.value = '';
+      }
+    } else {
+      // File is already under 20MB, use as is
+      setVideoFile(file);
+      e.target.value = '';
+    }
   };
 
   const removeVideo = () => {
     setVideoFile(null);
     setVideoError('');
+    setIsCompressingVideo(false);
+    setCompressionProgress(0);
+    setOriginalVideoSize(0);
   };
 
   const handlePdfChange = (e) => {
@@ -151,7 +510,12 @@ export default function ProductForm(props) {
         if (k === 'discount' && (v === '' || v === null || v === undefined)) return;
         data.append(k, v);
       });
-      files.slice(0, MAX_IMAGES).forEach((f) => data.append('images', f));
+      files.slice(0, MAX_IMAGES).forEach((item) => {
+        const file = item?.file || item;
+        if (file instanceof File) {
+          data.append('images', file);
+        }
+      });
       removedImages.forEach((image) => data.append('removeImages', image));
       if (videoFile) {
         data.append('video', videoFile);
@@ -515,14 +879,31 @@ export default function ProductForm(props) {
                       alt={`Preview ${index + 1}`}
                       className="w-full h-24 object-cover rounded-lg border border-gray-200"
                     />
-                    <button
-                      type="button"
-                      onClick={() => removeImage(index)}
-                      className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center shadow-sm hover:bg-red-600 transition-colors"
-                      aria-label="Supprimer l'image"
-                    >
-                      <DeleteIcon className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-lg flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => editImageCrop(index)}
+                        className="opacity-0 group-hover:opacity-100 bg-white/90 backdrop-blur-sm p-1.5 rounded-full shadow-lg hover:bg-white transition-all"
+                        aria-label="Recadrer l'image"
+                        title="Recadrer"
+                      >
+                        <Crop className="w-3.5 h-3.5 text-gray-700" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="opacity-0 group-hover:opacity-100 bg-red-500 text-white p-1.5 rounded-full shadow-lg hover:bg-red-600 transition-all"
+                        aria-label="Supprimer l'image"
+                        title="Supprimer"
+                      >
+                        <DeleteIcon className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    {files[index]?.cropped && (
+                      <div className="absolute top-1 left-1 bg-emerald-500 text-white text-[8px] px-1.5 py-0.5 rounded font-semibold">
+                        Recadré
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -549,25 +930,119 @@ export default function ProductForm(props) {
                 className="hidden"
               />
             </label>
-            {videoFile && (
-              <div className="flex items-center justify-between px-3 py-2 rounded-xl border border-gray-200 bg-white">
-                <span className="text-sm text-gray-700 truncate">{videoFile.name}</span>
-                <button
-                  type="button"
-                  onClick={removeVideo}
-                  className="text-xs font-semibold text-red-600 hover:text-red-500"
-                >
-                  Supprimer
-                </button>
+            {isCompressingVideo && (
+              <div className="space-y-3 p-4 rounded-xl border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-cyan-50 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+                    <div>
+                      <p className="text-sm font-semibold text-blue-900">Compression de la vidéo en cours...</p>
+                      <p className="text-xs text-blue-600 mt-0.5">
+                        Réduction de la taille tout en conservant la résolution originale
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-lg font-bold text-blue-700">{Math.round(compressionProgress)}%</span>
+                    <span className="text-[10px] text-blue-500 font-medium">Progression</span>
+                  </div>
+                </div>
+                
+                {/* Main Progress Bar */}
+                <div className="space-y-1">
+                  <div className="w-full rounded-full bg-gray-200 h-3 overflow-hidden shadow-inner">
+                    <div
+                      className="h-full bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-500 transition-all duration-300 ease-out shadow-lg relative"
+                      style={{ width: `${compressionProgress}%` }}
+                    >
+                      {/* Subtle animated shine effect */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
+                    </div>
+                  </div>
+                  
+                  {/* Progress indicators */}
+                  <div className="flex items-center justify-between text-[10px] text-gray-600">
+                    <span>0%</span>
+                    <span className="font-semibold text-blue-600">En cours...</span>
+                    <span>100%</span>
+                  </div>
+                </div>
+                
+                {/* Additional info */}
+                <div className="flex items-center gap-2 pt-2 border-t border-blue-200">
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-600">
+                      <span className="font-semibold text-blue-700">Taille originale:</span>{' '}
+                      {(originalVideoSize / (1024 * 1024)).toFixed(2)} MB
+                    </p>
+                  </div>
+                  <div className="w-px h-4 bg-blue-200"></div>
+                  <div className="flex-1 text-right">
+                    <p className="text-xs text-gray-600">
+                      <span className="font-semibold text-blue-700">Cible:</span>{' '}
+                      {MAX_VIDEO_SIZE_MB} MB max
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
-            {videoError && <p className="text-xs text-red-500">{videoError}</p>}
+            
+            {videoFile && !isCompressingVideo && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between px-3 py-2 rounded-xl border border-gray-200 bg-white">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-700 truncate font-medium">{videoFile.name}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-xs text-gray-500">
+                        {(videoFile.size / (1024 * 1024)).toFixed(2)} MB
+                      </p>
+                      {originalVideoSize > videoFile.size && (
+                        <>
+                          <span className="text-xs text-gray-400">•</span>
+                          <p className="text-xs text-emerald-600 font-semibold">
+                            Réduit de {((1 - videoFile.size / originalVideoSize) * 100).toFixed(1)}%
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={removeVideo}
+                    className="ml-3 text-xs font-semibold text-red-600 hover:text-red-500 px-2 py-1 hover:bg-red-50 rounded transition-colors"
+                  >
+                    Supprimer
+                  </button>
+                </div>
+                {originalVideoSize > MAX_VIDEO_SIZE_MB * 1024 * 1024 && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    <p className="text-xs text-emerald-700">
+                      Vidéo compressée avec succès. Résolution originale conservée.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {videoError && (
+              <div className="px-3 py-2 rounded-xl border border-red-200 bg-red-50">
+                <p className="text-xs text-red-600">{videoError}</p>
+              </div>
+            )}
+            
             {isUploadingVideo && (
-              <div className="mt-2 w-full rounded-full bg-gray-100 h-2 overflow-hidden">
-                <div
-                  className="h-full bg-indigo-600 transition-all duration-200"
-                  style={{ width: `${uploadProgress}%` }}
-                />
+              <div className="mt-2 space-y-1">
+                <div className="flex items-center justify-between text-xs text-gray-600">
+                  <span>Upload en cours...</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="w-full rounded-full bg-gray-100 h-2 overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-indigo-600 to-purple-600 transition-all duration-200"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -681,6 +1156,71 @@ export default function ProductForm(props) {
           </div>
         )}
 
+        {/* Preview Section */}
+        {(form.title || imagePreviews.length > 0 || existingImages.length > 0) && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-2 h-6 bg-gradient-to-b from-purple-500 to-pink-500 rounded-full"></div>
+                <h2 className="text-lg font-semibold text-gray-900">Aperçu</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPreview(!showPreview)}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
+              >
+                {showPreview ? (
+                  <>
+                    <Minimize2 className="w-4 h-4" />
+                    <span>Masquer</span>
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="w-4 h-4" />
+                    <span>Afficher</span>
+                  </>
+                )}
+              </button>
+            </div>
+            
+            {showPreview && (
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <div className="max-w-sm mx-auto">
+                  <ProductCard
+                    p={{
+                      _id: 'preview',
+                      title: form.title || 'Titre du produit',
+                      description: form.description || 'Description du produit',
+                      price: form.price || 0,
+                      category: form.category || '',
+                      condition: form.condition || 'used',
+                      discount: form.discount || 0,
+                      images: [
+                        ...existingImages,
+                        ...imagePreviews.map(p => p.url)
+                      ].filter(Boolean),
+                      user: user ? {
+                        _id: user.id,
+                        name: user.name,
+                        shopName: user.shopName,
+                        shopVerified: user.shopVerified,
+                        shopLogo: user.shopLogo
+                      } : null,
+                      createdAt: new Date().toISOString(),
+                      views: 0,
+                      favoritesCount: 0,
+                      commentCount: 0,
+                      ratingAverage: 0,
+                      ratingCount: 0
+                    }}
+                    hideMobileDiscountBadge={false}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Bouton de soumission */}
         <button
           type="submit"
@@ -700,6 +1240,137 @@ export default function ProductForm(props) {
           )}
         </button>
       </form>
+
+      {/* Image Crop Modal */}
+      {croppingImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
+                  <Crop className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Recadrer l'image</h3>
+                  <p className="text-xs text-gray-500">Ajustez la zone de recadrage</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCropCancel}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label="Fermer"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            <div className="flex-1 p-4 overflow-auto">
+              <div
+                ref={cropContainerRef}
+                className="relative w-full h-96 bg-gray-100 rounded-lg overflow-hidden cursor-move"
+                onMouseDown={handleCropMouseDown}
+                onMouseMove={handleCropMouseMove}
+                onMouseUp={handleCropMouseUp}
+                onMouseLeave={handleCropMouseUp}
+              >
+                <img
+                  ref={imageRef}
+                  src={croppingImage.url}
+                  alt="Image à recadrer"
+                  className="absolute"
+                  style={{
+                    width: `${imageRef.current?.naturalWidth * imageScale || 0}px`,
+                    height: `${imageRef.current?.naturalHeight * imageScale || 0}px`,
+                    left: `${imagePosition.x}px`,
+                    top: `${imagePosition.y}px`,
+                    pointerEvents: 'none'
+                  }}
+                  onLoad={(e) => {
+                    const img = e.target;
+                    const container = cropContainerRef.current;
+                    if (!container) return;
+                    
+                    const containerWidth = container.clientWidth;
+                    const containerHeight = container.clientHeight;
+                    const imgAspect = img.naturalWidth / img.naturalHeight;
+                    const containerAspect = containerWidth / containerHeight;
+                    
+                    let displayWidth, displayHeight;
+                    if (imgAspect > containerAspect) {
+                      displayWidth = containerWidth;
+                      displayHeight = containerWidth / imgAspect;
+                    } else {
+                      displayHeight = containerHeight;
+                      displayWidth = containerHeight * imgAspect;
+                    }
+                    
+                    setImageScale(displayWidth / img.naturalWidth);
+                    setImagePosition({
+                      x: (containerWidth - displayWidth) / 2,
+                      y: (containerHeight - displayHeight) / 2
+                    });
+                    
+                    const cropSize = Math.min(displayWidth, displayHeight) * 0.8;
+                    setCropData({
+                      x: (containerWidth - cropSize) / 2,
+                      y: (containerHeight - cropSize) / 2,
+                      width: cropSize,
+                      height: cropSize
+                    });
+                  }}
+                />
+                
+                {/* Crop overlay */}
+                <div
+                  className="absolute border-2 border-white shadow-lg"
+                  style={{
+                    left: `${cropData.x}px`,
+                    top: `${cropData.y}px`,
+                    width: `${cropData.width}px`,
+                    height: `${cropData.height}px`,
+                    boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)'
+                  }}
+                >
+                  {/* Resize handle */}
+                  <div
+                    className="absolute bottom-0 right-0 w-4 h-4 bg-white border-2 border-blue-500 rounded-full cursor-se-resize"
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      const handleResize = (moveEvent) => {
+                        handleCropResize(moveEvent, 'se');
+                      };
+                      const handleResizeUp = () => {
+                        document.removeEventListener('mousemove', handleResize);
+                        document.removeEventListener('mouseup', handleResizeUp);
+                      };
+                      document.addEventListener('mousemove', handleResize);
+                      document.addEventListener('mouseup', handleResizeUp);
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50">
+              <button
+                type="button"
+                onClick={handleCropCancel}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleCropConfirm}
+                className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-sm"
+              >
+                Confirmer le recadrage
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

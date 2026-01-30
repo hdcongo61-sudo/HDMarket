@@ -16,6 +16,7 @@ const notificationSchema = new mongoose.Schema(
       'product_approval',
       'product_rejection',
       'product_certified',
+      'product_boosted',
       'shop_verified',
       'promotional',
       'shop_review',
@@ -26,7 +27,11 @@ const notificationSchema = new mongoose.Schema(
       'order_received',
       'order_reminder',
       'order_delivered',
-      'complaint_resolved'
+      'review_reminder',
+      'order_address_updated',
+      'order_message',
+      'complaint_resolved',
+      'feedback_read'
     ],
       required: true
     },

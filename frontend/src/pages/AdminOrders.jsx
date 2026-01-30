@@ -1,28 +1,33 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import { buildProductPath } from '../utils/links';
-import { CheckCircle, Search, Package, User, MapPin, Truck, Clock, ClipboardList, Plus, RefreshCcw, ArrowLeft } from 'lucide-react';
+import { CheckCircle, Search, Package, User, MapPin, Truck, Clock, ClipboardList, Plus, RefreshCcw, ArrowLeft, X, AlertCircle, ShieldCheck, Download, FileSpreadsheet } from 'lucide-react';
+import OrderChat from '../components/OrderChat';
+import AuthContext from '../context/AuthContext';
 
 const STATUS_LABELS = {
   pending: 'En attente',
   confirmed: 'Confirmée',
   delivering: 'En cours de livraison',
-  delivered: 'Livrée'
+  delivered: 'Livrée',
+  cancelled: 'Annulée'
 };
 
 const STATUS_CLASSES = {
   pending: 'bg-gray-100 text-gray-700',
   confirmed: 'bg-yellow-100 text-yellow-800',
   delivering: 'bg-blue-100 text-blue-800',
-  delivered: 'bg-green-100 text-green-800'
+  delivered: 'bg-green-100 text-green-800',
+  cancelled: 'bg-red-100 text-red-800'
 };
 
 const CITY_OPTIONS = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
 const ORDERS_PER_PAGE = 12;
 
 export default function AdminOrders() {
+  const { user } = useContext(AuthContext);
   const externalLinkProps = useDesktopExternalLink();
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(false);
@@ -39,10 +44,18 @@ export default function AdminOrders() {
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState('');
   const [createSuccess, setCreateSuccess] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [statusUpdateInfo, setStatusUpdateInfo] = useState(null);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignOrder, setAssignOrder] = useState(null);
+  const [assignDeliveryGuyId, setAssignDeliveryGuyId] = useState('');
+  const [assignSaving, setAssignSaving] = useState(false);
+  const [assignError, setAssignError] = useState('');
 
   const [deliveryGuys, setDeliveryGuys] = useState([]);
   const [deliveryGuysLoading, setDeliveryGuysLoading] = useState(false);
   const [deliveryGuysError, setDeliveryGuysError] = useState('');
+  const [orderUnreadCounts, setOrderUnreadCounts] = useState({});
 
   const [customerQuery, setCustomerQuery] = useState('');
   const [productQuery, setProductQuery] = useState('');
@@ -57,6 +70,29 @@ export default function AdminOrders() {
     trackingNote: ''
   });
 
+  const openCreateModal = useCallback(() => {
+    setStatusUpdateInfo(null);
+    setAssignOpen(false);
+    setCreateOpen(true);
+  }, []);
+
+  const openAssignModal = useCallback((order) => {
+    if (!order) return;
+    setStatusUpdateInfo(null);
+    setCreateOpen(false);
+    setAssignOrder(order);
+    setAssignDeliveryGuyId(order.deliveryGuy?._id || '');
+    setAssignError('');
+    setAssignOpen(true);
+  }, []);
+
+  const closeAssignModal = useCallback(() => {
+    setAssignOpen(false);
+    setAssignOrder(null);
+    setAssignDeliveryGuyId('');
+    setAssignError('');
+  }, []);
+
   const formatCurrency = (value) => Number(value || 0).toLocaleString('fr-FR');
 
   const escapeHtml = (value) =>
@@ -66,6 +102,124 @@ export default function AdminOrders() {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+
+  const exportToExcel = async () => {
+    try {
+      // Dynamically import xlsx library
+      let XLSX;
+      try {
+        // @ts-ignore - Dynamic import for optional dependency
+        XLSX = (await import('xlsx')).default || await import('xlsx');
+      } catch (importError) {
+        alert('Veuillez installer la bibliothèque xlsx: npm install xlsx');
+        console.error('xlsx library not found:', importError);
+        return;
+      }
+      
+      if (!XLSX || !XLSX.utils) {
+        alert('La bibliothèque xlsx n\'est pas correctement installée.');
+        return;
+      }
+      
+      // Fetch all orders (without pagination)
+      const params = new URLSearchParams();
+      params.set('limit', '10000'); // Large limit to get all orders
+      if (statusFilter !== 'all') params.append('status', statusFilter);
+      if (searchValue) params.append('search', searchValue);
+      
+      const { data } = await api.get(`/orders/admin?${params.toString()}`);
+      const allOrders = Array.isArray(data) ? data : data?.items || [];
+
+      // Prepare data for Excel
+      const excelData = allOrders.map((order) => {
+        const items = Array.isArray(order.items) ? order.items : [];
+        const itemsList = items.map((item) => {
+          const title = item.snapshot?.title || item.product?.title || 'Produit';
+          const qty = Number(item.quantity || 1);
+          const price = Number(item.snapshot?.price || item.product?.price || 0);
+          return `${title} (x${qty} - ${formatCurrency(price)} FCFA)`;
+        }).join('; ');
+
+        return {
+          'ID Commande': String(order._id || '').slice(-8),
+          'Date': order.createdAt ? new Date(order.createdAt).toLocaleDateString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          }) : '',
+          'Statut': STATUS_LABELS[order.status] || order.status || '',
+          'Client': order.customer?.name || '',
+          'Email': order.customer?.email || '',
+          'Téléphone': order.customer?.phone || '',
+          'Adresse': order.deliveryAddress || '',
+          'Ville': order.deliveryCity || '',
+          'Articles': itemsList,
+          'Nombre d\'articles': items.reduce((sum, item) => sum + Number(item.quantity || 1), 0),
+          'Total (FCFA)': formatCurrency(order.totalAmount || 0),
+          'Acompte (FCFA)': formatCurrency(order.paidAmount || 0),
+          'Reste à payer (FCFA)': formatCurrency(order.remainingAmount || 0),
+          'Payeur': order.paymentName || '',
+          'Code transaction': order.paymentTransactionCode || '',
+          'Code livraison': order.deliveryCode || '',
+          'Livreur': order.deliveryGuy?.name || '',
+          'Téléphone livreur': order.deliveryGuy?.phone || '',
+          'Note': order.trackingNote || '',
+          'Créé par': order.createdBy?.name || '',
+          'Date livraison': order.deliveredAt ? new Date(order.deliveredAt).toLocaleDateString('fr-FR') : '',
+          'Date expédition': order.shippedAt ? new Date(order.shippedAt).toLocaleDateString('fr-FR') : ''
+        };
+      });
+
+      // Create workbook and worksheet
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Commandes');
+
+      // Set column widths
+      const colWidths = [
+        { wch: 12 }, // ID Commande
+        { wch: 18 }, // Date
+        { wch: 15 }, // Statut
+        { wch: 20 }, // Client
+        { wch: 25 }, // Email
+        { wch: 15 }, // Téléphone
+        { wch: 30 }, // Adresse
+        { wch: 15 }, // Ville
+        { wch: 50 }, // Articles
+        { wch: 15 }, // Nombre d'articles
+        { wch: 15 }, // Total
+        { wch: 15 }, // Acompte
+        { wch: 15 }, // Reste à payer
+        { wch: 20 }, // Payeur
+        { wch: 18 }, // Code transaction
+        { wch: 15 }, // Code livraison
+        { wch: 20 }, // Livreur
+        { wch: 18 }, // Téléphone livreur
+        { wch: 30 }, // Note
+        { wch: 20 }, // Créé par
+        { wch: 15 }, // Date livraison
+        { wch: 15 }  // Date expédition
+      ];
+      worksheet['!cols'] = colWidths;
+
+      // Generate filename with date
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = `commandes_${statusFilter !== 'all' ? statusFilter + '_' : ''}${dateStr}.xlsx`;
+
+      // Save file
+      XLSX.writeFile(workbook, filename);
+    } catch (error) {
+      console.error('Erreur export Excel:', error);
+      if (error?.message?.includes('Failed to fetch dynamically imported module') || 
+          error?.message?.includes('Cannot find module')) {
+        alert('Veuillez installer la bibliothèque xlsx: npm install xlsx');
+      } else {
+        alert('Impossible d\'exporter vers Excel. ' + (error?.message || ''));
+      }
+    }
+  };
 
   const getOrderItems = (order) => {
     if (order.items && order.items.length) return order.items;
@@ -332,6 +486,33 @@ export default function AdminOrders() {
     }
   }, []);
 
+  const loadUnreadCounts = useCallback(async (orderIds) => {
+    if (!orderIds || orderIds.length === 0 || !user?._id) return {};
+    try {
+      // Load unread counts for all orders in parallel
+      const counts = await Promise.all(
+        orderIds.map(async (orderId) => {
+          try {
+            const { data } = await api.get(`/orders/${orderId}/messages`);
+            // Count unread messages for current user
+            const unread = Array.isArray(data) ? data.filter(
+              (msg) => String(msg.recipient?._id) === String(user._id) && !msg.readAt
+            ) : [];
+            return { orderId, count: unread.length };
+          } catch {
+            return { orderId, count: 0 };
+          }
+        })
+      );
+      return counts.reduce((acc, { orderId, count }) => {
+        acc[orderId] = count;
+        return acc;
+      }, {});
+    } catch {
+      return {};
+    }
+  }, [user?._id]);
+
   const loadOrders = useCallback(async () => {
     setOrdersLoading(true);
     setOrdersError('');
@@ -344,6 +525,12 @@ export default function AdminOrders() {
       const { data } = await api.get(`/orders/admin?${params.toString()}`);
       const items = Array.isArray(data) ? data : data?.items || [];
       setOrders(items);
+      
+      // Load unread message counts
+      const orderIds = items.map((order) => order._id);
+      const unreadCounts = await loadUnreadCounts(orderIds);
+      setOrderUnreadCounts(unreadCounts);
+      
       setMeta({
         total: data?.total ?? items.length,
         totalPages: data?.totalPages ?? 1
@@ -411,11 +598,56 @@ export default function AdminOrders() {
   }, [statusFilter, searchValue]);
 
   const handleUpdateOrder = async (orderId, payload) => {
+    const currentOrder = orders.find((order) => order._id === orderId);
     try {
-      await api.patch(`/orders/admin/${orderId}`, payload);
-      await Promise.all([loadOrders(), loadStats()]);
+      const { data } = await api.patch(`/orders/admin/${orderId}`, payload);
+      const updatedOrder = data;
+      const previousStatus = currentOrder?.status;
+      const nextStatus = updatedOrder?.status || previousStatus;
+      const removeFromView = statusFilter !== 'all' && nextStatus && statusFilter !== nextStatus;
+
+      setOrders((prev) => {
+        if (!Array.isArray(prev)) return prev;
+        if (removeFromView) {
+          return prev.filter((order) => order._id !== orderId);
+        }
+        return prev.map((order) => (order._id === orderId ? updatedOrder : order));
+      });
+
+      if (removeFromView) {
+        const nextTotal = Math.max(0, (meta.total || 0) - 1);
+        const nextTotalPages = Math.max(1, Math.ceil(nextTotal / ORDERS_PER_PAGE));
+        setMeta((prev) => ({
+          ...prev,
+          total: nextTotal,
+          totalPages: nextTotalPages
+        }));
+        if (page > nextTotalPages) {
+          setPage(nextTotalPages);
+        }
+      }
+
+      if (previousStatus && nextStatus && previousStatus !== nextStatus) {
+        setStats((prev) => {
+          if (!prev?.statusCounts) return prev;
+          return {
+            ...prev,
+            statusCounts: {
+              ...prev.statusCounts,
+              [previousStatus]: Math.max(0, (prev.statusCounts[previousStatus] || 0) - 1),
+              [nextStatus]: (prev.statusCounts[nextStatus] || 0) + 1
+            }
+          };
+        });
+        setStatusUpdateInfo({
+          orderId,
+          status: nextStatus
+        });
+      }
+      return updatedOrder;
     } catch (error) {
       alert(error.response?.data?.message || 'Impossible de mettre à jour la commande.');
+      return null;
     }
   };
 
@@ -444,6 +676,7 @@ export default function AdminOrders() {
         deliveryCity: 'Brazzaville',
         trackingNote: ''
       });
+      setCreateOpen(false);
       await Promise.all([loadOrders(), loadStats()]);
     } catch (error) {
       setCreateError(error.response?.data?.message || "Impossible de créer la commande.");
@@ -461,20 +694,59 @@ export default function AdminOrders() {
     }));
   }, [selectedCustomer]);
 
+  useEffect(() => {
+    if (!createOpen) {
+      setCreateError('');
+      setCreateSuccess('');
+    }
+  }, [createOpen]);
+
+  useEffect(() => {
+    if (!assignOpen) {
+      setAssignError('');
+      setAssignSaving(false);
+    }
+  }, [assignOpen]);
+
   const renderStatusTabs = () => (
     <div className="flex flex-wrap gap-2">
-      {['all', 'pending', 'confirmed', 'delivering', 'delivered'].map((key) => (
-        <button
-          key={key}
-          type="button"
-          onClick={() => setStatusFilter(key)}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${
-            statusFilter === key ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-100 text-gray-600 border-gray-200'
-          }`}
-        >
-          {key === 'all' ? 'Toutes' : STATUS_LABELS[key]}
-        </button>
-      ))}
+      {['all', 'pending', 'confirmed', 'delivering', 'delivered', 'cancelled'].map((key) => {
+        const pendingCount = key === 'pending' ? (stats?.statusCounts?.pending || 0) : 0;
+        const statusCount = stats?.statusCounts?.[key] || 0;
+        const isActive = statusFilter === key;
+        return (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setStatusFilter(key)}
+            className={`px-4 py-2 text-xs font-semibold rounded-3xl border-2 transition-all duration-200 active:scale-95 flex items-center gap-2 shadow-sm ${
+              isActive 
+                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-indigo-600 shadow-lg' 
+                : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
+            }`}
+          >
+            <span>{key === 'all' ? 'Toutes' : STATUS_LABELS[key]}</span>
+            {key === 'pending' && pendingCount > 0 && (
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                isActive
+                  ? 'bg-white/30 text-white' 
+                  : 'bg-indigo-600 text-white'
+              }`}>
+                {pendingCount}
+              </span>
+            )}
+            {key !== 'all' && key !== 'pending' && statusCount > 0 && (
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                isActive
+                  ? 'bg-white/30 text-white' 
+                  : 'bg-indigo-600 text-white'
+              }`}>
+                {statusCount}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 
@@ -485,246 +757,414 @@ export default function AdminOrders() {
           <ClipboardList className="w-6 h-6 text-indigo-600" />
           Gestion des commandes
         </h1>
-        <Link
-          to="/admin"
-          className="text-sm text-indigo-600 hover:text-indigo-500 flex items-center gap-1"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Retour au tableau de bord
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+          >
+            <Plus className="h-4 w-4" />
+            Créer une commande
+          </button>
+          <Link
+            to="/admin"
+            className="text-sm text-indigo-600 hover:text-indigo-500 flex items-center gap-1"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Retour au tableau de bord
+          </Link>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {['pending', 'confirmed', 'delivering', 'delivered'].map((key) => (
-          <div key={key} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-            <div className="flex items-center justify-between">
+      {/* Stats - Improved Design */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {['pending', 'confirmed', 'delivering', 'delivered', 'cancelled'].map((key) => {
+          const count = statsLoading ? 0 : stats?.statusCounts?.[key] || 0;
+          const bgColors = {
+            pending: 'bg-gradient-to-br from-gray-50 to-gray-100',
+            confirmed: 'bg-gradient-to-br from-amber-50 to-yellow-100',
+            delivering: 'bg-gradient-to-br from-blue-50 to-indigo-100',
+            delivered: 'bg-gradient-to-br from-emerald-50 to-green-100',
+            cancelled: 'bg-gradient-to-br from-red-50 to-pink-100'
+          };
+          const iconColors = {
+            pending: 'text-gray-600',
+            confirmed: 'text-amber-600',
+            delivering: 'text-blue-600',
+            delivered: 'text-emerald-600',
+            cancelled: 'text-red-600'
+          };
+          return (
+            <div key={key} className={`${bgColors[key]} border-2 border-transparent rounded-3xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className={`w-12 h-12 rounded-2xl ${bgColors[key]} flex items-center justify-center shadow-md`}>
+                  {key === 'pending' && <Clock className={`w-6 h-6 ${iconColors[key]}`} />}
+                  {key === 'confirmed' && <Package className={`w-6 h-6 ${iconColors[key]}`} />}
+                  {key === 'delivering' && <Truck className={`w-6 h-6 ${iconColors[key]}`} />}
+                  {key === 'delivered' && <CheckCircle className={`w-6 h-6 ${iconColors[key]}`} />}
+                  {key === 'cancelled' && <X className={`w-6 h-6 ${iconColors[key]}`} />}
+                </div>
+              </div>
               <div>
-                <p className="text-xs uppercase text-gray-500">{STATUS_LABELS[key]}</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {statsLoading ? '...' : stats?.statusCounts?.[key] || 0}
+                <p className="text-xs uppercase font-bold text-gray-600 mb-1 tracking-wide">{STATUS_LABELS[key]}</p>
+                <p className={`text-3xl font-black ${iconColors[key]}`}>
+                  {statsLoading ? '...' : count.toLocaleString('fr-FR')}
                 </p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
-                {key === 'pending' && <Clock className="w-5 h-5 text-gray-500" />}
-                {key === 'confirmed' && <Package className="w-5 h-5 text-yellow-600" />}
-                {key === 'delivering' && <Truck className="w-5 h-5 text-blue-600" />}
-                {key === 'delivered' && <CheckCircle className="w-5 h-5 text-green-600" />}
-              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Creation form */}
-      <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6 space-y-4">
-        <div className="flex items-center gap-2 text-gray-900 font-semibold text-lg">
-          <Plus className="w-5 h-5 text-green-600" />
-          Créer une commande
-        </div>
-
-        <form className="space-y-4" onSubmit={handleCreateOrder}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                <User size={16} />
-                Client
-              </label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                <input
-                  type="text"
-                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Recherche client"
-                  value={customerQuery}
-                  onChange={(e) => {
-                    setCustomerQuery(e.target.value);
-                    loadCustomers(e.target.value);
-                  }}
-                />
+      {createOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+          <div
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => setCreateOpen(false)}
+          />
+          <div
+            className="relative w-full max-w-5xl rounded-3xl bg-white shadow-xl border border-gray-100 p-4 sm:p-6 max-h-[85vh] overflow-auto"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-2 text-gray-900 font-semibold text-lg">
+                <Plus className="w-5 h-5 text-green-600" />
+                Créer une commande
               </div>
-              <div className="max-h-40 overflow-auto border border-gray-100 rounded-xl divide-y divide-gray-100">
-                {customerResults.map((customer) => (
-                  <button
-                    type="button"
-                    key={customer._id}
-                    onClick={() => setSelectedCustomer(customer)}
-                    className={`w-full text-left px-3 py-2 text-sm flex flex-col ${
-                      selectedCustomer?._id === customer._id ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <span className="font-semibold">{customer.name}</span>
-                    <span className="text-xs text-gray-500">{customer.email}</span>
-                    <span className="text-xs text-gray-500">{customer.phone}</span>
-                  </button>
-                ))}
-              </div>
+              <button
+                type="button"
+                onClick={() => setCreateOpen(false)}
+                className="h-9 w-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                aria-label="Fermer"
+              >
+                X
+              </button>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                <Package size={16} />
-                Produit
-              </label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                <input
-                  type="text"
-                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Recherche produit"
-                  value={productQuery}
-                  onChange={(e) => {
-                    setProductQuery(e.target.value);
-                    loadProducts(e.target.value);
-                  }}
-                />
-              </div>
-              <div className="max-h-40 overflow-auto border border-gray-100 rounded-xl divide-y divide-gray-100">
-                {productResults.map((product) => {
-                  const alreadySelected = selectedProducts.some((item) => item.product._id === product._id);
-                  return (
-                    <div
-                      key={product._id}
-                      className="px-3 py-2 text-sm flex flex-col gap-1 hover:bg-gray-50"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div>
-                          <span className="font-semibold text-gray-900">{product.title}</span>
-                          <span className="block text-xs text-gray-500">
-                            {Number(product.price || 0).toLocaleString()} FCFA •{' '}
-                            {product.user?.shopName || product.user?.name || 'Boutique'}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => addProductToSelection(product)}
-                          disabled={alreadySelected}
-                          className={`px-2 py-1 text-xs rounded-full border ${
-                            alreadySelected
-                              ? 'border-gray-200 text-gray-400 cursor-not-allowed'
-                              : 'border-indigo-200 text-indigo-600 hover:bg-indigo-50'
-                          }`}
-                        >
-                          {alreadySelected ? 'Ajouté' : 'Ajouter'}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {selectedProducts.length > 0 && (
-                <div className="mt-4 bg-gray-50 rounded-2xl border border-gray-100 p-3 space-y-2">
-                  <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                    Produits sélectionnés
-                  </p>
-                  {selectedProducts.map(({ product, quantity }) => (
-                    <div
-                      key={product._id}
-                      className="flex items-center gap-3 text-sm bg-white rounded-xl border border-gray-100 px-3 py-2"
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">{product.title}</p>
-                        <p className="text-xs text-gray-500">
-                          {Number(product.price || 0).toLocaleString()} FCFA
-                        </p>
-                      </div>
-                      <input
-                        type="number"
-                        min={1}
-                        value={quantity}
-                        onChange={(e) => updateSelectedProductQuantity(product._id, e.target.value)}
-                        className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-sm text-center"
-                      />
+            <form className="space-y-4" onSubmit={handleCreateOrder}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                    <User size={16} />
+                    Client
+                  </label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <input
+                      type="text"
+                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="Recherche client"
+                      value={customerQuery}
+                      onChange={(e) => {
+                        setCustomerQuery(e.target.value);
+                        loadCustomers(e.target.value);
+                      }}
+                    />
+                  </div>
+                  <div className="max-h-40 overflow-auto border border-gray-100 rounded-xl divide-y divide-gray-100">
+                    {customerResults.map((customer) => (
                       <button
                         type="button"
-                        onClick={() => removeProductFromSelection(product._id)}
-                        className="text-xs text-red-600 hover:text-red-500"
+                        key={customer._id}
+                        onClick={() => setSelectedCustomer(customer)}
+                        className={`w-full text-left px-3 py-2 text-sm flex flex-col ${
+                          selectedCustomer?._id === customer._id ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50'
+                        }`}
                       >
-                        Retirer
+                        <span className="font-semibold">{customer.name}</span>
+                        <span className="text-xs text-gray-500">{customer.email}</span>
+                        <span className="text-xs text-gray-500">{customer.phone}</span>
                       </button>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <MapPin size={16} />
-                Adresse de livraison *
-              </label>
-              <textarea
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                rows={3}
-                value={newOrder.deliveryAddress}
-                onChange={(e) => setNewOrder((prev) => ({ ...prev, deliveryAddress: e.target.value }))}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <Truck size={16} />
-                Ville de livraison *
-              </label>
-              <select
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                value={newOrder.deliveryCity}
-                onChange={(e) => setNewOrder((prev) => ({ ...prev, deliveryCity: e.target.value }))}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                    <Package size={16} />
+                    Produit
+                  </label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <input
+                      type="text"
+                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="Recherche produit"
+                      value={productQuery}
+                      onChange={(e) => {
+                        setProductQuery(e.target.value);
+                        loadProducts(e.target.value);
+                      }}
+                    />
+                  </div>
+                  <div className="max-h-40 overflow-auto border border-gray-100 rounded-xl divide-y divide-gray-100">
+                    {productResults.map((product) => {
+                      const alreadySelected = selectedProducts.some((item) => item.product._id === product._id);
+                      return (
+                        <div
+                          key={product._id}
+                          className="px-3 py-2 text-sm flex flex-col gap-1 hover:bg-gray-50"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div>
+                              <span className="font-semibold text-gray-900">{product.title}</span>
+                              <span className="block text-xs text-gray-500">
+                                {Number(product.price || 0).toLocaleString()} FCFA •{' '}
+                                {product.user?.shopName || product.user?.name || 'Boutique'}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => addProductToSelection(product)}
+                              disabled={alreadySelected}
+                              className={`px-2 py-1 text-xs rounded-full border ${
+                                alreadySelected
+                                  ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                                  : 'border-indigo-200 text-indigo-600 hover:bg-indigo-50'
+                              }`}
+                            >
+                              {alreadySelected ? 'Ajouté' : 'Ajouter'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {selectedProducts.length > 0 && (
+                    <div className="mt-4 bg-gray-50 rounded-2xl border border-gray-100 p-3 space-y-2">
+                      <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                        Produits sélectionnés
+                      </p>
+                      {selectedProducts.map(({ product, quantity }) => (
+                        <div
+                          key={product._id}
+                          className="flex items-center gap-3 text-sm bg-white rounded-xl border border-gray-100 px-3 py-2"
+                        >
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">{product.title}</p>
+                            <p className="text-xs text-gray-500">
+                              {Number(product.price || 0).toLocaleString()} FCFA
+                            </p>
+                          </div>
+                          <input
+                            type="number"
+                            min={1}
+                            value={quantity}
+                            onChange={(e) => updateSelectedProductQuantity(product._id, e.target.value)}
+                            className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-sm text-center"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeProductFromSelection(product._id)}
+                            className="text-xs text-red-600 hover:text-red-500"
+                          >
+                            Retirer
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <MapPin size={16} />
+                    Adresse de livraison *
+                  </label>
+                  <textarea
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    rows={3}
+                    value={newOrder.deliveryAddress}
+                    onChange={(e) => setNewOrder((prev) => ({ ...prev, deliveryAddress: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Truck size={16} />
+                    Ville de livraison *
+                  </label>
+                  <select
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    value={newOrder.deliveryCity}
+                    onChange={(e) => setNewOrder((prev) => ({ ...prev, deliveryCity: e.target.value }))}
+                  >
+                    {CITY_OPTIONS.map((city) => (
+                      <option key={city} value={city}>
+                        {city}
+                      </option>
+                    ))}
+                  </select>
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <RefreshCcw size={16} />
+                    Note de suivi
+                  </label>
+                  <textarea
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    rows={2}
+                    value={newOrder.trackingNote}
+                    onChange={(e) => setNewOrder((prev) => ({ ...prev, trackingNote: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              {createError && <p className="text-sm text-red-600">{createError}</p>}
+              {createSuccess && <p className="text-sm text-green-600">{createSuccess}</p>}
+
+              <button
+                type="submit"
+                disabled={
+                  createLoading ||
+                  !selectedCustomer ||
+                  selectedProducts.length === 0 ||
+                  !newOrder.deliveryAddress.trim()
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
               >
-                {CITY_OPTIONS.map((city) => (
-                  <option key={city} value={city}>
-                    {city}
-                  </option>
-                ))}
-              </select>
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <RefreshCcw size={16} />
-                Note de suivi
-              </label>
-              <textarea
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                rows={2}
-                value={newOrder.trackingNote}
-                onChange={(e) => setNewOrder((prev) => ({ ...prev, trackingNote: e.target.value }))}
-              />
+                <Plus size={16} />
+                Ajouter la commande
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {assignOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+          <div
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            onClick={closeAssignModal}
+          />
+          <div
+            className="relative w-full max-w-md rounded-3xl bg-white shadow-xl border border-gray-100 p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-500">Assigner un livreur</p>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Commande #{assignOrder?._id?.slice(-6)}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={closeAssignModal}
+                className="h-9 w-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                aria-label="Fermer"
+              >
+                X
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <Truck size={16} />
+                  Livreur
+                </label>
+                <select
+                  value={assignDeliveryGuyId}
+                  onChange={(e) => setAssignDeliveryGuyId(e.target.value)}
+                  className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  disabled={deliveryGuysLoading || assignSaving}
+                >
+                  <option value="">Assigner un livreur</option>
+                  {deliveryGuys.map((deliveryGuy) => (
+                    <option key={deliveryGuy._id} value={deliveryGuy._id}>
+                      {deliveryGuy.name}
+                    </option>
+                  ))}
+                </select>
+                {deliveryGuysError && (
+                  <p className="mt-2 text-xs text-red-500">{deliveryGuysError}</p>
+                )}
+                {assignError && <p className="mt-2 text-xs text-red-500">{assignError}</p>}
+              </div>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!assignOrder?._id) return;
+                  setAssignSaving(true);
+                  setAssignError('');
+                  const updated = await handleUpdateOrder(assignOrder._id, {
+                    deliveryGuyId: assignDeliveryGuyId
+                  });
+                  if (updated) {
+                    closeAssignModal();
+                  } else {
+                    setAssignError('Impossible de mettre à jour le livreur.');
+                    setAssignSaving(false);
+                  }
+                }}
+                disabled={assignSaving}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {assignSaving ? 'Mise à jour...' : 'Enregistrer'}
+              </button>
             </div>
           </div>
+        </div>
+      )}
 
-          {createError && <p className="text-sm text-red-600">{createError}</p>}
-          {createSuccess && <p className="text-sm text-green-600">{createSuccess}</p>}
-
-          <button
-            type="submit"
-            disabled={
-              createLoading ||
-              !selectedCustomer ||
-              selectedProducts.length === 0 ||
-              !newOrder.deliveryAddress.trim()
-            }
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
+      {statusUpdateInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+          <div
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            onClick={() => setStatusUpdateInfo(null)}
+          />
+          <div
+            className="relative w-full max-w-sm rounded-3xl bg-white shadow-xl border border-gray-100 p-6 text-center"
+            onClick={(event) => event.stopPropagation()}
           >
-            <Plus size={16} />
-            Ajouter la commande
-          </button>
-        </form>
-      </section>
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-600">
+              <CheckCircle className="h-6 w-6" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">Statut mis à jour</h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Commande #{statusUpdateInfo.orderId.slice(-6)} — {STATUS_LABELS[statusUpdateInfo.status]}
+            </p>
+            <button
+              type="button"
+              onClick={() => setStatusUpdateInfo(null)}
+              className="mt-4 inline-flex items-center justify-center rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-gray-300"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
 
-      {/* Toolbar */}
-      <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6 space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          {renderStatusTabs()}
-          <div className="relative w-full sm:max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-            <input
-              type="text"
-              className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              placeholder="Rechercher (client, produit...)"
-              value={searchDraft}
-              onChange={(e) => setSearchDraft(e.target.value)}
-            />
+      {/* Toolbar - Improved Design */}
+      <section className="bg-gradient-to-br from-white to-gray-50 rounded-3xl border-2 border-gray-200 shadow-xl p-5 sm:p-6 space-y-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            {renderStatusTabs()}
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 sm:flex-initial sm:min-w-[300px]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Rechercher par produit, client, adresse..."
+                value={searchDraft}
+                onChange={(e) => setSearchDraft(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-3xl border-2 border-gray-200 bg-white text-sm font-medium text-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                title="Rechercher par nom de produit, nom du client, email, téléphone, adresse de livraison ou note de suivi"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={loadOrders}
+              disabled={ordersLoading}
+              className="inline-flex items-center justify-center gap-2 rounded-3xl bg-gray-100 border-2 border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 transition-all duration-200 active:scale-95 shadow-sm disabled:opacity-60"
+            >
+              <RefreshCcw className={`w-4 h-4 ${ordersLoading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Actualiser</span>
+            </button>
           </div>
         </div>
 
@@ -765,8 +1205,8 @@ export default function AdminOrders() {
                   <div key={order._id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="text-sm font-semibold text-gray-900">Commande #{order._id.slice(-6)}</div>
-                      <span className={`inline-flex px-2 py-1 rounded-full text-[11px] font-semibold ${STATUS_CLASSES[order.status]}`}>
-                        {STATUS_LABELS[order.status]}
+                      <span className={`inline-flex px-2 py-1 rounded-full text-[11px] font-semibold ${STATUS_CLASSES[order.status] || STATUS_CLASSES.pending}`}>
+                        {STATUS_LABELS[order.status] || 'Inconnu'}
                       </span>
                     </div>
                     <div className="text-xs text-gray-500 flex items-center gap-1">
@@ -804,6 +1244,19 @@ export default function AdminOrders() {
                           </div>
                         ))}
                       </div>
+                    {order.deliveryCode && (
+                      <div className="rounded-xl border-2 border-indigo-200 bg-indigo-50 p-3 mb-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <ShieldCheck size={14} className="text-indigo-600" />
+                          <p className="text-[11px] font-semibold text-indigo-700 uppercase tracking-wide">Code de livraison</p>
+                        </div>
+                        <div className="text-center">
+                          <span className="text-2xl font-black text-indigo-900 tracking-wider font-mono">
+                            {order.deliveryCode}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                     <div className="space-y-1 text-sm text-gray-700">
                       <p className="flex items-center gap-1">
                         <MapPin size={14} className="text-gray-500" />
@@ -843,24 +1296,21 @@ export default function AdminOrders() {
                           </option>
                         ))}
                       </select>
-                      <select
-                        value={order.deliveryGuy?._id || ''}
-                        onChange={(e) =>
-                          handleUpdateOrder(order._id, { deliveryGuyId: e.target.value })
-                        }
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                        disabled={deliveryGuysLoading}
-                      >
-                        <option value="">Assigner un livreur</option>
-                        {deliveryGuys.map((deliveryGuy) => (
-                          <option key={deliveryGuy._id} value={deliveryGuy._id}>
-                            {deliveryGuy.name}
-                          </option>
-                        ))}
-                      </select>
-                      {deliveryGuysError && (
-                        <p className="text-xs text-red-500">{deliveryGuysError}</p>
-                      )}
+                      <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                        <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                          Livreur
+                        </p>
+                        <p className="text-xs text-gray-700">
+                          {order.deliveryGuy?.name || 'Non assigné'}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => openAssignModal(order)}
+                          className="mt-2 text-xs font-semibold text-indigo-600 hover:underline"
+                        >
+                          Assigner un livreur
+                        </button>
+                      </div>
                       <textarea
                         className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                         rows={2}
@@ -871,6 +1321,14 @@ export default function AdminOrders() {
                           })
                         }
                       />
+                      {/* Chat Button */}
+                      <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3">
+                        <OrderChat 
+                          order={order} 
+                          buttonText="Contacte l'acheteur"
+                          unreadCount={orderUnreadCounts[order._id] || 0}
+                        />
+                      </div>
                       {order.status === 'confirmed' && (
                         <button
                           type="button"
@@ -880,6 +1338,22 @@ export default function AdminOrders() {
                           <ClipboardList size={14} />
                           Bon de commande (PDF)
                         </button>
+                      )}
+                      {order.status === 'cancelled' && (
+                        <div className="rounded-xl border border-red-200 bg-red-50 p-3 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <X className="w-4 h-4 text-red-600" />
+                            <p className="text-xs font-bold text-red-800">Commande annulée</p>
+                          </div>
+                          {order.cancellationReason && (
+                            <p className="text-xs text-red-700">Raison: {order.cancellationReason}</p>
+                          )}
+                          {order.cancelledAt && (
+                            <p className="text-xs text-red-600">
+                              Annulée le {new Date(order.cancelledAt).toLocaleString('fr-FR')}
+                            </p>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -981,6 +1455,17 @@ export default function AdminOrders() {
                           </div>
                         </td>
                         <td className="px-3 py-3 text-xs text-gray-600">
+                          {order.deliveryCode && (
+                            <div className="mb-2 p-2 rounded-lg border border-indigo-200 bg-indigo-50">
+                              <div className="flex items-center gap-1 mb-1">
+                                <ShieldCheck size={12} className="text-indigo-600" />
+                                <span className="font-semibold text-indigo-700">Code:</span>
+                              </div>
+                              <span className="text-lg font-black text-indigo-900 tracking-wider font-mono">
+                                {order.deliveryCode}
+                              </span>
+                            </div>
+                          )}
                           <div>{order.deliveryAddress}</div>
                           <div className="text-gray-500">{order.deliveryCity}</div>
                           {order.trackingNote && (
@@ -988,8 +1473,8 @@ export default function AdminOrders() {
                           )}
                         </td>
                         <td className="px-3 py-3">
-                          <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${STATUS_CLASSES[order.status]}`}>
-                            {STATUS_LABELS[order.status]}
+                          <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${STATUS_CLASSES[order.status] || STATUS_CLASSES.pending}`}>
+                            {STATUS_LABELS[order.status] || 'Inconnu'}
                           </span>
                         </td>
                         <td className="px-3 py-3 space-y-2">
@@ -1004,24 +1489,21 @@ export default function AdminOrders() {
                               </option>
                             ))}
                           </select>
-                          <select
-                            value={order.deliveryGuy?._id || ''}
-                            onChange={(e) =>
-                              handleUpdateOrder(order._id, { deliveryGuyId: e.target.value })
-                            }
-                            className="w-full rounded-lg border border-gray-200 px-2 py-1 text-xs focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                            disabled={deliveryGuysLoading}
-                          >
-                            <option value="">Assigner un livreur</option>
-                            {deliveryGuys.map((deliveryGuy) => (
-                              <option key={deliveryGuy._id} value={deliveryGuy._id}>
-                                {deliveryGuy.name}
-                              </option>
-                            ))}
-                          </select>
-                          {deliveryGuysError && (
-                            <p className="text-[11px] text-red-500">{deliveryGuysError}</p>
-                          )}
+                          <div className="rounded-lg border border-gray-100 bg-gray-50 px-2 py-2">
+                            <div className="text-[11px] uppercase tracking-wide text-gray-500">
+                              Livreur
+                            </div>
+                            <div className="text-xs text-gray-700">
+                              {order.deliveryGuy?.name || 'Non assigné'}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => openAssignModal(order)}
+                              className="mt-1 text-[11px] font-semibold text-indigo-600 hover:underline"
+                            >
+                              Assigner un livreur
+                            </button>
+                          </div>
                           <textarea
                             className="w-full rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                             rows={2}
@@ -1032,6 +1514,14 @@ export default function AdminOrders() {
                               })
                             }
                           />
+                          {/* Chat Button */}
+                          <div className="rounded-lg border border-indigo-100 bg-indigo-50 p-2">
+                            <OrderChat 
+                              order={order} 
+                              buttonText="Contacte l'acheteur"
+                              unreadCount={orderUnreadCounts[order._id] || 0}
+                            />
+                          </div>
                           {order.status === 'confirmed' && (
                             <button
                               type="button"
@@ -1041,6 +1531,22 @@ export default function AdminOrders() {
                               <ClipboardList size={12} />
                               Bon de commande (PDF)
                             </button>
+                          )}
+                          {order.status === 'cancelled' && (
+                            <div className="rounded-lg border border-red-200 bg-red-50 p-2 space-y-1">
+                              <div className="flex items-center gap-1">
+                                <X className="w-3 h-3 text-red-600" />
+                                <p className="text-[11px] font-bold text-red-800">Annulée</p>
+                              </div>
+                              {order.cancellationReason && (
+                                <p className="text-[10px] text-red-700">Raison: {order.cancellationReason}</p>
+                              )}
+                              {order.cancelledAt && (
+                                <p className="text-[10px] text-red-600">
+                                  Le {new Date(order.cancelledAt).toLocaleDateString('fr-FR')}
+                                </p>
+                              )}
+                            </div>
                           )}
                           <div className="text-xs text-indigo-600 space-y-1">
                             {orderItems.map((item) =>

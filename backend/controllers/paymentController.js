@@ -141,6 +141,9 @@ export const verifyPayment = asyncHandler(async (req, res) => {
   product.payment = payment._id;
   await product.save();
 
+  // Invalidate product cache so the approved product appears on home page immediately
+  await invalidateProductCache();
+
   await createNotification({
     userId: product.user,
     actorId: req.user.id,
@@ -166,6 +169,9 @@ export const rejectPayment = asyncHandler(async (req, res) => {
   const product = await Product.findById(payment.product._id);
   product.status = 'rejected';
   await product.save();
+
+  // Invalidate product cache so the rejected product is removed from home page immediately
+  await invalidateProductCache();
 
   await createNotification({
     userId: product.user,

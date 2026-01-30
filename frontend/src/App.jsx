@@ -15,6 +15,7 @@ import AdminDeliveryGuys from './pages/AdminDeliveryGuys';
 import TopDeals from './pages/TopDeals';
 import TopRanking from './pages/TopRanking';
 import TopFavorites from './pages/TopFavorites';
+import TopSales from './pages/TopSales';
 import TopDiscounts from './pages/TopDiscounts';
 import TopNewProducts from './pages/TopNewProducts';
 import TopUsedProducts from './pages/TopUsedProducts';
@@ -36,6 +37,7 @@ import UserStats from './pages/UserStats';
 import UserOrders from './pages/UserOrders';
 import SellerOrders from './pages/SellerOrders';
 import OrderCheckout from './pages/OrderCheckout';
+import DraftOrders from './pages/DraftOrders';
 import usePreventNewTabOnMobile from './hooks/usePreventNewTabOnMobile';
 import ScrollToTop from './components/ScrollToTop';
 import ChatBox from './components/ChatBox';
@@ -43,16 +45,25 @@ import MobileScrollToTopButton from './components/MobileScrollToTopButton';
 import AdminChatTemplates from './pages/AdminChatTemplates';
 import AdminProductBoosts from './pages/AdminProductBoosts';
 import AdminProducts from './pages/AdminProducts';
+import AdminFeedback from './pages/AdminFeedback';
 import AdminUserStats from './pages/AdminUserStats';
+import AdminPaymentVerifiers from './pages/AdminPaymentVerifiers';
+import PaymentVerification from './pages/PaymentVerification';
+import AdminReports from './pages/AdminReports';
+import AdminAppSettings from './pages/AdminAppSettings';
 import CertifiedProducts from './pages/CertifiedProducts';
 import Suggestions from './pages/Suggestions';
+import AdvancedSearch from './pages/AdvancedSearch';
+import OrderMessages from './pages/OrderMessages';
 import PushNotificationsManager from './components/PushNotificationsManager';
+import AnalyticsTracker from './components/AnalyticsTracker';
 
 export default function App() {
   usePreventNewTabOnMobile();
   return (
     <BrowserRouter>
       <PushNotificationsManager />
+      <AnalyticsTracker />
       <ScrollToTop />
       <Navbar />
       <main
@@ -75,7 +86,9 @@ export default function App() {
           <Route path="/top-discounts" element={<TopDiscounts />} />
           <Route path="/top-new" element={<TopNewProducts />} />
           <Route path="/top-used" element={<TopUsedProducts />} />
+          <Route path="/top-sales" element={<TopSales />} />
           <Route path="/products" element={<Products />} />
+          <Route path="/search" element={<AdvancedSearch />} />
           <Route path="/cities" element={<CityProducts />} />
           <Route path="/categories/:categoryId" element={<CategoryProducts />} />
           <Route path="/suggestions" element={<Suggestions />} />
@@ -152,10 +165,26 @@ export default function App() {
             }
           />
           <Route
+            path="/orders/draft"
+            element={
+              <ProtectedRoute>
+                <DraftOrders />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/orders/:status"
             element={
               <ProtectedRoute>
                 <UserOrders />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders/messages"
+            element={
+              <ProtectedRoute>
+                <OrderMessages />
               </ProtectedRoute>
             }
           />
@@ -234,7 +263,7 @@ export default function App() {
           <Route
             path="/admin/product-boosts"
             element={
-              <ProtectedRoute roles={['admin']}>
+              <ProtectedRoute allowAccess={(user) => user.role === 'admin' || user.canManageBoosts === true}>
                 <AdminProductBoosts />
               </ProtectedRoute>
             }
@@ -244,6 +273,46 @@ export default function App() {
             element={
               <ProtectedRoute roles={['admin', 'manager']}>
                 <AdminProducts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/feedback"
+            element={
+              <ProtectedRoute allowAccess={(user) => user.role === 'admin' || user.canReadFeedback === true}>
+                <AdminFeedback />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/payment-verifiers"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <AdminPaymentVerifiers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/payment-verification"
+            element={
+              <ProtectedRoute allowAccess={(user) => user.role === 'admin' || user.canVerifyPayments === true}>
+                <PaymentVerification />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/reports"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <AdminReports />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/settings"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <AdminAppSettings />
               </ProtectedRoute>
             }
           />
