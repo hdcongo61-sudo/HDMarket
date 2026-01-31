@@ -74,6 +74,8 @@ export default function ProductForm(props) {
   const cropCanvasRef = useRef(null);
   const cropContainerRef = useRef(null);
   const imageRef = useRef(null);
+  const cropMoveRef = useRef(() => {});
+  const cropUpRef = useRef(() => {});
 
   const CROP_MIN_ZOOM = 0.3;
   const CROP_MAX_ZOOM = 3;

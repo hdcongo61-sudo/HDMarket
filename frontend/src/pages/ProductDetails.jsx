@@ -1038,6 +1038,32 @@ export default function ProductDetails() {
         </div>
       )}
 
+      {/* 7.5 Ajouter au panier (in-content) */}
+      {!isOwnProduct && (
+        <div className="mx-4 mb-3 rounded-2xl border border-gray-100 bg-white shadow-sm p-4">
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            disabled={addingToCart || inCart}
+            className={`w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl font-semibold text-base transition-all active:scale-[0.98] ${
+              inCart ? 'bg-gray-200 text-gray-500 cursor-default' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+            }`}
+          >
+            <ShoppingCart size={20} />
+            <span>{inCart ? 'Déjà au panier' : addingToCart ? 'Ajout...' : 'Ajouter au panier'}</span>
+          </button>
+          {inCart && (
+            <Link
+              to="/orders/checkout"
+              className="mt-3 flex items-center justify-center gap-2 w-full px-4 py-3 rounded-2xl bg-green-600 text-white font-semibold hover:bg-green-700 active:scale-[0.98] transition-transform"
+            >
+              <ShoppingCart size={18} />
+              Passer la commande
+            </Link>
+          )}
+        </div>
+      )}
+
       {/* 8. Accordion: Description */}
       <div className="mx-4 mb-2 rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
         <button type="button" onClick={() => toggleSection('description')} className="w-full flex items-center justify-between p-4 text-left">
@@ -1377,7 +1403,7 @@ export default function ProductDetails() {
                 inCart ? 'bg-gray-200 text-gray-500' : 'bg-indigo-600 text-white'
               }`}>
               <ShoppingCart size={18} />
-              <span>{inCart ? 'Au panier' : addingToCart ? '...' : 'Ajouter'}</span>
+              <span>{inCart ? 'Au panier' : addingToCart ? '...' : 'Ajouter au panier'}</span>
             </button>
             {whatsappLink && (
               <a href={whatsappLink} target="_blank" rel="noopener noreferrer" onClick={handleWhatsappClick}
