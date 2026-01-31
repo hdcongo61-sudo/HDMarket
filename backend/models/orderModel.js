@@ -10,7 +10,8 @@ const orderItemSchema = new mongoose.Schema(
       image: String,
       shopName: String,
       shopId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-      confirmationNumber: String
+      confirmationNumber: String,
+      slug: String
     }
   },
   { _id: false }
@@ -53,6 +54,7 @@ const orderSchema = new mongoose.Schema(
     cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     deliveryCode: { type: String, unique: true, sparse: true, trim: true },
     isDraft: { type: Boolean, default: false },
+    isInquiry: { type: Boolean, default: false },
     draftPayments: {
       type: [{
         sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -60,7 +62,9 @@ const orderSchema = new mongoose.Schema(
         transactionCode: { type: String, trim: true, default: '' }
       }],
       default: []
-    }
+    },
+    archivedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    deletedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
   },
   { timestamps: true }
 );

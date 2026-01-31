@@ -287,7 +287,8 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
           image: Array.isArray(product.images) ? product.images[0] : null,
           shopName: product.user?.shopName || product.user?.name || '',
           shopId: product.user?._id || null,
-          confirmationNumber: product.confirmationNumber || ''
+          confirmationNumber: product.confirmationNumber || '',
+          slug: product.slug || null
         }
       };
     });
@@ -393,7 +394,8 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
           image: Array.isArray(product.images) ? product.images[0] : null,
           shopName: product.user?.shopName || product.user?.name || '',
           shopId: product.user?._id || null,
-          confirmationNumber: product.confirmationNumber || ''
+          confirmationNumber: product.confirmationNumber || '',
+          slug: product.slug || null
         }
       };
     });
@@ -1030,7 +1032,8 @@ export const saveDraftOrder = asyncHandler(async (req, res) => {
           image: Array.isArray(product.images) ? product.images[0] : null,
           shopName: product.user?.shopName || product.user?.name || '',
           shopId: product.user?._id || null,
-          confirmationNumber: product.confirmationNumber || ''
+          confirmationNumber: product.confirmationNumber || '',
+          slug: product.slug || null
         }
       };
     });
@@ -1136,6 +1139,86 @@ export const deleteDraftOrder = asyncHandler(async (req, res) => {
 
   await Order.deleteOne({ _id: id });
   res.json({ message: 'Brouillon supprimé avec succès.' });
+});
+
+/**
+ * Create an inquiry order (Alibaba-style: start a conversation about a product)
+ * Creates a draft order with one item so buyer can message the seller with product context.
+ */
+export const createInquiryOrder = asyncHandler(async (req, res) => {
+  const { productId } = req.body;
+  const userId = req.user?.id || req.user?._id;
+
+  if (!ensureObjectId(productId)) {
+    return res.status(400).json({ message: 'Produit invalide.' });
+  }
+
+  const product = await Product.findById(productId).populate('user', 'shopName name slug _id');
+  if (!product || product.status !== 'approved') {
+    return res.status(404).json({ message: 'Produit introuvable ou non disponible.' });
+  }
+
+  const sellerId = product.user?._id || product.user?.id;
+  if (!sellerId) {
+    return res.status(400).json({ message: 'Vendeur introuvable pour ce produit.' });
+  }
+
+  if (String(sellerId) === String(userId)) {
+    return res.status(400).json({ message: 'Vous ne pouvez pas ouvrir une conversation avec vous-même.' });
+  }
+
+  const customer = await User.findById(userId).select('name email phone address city');
+  if (!customer) {
+    return res.status(404).json({ message: 'Client introuvable.' });
+  }
+
+  const snapshot = {
+    title: product.title,
+    price: product.price,
+    image: Array.isArray(product.images) ? product.images[0] : null,
+    shopName: product.user?.shopName || product.user?.name || '',
+    shopId: sellerId,
+    confirmationNumber: product.confirmationNumber || '',
+    slug: product.slug || null
+  };
+
+  const existingInquiry = await Order.findOne({
+    customer: userId,
+    isDraft: true,
+    isInquiry: true,
+    'items.snapshot.shopId': sellerId,
+    'items.product': productId
+  }).lean();
+
+  if (existingInquiry) {
+    const populated = await baseOrderQuery().findById(existingInquiry._id);
+    await ensureOrderProductSlugs([populated]);
+    return res.status(200).json(buildOrderResponse(populated));
+  }
+
+  const orderItem = {
+    product: product._id,
+    quantity: 1,
+    snapshot
+  };
+
+  const order = await Order.create({
+    items: [orderItem],
+    customer: userId,
+    createdBy: userId,
+    deliveryAddress: customer.address?.trim() || 'À préciser',
+    deliveryCity: customer.city || 'Brazzaville',
+    status: 'pending',
+    totalAmount: 0,
+    paidAmount: 0,
+    remainingAmount: 0,
+    isDraft: true,
+    isInquiry: true
+  });
+
+  const populated = await baseOrderQuery().findById(order._id);
+  await ensureOrderProductSlugs([populated]);
+  res.status(201).json(buildOrderResponse(populated));
 });
 
 export const userUpdateOrderStatus = asyncHandler(async (req, res) => {

@@ -15,7 +15,9 @@ import {
   ChevronDown,
   Eye,
   EyeOff,
-  Minimize2
+  Minimize2,
+  ChevronRight,
+  ChevronLeft
 } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import api from '../services/api';
@@ -73,6 +75,15 @@ const ChatBox = () => {
     if (typeof window === 'undefined') return false;
     try {
       const saved = localStorage.getItem('hdmarket_chat_hidden');
+      return saved === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [isButtonCollapsed, setIsButtonCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      const saved = localStorage.getItem('hdmarket_chat_button_collapsed');
       return saved === 'true';
     } catch {
       return false;
@@ -277,10 +288,31 @@ const ChatBox = () => {
   const handleShowChat = () => {
     setIsChatHidden(false);
     setIsOpen(true);
+    setIsButtonCollapsed(false);
     try {
       localStorage.removeItem('hdmarket_chat_hidden');
+      localStorage.removeItem('hdmarket_chat_button_collapsed');
     } catch (error) {
       console.error('Failed to remove chat hidden state:', error);
+    }
+  };
+
+  const handleCollapseButton = () => {
+    setIsOpen(false);
+    setIsButtonCollapsed(true);
+    try {
+      localStorage.setItem('hdmarket_chat_button_collapsed', 'true');
+    } catch (error) {
+      console.error('Failed to save button collapsed state:', error);
+    }
+  };
+
+  const handleExpandButton = () => {
+    setIsButtonCollapsed(false);
+    try {
+      localStorage.removeItem('hdmarket_chat_button_collapsed');
+    } catch (error) {
+      console.error('Failed to remove button collapsed state:', error);
     }
   };
 
@@ -310,42 +342,79 @@ const ChatBox = () => {
     return null;
   }
 
-  // If chat is hidden, show a small restore button
+  // If chat is hidden, show a small restore button (hideable to the right)
   if (isChatHidden) {
     return (
-      <button
-        type="button"
-        onClick={handleShowChat}
-        className="fixed right-4 bottom-4 z-50 flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2.5 text-white shadow-lg shadow-indigo-500/30 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/40 sm:right-6"
+      <div
+        className="fixed z-50 flex items-center transition-all duration-300 ease-out sm:right-6"
         style={{
           bottom: isMobileViewport
             ? `calc(env(safe-area-inset-bottom, 0px) + ${chatBottomOffset}px)`
-            : '24px'
+            : '24px',
+          right: isButtonCollapsed ? 0 : '1rem'
         }}
-        title="Afficher le support"
       >
-        {unreadCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-5 w-5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-            <span className="relative inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold">
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
-          </span>
-        )}
-        <Eye className="h-4 w-4" />
-        <span className="text-sm font-medium">Support</span>
-      </button>
+        <div className="relative flex items-center">
+          <button
+            type="button"
+            onClick={isButtonCollapsed ? handleExpandButton : handleShowChat}
+            className={`flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/40 ${
+              isButtonCollapsed ? 'h-11 w-11 min-w-11 rounded-l-full' : 'px-4 py-2.5 pl-4 pr-12'
+            }`}
+            title="Afficher le support"
+          >
+            {unreadCount > 0 && !isButtonCollapsed && (
+              <span className="absolute -right-1 -top-1 flex h-5 w-5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              </span>
+            )}
+            {unreadCount > 0 && isButtonCollapsed && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+            {isButtonCollapsed ? (
+              <ChevronLeft className="h-5 w-5" />
+            ) : (
+              <>
+                <Eye className="h-4 w-4" />
+                <span className="text-sm font-medium">Support</span>
+              </>
+            )}
+          </button>
+          {!isButtonCollapsed && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCollapseButton();
+              }}
+              className="absolute -right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-indigo-600 text-white shadow-md transition-colors hover:bg-indigo-700"
+              title="Rentrer le bouton"
+              aria-label="Rentrer le bouton"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
     );
   }
 
+  const fabContainerStyle = {
+    bottom: isMobileViewport
+      ? `calc(env(safe-area-inset-bottom, 0px) + ${chatBottomOffset}px)`
+      : '24px',
+    right: isButtonCollapsed ? 0 : '1rem'
+  };
+
   return (
     <div
-      className="fixed right-4 z-50 flex flex-col items-end sm:right-6"
-      style={{
-        bottom: isMobileViewport
-          ? `calc(env(safe-area-inset-bottom, 0px) + ${chatBottomOffset}px)`
-          : '24px'
-      }}
+      className="fixed z-50 flex flex-col items-end transition-all duration-300 ease-out sm:right-6"
+      style={fabContainerStyle}
     >
       {/* Chat Window */}
       {isOpen && (
@@ -548,30 +617,56 @@ const ChatBox = () => {
         </div>
       )}
 
-      {/* Floating Action Button */}
-      <button
-        type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="group relative flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-3 text-white shadow-lg shadow-indigo-500/30 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/40"
-      >
-        {/* Pulse animation when there are unread messages */}
-        {unreadCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-5 w-5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-            <span className="relative inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold">
+      {/* Floating Action Button - hideable to the right */}
+      <div className="relative flex items-center">
+        <button
+          type="button"
+          onClick={isButtonCollapsed ? handleExpandButton : () => setIsOpen((prev) => !prev)}
+          className={`group relative flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/40 ${
+            isButtonCollapsed ? 'h-11 w-11 min-w-11 rounded-l-full' : 'px-5 py-3 pl-5 pr-12'
+          }`}
+          title={isButtonCollapsed ? 'Afficher le support' : isOpen ? 'Fermer' : 'Support'}
+        >
+          {unreadCount > 0 && !isButtonCollapsed && (
+            <span className="absolute -right-1 -top-1 flex h-5 w-5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+              <span className="relative inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            </span>
+          )}
+          {unreadCount > 0 && isButtonCollapsed && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
-          </span>
+          )}
+          {isButtonCollapsed ? (
+            <ChevronLeft className="h-5 w-5" />
+          ) : (
+            <>
+              <MessageCircle className={`h-5 w-5 transition-transform duration-300 ${isOpen ? 'rotate-12' : 'group-hover:scale-110'}`} />
+              <span className="font-medium">{isOpen ? 'Fermer' : 'Support'}</span>
+              <span className={`flex h-2.5 w-2.5 rounded-full ${ready ? 'bg-emerald-400' : 'bg-gray-400'}`}>
+                {ready && <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 opacity-75" />}
+              </span>
+            </>
+          )}
+        </button>
+        {!isButtonCollapsed && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCollapseButton();
+            }}
+            className="absolute -right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-indigo-600 text-white shadow-md transition-colors hover:bg-indigo-700"
+            title="Rentrer le bouton"
+            aria-label="Rentrer le bouton"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
         )}
-
-        <MessageCircle className={`h-5 w-5 transition-transform duration-300 ${isOpen ? 'rotate-12' : 'group-hover:scale-110'}`} />
-        <span className="font-medium">{isOpen ? 'Fermer' : 'Support'}</span>
-
-        {/* Connection status indicator */}
-        <span className={`flex h-2.5 w-2.5 rounded-full ${ready ? 'bg-emerald-400' : 'bg-gray-400'}`}>
-          {ready && <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 opacity-75" />}
-        </span>
-      </button>
+      </div>
     </div>
   );
 };

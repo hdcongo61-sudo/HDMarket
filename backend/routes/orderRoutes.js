@@ -19,7 +19,8 @@ import {
   sellerCancelOrder,
   saveDraftOrder,
   getDraftOrders,
-  deleteDraftOrder
+  deleteDraftOrder,
+  createInquiryOrder
 } from '../controllers/orderController.js';
 import { checkOrderReviewReminderStatus } from '../controllers/reviewReminderController.js';
 import {
@@ -27,9 +28,13 @@ import {
   sendOrderMessage,
   getUnreadCount,
   getAllOrderConversations,
+  archiveOrderConversation,
+  unarchiveOrderConversation,
+  deleteOrderConversation,
   uploadOrderMessageAttachment,
   addOrderMessageReaction,
-  removeOrderMessageReaction
+  removeOrderMessageReaction,
+  deleteOrderMessage
 } from '../controllers/orderMessageController.js';
 import { chatUpload } from '../utils/chatUpload.js';
 
@@ -51,6 +56,7 @@ adminRouter.post('/:id/reminder', validate(schemas.idParam, 'params'), adminSend
 router.use('/admin', adminRouter);
 
 router.post('/checkout', validate(schemas.orderCheckout), userCheckoutOrder);
+router.post('/inquiry', validate(schemas.orderInquiry), createInquiryOrder);
 router.post('/draft', saveDraftOrder);
 router.get('/draft', getDraftOrders);
 router.delete('/draft/:id', validate(schemas.idParam, 'params'), deleteDraftOrder);
@@ -82,6 +88,9 @@ router.post(
 // Order messages routes (must be before /:id routes to avoid conflicts)
 router.get('/messages/conversations', getAllOrderConversations);
 router.get('/messages/unread', getUnreadCount);
+router.post('/:id/archive', validate(schemas.idParam, 'params'), archiveOrderConversation);
+router.post('/:id/unarchive', validate(schemas.idParam, 'params'), unarchiveOrderConversation);
+router.post('/:id/delete', validate(schemas.idParam, 'params'), deleteOrderConversation);
 
 router.get('/', userListOrders);
 router.get('/:id/review-reminder-check', validate(schemas.idParam, 'params'), checkOrderReviewReminderStatus);
@@ -93,6 +102,7 @@ router.post(
   validate(schemas.orderMessage),
   sendOrderMessage
 );
+router.delete('/:orderId/messages/:messageId', deleteOrderMessage);
 router.post('/messages/upload', chatUpload.single('file'), uploadOrderMessageAttachment);
 router.post('/messages/:messageId/reactions', addOrderMessageReaction);
 router.delete('/messages/:messageId/reactions', removeOrderMessageReaction);

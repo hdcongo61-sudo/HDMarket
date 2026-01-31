@@ -32,6 +32,7 @@ import AuthContext from '../context/AuthContext';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { buildProductPath } from '../utils/links';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
+import useIsMobile from '../hooks/useIsMobile';
 
 const DAY_LABELS = {
   monday: 'Lundi',
@@ -101,6 +102,7 @@ export default function ShopProfile() {
   const [topSellingError, setTopSellingError] = useState('');
   const shopIdentifier = shop?.slug || shop?._id || slug;
   const externalLinkProps = useDesktopExternalLink();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     let active = true;
@@ -489,9 +491,9 @@ export default function ShopProfile() {
   };
 
   return (
-    <main className="bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 py-8">
-      <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 sm:px-6 lg:px-8 text-slate-900">
-        <section className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 text-white shadow-2xl">
+    <main className={`bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 py-4 sm:py-8 ${isMobile ? 'pb-24' : ''}`}>
+      <div className={`mx-auto flex max-w-7xl flex-col text-slate-900 ${isMobile ? 'gap-4 px-3' : 'gap-8 px-4 sm:px-6 lg:px-8'}`}>
+        <section className={`relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 text-white shadow-2xl ${isMobile ? 'rounded-2xl' : 'rounded-[32px]'}`}>
           {shop.shopBanner && (
             <div className="absolute inset-0">
               <img
@@ -509,10 +511,10 @@ export default function ShopProfile() {
                 'radial-gradient(circle at top right, rgba(255,255,255,0.3), transparent 60%), radial-gradient(circle at 20% 20%, rgba(255,255,255,0.15), transparent 45%)'
             }}
           />
-          <div className="relative z-10 flex flex-col gap-8 px-6 py-10 md:px-10 md:py-12">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:gap-5">
-                <div className="h-24 w-24 overflow-hidden rounded-2xl border border-white/40 bg-white/20">
+          <div className={`relative z-10 flex flex-col ${isMobile ? 'gap-4 px-4 py-5' : 'gap-8 px-6 py-10 md:px-10 md:py-12'}`}>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-4 sm:flex-row sm:items-start sm:gap-5">
+                <div className={`overflow-hidden rounded-xl border border-white/40 bg-white/20 shrink-0 ${isMobile ? 'h-16 w-16' : 'h-24 w-24 rounded-2xl'}`}>
                   {shop.shopLogo ? (
                     <img
                       src={shop.shopLogo}
@@ -525,15 +527,16 @@ export default function ShopProfile() {
                     </div>
                   )}
                 </div>
-                <div className="w-full space-y-1 text-center text-white sm:text-left">
-                  <p className="text-xs uppercase tracking-[0.4em] text-white/80">Boutique</p>
-                  <div className="flex flex-col items-center justify-center gap-1 sm:flex-row sm:items-center sm:justify-start">
-                    <h1 className="text-3xl font-bold leading-tight text-white">{shop.shopName}</h1>
+                <div className={`flex-1 min-w-0 space-y-0.5 text-white ${isMobile ? '' : 'text-center sm:text-left'}`}>
+                  <p className={`uppercase tracking-wider text-white/80 ${isMobile ? 'text-[10px]' : 'text-xs tracking-[0.4em]'}`}>Boutique</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h1 className={`font-bold leading-tight text-white truncate ${isMobile ? 'text-xl' : 'text-3xl'}`}>{shop.shopName}</h1>
                     <VerifiedBadge verified={shop.shopVerified} />
                   </div>
-                  <p className="text-sm text-white/80">Gérée par {shop.ownerName}</p>
+                  <p className={`text-white/80 truncate ${isMobile ? 'text-xs' : 'text-sm'}`}>Gérée par {shop.ownerName}</p>
                 </div>
               </div>
+              {!isMobile && (
               <div className="flex flex-col gap-2 text-sm text-white/80">
                 <div className="flex items-center gap-1">
                   <Clock className="h-4 w-4" />
@@ -544,48 +547,62 @@ export default function ShopProfile() {
                   <span>{shop.shopAddress || 'Adresse non renseignée'}</span>
                 </div>
               </div>
+              )}
             </div>
-            <p className="max-w-2xl text-sm text-white/80">
+            {isMobile && (
+              <div className="flex items-center gap-3 text-white/80 text-xs flex-wrap">
+                <div className="flex items-center gap-1 truncate min-w-0">
+                  <MapPin className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{shop.shopAddress || 'Adresse non renseignée'}</span>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>{formatDate(shop.createdAt)}</span>
+                </div>
+              </div>
+            )}
+            <p className={`text-white/80 ${isMobile ? 'text-xs line-clamp-2' : 'max-w-2xl text-sm'}`}>
               {shop.shopDescription || 'Aucune description publique n’a encore été ajoutée à cette boutique.'}
             </p>
-            <div className="grid gap-4 text-xs uppercase tracking-[0.2em] text-white/80 sm:grid-cols-3">
-              <div className="rounded-2xl border border-white/30 bg-white/5 px-4 py-3 text-center backdrop-blur">
-                <p className="text-[10px]">Prod. disponibles</p>
-                <p className="mt-2 text-lg font-semibold">{formatCount(shop.productCount ?? products.length)}</p>
+            <div className={`grid text-xs uppercase tracking-wider text-white/80 sm:grid-cols-3 ${isMobile ? 'grid-cols-3 gap-2' : 'gap-4 tracking-[0.2em]'}`}>
+              <div className={`rounded-xl border border-white/30 bg-white/5 text-center backdrop-blur ${isMobile ? 'px-2 py-2' : 'rounded-2xl px-4 py-3'}`}>
+                <p className={isMobile ? 'text-[9px]' : 'text-[10px]'}>Prod.</p>
+                <p className={`font-semibold ${isMobile ? 'text-sm mt-0.5' : 'text-lg mt-2'}`}>{formatCount(shop.productCount ?? products.length)}</p>
               </div>
-              <div className="rounded-2xl border border-white/30 bg-white/5 px-4 py-3 text-center backdrop-blur">
-                <p className="text-[10px]">Avis</p>
-                <p className="mt-2 text-lg font-semibold">{formatRatingLabel(ratingAverage)}</p>
+              <div className={`rounded-xl border border-white/30 bg-white/5 text-center backdrop-blur ${isMobile ? 'px-2 py-2' : 'rounded-2xl px-4 py-3'}`}>
+                <p className={isMobile ? 'text-[9px]' : 'text-[10px]'}>Avis</p>
+                <p className={`font-semibold ${isMobile ? 'text-sm mt-0.5' : 'text-lg mt-2'}`}>{formatRatingLabel(ratingAverage)}</p>
               </div>
-              <div className="rounded-2xl border border-white/30 bg-white/5 px-4 py-3 text-center backdrop-blur">
-                <p className="text-[10px]">Abonnés</p>
-                <p className="mt-2 text-lg font-semibold">{formatCount(followersCount)}</p>
+              <div className={`rounded-xl border border-white/30 bg-white/5 text-center backdrop-blur ${isMobile ? 'px-2 py-2' : 'rounded-2xl px-4 py-3'}`}>
+                <p className={isMobile ? 'text-[9px]' : 'text-[10px]'}>Abonnés</p>
+                <p className={`font-semibold ${isMobile ? 'text-sm mt-0.5' : 'text-lg mt-2'}`}>{formatCount(followersCount)}</p>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-3 justify-center">
+            <div className={`flex flex-wrap items-center gap-2 justify-center ${isMobile ? 'flex-col' : ''}`}>
               {callAction}
               {followButton}
-              <Link
+              {!isMobile && <Link
                 to="/shops/verified"
                 className="inline-flex items-center justify-center rounded-full border border-white/60 bg-white/10 px-5 py-2 text-sm font-semibold text-white transition hover:border-white"
               >
                 Découvrir d’autres boutiques
               </Link>
+              }
             </div>
           </div>
         </section>
 
         {/* Premium Reviews Section */}
-        <section className="rounded-3xl border border-gray-200/60 bg-gradient-to-br from-white to-gray-50/50 p-8 shadow-xl">
-          <article className="space-y-6">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-100 to-orange-100">
-                  <Star size={24} className="text-amber-600 fill-amber-600" />
+        <section className={`rounded-2xl sm:rounded-3xl border border-gray-200/60 bg-gradient-to-br from-white to-gray-50/50 shadow-xl ${isMobile ? 'p-4' : 'p-8'}`}>
+          <article className={isMobile ? 'space-y-4' : 'space-y-6'}>
+            <div className={`flex items-start justify-between gap-3 ${isMobile ? 'flex-col sm:flex-row' : ''}`}>
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className={`flex items-center justify-center rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 ${isMobile ? 'h-10 w-10' : 'h-12 w-12'}`}>
+                  <Star size={isMobile ? 20 : 24} className="text-amber-600 fill-amber-600" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold text-gray-900">Avis & Commentaires</h3>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <h3 className={`font-bold text-gray-900 ${isMobile ? 'text-lg' : 'text-2xl'}`}>Avis & Commentaires</h3>
+                  <p className={`text-gray-500 mt-0.5 ${isMobile ? 'text-xs' : 'text-sm mt-1'}`}>
                     {ratingCount} avis • Note moyenne {formatRatingLabel(ratingAverage)}/5
                   </p>
                 </div>
@@ -593,7 +610,7 @@ export default function ShopProfile() {
               <button
                 type="button"
                 onClick={openCommentsModal}
-                className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 transition-all duration-200 hover:bg-indigo-100 hover:border-indigo-300 hover:scale-105"
+                className={`inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 font-semibold text-indigo-700 transition-all duration-200 hover:bg-indigo-100 hover:border-indigo-300 active:scale-95 w-full sm:w-auto justify-center ${isMobile ? 'text-sm py-2.5' : 'text-sm'}`}
               >
                 <MessageCircle size={16} />
                 Voir tous les commentaires
@@ -602,10 +619,10 @@ export default function ShopProfile() {
             
             {/* Rating Distribution (if we have reviews) */}
             {ratingCount > 0 && (
-              <div className="rounded-2xl border border-gray-200 bg-white p-6">
-                <div className="flex items-center justify-center gap-3 mb-4">
+              <div className={`rounded-2xl border border-gray-200 bg-white ${isMobile ? 'p-4' : 'p-6'}`}>
+                <div className={`flex items-center justify-center gap-3 ${isMobile ? 'mb-3' : 'mb-4'}`}>
                   <div className="text-center">
-                    <div className="text-5xl font-black bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">
+                    <div className={`font-black bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent ${isMobile ? 'text-3xl' : 'text-5xl'}`}>
                       {formatRatingLabel(ratingAverage)}
                     </div>
                     <div className="flex items-center justify-center gap-1 mt-2">
@@ -629,16 +646,18 @@ export default function ShopProfile() {
               </div>
             )}
             {showReviewForm && (
-              <form className="space-y-5 rounded-2xl border border-gray-200 bg-white p-6" onSubmit={handleReviewSubmit}>
+              <form className={`space-y-5 rounded-2xl border border-gray-200 bg-white ${isMobile ? 'p-4' : 'p-6'}`} onSubmit={handleReviewSubmit}>
                 <div className="space-y-3">
                   <label className="text-sm font-bold text-gray-900">Votre note</label>
-                  <div className="flex items-center gap-2">
+                  <div className={`flex items-center gap-2 ${isMobile ? 'flex-wrap' : ''}`}>
                     {ratingOptions.map((value) => (
                       <button
                         type="button"
                         key={`rating-${value}`}
                         onClick={() => setReviewForm((prev) => ({ ...prev, rating: value }))}
-                        className={`group flex items-center gap-1.5 rounded-xl border-2 px-4 py-2.5 text-sm font-bold transition-all duration-200 ${
+                        className={`group flex items-center gap-1.5 rounded-xl border-2 text-sm font-bold transition-all duration-200 ${
+                          isMobile ? 'px-3 py-2' : 'px-4 py-2.5'
+                        } ${
                           reviewForm.rating === value
                             ? 'border-amber-500 bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 scale-105 shadow-md'
                             : 'border-gray-200 bg-white text-gray-600 hover:border-amber-300 hover:bg-amber-50'
@@ -778,10 +797,10 @@ export default function ShopProfile() {
         </section>
 
         {/* Premium Hours & Rating Section */}
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]">
+        <section className={`grid gap-6 ${isMobile ? '' : 'lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]'}`}>
           <div className="space-y-6">
-            <article className="overflow-hidden rounded-3xl border border-gray-200/60 bg-gradient-to-br from-white to-gray-50/30 shadow-xl">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-gradient-to-r from-indigo-50/50 via-white to-purple-50/30 px-6 py-5">
+            <article className={`overflow-hidden border border-gray-200/60 bg-gradient-to-br from-white to-gray-50/30 shadow-xl ${isMobile ? 'rounded-2xl' : 'rounded-3xl'}`}>
+              <div className={`flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-gradient-to-r from-indigo-50/50 via-white to-purple-50/30 ${isMobile ? 'px-4 py-4' : 'px-6 py-5'}`}>
                 <div className="flex items-center gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100">
                     <Clock className="h-6 w-6 text-indigo-600" />
@@ -796,7 +815,7 @@ export default function ShopProfile() {
                 </span>
               </div>
               {hours.length ? (
-                <div className="space-y-3 px-6 py-5">
+                <div className={`space-y-3 ${isMobile ? 'px-4 py-4' : 'px-6 py-5'}`}>
                   {hours.map((entry) => {
                     const dayLabel = DAY_LABELS[entry.day] || entry.day || 'Jour';
                     const timeLabel = entry.closed
@@ -846,7 +865,7 @@ export default function ShopProfile() {
               )}
             </article>
 
-            <article className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm text-center">
+            <article className={`rounded-2xl sm:rounded-3xl border border-gray-100 bg-white shadow-sm text-center ${isMobile ? 'p-4' : 'p-6'}`}>
               <p className="text-xs uppercase tracking-[0.3em] text-gray-500">Note moyenne</p>
               <div className="mt-3 flex items-center justify-center gap-2">
                 <Star className="h-6 w-6 text-yellow-500" />
@@ -858,15 +877,15 @@ export default function ShopProfile() {
         </section>
 
         {/* Top Selling Products Section */}
-        <section className="rounded-3xl border border-gray-200/60 bg-gradient-to-br from-emerald-50/30 via-white to-teal-50/20 p-8 shadow-xl">
-            <div className="flex items-center justify-between gap-4 mb-6">
+        <section className={`rounded-2xl sm:rounded-3xl border border-gray-200/60 bg-gradient-to-br from-emerald-50/30 via-white to-teal-50/20 shadow-xl ${isMobile ? 'p-4' : 'p-8'}`}>
+            <div className={`flex items-center justify-between gap-4 ${isMobile ? 'mb-4 flex-col sm:flex-row items-start' : 'mb-6'}`}>
               <div className="flex items-center gap-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100 shadow-md">
                   <TrendingUp size={24} className="text-emerald-600" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Produits les plus vendus</h2>
-                  <p className="text-sm text-gray-500 mt-1">Les 5 meilleures ventes de cette boutique</p>
+                  <h2 className={`font-bold text-gray-900 ${isMobile ? 'text-lg' : 'text-2xl'}`}>Produits les plus vendus</h2>
+                  <p className={`text-gray-500 mt-0.5 ${isMobile ? 'text-xs' : 'text-sm mt-1'}`}>Les 5 meilleures ventes de cette boutique</p>
                 </div>
               </div>
               <div className="hidden sm:flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-100 to-teal-100 px-4 py-2 border border-emerald-200 shadow-sm">
@@ -966,8 +985,8 @@ export default function ShopProfile() {
           </section>
 
         {/* Premium Products Section */}
-        <section className="rounded-3xl border border-gray-200/60 bg-gradient-to-br from-white to-gray-50/30 p-8 shadow-xl">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+        <section className={`rounded-2xl sm:rounded-3xl border border-gray-200/60 bg-gradient-to-br from-white to-gray-50/30 shadow-xl ${isMobile ? 'p-4' : 'p-8'}`}>
+          <div className={`flex flex-col gap-4 sm:gap-6 sm:flex-row sm:items-start sm:justify-between ${isMobile ? '' : ''}`}>
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100">
                 <Package size={24} className="text-indigo-600" />
@@ -980,11 +999,11 @@ export default function ShopProfile() {
               </div>
             </div>
             {categories.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
+              <div className={`flex items-center gap-2 ${isMobile ? 'overflow-x-auto pb-2 -mx-1 hide-scrollbar flex-nowrap' : 'flex-wrap'}`}>
                 <button
                   type="button"
                   onClick={() => setActiveCategory('all')}
-                  className={`inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-xs font-bold transition-all duration-200 ${
+                  className={`inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-xs font-bold transition-all duration-200 shrink-0 ${
                     activeCategory === 'all'
                       ? 'border-indigo-500 bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 shadow-md scale-105'
                       : 'border-gray-200 bg-white text-gray-600 hover:border-indigo-300 hover:bg-indigo-50'
@@ -998,7 +1017,7 @@ export default function ShopProfile() {
                     key={category}
                     type="button"
                     onClick={() => setActiveCategory(category)}
-                    className={`inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-xs font-bold transition-all duration-200 ${
+                    className={`inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-xs font-bold transition-all duration-200 shrink-0 ${
                       activeCategory === category
                         ? 'border-indigo-500 bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 shadow-md scale-105'
                         : 'border-gray-200 bg-white text-gray-600 hover:border-indigo-300 hover:bg-indigo-50'
@@ -1033,10 +1052,49 @@ export default function ShopProfile() {
           )}
         </section>
         {/* Premium Comments Modal */}
+        {/* Mobile sticky action bar */}
+        {isMobile && shop && (
+          <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center gap-2 bg-white/95 backdrop-blur-lg border-t border-gray-200 px-4 py-3 safe-area-pb">
+            <div className="flex-1 flex gap-2">
+              {user && shop.phone ? (
+                <a
+                  href={`tel:${shop.phone}`}
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white transition active:scale-95"
+                >
+                  <Phone size={18} />
+                  Appeler
+                </a>
+              ) : (
+                <Link
+                  to="/login"
+                  state={{ from: `/shop/${slug}` }}
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border-2 border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-bold text-indigo-700 transition active:scale-95"
+                >
+                  <Phone size={18} />
+                  Appeler
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={handleFollowToggle}
+                disabled={followLoading || !shop?.shopVerified}
+                className={`flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition active:scale-95 ${
+                  isFollowing
+                    ? 'border-2 border-emerald-300 bg-emerald-50 text-emerald-700'
+                    : 'border-2 border-indigo-200 bg-indigo-50 text-indigo-700'
+                } ${(!shop?.shopVerified || followLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <Heart size={18} className={isFollowing ? 'fill-current' : ''} />
+                {followLoading ? '...' : (isFollowing ? 'Suivie' : 'Suivre')}
+              </button>
+            </div>
+          </div>
+        )}
+
         {showCommentsModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-8">
-            <div className="relative w-full max-w-4xl rounded-3xl border border-gray-200 bg-white shadow-2xl max-h-[90vh] flex flex-col">
-              <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-gray-200 bg-white px-6 py-5 rounded-t-3xl">
+          <div className={`fixed inset-0 z-50 flex bg-black/60 backdrop-blur-sm ${isMobile ? 'items-end justify-center' : 'items-center justify-center px-4 py-8'}`} onClick={(e) => e.target === e.currentTarget && closeCommentsModal()}>
+            <div className={`relative w-full border border-gray-200 bg-white shadow-2xl flex flex-col ${isMobile ? 'max-h-[90vh] rounded-t-3xl max-w-full' : 'max-w-4xl max-h-[90vh] rounded-3xl'}`} onClick={(e) => e.stopPropagation()}>
+              <div className={`sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-gray-200 bg-white rounded-t-3xl ${isMobile ? 'px-4 py-4' : 'px-6 py-5'}`}>
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-100 to-orange-100">
                     <MessageCircle size={20} className="text-amber-600" />
@@ -1055,7 +1113,7 @@ export default function ShopProfile() {
                   <X size={20} />
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+              <div className={`flex-1 overflow-y-auto space-y-4 ${isMobile ? 'px-4 py-4' : 'px-6 py-6'}`}>
                 {commentsLoading ? (
                   <div className="flex items-center justify-center py-12">
                     <div className="flex flex-col items-center gap-3">

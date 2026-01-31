@@ -28,15 +28,19 @@ export const register = asyncHandler(async (req, res) => {
   if (!name || !email || !password || !phone || !city || !gender || !address?.trim()) {
     return res.status(400).json({ message: 'Missing fields' });
   }
-  if (!verificationCode) {
-    return res.status(400).json({ message: 'Code de vérification manquant.' });
+  // In production: email verification check disabled for registration
+  const isProduction = process.env.NODE_ENV === 'production';
+  if (!isProduction) {
+    if (!verificationCode) {
+      return res.status(400).json({ message: 'Code de vérification manquant.' });
+    }
+    if (!isEmailConfigured()) {
+      return res.status(503).json({
+        message: "Email n'est pas configuré. Définissez EMAIL_USER et EMAIL_PASSWORD."
+      });
+    }
   }
-  if (!isEmailConfigured()) {
-    return res.status(503).json({
-      message: "Email n'est pas configuré. Définissez EMAIL_USER et EMAIL_PASSWORD."
-    });
-  }
-  
+
   // Validate email
   if (!email || !email.trim()) {
     return res.status(400).json({ message: 'Adresse email manquante.' });
@@ -69,13 +73,15 @@ export const register = asyncHandler(async (req, res) => {
   const phoneTaken = await User.findOne({ phone: { $in: phoneCandidates } });
   if (phoneTaken) return res.status(400).json({ message: 'Téléphone déjà utilisé' });
 
-  // Verify code using email
+  // Verify code using email (disabled in production)
   const normalizedRole = role === 'admin' ? 'admin' : role === 'manager' ? 'manager' : 'user';
-  const verificationCheck = await checkVerificationCode(normalizedEmail, verificationCode, 'registration');
-  if (verificationCheck?.status !== 'approved') {
-    return res.status(400).json({ 
-      message: verificationCheck?.message || 'Code de vérification invalide.' 
-    });
+  if (!isProduction) {
+    const verificationCheck = await checkVerificationCode(normalizedEmail, verificationCode, 'registration');
+    if (verificationCheck?.status !== 'approved') {
+      return res.status(400).json({
+        message: verificationCheck?.message || 'Code de vérification invalide.'
+      });
+    }
   }
 
   const user = await User.create({
@@ -169,16 +175,34 @@ export const login = asyncHandler(async (req, res) => {
 
 export const sendRegisterCode = asyncHandler(async (req, res) => {
   const { email } = req.body;
+  // In production: skip sending verification email for registration
+  const isProduction = process.env.NODE_ENV === 'production';
+  if (isProduction) {
+    if (!email || !email.trim()) {
+      return res.status(400).json({ message: 'Adresse email manquante.' });
+    }
+    const normalizedEmail = email.toLowerCase().trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(normalizedEmail)) {
+      return res.status(400).json({ message: 'Adresse email invalide.' });
+    }
+    const emailTaken = await User.findOne({ email: normalizedEmail });
+    if (emailTaken) {
+      return res.status(400).json({ message: 'Email déjà utilisé' });
+    }
+    return res.json({ message: 'Inscription possible sans code en production.' });
+  }
+
   if (!isEmailConfigured()) {
     return res.status(503).json({
       message: "Email n'est pas configuré. Définissez EMAIL_USER et EMAIL_PASSWORD."
     });
   }
-  
+
   if (!email || !email.trim()) {
     return res.status(400).json({ message: 'Adresse email manquante.' });
   }
-  
+
   const normalizedEmail = email.toLowerCase().trim();
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(normalizedEmail)) {

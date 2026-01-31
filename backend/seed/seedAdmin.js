@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import connectDB from '../config/db.js';
 import User from '../models/userModel.js';
-import { normalizePhone } from '../utils/twilioVerify.js';
+import { normalizePhone } from '../utils/firebaseVerification.js';
 
 dotenv.config();
 await connectDB();

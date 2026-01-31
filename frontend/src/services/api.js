@@ -267,6 +267,12 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+// Retry config for network errors (no response = connection/timeout/CORS)
+const NETWORK_ERROR_MAX_RETRIES = 2;
+const NETWORK_ERROR_DELAY_MS = 1200;
+const NETWORK_ERROR_TOAST_THROTTLE_MS = 15000; // max one toast per 15s
+let lastNetworkErrorToastAt = 0;
+
 api.interceptors.response.use(
   async (response) => {
     if (shouldCacheRequest(response.config)) {
@@ -278,17 +284,32 @@ api.interceptors.response.use(
     }
     return response;
   },
-  (error) => {
-    if (!error.response) {
-      const message =
-        'Impossible de joindre le serveur. Vérifiez votre connexion internet et réessayez.';
-      window.dispatchEvent(
-        new CustomEvent('hdmarket:network-error', {
-          detail: { message },
-          bubbles: true,
-          cancelable: false
-        })
-      );
+  async (error) => {
+    const config = error.config || {};
+    const retryCount = config.__retryCount ?? 0;
+    const isNetworkError = !error.response;
+
+    if (isNetworkError && retryCount < NETWORK_ERROR_MAX_RETRIES) {
+      config.__retryCount = retryCount + 1;
+      const delay = NETWORK_ERROR_DELAY_MS * (retryCount + 1);
+      await new Promise((r) => setTimeout(r, delay));
+      return api.request(config);
+    }
+
+    if (isNetworkError && typeof window !== 'undefined') {
+      const now = Date.now();
+      if (now - lastNetworkErrorToastAt >= NETWORK_ERROR_TOAST_THROTTLE_MS) {
+        lastNetworkErrorToastAt = now;
+        const message =
+          'Impossible de joindre le serveur. Vérifiez votre connexion internet et réessayez.';
+        window.dispatchEvent(
+          new CustomEvent('hdmarket:network-error', {
+            detail: { message },
+            bubbles: true,
+            cancelable: false
+          })
+        );
+      }
     }
     return Promise.reject(error);
   }

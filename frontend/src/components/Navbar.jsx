@@ -470,7 +470,7 @@ export default function Navbar() {
     { id: 'profile', label: 'Profil', path: '/profile', icon: User, badge: null, visible: user ? true : false, order: 5 },
     { id: 'notifications', label: 'Notifications', path: '/notifications', icon: Bell, badge: commentAlerts, visible: user ? true : false, order: 6 },
     { id: 'orders', label: 'Commandes', path: '/orders', icon: ClipboardList, badge: activeOrders, visible: user ? true : false, order: 7 },
-    { id: 'messages', label: 'Messages', path: '/orders/messages', icon: MessageSquare, badge: null, visible: user ? true : false, order: 8 },
+    { id: 'messages', label: 'Messages', path: '/orders/messages', icon: MessageSquare, badge: unreadOrderMessages, visible: user ? true : false, order: 8 },
     { id: 'my', label: 'Mes annonces', path: '/my', icon: Package, badge: null, visible: user ? true : false, order: 9 },
     { id: 'suggestions', label: 'Suggestions', path: '/suggestions', icon: Sparkles, badge: null, visible: true, order: 10 }
   ];
@@ -2743,7 +2743,7 @@ export default function Navbar() {
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         {/* Top Bar: Logo, Search, Actions */}
-        <div className="mx-auto px-4 sm:px-6 lg:px-8" style={{ maxWidth: '1400px' }} className="max-w-[1400px] 2xl:max-w-[1600px]">
+        <div className="mx-auto px-4 sm:px-6 lg:px-8 max-w-[1400px] 2xl:max-w-[1600px]">
           <div className="flex items-center justify-between h-16 gap-4 lg:gap-6">
             
             {/* === LOGO HDMarket === */}
@@ -2758,7 +2758,7 @@ export default function Navbar() {
                   <img
                     src={desktopLogo || mobileLogo}
                     alt="Logo HDMarket"
-                    className="hidden h-[138px] w-auto max-w-[200px] object-contain sm:block transition-all duration-300 group-hover:scale-105"
+                    className="hidden h-[62px] w-auto max-w-[200px] object-contain sm:block transition-all duration-300 group-hover:scale-105"
                     style={{ lineHeight: '28px' }}
                   />
                 </>
@@ -2853,6 +2853,11 @@ export default function Navbar() {
                     aria-label="Messages"
                   >
                     <MessageSquare size={18} />
+                    {hasUnreadOrderMessages && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-pulse">
+                        {unreadOrderMessagesBadge}
+                      </span>
+                    )}
                   </Link>
                   <Link
                     to="/favorites"

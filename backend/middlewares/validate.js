@@ -8,8 +8,9 @@ export const validate =
       stripUnknown: true,
     });
     if (error) {
+      const firstMessage = error.details[0]?.message;
       return res.status(400).json({
-        message: 'Validation error',
+        message: firstMessage || 'Validation error',
         details: error.details.map((d) => d.message),
       });
     }
@@ -25,7 +26,8 @@ export const schemas = {
     email: Joi.string().email().required(),
     password: Joi.string().min(6).max(100).required(),
     phone: Joi.string().min(5).max(30).required(),
-    verificationCode: Joi.string().min(3).max(10).required(),
+    // Optional in production (email verification disabled)
+    verificationCode: Joi.string().min(0).max(10).optional(),
     role: Joi.string().valid('user', 'admin', 'manager').optional(),
     accountType: Joi.string().valid('person').default('person'),
     address: Joi.string().min(4).max(200).required(),
@@ -191,6 +193,9 @@ export const schemas = {
     deliveryCity: Joi.string().valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo').required(),
     trackingNote: Joi.string().max(500).allow('', null)
   }),
+  orderInquiry: Joi.object({
+    productId: Joi.string().hex().length(24).required()
+  }),
   orderCheckout: Joi.alternatives()
     .try(
       Joi.object({
@@ -219,28 +224,28 @@ export const schemas = {
     deliveryCity: Joi.string().valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo').required()
   }),
   orderMessage: Joi.object({
-    text: Joi.string().trim().min(0).max(1000).allow('', null),
-    recipientId: Joi.string().hex().length(24).allow('', null),
-    encryptedText: Joi.string().allow('', null),
+    text: Joi.string().trim().min(0).max(1000).allow('', null).optional(),
+    recipientId: Joi.any().optional().allow(null, ''),
+    encryptedText: Joi.string().allow('', null).optional(),
     encryptionData: Joi.object({
       iv: Joi.string(),
       tag: Joi.string(),
       salt: Joi.string(),
       key: Joi.string()
-    }).allow(null),
+    }).allow(null).optional(),
     attachments: Joi.array().items(Joi.object({
-      type: Joi.string().valid('image', 'document', 'audio').required(),
-      url: Joi.string().required(),
-      filename: Joi.string().required(),
+      type: Joi.string().valid('image', 'document', 'audio'),
+      url: Joi.string(),
+      filename: Joi.string(),
       size: Joi.number(),
       mimeType: Joi.string()
-    })).allow(null),
+    }).unknown(true)).optional().allow(null),
     voiceMessage: Joi.object({
-      url: Joi.string().required(),
+      url: Joi.string(),
       duration: Joi.number(),
-      type: Joi.string().default('audio')
-    }).allow(null)
-  }).or('text', 'encryptedText', 'attachments', 'voiceMessage'),
+      type: Joi.string()
+    }).unknown(true).allow(null).optional()
+  }).optional(),
   sellerOrderStatusUpdate: Joi.object({
     status: Joi.string().valid('pending', 'confirmed', 'delivering', 'delivered', 'cancelled').required()
   }),
