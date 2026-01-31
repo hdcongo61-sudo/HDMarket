@@ -900,6 +900,15 @@ export const updateProfile = asyncHandler(async (req, res) => {
 });
 
 export const sendPasswordChangeCode = asyncHandler(async (req, res) => {
+  // In production: skip sending verification email to facilitate testing
+  const isProduction = process.env.NODE_ENV === 'production';
+  if (isProduction) {
+    const user = await User.findById(req.user.id).select('email');
+    if (!user || !user.email) {
+      return res.status(404).json({ message: 'Utilisateur introuvable ou email manquant.' });
+    }
+    return res.json({ message: 'En production, changement de mot de passe possible sans code pour les tests.' });
+  }
   if (!isEmailConfigured()) {
     return res.status(503).json({
       message:
@@ -916,7 +925,9 @@ export const sendPasswordChangeCode = asyncHandler(async (req, res) => {
 
 export const changePassword = asyncHandler(async (req, res) => {
   const { verificationCode, newPassword } = req.body;
-  if (!isEmailConfigured()) {
+  // In production: skip email verification check to facilitate testing
+  const isProduction = process.env.NODE_ENV === 'production';
+  if (!isProduction && !isEmailConfigured()) {
     return res.status(503).json({
       message:
         "Email n'est pas configuré. Définissez EMAIL_USER et EMAIL_PASSWORD."
@@ -926,11 +937,13 @@ export const changePassword = asyncHandler(async (req, res) => {
   if (!user || !user.email) {
     return res.status(404).json({ message: 'Utilisateur introuvable ou email manquant.' });
   }
-  const verificationCheck = await checkVerificationCode(user.email, verificationCode, 'password_change');
-  if (verificationCheck?.status !== 'approved') {
-    return res.status(400).json({ 
-      message: verificationCheck?.message || 'Code de vérification invalide.' 
-    });
+  if (!isProduction) {
+    const verificationCheck = await checkVerificationCode(user.email, verificationCode, 'password_change');
+    if (verificationCheck?.status !== 'approved') {
+      return res.status(400).json({ 
+        message: verificationCheck?.message || 'Code de vérification invalide.' 
+      });
+    }
   }
   user.password = newPassword;
   user.phoneVerified = true;

@@ -66,10 +66,7 @@ export default function Register() {
       setFormError("Veuillez renseigner votre adresse complète.");
       return;
     }
-    if (!verificationCode.trim()) {
-      setFormError("Veuillez saisir le code de vérification reçu par email.");
-      return;
-    }
+    // Verification code optional when email is not configured or in production
     setLoading(true);
     try {
       const payload = new FormData();
@@ -82,7 +79,7 @@ export default function Register() {
       payload.append('city', form.city);
       payload.append('gender', form.gender);
       payload.append('address', form.address.trim());
-      payload.append('verificationCode', verificationCode.trim());
+      payload.append('verificationCode', (verificationCode && verificationCode.trim()) || '');
 
       const { data } = await api.post('/auth/register', payload, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -147,13 +144,12 @@ export default function Register() {
                 <input
                   type="text"
                   className="flex-1 px-3 py-2.5 border border-gray-300 focus:outline-none focus:border-indigo-600 text-sm"
-                  placeholder="Code de vérification email *"
+                  placeholder="Code de vérification email (optionnel si email non configuré)"
                   value={verificationCode}
                   onChange={(e) => {
                     setVerificationCode(e.target.value);
                     setFormError('');
                   }}
-                  required
                 />
                 <button
                   type="button"
@@ -345,8 +341,7 @@ export default function Register() {
                 !form.phone ||
                 !form.address ||
                 !form.city ||
-                !form.gender ||
-                !verificationCode
+                !form.gender
               }
               className="w-full py-3 bg-blue-600 text-white text-sm font-semibold rounded-3xl hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 active:scale-95 shadow-sm"
             >
