@@ -44,6 +44,7 @@ import PaymentForm from '../components/PaymentForm';
 import ProductForm from '../components/ProductForm';
 import ProductAnalytics from '../components/ProductAnalytics';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
+import useIsMobile from '../hooks/useIsMobile';
 import { buildProductPath } from '../utils/links';
 import categoryGroups from '../data/categories';
 import storage from '../utils/storage';
@@ -95,6 +96,7 @@ const formatDate = (value) => {
 export default function UserDashboard() {
   const { showToast } = useToast();
   const externalLinkProps = useDesktopExternalLink();
+  const isMobile = useIsMobile(768);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -1739,33 +1741,34 @@ export default function UserDashboard() {
         )}
       </div>
 
-      {/* Product Form Modal */}
+      {/* Product Form Modal — full-screen on mobile for easier use */}
       {isProductModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+        <div className={`fixed inset-0 z-50 flex ${isMobile ? 'flex-col' : 'items-center justify-center px-4 py-6'}`}>
           <div
             className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity"
             onClick={handleModalClose}
+            aria-hidden
           />
           <div
-            className="relative w-full max-w-5xl rounded-3xl bg-white shadow-2xl border border-gray-100 max-h-[90vh] overflow-hidden flex flex-col"
+            className={`relative flex flex-col bg-white shadow-2xl overflow-hidden ${isMobile ? 'w-full h-full max-h-full rounded-none border-0' : 'w-full max-w-5xl rounded-3xl border border-gray-100 max-h-[90vh]'}`}
             onClick={(event) => event.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="bg-indigo-600 text-white px-6 py-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+            <div className={`bg-indigo-600 text-white flex-shrink-0 ${isMobile ? 'px-4 py-4 safe-area-top' : 'px-6 py-5'}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`rounded-xl bg-white/20 backdrop-blur-sm flex-shrink-0 ${isMobile ? 'p-2.5' : 'p-3'}`}>
                     {editingProduct ? (
-                      <Edit className="w-6 h-6" />
+                      <Edit className={isMobile ? 'w-5 h-5' : 'w-6 h-6'} />
                     ) : (
-                      <Plus className="w-6 h-6" />
+                      <Plus className={isMobile ? 'w-5 h-5' : 'w-6 h-6'} />
                     )}
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs font-medium text-white/80 uppercase tracking-wide">
                       {editingProduct ? 'Modification' : 'Nouvelle annonce'}
                     </p>
-                    <h3 className="text-xl font-bold mt-1">
+                    <h3 className={`font-bold mt-0.5 truncate ${isMobile ? 'text-lg' : 'text-xl'}`}>
                       {editingProduct ? 'Modifier une annonce' : 'Publier une annonce'}
                     </h3>
                   </div>
@@ -1773,7 +1776,7 @@ export default function UserDashboard() {
                 <button
                   type="button"
                   onClick={handleModalClose}
-                  className="h-10 w-10 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all"
+                  className={`rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-white/20 active:bg-white/30 transition-all touch-manipulation flex-shrink-0 ${isMobile ? 'min-w-[44px] min-h-[44px] w-11 h-11' : 'h-10 w-10'}`}
                   aria-label="Fermer"
                 >
                   <X size={20} />
@@ -1782,7 +1785,7 @@ export default function UserDashboard() {
             </div>
 
             {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className={`flex-1 overflow-y-auto min-h-0 ${isMobile ? 'p-4' : 'p-6'}`}>
               <ProductForm
                 initialValues={editingProduct}
                 productId={editingProduct?._id}

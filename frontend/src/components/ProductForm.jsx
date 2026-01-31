@@ -1,9 +1,10 @@
 import React, { useContext, useEffect, useState, useRef, useCallback } from 'react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
-import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2 } from 'lucide-react';
+import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2, ChevronDown, ChevronUp } from 'lucide-react';
 import categoryGroups from '../data/categories';
 import ProductCard from './ProductCard';
+import useIsMobile from '../hooks/useIsMobile';
 
 const operatorPhones = {
   MTN: '069822930',
@@ -70,6 +71,15 @@ export default function ProductForm(props) {
   const cropContainerRef = useRef(null);
   const imageRef = useRef(null);
   const [showPreview, setShowPreview] = useState(false);
+  const isMobile = useIsMobile(768);
+  const [expandedSections, setExpandedSections] = useState({
+    info: true,
+    images: true,
+    media: true,
+    validation: true,
+    preview: false
+  });
+  const toggleSection = (key) => setExpandedSections((s) => ({ ...s, [key]: !s[key] }));
 
   const handleImageChange = (e) => {
     const selectedFiles = Array.from(e.target.files || []);
@@ -152,14 +162,26 @@ export default function ProductForm(props) {
     img.src = imageUrl;
   };
 
+  const getCropPointerOffset = (clientX, clientY) => {
+    const rect = cropContainerRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return {
+      x: clientX - rect.left - cropData.x,
+      y: clientY - rect.top - cropData.y
+    };
+  };
+
   const handleCropMouseDown = (e) => {
     if (!croppingImage) return;
     setIsDragging(true);
-    const rect = cropContainerRef.current.getBoundingClientRect();
-    setDragStart({
-      x: e.clientX - rect.left - cropData.x,
-      y: e.clientY - rect.top - cropData.y
-    });
+    setDragStart(getCropPointerOffset(e.clientX, e.clientY));
+  };
+
+  const handleCropTouchStart = (e) => {
+    if (!croppingImage || !e.touches[0]) return;
+    setIsDragging(true);
+    const t = e.touches[0];
+    setDragStart(getCropPointerOffset(t.clientX, t.clientY));
   };
 
   const handleCropMouseMove = (e) => {
@@ -179,8 +201,22 @@ export default function ProductForm(props) {
     });
   };
 
-  const handleCropMouseUp = () => {
-    setIsDragging(false);
+  const handleCropMouseUp = () => setIsDragging(false);
+  const handleCropTouchEnd = () => setIsDragging(false);
+
+  const handleCropTouchMove = (e) => {
+    if (!isDragging || !croppingImage || !cropContainerRef.current || !e.touches[0]) return;
+    const t = e.touches[0];
+    const rect = cropContainerRef.current.getBoundingClientRect();
+    const newX = t.clientX - rect.left - dragStart.x;
+    const newY = t.clientY - rect.top - dragStart.y;
+    const maxX = rect.width - cropData.width;
+    const maxY = rect.height - cropData.height;
+    setCropData({
+      ...cropData,
+      x: Math.max(0, Math.min(maxX, newX)),
+      y: Math.max(0, Math.min(maxY, newY))
+    });
   };
 
   const handleCropResize = (e, corner) => {
@@ -279,6 +315,16 @@ export default function ProductForm(props) {
   const handleCropCancel = () => {
     setCroppingImage(null);
     setCropData({ x: 0, y: 0, width: 0, height: 0 });
+  };
+
+  const editImageCrop = (index) => {
+    const fileItem = files[index];
+    const preview = imagePreviews[index];
+    if (!fileItem || !preview?.url) return;
+    const file = fileItem?.file || fileItem;
+    if (!(file instanceof File)) return;
+    setCroppingImage({ file, url: preview.url, index });
+    setTimeout(() => initializeCropArea(preview.url), 100);
   };
 
   const removeImage = (index) => {
@@ -615,24 +661,53 @@ export default function ProductForm(props) {
   const priceGridClass = isEditing ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2';
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className={`max-w-2xl mx-auto ${isMobile ? 'px-0 pb-28' : ''}`}>
       {/* En-tête du formulaire */}
-      <div className="text-center mb-8">
-        <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <Package className="w-8 h-8 text-white" />
+      <div className={isMobile ? 'text-left mb-4 pb-3 border-b border-gray-100' : 'text-center mb-8'}>
+        {!isMobile && (
+          <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Package className="w-8 h-8 text-white" />
+          </div>
+        )}
+        <div className={isMobile ? 'flex items-center gap-3' : ''}>
+          {isMobile && (
+            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Package className="w-6 h-6 text-white" />
+            </div>
+          )}
+          <div>
+            <h1 className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl mb-2'}`}>{headerTitle}</h1>
+            <p className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>{headerSubtitle}</p>
+          </div>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">{headerTitle}</h1>
-        <p className="text-gray-500 text-sm">{headerSubtitle}</p>
       </div>
 
-      <form onSubmit={submit} className="space-y-6 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+      <form onSubmit={submit} className={`space-y-6 bg-white rounded-2xl border border-gray-100 ${isMobile ? 'p-4 shadow-none rounded-xl' : 'p-6 shadow-sm'}`}>
         {/* Section Informations de base */}
         <div className="space-y-4">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="w-2 h-6 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full"></div>
-            <h2 className="text-lg font-semibold text-gray-900">Informations du produit</h2>
-          </div>
-
+          {isMobile ? (
+              <button
+                type="button"
+                onClick={() => toggleSection('info')}
+                className="flex items-center justify-between w-full py-3 px-0 text-left rounded-xl -mx-2 px-2 hover:bg-gray-50 active:bg-gray-100 touch-manipulation min-h-[44px]"
+                aria-expanded={expandedSections.info}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-2 h-6 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full flex-shrink-0"></div>
+                  <h2 className="text-base font-semibold text-gray-900">Informations du produit</h2>
+                </div>
+                <span className="min-w-[44px] min-h-[44px] flex items-center justify-center -m-2">
+                  {expandedSections.info ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
+                </span>
+              </button>
+            ) : (
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-2 h-6 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full"></div>
+                <h2 className="text-lg font-semibold text-gray-900">Informations du produit</h2>
+              </div>
+            )}
+          {(!isMobile || expandedSections.info) && (
+                <div className="space-y-4 pt-1">
           {/* Titre */}
           <div className="space-y-2">
             <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
@@ -640,7 +715,7 @@ export default function ProductForm(props) {
               <span>Titre de l'annonce *</span>
             </label>
             <input
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+              className="w-full px-4 py-3.5 min-h-[48px] text-base bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
               placeholder="Ex: iPhone 13 Pro Max 256GB - État neuf"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -743,9 +818,9 @@ export default function ProductForm(props) {
             {/* Condition */}
             <div className="space-y-3">
               <label className="block text-sm font-medium text-gray-700">État du produit</label>
-              <div className="flex space-x-4">
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <div className="relative">
+              <div className={`flex gap-4 ${isMobile ? 'gap-6' : 'space-x-4'}`}>
+                <label className={`flex items-center gap-2 cursor-pointer touch-manipulation ${isMobile ? 'min-h-[44px] py-2 -my-1' : ''}`}>
+                  <div className="relative flex-shrink-0">
                     <input
                       type="radio"
                       name="condition"
@@ -754,20 +829,20 @@ export default function ProductForm(props) {
                       onChange={(e) => setForm({ ...form, condition: e.target.value })}
                       className="sr-only"
                     />
-                    <div className={`w-5 h-5 border-2 rounded-full flex items-center justify-center transition-all ${
+                    <div className={`border-2 rounded-full flex items-center justify-center transition-all ${isMobile ? 'w-6 h-6' : 'w-5 h-5'} ${
                       form.condition === 'new' 
                         ? 'border-indigo-500 bg-indigo-500' 
                         : 'border-gray-300'
                     }`}>
                       {form.condition === 'new' && (
-                        <div className="w-2 h-2 bg-white rounded-full"></div>
+                        <div className={`bg-white rounded-full ${isMobile ? 'w-2.5 h-2.5' : 'w-2 h-2'}`}></div>
                       )}
                     </div>
                   </div>
                   <span className="text-sm text-gray-700">Neuf</span>
                 </label>
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <div className="relative">
+                <label className={`flex items-center gap-2 cursor-pointer touch-manipulation ${isMobile ? 'min-h-[44px] py-2 -my-1' : ''}`}>
+                  <div className="relative flex-shrink-0">
                     <input
                       type="radio"
                       name="condition"
@@ -776,13 +851,13 @@ export default function ProductForm(props) {
                       onChange={(e) => setForm({ ...form, condition: e.target.value })}
                       className="sr-only"
                     />
-                    <div className={`w-5 h-5 border-2 rounded-full flex items-center justify-center transition-all ${
+                    <div className={`border-2 rounded-full flex items-center justify-center transition-all ${isMobile ? 'w-6 h-6' : 'w-5 h-5'} ${
                       form.condition === 'used' 
                         ? 'border-indigo-500 bg-indigo-500' 
                         : 'border-gray-300'
                     }`}>
                       {form.condition === 'used' && (
-                        <div className="w-2 h-2 bg-white rounded-full"></div>
+                        <div className={`bg-white rounded-full ${isMobile ? 'w-2.5 h-2.5' : 'w-2 h-2'}`}></div>
                       )}
                     </div>
                   </div>
@@ -804,15 +879,30 @@ export default function ProductForm(props) {
               </select>
             </div>
           </div>
+                </div>
+          )}
         </div>
 
         {/* Section Images */}
         <div className="space-y-4">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="w-2 h-6 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full"></div>
-            <h2 className="text-lg font-semibold text-gray-900">Photos du produit</h2>
-          </div>
-
+          {isMobile ? (
+            <>
+              <button
+                type="button"
+                onClick={() => toggleSection('images')}
+                className="flex items-center justify-between w-full py-3 px-0 text-left rounded-xl -mx-2 px-2 hover:bg-gray-50 active:bg-gray-100 touch-manipulation min-h-[44px]"
+                aria-expanded={expandedSections.images}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-2 h-6 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full flex-shrink-0"></div>
+                  <h2 className="text-base font-semibold text-gray-900">Photos du produit</h2>
+                </div>
+                <span className="min-w-[44px] min-h-[44px] flex items-center justify-center -m-2">
+                  {expandedSections.images ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
+                </span>
+              </button>
+              {(!isMobile || expandedSections.images) && (
+                <div className="space-y-3 pt-1">
           {/* Upload d'images */}
           <div className="space-y-3">
             <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
@@ -850,10 +940,10 @@ export default function ProductForm(props) {
               </div>
             )}
             
-            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group">
-              <Upload className="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2" />
-              <span className="text-sm text-gray-500 text-center">
-                <span className="text-indigo-600 font-medium">Cliquez pour uploader</span>
+            <label className={`flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 active:bg-gray-100 transition-colors group ${isMobile ? 'h-28 min-h-[120px] py-4' : 'h-32'}`}>
+              <Upload className={`text-gray-400 group-hover:text-indigo-500 transition-colors mb-2 ${isMobile ? 'w-10 h-10' : 'w-8 h-8'}`} />
+              <span className={`text-gray-500 text-center ${isMobile ? 'text-sm' : 'text-sm'}`}>
+                <span className="text-indigo-600 font-medium">{isMobile ? 'Appuyez pour ajouter des photos' : 'Cliquez pour uploader'}</span>
                 <br />
                 <span className="text-xs">PNG, JPG jusqu'à 10MB</span>
               </span>
@@ -909,6 +999,15 @@ export default function ProductForm(props) {
               </div>
             )}
           </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-2 h-6 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full"></div>
+              <h2 className="text-lg font-semibold text-gray-900">Photos du produit</h2>
+            </div>
+          )}
         </div>
 
         {canUploadVideo ? (
@@ -1221,31 +1320,53 @@ export default function ProductForm(props) {
           </div>
         )}
 
-        {/* Bouton de soumission */}
-        <button
-          type="submit"
-          disabled={loading || !form.title || !form.description || !form.price || !form.category}
-          className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 shadow-lg"
-        >
-          {loading ? (
-            <>
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              <span>{isEditing ? 'Mise à jour en cours...' : 'Publication en cours...'}</span>
-            </>
-          ) : (
-            <>
-              <Send className="w-5 h-5" />
-              <span>{buttonLabel}</span>
-            </>
-          )}
-        </button>
+        {/* Bouton de soumission — sticky sur mobile */}
+        {isMobile ? (
+          <div className="fixed bottom-0 left-0 right-0 z-40 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-white/95 backdrop-blur border-t border-gray-100 safe-area-pb">
+            <button
+              type="submit"
+              disabled={loading || !form.title || !form.description || !form.price || !form.category}
+              className="w-full min-h-[52px] py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg touch-manipulation"
+            >
+              {loading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>{isEditing ? 'Mise à jour...' : 'Publication...'}</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-5 h-5" />
+                  <span>{buttonLabel}</span>
+                </>
+              )}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="submit"
+            disabled={loading || !form.title || !form.description || !form.price || !form.category}
+            className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 shadow-lg"
+          >
+            {loading ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span>{isEditing ? 'Mise à jour en cours...' : 'Publication en cours...'}</span>
+              </>
+            ) : (
+              <>
+                <Send className="w-5 h-5" />
+                <span>{buttonLabel}</span>
+              </>
+            )}
+          </button>
+        )}
       </form>
 
-      {/* Image Crop Modal */}
+      {/* Image Crop Modal — full-screen on mobile */}
       {croppingImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm ${isMobile ? 'p-0' : 'p-4'}`}>
+          <div className={`bg-white shadow-2xl overflow-hidden flex flex-col ${isMobile ? 'w-full h-full max-h-none rounded-none' : 'rounded-2xl max-w-4xl w-full max-h-[90vh]'}`}>
+            <div className={`flex items-center justify-between border-b border-gray-200 flex-shrink-0 ${isMobile ? 'p-4 min-h-[56px] safe-area-top' : 'p-4'}`}>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
                   <Crop className="w-5 h-5 text-white" />
@@ -1265,14 +1386,19 @@ export default function ProductForm(props) {
               </button>
             </div>
             
-            <div className="flex-1 p-4 overflow-auto">
+            <div className={`flex-1 overflow-auto ${isMobile ? 'p-2 flex items-center justify-center min-h-0' : 'p-4'}`}>
               <div
                 ref={cropContainerRef}
-                className="relative w-full h-96 bg-gray-100 rounded-lg overflow-hidden cursor-move"
+                className={`relative bg-gray-100 rounded-lg overflow-hidden cursor-move touch-none select-none ${isMobile ? 'w-full max-w-full flex-1 min-h-[280px] max-h-[60vh]' : 'w-full h-96'}`}
                 onMouseDown={handleCropMouseDown}
                 onMouseMove={handleCropMouseMove}
                 onMouseUp={handleCropMouseUp}
                 onMouseLeave={handleCropMouseUp}
+                onTouchStart={handleCropTouchStart}
+                onTouchMove={handleCropTouchMove}
+                onTouchEnd={handleCropTouchEnd}
+                onTouchCancel={handleCropTouchEnd}
+                style={{ touchAction: 'none' }}
               >
                 <img
                   ref={imageRef}
@@ -1352,18 +1478,18 @@ export default function ProductForm(props) {
               </div>
             </div>
             
-            <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50">
+            <div className={`flex items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 flex-shrink-0 ${isMobile ? 'p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] safe-area-pb' : 'p-4'}`}>
               <button
                 type="button"
                 onClick={handleCropCancel}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className={`font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation ${isMobile ? 'min-h-[48px] px-5 py-3 text-base' : 'px-4 py-2 text-sm rounded-lg'}`}
               >
                 Annuler
               </button>
               <button
                 type="button"
                 onClick={handleCropConfirm}
-                className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-sm"
+                className={`font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:from-indigo-700 hover:to-purple-700 active:scale-[0.98] transition-all shadow-sm touch-manipulation ${isMobile ? 'min-h-[48px] px-5 py-3 text-base' : 'px-4 py-2 text-sm rounded-lg'}`}
               >
                 Confirmer le recadrage
               </button>

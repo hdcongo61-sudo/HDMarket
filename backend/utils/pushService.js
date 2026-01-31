@@ -258,7 +258,12 @@ export const sendPushNotification = async ({
   const shouldSend = await shouldSendForPreference(notification.user, notification.type);
   if (!shouldSend) return null;
 
-  const tokens = await PushToken.find({ user: notification.user }).select('token').lean();
+  // For order messages, only send push to mobile devices (ios/android)
+  const tokenFilter = { user: notification.user };
+  if (notification.type === 'order_message') {
+    tokenFilter.platform = { $in: ['ios', 'android'] };
+  }
+  const tokens = await PushToken.find(tokenFilter).select('token platform').lean();
   if (!tokens.length) return null;
 
   const { title, body } = buildPushPayload({ notification, actorName, productTitle, shopName });
@@ -269,8 +274,9 @@ export const sendPushNotification = async ({
   // Build deeplink URL based on notification type
   let url = '';
   const notificationType = notification.type || '';
-  if (notificationType.startsWith('order_')) {
-    // For order-related notifications, link to orders page
+  if (notificationType === 'order_message') {
+    url = '/orders/messages';
+  } else if (notificationType.startsWith('order_')) {
     const status = notification.metadata?.status || '';
     if (status && ['pending', 'confirmed', 'delivering', 'delivered', 'cancelled'].includes(status)) {
       url = `/orders/${status}`;
