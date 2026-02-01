@@ -1,8 +1,9 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Star, Users, Bell, Settings, Check, X, Trash2, Filter, ChevronDown, Clock, MessageSquare, Heart, Package, ShoppingBag, AlertCircle, CheckCircle2, XCircle, Tag, Store, CreditCard, Truck, Timer, BellRing, Archive, Sparkles } from 'lucide-react';
+import { Star, Users, Bell, Settings, Check, X, Trash2, Filter, ChevronDown, Clock, MessageSquare, Heart, Package, ShoppingBag, AlertCircle, CheckCircle2, XCircle, Tag, Store, CreditCard, Truck, Timer, BellRing, Archive, Sparkles, ChevronRight } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import useUserNotifications, { triggerNotificationsRefresh } from '../hooks/useUserNotifications';
+import useIsMobile from '../hooks/useIsMobile';
 import api from '../services/api';
 import { buildProductPath, buildShopPath } from '../utils/links';
 
@@ -166,13 +167,14 @@ const NotificationPreferences = ({ preferences, onUpdate }) => {
 export default function Notifications() {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
-  const { counts, loading, error, refresh } = useUserNotifications(Boolean(user));
+  const { counts, loading, error, refresh, updateCounts } = useUserNotifications(Boolean(user), { skipRefreshEvent: true });
   const alerts = counts.alerts || [];
   const [marking, setMarking] = useState(false);
   const [markError, setMarkError] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
   const [preferences, setPreferences] = useState(() => ({ ...DEFAULT_NOTIFICATION_PREFERENCES }));
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const isMobile = useIsMobile(768);
 
   useEffect(() => {
     if (counts?.preferences) {
@@ -296,7 +298,7 @@ export default function Notifications() {
   const unreadAlerts = useMemo(() => filteredAlerts.filter((alert) => alert.isNew), [filteredAlerts]);
   const readAlerts = useMemo(() => filteredAlerts.filter((alert) => !alert.isNew), [filteredAlerts]);
 
-  const renderAlert = (alert, isUnread) => {
+  const renderAlert = (alert, isUnread, isGrouped = false) => {
     const productStatus = alert.product?.status;
     const config = typeConfig[alert.type] || {
       label: 'Notification',
@@ -307,19 +309,26 @@ export default function Notifications() {
     return (
       <div
         key={alert._id}
-        className={`group relative rounded-2xl transition-all duration-300 overflow-hidden ${
-          isUnread
-            ? 'bg-gradient-to-br from-white via-white to-indigo-50/30 dark:from-gray-800 dark:via-gray-800 dark:to-indigo-900/10 border-2 border-indigo-300 dark:border-indigo-700 shadow-md hover:shadow-xl'
-            : 'bg-white/80 dark:bg-gray-800/80 border-2 border-gray-200/80 dark:border-gray-700/80 hover:bg-white dark:hover:bg-gray-800 hover:shadow-lg hover:border-gray-300 dark:hover:border-gray-600'
+        className={`group relative transition-all duration-200 overflow-hidden ${
+          isGrouped
+            ? `border-b border-gray-100 dark:border-gray-700/80 last:border-b-0 ${isUnread ? 'bg-indigo-50/50 dark:bg-indigo-950/20' : 'bg-white dark:bg-gray-800'}`
+            : `rounded-2xl ${
+                isUnread
+                  ? 'bg-gradient-to-br from-white via-white to-indigo-50/30 dark:from-gray-800 dark:via-gray-800 dark:to-indigo-900/10 border-2 border-indigo-300 dark:border-indigo-700 shadow-md hover:shadow-xl'
+                  : 'bg-white/80 dark:bg-gray-800/80 border-2 border-gray-200/80 dark:border-gray-700/80 hover:bg-white dark:hover:bg-gray-800 hover:shadow-lg hover:border-gray-300 dark:hover:border-gray-600'
+              }`
         }`}
       >
-        {/* Unread indicator bar */}
-        {isUnread && (
+        {/* Unread indicator: bar (desktop) or dot (grouped/mobile) */}
+        {isUnread && !isGrouped && (
           <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600" />
         )}
 
-        <div className="p-4 sm:p-5">
-          <div className="flex flex-col gap-3 sm:gap-4">
+        <div className={isGrouped ? 'pl-4 pr-4 py-3.5 flex gap-3' : 'p-4 sm:p-5'}>
+          {isGrouped && isUnread && (
+            <div className="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500 mt-1.5" aria-hidden />
+          )}
+          <div className={`flex flex-col gap-3 sm:gap-4 ${isGrouped ? 'flex-1 min-w-0' : ''}`}>
             {/* Content */}
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-3 mb-2.5 sm:mb-3">
@@ -340,23 +349,25 @@ export default function Notifications() {
                   )}
                 </div>
 
-                {/* Action buttons */}
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                {/* Action buttons — always visible, engaging */}
+                <div className="flex items-center gap-1.5">
                   {isUnread && (
                     <button
                       onClick={() => handleMarkRead([alert._id])}
-                      className="p-2 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all duration-200 active:scale-95"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg border border-indigo-200 dark:border-indigo-800 transition-all duration-200 active:scale-95"
                       title="Marquer comme lu"
                     >
                       <Check className="w-4 h-4" />
+                      <span className="hidden sm:inline">Marquer lu</span>
                     </button>
                   )}
                   <button
                     onClick={() => handleDeleteNotification(alert._id)}
-                    className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200 active:scale-95"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg border border-red-200 dark:border-red-800 transition-all duration-200 active:scale-95"
                     title="Supprimer"
                   >
                     <Trash2 className="w-4 h-4" />
+                    <span className="hidden sm:inline">Supprimer</span>
                   </button>
                 </div>
               </div>
@@ -510,8 +521,13 @@ export default function Notifications() {
     setMarkError('');
     try {
       await api.patch('/users/notifications/read');
+      updateCounts((prev) => ({
+        ...prev,
+        alerts: (prev.alerts || []).map((a) => ({ ...a, isNew: false })),
+        unreadCount: 0,
+        commentAlerts: 0
+      }));
       triggerNotificationsRefresh();
-      await refresh();
     } catch (e) {
       console.error(e);
       setMarkError(e.response?.data?.message || e.message || 'Impossible de marquer les notifications comme lues.');
@@ -524,8 +540,20 @@ export default function Notifications() {
     if (!Array.isArray(notificationIds) || !notificationIds.length) return;
     try {
       await api.patch('/users/notifications/read', { notificationIds });
+      const idsSet = new Set(notificationIds);
+      updateCounts((prev) => {
+        const alerts = (prev.alerts || []).map((a) =>
+          idsSet.has(a._id) ? { ...a, isNew: false } : a
+        );
+        const markedCount = (prev.alerts || []).filter((a) => idsSet.has(a._id) && a.isNew).length;
+        return {
+          ...prev,
+          alerts,
+          unreadCount: Math.max(0, (prev.unreadCount || 0) - markedCount),
+          commentAlerts: Math.max(0, (prev.commentAlerts || 0) - markedCount)
+        };
+      });
       triggerNotificationsRefresh();
-      await refresh();
     } catch (e) {
       console.error('Failed to mark notification as read:', e);
     }
@@ -534,8 +562,17 @@ export default function Notifications() {
   const handleDeleteNotification = async (notificationId) => {
     try {
       await api.delete(`/users/notifications/${notificationId}`);
+      updateCounts((prev) => {
+        const deleted = (prev.alerts || []).find((a) => a._id === notificationId);
+        const wasUnread = deleted?.isNew === true;
+        return {
+          ...prev,
+          alerts: (prev.alerts || []).filter((a) => a._id !== notificationId),
+          unreadCount: wasUnread ? Math.max(0, (prev.unreadCount || 0) - 1) : prev.unreadCount,
+          commentAlerts: wasUnread ? Math.max(0, (prev.commentAlerts || 0) - 1) : prev.commentAlerts
+        };
+      });
       triggerNotificationsRefresh();
-      await refresh();
     } catch (e) {
       console.error('Failed to delete notification:', e);
     }
@@ -620,59 +657,139 @@ export default function Notifications() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/30 dark:from-gray-900 dark:via-gray-900 dark:to-indigo-950/20">
-      <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 space-y-6">
-        {/* Header - Redesigned with gradient */}
-        <header className="bg-gradient-to-br from-white via-white to-indigo-50/50 dark:from-gray-800 dark:via-gray-800 dark:to-indigo-900/20 rounded-3xl p-6 sm:p-8 border-2 border-gray-200/60 dark:border-gray-700/50 shadow-xl">
-          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-3">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg ring-4 ring-indigo-100 dark:ring-indigo-900/30">
-                  <Bell className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-gray-900 via-indigo-900 to-purple-900 dark:from-white dark:via-indigo-200 dark:to-purple-200 bg-clip-text text-transparent">
-                    Notifications
-                  </h1>
-                  <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1 font-medium">
-                    {unreadAlerts.length > 0
-                      ? `${unreadAlerts.length} nouvelle${unreadAlerts.length > 1 ? 's' : ''} notification${unreadAlerts.length > 1 ? 's' : ''}`
-                      : 'Toutes vos notifications sont à jour'
-                    }
-                  </p>
-                </div>
+    <main className="min-h-screen bg-[#f2f2f7] dark:bg-black">
+      <div className={`max-w-7xl mx-auto ${isMobile ? 'px-0 pb-8' : 'px-4 py-6 sm:px-6 lg:px-8'} space-y-6`}>
+        {/* Apple-style mobile header */}
+        {isMobile && (
+          <header className="sticky top-0 z-10 bg-[#f2f2f7]/95 dark:bg-black/95 backdrop-blur-xl border-b border-gray-200/80 dark:border-gray-800 safe-area-top">
+            <div className="px-4 pt-4 pb-3">
+              <h1 className="text-[34px] font-bold text-gray-900 dark:text-white tracking-tight">
+                Notifications
+              </h1>
+              <p className="text-[15px] text-gray-500 dark:text-gray-400 mt-0.5">
+                {unreadAlerts.length > 0
+                  ? `${unreadAlerts.length} non lue${unreadAlerts.length > 1 ? 's' : ''}`
+                  : `${alerts.length} notification${alerts.length !== 1 ? 's' : ''}`
+                }
+              </p>
+            </div>
+            {/* Segmented control: Toutes | Non lues */}
+            <div className="px-4 pb-3">
+              <div className="inline-flex p-1 rounded-[10px] bg-gray-200 dark:bg-gray-800">
+                <button
+                  type="button"
+                  onClick={() => setActiveFilter('all')}
+                  className={`min-h-[36px] min-w-[80px] px-4 rounded-[8px] text-[13px] font-semibold transition-all ${
+                    activeFilter === 'all'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400'
+                  }`}
+                >
+                  Toutes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveFilter('unread')}
+                  className={`min-h-[36px] min-w-[80px] px-4 rounded-[8px] text-[13px] font-semibold transition-all ${
+                    activeFilter === 'unread'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400'
+                  }`}
+                >
+                  Non lues
+                </button>
               </div>
             </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            {/* Actions row */}
+            <div className="flex items-center justify-between px-4 pb-3 gap-2">
               <NotificationPreferences preferences={preferences} onUpdate={setPreferences} />
-
               {unreadAlerts.length > 0 && (
                 <button
                   type="button"
                   onClick={handleMarkAllRead}
                   disabled={marking}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-3 text-sm font-bold text-white transition-all hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl active:scale-95"
+                  className="text-[15px] font-semibold text-blue-600 dark:text-blue-400 active:opacity-70 disabled:opacity-50"
                 >
-                  {marking ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Traitement...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-5 h-5" />
-                      <span>Tout marquer comme lu</span>
-                    </>
-                  )}
+                  {marking ? '...' : 'Tout marquer lu'}
                 </button>
               )}
             </div>
-          </div>
-        </header>
+          </header>
+        )}
 
-        {/* Mobile filters & stats */}
-        <div className="space-y-4 lg:hidden">
+        {/* Desktop header */}
+        {!isMobile && (
+          <header className="bg-gradient-to-br from-white via-white to-indigo-50/50 dark:from-gray-800 dark:via-gray-800 dark:to-indigo-900/20 rounded-3xl p-6 sm:p-8 border-2 border-gray-200/60 dark:border-gray-700/50 shadow-xl">
+            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg ring-4 ring-indigo-100 dark:ring-indigo-900/30">
+                    <Bell className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-gray-900 via-indigo-900 to-purple-900 dark:from-white dark:via-indigo-200 dark:to-purple-200 bg-clip-text text-transparent">
+                      Notifications
+                    </h1>
+                    <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1 font-medium">
+                      {unreadAlerts.length > 0
+                        ? `${unreadAlerts.length} nouvelle${unreadAlerts.length > 1 ? 's' : ''} notification${unreadAlerts.length > 1 ? 's' : ''}`
+                        : 'Toutes vos notifications sont à jour'
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <NotificationPreferences preferences={preferences} onUpdate={setPreferences} />
+                {unreadAlerts.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleMarkAllRead}
+                    disabled={marking}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-3 text-sm font-bold text-white transition-all hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl active:scale-95"
+                  >
+                    {marking ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Traitement...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-5 h-5" />
+                        <span>Tout marquer comme lu</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+          </header>
+        )}
+
+        {/* Mobile filters (Apple: grouped list style) */}
+        {isMobile && (
+          <div className="px-4">
+            <button
+              type="button"
+              onClick={() => setMobileFiltersOpen((prev) => !prev)}
+              className="w-full flex items-center justify-between py-3.5 px-4 rounded-xl bg-white dark:bg-gray-800 text-[17px] font-medium text-gray-900 dark:text-white active:bg-gray-100 dark:active:bg-gray-700"
+            >
+              <span className="flex items-center gap-2">
+                <Filter className="w-5 h-5 text-gray-500" />
+                Filtres
+              </span>
+              <ChevronRight className={`w-5 h-5 text-gray-400 transition-transform ${mobileFiltersOpen ? 'rotate-90' : ''}`} />
+            </button>
+            {mobileFiltersOpen && (
+              <div className="mt-2 p-4 rounded-xl bg-white dark:bg-gray-800 space-y-1">
+                {renderFilterButtons({ variant: 'stack', closeOnSelect: true })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Desktop: Mobile filters & stats (original) - only when not isMobile for the old mobile breakpoint */}
+        <div className="space-y-4 lg:hidden hidden sm:block">
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl p-5 text-white shadow-xl">
               <div className="flex items-center gap-2 mb-2">
@@ -689,7 +806,6 @@ export default function Notifications() {
               <p className="text-4xl font-black">{unreadAlerts.length}</p>
             </div>
           </div>
-
           <div className="bg-white dark:bg-gray-800 rounded-2xl border-2 border-gray-200 dark:border-gray-700 p-5 shadow-lg">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -705,11 +821,9 @@ export default function Notifications() {
                 <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${mobileFiltersOpen ? 'rotate-180' : ''}`} />
               </button>
             </div>
-
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
               {renderFilterButtons({ variant: 'pills' })}
             </div>
-
             {mobileFiltersOpen && (
               <div className="mt-4 pt-4 border-t-2 border-gray-200 dark:border-gray-700 space-y-1.5">
                 {renderFilterButtons({ variant: 'stack', closeOnSelect: true })}
@@ -790,31 +904,35 @@ export default function Notifications() {
 
             {/* Unread Notifications */}
             {unreadAlerts.length > 0 && (activeFilter === 'all' || activeFilter === 'unread') && (
-              <section className="space-y-4 mb-8">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-1.5 h-10 bg-gradient-to-b from-indigo-600 to-purple-600 rounded-full shadow-lg" />
-                  <h2 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white">Non lues</h2>
-                  <span className="bg-gradient-to-r from-red-600 to-pink-600 text-white text-xs font-bold px-3.5 py-1.5 rounded-full shadow-lg ring-2 ring-red-100 dark:ring-red-900/30">
-                    {unreadAlerts.length}
-                  </span>
-                </div>
-                <div className="space-y-4">
-                  {unreadAlerts.map((alert) => renderAlert(alert, true))}
+              <section className={isMobile ? 'mb-4' : 'space-y-4 mb-8'}>
+                {!isMobile && (
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-1.5 h-10 bg-gradient-to-b from-indigo-600 to-purple-600 rounded-full shadow-lg" />
+                    <h2 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white">Non lues</h2>
+                    <span className="bg-gradient-to-r from-red-600 to-pink-600 text-white text-xs font-bold px-3.5 py-1.5 rounded-full shadow-lg ring-2 ring-red-100 dark:ring-red-900/30">
+                      {unreadAlerts.length}
+                    </span>
+                  </div>
+                )}
+                <div className={isMobile ? 'rounded-2xl overflow-hidden bg-white dark:bg-gray-800 shadow-sm' : 'space-y-4'}>
+                  {unreadAlerts.map((alert) => renderAlert(alert, true, isMobile))}
                 </div>
               </section>
             )}
 
             {/* Read Notifications */}
             {readAlerts.length > 0 && (activeFilter === 'all' || activeFilter !== 'unread') && (
-              <section className="space-y-4">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-1.5 h-10 bg-gray-400 rounded-full" />
-                  <h2 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white">
-                    {activeFilter === 'all' ? 'Notifications lues' : 'Notifications'}
-                  </h2>
-                </div>
-                <div className="space-y-4">
-                  {readAlerts.map((alert) => renderAlert(alert, false))}
+              <section className={isMobile ? '' : 'space-y-4'}>
+                {!isMobile && (
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-1.5 h-10 bg-gray-400 rounded-full" />
+                    <h2 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white">
+                      {activeFilter === 'all' ? 'Notifications lues' : 'Notifications'}
+                    </h2>
+                  </div>
+                )}
+                <div className={isMobile && unreadAlerts.length > 0 ? 'mt-4 rounded-2xl overflow-hidden bg-white dark:bg-gray-800 shadow-sm' : isMobile ? 'rounded-2xl overflow-hidden bg-white dark:bg-gray-800 shadow-sm' : 'space-y-4'}>
+                  {readAlerts.map((alert) => renderAlert(alert, false, isMobile))}
                 </div>
               </section>
             )}

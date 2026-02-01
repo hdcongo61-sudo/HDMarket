@@ -258,6 +258,17 @@ export const getSearchCategories = asyncHandler(async (req, res) => {
   res.json(sortedCategories);
 });
 
+/** Quick filters for search/nav (e.g. Nouveaux produits, Meilleures offres, Boutiques vérifiées, Tendances) */
+export const getQuickFilters = asyncHandler(async (req, res) => {
+  const filters = [
+    { id: 'new_products', label: 'Nouveaux produits', path: '/products?sort=new', icon: 'sparkles', order: 1 },
+    { id: 'top_deals', label: 'Meilleures offres', path: '/products?sort=price_asc', icon: 'flame', order: 2 },
+    { id: 'verified_shops', label: 'Boutiques vérifiées', path: '/shops/verified', icon: 'shield-check', order: 3 },
+    { id: 'trending', label: 'Tendances', path: '/products?sort=popular', icon: 'trending-up', order: 4 }
+  ];
+  res.json(filters);
+});
+
 // Get popular searches
 export const getPopularSearches = asyncHandler(async (req, res) => {
   const { limit = 10, period = 'week' } = req.query;

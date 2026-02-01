@@ -28,3 +28,9 @@ select {
     font-size: 16px;
   }
 }
+
+/* Hide page headers when mobile menu is open (Navbar adds .menu-open to body) */
+body.menu-open .verified-shops-header {
+  visibility: hidden;
+  pointer-events: none;
+}

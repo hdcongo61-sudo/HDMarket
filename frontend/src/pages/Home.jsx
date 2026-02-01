@@ -708,7 +708,14 @@ const loadDiscountProducts = async () => {
         <section>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-bold text-gray-900">Pour vous</h2>
-            <p className="text-xs text-gray-500">{formatCount(totalProducts)} produits</p>
+            <Link
+              to="/products"
+              className="inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 hover:text-indigo-700 hover:underline transition-colors"
+            >
+              <span className="font-black tabular-nums">{formatCount(totalProducts)}</span>
+              <span className="text-gray-600 font-medium">produits</span>
+              <ChevronRight className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+            </Link>
           </div>
 
           {loading && page === 1 ? (

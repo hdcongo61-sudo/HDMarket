@@ -10,6 +10,7 @@ const SORT_OPTIONS = [
   { value: 'new', label: 'Plus récents' },
   { value: 'price_asc', label: 'Prix croissant' },
   { value: 'price_desc', label: 'Prix décroissant' },
+  { value: 'popular', label: 'Tendances' },
   { value: 'discount', label: 'Meilleures remises' }
 ];
 
@@ -18,10 +19,16 @@ const PAGE_SIZE = 12;
 export default function Products() {
 const [searchParams, setSearchParams] = useSearchParams();
 const categoryParam = (searchParams.get('category') || '').trim();
+const sortParam = searchParams.get('sort') || '';
+const shopVerifiedParam = searchParams.get('shopVerified') === 'true';
 const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [sort, setSort] = useState('new');
+  const [sort, setSort] = useState(() => {
+    const s = sortParam || 'new';
+    return s === 'newest' ? 'new' : s;
+  });
+  const [shopVerified, setShopVerified] = useState(shopVerifiedParam);
 const pageParam = Number(searchParams.get('page'));
 const initialPageRef = useRef(Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1);
 const [page, setPage] = useState(initialPageRef.current);
@@ -36,6 +43,12 @@ const [isMobileView, setIsMobileView] = useState(() =>
   useEffect(() => {
     setCategoryFilter(categoryParam);
   }, [categoryParam]);
+
+  useEffect(() => {
+    const s = sortParam || 'new';
+    setSort(s === 'newest' ? 'new' : s);
+    setShopVerified(shopVerifiedParam);
+  }, [sortParam, shopVerifiedParam]);
 
   // Initialize search from URL parameter
   const searchParam = searchParams.get('search') || '';
@@ -57,6 +70,7 @@ const fetchProducts = useCallback(async () => {
       };
       if (searchTerm) params.q = searchTerm;
       if (categoryFilter) params.category = categoryFilter;
+      if (shopVerified) params.shopVerified = 'true';
       const { data } = await api.get('/products/public', { params });
       const fetchedItems = Array.isArray(data) ? data : data?.items || [];
       const paginationMeta = Array.isArray(data) ? { pages: 1 } : data?.pagination || {};
@@ -67,14 +81,14 @@ const fetchProducts = useCallback(async () => {
     } finally {
       setLoading(false);
     }
-  }, [page, sort, searchTerm, categoryFilter]);
+  }, [page, sort, searchTerm, categoryFilter, shopVerified]);
 
   useEffect(() => {
     initialPageRef.current = 1;
     setPage(1);
     setItems([]);
     setTotalPages(1);
-  }, [sort, searchTerm, categoryFilter]);
+  }, [sort, searchTerm, categoryFilter, shopVerified]);
 
   useEffect(() => {
     if (!isMobileView) return;

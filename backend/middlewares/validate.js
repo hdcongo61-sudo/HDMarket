@@ -138,8 +138,9 @@ export const schemas = {
     minPrice: Joi.number().min(0),
     maxPrice: Joi.number().min(0),
     sort: Joi.string()
-      .valid('new', 'price_asc', 'price_desc', 'discount')
+      .valid('new', 'newest', 'price_asc', 'price_desc', 'discount', 'popular')
       .default('new'),
+    shopVerified: Joi.string().valid('true', 'false').allow(''),
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(50).default(12),
   }),

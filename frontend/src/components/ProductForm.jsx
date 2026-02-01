@@ -91,7 +91,15 @@ export default function ProductForm(props) {
   });
   const toggleSection = (key) => setExpandedSections((s) => ({ ...s, [key]: !s[key] }));
 
-  const handleImageChange = (e) => {
+  const readFileAsDataURL = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const handleImageChange = async (e) => {
     const selectedFiles = Array.from(e.target.files || []);
     if (!selectedFiles.length) return;
     const maxSelectable = Math.max(0, MAX_IMAGES - existingImages.length - files.length);
@@ -106,31 +114,17 @@ export default function ProductForm(props) {
     } else {
       setImageError('');
     }
-    
-    // Open crop modal for first image
-    if (limitedFiles.length > 0) {
-      const firstFile = limitedFiles[0];
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setCroppingImage({
-          file: firstFile,
-          url: event.target.result,
-          index: files.length
-        });
-        // Initialize crop area
-        setTimeout(() => {
-          initializeCropArea(event.target.result);
-        }, 100);
-      };
-      reader.readAsDataURL(firstFile);
-    }
-    
-    // If multiple files, add rest to queue
-    if (limitedFiles.length > 1) {
-      const remainingFiles = limitedFiles.slice(1);
-      setFiles((prev) => [...prev, ...remainingFiles.map(f => ({ file: f, cropped: false }))]);
-    }
-    
+
+    // Add all selected photos and create previews for each (no crop modal yet)
+    const newItems = limitedFiles.map((f) => ({ file: f, cropped: false, leftAsIs: false }));
+    const previewUrls = await Promise.all(limitedFiles.map(readFileAsDataURL));
+    const newPreviews = limitedFiles.map((file, i) => ({
+      url: previewUrls[i],
+      name: file.name
+    }));
+
+    setFiles((prev) => [...prev, ...newItems]);
+    setImagePreviews((prev) => [...prev, ...newPreviews]);
     e.target.value = '';
   };
 
@@ -482,6 +476,14 @@ export default function ProductForm(props) {
   const handleFlipH = () => applyImageTransform(0, true, false);
   const handleFlipV = () => applyImageTransform(0, false, true);
 
+  const handleZoomChange = (delta) => {
+    setImageScale((s) => Math.max(CROP_MIN_ZOOM, Math.min(CROP_MAX_ZOOM, s + delta)));
+  };
+  const handleZoomInput = (e) => {
+    const v = parseFloat(e.target.value);
+    if (!Number.isNaN(v)) setImageScale(Math.max(CROP_MIN_ZOOM, Math.min(CROP_MAX_ZOOM, v)));
+  };
+
   const editImageCrop = (index) => {
     const fileItem = files[index];
     const preview = imagePreviews[index];
@@ -490,6 +492,14 @@ export default function ProductForm(props) {
     if (!(file instanceof File)) return;
     setCroppingImage({ file, url: preview.url, index });
     setTimeout(() => initializeCropArea(preview.url), 100);
+  };
+
+  const handleLeaveAsIs = (index) => {
+    setFiles((prev) => {
+      const updated = [...prev];
+      if (updated[index]) updated[index] = { ...updated[index], leftAsIs: true };
+      return updated;
+    });
   };
 
   const removeImage = (index) => {
@@ -1144,43 +1154,74 @@ export default function ProductForm(props) {
               <p className="text-xs text-red-500">{imageError}</p>
             )}
 
-            {/* Previews des images */}
+            {/* Previews des images – choisir Recadrer ou Laisser tel quel pour chaque photo */}
             {imagePreviews.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {imagePreviews.map((preview, index) => (
-                  <div key={index} className="relative group">
-                    <img
-                      src={preview.url}
-                      alt={`Preview ${index + 1}`}
-                      className="w-full h-24 object-cover rounded-lg border border-gray-200"
-                    />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-lg flex items-center justify-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => editImageCrop(index)}
-                        className="opacity-0 group-hover:opacity-100 bg-white/90 backdrop-blur-sm p-1.5 rounded-full shadow-lg hover:bg-white transition-all"
-                        aria-label="Recadrer l'image"
-                        title="Recadrer"
-                      >
-                        <Crop className="w-3.5 h-3.5 text-gray-700" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeImage(index)}
-                        className="opacity-0 group-hover:opacity-100 bg-red-500 text-white p-1.5 rounded-full shadow-lg hover:bg-red-600 transition-all"
-                        aria-label="Supprimer l'image"
-                        title="Supprimer"
-                      >
-                        <DeleteIcon className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    {files[index]?.cropped && (
-                      <div className="absolute top-1 left-1 bg-emerald-500 text-white text-[8px] px-1.5 py-0.5 rounded font-semibold">
-                        Recadré
+              <div className="space-y-3">
+                <p className="text-xs text-gray-500">
+                  Pour chaque photo : <strong>Recadrer</strong> pour ajuster le cadre, ou <strong>Laisser tel quel</strong> pour garder l&apos;originale.
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {imagePreviews.map((preview, index) => {
+                    const item = files[index];
+                    const cropped = item?.cropped;
+                    const leftAsIs = item?.leftAsIs;
+                    return (
+                      <div key={index} className="relative group rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
+                        <img
+                          src={preview.url}
+                          alt={`Preview ${index + 1}`}
+                          className="w-full h-28 sm:h-32 object-cover"
+                        />
+                        <div className="absolute top-1 left-1 flex flex-wrap gap-1">
+                          {cropped && (
+                            <span className="bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded font-semibold">
+                              Recadré
+                            </span>
+                          )}
+                          {leftAsIs && (
+                            <span className="bg-slate-500 text-white text-[10px] px-2 py-0.5 rounded font-semibold">
+                              Tel quel
+                            </span>
+                          )}
+                        </div>
+                        <div className="absolute top-1 right-1">
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="bg-red-500 text-white p-1.5 rounded-full shadow-lg hover:bg-red-600 transition-all"
+                            aria-label="Supprimer l'image"
+                            title="Supprimer"
+                          >
+                            <DeleteIcon className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="p-2 flex flex-wrap gap-1.5 border-t border-gray-200 bg-white">
+                          <button
+                            type="button"
+                            onClick={() => editImageCrop(index)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
+                            aria-label="Recadrer cette image"
+                            title="Recadrer"
+                          >
+                            <Crop className="w-3.5 h-3.5" />
+                            Recadrer
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleLeaveAsIs(index)}
+                            disabled={leftAsIs}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-60 disabled:cursor-default transition-colors"
+                            aria-label="Laisser cette image telle quelle"
+                            title="Laisser tel quel"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            Laisser tel quel
+                          </button>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                ))}
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>

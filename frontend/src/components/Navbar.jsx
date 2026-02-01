@@ -7,7 +7,7 @@ import useAdminCounts from "../hooks/useAdminCounts";
 import useUserNotifications from "../hooks/useUserNotifications";
 import api from "../services/api";
 import { buildProductPath, buildShopPath } from "../utils/links";
-import { getCachedSearch, setCachedSearch, prefetchPopularSearches } from "../utils/searchCache.js";
+import { getCachedSearch, setCachedSearch } from "../utils/searchCache.js";
 import categoryGroups from "../data/categories";
 import {
   ShoppingCart,
@@ -157,8 +157,6 @@ export default function Navbar() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [showHistoryGrouped, setShowHistoryGrouped] = useState(true);
-  const [popularSearches, setPopularSearches] = useState([]);
-  const [popularSearchesLoading, setPopularSearchesLoading] = useState(false);
   const [relatedSearches, setRelatedSearches] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
@@ -188,7 +186,12 @@ export default function Navbar() {
   const searchOverlayRef = useRef(null);
   const [isSearchFullScreen, setIsSearchFullScreen] = useState(false);
   const [savedSearches, setSavedSearches] = useState([]);
-  const [searchTemplates, setSearchTemplates] = useState([]);
+  const [searchTemplates, setSearchTemplates] = useState(() => [
+    { id: 'new_products', label: 'Nouveaux produits', path: '/products?sort=new', icon: Sparkles },
+    { id: 'top_deals', label: 'Meilleures offres', path: '/products?sort=price_asc', icon: Flame },
+    { id: 'verified_shops', label: 'Boutiques vérifiées', path: '/shops/verified', icon: ShieldCheck },
+    { id: 'trending', label: 'Tendances', path: '/products?sort=popular', icon: TrendingUp }
+  ]);
   const [touchStartY, setTouchStartY] = useState(null);
   const [showBottomSheet, setShowBottomSheet] = useState(false);
   const [bottomBarExpanded, setBottomBarExpanded] = useState(false);
@@ -382,11 +385,14 @@ export default function Navbar() {
     const body = document.body;
     if (isMenuOpen || isSearchFullScreen) {
       body.style.overflow = 'hidden';
+      if (isMenuOpen) body.classList.add('menu-open');
     } else {
       body.style.overflow = '';
+      body.classList.remove('menu-open');
     }
     return () => {
       body.style.overflow = '';
+      body.classList.remove('menu-open');
     };
   }, [isMenuOpen, isSearchFullScreen]);
 
@@ -422,14 +428,12 @@ export default function Navbar() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isMobileLayout, isSearchFullScreen, showResults]);
 
-  // Load saved searches and templates
+  // Load saved searches from localStorage (user only)
   useEffect(() => {
     if (!user) {
       setSavedSearches([]);
-      setSearchTemplates([]);
       return;
     }
-    // Load saved searches from localStorage
     try {
       const saved = localStorage.getItem('hdmarket_saved_searches');
       if (saved) {
@@ -438,14 +442,24 @@ export default function Navbar() {
     } catch (e) {
       console.error('Error loading saved searches:', e);
     }
-    // Load search templates (could be from API in future)
-    setSearchTemplates([
-      { id: 'new_products', label: 'Nouveaux produits', query: '', filters: { sort: 'newest' }, icon: Sparkles },
-      { id: 'top_deals', label: 'Meilleures offres', query: '', filters: { sort: 'price_asc' }, icon: Flame },
-      { id: 'verified_shops', label: 'Boutiques vérifiées', query: '', filters: { shopVerified: true }, icon: ShieldCheck },
-      { id: 'trending', label: 'Tendances', query: '', filters: { sort: 'popular' }, icon: TrendingUp }
-    ]);
   }, [user]);
+
+  // Load quick filters from backend (Nouveaux produits, Meilleures offres, etc.)
+  const QUICK_FILTER_ICONS = { sparkles: Sparkles, flame: Flame, 'shield-check': ShieldCheck, 'trending-up': TrendingUp };
+  useEffect(() => {
+    let cancelled = false;
+    api.get('/search/quick-filters')
+      .then(({ data }) => {
+        if (cancelled || !Array.isArray(data) || data.length === 0) return;
+        const withIcons = data.map((t) => ({
+          ...t,
+          icon: QUICK_FILTER_ICONS[t.icon] || Sparkles
+        }));
+        setSearchTemplates(withIcons);
+      })
+      .catch(() => { /* keep initial default templates */ });
+    return () => { cancelled = true; };
+  }, []);
 
   // Load custom navigation items from localStorage
   useEffect(() => {
@@ -672,18 +686,18 @@ export default function Navbar() {
     triggerHaptic(50);
   };
 
-  // Quick action handlers
+  // Quick action handlers (align with backend quick-filters paths)
   const handleQuickAction = (action) => {
     triggerHaptic(50);
     switch (action) {
       case 'new_products':
-        navigate('/products?sort=newest');
+        navigate('/products?sort=new');
         break;
       case 'top_deals':
         navigate('/products?sort=price_asc');
         break;
       case 'verified_shops':
-        navigate('/verified-shops');
+        navigate('/shops/verified');
         break;
       case 'trending':
         navigate('/products?sort=popular');
@@ -904,43 +918,6 @@ export default function Navbar() {
       setHistoryLoading(false);
     }
   }, [user, showHistoryGrouped, historySearchQuery]);
-
-  // Fetch popular searches on mount and prefetch them
-  useEffect(() => {
-    let cancelled = false;
-    const loadPopularSearches = async () => {
-      setPopularSearchesLoading(true);
-      try {
-        const { data } = await api.get('/search/popular?limit=8&period=week');
-        if (!cancelled && Array.isArray(data)) {
-          setPopularSearches(data);
-          // Prefetch popular searches in background
-          prefetchPopularSearches(data, api);
-        }
-      } catch (error) {
-        console.error('Error loading popular searches:', error);
-        // Fallback to static popular searches if endpoint doesn't exist
-        if (!cancelled) {
-          const fallback = [
-            { query: 'iPhone', count: 150 },
-            { query: 'Samsung', count: 120 },
-            { query: 'Chaussures', count: 100 },
-            { query: 'MacBook', count: 90 },
-            { query: 'Vêtements', count: 85 },
-            { query: 'Téléphone', count: 80 },
-            { query: 'Ordinateur', count: 75 },
-            { query: 'Accessoires', count: 70 }
-          ];
-          setPopularSearches(fallback);
-          prefetchPopularSearches(fallback, api);
-        }
-      } finally {
-        if (!cancelled) setPopularSearchesLoading(false);
-      }
-    };
-    loadPopularSearches();
-    return () => { cancelled = true; };
-  }, []);
 
   const handleOpenHistoryPanel = async () => {
     if (!user) {
@@ -1381,82 +1358,6 @@ export default function Navbar() {
           </div>
         )}
 
-        {/* Popular Searches */}
-        <div className="border-b border-gray-100 dark:border-gray-700">
-          <div className="px-4 py-2.5 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20">
-            <div className="flex items-center gap-2">
-              <TrendingUp size={14} className="text-amber-600 dark:text-amber-400" />
-              <span className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wide">
-                Recherches tendance
-              </span>
-            </div>
-          </div>
-          <div className="p-2">
-            {popularSearchesLoading ? (
-              <div className="flex flex-wrap gap-2">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="h-8 w-24 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse" />
-                ))}
-              </div>
-            ) : (
-              popularSearches.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {popularSearches.map((item, idx) => {
-                    // Calculate volume indicator (relative to max)
-                    const maxCount = Math.max(...popularSearches.map(s => s.count || 0));
-                    const volumePercent = maxCount > 0 ? Math.round((item.count || 0) / maxCount * 100) : 0;
-                    const isHot = volumePercent >= 80;
-                    const isTrending = volumePercent >= 50 && volumePercent < 80;
-
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => handleSuggestionClick(item.query)}
-                        className={`group relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-all ${
-                          isHot
-                            ? 'bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900/30 dark:to-red-900/30 text-orange-700 dark:text-orange-300 border border-orange-300 dark:border-orange-600/50 hover:shadow-md hover:shadow-orange-100 dark:hover:shadow-orange-900/20'
-                            : isTrending
-                              ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50 hover:bg-amber-100 dark:hover:bg-amber-900/40'
-                              : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
-                        }`}
-                      >
-                        {isHot ? (
-                          <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
-                          </span>
-                        ) : (
-                          <Sparkles size={12} className={isHot ? 'text-orange-500' : isTrending ? 'text-amber-500' : 'text-gray-400'} />
-                        )}
-                        <span className="font-medium">{item.query}</span>
-                        {item.count && (
-                          <span className={`text-[10px] font-semibold ${
-                            isHot ? 'text-orange-500' : isTrending ? 'text-amber-500 dark:text-amber-400' : 'text-gray-400'
-                          }`}>
-                            {item.count > 999 ? `${Math.round(item.count/1000)}k` : item.count}
-                          </span>
-                        )}
-                        {/* Volume bar indicator */}
-                        <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-b-full overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity">
-                          <div
-                            className={`h-full ${isHot ? 'bg-orange-500' : isTrending ? 'bg-amber-500' : 'bg-gray-400'}`}
-                            style={{ width: `${volumePercent}%` }}
-                          />
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="px-2 py-3 text-center text-sm text-gray-500 dark:text-gray-400">
-                  Aucune recherche tendance pour le moment
-                </div>
-              )
-            )}
-          </div>
-        </div>
-
         {/* Category Suggestions */}
         {topCategories.length > 0 && (
           <div className="border-b border-gray-100 dark:border-gray-700">
@@ -1811,7 +1712,7 @@ export default function Navbar() {
               </div>
             )}
 
-            {/* View All Link */}
+            {/* View All Link – redirect to Products page with current search and show results */}
             {searchQuery.trim() && totalCount > 0 && (
               <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-center sticky bottom-0">
                 <Link
@@ -1820,6 +1721,7 @@ export default function Navbar() {
                   onClick={() => {
                     setIsHistoryPanelOpen(false);
                     setShowResults(false);
+                    setIsSearchFullScreen(false);
                   }}
                 >
                   Voir tous les résultats ({totalCount})
@@ -2097,7 +1999,7 @@ export default function Navbar() {
               </div>
             )}
 
-            {/* View All Link */}
+            {/* View All Link – redirect to Products page with current search and show results */}
             {searchQuery.trim() && totalCount > 0 && (
               <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-center sticky bottom-0">
                 <Link
@@ -2106,6 +2008,7 @@ export default function Navbar() {
                   onClick={() => {
                     setIsHistoryPanelOpen(false);
                     setShowResults(false);
+                    setIsSearchFullScreen(false);
                   }}
                 >
                   Voir tous les résultats ({totalCount})
@@ -2565,7 +2468,17 @@ export default function Navbar() {
     };
   }, []);
 
-  // Render quick action buttons
+  // Render quick action buttons (from backend quick-filters; click navigates to path)
+  const handleQuickFilterClick = (template) => {
+    if (template.path) {
+      navigate(template.path);
+      setIsSearchFullScreen(false);
+      setShowResults(false);
+      triggerHaptic('light');
+    } else {
+      handleApplyTemplate(template);
+    }
+  };
   const renderQuickActions = () => (
     <div className="grid grid-cols-2 gap-2 mb-4">
       {searchTemplates.map((template) => {
@@ -2574,7 +2487,7 @@ export default function Navbar() {
           <button
             key={template.id}
             type="button"
-            onClick={() => handleApplyTemplate(template)}
+            onClick={() => handleQuickFilterClick(template)}
             className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl hover:from-indigo-100 hover:to-purple-100 dark:hover:from-indigo-900/30 dark:hover:to-purple-900/30 transition-all group"
           >
             <Icon size={18} className="text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform" />

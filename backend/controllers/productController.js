@@ -277,10 +277,13 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     minRating,
     minFavorites,
     minSales,
-    sort = 'new',
+    sort: sortParam = 'new',
     page = 1,
     limit = 12
   } = req.query;
+
+  // Normalize sort: accept 'newest' as alias for 'new'
+  const sort = sortParam === 'newest' ? 'new' : sortParam;
 
   const filter = { status: 'approved' };
   
@@ -388,9 +391,11 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
 
   const sortOptions = {
     new: { createdAt: -1 },
+    newest: { createdAt: -1 },
     price_asc: { price: 1 },
     price_desc: { price: -1 },
-    discount: { discount: -1, createdAt: -1 }
+    discount: { discount: -1, createdAt: -1 },
+    popular: { salesCount: -1, favoritesCount: -1, createdAt: -1 }
   };
 
   const pageNumber = Math.max(1, Number(page) || 1);
@@ -449,6 +454,12 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     }
     if (sort === 'price_desc') {
       return (b.price || 0) - (a.price || 0);
+    }
+    if (sort === 'popular') {
+      const aScore = (a.salesCount || 0) * 2 + (a.favoritesCount || 0);
+      const bScore = (b.salesCount || 0) * 2 + (b.favoritesCount || 0);
+      if (bScore !== aScore) return bScore - aScore;
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
     }
     if (sort === 'discount') {
       const discountDiff = (b.discount || 0) - (a.discount || 0);

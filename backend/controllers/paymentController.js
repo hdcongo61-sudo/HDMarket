@@ -3,6 +3,7 @@ import Payment from '../models/paymentModel.js';
 import Product from '../models/productModel.js';
 import User from '../models/userModel.js';
 import { createNotification } from '../utils/notificationService.js';
+import { invalidateProductCache } from '../utils/cache.js';
 
 const isCloseTo = (a, b, tolerance = 0.01) => Math.abs(a - b) <= tolerance;
 

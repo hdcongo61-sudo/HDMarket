@@ -39,12 +39,18 @@ const buildInitialState = () => ({
   preferences: buildDefaultPreferences()
 });
 
-export default function useUserNotifications(enabled) {
+export default function useUserNotifications(enabled, options = {}) {
+  const { skipRefreshEvent = false } = options;
   const [counts, setCounts] = useState(() => buildInitialState());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const EVENT_KEY = 'hdmarket:notifications-refresh';
+
+  /** Update counts locally without refetch (e.g. after mark-as-read or delete). */
+  const updateCounts = useCallback((updater) => {
+    setCounts((prev) => (typeof updater === 'function' ? updater(prev) : updater));
+  }, []);
 
   const fetchData = useCallback(async () => {
     if (!enabled) {
@@ -176,6 +182,7 @@ export default function useUserNotifications(enabled) {
   }, [enabled, fetchData]);
 
   useEffect(() => {
+    if (skipRefreshEvent) return;
     const handler = () => {
       fetchData();
     };
@@ -183,9 +190,9 @@ export default function useUserNotifications(enabled) {
     return () => {
       window.removeEventListener(EVENT_KEY, handler);
     };
-  }, [fetchData]);
+  }, [fetchData, skipRefreshEvent]);
 
-  return { counts, loading, error, refresh: fetchData };
+  return { counts, loading, error, refresh: fetchData, updateCounts };
 }
 
 export const triggerNotificationsRefresh = () => {

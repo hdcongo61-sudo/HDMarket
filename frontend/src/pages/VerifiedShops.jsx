@@ -229,29 +229,41 @@ export default function VerifiedShops() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header - Taobao Style */}
-      <div className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-2xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-emerald-600" />
-              <h1 className="text-lg font-black text-gray-900">{isAdmin ? 'Boutiques Vérifiées (Admin)' : 'Boutiques Vérifiées'}</h1>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="text-xs text-gray-500 font-semibold">
-                {certifiedCountLabel} boutiques
+      {/* Sticky header – redesigned */}
+      <header className="verified-shops-header sticky top-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200/80 dark:border-gray-800/80 shadow-sm transition-[visibility] duration-150">
+        <div className="max-w-2xl mx-auto px-4 py-4 sm:py-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex-shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md">
+                <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <button
-                onClick={() => setAllShopsModalOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300 transition-all duration-200"
-              >
-                <Grid3x3 size={14} />
-                Voir toutes les boutiques
-              </button>
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white truncate">
+                  Boutiques vérifiées
+                </h1>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <span className="text-sm text-gray-500 dark:text-gray-400 tabular-nums font-medium">
+                    {certifiedCountLabel} boutique{certifiedCountLabel !== '1' ? 's' : ''}
+                  </span>
+                  {isAdmin && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50">
+                      Admin
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setAllShopsModalOpen(true)}
+              className="flex-shrink-0 w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white px-4 py-3 sm:py-2.5 text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.98]"
+            >
+              <Grid3x3 className="w-4 h-4" aria-hidden />
+              Voir toutes les boutiques
+            </button>
           </div>
         </div>
-      </div>
+      </header>
 
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
 
