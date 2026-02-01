@@ -98,22 +98,20 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-[#F2F2F7] dark:bg-black">
       <div className="w-full max-w-[500px]">
-        {/* Header */}
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-normal text-indigo-600 mb-1">HDMarket</h1>
-          <p className="text-sm text-gray-500">Créez votre compte</p>
+        <div className="text-center mb-10">
+          <h1 className="text-[28px] font-semibold tracking-tight text-black dark:text-white mb-2">HDMarket</h1>
+          <p className="text-[15px] text-[#8E8E93]">Créez votre compte</p>
         </div>
 
-        {/* Register Form */}
-        <div className="bg-white border border-gray-200 p-6">
+        <div className="apple-card p-6">
           <form onSubmit={submit} className="space-y-4">
             {/* Name */}
             <div>
               <input
                 type="text"
-                className="w-full px-3 py-2.5 border border-gray-300 focus:outline-none focus:border-indigo-600 text-sm"
+                className="apple-input w-full"
                 placeholder="Nom complet *"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -127,7 +125,7 @@ export default function Register() {
                 type="tel"
                 inputMode="tel"
                 autoComplete="tel"
-                className="w-full px-3 py-2.5 border border-gray-300 focus:outline-none focus:border-indigo-600 text-sm"
+                className="apple-input w-full"
                 placeholder="Numéro de téléphone *"
                 value={form.phone}
                 onChange={(e) => {
@@ -143,8 +141,8 @@ export default function Register() {
               <div className="flex gap-2">
                 <input
                   type="text"
-                  className="flex-1 px-3 py-2.5 border border-gray-300 focus:outline-none focus:border-indigo-600 text-sm"
-                  placeholder="Code de vérification email (optionnel si email non configuré)"
+                  className="apple-input flex-1"
+                  placeholder="Code de vérification email (optionnel)"
                   value={verificationCode}
                   onChange={(e) => {
                     setVerificationCode(e.target.value);
@@ -155,7 +153,7 @@ export default function Register() {
                   type="button"
                   onClick={sendVerificationCode}
                   disabled={codeSending || !form.email.trim()}
-                  className="px-4 py-2.5 border border-gray-300 text-sm text-gray-700 hover:border-indigo-600 hover:text-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  className="px-4 py-2.5 rounded-full font-medium text-[15px] border border-[#C7C7CC] text-[#007AFF] hover:bg-[rgba(0,122,255,0.08)] tap-feedback whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {codeSending ? 'Envoi...' : codeSent ? 'Renvoyer' : 'Envoyer'}
                 </button>
@@ -183,7 +181,7 @@ export default function Register() {
             <div>
               <input
                 type="email"
-                className="w-full px-3 py-2.5 border border-gray-300 focus:outline-none focus:border-indigo-600 text-sm"
+                className="apple-input w-full"
                 placeholder="Adresse email *"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -195,7 +193,7 @@ export default function Register() {
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
-                className="w-full px-3 py-2.5 border border-gray-300 focus:outline-none focus:border-indigo-600 text-sm pr-10"
+                className="apple-input w-full pr-12"
                 placeholder="Mot de passe *"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -215,7 +213,7 @@ export default function Register() {
               {/* Country (disabled) */}
               <div>
                 <input
-                  className="w-full px-3 py-2.5 border border-gray-300 bg-gray-100 text-gray-500 text-sm cursor-not-allowed"
+                  className="apple-input w-full bg-[rgba(120,120,128,0.08)] text-[#8E8E93] cursor-not-allowed"
                   value="République du Congo"
                   readOnly
                   disabled
@@ -225,7 +223,7 @@ export default function Register() {
               {/* City */}
               <div>
                 <select
-                  className="w-full px-3 py-2.5 border border-gray-300 focus:outline-none focus:border-indigo-600 text-sm bg-white"
+                  className="apple-input w-full bg-white dark:bg-[#1C1C1E]"
                   value={form.city}
                   onChange={(e) => {
                     setForm({ ...form, city: e.target.value });

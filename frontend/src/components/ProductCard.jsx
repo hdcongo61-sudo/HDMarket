@@ -338,7 +338,7 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
 
   return (
     <div 
-      className="group relative flex h-full w-full flex-col bg-white overflow-hidden rounded-xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300"
+      className="group relative flex h-full w-full flex-col bg-white overflow-hidden rounded-[16px] border border-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] transition-all duration-300 dark:bg-[#1C1C1E] dark:border-[#38383A]"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -510,7 +510,7 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
         <button
           type="button"
           onClick={(event) => handleFavoriteToggle(event)}
-          className="absolute top-1.5 sm:top-2 right-1.5 sm:right-2 z-30 bg-white/95 backdrop-blur-sm p-1 sm:p-1.5 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 group/fav"
+          className="absolute top-1.5 sm:top-2 right-1.5 sm:right-2 z-30 bg-white/95 backdrop-blur-sm min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 p-2 sm:p-1.5 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 tap-feedback flex items-center justify-center group/fav"
           aria-label={isInFavorites ? 'Retirer des favoris' : 'Ajouter aux favoris'}
         >
           <Heart
@@ -615,7 +615,7 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
               Garanti authentique
             </span>
             {conditionLabel === 'Neuf' && (
-              <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[9px] font-semibold border border-blue-200">
+              <span className="bg-[rgba(0,122,255,0.12)] text-[#007AFF] px-2 py-0.5 rounded text-[9px] font-semibold border border-[rgba(0,122,255,0.24)]">
                 Neuf
               </span>
             )}
@@ -636,7 +636,7 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
             <Link
               to={buildShopPath(p.user)}
               {...externalLinkProps}
-              className="text-[10px] font-semibold text-gray-600 truncate hover:text-indigo-600"
+              className="text-[10px] font-semibold text-[#8E8E93] truncate hover:text-[#007AFF]"
             >
               {p.user?.shopName || 'Boutique HDMarket'}
             </Link>
@@ -659,8 +659,8 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
                 inCart
                   ? 'bg-gray-100 text-gray-500 cursor-not-allowed opacity-60'
                   : adding
-                  ? 'bg-blue-400 text-white cursor-wait'
-                  : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md'
+                  ? 'bg-[#007AFF]/80 text-white cursor-wait'
+                  : 'bg-[#007AFF] text-white hover:bg-[#0051D5] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
               }`}
             >
               <ShoppingCart size={12} className="sm:w-4 sm:h-4" />

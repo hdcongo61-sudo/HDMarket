@@ -49,6 +49,8 @@ export default function ProductForm(props) {
   const canUploadVideo = Boolean(user?.shopVerified && user?.accountType === 'shop');
   const canUploadPdf = user?.accountType === 'shop';
   const [videoFile, setVideoFile] = useState(null);
+  const [existingVideoUrl, setExistingVideoUrl] = useState(null);
+  const [removeExistingVideo, setRemoveExistingVideo] = useState(false);
   const [videoError, setVideoError] = useState('');
   const [pdfFile, setPdfFile] = useState(null);
   const [pdfError, setPdfError] = useState('');
@@ -538,15 +540,18 @@ export default function ProductForm(props) {
       
       try {
         const videoElement = document.createElement('video');
-        videoElement.preload = 'metadata';
-        videoElement.muted = true;
+        videoElement.preload = 'auto';
+        // Must NOT mute: Chrome's MediaRecorder gives 0 bytes when capturing muted video.
+        // File selection is a user gesture, so play() works without muted.
+        videoElement.muted = false;
+        videoElement.volume = 0; // Silence during compression; does not affect captured stream
         videoElement.playsInline = true;
         videoElement.crossOrigin = 'anonymous';
         
         const videoUrl = URL.createObjectURL(file);
         videoElement.src = videoUrl;
         
-        // Wait for metadata to load
+        // Wait for metadata and canplay
         await new Promise((resolve, reject) => {
           videoElement.onloadedmetadata = () => {
             if (videoElement.videoWidth === 0 || videoElement.videoHeight === 0) {
@@ -558,21 +563,20 @@ export default function ProductForm(props) {
           videoElement.onerror = () => reject(new Error('Erreur lors du chargement de la vidéo'));
         });
         
-        // Create canvas with original resolution
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = videoElement.videoWidth;
-        canvas.height = videoElement.videoHeight;
+        await new Promise((resolve, reject) => {
+          videoElement.oncanplay = () => resolve();
+          videoElement.onerror = () => reject(new Error('Erreur lors du chargement de la vidéo'));
+        });
         
-        // Calculate target bitrate to achieve ~20MB while keeping resolution
         const duration = videoElement.duration;
-        const targetSizeBytes = MAX_VIDEO_SIZE_MB * 1024 * 1024 * 0.95; // 95% of max to be safe
-        const targetBitrate = Math.max(500000, Math.floor((targetSizeBytes * 8) / duration)); // Min 500kbps, max based on target size
+        const targetSizeBytes = MAX_VIDEO_SIZE_MB * 1024 * 1024 * 0.95;
+        const totalBitsPerSecond = (targetSizeBytes * 8) / duration;
+        const videoBitrate = Math.max(500000, Math.floor(totalBitsPerSecond * 0.9)); // 90% for video
+        const audioBitrate = Math.min(128000, Math.floor(totalBitsPerSecond * 0.1)); // 10% for audio, max 128kbps
         
-        // Get best supported MIME type
-        let mimeType = 'video/webm;codecs=vp9';
+        let mimeType = 'video/webm;codecs=vp9,opus';
         if (!MediaRecorder.isTypeSupported(mimeType)) {
-          mimeType = 'video/webm;codecs=vp8';
+          mimeType = 'video/webm;codecs=vp8,opus';
           if (!MediaRecorder.isTypeSupported(mimeType)) {
             mimeType = 'video/webm';
             if (!MediaRecorder.isTypeSupported(mimeType)) {
@@ -581,15 +585,38 @@ export default function ProductForm(props) {
           }
         }
         
-        // Create stream from canvas
-        const stream = canvas.captureStream(30); // 30 fps
         const chunks = [];
-        let totalSize = 0;
+        let stream;
         
-        const mediaRecorder = new MediaRecorder(stream, {
-          mimeType: mimeType,
-          videoBitsPerSecond: targetBitrate
-        });
+        if (typeof videoElement.captureStream === 'function') {
+          // Preferred: captureStream includes video + audio at correct speed (Chrome, Firefox, Edge)
+          stream = videoElement.captureStream();
+        } else {
+          // Fallback for Safari: canvas gives video only, no audio (captureStream not supported)
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = videoElement.videoWidth;
+          canvas.height = videoElement.videoHeight;
+          stream = canvas.captureStream(30);
+          videoElement.onplaying = () => {
+            const drawFrame = () => {
+              if (videoElement.ended || videoElement.paused) return;
+              ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+              requestAnimationFrame(drawFrame);
+            };
+            drawFrame();
+          };
+        }
+        
+        const mediaRecorderOptions = {
+          mimeType,
+          videoBitsPerSecond: videoBitrate
+        };
+        if (mimeType.includes('webm') && stream.getAudioTracks && stream.getAudioTracks().length > 0) {
+          mediaRecorderOptions.audioBitsPerSecond = audioBitrate;
+        }
+        
+        const mediaRecorder = new MediaRecorder(stream, mediaRecorderOptions);
         
         mediaRecorder.ondataavailable = (event) => {
           if (event.data && event.data.size > 0) {
@@ -624,55 +651,22 @@ export default function ProductForm(props) {
           e.target.value = '';
         };
         
-        // Start recording
-        mediaRecorder.start(100); // Collect data every 100ms
+        // Update progress while video plays
+        const progressInterval = setInterval(() => {
+          if (videoElement.ended || videoElement.paused) return;
+          const timeProgress = Math.min(98, (videoElement.currentTime / duration) * 100);
+          setCompressionProgress(timeProgress);
+        }, 200);
         
-        // Seek to start and play
-        videoElement.currentTime = 0;
-        await videoElement.play();
-        
-        // Draw frames to canvas
-        const drawFrame = () => {
-          if (videoElement.ended || videoElement.paused || videoElement.readyState < 2) {
-            if (videoElement.ended) {
-              setCompressionProgress(98);
-              setTimeout(() => {
-                mediaRecorder.stop();
-              }, 100);
-            } else {
-              requestAnimationFrame(drawFrame);
-            }
-            return;
-          }
-          
-          try {
-            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-            
-            // Update progress based on current time (most accurate)
-            const timeProgress = Math.min(98, (videoElement.currentTime / duration) * 100);
-            setCompressionProgress(timeProgress);
-            
-            // Advance video by one frame (30fps = ~0.033s per frame)
-            if (!videoElement.ended) {
-              videoElement.currentTime += 0.033;
-              requestAnimationFrame(drawFrame);
-            } else {
-              setCompressionProgress(99);
-              setTimeout(() => {
-                mediaRecorder.stop();
-              }, 200);
-            }
-          } catch (error) {
-            console.error('Frame drawing error:', error);
-            setCompressionProgress(100);
-            mediaRecorder.stop();
-          }
+        videoElement.onended = () => {
+          clearInterval(progressInterval);
+          setCompressionProgress(98);
+          setTimeout(() => mediaRecorder.stop(), 150);
         };
         
-        // Wait a bit for video to be ready, then start drawing
-        setTimeout(() => {
-          drawFrame();
-        }, 100);
+        mediaRecorder.start(100);
+        videoElement.currentTime = 0;
+        await videoElement.play();
         
       } catch (error) {
         console.error('Video compression error:', error);
@@ -695,6 +689,16 @@ export default function ProductForm(props) {
     setCompressionProgress(0);
     setOriginalVideoSize(0);
   };
+
+  const handleReplaceVideo = () => {
+    setRemoveExistingVideo(false);
+    document.getElementById('product-form-video-input')?.click();
+  };
+
+  const handleRemoveExistingVideo = () => {
+    setRemoveExistingVideo(true);
+  };
+
 
   const handlePdfChange = (e) => {
     const file = e.target.files?.[0];
@@ -747,6 +751,9 @@ export default function ProductForm(props) {
       if (removePdf) {
         data.append('removePdf', 'true');
       }
+      if (removeExistingVideo) {
+        data.append('removeVideo', 'true');
+      }
       const url = `/products${productId ? `/${productId}` : ''}`;
       const method = productId ? 'put' : 'post';
       const res = await api[method](url, data, {
@@ -780,6 +787,8 @@ export default function ProductForm(props) {
       setRemovedImages([]);
       setImageError('');
       setVideoFile(null);
+      setExistingVideoUrl(null);
+      setRemoveExistingVideo(false);
       setVideoError('');
       setPdfFile(null);
       setPdfError('');
@@ -856,9 +865,9 @@ export default function ProductForm(props) {
   const priceGridClass = isEditing ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2';
 
   return (
-    <div className={`max-w-2xl mx-auto ${isMobile ? 'px-0 pb-28' : ''}`}>
-      {/* En-tête du formulaire */}
-      <div className={isMobile ? 'text-left mb-4 pb-3 border-b border-gray-100' : 'text-center mb-8'}>
+    <div className={`max-w-2xl mx-auto ${isMobile ? 'px-0 pb-28 bg-[#f2f2f7] min-h-screen' : ''}`}>
+      {/* En-tête du formulaire — Apple-style on mobile */}
+      <div className={isMobile ? 'text-left px-4 pt-2 pb-4 bg-[#f2f2f7]' : 'text-center mb-8'}>
         {!isMobile && (
           <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Package className="w-8 h-8 text-white" />
@@ -866,33 +875,35 @@ export default function ProductForm(props) {
         )}
         <div className={isMobile ? 'flex items-center gap-3' : ''}>
           {isMobile && (
-            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Package className="w-6 h-6 text-white" />
+            <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm border border-gray-200/80">
+              <Package className="w-6 h-6 text-indigo-600" />
             </div>
           )}
-          <div>
-            <h1 className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl mb-2'}`}>{headerTitle}</h1>
-            <p className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>{headerSubtitle}</p>
+          <div className="min-w-0">
+            <h1 className={`font-bold text-gray-900 ${isMobile ? 'text-[22px] leading-tight' : 'text-2xl mb-2'}`}>{headerTitle}</h1>
+            <p className={`text-gray-500 ${isMobile ? 'text-[13px] mt-0.5' : 'text-sm'}`}>{headerSubtitle}</p>
           </div>
         </div>
       </div>
 
-      <form onSubmit={submit} className={`space-y-6 bg-white rounded-2xl border border-gray-100 ${isMobile ? 'p-4 shadow-none rounded-xl' : 'p-6 shadow-sm'}`}>
+      <form onSubmit={submit} className={`space-y-6 bg-white rounded-2xl border border-gray-100 ${isMobile ? 'p-4 pb-6 shadow-sm rounded-2xl mx-4 border-0' : 'p-6 shadow-sm'}`}>
         {/* Section Informations de base */}
         <div className="space-y-4">
           {isMobile ? (
               <button
                 type="button"
                 onClick={() => toggleSection('info')}
-                className="flex items-center justify-between w-full py-3 px-0 text-left rounded-xl -mx-2 px-2 hover:bg-gray-50 active:bg-gray-100 touch-manipulation min-h-[44px]"
+                className="flex items-center justify-between w-full py-3.5 px-0 text-left rounded-xl -mx-2 px-2 -mt-1 active:bg-gray-100/80 touch-manipulation min-h-[48px] transition-colors"
                 aria-expanded={expandedSections.info}
               >
                 <div className="flex items-center space-x-3">
-                  <div className="w-2 h-6 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full flex-shrink-0"></div>
-                  <h2 className="text-base font-semibold text-gray-900">Informations du produit</h2>
+                  <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-4 h-4 text-indigo-600" />
+                  </div>
+                  <h2 className="text-[17px] font-semibold text-gray-900">Informations du produit</h2>
                 </div>
-                <span className="min-w-[44px] min-h-[44px] flex items-center justify-center -m-2">
-                  {expandedSections.info ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
+                <span className="min-w-[44px] min-h-[44px] flex items-center justify-center -m-2 text-gray-400">
+                  {expandedSections.info ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                 </span>
               </button>
             ) : (
@@ -1085,15 +1096,17 @@ export default function ProductForm(props) {
               <button
                 type="button"
                 onClick={() => toggleSection('images')}
-                className="flex items-center justify-between w-full py-3 px-0 text-left rounded-xl -mx-2 px-2 hover:bg-gray-50 active:bg-gray-100 touch-manipulation min-h-[44px]"
+                className="flex items-center justify-between w-full py-3.5 px-0 text-left rounded-xl -mx-2 px-2 -mt-1 active:bg-gray-100/80 touch-manipulation min-h-[48px] transition-colors"
                 aria-expanded={expandedSections.images}
               >
                 <div className="flex items-center space-x-3">
-                  <div className="w-2 h-6 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full flex-shrink-0"></div>
-                  <h2 className="text-base font-semibold text-gray-900">Photos du produit</h2>
+                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <Camera className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <h2 className="text-[17px] font-semibold text-gray-900">Photos du produit</h2>
                 </div>
-                <span className="min-w-[44px] min-h-[44px] flex items-center justify-center -m-2">
-                  {expandedSections.images ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
+                <span className="min-w-[44px] min-h-[44px] flex items-center justify-center -m-2 text-gray-400">
+                  {expandedSections.images ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                 </span>
               </button>
               {(!isMobile || expandedSections.images) && (
@@ -1245,16 +1258,59 @@ export default function ProductForm(props) {
             <p className="text-sm text-gray-500">
               Ajoutez une courte vidéo (MP4, MOV, WEBM) pour montrer le produit. Taille maximale {MAX_VIDEO_SIZE_MB} Mo.
             </p>
-            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group">
-              <Video className="w-8 h-8 text-gray-400 group-hover:text-emerald-500 transition-colors mb-2" />
-              <span className="text-sm text-gray-500 text-center">Cliquez pour uploader votre vidéo</span>
-              <input
-                type="file"
-                accept="video/*"
-                onChange={handleVideoChange}
-                className="hidden"
-              />
-            </label>
+            <input
+              id="product-form-video-input"
+              type="file"
+              accept="video/*"
+              onChange={handleVideoChange}
+              className="hidden"
+            />
+            {existingVideoUrl && !videoFile && !removeExistingVideo ? (
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-gray-700">Vidéo actuelle</p>
+                <div className="rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
+                  <video
+                    src={existingVideoUrl}
+                    controls
+                    playsInline
+                    className="w-full max-h-64 object-contain"
+                  />
+                  <div className="flex flex-wrap gap-2 p-3 bg-gray-50 border-t border-gray-200">
+                    <button
+                      type="button"
+                      onClick={handleKeepExistingVideo}
+                      className="px-3 py-2 text-sm font-semibold rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                    >
+                      Conserver
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleReplaceVideo}
+                      className="px-3 py-2 text-sm font-semibold rounded-full bg-white text-gray-800 border border-gray-300 hover:bg-gray-50 transition-colors"
+                    >
+                      Remplacer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRemoveExistingVideo}
+                      className="px-3 py-2 text-sm font-semibold rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors"
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : !videoFile && !isCompressingVideo ? (
+              <label
+                htmlFor="product-form-video-input"
+                className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group"
+              >
+                <Video className="w-8 h-8 text-gray-400 group-hover:text-emerald-500 transition-colors mb-2" />
+                <span className="text-sm text-gray-500 text-center">
+                  {removeExistingVideo ? 'Vidéo supprimée. Cliquez pour en ajouter une nouvelle.' : 'Cliquez pour uploader votre vidéo'}
+                </span>
+              </label>
+            ) : null}
             {isCompressingVideo && (
               <div className="space-y-3 p-4 rounded-xl border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-cyan-50 shadow-sm">
                 <div className="flex items-center justify-between">
@@ -1546,13 +1602,13 @@ export default function ProductForm(props) {
           </div>
         )}
 
-        {/* Bouton de soumission — sticky sur mobile */}
+        {/* Bouton de soumission — sticky sur mobile (Apple-style primary) */}
         {isMobile ? (
-          <div className="fixed bottom-0 left-0 right-0 z-40 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-white/95 backdrop-blur border-t border-gray-100 safe-area-pb">
+          <div className="fixed bottom-0 left-0 right-0 z-40 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-[#f2f2f7]/95 backdrop-blur-xl border-t border-gray-200/50 safe-area-pb">
             <button
               type="submit"
               disabled={loading || !form.title || !form.description || !form.price || !form.category}
-              className="w-full min-h-[52px] py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg touch-manipulation"
+              className="w-full min-h-[52px] py-4 bg-blue-500 text-white text-[17px] font-semibold rounded-xl active:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm touch-manipulation transition-opacity"
             >
               {loading ? (
                 <>

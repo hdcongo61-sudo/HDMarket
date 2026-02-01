@@ -1,6 +1,7 @@
 import asyncHandler from 'express-async-handler';
 import mongoose from 'mongoose';
 import Order from '../models/orderModel.js';
+import OrderMessage from '../models/orderMessageModel.js';
 import Product from '../models/productModel.js';
 import User from '../models/userModel.js';
 import DeliveryGuy from '../models/deliveryGuyModel.js';
@@ -164,16 +165,17 @@ const filterOrderItemsForSeller = (order, sellerId) => {
   });
 };
 
-// Check if order is within 30-minute cancellation window
+// Check if order is within 30-minute cancellation window (returns false if buyer has skipped it)
 const isWithinCancellationWindow = (order) => {
   if (!order || !order.createdAt) return false;
   if (order.status === 'cancelled' || order.status === 'delivered') return false;
-  
+  if (order.cancellationWindowSkippedAt) return false; // Buyer confirmed they won't cancel
+
   const createdAt = new Date(order.createdAt);
   const now = new Date();
   const diffMs = now - createdAt;
   const diffMinutes = diffMs / (1000 * 60);
-  
+
   return diffMinutes <= 30;
 };
 
@@ -181,12 +183,13 @@ const isWithinCancellationWindow = (order) => {
 const getCancellationWindowRemaining = (order) => {
   if (!order || !order.createdAt) return 0;
   if (order.status === 'cancelled' || order.status === 'delivered') return 0;
-  
+  if (order.cancellationWindowSkippedAt) return 0;
+
   const createdAt = new Date(order.createdAt);
   const cancellationDeadline = new Date(createdAt.getTime() + 30 * 60 * 1000); // 30 minutes
   const now = new Date();
   const remaining = cancellationDeadline - now;
-  
+
   return Math.max(0, remaining);
 };
 
@@ -235,7 +238,8 @@ const buildOrderResponse = (order) => {
     cancellationWindow: {
       isActive: isWithinCancellationWindow(obj),
       remainingMs: getCancellationWindowRemaining(obj),
-      deadline: obj.createdAt ? new Date(new Date(obj.createdAt).getTime() + 30 * 60 * 1000).toISOString() : null
+      deadline: obj.createdAt ? new Date(new Date(obj.createdAt).getTime() + 30 * 60 * 1000).toISOString() : null,
+      skippedAt: obj.cancellationWindowSkippedAt || null
     }
   };
 };
@@ -873,17 +877,79 @@ export const adminSendOrderReminder = asyncHandler(async (req, res) => {
   res.json({ message: 'Rappel envoyé aux vendeurs.' });
 });
 
+export const adminDeleteOrder = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!ensureObjectId(id)) {
+    return res.status(400).json({ message: 'Commande inconnue.' });
+  }
+
+  const order = await Order.findById(id);
+  if (!order) {
+    return res.status(404).json({ message: 'Commande introuvable.' });
+  }
+
+  await OrderMessage.deleteMany({ order: order._id });
+
+  const productIds = (order.items || [])
+    .map((item) => item?.product)
+    .filter(Boolean);
+
+  await Order.findByIdAndDelete(id);
+
+  for (const productId of productIds) {
+    const salesCount = await calculateProductSalesCount(productId);
+    await Product.updateOne({ _id: productId }, { $set: { salesCount } });
+  }
+
+  res.json({ message: 'Commande supprimée.' });
+});
+
+/** Build filter for admin list/stats (matches adminListOrders) */
+const buildAdminOrderFilter = async (status, search) => {
+  const filter = {};
+  if (status && ORDER_STATUS.includes(status)) {
+    filter.status = status;
+  }
+  if (search && String(search).trim()) {
+    const regex = new RegExp(String(search).trim(), 'i');
+    const customerIds = await User.find({
+      $or: [{ name: regex }, { email: regex }, { phone: regex }]
+    })
+      .limit(50)
+      .select('_id');
+    filter.$or = [
+      { 'items.snapshot.title': regex },
+      { 'items.snapshot.shopName': regex },
+      { trackingNote: regex },
+      { deliveryAddress: regex },
+      { deliveryCode: regex }
+    ];
+    if (customerIds.length) {
+      filter.$or.push({ customer: { $in: customerIds.map((c) => c._id) } });
+    }
+  }
+  return filter;
+};
+
 export const adminOrderStats = asyncHandler(async (req, res) => {
+  const { search = '' } = req.query || {};
+  const matchStage = await buildAdminOrderFilter(null, search);
+  const pipeline = Object.keys(matchStage).length ? [{ $match: matchStage }] : [];
+
   const [statusAgg, recentAgg] = await Promise.all([
-    Order.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
     Order.aggregate([
+      ...pipeline,
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ]),
+    Order.aggregate([
+      ...pipeline,
       {
         $group: {
           _id: { $dateToString: { format: '%Y-%m', date: '$createdAt' } },
           count: { $sum: 1 }
         }
       },
-      { $sort: { '_id': 1 } },
+      { $sort: { _id: 1 } },
       { $limit: 12 }
     ])
   ]);
@@ -962,7 +1028,8 @@ export const userListOrders = asyncHandler(async (req, res) => {
   }
 
   const pageNumber = Math.max(1, Number(page) || 1);
-  const pageSize = Math.max(1, Math.min(Number(limit) || 6, 24));
+  const requestedLimit = Number(limit) || 6;
+  const pageSize = Math.max(1, requestedLimit > 24 ? Math.min(requestedLimit, 500) : Math.min(requestedLimit, 24));
   const skip = (pageNumber - 1) * pageSize;
 
   const [orders, total] = await Promise.all([
@@ -1376,17 +1443,59 @@ export const userUpdateOrderAddress = asyncHandler(async (req, res) => {
   res.json(buildOrderResponse(populated));
 });
 
+/**
+ * Buyer confirms they won't cancel - skips the 30-minute window so the seller can process immediately
+ */
+export const userSkipCancellationWindow = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user?.id || req.user?._id;
+
+  if (!ensureObjectId(id)) {
+    return res.status(400).json({ message: 'Commande inconnue.' });
+  }
+
+  const order = await Order.findById(id);
+  if (!order) {
+    return res.status(404).json({ message: 'Commande introuvable.' });
+  }
+
+  if (String(order.customer) !== String(userId)) {
+    return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à modifier cette commande.' });
+  }
+
+  if (order.status === 'cancelled' || order.status === 'delivered') {
+    return res.status(400).json({ message: 'Cette commande ne peut plus être modifiée.' });
+  }
+
+  if (order.cancellationWindowSkippedAt) {
+    return res.status(400).json({ message: 'Le délai d\'annulation a déjà été levé pour cette commande.' });
+  }
+
+  if (!isWithinCancellationWindow(order)) {
+    return res.status(400).json({ message: 'Le délai d\'annulation est déjà expiré.' });
+  }
+
+  order.cancellationWindowSkippedAt = new Date();
+  await order.save();
+
+  const populated = await baseOrderQuery().findById(order._id);
+  await ensureOrderProductSlugs([populated]);
+
+  res.json(buildOrderResponse(populated));
+});
+
 export const sellerListOrders = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
   const { status, page = 1, limit = 6 } = req.query || {};
 
-  const filter = { 'items.snapshot.shopId': userId };
+  const filter = { 'items.snapshot.shopId': userId, isDraft: false };
   if (status && ORDER_STATUS.includes(status)) {
     filter.status = status;
   }
 
   const pageNumber = Math.max(1, Number(page) || 1);
-  const pageSize = Math.max(1, Math.min(Number(limit) || 6, 24));
+  const requestedLimit = Number(limit) || 6;
+  const pageSize = Math.max(1, requestedLimit > 24 ? Math.min(requestedLimit, 500) : Math.min(requestedLimit, 24));
   const skip = (pageNumber - 1) * pageSize;
 
   const [orders, total] = await Promise.all([

@@ -1,5 +1,17 @@
 import React, { useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell
+} from 'recharts';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../services/api';
@@ -10,10 +22,29 @@ import {
   TrendingUp, Users, Star, Award, Edit3, Image,
   Lock,
   Truck,
-  ClipboardList, AlertTriangle, Paperclip, FileText
+  ClipboardList, AlertTriangle, Paperclip, FileText,
+  Bell,
+  DollarSign,
+  X,
+  Search,
+  Filter,
+  LayoutGrid,
+  List,
+  Download,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { buildShopPath } from '../utils/links';
+import useIsMobile from '../hooks/useIsMobile';
+
+const STATS_PERIOD_OPTIONS = [
+  { value: '7', label: '7j' },
+  { value: '30', label: '30j' },
+  { value: '90', label: '90j' },
+  { value: '365', label: '1an' },
+  { value: 'all', label: 'Tout' }
+];
 
 const initialForm = {
   name: '',
@@ -72,14 +103,16 @@ const ORDER_STATUS_LABELS = {
   pending: 'En attente',
   confirmed: 'Commande confirmée',
   delivering: 'En cours de livraison',
-  delivered: 'Commande terminée'
+  delivered: 'Commande terminée',
+  cancelled: 'Commande annulée'
 };
 
 const ORDER_STATUS_STYLES = {
   pending: 'border-gray-200 bg-gray-50 text-gray-700',
   confirmed: 'border-yellow-200 bg-yellow-50 text-yellow-800',
   delivering: 'border-blue-200 bg-blue-50 text-blue-800',
-  delivered: 'border-green-200 bg-green-50 text-green-800'
+  delivered: 'border-green-200 bg-green-50 text-green-800',
+  cancelled: 'border-red-200 bg-red-50 text-red-800'
 };
 
 const ORDER_FLOW = [
@@ -249,6 +282,7 @@ export default function Profile() {
   const [stats, setStats] = useState(() => createDefaultStats());
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState('');
+  const [statsPeriod, setStatsPeriod] = useState('all'); // '7' | '30' | '90' | '365' | 'all' — proposal §4
   const [showPassword, setShowPassword] = useState(false);
   const [passwordCode, setPasswordCode] = useState('');
   const [passwordCodeSent, setPasswordCodeSent] = useState(false);
@@ -260,6 +294,17 @@ export default function Profile() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState('');
   const [ordersLoaded, setOrdersLoaded] = useState(false);
+  const [showOrdersModal, setShowOrdersModal] = useState(false);
+  const [ordersSearch, setOrdersSearch] = useState('');
+  const [ordersFilterStatus, setOrdersFilterStatus] = useState('all');
+  const [ordersSortBy, setOrdersSortBy] = useState('date_desc');
+  const [ordersViewMode, setOrdersViewMode] = useState('list');
+  const [selectedOrderDetail, setSelectedOrderDetail] = useState(null);
+  const [ordersDateFrom, setOrdersDateFrom] = useState('');
+  const [ordersDateTo, setOrdersDateTo] = useState('');
+  const [ordersAmountMin, setOrdersAmountMin] = useState('');
+  const [ordersAmountMax, setOrdersAmountMax] = useState('');
+  const [ordersShowFilters, setOrdersShowFilters] = useState(false);
   const [complaintSubject, setComplaintSubject] = useState('');
   const [complaintMessage, setComplaintMessage] = useState('');
   const [complaintFiles, setComplaintFiles] = useState([]);
@@ -280,6 +325,39 @@ export default function Profile() {
   const [improvementListError, setImprovementListError] = useState('');
   const [improvementModalItem, setImprovementModalItem] = useState(null);
   const userShopLink = user?.accountType === 'shop' ? buildShopPath(user) : null;
+  const isMobile = useIsMobile(768);
+
+  const mobileTabs = useMemo(() => {
+    const base = [
+      { id: 'profile', label: 'Profil', icon: User },
+      { id: 'stats', label: 'Statistiques', icon: BarChart3 },
+      { id: 'performance', label: 'Performance', icon: TrendingUp },
+      { id: 'orders', label: 'Commandes', icon: ClipboardList }
+    ];
+    if (user?.accountType === 'shop') {
+      base.push({ id: 'shop', label: 'Boutique', icon: Store });
+    }
+    base.push(
+      { id: 'notifications', label: 'Notifications', icon: Bell },
+      { id: 'security', label: 'Sécurité', icon: Lock }
+    );
+    return base;
+  }, [user?.accountType]);
+
+  const profileCompletionPercent = useMemo(() => {
+    let filled = 0;
+    let total = 4;
+    if (form.name?.trim()) filled++;
+    if (form.email?.trim()) filled++;
+    if (form.phone?.trim()) filled++;
+    if (user?.accountType === 'shop') {
+      total = 5;
+      if (form.shopName?.trim()) filled++;
+    } else {
+      filled++; // non-shop counts as "complete" for 4th field
+    }
+    return total > 0 ? Math.round((filled / total) * 100) : 0;
+  }, [form.name, form.email, form.phone, form.shopName, user?.accountType]);
 
   const mobileHighlights = [
     { label: 'Annonces', value: stats.listings?.total || 0 },
@@ -421,7 +499,7 @@ export default function Profile() {
     setOrdersLoading(true);
     setOrdersError('');
     try {
-      const { data } = await api.get('/orders?limit=50');
+      const { data } = await api.get('/orders?limit=200');
       const items = Array.isArray(data) ? data : data?.items || [];
       setOrders(items);
       setOrdersLoaded(true);
@@ -437,6 +515,145 @@ export default function Profile() {
       fetchOrders();
     }
   }, [activeTab, user, ordersLoaded, ordersLoading, fetchOrders]);
+
+  useEffect(() => {
+    if (!showOrdersModal) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setShowOrdersModal(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showOrdersModal]);
+
+  useEffect(() => {
+    if (!selectedOrderDetail) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setSelectedOrderDetail(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedOrderDetail]);
+
+  // Filtered & sorted orders for Section Commandes
+  const filteredOrders = useMemo(() => {
+    let list = [...orders];
+    const q = (ordersSearch || '').trim().toLowerCase();
+    if (q) {
+      list = list.filter((o) => {
+        const id = String(o._id || '').toLowerCase();
+        const addr = String(o.deliveryAddress || '').toLowerCase();
+        const city = String(o.deliveryCity || '').toLowerCase();
+        const createdByName = String(o.createdBy?.name || '').toLowerCase();
+        const createdByEmail = String(o.createdBy?.email || '').toLowerCase();
+        const items = o.items || (o.productSnapshot ? [{ snapshot: o.productSnapshot }] : []);
+        const productTitles = items.map((i) => String(i.snapshot?.title || '').toLowerCase()).join(' ');
+        return id.includes(q) || addr.includes(q) || city.includes(q) || createdByName.includes(q) || createdByEmail.includes(q) || productTitles.includes(q);
+      });
+    }
+    if (ordersFilterStatus && ordersFilterStatus !== 'all') {
+      list = list.filter((o) => (o.status || 'pending') === ordersFilterStatus);
+    }
+    if (ordersDateFrom) {
+      const from = new Date(ordersDateFrom);
+      from.setHours(0, 0, 0, 0);
+      list = list.filter((o) => new Date(o.createdAt) >= from);
+    }
+    if (ordersDateTo) {
+      const to = new Date(ordersDateTo);
+      to.setHours(23, 59, 59, 999);
+      list = list.filter((o) => new Date(o.createdAt) <= to);
+    }
+    const minAmt = Number(ordersAmountMin);
+    const maxAmt = Number(ordersAmountMax);
+    if (!Number.isNaN(minAmt) && minAmt > 0) {
+      list = list.filter((o) => {
+        const amt = o.totalAmount ?? (o.items || []).reduce((s, i) => s + Number(i.snapshot?.price || 0) * Number(i.quantity || 1), 0);
+        return amt >= minAmt;
+      });
+    }
+    if (!Number.isNaN(maxAmt) && maxAmt > 0) {
+      list = list.filter((o) => {
+        const amt = o.totalAmount ?? (o.items || []).reduce((s, i) => s + Number(i.snapshot?.price || 0) * Number(i.quantity || 1), 0);
+        return amt <= maxAmt;
+      });
+    }
+    if (ordersSortBy === 'date_desc') list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    else if (ordersSortBy === 'date_asc') list.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    else if (ordersSortBy === 'amount_desc') {
+      list.sort((a, b) => {
+        const amtA = a.totalAmount ?? (a.items || []).reduce((s, i) => s + Number(i.snapshot?.price || 0) * Number(i.quantity || 1), 0);
+        const amtB = b.totalAmount ?? (b.items || []).reduce((s, i) => s + Number(i.snapshot?.price || 0) * Number(i.quantity || 1), 0);
+        return amtB - amtA;
+      });
+    } else if (ordersSortBy === 'amount_asc') {
+      list.sort((a, b) => {
+        const amtA = a.totalAmount ?? (a.items || []).reduce((s, i) => s + Number(i.snapshot?.price || 0) * Number(i.quantity || 1), 0);
+        const amtB = b.totalAmount ?? (b.items || []).reduce((s, i) => s + Number(i.snapshot?.price || 0) * Number(i.quantity || 1), 0);
+        return amtA - amtB;
+      });
+    } else if (ordersSortBy === 'status') {
+      const order = ['pending', 'confirmed', 'delivering', 'delivered', 'cancelled'];
+      list.sort((a, b) => order.indexOf(a.status || 'pending') - order.indexOf(b.status || 'pending'));
+    }
+    return list;
+  }, [orders, ordersSearch, ordersFilterStatus, ordersSortBy, ordersDateFrom, ordersDateTo, ordersAmountMin, ordersAmountMax]);
+
+  const exportOrdersCSV = useCallback(() => {
+    const list = filteredOrders;
+    if (list.length === 0) {
+      showToast?.('Aucune commande à exporter.', { variant: 'warning' });
+      return;
+    }
+    const headers = ['N°', 'Date', 'Statut', 'Montant (FCFA)', 'Adresse', 'Ville', 'Produits'];
+    const rows = list.map((o, i) => {
+      const amt = o.totalAmount ?? (o.items || []).reduce((s, it) => s + Number(it.snapshot?.price || 0) * Number(it.quantity || 1), 0);
+      const items = o.items || (o.productSnapshot ? [{ snapshot: o.productSnapshot, quantity: 1 }] : []);
+      const products = items.map((it) => `${it.snapshot?.title || 'Produit'} x${it.quantity || 1}`).join('; ');
+      return [i + 1, new Date(o.createdAt).toLocaleDateString('fr-FR'), ORDER_STATUS_LABELS[o.status] || o.status, amt, o.deliveryAddress || '', o.deliveryCity || '', products];
+    });
+    const csv = [headers.join(','), ...rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))].join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `commandes_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast?.('Export CSV réussi.', { variant: 'success' });
+  }, [filteredOrders, showToast]);
+
+  const exportOrdersPDF = useCallback(async () => {
+    const list = filteredOrders;
+    if (list.length === 0) {
+      showToast?.('Aucune commande à exporter.', { variant: 'warning' });
+      return;
+    }
+    try {
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const doc = new jsPDF();
+      doc.setFontSize(16);
+      doc.text('Mes commandes', 14, 20);
+      doc.setFontSize(10);
+      doc.text(`Export du ${new Date().toLocaleDateString('fr-FR')}`, 14, 28);
+      const tableData = list.map((o) => {
+        const amt = o.totalAmount ?? (o.items || []).reduce((s, it) => s + Number(it.snapshot?.price || 0) * Number(it.quantity || 1), 0);
+        return [String(o._id).slice(-6), new Date(o.createdAt).toLocaleDateString('fr-FR'), ORDER_STATUS_LABELS[o.status] || o.status, `${Number(amt).toLocaleString()} FCFA`, o.deliveryCity || ''];
+      });
+      autoTable(doc, {
+        startY: 34,
+        head: [['N°', 'Date', 'Statut', 'Montant', 'Ville']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [99, 102, 241] }
+      });
+      doc.save(`commandes_${new Date().toISOString().split('T')[0]}.pdf`);
+      showToast?.('Export PDF réussi.', { variant: 'success' });
+    } catch (err) {
+      console.error(err);
+      showToast?.('Erreur lors de l\'export PDF.', { variant: 'error' });
+    }
+  }, [filteredOrders, showToast]);
 
   const loadUserComplaints = useCallback(async () => {
     if (!user) {
@@ -890,31 +1107,71 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Navigation par onglets */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:gap-1 bg-white rounded-2xl p-2 sm:p-1 shadow-sm border border-gray-100 mb-6">
-          {[
-            { id: 'profile', label: 'Profil', icon: User },
-            { id: 'stats', label: 'Statistiques', icon: BarChart3 },
-            { id: 'performance', label: 'Performance', icon: TrendingUp },
-            { id: 'orders', label: 'Mes commandes', icon: ClipboardList }
-          ].map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 px-4 py-3 rounded-xl font-medium transition-all flex-1 w-full text-left sm:text-center ${
-                  activeTab === tab.id
-                    ? 'bg-indigo-600 text-white shadow-lg'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        {/* Navigation par onglets — mobile: sticky horizontal avec indicateur animé + progression */}
+        {isMobile ? (
+          <div className="sticky top-0 z-30 -mx-4 px-4 pt-2 pb-3 mb-4 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200/80 dark:border-gray-800/80 shadow-sm">
+            {/* Barre de progression du profil */}
+            <div className="mb-3">
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <span className="font-medium text-gray-500 dark:text-gray-400">Profil complété</span>
+                <span className="font-semibold text-indigo-600 dark:text-indigo-400 tabular-nums">{profileCompletionPercent}%</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-indigo-500 transition-all duration-300 ease-out"
+                  style={{ width: `${profileCompletionPercent}%` }}
+                />
+              </div>
+            </div>
+            {/* Onglets horizontaux scrollables */}
+            <div className="flex gap-1 overflow-x-auto hide-scrollbar pb-1 -mx-1">
+              {mobileTabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all touch-manipulation min-h-[44px] ${
+                      isActive
+                        ? 'bg-indigo-600 text-white shadow-md'
+                        : 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 flex-shrink-0" />
+                    <span className="whitespace-nowrap">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-1 bg-white rounded-2xl p-2 sm:p-1 shadow-sm border border-gray-100 mb-6">
+            {[
+              { id: 'profile', label: 'Profil', icon: User },
+              { id: 'stats', label: 'Statistiques', icon: BarChart3 },
+              { id: 'performance', label: 'Performance', icon: TrendingUp },
+              { id: 'orders', label: 'Mes commandes', icon: ClipboardList }
+            ].map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center space-x-2 px-4 py-3 rounded-xl font-medium transition-all flex-1 w-full text-left sm:text-center ${
+                    activeTab === tab.id
+                      ? 'bg-indigo-600 text-white shadow-lg'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Section Profil */}
         {activeTab === 'profile' && (
@@ -1886,19 +2143,37 @@ export default function Profile() {
         </>
         )}
 
-        {/* Section Statistiques */}
+        {/* Section Statistiques - Dashboard Analytique (proposal §4) */}
         {activeTab === 'stats' && (
           <div className="space-y-6">
-            {/* En-tête statistiques */}
             <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
-              <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 mb-6">
-                <div className="w-2 h-6 bg-blue-600 rounded-full"></div>
-                <h2 className="text-xl font-semibold text-gray-900">Vue d'ensemble</h2>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-6 bg-blue-600 rounded-full" />
+                  <h2 className="text-xl font-semibold text-gray-900">Vue d'ensemble</h2>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm text-gray-500">Période :</span>
+                  {STATS_PERIOD_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setStatsPeriod(opt.value)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                        statsPeriod === opt.value
+                          ? 'bg-indigo-600 text-white shadow'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {statsLoading ? (
                 <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-indigo-600 border-t-transparent"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-indigo-600 border-t-transparent" />
                 </div>
               ) : statsError ? (
                 <div className="text-center py-8 text-red-600">
@@ -1906,164 +2181,193 @@ export default function Profile() {
                   <p>{statsError}</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {/* Cartes de statistiques principales */}
-                  {[
-                    { 
-                      label: 'Annonces totales', 
-                      value: stats.listings.total, 
-                      icon: Package,
-                      color: 'bg-blue-600'
-                    },
-                    { 
-                      label: 'Favoris reçus', 
-                      value: stats.engagement.favoritesReceived, 
-                      icon: Heart,
-                      color: 'bg-pink-600'
-                    },
-                    { 
-                      label: 'Commentaires', 
-                      value: stats.engagement.commentsReceived, 
-                      icon: MessageCircle,
-                      color: 'bg-emerald-600'
-                    },
-                    { 
-                      label: 'Vues totales', 
-                      value: stats.performance.views, 
-                      icon: TrendingUp,
-                      color: 'bg-purple-600'
-                    }
-                  ].map((stat, index) => {
-                    const Icon = stat.icon;
-                    return (
-                      <div key={index} className={`${stat.color} text-white rounded-2xl p-6 shadow-lg`}>
-                        <div className="flex items-center justify-between mb-4">
-                          <Icon className="w-8 h-8 text-white opacity-90" />
-                          <span className="text-2xl font-bold">{formatNumber(stat.value)}</span>
-                        </div>
-                        <p className="text-white text-opacity-90 text-sm font-medium">{stat.label}</p>
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowOrdersModal(true);
+                        if (!ordersLoaded && !ordersLoading) fetchOrders();
+                      }}
+                      className="bg-indigo-600 text-white rounded-2xl p-5 shadow-lg text-left hover:bg-indigo-700 active:scale-[0.98] transition-all cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <ClipboardList className="w-7 h-7 opacity-90" />
+                        <span className="text-xl font-bold">{formatNumber(stats.orders?.purchases?.totalCount || 0)}</span>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Détails des statistiques */}
-            {!statsLoading && !statsError && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Statistiques annonces */}
-                <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                    <Package className="w-5 h-5 text-blue-500" />
-                    <span>Statut des annonces</span>
-                  </h3>
-                  <div className="space-y-4">
-                    {[
-                      { label: 'Approuvées', value: stats.listings.approved, color: 'bg-green-500', icon: CheckCircle },
-                      { label: 'En attente', value: stats.listings.pending, color: 'bg-yellow-500', icon: Clock },
-                      { label: 'Rejetées', value: stats.listings.rejected, color: 'bg-red-500', icon: XCircle },
-                      { label: 'Désactivées', value: stats.listings.disabled, color: 'bg-gray-500', icon: Package }
-                    ].map((item, index) => {
-                      const Icon = item.icon;
-                      return (
-                        <div key={index} className="flex items-center justify-between p-3 rounded-xl bg-gray-50">
-                          <div className="flex items-center space-x-3">
-                            <div className={`w-3 h-3 rounded-full ${item.color}`}></div>
-                            <span className="text-sm font-medium text-gray-700">{item.label}</span>
-                          </div>
-                          <span className="text-lg font-bold text-gray-900">{formatNumber(item.value)}</span>
+                      <p className="text-white/90 text-sm font-medium">Commandes</p>
+                      <p className="text-white/70 text-xs mt-1">Attente: {formatNumber(stats.orders?.purchases?.byStatus?.pending?.count || 0)} · Livrées: {formatNumber(stats.orders?.purchases?.byStatus?.delivered?.count || 0)}</p>
+                    </button>
+                    {user?.accountType === 'shop' ? (
+                      <div className="bg-emerald-600 text-white rounded-2xl p-5 shadow-lg">
+                        <div className="flex items-center justify-between mb-3">
+                          <DollarSign className="w-7 h-7 opacity-90" />
+                          <span className="text-lg font-bold truncate ml-1">{formatNumber((stats.orders?.sales?.totalAmount || 0) / 1000)}k</span>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Engagement */}
-                <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                    <Users className="w-5 h-5 text-purple-500" />
-                    <span>Engagement</span>
-                  </h3>
-                  <div className="space-y-4">
-                    {[
-                      { label: 'Favoris enregistrés', value: stats.engagement.favoritesSaved, icon: Heart },
-                      { label: 'Taux de conversion', value: `${stats.performance.conversion}%`, icon: TrendingUp },
-                      { label: 'Clicks WhatsApp', value: stats.performance.clicks, icon: MessageCircle }
-                    ].map((item, index) => {
-                      const Icon = item.icon;
-                      return (
-                        <div key={index} className="flex items-center justify-between p-3 rounded-xl bg-gray-50">
-                          <div className="flex items-center space-x-3">
-                            <Icon className="w-4 h-4 text-gray-600" />
-                            <span className="text-sm font-medium text-gray-700">{item.label}</span>
-                          </div>
-                          <span className="text-lg font-bold text-gray-900">{item.value}</span>
+                        <p className="text-white/90 text-sm font-medium">Revenus</p>
+                        <p className="text-white/70 text-xs mt-1">{formatCurrency(stats.orders?.sales?.totalAmount || 0)}</p>
+                      </div>
+                    ) : (
+                      <div className="bg-emerald-600 text-white rounded-2xl p-5 shadow-lg">
+                        <div className="flex items-center justify-between mb-3">
+                          <DollarSign className="w-7 h-7 opacity-90" />
+                          <span className="text-lg font-bold truncate ml-1">{formatNumber((stats.orders?.purchases?.totalAmount || 0) / 1000)}k</span>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Commandes */}
-                <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                    <ClipboardList className="w-5 h-5 text-indigo-500" />
-                    <span>Commandes</span>
-                  </h3>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Achats</p>
-                      {[
-                        { label: 'Total', value: stats.orders?.purchases?.totalCount || 0 },
-                        { label: 'En attente', value: stats.orders?.purchases?.byStatus?.pending?.count || 0 },
-                        { label: 'Confirmées', value: stats.orders?.purchases?.byStatus?.confirmed?.count || 0 },
-                        { label: 'En livraison', value: stats.orders?.purchases?.byStatus?.delivering?.count || 0 },
-                        { label: 'Livrées', value: stats.orders?.purchases?.byStatus?.delivered?.count || 0 }
-                      ].map((item) => (
-                        <div key={`purchases-${item.label}`} className="flex items-center justify-between p-2 rounded-xl bg-gray-50">
-                          <span className="text-xs font-medium text-gray-700">{item.label}</span>
-                          <span className="text-sm font-semibold text-gray-900">{formatNumber(item.value)}</span>
-                        </div>
-                      ))}
-                      {[
-                        { label: 'Montant total', value: stats.orders?.purchases?.totalAmount || 0 },
-                        { label: 'Acompte payé', value: stats.orders?.purchases?.paidAmount || 0 },
-                        { label: 'Reste à payer', value: stats.orders?.purchases?.remainingAmount || 0 }
-                      ].map((item) => (
-                        <div key={`purchases-amount-${item.label}`} className="flex items-center justify-between p-2 rounded-xl bg-indigo-50/60">
-                          <span className="text-xs font-medium text-gray-700">{item.label}</span>
-                          <span className="text-sm font-semibold text-indigo-700">{formatCurrency(item.value)}</span>
-                        </div>
-                      ))}
-                    </div>
-                    {user?.accountType === 'shop' && (
-                      <div className="space-y-2 pt-3 border-t border-gray-100">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Ventes</p>
-                        {[
-                          { label: 'Total', value: stats.orders?.sales?.totalCount || 0 },
-                          { label: 'En attente', value: stats.orders?.sales?.byStatus?.pending?.count || 0 },
-                          { label: 'Confirmées', value: stats.orders?.sales?.byStatus?.confirmed?.count || 0 },
-                          { label: 'En livraison', value: stats.orders?.sales?.byStatus?.delivering?.count || 0 },
-                          { label: 'Livrées', value: stats.orders?.sales?.byStatus?.delivered?.count || 0 }
-                        ].map((item) => (
-                          <div key={`sales-${item.label}`} className="flex items-center justify-between p-2 rounded-xl bg-gray-50">
-                            <span className="text-xs font-medium text-gray-700">{item.label}</span>
-                            <span className="text-sm font-semibold text-gray-900">{formatNumber(item.value)}</span>
-                          </div>
-                        ))}
-                        <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-50/60">
-                          <span className="text-xs font-medium text-gray-700">Chiffre d’affaires</span>
-                          <span className="text-sm font-semibold text-emerald-700">
-                            {formatCurrency(stats.orders?.sales?.totalAmount || 0)}
-                          </span>
-                        </div>
+                        <p className="text-white/90 text-sm font-medium">Montant achats</p>
+                        <p className="text-white/70 text-xs mt-1">{formatCurrency(stats.orders?.purchases?.totalAmount || 0)}</p>
                       </div>
                     )}
+                    <Link
+                      to="/my"
+                      className="bg-blue-600 text-white rounded-2xl p-5 shadow-lg block hover:bg-blue-700 active:scale-[0.98] transition-all"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <Package className="w-7 h-7 opacity-90" />
+                        <span className="text-xl font-bold">{formatNumber(stats.listings.total)}</span>
+                      </div>
+                      <p className="text-white/90 text-sm font-medium">Produits</p>
+                      <p className="text-white/70 text-xs mt-1">Actifs: {formatNumber(stats.listings.approved)} · Attente: {formatNumber(stats.listings.pending)}</p>
+                    </Link>
+                    <div className="bg-purple-600 text-white rounded-2xl p-5 shadow-lg">
+                      <div className="flex items-center justify-between mb-3">
+                        <TrendingUp className="w-7 h-7 opacity-90" />
+                        <span className="text-xl font-bold">{formatNumber(stats.performance.views)}</span>
+                      </div>
+                      <p className="text-white/90 text-sm font-medium">Vues</p>
+                      <p className="text-white/70 text-xs mt-1">Vues totales</p>
+                    </div>
+                    <div className="bg-pink-600 text-white rounded-2xl p-5 shadow-lg">
+                      <div className="flex items-center justify-between mb-3">
+                        <Heart className="w-7 h-7 opacity-90" />
+                        <span className="text-xl font-bold">{formatNumber(stats.engagement.favoritesReceived)}</span>
+                      </div>
+                      <p className="text-white/90 text-sm font-medium">Engagement</p>
+                      <p className="text-white/70 text-xs mt-1">Favoris · WhatsApp: {formatNumber(stats.performance.clicks)}</p>
+                    </div>
+                    <div className="bg-amber-600 text-white rounded-2xl p-5 shadow-lg">
+                      <div className="flex items-center justify-between mb-3">
+                        <Award className="w-7 h-7 opacity-90" />
+                        <span className="text-xl font-bold">
+                          {stats.listings.approved > 0
+                            ? Math.round((stats.engagement.favoritesReceived + stats.engagement.commentsReceived) / stats.listings.approved)
+                            : '0'}
+                        </span>
+                      </div>
+                      <p className="text-white/90 text-sm font-medium">Score</p>
+                      <p className="text-white/70 text-xs mt-1">Conversion: {stats.performance.conversion ?? 0}%</p>
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-gray-50 rounded-2xl border border-gray-100 p-5">
+                      <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <TrendingUp className="w-5 h-5 text-emerald-600" />
+                        Évolution des revenus
+                      </h3>
+                      {user?.accountType === 'shop' && (stats.orders?.sales?.totalAmount || 0) > 0 ? (
+                        <ResponsiveContainer width="100%" height={220}>
+                          <LineChart
+                            data={[
+                              { label: 'Période', revenue: stats.orders?.sales?.totalAmount || 0 }
+                            ]}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                            <XAxis dataKey="label" stroke="#6b7280" fontSize={12} />
+                            <YAxis stroke="#6b7280" fontSize={12} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                            <Tooltip formatter={(value) => [formatCurrency(value), 'Revenus']} contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} />
+                            <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} name="Revenus" dot={{ r: 4 }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-[220px] flex items-center justify-center text-gray-500 text-sm">Aucune donnée de revenus sur la période</div>
+                      )}
+                    </div>
+
+                    <div className="bg-gray-50 rounded-2xl border border-gray-100 p-5">
+                      <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <ClipboardList className="w-5 h-5 text-indigo-600" />
+                        Commandes par statut
+                      </h3>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <BarChart
+                          data={[
+                            { label: 'En attente', count: stats.orders?.purchases?.byStatus?.pending?.count || 0, fill: '#f59e0b' },
+                            { label: 'Confirmées', count: stats.orders?.purchases?.byStatus?.confirmed?.count || 0, fill: '#3b82f6' },
+                            { label: 'Livraison', count: stats.orders?.purchases?.byStatus?.delivering?.count || 0, fill: '#8b5cf6' },
+                            { label: 'Livrées', count: stats.orders?.purchases?.byStatus?.delivered?.count || 0, fill: '#10b981' },
+                            { label: 'Annulées', count: stats.orders?.purchases?.byStatus?.cancelled?.count || 0, fill: '#ef4444' }
+                          ]}
+                          margin={{ top: 8, right: 8, left: 8, bottom: 8 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis dataKey="label" stroke="#6b7280" fontSize={11} />
+                          <YAxis stroke="#6b7280" fontSize={12} />
+                          <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} formatter={(value) => [formatNumber(value), 'Commandes']} />
+                          <Bar dataKey="count" name="Commandes" radius={[6, 6, 0, 0]}>
+                            {[
+                              { fill: '#f59e0b' },
+                              { fill: '#3b82f6' },
+                              { fill: '#8b5cf6' },
+                              { fill: '#10b981' },
+                              { fill: '#ef4444' }
+                            ].map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.fill} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-2xl border border-gray-100 p-5">
+                      <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <Package className="w-5 h-5 text-blue-600" />
+                        Répartition des produits
+                      </h3>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <BarChart
+                          data={[
+                            { label: 'Approuvées', count: stats.listings.approved, fill: '#10b981' },
+                            { label: 'En attente', count: stats.listings.pending, fill: '#f59e0b' },
+                            { label: 'Rejetées', count: stats.listings.rejected, fill: '#ef4444' },
+                            { label: 'Désactivées', count: stats.listings.disabled, fill: '#6b7280' }
+                          ]}
+                          layout="vertical"
+                          margin={{ top: 8, right: 24, left: 60, bottom: 8 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
+                          <XAxis type="number" stroke="#6b7280" fontSize={12} />
+                          <YAxis type="category" dataKey="label" stroke="#6b7280" fontSize={11} width={56} />
+                          <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} formatter={(value) => [formatNumber(value), '']} />
+                          <Bar dataKey="count" radius={[0, 6, 6, 0]}>
+                            {[
+                              { fill: '#10b981' },
+                              { fill: '#f59e0b' },
+                              { fill: '#ef4444' },
+                              { fill: '#6b7280' }
+                            ].map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.fill} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-2xl border border-gray-100 p-5">
+                      <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <BarChart3 className="w-5 h-5 text-purple-600" />
+                        Activité par jour
+                      </h3>
+                      <div className="h-[220px] flex items-center justify-center rounded-xl bg-white border border-gray-100">
+                        <div className="text-center text-gray-500 text-sm">
+                          <BarChart3 className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                          <p>Données d'activité par jour à venir</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
 
@@ -2149,18 +2453,121 @@ export default function Profile() {
           </div>
         )}
 
+        {/* Orders modal — opened from Commandes card in stats */}
+        {showOrdersModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowOrdersModal(false)}>
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5 text-indigo-600" />
+                  Mes commandes
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowOrdersModal(false)}
+                  className="p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                  aria-label="Fermer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-6 py-4">
+                {ordersError && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-600 mb-4">
+                    {ordersError}
+                  </div>
+                )}
+                {ordersLoading && orders.length === 0 ? (
+                  <div className="space-y-4">
+                    {Array.from({ length: 3 }).map((_, index) => (
+                      <div key={index} className="animate-pulse border border-gray-100 rounded-2xl p-5 bg-gray-50 h-28" />
+                    ))}
+                  </div>
+                ) : orders.length === 0 ? (
+                  <div className="text-center py-10 text-gray-500">
+                    <ClipboardList className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p className="font-medium text-gray-700">Aucune commande</p>
+                    <p className="text-sm">Vos commandes apparaîtront ici.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4 pb-2">
+                    {orders.map((order) => {
+                      const orderItems =
+                        order.items && order.items.length
+                          ? order.items
+                          : order.productSnapshot
+                            ? [{ snapshot: order.productSnapshot, quantity: 1 }]
+                            : [];
+                      return (
+                        <div key={order._id} className="border border-gray-100 rounded-2xl p-5 shadow-sm bg-gray-50/50">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-sm text-gray-500">Commande #{order._id.slice(-6)}</p>
+                              <div className="mt-1 space-y-1 text-sm text-gray-700">
+                                {orderItems.map((item, idx) => (
+                                  <div key={`${order._id}-${idx}`}>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium text-gray-900">{item.snapshot?.title || 'Produit'}</span>
+                                      <span className="text-xs text-gray-500">
+                                        x{item.quantity} · {Number(item.snapshot?.price || 0).toLocaleString()} FCFA
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <p className="mt-2 text-xs text-gray-500">
+                                Statut : {ORDER_STATUS_LABELS[order.status] || 'Enregistrée'}
+                              </p>
+                            </div>
+                            <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border ${ORDER_STATUS_STYLES[order.status] || 'border-gray-200 bg-gray-50 text-gray-600'}`}>
+                              {order.status === 'pending' && <Clock size={14} />}
+                              {order.status === 'confirmed' && <Package size={14} />}
+                              {order.status === 'delivering' && <Truck size={14} />}
+                              {order.status === 'delivered' && <CheckCircle size={14} />}
+                              {ORDER_STATUS_LABELS[order.status] || 'Statut inconnu'}
+                            </span>
+                          </div>
+                          <p className="mt-3 text-xs text-gray-500">
+                            Créée le {new Date(order.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <div className="px-6 py-3 border-t border-gray-100 flex justify-end">
+                <Link
+                  to="/profile"
+                  onClick={() => setShowOrdersModal(false)}
+                  className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                >
+                  Voir tout l'historique →
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'orders' && (
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
               <div>
                 <div className="flex items-center gap-2 text-sm font-semibold text-indigo-600">
                   <ClipboardList className="w-4 h-4" />
-                  Historique des commandes
+                  Gestion des commandes
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900">Mes commandes</h2>
-                <p className="text-sm text-gray-500">Retrouvez toutes les commandes créées par l’administrateur.</p>
+                <p className="text-sm text-gray-500">Filtres, recherche, tri et export.</p>
               </div>
               <div className="flex items-center gap-3 flex-wrap">
+                <Link
+                  to="/orders"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm font-medium hover:bg-indigo-100 transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                  Page complète
+                </Link>
                 <Link
                   to="/orders/draft"
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 text-amber-700 text-sm font-semibold hover:from-amber-100 hover:to-orange-100 transition-all duration-200 active:scale-95 shadow-sm"
@@ -2168,7 +2575,6 @@ export default function Profile() {
                   <Clock className="w-4 h-4" />
                   Brouillons
                 </Link>
-                <span className="text-sm text-gray-500">Total : {orders.length}</span>
                 <button
                   type="button"
                   onClick={fetchOrders}
@@ -2195,9 +2601,148 @@ export default function Profile() {
               </div>
             </div>
 
+            {/* Chips de filtres statut */}
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              {[
+                { key: 'all', label: 'Toutes' },
+                { key: 'pending', label: 'En attente' },
+                { key: 'confirmed', label: 'Confirmées' },
+                { key: 'delivering', label: 'En livraison' },
+                { key: 'delivered', label: 'Livrées' },
+                { key: 'cancelled', label: 'Annulées' }
+              ].map((chip) => (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={() => setOrdersFilterStatus(chip.key)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                    ordersFilterStatus === chip.key ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Recherche, tri, vue, export */}
+            <div className="flex flex-col sm:flex-row gap-3 mb-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Rechercher par n° commande, produit, client..."
+                  value={ordersSearch}
+                  onChange={(e) => setOrdersSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setOrdersShowFilters(!ordersShowFilters)}
+                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium ${
+                    ordersShowFilters ? 'border-indigo-300 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Filter className="w-4 h-4" />
+                  Filtres
+                </button>
+                <select
+                  value={ordersSortBy}
+                  onChange={(e) => setOrdersSortBy(e.target.value)}
+                  className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="date_desc">Date ▼</option>
+                  <option value="date_asc">Date ▲</option>
+                  <option value="amount_desc">Montant ▼</option>
+                  <option value="amount_asc">Montant ▲</option>
+                  <option value="status">Statut</option>
+                </select>
+                <div className="flex rounded-xl border border-gray-200 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setOrdersViewMode('list')}
+                    className={`p-2 ${ordersViewMode === 'list' ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
+                    title="Vue liste"
+                  >
+                    <List className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOrdersViewMode('grid')}
+                    className={`p-2 ${ordersViewMode === 'grid' ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
+                    title="Vue grille"
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </button>
+                </div>
+                <button type="button" onClick={exportOrdersCSV} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50" title="Export CSV">
+                  <Download className="w-4 h-4" /> CSV
+                </button>
+                <button type="button" onClick={exportOrdersPDF} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50" title="Export PDF">
+                  <Download className="w-4 h-4" /> PDF
+                </button>
+              </div>
+            </div>
+
+            {/* Filtres avancés */}
+            {ordersShowFilters && (
+              <div className="flex flex-wrap items-end gap-3 p-4 rounded-xl bg-gray-50 border border-gray-100 mb-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Date début</label>
+                  <input type="date" value={ordersDateFrom} onChange={(e) => setOrdersDateFrom(e.target.value)} className="px-3 py-2 rounded-lg border border-gray-200 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Date fin</label>
+                  <input type="date" value={ordersDateTo} onChange={(e) => setOrdersDateTo(e.target.value)} className="px-3 py-2 rounded-lg border border-gray-200 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Montant min (FCFA)</label>
+                  <input type="number" placeholder="0" value={ordersAmountMin} onChange={(e) => setOrdersAmountMin(e.target.value)} min={0} className="px-3 py-2 rounded-lg border border-gray-200 text-sm w-32" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Montant max (FCFA)</label>
+                  <input type="number" placeholder="—" value={ordersAmountMax} onChange={(e) => setOrdersAmountMax(e.target.value)} min={0} className="px-3 py-2 rounded-lg border border-gray-200 text-sm w-32" />
+                </div>
+                <button type="button" onClick={() => { setOrdersDateFrom(''); setOrdersDateTo(''); setOrdersAmountMin(''); setOrdersAmountMax(''); }} className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-200">
+                  Réinitialiser
+                </button>
+              </div>
+            )}
+
             {ordersError && (
               <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-600 mb-6">
                 {ordersError}
+              </div>
+            )}
+
+            {/* Statistiques commandes */}
+            {!ordersLoading && orders.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-100">
+                  <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Affichées</p>
+                  <p className="text-xl font-bold text-indigo-900">{filteredOrders.length}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+                  <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">Total montant</p>
+                  <p className="text-lg font-bold text-emerald-900">
+                    {formatNumber(
+                      filteredOrders.reduce((s, o) => {
+                        const amt = o.totalAmount ?? (o.items || []).reduce((sum, i) => sum + Number(i.snapshot?.price || 0) * Number(i.quantity || 1), 0);
+                        return s + amt;
+                      }, 0)
+                    )}{' '}
+                    FCFA
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
+                  <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">En attente</p>
+                  <p className="text-xl font-bold text-amber-900">{filteredOrders.filter((o) => (o.status || 'pending') === 'pending').length}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-green-50 border border-green-100">
+                  <p className="text-xs font-semibold text-green-600 uppercase tracking-wide">Livrées</p>
+                  <p className="text-xl font-bold text-green-900">{filteredOrders.filter((o) => (o.status || 'pending') === 'delivered').length}</p>
+                </div>
               </div>
             )}
 
@@ -2213,13 +2758,13 @@ export default function Profile() {
               </div>
             )}
 
-            {(ordersLoading || orders.length > 0) && (
-              <div className="space-y-4">
-                {ordersLoading && orders.length === 0
-                  ? Array.from({ length: 2 }).map((_, index) => (
+            {(ordersLoading || filteredOrders.length > 0) && (
+              <div className={ordersViewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4' : 'space-y-4'}>
+                {ordersLoading && filteredOrders.length === 0
+                  ? Array.from({ length: 3 }).map((_, index) => (
                       <div key={index} className="animate-pulse border border-gray-100 rounded-2xl p-5 bg-gray-50" />
                     ))
-                  : orders.map((order) => {
+                  : filteredOrders.map((order) => {
                       const orderItems =
                         order.items && order.items.length
                           ? order.items
@@ -2228,7 +2773,7 @@ export default function Profile() {
                           : [];
 
                       return (
-                        <div key={order._id} className="border border-gray-100 rounded-2xl p-5 shadow-sm">
+                        <div key={order._id} className="border border-gray-100 rounded-2xl p-5 shadow-sm flex flex-col">
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                               <p className="text-sm text-gray-500">Commande #{order._id.slice(-6)}</p>
@@ -2269,6 +2814,7 @@ export default function Profile() {
                               {order.status === 'confirmed' && <Package size={14} />}
                               {order.status === 'delivering' && <Truck size={14} />}
                               {order.status === 'delivered' && <CheckCircle size={14} />}
+                              {order.status === 'cancelled' && <XCircle size={14} />}
                               {ORDER_STATUS_LABELS[order.status] || 'Statut inconnu'}
                             </span>
                           </div>
@@ -2312,11 +2858,431 @@ export default function Profile() {
                               </span>
                             )}
                           </div>
+                          <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedOrderDetail(order)}
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-indigo-600 hover:bg-indigo-50 border border-indigo-200"
+                            >
+                              <Package size={14} />
+                              Voir détails
+                            </button>
+                            <Link
+                              to="/orders/messages"
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 border border-gray-200"
+                            >
+                              <MessageCircle size={14} />
+                              Messages
+                            </Link>
+                          </div>
                         </div>
                       );
                     })}
               </div>
             )}
+
+            {/* Modal Détails commande avec timeline */}
+            {selectedOrderDetail && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setSelectedOrderDetail(null)}>
+                <div className="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white">
+                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <ClipboardList className="w-5 h-5 text-indigo-600" />
+                      Commande #{selectedOrderDetail._id?.slice(-6)}
+                    </h3>
+                    <button type="button" onClick={() => setSelectedOrderDetail(null)} className="p-2 rounded-full text-gray-500 hover:bg-gray-100" aria-label="Fermer">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <div className="p-6 space-y-6">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Statut</p>
+                      <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold border ${ORDER_STATUS_STYLES[selectedOrderDetail.status] || 'border-gray-200 bg-gray-50'}`}>
+                        {selectedOrderDetail.status === 'pending' && <Clock size={16} />}
+                        {selectedOrderDetail.status === 'confirmed' && <Package size={16} />}
+                        {selectedOrderDetail.status === 'delivering' && <Truck size={16} />}
+                        {selectedOrderDetail.status === 'delivered' && <CheckCircle size={16} />}
+                        {selectedOrderDetail.status === 'cancelled' && <XCircle size={16} />}
+                        {ORDER_STATUS_LABELS[selectedOrderDetail.status] || 'Inconnu'}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Produits</p>
+                      <div className="space-y-2">
+                        {(selectedOrderDetail.items || (selectedOrderDetail.productSnapshot ? [{ snapshot: selectedOrderDetail.productSnapshot, quantity: 1 }] : [])).map((item, idx) => (
+                          <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
+                            <span className="font-medium text-gray-900">{item.snapshot?.title || 'Produit'}</span>
+                            <span className="text-sm text-gray-600">x{item.quantity} · {Number(item.snapshot?.price || 0).toLocaleString()} FCFA</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="mt-2 text-sm font-semibold text-gray-900">
+                        Total : {Number(selectedOrderDetail.totalAmount ?? 0).toLocaleString()} FCFA
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Adresse de livraison</p>
+                      <p className="text-gray-900">{selectedOrderDetail.deliveryAddress}</p>
+                      <p className="flex items-center gap-1 text-sm text-gray-500 mt-1"><MapPin size={14} /> {selectedOrderDetail.deliveryCity}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Timeline</p>
+                      <div className="space-y-4">
+                        <div className="flex gap-3">
+                          <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                            <Clock className="w-4 h-4 text-indigo-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">Créée</p>
+                            <p className="text-sm text-gray-500">{selectedOrderDetail.createdAt ? new Date(selectedOrderDetail.createdAt).toLocaleString('fr-FR') : '—'}</p>
+                          </div>
+                        </div>
+                        {selectedOrderDetail.shippedAt && (
+                          <div className="flex gap-3">
+                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                              <Truck className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">Expédiée</p>
+                              <p className="text-sm text-gray-500">{new Date(selectedOrderDetail.shippedAt).toLocaleString('fr-FR')}</p>
+                            </div>
+                          </div>
+                        )}
+                        {selectedOrderDetail.deliveredAt && (
+                          <div className="flex gap-3">
+                            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                              <CheckCircle className="w-4 h-4 text-emerald-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">Livrée</p>
+                              <p className="text-sm text-gray-500">{new Date(selectedOrderDetail.deliveredAt).toLocaleString('fr-FR')}</p>
+                            </div>
+                          </div>
+                        )}
+                        {selectedOrderDetail.cancelledAt && (
+                          <div className="flex gap-3">
+                            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                              <XCircle className="w-4 h-4 text-red-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">Annulée</p>
+                              <p className="text-sm text-gray-500">{new Date(selectedOrderDetail.cancelledAt).toLocaleString('fr-FR')}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
+                    <Link
+                      to="/orders/messages"
+                      onClick={() => setSelectedOrderDetail(null)}
+                      className="px-4 py-2 rounded-xl border border-indigo-200 text-indigo-600 font-medium hover:bg-indigo-50"
+                    >
+                      Messages
+                    </Link>
+                    <Link
+                      to="/orders"
+                      onClick={() => setSelectedOrderDetail(null)}
+                      className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700"
+                    >
+                      Page commandes
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Onglet Boutique — Section Boutique (proposal §7) */}
+        {activeTab === 'shop' && user?.accountType === 'shop' && (
+          <div className="space-y-6">
+            {/* Prévisualisation — Aperçu de la boutique publique */}
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
+                <h3 className="text-sm font-semibold text-gray-900">Prévisualisation</h3>
+                <p className="text-xs text-gray-500">Aperçu de votre boutique telle qu’elle apparaît aux acheteurs.</p>
+              </div>
+              <div className="p-4">
+                <a
+                  href={userShopLink || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-4 rounded-xl border-2 border-gray-100 p-4 hover:border-indigo-200 hover:bg-indigo-50/30 transition-colors"
+                >
+                  {(shopLogoPreview || user?.shopLogo) ? (
+                    <img
+                      src={shopLogoPreview || user?.shopLogo}
+                      alt="Logo"
+                      className="w-14 h-14 rounded-xl object-cover border border-gray-200 flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-xl bg-gray-200 flex items-center justify-center flex-shrink-0">
+                      <Store className="w-7 h-7 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-gray-900 truncate">{form.shopName || 'Ma boutique'}</p>
+                    <p className="text-xs text-gray-500 truncate">{form.shopAddress || 'Adresse non renseignée'}</p>
+                  </div>
+                  <span className="text-sm font-semibold text-indigo-600 flex-shrink-0">Voir l’aperçu public →</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Informations de la boutique */}
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">Informations de la boutique</h3>
+              <p className="text-xs text-gray-500 mb-3">Nom, adresse, description.</p>
+              <dl className="space-y-2 text-sm">
+                <div>
+                  <dt className="text-gray-500">Nom</dt>
+                  <dd className="font-medium text-gray-900">{form.shopName || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">Adresse</dt>
+                  <dd className="font-medium text-gray-900">{form.shopAddress || '—'}</dd>
+                </div>
+              </dl>
+              <button
+                type="button"
+                onClick={() => setActiveTab('profile')}
+                className="mt-3 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+              >
+                Modifier dans l’onglet Profil
+              </button>
+            </div>
+
+            {/* Logo et bannière — Galerie */}
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">Logo et bannière</h3>
+              <p className="text-xs text-gray-500 mb-3">Upload avec preview. Gestion dans l’onglet Profil.</p>
+              <div className="flex gap-3">
+                {(shopLogoPreview || user?.shopLogo) ? (
+                  <img
+                    src={shopLogoPreview || user?.shopLogo}
+                    alt="Logo"
+                    className="w-16 h-16 rounded-xl object-cover border border-gray-200"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-xl bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center">
+                    <Camera className="w-6 h-6 text-gray-400" />
+                  </div>
+                )}
+                {user?.shopVerified && (shopBannerPreview || user?.shopBanner) ? (
+                  <img
+                    src={shopBannerPreview || user?.shopBanner}
+                    alt="Bannière"
+                    className="h-16 flex-1 max-w-[120px] rounded-xl object-cover border border-gray-200"
+                  />
+                ) : user?.shopVerified ? (
+                  <div className="h-16 flex-1 max-w-[120px] rounded-xl bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center">
+                    <Image className="w-6 h-6 text-gray-400" />
+                  </div>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('profile')}
+                className="mt-3 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+              >
+                Gérer dans l’onglet Profil
+              </button>
+            </div>
+
+            {/* Horaires d'ouverture */}
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-amber-500" />
+                Horaires d’ouverture
+              </h3>
+              <p className="text-xs text-gray-500 mb-3">Gestion des horaires par jour.</p>
+              <ul className="space-y-1.5 text-sm text-gray-700">
+                {shopHours.slice(0, 5).map((entry) => (
+                  <li key={entry.day} className="flex justify-between">
+                    <span>{entry.label}</span>
+                    <span className="text-gray-500">
+                      {entry.closed ? 'Fermé' : entry.open && entry.close ? `${entry.open} – ${entry.close}` : '—'}
+                    </span>
+                  </li>
+                ))}
+                {shopHours.length > 5 && (
+                  <li className="text-gray-500">+ {shopHours.length - 5} autre(s) jour(s)</li>
+                )}
+              </ul>
+              <button
+                type="button"
+                onClick={() => setActiveTab('profile')}
+                className="mt-3 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+              >
+                Modifier dans l’onglet Profil
+              </button>
+            </div>
+
+            {/* Statistiques de la boutique (placeholder) */}
+            {stats && (
+              <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">Statistiques de la boutique</h3>
+                <p className="text-xs text-gray-500 mb-3">Vues, favoris, produits.</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-xl bg-gray-50 p-3 text-center">
+                    <p className="text-lg font-bold text-gray-900">{stats?.listings?.total ?? 0}</p>
+                    <p className="text-xs text-gray-500">Annonces</p>
+                  </div>
+                  <div className="rounded-xl bg-gray-50 p-3 text-center">
+                    <p className="text-lg font-bold text-gray-900">{stats?.engagement?.favoritesReceived ?? 0}</p>
+                    <p className="text-xs text-gray-500">Favoris reçus</p>
+                  </div>
+                  <div className="rounded-xl bg-gray-50 p-3 text-center">
+                    <p className="text-lg font-bold text-gray-900">{stats?.performance?.views ?? 0}</p>
+                    <p className="text-xs text-gray-500">Vues</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('stats')}
+                  className="mt-3 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+                >
+                  Voir tout dans l’onglet Statistiques
+                </button>
+              </div>
+            )}
+
+            <Link
+              to={userShopLink || '/profile'}
+              className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors"
+            >
+              <Store className="w-4 h-4" />
+              Voir ma boutique publique
+            </Link>
+          </div>
+        )}
+
+        {/* Onglet Notifications (mobile) */}
+        {activeTab === 'notifications' && (
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+            <div className="flex flex-col gap-3 mb-6">
+              <div className="flex items-center gap-2 text-sm font-semibold text-indigo-600">
+                <Bell className="w-4 h-4" />
+                Préférences de notifications
+              </div>
+              <h2 className="text-xl font-bold text-gray-900">Notifications</h2>
+              <p className="text-sm text-gray-500">Choisissez les types de notifications que vous souhaitez recevoir.</p>
+            </div>
+            <Link
+              to="/notifications"
+              className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors"
+            >
+              <Bell className="w-4 h-4" />
+              Gérer les préférences
+            </Link>
+          </div>
+        )}
+
+        {/* Onglet Sécurité (mobile) */}
+        {activeTab === 'security' && (
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+            <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 mb-6">
+              <div className="w-2 h-6 bg-emerald-600 rounded-full" />
+              <h2 className="text-xl font-semibold text-gray-900">Mot de passe et authentification</h2>
+            </div>
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                    <Lock className="w-4 h-4 text-green-500" />
+                    <span>Nouveau mot de passe</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      className="w-full px-4 py-3 pl-11 pr-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                      name="password"
+                      value={form.password}
+                      onChange={onChange}
+                      disabled={loading}
+                      placeholder="Laisser vide pour conserver"
+                    />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                    <Lock className="w-4 h-4 text-green-500" />
+                    <span>Confirmer le mot de passe</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      className="w-full px-4 py-3 pl-11 pr-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                      name="confirmPassword"
+                      value={form.confirmPassword}
+                      onChange={onChange}
+                      disabled={loading}
+                      placeholder="Confirmez le mot de passe"
+                    />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700">Code de vérification email</p>
+                    <p className="text-xs text-gray-500">Un code est requis pour confirmer la modification du mot de passe.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={sendPasswordChangeCode}
+                    disabled={passwordCodeSending || loading}
+                    className="px-4 py-2 rounded-xl border border-indigo-200 text-indigo-600 font-semibold hover:bg-indigo-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {passwordCodeSending ? 'Envoi...' : passwordCodeSent ? 'Renvoyer le code' : 'Envoyer le code'}
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    className="w-full px-4 py-3 pl-11 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    placeholder="Code reçu par email"
+                    value={passwordCode}
+                    onChange={(e) => setPasswordCode(e.target.value)}
+                    disabled={loading}
+                  />
+                  <Shield className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                </div>
+                {passwordCodeError && <p className="text-sm text-red-600">{passwordCodeError}</p>}
+                {passwordCodeMessage && <p className="text-sm text-emerald-600">{passwordCodeMessage}</p>}
+              </div>
+              <label className="flex items-center space-x-2 text-sm text-gray-500 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showPassword}
+                  onChange={() => setShowPassword(!showPassword)}
+                  className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                />
+                <span>Afficher les mots de passe</span>
+              </label>
+              <button
+                type="button"
+                onClick={async () => {
+                  const ok = await applyPasswordChange();
+                  if (ok) showToast('Mot de passe mis à jour.', { variant: 'success' });
+                }}
+                disabled={loading || !form.password || form.password !== form.confirmPassword || !passwordCode.trim()}
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Lock className="w-4 h-4" />
+                Mettre à jour le mot de passe
+              </button>
+            </div>
           </div>
         )}
       </div>

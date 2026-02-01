@@ -32,24 +32,23 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center px-4 py-8 safe-area-bottom bg-[#F2F2F7] dark:bg-black">
       <div className="w-full max-w-[400px]">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-normal text-indigo-600 mb-1">HDMarket</h1>
-          <p className="text-sm text-gray-500">Connectez-vous à votre compte</p>
+        {/* Header - Apple typography */}
+        <div className="text-center mb-10">
+          <h1 className="text-[28px] font-semibold tracking-tight text-black dark:text-white mb-2">HDMarket</h1>
+          <p className="text-[15px] text-[#8E8E93] dark:text-[#8E8E93]">Connectez-vous à votre compte</p>
         </div>
 
-        {/* Login Form */}
-        <div className="bg-white border border-gray-200 p-6">
+        {/* Login Form - Apple card */}
+        <div className="apple-card p-6">
           <form onSubmit={submit} className="space-y-4">
-            {/* Phone Input */}
             <div>
               <input
                 type="tel"
                 inputMode="tel"
                 autoComplete="tel"
-                className="w-full px-3 py-2.5 border border-gray-300 focus:outline-none focus:border-indigo-600 text-sm"
+                className="apple-input w-full"
                 placeholder="Numéro de téléphone"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
@@ -57,11 +56,10 @@ export default function Login() {
               />
             </div>
 
-            {/* Password Input */}
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
-                className="w-full px-3 py-2.5 border border-gray-300 focus:outline-none focus:border-indigo-600 text-sm pr-10"
+                className="apple-input w-full pr-12"
                 placeholder="Mot de passe"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -70,44 +68,35 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 -m-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-[#8E8E93] hover:text-black rounded-full tap-feedback"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
 
-            {/* Options */}
-            <div className="flex items-center justify-between text-xs">
-              <label className="flex items-center text-gray-600 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="mr-1"
-                />
+            <div className="flex items-center justify-between text-[13px]">
+              <label className="flex items-center text-[#8E8E93] cursor-pointer">
+                <input type="checkbox" className="mr-2 rounded" />
                 <span>Se souvenir de moi</span>
               </label>
-              <Link 
-                to="/forgot-password" 
-                className="text-gray-600 hover:text-indigo-600"
-              >
+              <Link to="/forgot-password" className="text-[#007AFF] hover:underline">
                 Mot de passe oublié ?
               </Link>
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading || !form.phone || !form.password}
-              className="w-full py-3 bg-blue-600 text-white text-sm font-semibold rounded-3xl hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 active:scale-95 shadow-sm"
+              className="apple-btn-primary w-full disabled:opacity-60 disabled:cursor-not-allowed disabled:!bg-[#C7C7CC]"
             >
               {loading ? 'Connexion...' : 'Se connecter'}
             </button>
           </form>
 
-          {/* Register Link */}
-          <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="mt-4 pt-4 border-t border-[rgba(60,60,67,0.12)]">
             <Link
               to="/register"
-              className="block w-full py-3 text-center border border-gray-300 bg-white text-gray-700 text-sm font-semibold rounded-3xl hover:bg-gray-50 transition-all duration-200 active:scale-95 shadow-sm"
+              className="block w-full py-3 min-h-[48px] flex items-center justify-center rounded-full font-semibold text-[17px] text-[#007AFF] border border-[#C7C7CC] dark:border-[#38383A] bg-white dark:bg-[#1C1C1E] hover:bg-[#F2F2F7] dark:hover:bg-[#2C2C2E] tap-feedback transition-all"
             >
               Créer un compte
             </Link>
@@ -116,13 +105,13 @@ export default function Login() {
 
         {/* Footer */}
         <div className="mt-6 text-center">
-          <p className="text-xs text-gray-500">
+          <p className="text-[13px] text-[#8E8E93]">
             En vous connectant, vous acceptez nos{' '}
-            <Link to="/help" className="text-gray-600 hover:text-indigo-600">
+            <Link to="/help" className="text-[#007AFF] hover:underline">
               conditions d'utilisation
             </Link>{' '}
             et notre{' '}
-            <Link to="/privacy" className="text-gray-600 hover:text-indigo-600">
+            <Link to="/privacy" className="text-[#007AFF] hover:underline">
               politique de confidentialité
             </Link>
           </p>

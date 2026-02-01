@@ -117,7 +117,7 @@ const collectUserStats = async (userId) => {
 
   const [buyerAgg, sellerAgg] = await Promise.all([
     Order.aggregate([
-      { $match: { customer: userObjectId } },
+      { $match: { customer: userObjectId, isDraft: { $ne: true } } },
       {
         $project: {
           status: 1,
@@ -139,6 +139,7 @@ const collectUserStats = async (userId) => {
       }
     ]),
     Order.aggregate([
+      { $match: { isDraft: { $ne: true } } },
       { $unwind: '$items' },
       { $match: { 'items.snapshot.shopId': userObjectId } },
       {

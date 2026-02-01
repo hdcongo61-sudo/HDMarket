@@ -828,7 +828,7 @@ export default function ProductDetails() {
 
   // === MOBILE APP-STYLE PRODUCT SHEET (Proposal A) ===
   const renderMobileProductDetails = () => (
-    <div className="min-h-screen bg-gray-50 pb-28">
+    <div className="min-h-screen bg-gray-50 pb-28 safe-area-bottom">
       {/* 1. Full-width Swiper Gallery with floating buttons */}
       <div className="relative">
         {galleryImages.length > 1 ? (
@@ -1045,7 +1045,7 @@ export default function ProductDetails() {
             type="button"
             onClick={handleAddToCart}
             disabled={addingToCart || inCart}
-            className={`w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl font-semibold text-base transition-all active:scale-[0.98] ${
+            className={`w-full flex items-center justify-center gap-2 px-4 py-3.5 min-h-[52px] rounded-2xl font-semibold text-base transition-all tap-feedback ${
               inCart ? 'bg-gray-200 text-gray-500 cursor-default' : 'bg-indigo-600 text-white hover:bg-indigo-700'
             }`}
           >
@@ -1066,7 +1066,7 @@ export default function ProductDetails() {
 
       {/* 8. Accordion: Description */}
       <div className="mx-4 mb-2 rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
-        <button type="button" onClick={() => toggleSection('description')} className="w-full flex items-center justify-between p-4 text-left">
+        <button type="button" onClick={() => toggleSection('description')} className="w-full flex items-center justify-between p-4 min-h-[52px] text-left tap-feedback">
           <span className="text-sm font-bold text-gray-900">Description</span>
           {expandedSections.description ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
         </button>
@@ -1079,7 +1079,7 @@ export default function ProductDetails() {
 
       {/* 9. Accordion: Spécifications */}
       <div className="mx-4 mb-2 rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
-        <button type="button" onClick={() => toggleSection('specifications')} className="w-full flex items-center justify-between p-4 text-left">
+        <button type="button" onClick={() => toggleSection('specifications')} className="w-full flex items-center justify-between p-4 min-h-[52px] text-left tap-feedback">
           <span className="text-sm font-bold text-gray-900">Spécifications</span>
           {expandedSections.specifications ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
         </button>
@@ -1105,7 +1105,7 @@ export default function ProductDetails() {
 
       {/* 10. Accordion: Livraison */}
       <div className="mx-4 mb-3 rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
-        <button type="button" onClick={() => toggleSection('shipping')} className="w-full flex items-center justify-between p-4 text-left">
+        <button type="button" onClick={() => toggleSection('shipping')} className="w-full flex items-center justify-between p-4 min-h-[52px] text-left tap-feedback">
           <span className="text-sm font-bold text-gray-900">Livraison</span>
           {expandedSections.shipping ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
         </button>

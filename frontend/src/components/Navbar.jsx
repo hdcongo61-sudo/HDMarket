@@ -125,7 +125,6 @@ export default function Navbar() {
   const canAccessBackOffice = isAdmin || isManager;
   const canVerifyPayments = Boolean(user?.canVerifyPayments);
   const adminLinkLabel = isManager ? "Gestion" : "Admin";
-  const canManageSales = Boolean(user && !isAdmin);
 
   // Enable admin counts for admins, managers, and users with payment verification access
   const shouldLoadAdminCounts = canAccessBackOffice || canVerifyPayments;
@@ -1163,7 +1162,7 @@ export default function Navbar() {
               <Filter size={16} className="text-gray-600 dark:text-gray-400" />
               <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Filtres</span>
               {hasActiveFilters && (
-                <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                <span className="bg-[#007AFF] text-white text-xs font-bold px-2 py-0.5 rounded-full">
                   {[
                     filters.category && 1,
                     filters.minPrice && 1,
@@ -1192,7 +1191,7 @@ export default function Navbar() {
             <select
               value={filters.category}
               onChange={(e) => handleFilterChange('category', e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#007AFF] focus:border-[#007AFF]"
             >
               <option value="">Toutes les catégories</option>
               {categoriesLoading ? (
@@ -1218,7 +1217,7 @@ export default function Navbar() {
                 placeholder="Min"
                 value={filters.minPrice}
                 onChange={(e) => handleFilterChange('minPrice', e.target.value)}
-                className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#007AFF] focus:border-[#007AFF]"
                 min="0"
               />
               <span className="text-gray-500">-</span>
@@ -1227,7 +1226,7 @@ export default function Navbar() {
                 placeholder="Max"
                 value={filters.maxPrice}
                 onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
-                className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#007AFF] focus:border-[#007AFF]"
                 min="0"
               />
             </div>
@@ -1242,7 +1241,7 @@ export default function Navbar() {
             <select
               value={filters.city}
               onChange={(e) => handleFilterChange('city', e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#007AFF] focus:border-[#007AFF]"
             >
               <option value="">Toutes les villes</option>
               <option value="Brazzaville">Brazzaville</option>
@@ -1260,7 +1259,7 @@ export default function Navbar() {
             <select
               value={filters.condition}
               onChange={(e) => handleFilterChange('condition', e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#007AFF] focus:border-[#007AFF]"
             >
               <option value="">Tous les états</option>
               <option value="new">Neuf</option>
@@ -1275,7 +1274,7 @@ export default function Navbar() {
                 type="checkbox"
                 checked={filters.shopVerified}
                 onChange={(e) => handleFilterChange('shopVerified', e.target.checked)}
-                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                className="w-4 h-4 text-[#007AFF] border-gray-300 rounded focus:ring-[#007AFF]"
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">
                 Boutiques vérifiées uniquement
@@ -1328,7 +1327,7 @@ export default function Navbar() {
             <div className="px-4 py-2.5 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Clock size={14} className="text-indigo-600 dark:text-indigo-400" />
+                  <Clock size={14} className="text-[#007AFF]" />
                   <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide">
                     Recherches récentes
                   </span>
@@ -1336,7 +1335,7 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={handleOpenHistoryPanel}
-                  className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+                  className="text-[10px] font-semibold text-[#007AFF] hover:underline"
                 >
                   Voir tout
                 </button>
@@ -1363,7 +1362,7 @@ export default function Navbar() {
           <div className="border-b border-gray-100 dark:border-gray-700">
             <div className="px-4 py-2.5 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20">
               <div className="flex items-center gap-2">
-                <Tag size={14} className="text-blue-600 dark:text-blue-400" />
+                <Tag size={14} className="text-[#007AFF]" />
                 <span className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
                   Catégories
                 </span>
@@ -1378,10 +1377,10 @@ export default function Navbar() {
                     setShowResults(false);
                     navigate(`/products?category=${encodeURIComponent(category.title)}`);
                   }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all text-left group"
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-[#007AFF]/40 hover:bg-[rgba(0,122,255,0.08)] transition-all text-left group"
                 >
                   <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/30 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/40 transition-colors">
-                    <Tag size={14} className="text-blue-600 dark:text-blue-400" />
+                    <Tag size={14} className="text-[#007AFF]" />
                   </div>
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
                     {category.title}
@@ -1585,7 +1584,7 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={() => loadMoreResults('products')}
-                    className="w-full px-4 py-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border-t border-gray-200 dark:border-gray-700 transition-colors"
+                    className="w-full px-4 py-2 text-sm font-medium text-[#007AFF] hover:bg-[rgba(0,122,255,0.08)] border-t border-gray-200 dark:border-gray-700 transition-colors"
                   >
                     Voir plus de produits ({allProducts.length - products.length} restant{allProducts.length - products.length > 1 ? 's' : ''})
                   </button>
@@ -1637,7 +1636,7 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={() => loadMoreResults('shops')}
-                    className="w-full px-4 py-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border-t border-gray-200 dark:border-gray-700 transition-colors"
+                    className="w-full px-4 py-2 text-sm font-medium text-[#007AFF] hover:bg-[rgba(0,122,255,0.08)] border-t border-gray-200 dark:border-gray-700 transition-colors"
                   >
                     Voir plus de boutiques ({allShops.length - shops.length} restant{allShops.length - shops.length > 1 ? 's' : ''})
                   </button>
@@ -1677,7 +1676,7 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={() => loadMoreResults('categories')}
-                    className="w-full px-4 py-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border-t border-gray-200 dark:border-gray-700 transition-colors"
+                    className="w-full px-4 py-2 text-sm font-medium text-[#007AFF] hover:bg-[rgba(0,122,255,0.08)] border-t border-gray-200 dark:border-gray-700 transition-colors"
                   >
                     Voir plus de catégories ({allCategories.length - categories.length} restant{allCategories.length - categories.length > 1 ? 's' : ''})
                   </button>
@@ -1701,7 +1700,7 @@ export default function Navbar() {
                         key={idx}
                         type="button"
                         onClick={() => handleSuggestionClick(term)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-medium text-gray-700 dark:text-gray-300 hover:border-indigo-300 dark:hover:border-indigo-600 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-medium text-gray-700 dark:text-gray-300 hover:border-[#007AFF]/40 hover:text-[#007AFF] hover:bg-[rgba(0,122,255,0.08)] transition-all"
                       >
                         <Search size={10} className="text-gray-400" />
                         {term}
@@ -1768,7 +1767,7 @@ export default function Navbar() {
               <Filter size={16} className="text-gray-600 dark:text-gray-400" />
               <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Filtres</span>
               {hasActiveFilters && (
-                <span className="px-2 py-0.5 bg-indigo-600 text-white text-xs font-bold rounded-full">
+                <span className="px-2 py-0.5 bg-[#007AFF] text-white text-xs font-bold rounded-full">
                   {Object.values(filters).filter(Boolean).length}
                 </span>
               )}
@@ -1924,7 +1923,7 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={() => loadMoreResults('products')}
-                    className="w-full px-4 py-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border-t border-gray-200 dark:border-gray-700 transition-colors"
+                    className="w-full px-4 py-2 text-sm font-medium text-[#007AFF] hover:bg-[rgba(0,122,255,0.08)] border-t border-gray-200 dark:border-gray-700 transition-colors"
                   >
                     Voir plus ({allProducts.length - products.length} restant{allProducts.length - products.length > 1 ? 's' : ''})
                   </button>
@@ -1964,7 +1963,7 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={() => loadMoreResults('products')}
-                    className="w-full px-4 py-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border-t border-gray-200 dark:border-gray-700 transition-colors"
+                    className="w-full px-4 py-2 text-sm font-medium text-[#007AFF] hover:bg-[rgba(0,122,255,0.08)] border-t border-gray-200 dark:border-gray-700 transition-colors"
                   >
                     Voir plus ({allProducts.length - products.length} restant{allProducts.length - products.length > 1 ? 's' : ''})
                   </button>
@@ -1988,7 +1987,7 @@ export default function Navbar() {
                         key={idx}
                         type="button"
                         onClick={() => handleSuggestionClick(term)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-medium text-gray-700 dark:text-gray-300 hover:border-indigo-300 dark:hover:border-indigo-600 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-medium text-gray-700 dark:text-gray-300 hover:border-[#007AFF]/40 hover:text-[#007AFF] hover:bg-[rgba(0,122,255,0.08)] transition-all"
                       >
                         <Search size={10} className="text-gray-400" />
                         {term}
@@ -2804,7 +2803,7 @@ export default function Navbar() {
                 <div className="flex items-center gap-2">
                   <NavLink
                     to="/login"
-                    className="px-3 py-2 rounded-xl border border-indigo-600 text-indigo-600 font-medium hover:bg-indigo-50 transition-all duration-200"
+                    className="px-3 py-2 rounded-full border border-[#007AFF] text-[#007AFF] font-medium hover:bg-[rgba(0,122,255,0.08)] tap-feedback transition-all duration-200"
                   >
                     Connexion
                   </NavLink>
@@ -2862,6 +2861,18 @@ export default function Navbar() {
                         {hasActiveOrders && (
                           <span className="ml-auto bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                             {activeOrdersBadge}
+                          </span>
+                        )}
+                      </Link>
+                      <Link
+                        to="/seller/orders"
+                        className="relative flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                      >
+                        <Package size={16} />
+                        <span>Commandes clients</span>
+                        {hasSellerOrders && (
+                          <span className="ml-auto bg-emerald-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                            {sellerOrdersBadge}
                           </span>
                         )}
                       </Link>
@@ -3237,7 +3248,7 @@ export default function Navbar() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Rechercher produits, boutiques..."
-                className="w-full pl-11 pr-20 py-3 bg-gray-50 dark:bg-gray-800/80 border border-gray-200/60 dark:border-gray-700/60 rounded-2xl focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-800 transition-all duration-200 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 shadow-sm focus:shadow-md"
+                className="w-full pl-11 pr-20 py-3 bg-gray-50 dark:bg-gray-800/80 border border-gray-200/60 dark:border-gray-700/60 rounded-2xl focus:ring-2 focus:ring-[#007AFF]/50 focus:border-[#007AFF] focus:bg-white dark:focus:bg-gray-800 transition-all duration-200 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 shadow-sm focus:shadow-md"
                 onFocus={() => { 
                   setShowResults(true); 
                   if (isMobileLayout) setIsSearchFullScreen(true);
@@ -3404,21 +3415,19 @@ export default function Navbar() {
                       </span>
                     )}
                   </NavLink>
-                  {canManageSales && (
-                    <NavLink
-                      to="/seller/orders"
-                      onClick={() => setIsMenuOpen(false)}
-                      className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                    >
-                      <Package size={20} />
-                      Commandes clients
-                      {hasSellerOrders && (
-                        <span className="ml-auto bg-emerald-600 text-white text-xs font-bold px-2 py-1 rounded-full">
-                          {sellerOrdersBadge}
-                        </span>
-                      )}
-                    </NavLink>
-                  )}
+                  <NavLink
+                    to="/seller/orders"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <Package size={20} />
+                    Commandes clients
+                    {hasSellerOrders && (
+                      <span className="ml-auto bg-emerald-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                        {sellerOrdersBadge}
+                      </span>
+                    )}
+                  </NavLink>
                   {canAccessBackOffice && (
                     <NavLink
                       to="/admin/orders"

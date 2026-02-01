@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import { buildProductPath } from '../utils/links';
-import { CheckCircle, Search, Package, User, MapPin, Truck, Clock, ClipboardList, Plus, RefreshCcw, ArrowLeft, X, AlertCircle, ShieldCheck, Download, FileSpreadsheet } from 'lucide-react';
+import { CheckCircle, Search, Package, User, MapPin, Truck, Clock, ClipboardList, Plus, RefreshCcw, ArrowLeft, X, AlertCircle, ShieldCheck, Download, FileSpreadsheet, Trash2 } from 'lucide-react';
 import OrderChat from '../components/OrderChat';
 import AuthContext from '../context/AuthContext';
 
@@ -51,6 +51,8 @@ export default function AdminOrders() {
   const [assignDeliveryGuyId, setAssignDeliveryGuyId] = useState('');
   const [assignSaving, setAssignSaving] = useState(false);
   const [assignError, setAssignError] = useState('');
+  const [deleteOrder, setDeleteOrder] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const [deliveryGuys, setDeliveryGuys] = useState([]);
   const [deliveryGuysLoading, setDeliveryGuysLoading] = useState(false);
@@ -462,14 +464,15 @@ export default function AdminOrders() {
   const loadStats = useCallback(async () => {
     setStatsLoading(true);
     try {
-      const { data } = await api.get('/orders/admin/stats');
+      const params = searchValue ? { search: searchValue } : {};
+      const { data } = await api.get('/orders/admin/stats', { params });
       setStats(data);
     } catch (error) {
       console.error('Erreur stats commandes:', error);
     } finally {
       setStatsLoading(false);
     }
-  }, []);
+  }, [searchValue]);
 
   const loadDeliveryGuys = useCallback(async () => {
     setDeliveryGuysLoading(true);
@@ -524,7 +527,14 @@ export default function AdminOrders() {
       if (searchValue) params.append('search', searchValue);
       const { data } = await api.get(`/orders/admin?${params.toString()}`);
       const items = Array.isArray(data) ? data : data?.items || [];
-      setOrders(items);
+      // Deduplicate orders by _id to prevent any duplicate display issues
+      const seenIds = new Set();
+      const uniqueOrders = items.filter((order) => {
+        if (!order?._id || seenIds.has(order._id)) return false;
+        seenIds.add(order._id);
+        return true;
+      });
+      setOrders(uniqueOrders);
       
       // Load unread message counts
       const orderIds = items.map((order) => order._id);
@@ -577,10 +587,13 @@ export default function AdminOrders() {
 
   useEffect(() => {
     loadStats();
+  }, [loadStats]);
+
+  useEffect(() => {
     loadCustomers();
     loadProducts();
     loadDeliveryGuys();
-  }, [loadStats, loadCustomers, loadProducts, loadDeliveryGuys]);
+  }, [loadCustomers, loadProducts, loadDeliveryGuys]);
 
   useEffect(() => {
     loadOrders();
@@ -611,7 +624,15 @@ export default function AdminOrders() {
         if (removeFromView) {
           return prev.filter((order) => order._id !== orderId);
         }
-        return prev.map((order) => (order._id === orderId ? updatedOrder : order));
+        // Replace the existing order, ensuring no duplicates
+        const updated = prev.map((order) => (order._id === orderId ? updatedOrder : order));
+        // Extra safety: deduplicate by _id
+        const seenIds = new Set();
+        return updated.filter((order) => {
+          if (!order?._id || seenIds.has(order._id)) return false;
+          seenIds.add(order._id);
+          return true;
+        });
       });
 
       if (removeFromView) {
@@ -648,6 +669,36 @@ export default function AdminOrders() {
     } catch (error) {
       alert(error.response?.data?.message || 'Impossible de mettre à jour la commande.');
       return null;
+    }
+  };
+
+  const handleDeleteOrder = async (orderId) => {
+    if (!orderId) return;
+    setDeleteLoading(true);
+    try {
+      await api.delete(`/orders/admin/${orderId}`);
+      setOrders((prev) => prev.filter((o) => o._id !== orderId));
+      setMeta((prev) => ({
+        ...prev,
+        total: Math.max(0, (prev.total || 0) - 1),
+        totalPages: Math.max(1, Math.ceil(Math.max(0, (prev.total || 0) - 1) / ORDERS_PER_PAGE))
+      }));
+      const deletedOrder = orders.find((o) => o._id === orderId);
+      if (deletedOrder?.status && stats?.statusCounts) {
+        setStats((prev) => ({
+          ...prev,
+          statusCounts: {
+            ...prev?.statusCounts,
+            [deletedOrder.status]: Math.max(0, (prev?.statusCounts?.[deletedOrder.status] || 0) - 1)
+          }
+        }));
+      }
+      setDeleteOrder(null);
+      await loadStats();
+    } catch (error) {
+      alert(error.response?.data?.message || 'Impossible de supprimer la commande.');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -707,6 +758,10 @@ export default function AdminOrders() {
       setAssignSaving(false);
     }
   }, [assignOpen]);
+
+  useEffect(() => {
+    if (!deleteOrder) return;
+  }, [deleteOrder]);
 
   const renderStatusTabs = () => (
     <div className="flex flex-wrap gap-2">
@@ -1138,6 +1193,52 @@ export default function AdminOrders() {
         </div>
       )}
 
+      {deleteOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+          <div
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => !deleteLoading && setDeleteOrder(null)}
+          />
+          <div
+            className="relative w-full max-w-sm rounded-3xl bg-white shadow-xl border border-gray-100 p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+                <Trash2 className="h-6 w-6" />
+              </div>
+              <div className="text-left">
+                <h3 className="text-lg font-semibold text-gray-900">Supprimer la commande</h3>
+                <p className="text-sm text-gray-600">
+                  Commande #{deleteOrder._id?.slice(-6)} — {deleteOrder.customer?.name || 'Client'}
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-6">
+              Cette action est irréversible. La commande et ses messages seront définitivement supprimés.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => !deleteLoading && setDeleteOrder(null)}
+                disabled={deleteLoading}
+                className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteOrder(deleteOrder._id)}
+                disabled={deleteLoading}
+                className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteLoading ? 'Suppression...' : 'Supprimer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toolbar - Improved Design */}
       <section className="bg-gradient-to-br from-white to-gray-50 rounded-3xl border-2 border-gray-200 shadow-xl p-5 sm:p-6 space-y-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1355,6 +1456,14 @@ export default function AdminOrders() {
                           )}
                         </div>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => setDeleteOrder(order)}
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100"
+                      >
+                        <Trash2 size={14} />
+                        Supprimer
+                      </button>
                     </div>
                   </div>
                 );
@@ -1548,6 +1657,14 @@ export default function AdminOrders() {
                               )}
                             </div>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => setDeleteOrder(order)}
+                            className="inline-flex w-full items-center justify-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-100"
+                          >
+                            <Trash2 size={12} />
+                            Supprimer
+                          </button>
                           <div className="text-xs text-indigo-600 space-y-1">
                             {orderItems.map((item) =>
                               item.product ? (

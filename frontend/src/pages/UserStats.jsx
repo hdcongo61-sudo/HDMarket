@@ -256,14 +256,14 @@ export default function UserStats() {
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    if (!showOrdersModal) return;
+    if (!showOrdersModal || !user) return;
     let active = true;
 
     const loadOrderedProducts = async () => {
       setOrderedLoading(true);
       setOrderedError('');
       try {
-        const { data } = await api.get('/orders?limit=100');
+        const { data } = await api.get('/orders', { params: { limit: 500 } });
         if (!active) return;
         const orders = Array.isArray(data) ? data : data?.items || [];
         const productMap = new Map();
@@ -329,10 +329,13 @@ export default function UserStats() {
         if (!active) return;
         const orders = Array.isArray(data) ? data : data?.items || [];
         const productMap = new Map();
+        const userIdStr = user?.id || user?._id ? String(user.id || user._id) : null;
 
         orders.forEach((order) => {
           const items = Array.isArray(order.items) ? order.items : [];
           items.forEach((item) => {
+            const itemShopId = item.snapshot?.shopId?._id || item.snapshot?.shopId;
+            if (userIdStr && itemShopId && String(itemShopId) !== userIdStr) return;
             const productId = item.product?._id || item.product || '';
             const title = item.snapshot?.title || item.product?.title || 'Produit';
             const key = productId || title;
@@ -377,7 +380,7 @@ export default function UserStats() {
     return () => {
       active = false;
     };
-  }, [showSalesModal]);
+  }, [showSalesModal, user]);
 
   const categoryMax = useMemo(() => {
     return stats.breakdown.categories.reduce((max, item) => Math.max(max, item.count || 0), 0) || 1;

@@ -73,7 +73,7 @@ export default function Favorites() {
         <button
           onClick={() => setPage((prev) => Math.max(1, prev - 1))}
           disabled={page <= 1}
-          className="flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center justify-center min-w-[44px] min-h-[44px] rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors tap-feedback"
         >
           ‹
         </button>
@@ -82,7 +82,7 @@ export default function Favorites() {
           <>
             <button
               onClick={() => setPage(1)}
-              className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
+              className={`flex items-center justify-center min-w-[44px] min-h-[44px] rounded-lg border transition-colors tap-feedback ${
                 page === 1 ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 hover:bg-gray-50'
               }`}
             >
@@ -109,7 +109,7 @@ export default function Favorites() {
             {end < totalPages - 1 && <span className="px-1 text-gray-500">...</span>}
             <button
               onClick={() => setPage(totalPages)}
-              className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
+              className={`flex items-center justify-center min-w-[44px] min-h-[44px] rounded-lg border transition-colors tap-feedback ${
                 page === totalPages ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 hover:bg-gray-50'
               }`}
             >
@@ -121,7 +121,7 @@ export default function Favorites() {
         <button
           onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
           disabled={page >= totalPages}
-          className="flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center justify-center min-w-[44px] min-h-[44px] rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors tap-feedback"
         >
           ›
         </button>

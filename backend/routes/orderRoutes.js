@@ -4,6 +4,7 @@ import { requireRole } from '../middlewares/roleMiddleware.js';
 import { validate, schemas } from '../middlewares/validate.js';
 import {
   adminCreateOrder,
+  adminDeleteOrder,
   adminListOrders,
   adminOrderStats,
   adminSearchCustomers,
@@ -14,6 +15,7 @@ import {
   userListOrders,
   userUpdateOrderStatus,
   userUpdateOrderAddress,
+  userSkipCancellationWindow,
   sellerListOrders,
   sellerUpdateOrderStatus,
   sellerCancelOrder,
@@ -51,6 +53,7 @@ adminRouter.get('/products', adminSearchProducts);
 adminRouter.get('/', adminListOrders);
 adminRouter.post('/', requireRole(['admin']), validate(schemas.orderCreate), adminCreateOrder);
 adminRouter.patch('/:id', validate(schemas.idParam, 'params'), validate(schemas.orderUpdate), adminUpdateOrder);
+adminRouter.delete('/:id', validate(schemas.idParam, 'params'), adminDeleteOrder);
 adminRouter.post('/:id/reminder', validate(schemas.idParam, 'params'), adminSendOrderReminder);
 
 router.use('/admin', adminRouter);
@@ -72,6 +75,11 @@ router.patch(
   validate(schemas.idParam, 'params'),
   validate(schemas.orderAddressUpdate),
   userUpdateOrderAddress
+);
+router.post(
+  '/:id/skip-cancellation-window',
+  validate(schemas.idParam, 'params'),
+  userSkipCancellationWindow
 );
 router.patch(
   '/seller/:id/status',

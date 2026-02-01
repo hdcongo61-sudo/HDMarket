@@ -116,13 +116,13 @@ export default function Cart() {
   };
 
   return ( 
-    <main className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50">
+    <main className="min-h-screen bg-[#F2F2F7] dark:bg-black">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
       {/* Header Enhanced */}
-      <header className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-3xl p-6 sm:p-8 border-2 border-blue-100 shadow-lg">
+      <header className="apple-card rounded-[16px] p-6 sm:p-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="space-y-2">
-            <h1 className="text-3xl sm:text-4xl font-black text-gray-900">Mon Panier</h1>
+            <h1 className="text-2xl sm:text-4xl font-black text-gray-900">Mon Panier</h1>
             <p className="text-gray-600 font-medium">
               {items.length > 0 
                 ? `${items.length} article${items.length > 1 ? 's' : ''} dans votre panier`
@@ -136,7 +136,7 @@ export default function Cart() {
               <button
                 onClick={() => setShowClearConfirm(true)}
                 disabled={disableAll}
-                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-red-600 bg-white border border-red-300 rounded-3xl hover:bg-red-50 transition-all duration-200 active:scale-95 shadow-sm disabled:opacity-60"
+                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[#FF3B30] bg-white border border-[#FF3B30]/30 rounded-full hover:bg-[#FF3B30]/8 tap-feedback transition-all shadow-[0_1px_3px_rgba(0,0,0,0.04)] disabled:opacity-60"
               >
                 <TrashIcon className="w-4 h-4" />
                 Vider le panier
@@ -162,7 +162,7 @@ export default function Cart() {
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setShowClearConfirm(false)}
-                className="flex-1 px-5 py-3 text-sm font-semibold text-gray-700 bg-gray-100 rounded-3xl hover:bg-gray-200 transition-all duration-200 active:scale-95"
+                className="flex-1 px-5 py-3 text-sm font-semibold text-[#8E8E93] bg-[rgba(120,120,128,0.12)] rounded-full hover:bg-[rgba(120,120,128,0.18)] tap-feedback transition-all"
               >
                 Annuler
               </button>
@@ -187,7 +187,7 @@ export default function Cart() {
       {loading && items.length === 0 ? (
         <div className="flex items-center justify-center py-16">
           <div className="flex items-center gap-3 text-gray-600">
-            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-[#007AFF] border-t-transparent rounded-full animate-spin" />
             <span className="font-medium">Chargement du panier...</span>
           </div>
         </div>
@@ -202,7 +202,7 @@ export default function Cart() {
           </p>
           <Link
             to="/products"
-            className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3.5 rounded-3xl hover:bg-blue-700 transition-all duration-200 active:scale-95 font-semibold shadow-sm"
+            className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-3.5 min-h-[48px] rounded-3xl hover:bg-blue-700 transition-all duration-200 tap-feedback font-semibold shadow-sm"
           >
             <ShoppingBagIcon className="w-5 h-5" />
             Découvrir les produits
@@ -282,7 +282,7 @@ export default function Cart() {
                           <div className="flex items-center gap-1 sm:gap-2 bg-gray-50 rounded-xl sm:rounded-3xl p-0.5 sm:p-1 border border-gray-200">
                             <button
                               type="button"
-                              className="w-7 h-7 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-gray-700 hover:bg-white disabled:opacity-40 transition-all duration-200 active:scale-90 shadow-sm"
+                              className="min-w-[44px] min-h-[44px] w-10 h-10 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-gray-700 hover:bg-white disabled:opacity-40 transition-all duration-200 tap-feedback shadow-sm"
                               onClick={() => changeQuantity(product._id, quantity - 1)}
                               disabled={disableAll || pending[product._id] || quantity <= 1}
                             >
@@ -302,7 +302,7 @@ export default function Cart() {
                             
                             <button
                               type="button"
-                              className="w-7 h-7 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-gray-700 hover:bg-white disabled:opacity-40 transition-all duration-200 active:scale-90 shadow-sm"
+                              className="min-w-[44px] min-h-[44px] w-10 h-10 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-gray-700 hover:bg-white disabled:opacity-40 transition-all duration-200 tap-feedback shadow-sm"
                               onClick={() => changeQuantity(product._id, quantity + 1)}
                               disabled={disableAll || pending[product._id]}
                             >
@@ -407,7 +407,7 @@ export default function Cart() {
                 <div className="space-y-3 pt-2">
                   <Link
                     to="/orders/checkout"
-                    className="block w-full bg-blue-600 text-white text-center py-4 rounded-3xl hover:bg-blue-700 transition-all duration-200 active:scale-95 font-semibold shadow-sm text-base"
+                    className="apple-btn-primary block w-full text-center py-4 min-h-[52px]"
                   >
                     Continuer mes achats
                   </Link>

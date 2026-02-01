@@ -1,8 +1,72 @@
 @import "tailwindcss";
 @import "tailwindcss-safe-area";
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   APPLE HUMAN INTERFACE GUIDELINES - Design Tokens
+   Clarity, Deference, Depth
+   ═══════════════════════════════════════════════════════════════════════════ */
+@theme {
+  /* System colors - Apple HIG */
+  --color-apple-blue: #007AFF;
+  --color-apple-blue-hover: #0051D5;
+  --color-apple-green: #34C759;
+  --color-apple-orange: #FF9500;
+  --color-apple-red: #FF3B30;
+  --color-apple-gray-1: #8E8E93;
+  --color-apple-gray-2: #AEAEB2;
+  --color-apple-gray-3: #C7C7CC;
+  --color-apple-gray-4: #D1D1D6;
+  --color-apple-gray-5: #E5E5EA;
+  --color-apple-gray-6: #F2F2F7;
+  --color-apple-fill: #FFFFFF;
+  --color-apple-fill-secondary: rgba(120, 120, 128, 0.12);
+  --color-apple-fill-tertiary: rgba(120, 120, 128, 0.08);
+  
+  /* Semantic */
+  --color-apple-label: #000000;
+  --color-apple-label-secondary: rgba(60, 60, 67, 0.6);
+  --color-apple-label-tertiary: rgba(60, 60, 67, 0.3);
+  --color-apple-separator: rgba(60, 60, 67, 0.12);
+  --color-apple-link: #007AFF;
+  
+  /* Radius - Apple typically uses 10-14px */
+  --radius-apple-sm: 8px;
+  --radius-apple-md: 12px;
+  --radius-apple-lg: 16px;
+  --radius-apple-xl: 20px;
+  --radius-apple-full: 9999px;
+  
+  /* Shadows - subtle, layered */
+  --shadow-apple-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-apple-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-apple-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-apple-xl: 0 12px 40px rgba(0, 0, 0, 0.1);
+}
+
+:root {
+  /* Additional tokens for use in arbitrary values */
+  --apple-transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --apple-transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BASE & TYPOGRAPHY
+   ═══════════════════════════════════════════════════════════════════════════ */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  color: var(--color-apple-label);
+  background-color: #F2F2F7;
+}
+.dark body {
+  background-color: #000000;
+  color: #FFFFFF;
 }
 
 button,
@@ -20,6 +84,7 @@ select {
   scrollbar-width: none;
 }
 
+/* Mobile UX: prevent zoom on input focus (iOS) */
 @media (max-width: 767px) {
   input,
   textarea,
@@ -29,8 +94,159 @@ select {
   }
 }
 
+/* Touch-friendly utilities */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+.touch-target-lg {
+  min-height: 48px;
+  min-width: 48px;
+}
+.tap-feedback {
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+.tap-feedback:active {
+  transform: scale(0.98);
+}
+
+/* Mobile horizontal scroll with smooth touch */
+.mobile-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.mobile-scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
+/* Safe area bottom for main content (above mobile nav) */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Main content: extra bottom padding on mobile for notched devices */
+@media (max-width: 767px) {
+  .main-content {
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+  }
+  /* Ensure buttons and links have minimum touch target on mobile */
+  button:not(.no-tap-feedback),
+  a:not(.no-tap-feedback) {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
 /* Hide page headers when mobile menu is open (Navbar adds .menu-open to body) */
 body.menu-open .verified-shops-header {
   visibility: hidden;
   pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   APPLE COMPONENT UTILITIES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Cards - elevated, rounded, subtle shadow */
+.apple-card {
+  background: #FFFFFF;
+  border-radius: var(--radius-apple-lg);
+  box-shadow: var(--shadow-apple-sm);
+  transition: box-shadow var(--apple-transition);
+}
+.apple-card:hover {
+  box-shadow: var(--shadow-apple-md);
+}
+.dark .apple-card {
+  background: #1C1C1E;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Inset groups (list-style) */
+.apple-inset-group {
+  background: #FFFFFF;
+  border-radius: var(--radius-apple-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-apple-sm);
+}
+
+/* Glass / blur material */
+.apple-glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+/* Input fields - Apple style */
+.apple-input {
+  background: var(--color-apple-fill-tertiary);
+  border: none;
+  border-radius: var(--radius-apple-md);
+  padding: 12px 16px;
+  font-size: 17px;
+  transition: background var(--apple-transition-fast);
+  color: inherit;
+}
+.apple-input:focus {
+  outline: none;
+  background: var(--color-apple-fill-secondary);
+}
+.apple-input::placeholder {
+  color: var(--color-apple-label-tertiary);
+}
+.dark .apple-input {
+  background: rgba(118, 118, 128, 0.24);
+  color: #FFFFFF;
+}
+.dark .apple-input::placeholder {
+  color: rgba(235, 235, 245, 0.3);
+}
+
+/* Primary button - Apple blue */
+.apple-btn-primary {
+  background: var(--color-apple-blue);
+  color: white;
+  border: none;
+  border-radius: var(--radius-apple-full);
+  padding: 12px 24px;
+  font-weight: 600;
+  font-size: 17px;
+  transition: background var(--apple-transition-fast), transform var(--apple-transition-fast);
+}
+.apple-btn-primary:hover {
+  background: var(--color-apple-blue-hover);
+}
+.apple-btn-primary:active {
+  transform: scale(0.98);
+}
+
+/* Secondary button */
+.apple-btn-secondary {
+  background: transparent;
+  color: var(--color-apple-blue);
+  border: none;
+  border-radius: var(--radius-apple-full);
+  padding: 12px 24px;
+  font-weight: 600;
+  font-size: 17px;
+  transition: opacity var(--apple-transition-fast), transform var(--apple-transition-fast);
+}
+.apple-btn-secondary:hover {
+  opacity: 0.8;
+}
+.apple-btn-secondary:active {
+  transform: scale(0.98);
+}
+
+/* Section headers */
+.apple-section-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-apple-label);
+}
+.apple-section-caption {
+  font-size: 15px;
+  color: var(--color-apple-label-secondary);
+  margin-top: 4px;
 }

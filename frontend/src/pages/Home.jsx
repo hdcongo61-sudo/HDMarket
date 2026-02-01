@@ -101,16 +101,17 @@ const formatCount = (value) =>
   }, [category, page, sort]);
 
   // === CHARGEMENT DES PRODUITS ===
-const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await api.get("/products/public", { params });
+      const requestParams = { page, limit: 12, sort };
+      if (category) requestParams.category = category;
+      const { data } = await api.get("/products/public", { params: requestParams });
       const fetchedItems = Array.isArray(data) ? data : data.items || [];
       const pages = Array.isArray(data) ? 1 : data.pagination?.pages || 1;
       const total = Array.isArray(data)
         ? fetchedItems.length
         : Number(data?.pagination?.total) || fetchedItems.length;
-      
       setItems((prev) => (isMobileView && page > 1 ? [...prev, ...fetchedItems] : fetchedItems));
       setTotalPages(pages);
       setTotalProducts(total);
@@ -119,7 +120,7 @@ const loadProducts = async () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, sort, category, isMobileView]);
 
   const loadCertifiedProducts = useCallback(async () => {
     try {
@@ -304,7 +305,7 @@ const loadDiscountProducts = async () => {
       />
     );
     const wrapperClass =
-      "group block w-full overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm aspect-[16/9] sm:aspect-[21/7] lg:aspect-[24/7]";
+      "group block w-full overflow-hidden rounded-[16px] border border-[#E5E5EA] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.06)] aspect-[16/9] sm:aspect-[21/7] lg:aspect-[24/7] dark:bg-[#1C1C1E] dark:border-[#38383A]";
     if (bannerLink) {
       if (bannerLink.startsWith('/')) {
         return (
@@ -338,32 +339,27 @@ const loadDiscountProducts = async () => {
   }, [page, sort, category, isMobileView]);
 
   useEffect(() => {
-    if (page === initialPageRef.current) {
-      setSearchParams((prev) => {
-        const params = new URLSearchParams(prev);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        const targetPage = page === 1 ? null : String(page);
+        const currentInUrl = prev.get('page');
+        if (currentInUrl === targetPage) return prev;
         if (page === 1) {
-          params.delete('page');
+          next.delete('page');
         } else {
-          params.set('page', String(page));
+          next.set('page', String(page));
         }
-        return params;
-      }, { replace: true });
-    } else {
-      setSearchParams((prev) => {
-        const params = new URLSearchParams(prev);
-        if (page === 1) {
-          params.delete('page');
-        } else {
-          params.set('page', String(page));
-        }
-        return params;
-      }, { replace: false });
-    }
+        return next;
+      },
+      { replace: page === initialPageRef.current }
+    );
   }, [page, setSearchParams]);
 
   useEffect(() => {
-    initialPageRef.current = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1;
-    setPage(initialPageRef.current);
+    const validPage = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1;
+    initialPageRef.current = validPage;
+    setPage((prev) => (prev === validPage ? prev : validPage));
   }, [pageParam]);
 
   useEffect(() => {
@@ -486,7 +482,7 @@ const loadDiscountProducts = async () => {
           <Link
             to="/products"
             {...externalLinkProps}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-indigo-600 text-white text-xs font-bold whitespace-nowrap shadow-sm active:scale-95 transition-transform"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#007AFF] text-white text-xs font-bold whitespace-nowrap shadow-[0_1px_3px_rgba(0,0,0,0.08)] tap-feedback transition-transform"
           >
             <LayoutGrid className="w-3.5 h-3.5" />
             Tout
@@ -574,7 +570,7 @@ const loadDiscountProducts = async () => {
                 </div>
                 <h2 className="text-sm font-bold text-gray-900">Meilleures ventes</h2>
               </div>
-              <Link to="/top-sales" {...externalLinkProps} className="text-xs font-semibold text-indigo-600 flex items-center">
+              <Link to="/top-sales" {...externalLinkProps} className="text-xs font-semibold text-[#007AFF] flex items-center">
                 Voir tout <ChevronRight className="w-3 h-3 ml-0.5" />
               </Link>
             </div>
@@ -616,7 +612,7 @@ const loadDiscountProducts = async () => {
                 </div>
                 <h2 className="text-sm font-bold text-gray-900">Boutiques vérifiées</h2>
               </div>
-              <Link to="/shops/verified" {...externalLinkProps} className="text-xs font-semibold text-indigo-600 flex items-center">
+              <Link to="/shops/verified" {...externalLinkProps} className="text-xs font-semibold text-[#007AFF] flex items-center">
                 Voir tout <ChevronRight className="w-3 h-3 ml-0.5" />
               </Link>
             </div>
@@ -652,7 +648,7 @@ const loadDiscountProducts = async () => {
                   </div>
                   <h2 className="text-sm font-bold text-gray-900">{firstCity}</h2>
                 </div>
-                <Link to={`/cities?city=${encodeURIComponent(firstCity)}`} {...externalLinkProps} className="text-xs font-semibold text-indigo-600 flex items-center">
+                <Link to={`/cities?city=${encodeURIComponent(firstCity)}`} {...externalLinkProps} className="text-xs font-semibold text-[#007AFF] flex items-center">
                   Voir tout <ChevronRight className="w-3 h-3 ml-0.5" />
                 </Link>
               </div>
@@ -710,7 +706,7 @@ const loadDiscountProducts = async () => {
             <h2 className="text-base font-bold text-gray-900">Pour vous</h2>
             <Link
               to="/products"
-              className="inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 hover:text-indigo-700 hover:underline transition-colors"
+              className="inline-flex items-center gap-1 text-sm font-semibold text-[#007AFF] hover:text-[#0051D5] hover:underline transition-colors"
             >
               <span className="font-black tabular-nums">{formatCount(totalProducts)}</span>
               <span className="text-gray-600 font-medium">produits</span>
@@ -735,7 +731,7 @@ const loadDiscountProducts = async () => {
               </div>
               {loading && page > 1 && (
                 <div className="flex justify-center py-4">
-                  <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-6 h-6 border-2 border-[#007AFF] border-t-transparent rounded-full animate-spin" />
                 </div>
               )}
             </>
@@ -840,7 +836,7 @@ const loadDiscountProducts = async () => {
           <Link
             to="/products"
             {...externalLinkProps}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-indigo-600 text-white text-sm font-bold whitespace-nowrap shadow-sm hover:bg-indigo-700 transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#007AFF] text-white text-sm font-bold whitespace-nowrap shadow-[0_1px_3px_rgba(0,0,0,0.08)] hover:bg-[#0051D5] transition-colors"
           >
             <LayoutGrid className="w-4 h-4" />
             Tout
@@ -914,7 +910,7 @@ const loadDiscountProducts = async () => {
           </div>
 
           {/* Flash Deals Panel */}
-          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col">
+          <section className="apple-card p-4 flex flex-col">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center">
@@ -974,7 +970,7 @@ const loadDiscountProducts = async () => {
                 </div>
                 <h2 className="text-lg font-bold text-gray-900">Meilleures ventes</h2>
               </div>
-              <Link to="/top-sales" {...externalLinkProps} className="text-sm font-semibold text-indigo-600 flex items-center hover:text-indigo-500">
+              <Link to="/top-sales" {...externalLinkProps} className="text-sm font-semibold text-[#007AFF] flex items-center hover:text-[#0051D5]">
                 Voir tout <ChevronRight className="w-4 h-4 ml-0.5" />
               </Link>
             </div>
@@ -1017,7 +1013,7 @@ const loadDiscountProducts = async () => {
                 </div>
                 <h2 className="text-base font-bold text-gray-900">Boutiques vérifiées</h2>
               </div>
-              <Link to="/shops/verified" {...externalLinkProps} className="text-xs font-semibold text-indigo-600 hover:text-indigo-500">
+              <Link to="/shops/verified" {...externalLinkProps} className="text-xs font-semibold text-[#007AFF] hover:text-[#0051D5]">
                 Voir tout
               </Link>
             </div>
@@ -1056,7 +1052,7 @@ const loadDiscountProducts = async () => {
           <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-bold text-gray-900">Tendances</h2>
-              <Link to={activeTabData.link} {...externalLinkProps} className="text-xs font-semibold text-indigo-600 hover:text-indigo-500 flex items-center">
+              <Link to={activeTabData.link} {...externalLinkProps} className="text-xs font-semibold text-[#007AFF] hover:text-[#0051D5] flex items-center">
                 Voir tout <ChevronRight className="w-3 h-3 ml-0.5" />
               </Link>
             </div>
@@ -1106,7 +1102,7 @@ const loadDiscountProducts = async () => {
                       </span>
                     </div>
                     <div className="p-3">
-                      <p className="text-sm font-medium text-gray-700 truncate group-hover:text-indigo-600 transition-colors">{product.title}</p>
+                      <p className="text-sm font-medium text-gray-700 truncate group-hover:text-[#007AFF] transition-colors">{product.title}</p>
                       <p className="text-sm font-bold text-gray-900 mt-0.5">{Number(product.price || 0).toLocaleString()} FCFA</p>
                       {topProductsTab === 'favorites' && (
                         <div className="flex items-center gap-1 mt-1 text-xs text-gray-500">
@@ -1248,7 +1244,7 @@ const loadDiscountProducts = async () => {
               <p className="text-gray-500 text-sm mb-4">Modifiez vos critères de filtrage</p>
               <button
                 onClick={() => { setCategory(''); setSort('new'); setPage(1); }}
-                className="px-5 py-2.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors text-sm"
+                className="apple-btn-primary px-5 py-2.5 text-sm"
               >
                 Réinitialiser les filtres
               </button>
@@ -1299,7 +1295,7 @@ const loadDiscountProducts = async () => {
                 {categoryGroups.map((group, index) => {
                   const Icon = group.icon;
                   const categoryStyles = [
-                    { bg: 'from-blue-500/10 to-cyan-500/10', icon: 'text-blue-600 dark:text-blue-400', border: 'border-blue-200/50 dark:border-blue-800/50', hover: 'hover:from-blue-500/20 hover:to-cyan-500/20' },
+                    { bg: 'from-[#007AFF]/10 to-[#34C7FE]/10', icon: 'text-[#007AFF]', border: 'border-[#007AFF]/20', hover: 'hover:from-[#007AFF]/20 hover:to-[#34C7FE]/20' },
                     { bg: 'from-pink-500/10 to-rose-500/10', icon: 'text-pink-600 dark:text-pink-400', border: 'border-pink-200/50 dark:border-pink-800/50', hover: 'hover:from-pink-500/20 hover:to-rose-500/20' },
                     { bg: 'from-emerald-500/10 to-teal-500/10', icon: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200/50 dark:border-emerald-800/50', hover: 'hover:from-emerald-500/20 hover:to-teal-500/20' },
                     { bg: 'from-amber-500/10 to-orange-500/10', icon: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200/50 dark:border-amber-800/50', hover: 'hover:from-amber-500/20 hover:to-orange-500/20' },

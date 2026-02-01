@@ -47,6 +47,7 @@ import OrderChat from '../components/OrderChat';
 import CartContext from '../context/CartContext';
 import AuthContext from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import useIsMobile from '../hooks/useIsMobile';
 
 const STATUS_LABELS = {
   pending: 'En attente',
@@ -221,6 +222,7 @@ export default function UserOrders() {
   const [editAddressModalOpen, setEditAddressModalOpen] = useState(false);
   const [selectedOrderForEdit, setSelectedOrderForEdit] = useState(null);
   const [reordering, setReordering] = useState(false);
+  const [skipLoadingId, setSkipLoadingId] = useState(null);
   const [searchDraft, setSearchDraft] = useState('');
   const [searchValue, setSearchValue] = useState('');
   const [orderUnreadCounts, setOrderUnreadCounts] = useState({});
@@ -246,6 +248,7 @@ export default function UserOrders() {
   const { status: statusParam } = useParams();
   const { addItem } = useContext(CartContext);
   const navigate = useNavigate();
+  const isMobile = useIsMobile(768);
 
   const activeStatus = useMemo(() => {
     if (!statusParam) return 'all';
@@ -444,9 +447,12 @@ export default function UserOrders() {
     }
   };
 
+  const initialLoadDone = useRef(false);
   useEffect(() => {
     const loadOrders = async () => {
-      setLoading(true);
+      if (!initialLoadDone.current) {
+        setLoading(true);
+      }
       setError('');
       try {
         const params = new URLSearchParams();
@@ -454,6 +460,9 @@ export default function UserOrders() {
         params.set('limit', PAGE_SIZE);
         if (activeStatus !== 'all') {
           params.set('status', activeStatus);
+        }
+        if (searchValue.trim()) {
+          params.set('search', searchValue.trim());
         }
         const { data } = await api.get(`/orders?${params.toString()}`);
         const items = Array.isArray(data) ? data : data?.items || [];
@@ -479,6 +488,7 @@ export default function UserOrders() {
         setMeta({ total: 0, totalPages: 1 });
       } finally {
         setLoading(false);
+        initialLoadDone.current = true;
       }
     };
     loadOrders();
@@ -556,28 +566,30 @@ export default function UserOrders() {
       ? 'Vous n\'avez pas encore de commande.'
       : `Aucune commande ${STATUS_LABELS[activeStatus].toLowerCase()} pour le moment.`;
 
+  const handleSkipCancellationWindow = async (orderId) => {
+    if (!confirm('En confirmant, vous autorisez le vendeur à traiter immédiatement cette commande. Vous ne pourrez plus l\'annuler.')) {
+      return;
+    }
+
+    setSkipLoadingId(orderId);
+    try {
+      const { data } = await api.post(`/orders/${orderId}/skip-cancellation-window`);
+      setOrders((prev) => prev.map((o) => (o._id === orderId ? data : o)));
+    } catch (err) {
+      alert(err.response?.data?.message || 'Impossible de lever le délai d\'annulation.');
+    } finally {
+      setSkipLoadingId(null);
+    }
+  };
+
   const handleCancelOrder = async (orderId) => {
     if (!confirm('Êtes-vous sûr de vouloir annuler cette commande ? Cette action est irréversible.')) {
       return;
     }
 
     try {
-      await api.patch(`/orders/${orderId}/status`, { status: 'cancelled' });
-      // Reload orders
-      const params = new URLSearchParams();
-      params.set('page', page);
-      params.set('limit', PAGE_SIZE);
-      if (activeStatus !== 'all') {
-        params.set('status', activeStatus);
-      }
-      const { data } = await api.get(`/orders?${params.toString()}`);
-      const items = Array.isArray(data) ? data : data?.items || [];
-      const totalPages = Math.max(1, Number(data?.totalPages) || 1);
-      setOrders(items);
-      setMeta({
-        total: data?.total ?? items.length,
-        totalPages
-      });
+      const { data } = await api.patch(`/orders/${orderId}/status`, { status: 'cancelled' });
+      setOrders((prev) => prev.map((o) => (o._id === orderId ? data : o)));
     } catch (err) {
       alert(err.response?.data?.message || 'Impossible d\'annuler la commande.');
     }
@@ -592,24 +604,8 @@ export default function UserOrders() {
     if (!selectedOrderForEdit) return;
     
     try {
-      await api.patch(`/orders/${selectedOrderForEdit._id}/address`, addressData);
-      
-      // Reload orders
-      const params = new URLSearchParams();
-      params.set('page', page);
-      params.set('limit', PAGE_SIZE);
-      if (activeStatus !== 'all') {
-        params.set('status', activeStatus);
-      }
-      const { data } = await api.get(`/orders?${params.toString()}`);
-      const items = Array.isArray(data) ? data : data?.items || [];
-      const totalPages = Math.max(1, Number(data?.totalPages) || 1);
-      setOrders(items);
-      setMeta({
-        total: data?.total ?? items.length,
-        totalPages
-      });
-      
+      const { data } = await api.patch(`/orders/${selectedOrderForEdit._id}/address`, addressData);
+      setOrders((prev) => prev.map((o) => (o._id === selectedOrderForEdit._id ? data : o)));
       setEditAddressModalOpen(false);
       setSelectedOrderForEdit(null);
     } catch (err) {
@@ -853,35 +849,37 @@ export default function UserOrders() {
         </div>
       )}
 
-      {/* Header Section */}
+      {/* Header Section - Compact on mobile */}
       <div className={`bg-indigo-600 text-white ${!isOnline ? 'mt-10' : ''}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-2">
+        <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${isMobile ? 'py-6 safe-area-top' : 'py-12'}`}>
+          <div className="flex flex-col gap-4 sm:gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1 sm:space-y-2">
               <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
-                  <ClipboardList className="w-6 h-6" />
+                <div className={`rounded-xl bg-white/20 backdrop-blur-sm ${isMobile ? 'p-2' : 'p-3'}`}>
+                  <ClipboardList className={isMobile ? 'w-5 h-5' : 'w-6 h-6'} />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-white/80 uppercase tracking-wide">Mes commandes</p>
-                  <h1 className="text-3xl font-bold">Suivi de vos commandes</h1>
+                  <p className="text-xs sm:text-sm font-medium text-white/80 uppercase tracking-wide">Mes commandes</p>
+                  <h1 className={isMobile ? 'text-xl font-bold' : 'text-3xl font-bold'}>Suivi de vos commandes</h1>
                 </div>
               </div>
-              <p className="text-white/90 text-sm max-w-2xl">
-                Consultez l'état de vos commandes, suivez les livraisons et accédez à tous les détails de vos achats.
-              </p>
+              {!isMobile && (
+                <p className="text-white/90 text-sm max-w-2xl">
+                  Consultez l'état de vos commandes, suivez les livraisons et accédez à tous les détails de vos achats.
+                </p>
+              )}
             </div>
             <div className="flex flex-wrap gap-2">
               <Link
                 to="/"
-                className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition-all"
+                className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-2.5 min-h-[44px] text-sm font-semibold text-white hover:bg-white/20 transition-all active:scale-[0.98]"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Accueil
               </Link>
               <Link
                 to="/my/stats"
-                className="inline-flex items-center gap-2 rounded-xl bg-white text-indigo-600 px-4 py-2.5 text-sm font-semibold hover:bg-white/90 transition-all shadow-lg"
+                className="inline-flex items-center gap-2 rounded-xl bg-white text-indigo-600 px-4 py-2.5 min-h-[44px] text-sm font-semibold hover:bg-white/90 transition-all shadow-lg active:scale-[0.98]"
               >
                 <TrendingUp className="w-4 h-4" />
                 Statistiques
@@ -891,10 +889,42 @@ export default function UserOrders() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 pb-12">
-        {/* Statistics Cards */}
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${isMobile ? '-mt-4 pb-6' : '-mt-8 pb-12'} pb-[env(safe-area-inset-bottom)]`}>
+        {/* Statistics Cards - Horizontal scroll on mobile */}
         {!statsLoading && stats.total > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className={`mb-6 sm:mb-8 ${isMobile ? 'overflow-x-auto -mx-4 px-4 hide-scrollbar' : ''}`}>
+            {isMobile ? (
+              <div className="flex gap-3 pb-2" style={{ minWidth: 'min-content' }}>
+                <div className="flex-shrink-0 w-[140px] bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-2 rounded-lg bg-indigo-600">
+                      <ClipboardList className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-xl font-bold text-gray-900">{stats.total}</span>
+                  </div>
+                  <p className="text-xs font-semibold text-gray-600 truncate">Total</p>
+                </div>
+                <div className="flex-shrink-0 w-[140px] bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-2 rounded-lg bg-emerald-600">
+                      <DollarSign className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-lg font-bold text-gray-900 truncate" title={formatCurrency(stats.totalAmount)}>{formatCurrency(stats.totalAmount).replace(/\sFCFA$/, '')}</span>
+                  </div>
+                  <p className="text-xs font-semibold text-gray-600 truncate">Dépensé</p>
+                </div>
+                <div className="flex-shrink-0 w-[140px] bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-2 rounded-lg bg-amber-600">
+                      <Clock className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-xl font-bold text-gray-900">{stats.byStatus.pending || 0}</span>
+                  </div>
+                  <p className="text-xs font-semibold text-gray-600 truncate">En attente</p>
+                </div>
+              </div>
+            ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 rounded-xl bg-indigo-600">
@@ -925,14 +955,16 @@ export default function UserOrders() {
               <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">En attente</p>
               <p className="text-xs text-gray-500 mt-1">Commandes en cours de traitement</p>
             </div>
+            </div>
+            )}
           </div>
         )}
 
         {/* Search and Status Tabs */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-8 space-y-4">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-6 sm:mb-8 space-y-4">
           {/* Search Bar and Filter Toggle */}
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1 max-w-md">
+          <div className={`flex items-center gap-2 sm:gap-3 ${isMobile ? 'flex-col' : ''}`}>
+            <div className={`relative w-full ${isMobile ? '' : 'flex-1 max-w-md'}`}>
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
@@ -952,14 +984,15 @@ export default function UserOrders() {
                 </button>
               )}
             </div>
+            <div className={`flex items-center gap-2 ${isMobile ? 'w-full' : ''}`}>
             <button
               type="button"
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+              className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 min-h-[44px] ${
                 showFilters || hasActiveFilters
                   ? 'bg-indigo-600 text-white shadow-lg'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
-              }`}
+              } ${isMobile ? 'flex-1' : ''}`}
             >
               <Filter className="w-4 h-4" />
               <span>Filtres</span>
@@ -971,7 +1004,8 @@ export default function UserOrders() {
               {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
 
-            {/* View Mode Toggle */}
+            {/* View Mode Toggle - Hidden on mobile (card view is default and best) */}
+            {!isMobile && (
             <div className="flex items-center rounded-xl border border-gray-200 bg-gray-50 p-1">
               <button
                 type="button"
@@ -999,6 +1033,8 @@ export default function UserOrders() {
                 <List className="w-4 h-4" />
                 <span className="hidden sm:inline">Liste</span>
               </button>
+            </div>
+            )}
             </div>
           </div>
 
@@ -1157,8 +1193,8 @@ export default function UserOrders() {
             </div>
           )}
 
-          {/* Status Tabs */}
-          <div className="flex flex-wrap gap-2">
+          {/* Status Tabs - Horizontal scroll on mobile with snap */}
+          <div className={`flex gap-2 ${isMobile ? 'overflow-x-auto pb-2 -mx-1 px-1 hide-scrollbar snap-x snap-mandatory' : 'flex-wrap'}`} style={isMobile ? { WebkitOverflowScrolling: 'touch' } : undefined}>
             {STATUS_TABS.map((tab) => {
               const isActive = tab.key === activeStatus;
               const to = tab.key === 'all' ? '/orders' : `/orders/${tab.key}`;
@@ -1169,16 +1205,16 @@ export default function UserOrders() {
                 <Link
                   key={tab.key}
                   to={to}
-                  className={`group relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                  className={`group relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 min-h-[44px] flex-shrink-0 snap-start ${
                     isActive
                       ? 'bg-indigo-600 text-white shadow-lg scale-105'
                       : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
-                  <span>{tab.label}</span>
+                  <Icon className="w-4 h-4 flex-shrink-0" />
+                  <span className="whitespace-nowrap">{tab.label}</span>
                   {count > 0 && (
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold flex-shrink-0 ${
                       isActive
                         ? 'bg-white/20 text-white'
                         : 'bg-indigo-100 text-indigo-700'
@@ -1221,7 +1257,7 @@ export default function UserOrders() {
                 <button
                   type="button"
                   onClick={resetFilters}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition-all"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 min-h-[48px] rounded-xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition-all active:scale-[0.98]"
                 >
                   <RotateCcw className="w-4 h-4" />
                   Réinitialiser les filtres
@@ -1229,7 +1265,7 @@ export default function UserOrders() {
               )}
               <Link
                 to="/"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 min-h-[48px] rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
               >
                 <Sparkles className="w-4 h-4" />
                 Découvrir nos produits
@@ -1238,8 +1274,8 @@ export default function UserOrders() {
           </div>
         ) : (
           <>
-            {/* List View */}
-            {viewMode === 'list' && (
+            {/* List View - Hidden on mobile (card view is better for touch) */}
+            {viewMode === 'list' && !isMobile && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 {/* List Header */}
                 <div className="hidden md:grid md:grid-cols-12 gap-4 px-6 py-3 bg-gray-50 border-b border-gray-100 text-xs font-bold text-gray-500 uppercase tracking-wide">
@@ -1343,9 +1379,9 @@ export default function UserOrders() {
               </div>
             )}
 
-            {/* Card View */}
-            {viewMode === 'card' && (
-            <div className="space-y-6">
+            {/* Card View - Default on mobile */}
+            {(viewMode === 'card' || isMobile) && (
+            <div className={`space-y-4 sm:space-y-6 ${isMobile ? 'pb-4' : ''}`}>
               {filteredOrders.map((order) => {
                 const orderItems =
                   order.items && order.items.length
@@ -1442,29 +1478,42 @@ export default function UserOrders() {
                             remainingMs={order.cancellationWindow.remainingMs}
                             isActive={order.cancellationWindow.isActive}
                             onExpire={() => {
-                              // Reload orders when timer expires
-                              const params = new URLSearchParams();
-                              params.set('page', page);
-                              params.set('limit', PAGE_SIZE);
-                              if (activeStatus !== 'all') {
-                                params.set('status', activeStatus);
-                              }
-                              api.get(`/orders?${params.toString()}`).then(({ data }) => {
-                                const items = Array.isArray(data) ? data : data?.items || [];
-                                setOrders(items);
-                              });
+                              // Update order in state when timer expires (no page reload)
+                              setOrders((prev) =>
+                                prev.map((o) =>
+                                  o._id === order._id
+                                    ? {
+                                        ...o,
+                                        cancellationWindow: {
+                                          ...o.cancellationWindow,
+                                          isActive: false,
+                                          remainingMs: 0
+                                        }
+                                      }
+                                    : o
+                                )
+                              );
                             }}
                           />
                           <button
                             type="button"
+                            onClick={() => handleSkipCancellationWindow(order._id)}
+                            disabled={skipLoadingId === order._id}
+                            className="w-full px-6 py-3 min-h-[48px] rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-70 active:scale-[0.98]"
+                          >
+                            <ShieldCheck className="w-5 h-5" />
+                            {skipLoadingId === order._id ? 'En cours...' : 'Autoriser le vendeur à traiter'}
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => handleCancelOrder(order._id)}
-                            className="w-full px-6 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
+                            className="w-full px-6 py-3 min-h-[48px] rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 active:scale-[0.98]"
                           >
                             <X className="w-5 h-5" />
                             Annuler la commande
                           </button>
                           <p className="text-xs text-gray-500 text-center">
-                            Vous pouvez annuler cette commande dans les 30 minutes suivant sa création. Le vendeur ne pourra pas modifier le statut pendant ce délai.
+                            Vous pouvez annuler cette commande dans les 30 minutes suivant sa création. Si vous confirmez, le vendeur pourra traiter immédiatement.
                           </p>
                         </div>
                       )}
@@ -1569,7 +1618,7 @@ export default function UserOrders() {
                               <button
                                 type="button"
                                 onClick={() => handleEditAddress(order)}
-                                className="px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-semibold hover:bg-indigo-100 transition-all"
+                                className="px-4 py-2 min-h-[40px] rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-semibold hover:bg-indigo-100 transition-all active:scale-[0.98]"
                               >
                                 Modifier
                               </button>
@@ -1706,7 +1755,7 @@ export default function UserOrders() {
                             type="button"
                             onClick={() => handleReorder(order)}
                             disabled={reordering}
-                            className="w-full px-6 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full px-6 py-3 min-h-[48px] rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
                           >
                             {reordering ? (
                               <>

@@ -72,19 +72,19 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-[#F2F2F7] dark:bg-black">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <div className="flex justify-center mb-6">
-            <div className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-lg">
+            <div className="w-20 h-20 bg-[#007AFF] rounded-[20px] flex items-center justify-center shadow-[0_4px_12px_rgba(0,122,255,0.3)]">
               <ShieldCheck className="w-10 h-10 text-white" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Réinitialiser le mot de passe</h1>
-          <p className="text-gray-500">Recevez un code par email pour sécuriser la réinitialisation</p>
+          <h1 className="text-[28px] font-semibold text-black dark:text-white mb-2">Réinitialiser le mot de passe</h1>
+          <p className="text-[15px] text-[#8E8E93]">Recevez un code par email pour sécuriser la réinitialisation</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+        <div className="apple-card p-8">
           <form onSubmit={submit} className="space-y-6">
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
@@ -139,7 +139,7 @@ export default function ForgotPassword() {
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  className="w-full px-4 py-3 pl-11 pr-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+                  className="apple-input w-full pl-12 pr-12"
                   placeholder="Votre nouveau mot de passe"
                   value={form.newPassword}
                   onChange={(e) => setForm((prev) => ({ ...prev, newPassword: e.target.value }))}
@@ -190,7 +190,7 @@ export default function ForgotPassword() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 shadow-lg"
+              className="apple-btn-primary w-full py-4 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -209,7 +209,7 @@ export default function ForgotPassword() {
           <div className="text-center mt-6 pt-6 border-t border-gray-100">
             <Link
               to="/login"
-              className="inline-flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-500 font-semibold transition-colors"
+              className="inline-flex items-center gap-2 text-[15px] text-[#007AFF] hover:underline font-semibold transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               Retour à la connexion

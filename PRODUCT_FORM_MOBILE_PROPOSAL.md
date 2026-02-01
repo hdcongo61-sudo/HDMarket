@@ -2,7 +2,48 @@
 
 ## Summary
 
-This document describes the mobile-focused redesign of the product creation/editing form (ProductForm) and its integration in the User Dashboard. The goal is to make publishing and editing listings more convenient on phones and small screens.
+This document describes the mobile-focused redesign of the product creation/editing form (ProductForm) and its integration in the User Dashboard. The form follows **Apple Human Interface Guidelines** on mobile: system background, grouped cards, clear hierarchy, and native-feel controls. The goal is to make publishing and editing listings more convenient and familiar on phones and small screens.
+
+---
+
+## Apple Principle Design (Mobile)
+
+The following Apple design principles are applied when the form is shown on viewports ≤768px (`useIsMobile(768)`).
+
+### Visual language
+- **System background:** The form sits on a light gray system-style background (`#f2f2f7`) instead of white, reducing glare and matching iOS Settings/Forms patterns.
+- **Grouped content:** The main form is a single white card (`rounded-2xl`, `shadow-sm`) with consistent horizontal padding (`mx-4`, `p-4`), so content reads as one grouped block.
+- **Typography:** Section titles use 17px semibold (iOS list style); header uses 22px bold with a short subtitle for hierarchy.
+
+### Header
+- **Compact header:** Icon in a small white rounded square (not gradient pill); title and subtitle left-aligned with comfortable spacing.
+- **No centered hero:** On mobile the header is compact and scannable so more space stays for the form.
+
+### Sections (collapsible)
+- **List-style rows:** Each section (Informations du produit, Photos du produit) is a tappable row with:
+  - A small **icon in a rounded square** (e.g. indigo/blue tint) instead of a thin gradient bar.
+  - **17px semibold** title.
+  - **Chevron** (up/down) to show expanded state; chevron uses neutral gray.
+  - **Min height 48px** and `active:bg-gray-100/80` for clear touch feedback.
+- **Expand/collapse:** Tapping the row expands or collapses the section content without reloading.
+
+### Primary action
+- **Sticky bar:** The submit button is fixed to the bottom with **safe-area insets** so it sits above the home indicator.
+- **Apple-style primary:** Solid blue (`bg-blue-500`) instead of gradient; 17px semibold label; subtle shadow and `active:opacity-90`.
+- **Bar background:** The bar uses the same system gray with backdrop blur (`bg-[#f2f2f7]/95 backdrop-blur-xl`) so it feels part of the system.
+
+### Inputs and controls
+- **Rounded fields:** Inputs and selects keep `rounded-xl`, sufficient padding, and min height for touch.
+- **Contrast:** Inputs use `bg-gray-50` inside the white card for clear separation from the background.
+- **Price:** `inputMode="decimal"` and mobile-friendly height/typography for numeric entry.
+
+### Image area
+- **Upload zone:** Large tap target, clear “Appuyez pour ajouter des photos” copy.
+- **Per-photo choice:** After selecting photos, the user chooses per image “Recadrer” or “Laisser tel quel,” with badges and actions in a card layout.
+
+### Safe areas and accessibility
+- **Safe area:** Sticky submit and any full-screen crop overlay respect `env(safe-area-inset-bottom)` and safe-area utilities.
+- **Touch targets:** Section rows and primary buttons meet or exceed 44–48px height; `touch-manipulation` is used where appropriate.
 
 ---
 
@@ -75,6 +116,18 @@ This document describes the mobile-focused redesign of the product creation/edit
 - **Breakpoint:** Mobile behavior uses `useIsMobile(768)` (max-width 768px) in both ProductForm and UserDashboard.
 - **editImageCrop:** The previously missing `editImageCrop(index)` was implemented so existing previews can be re-opened for cropping.
 - **No new dependencies:** All behavior is done with existing React state, Tailwind, and the current `useIsMobile` hook.
+
+---
+
+## Proposal Summary
+
+The product form mobile design proposal is:
+
+1. **Apply Apple HIG on mobile** — Use system background (`#f2f2f7`), a single white grouped card for the form, list-style section rows with icon + title + chevron, and a solid blue primary button in a sticky bar with safe-area insets.
+2. **Keep existing behavior** — Full-screen modal from the dashboard, collapsible sections, sticky submit, larger touch targets, and image crop/choice flow remain; only the visual language and hierarchy are aligned with Apple principles.
+3. **No new dependencies** — All changes use existing Tailwind classes, `useIsMobile(768)`, and React state.
+
+This keeps the form familiar to iOS users and improves perceived quality and usability on mobile.
 
 ---
 

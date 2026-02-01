@@ -55,6 +55,7 @@ const formatDateTime = (value) => {
 const NotificationPreferences = ({ preferences, onUpdate }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const isMobile = useIsMobile(768);
 
   const handleToggle = async (type) => {
     setSaving(true);
@@ -86,7 +87,13 @@ const NotificationPreferences = ({ preferences, onUpdate }) => {
             className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border-2 border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+          <div
+            className={`z-50 overflow-hidden bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border-2 border-gray-200 dark:border-gray-700 ${
+              isMobile
+                ? 'fixed left-1/2 -translate-x-1/2 top-[4.5rem] w-[calc(100vw-2rem)] max-w-sm'
+                : 'absolute right-0 top-full mt-2 w-80 sm:w-96'
+            }`}
+          >
             <div className="bg-gradient-to-br from-indigo-600 via-indigo-600 to-purple-600 px-6 py-5">
               <div className="flex items-center justify-between">
                 <div>

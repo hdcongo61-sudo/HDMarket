@@ -1,5 +1,5 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import {
   ClipboardList,
   Package,
@@ -208,10 +208,6 @@ export default function SellerOrders() {
   const [orderUnreadCounts, setOrderUnreadCounts] = useState({});
   const { status: statusParam } = useParams();
 
-  if (user?.role === 'admin') {
-    return <Navigate to="/admin/orders" replace />;
-  }
-
   const activeStatus = useMemo(() => {
     if (!statusParam) return 'all';
     return Object.keys(STATUS_LABELS).includes(statusParam) ? statusParam : 'all';
@@ -229,7 +225,14 @@ export default function SellerOrders() {
       try {
         const { data } = await api.get('/orders/seller?limit=1000');
         if (!active) return;
-        const allOrders = Array.isArray(data) ? data : data?.items || [];
+        const rawOrders = Array.isArray(data) ? data : data?.items || [];
+        // Deduplicate orders by _id
+        const seenIds = new Set();
+        const allOrders = rawOrders.filter((order) => {
+          if (!order?._id || seenIds.has(order._id)) return false;
+          seenIds.add(order._id);
+          return true;
+        });
         const total = allOrders.length;
         const totalAmount = allOrders.reduce((sum, order) => {
           const items = order.items || [];
@@ -280,9 +283,12 @@ export default function SellerOrders() {
     }
   };
 
+  const initialLoadDone = useRef(false);
   useEffect(() => {
     const loadOrders = async () => {
-      setLoading(true);
+      if (!initialLoadDone.current) {
+        setLoading(true);
+      }
       setError('');
       try {
         const params = new URLSearchParams();
@@ -293,8 +299,15 @@ export default function SellerOrders() {
         }
         const { data } = await api.get(`/orders/seller?${params.toString()}`);
         const items = Array.isArray(data) ? data : data?.items || [];
+        // Deduplicate orders by _id to prevent any duplicate display issues
+        const seenIds = new Set();
+        const uniqueOrders = items.filter((order) => {
+          if (!order?._id || seenIds.has(order._id)) return false;
+          seenIds.add(order._id);
+          return true;
+        });
         const totalPages = Math.max(1, Number(data?.totalPages) || 1);
-        setOrders(items);
+        setOrders(uniqueOrders);
         
         // Load unread message counts
         const orderIds = items.map((order) => order._id);
@@ -315,6 +328,7 @@ export default function SellerOrders() {
         setMeta({ total: 0, totalPages: 1 });
       } finally {
         setLoading(false);
+        initialLoadDone.current = true;
       }
     };
     loadOrders();
@@ -327,17 +341,27 @@ export default function SellerOrders() {
       const { data } = await api.patch(`/orders/seller/${orderId}/status`, {
         status: nextStatus
       });
-      setOrders((prev) => prev.map((order) => (order._id === orderId ? data : order)));
+      const prevOrder = orders.find((o) => o._id === orderId);
+      const prevStatus = prevOrder?.status || 'pending';
+      setOrders((prev) => {
+        const updated = prev.map((order) => (order._id === orderId ? data : order));
+        // Deduplicate by _id
+        const seenIds = new Set();
+        return updated.filter((order) => {
+          if (!order?._id || seenIds.has(order._id)) return false;
+          seenIds.add(order._id);
+          return true;
+        });
+      });
+      setStats((s) => ({
+        ...s,
+        byStatus: {
+          ...s.byStatus,
+          [prevStatus]: Math.max(0, (s.byStatus[prevStatus] || 1) - 1),
+          [nextStatus]: (s.byStatus[nextStatus] || 0) + 1
+        }
+      }));
       showToast('Statut de la commande mis à jour.', { variant: 'success' });
-      // Reload stats
-      const { data: statsData } = await api.get('/orders/seller?limit=1000');
-      const allOrders = Array.isArray(statsData) ? statsData : statsData?.items || [];
-      const byStatus = allOrders.reduce((acc, order) => {
-        const status = order.status || 'pending';
-        acc[status] = (acc[status] || 0) + 1;
-        return acc;
-      }, {});
-      setStats((prev) => ({ ...prev, byStatus }));
     } catch (err) {
       const message =
         err.response?.data?.message || 'Impossible de mettre à jour le statut.';
@@ -375,18 +399,28 @@ export default function SellerOrders() {
       const { data } = await api.post(`/orders/seller/${cancelOrderId}/cancel`, {
         reason: trimmedReason
       });
-      setOrders((prev) => prev.map((order) => (order._id === cancelOrderId ? data : order)));
+      const prevOrder = orders.find((o) => o._id === cancelOrderId);
+      const prevStatus = prevOrder?.status || 'pending';
+      setOrders((prev) => {
+        const updated = prev.map((order) => (order._id === cancelOrderId ? data : order));
+        // Deduplicate by _id
+        const seenIds = new Set();
+        return updated.filter((order) => {
+          if (!order?._id || seenIds.has(order._id)) return false;
+          seenIds.add(order._id);
+          return true;
+        });
+      });
+      setStats((s) => ({
+        ...s,
+        byStatus: {
+          ...s.byStatus,
+          [prevStatus]: Math.max(0, (s.byStatus[prevStatus] || 1) - 1),
+          cancelled: (s.byStatus.cancelled || 0) + 1
+        }
+      }));
       showToast('Commande annulée avec succès. Le client a été notifié.', { variant: 'success' });
       closeCancelModal();
-      // Reload stats
-      const { data: statsData } = await api.get('/orders/seller?limit=1000');
-      const allOrders = Array.isArray(statsData) ? statsData : statsData?.items || [];
-      const byStatus = allOrders.reduce((acc, order) => {
-        const status = order.status || 'pending';
-        acc[status] = (acc[status] || 0) + 1;
-        return acc;
-      }, {});
-      setStats((prev) => ({ ...prev, byStatus }));
     } catch (err) {
       const message = err.response?.data?.message || err.response?.data?.details?.[0] || 'Impossible d\'annuler la commande.';
       showToast(message, { variant: 'error' });
@@ -450,6 +484,15 @@ export default function SellerOrders() {
                 <ArrowLeft className="w-4 h-4" />
                 Accueil
               </Link>
+              {(user?.role === 'admin' || user?.role === 'manager') && (
+                <Link
+                  to="/admin/orders"
+                  className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition-all"
+                >
+                  <ClipboardList className="w-4 h-4" />
+                  Toutes les commandes (admin)
+                </Link>
+              )}
               <Link
                 to="/my/stats"
                 className="inline-flex items-center gap-2 rounded-xl bg-white text-indigo-600 px-4 py-2.5 text-sm font-semibold hover:bg-white/90 transition-all shadow-lg"

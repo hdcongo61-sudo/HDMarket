@@ -360,7 +360,7 @@ export default function OrderCheckout() {
                             handlePaymentChange(group.sellerId, 'transactionCode', e.target.value)
                           }
                           className="w-full border-none p-0 text-sm font-medium focus:outline-none"
-                          placeholder="Ex: TRX123456"
+                          placeholder="ID de votre transaction Mobile Money"
                         />
                       </div>
                     </div>

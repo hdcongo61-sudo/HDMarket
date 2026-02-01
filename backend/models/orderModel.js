@@ -64,7 +64,8 @@ const orderSchema = new mongoose.Schema(
       default: []
     },
     archivedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-    deletedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
+    deletedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    cancellationWindowSkippedAt: { type: Date } // When buyer confirms they won't cancel, allows seller to process immediately
   },
   { timestamps: true }
 );
