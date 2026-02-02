@@ -225,6 +225,21 @@ export default function PaymentForm({ product, onSubmitted }) {
               </select>
             </div>
 
+            {/* Exemple SMS : où trouver l'ID de la transaction */}
+            <div className="md:col-span-2 space-y-2">
+              <p className="text-sm font-medium text-gray-700">Exemple : où trouver l'ID de la transaction dans le SMS</p>
+              <div className="rounded-xl border-2 border-indigo-100 bg-indigo-50/50 p-3 overflow-hidden">
+                <img
+                  src="/images/transaction-id-sms-example.png"
+                  alt="Exemple de SMS Mobile Money montrant l'ID de la transaction (ex: 7232173826)"
+                  className="w-full max-w-md mx-auto rounded-lg border border-gray-200 bg-white shadow-sm object-contain"
+                />
+                <p className="text-xs text-gray-600 mt-2 text-center">
+                  Saisissez le numéro indiqué à côté de «&nbsp;ID&nbsp;» ou «&nbsp;ID de la transaction&nbsp;» dans le SMS de confirmation.
+                </p>
+              </div>
+            </div>
+
             {/* Numéro de transaction */}
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
@@ -233,7 +248,7 @@ export default function PaymentForm({ product, onSubmitted }) {
               </label>
               <input
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
-                placeholder="Numéro reçu par SMS"
+                placeholder="Numéro reçu par SMS (ex: 7232173826)"
                 value={form.transactionNumber}
                 onChange={(e) => setForm({ ...form, transactionNumber: e.target.value })}
                 disabled={loading}

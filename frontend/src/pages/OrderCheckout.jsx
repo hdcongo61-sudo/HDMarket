@@ -346,6 +346,18 @@ export default function OrderCheckout() {
                         placeholder={user?.name || 'Ex: Jean K.'}
                       />
                     </div>
+
+                    <div className="rounded-xl border-2 border-blue-100 bg-blue-50/50 p-3 overflow-hidden">
+                      <p className="text-xs font-bold uppercase text-blue-800 mb-2">Exemple : où trouver l'ID dans le SMS</p>
+                      <img
+                        src="/images/transaction-id-sms-example-checkout.png"
+                        alt="Exemple de SMS Mobile Money montrant l'ID de la transaction (ex: 7232173826)"
+                        className="w-full max-w-sm mx-auto rounded-lg border border-gray-200 bg-white shadow-sm object-contain"
+                      />
+                      <p className="text-xs text-blue-700 mt-2 text-center">
+                        Saisissez le numéro indiqué à côté de «&nbsp;ID&nbsp;» ou «&nbsp;ID de la transaction&nbsp;» dans le SMS de confirmation.
+                      </p>
+                    </div>
                     
                     <div>
                       <label className="block text-xs font-bold uppercase text-gray-700 mb-2">
