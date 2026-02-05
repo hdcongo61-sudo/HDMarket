@@ -36,7 +36,8 @@ import {
   uploadOrderMessageAttachment,
   addOrderMessageReaction,
   removeOrderMessageReaction,
-  deleteOrderMessage
+  deleteOrderMessage,
+  updateOrderMessage
 } from '../controllers/orderMessageController.js';
 import { chatUpload } from '../utils/chatUpload.js';
 
@@ -110,6 +111,7 @@ router.post(
   validate(schemas.orderMessage),
   sendOrderMessage
 );
+router.patch('/:orderId/messages/:messageId', validate(schemas.orderMessageUpdate, 'body'), updateOrderMessage);
 router.delete('/:orderId/messages/:messageId', deleteOrderMessage);
 router.post('/messages/upload', chatUpload.single('file'), uploadOrderMessageAttachment);
 router.post('/messages/:messageId/reactions', addOrderMessageReaction);

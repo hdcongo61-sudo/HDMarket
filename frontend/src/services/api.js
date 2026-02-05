@@ -16,7 +16,8 @@ const CACHE_STORAGE_KEY = 'hdmarket:cache-keys'; // Track all cache keys for cle
 // Endpoints that should be cached with their TTL (in ms)
 const CACHE_CONFIG = {
   '/products/public': 3 * 60 * 1000, // 3 minutes
-  '/shops': 5 * 60 * 1000, // 5 minutes
+  '/shops': 5 * 60 * 1000, // 5 minutes (includes /shops/verified page data)
+  '/shops/verified': 5 * 60 * 1000, // 5 minutes – verified shops page
   '/settings': 10 * 60 * 1000, // 10 minutes
   '/search': 2 * 60 * 1000, // 2 minutes
   '/categories': 30 * 60 * 1000, // 30 minutes
@@ -278,7 +279,7 @@ api.interceptors.response.use(
     if (shouldCacheRequest(response.config)) {
       const key = response.config.__cacheKey || buildCacheKey(response.config);
       const normalized = response.config.__normalizedUrl || normalizeUrl(response.config);
-      if (key && response.status === 300) {
+      if (key && response.status === 200) {
         await writeCache(key, response.data, normalized);
       }
     }

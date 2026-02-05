@@ -3,6 +3,7 @@ import PushToken from '../models/pushTokenModel.js';
 import User from '../models/userModel.js';
 
 let firebaseApp;
+let pushNotConfiguredWarned = false;
 
 const parseServiceAccount = () => {
   const raw =
@@ -253,7 +254,16 @@ export const sendPushNotification = async ({
   shopName
 }) => {
   if (!notification?.user) return null;
-  if (!isPushConfigured()) return null;
+  if (!isPushConfigured()) {
+    if (!pushNotConfiguredWarned) {
+      pushNotConfiguredWarned = true;
+      // eslint-disable-next-line no-console
+      console.warn(
+        'HDMarket push: FIREBASE_SERVICE_ACCOUNT (or FIREBASE_SERVICE_ACCOUNT_JSON/B64) is not set. Push notifications are disabled.'
+      );
+    }
+    return null;
+  }
 
   const shouldSend = await shouldSendForPreference(notification.user, notification.type);
   if (!shouldSend) return null;
@@ -289,16 +299,34 @@ export const sendPushNotification = async ({
     url = `/shop/${notification.shop?.slug || shopId}`;
   }
   
+  // FCM data payload: all values must be strings
+  const data = {
+    type: notification.type || 'notification',
+    notificationId: String(notification._id || ''),
+    orderId,
+    productId: productId ? String(productId) : '',
+    shopId: shopId ? String(shopId) : '',
+    ...(url ? { url } : {})
+  };
+
   const payload = {
     tokens: tokens.map((item) => item.token),
     notification: { title, body },
-    data: {
-      type: notification.type || 'notification',
-      notificationId: String(notification._id || ''),
-      orderId,
-      productId: productId ? String(productId) : '',
-      shopId: shopId ? String(shopId) : '',
-      ...(url ? { url } : {})
+    data,
+    // Android: high priority so notification is delivered immediately (including in background/Doze)
+    android: {
+      priority: 'high',
+      notification: { title, body, sound: 'default' }
+    },
+    // iOS: ensure notification is shown when app is in background and sound plays
+    apns: {
+      payload: {
+        aps: {
+          alert: { title, body },
+          sound: 'default',
+          contentAvailable: 1
+        }
+      },
     }
   };
 

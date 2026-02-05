@@ -47,7 +47,7 @@ import {
   createChatTemplate,
   sendSupportMessage
 } from '../controllers/chatController.js';
-import { updateAppLogoDesktop, updateAppLogoMobile, updateHeroBanner, updatePromoBanner } from '../controllers/siteSettingController.js';
+import { updateAppLogoDesktop, updateAppLogoMobile, updateHeroBanner, updatePromoBanner, updateSplash } from '../controllers/siteSettingController.js';
 import {
   listDeliveryGuysAdmin,
   createDeliveryGuyAdmin,
@@ -200,6 +200,7 @@ router.put(
   ]),
   updatePromoBanner
 );
+router.put('/splash', upload.single('splashImage'), updateSplash);
 router.get('/delivery-guys', listDeliveryGuysAdmin);
 router.post(
   '/delivery-guys',

@@ -21,9 +21,19 @@ export default function PaymentForm({ product, onSubmitted }) {
     e.preventDefault();
     if (hasPayment) return;
 
+    const digitsOnly = (form.transactionNumber || '').replace(/\D/g, '');
+    if (digitsOnly.length !== 10) {
+      alert('Le numéro de transaction doit contenir exactement 10 chiffres.');
+      return;
+    }
+
     setLoading(true);
     try {
-      await api.post('/payments', { ...form, productId: product._id });
+      await api.post('/payments', {
+        ...form,
+        transactionNumber: digitsOnly,
+        productId: product._id
+      });
       alert('Paiement soumis. En attente de vérification.');
       if (onSubmitted) await onSubmitted();
     } catch (e) {
@@ -247,12 +257,19 @@ export default function PaymentForm({ product, onSubmitted }) {
                 <span>Numéro de transaction *</span>
               </label>
               <input
+                type="text"
+                inputMode="numeric"
+                maxLength={10}
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
-                placeholder="Numéro reçu par SMS (ex: 7232173826)"
+                placeholder="10 chiffres (ex: 7232173826)"
                 value={form.transactionNumber}
-                onChange={(e) => setForm({ ...form, transactionNumber: e.target.value })}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  setForm({ ...form, transactionNumber: value });
+                }}
                 disabled={loading}
                 required
+                title="ID de la transaction : 10 chiffres reçus par SMS"
               />
             </div>
 

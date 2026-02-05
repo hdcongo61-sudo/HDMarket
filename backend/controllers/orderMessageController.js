@@ -664,6 +664,61 @@ export const deleteOrderMessage = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Message introuvable.' });
   }
 
+  // Only the sender (or admin) can delete their own message
+  if (!isAdmin && String(message.sender) !== String(userId)) {
+    return res.status(403).json({ message: 'Vous ne pouvez supprimer que vos propres messages.' });
+  }
+
   await OrderMessage.deleteOne({ _id: messageId, order: orderId });
   res.status(200).json({ deleted: true, messageId });
+});
+
+/**
+ * Update an order message (text only). Only the sender can update their own message.
+ */
+export const updateOrderMessage = asyncHandler(async (req, res) => {
+  const orderId = req.params.orderId || req.params.id;
+  const messageId = req.params.messageId;
+  const userId = req.user?.id || req.user?._id;
+  const { text } = req.body ?? {};
+
+  if (!mongoose.Types.ObjectId.isValid(orderId) || !mongoose.Types.ObjectId.isValid(messageId)) {
+    return res.status(400).json({ message: 'Identifiant invalide.' });
+  }
+
+  const order = await Order.findById(orderId);
+  if (!order) {
+    return res.status(404).json({ message: 'Commande introuvable.' });
+  }
+
+  const message = await OrderMessage.findOne({ _id: messageId, order: orderId });
+  if (!message) {
+    return res.status(404).json({ message: 'Message introuvable.' });
+  }
+
+  if (String(message.sender) !== String(userId)) {
+    return res.status(403).json({ message: 'Vous ne pouvez modifier que vos propres messages.' });
+  }
+
+  // Only text-only messages can be edited (no attachments/voice)
+  const hasAttachments = message.attachments?.length > 0;
+  const hasVoice = message.voiceMessage?.url;
+  if (hasAttachments || hasVoice) {
+    return res.status(400).json({ message: 'Les messages avec pièce jointe ou vocal ne peuvent pas être modifiés.' });
+  }
+
+  const newText = text != null ? String(text).trim() : message.text;
+  if (newText.length > 1000) {
+    return res.status(400).json({ message: 'Le message ne doit pas dépasser 1000 caractères.' });
+  }
+
+  message.text = newText;
+  await message.save();
+
+  const populated = await OrderMessage.findById(message._id)
+    .populate('sender', 'name email shopName')
+    .populate('recipient', 'name email shopName')
+    .lean();
+
+  res.json(populated);
 });

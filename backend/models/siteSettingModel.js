@@ -12,6 +12,8 @@ const siteSettingSchema = new mongoose.Schema(
     promoBannerLink: { type: String, default: '' },
     promoBannerStartAt: { type: Date, default: null },
     promoBannerEndAt: { type: Date, default: null },
+    splashImage: { type: String, default: '' },
+    splashDurationSeconds: { type: Number, default: 3, min: 1, max: 30 },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
   },
   { timestamps: true }

@@ -1,6 +1,8 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import api from './services/api';
 import Navbar from './components/Navbar';
+import SplashScreen from './components/SplashScreen';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -58,10 +60,34 @@ import OrderMessages from './pages/OrderMessages';
 import PushNotificationsManager from './components/PushNotificationsManager';
 import AnalyticsTracker from './components/AnalyticsTracker';
 
-export default function App() {
-  usePreventNewTabOnMobile();
+function AppContent() {
+  const { pathname } = useLocation();
+  const [splashConfig, setSplashConfig] = useState(null);
+  const [splashDismissed, setSplashDismissed] = useState(false);
+
+  useEffect(() => {
+    if (pathname !== '/') return;
+    api
+      .get('/settings/splash')
+      .then((res) => setSplashConfig(res.data || null))
+      .catch(() => setSplashConfig(null));
+  }, [pathname]);
+
+  const showSplash =
+    pathname === '/' && splashConfig?.splashImage && !splashDismissed;
+
+  if (showSplash) {
+    return (
+      <SplashScreen
+        splashImage={splashConfig.splashImage}
+        splashDurationSeconds={splashConfig.splashDurationSeconds}
+        onDismiss={() => setSplashDismissed(true)}
+      />
+    );
+  }
+
   return (
-    <BrowserRouter>
+    <>
       <PushNotificationsManager />
       <AnalyticsTracker />
       <ScrollToTop />
@@ -322,6 +348,15 @@ export default function App() {
       <Footer />
       <ChatBox />
       <MobileScrollToTopButton />
+    </>
+  );
+}
+
+export default function App() {
+  usePreventNewTabOnMobile();
+  return (
+    <BrowserRouter>
+      <AppContent />
     </BrowserRouter>
   );
 }

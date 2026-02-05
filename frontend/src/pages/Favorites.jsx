@@ -1,24 +1,66 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Filter, Tag, DollarSign } from 'lucide-react';
 import FavoriteContext from '../context/FavoriteContext';
 import ProductCard from '../components/ProductCard';
+import { getCategoryMeta } from '../data/categories';
 
 const PAGE_SIZE = 12;
+
+const PRICE_RANGES = [
+  { value: 'all', label: 'Tous les prix', min: null, max: null },
+  { value: '0-10000', label: '0 - 10 000 FCFA', min: 0, max: 10000 },
+  { value: '10000-50000', label: '10 000 - 50 000 FCFA', min: 10000, max: 50000 },
+  { value: '50000-100000', label: '50 000 - 100 000 FCFA', min: 50000, max: 100000 },
+  { value: '100000-500000', label: '100 000 - 500 000 FCFA', min: 100000, max: 500000 },
+  { value: '500000+', label: '500 000+ FCFA', min: 500000, max: null }
+];
 
 export default function Favorites() {
   const navigate = useNavigate();
   const { favorites, loading } = useContext(FavoriteContext);
   const [page, setPage] = useState(1);
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterPrice, setFilterPrice] = useState('all');
   const [isMobileView, setIsMobileView] = useState(() =>
     typeof window === 'undefined' ? false : window.innerWidth <= 767
   );
+
+  const categoriesInFavorites = useMemo(() => {
+    const seen = new Set();
+    const list = [];
+    favorites.forEach((p) => {
+      const cat = p?.category;
+      if (cat && !seen.has(cat)) {
+        seen.add(cat);
+        const meta = getCategoryMeta(cat);
+        list.push({ value: cat, label: meta?.label || cat });
+      }
+    });
+    return list.sort((a, b) => a.label.localeCompare(b.label));
+  }, [favorites]);
+
+  const priceRange = useMemo(
+    () => PRICE_RANGES.find((r) => r.value === filterPrice) || PRICE_RANGES[0],
+    [filterPrice]
+  );
+
+  const filteredFavorites = useMemo(() => {
+    return favorites.filter((p) => {
+      if (filterCategory && (p?.category || '') !== filterCategory) return false;
+      const price = Number(p?.price ?? 0);
+      if (priceRange.min != null && price < priceRange.min) return false;
+      if (priceRange.max != null && price > priceRange.max) return false;
+      return true;
+    });
+  }, [favorites, filterCategory, priceRange]);
+
   const hasFavorites = favorites.length > 0;
-  const totalPages = Math.max(1, Math.ceil(favorites.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredFavorites.length / PAGE_SIZE));
 
   useEffect(() => {
     setPage(1);
-  }, [favorites.length]);
+  }, [favorites.length, filterCategory, filterPrice]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -54,12 +96,12 @@ export default function Favorites() {
 
   const paginatedFavorites = useMemo(() => {
     const end = page * PAGE_SIZE;
-    return favorites.slice(0, end);
-  }, [favorites, page]);
+    return filteredFavorites.slice(0, end);
+  }, [filteredFavorites, page]);
 
   const renderPagination = () => {
     if (isMobileView) return null;
-    if (favorites.length <= PAGE_SIZE) return null;
+    if (filteredFavorites.length <= PAGE_SIZE) return null;
 
     const visiblePages = Math.min(5, totalPages);
     const half = Math.floor(visiblePages / 2);
@@ -154,12 +196,86 @@ export default function Favorites() {
         </div>
       ) : hasFavorites ? (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 lg:gap-5">
-            {paginatedFavorites.map((product) => (
-              <ProductCard key={product._id} p={product} />
-            ))}
+          {/* Filters — Category & Price */}
+          <div className="flex flex-wrap items-center gap-3 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 shadow-sm">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+              <Filter className="w-4 h-4 text-indigo-500" />
+              Filtres
+            </div>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+              <div className="flex items-center gap-2">
+                <Tag className="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden />
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm py-2 pl-3 pr-8 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-[160px]"
+                  aria-label="Filtrer par catégorie"
+                >
+                  <option value="">Toutes les catégories</option>
+                  {categoriesInFavorites.map((cat) => (
+                    <option key={cat.value} value={cat.value}>
+                      {cat.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden />
+                <select
+                  value={filterPrice}
+                  onChange={(e) => setFilterPrice(e.target.value)}
+                  className="rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm py-2 pl-3 pr-8 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-[180px]"
+                  aria-label="Filtrer par prix"
+                >
+                  {PRICE_RANGES.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {(filterCategory || filterPrice !== 'all') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterCategory('');
+                    setFilterPrice('all');
+                    setPage(1);
+                  }}
+                  className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                >
+                  Réinitialiser
+                </button>
+              )}
+            </div>
+            <p className="w-full sm:w-auto text-xs text-gray-500 dark:text-gray-400 mt-1 sm:mt-0">
+              {filteredFavorites.length} article{filteredFavorites.length !== 1 ? 's' : ''}
+              {(filterCategory || filterPrice !== 'all') && ` sur ${favorites.length}`}
+            </p>
           </div>
-          {renderPagination()}
+
+          {filteredFavorites.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 px-6 py-10 text-center">
+              <p className="text-gray-700 dark:text-gray-300 font-medium">Aucun favori ne correspond aux filtres.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Modifiez les filtres ou réinitialisez.</p>
+              <button
+                type="button"
+                onClick={() => { setFilterCategory(''); setFilterPrice('all'); setPage(1); }}
+                className="mt-3 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+              >
+                Réinitialiser les filtres
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 lg:gap-5">
+                {paginatedFavorites.map((product) => (
+                  <ProductCard key={product._id} p={product} />
+                ))}
+              </div>
+              {renderPagination()}
+            </>
+          )}
         </>
       ) : (
         <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center shadow-sm">

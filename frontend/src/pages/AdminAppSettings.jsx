@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Image, Layout, Smartphone, Upload, Shield, Search, X } from 'lucide-react';
+import { ArrowLeft, Image, Layout, Smartphone, Upload, Shield, Search, X, Sparkles } from 'lucide-react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 
@@ -48,6 +48,13 @@ export default function AdminAppSettings() {
   const [prohibitedError, setProhibitedError] = useState('');
   const [prohibitedMessage, setProhibitedMessage] = useState('');
 
+  const [splashImageFile, setSplashImageFile] = useState(null);
+  const [splashImagePreview, setSplashImagePreview] = useState('');
+  const [splashDurationSeconds, setSplashDurationSeconds] = useState(3);
+  const [splashSaving, setSplashSaving] = useState(false);
+  const [splashError, setSplashError] = useState('');
+  const [splashSuccess, setSplashSuccess] = useState('');
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -55,11 +62,12 @@ export default function AdminAppSettings() {
     const load = async () => {
       setLoading(true);
       try {
-        const [heroRes, logoRes, promoRes, prohibitedRes] = await Promise.all([
+        const [heroRes, logoRes, promoRes, prohibitedRes, splashRes] = await Promise.all([
           api.get('/settings/hero-banner'),
           api.get('/settings/app-logo'),
           api.get('/settings/promo-banner'),
-          api.get('/admin/prohibited-words').catch(() => ({ data: [] }))
+          api.get('/admin/prohibited-words').catch(() => ({ data: [] })),
+          api.get('/settings/splash').catch(() => ({ data: null }))
         ]);
         if (!active) return;
         setHeroBannerPreview(heroRes?.data?.heroBanner || '');
@@ -71,6 +79,10 @@ export default function AdminAppSettings() {
         setPromoBannerStartAt(formatDateInput(promoRes?.data?.promoBannerStartAt));
         setPromoBannerEndAt(formatDateInput(promoRes?.data?.promoBannerEndAt));
         setProhibitedWords(Array.isArray(prohibitedRes?.data) ? prohibitedRes.data : []);
+        if (splashRes?.data) {
+          setSplashImagePreview(splashRes.data.splashImage || '');
+          setSplashDurationSeconds(Math.min(30, Math.max(1, Number(splashRes.data.splashDurationSeconds) || 3)));
+        }
       } catch (err) {
         if (!active) return;
         showToast(err.response?.data?.message || 'Erreur chargement paramètres.', { variant: 'error' });
@@ -89,7 +101,8 @@ export default function AdminAppSettings() {
         appLogoDesktopPreview,
         appLogoMobilePreview,
         promoBannerPreview,
-        promoBannerMobilePreview
+        promoBannerMobilePreview,
+        splashImagePreview
       ];
       urls.forEach((url) => {
         if (url && typeof url === 'string' && url.startsWith('blob:')) {
@@ -102,7 +115,8 @@ export default function AdminAppSettings() {
     appLogoDesktopPreview,
     appLogoMobilePreview,
     promoBannerPreview,
-    promoBannerMobilePreview
+    promoBannerMobilePreview,
+    splashImagePreview
   ]);
 
   const onAppLogoDesktopChange = (e) => {
@@ -159,6 +173,51 @@ export default function AdminAppSettings() {
       setPromoBannerMobilePreview(URL.createObjectURL(file));
     }
   };
+
+  const onSplashImageChange = (e) => {
+    const file = e.target.files?.[0] ?? null;
+    setSplashImageFile(file);
+    setSplashError('');
+    setSplashSuccess('');
+    if (file) {
+      if (splashImagePreview?.startsWith?.('blob:')) URL.revokeObjectURL(splashImagePreview);
+      setSplashImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const saveSplash = useCallback(async () => {
+    const duration = Math.min(30, Math.max(1, Math.round(splashDurationSeconds)));
+    if (duration < 1 || duration > 30) {
+      setSplashError('La durée doit être entre 1 et 30 secondes.');
+      return;
+    }
+    if (!splashImageFile && !splashImagePreview) {
+      setSplashError('Veuillez ajouter une image pour l\'écran de démarrage.');
+      return;
+    }
+    setSplashSaving(true);
+    setSplashError('');
+    setSplashSuccess('');
+    try {
+      const payload = new FormData();
+      if (splashImageFile) payload.append('splashImage', splashImageFile);
+      payload.append('splashDurationSeconds', String(duration));
+      const { data } = await api.put('/admin/splash', payload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (data?.splashImage) setSplashImagePreview(data.splashImage);
+      if (data?.splashDurationSeconds != null) setSplashDurationSeconds(data.splashDurationSeconds);
+      setSplashImageFile(null);
+      setSplashSuccess('Écran de démarrage mis à jour.');
+      showToast('Écran de démarrage mis à jour.', { variant: 'success' });
+    } catch (err) {
+      const msg = err.response?.data?.message || "Impossible d'enregistrer l'écran de démarrage.";
+      setSplashError(msg);
+      showToast(msg, { variant: 'error' });
+    } finally {
+      setSplashSaving(false);
+    }
+  }, [splashImageFile, splashDurationSeconds, showToast]);
 
   const saveHeroBanner = useCallback(async () => {
     if (!heroBannerFile) {
@@ -573,6 +632,67 @@ export default function AdminAppSettings() {
               className="w-full rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {promoBannerSaving ? 'Mise à jour…' : 'Enregistrer la bannière publicitaire'}
+            </button>
+          </div>
+
+          {/* Splash screen (écran de démarrage) */}
+          <div className="rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100">
+                <Sparkles size={20} className="text-amber-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Écran de démarrage</h2>
+                <p className="text-sm text-gray-500">
+                  Image plein écran affichée à l’ouverture de l’app avant la page d’accueil. Durée en secondes (1–30) et bouton « Passer ».
+                </p>
+              </div>
+            </div>
+            {splashError && <p className="text-sm text-red-600 mb-2">{splashError}</p>}
+            {splashSuccess && <p className="text-sm text-emerald-600 mb-2">{splashSuccess}</p>}
+            <div className="grid gap-4 lg:grid-cols-2 mb-6">
+              <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 p-6 cursor-pointer hover:bg-gray-100 transition-colors">
+                {splashImagePreview ? (
+                  <div className="text-center w-full">
+                    <img
+                      src={splashImagePreview}
+                      alt="Écran de démarrage"
+                      className="h-40 w-full rounded-xl object-cover mx-auto mb-2 border border-gray-200"
+                    />
+                    <p className="text-xs text-gray-600">Image actuelle</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">Aucune image. Ajoutez une image pour afficher l’écran de démarrage.</p>
+                )}
+                <label className="mt-2 flex flex-col items-center gap-1 cursor-pointer">
+                  <Upload size={18} className="text-gray-400" />
+                  <span className="text-xs text-indigo-600 font-medium">Choisir une image</span>
+                  <span className="text-xs text-gray-400">PNG, JPG — plein écran</span>
+                  <input type="file" accept="image/*" onChange={onSplashImageChange} className="hidden" />
+                </label>
+              </div>
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-gray-900">
+                  Durée d’affichage (secondes)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={splashDurationSeconds}
+                  onChange={(e) => setSplashDurationSeconds(Math.min(30, Math.max(1, Number(e.target.value) || 3)))}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500">Entre 1 et 30 secondes. L’utilisateur peut passer avant la fin.</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={saveSplash}
+              disabled={splashSaving || (!splashImageFile && !splashImagePreview)}
+              className="w-full rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {splashSaving ? 'Mise à jour…' : 'Enregistrer l’écran de démarrage'}
             </button>
           </div>
 

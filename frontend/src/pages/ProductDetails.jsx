@@ -1038,24 +1038,39 @@ export default function ProductDetails() {
         </div>
       )}
 
-      {/* 7.5 Ajouter au panier (in-content) */}
+      {/* 7.5 Ajouter au panier + WhatsApp (in-content, mobile) */}
       {!isOwnProduct && (
-        <div className="mx-4 mb-3 rounded-2xl border border-gray-100 bg-white shadow-sm p-4">
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            disabled={addingToCart || inCart}
-            className={`w-full flex items-center justify-center gap-2 px-4 py-3.5 min-h-[52px] rounded-2xl font-semibold text-base transition-all tap-feedback ${
-              inCart ? 'bg-gray-200 text-gray-500 cursor-default' : 'bg-indigo-600 text-white hover:bg-indigo-700'
-            }`}
-          >
-            <ShoppingCart size={20} />
-            <span>{inCart ? 'Déjà au panier' : addingToCart ? 'Ajout...' : 'Ajouter au panier'}</span>
-          </button>
+        <div className="mx-4 mb-3 rounded-2xl border border-gray-100 bg-white shadow-sm p-4 space-y-3">
+          <div className="grid grid-cols-[1fr_auto] gap-2 items-stretch">
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              disabled={addingToCart || inCart}
+              className={`flex items-center justify-center gap-2 px-4 py-3.5 min-h-[52px] rounded-2xl font-semibold text-base transition-all tap-feedback ${
+                inCart ? 'bg-gray-200 text-gray-500 cursor-default' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+              }`}
+            >
+              <ShoppingCart size={20} />
+              <span className="truncate">{inCart ? 'Déjà au panier' : addingToCart ? 'Ajout...' : 'Ajouter au panier'}</span>
+            </button>
+            {whatsappLink && (
+              <a
+                href={whatsappLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleWhatsappClick}
+                className="flex items-center justify-center gap-2 px-4 py-3.5 min-h-[52px] min-w-[120px] rounded-2xl bg-[#25D366] text-white font-semibold text-sm active:scale-[0.98] transition-transform shadow-sm flex-shrink-0"
+                title="Contacter le vendeur sur WhatsApp"
+              >
+                <MessageCircle size={22} />
+                <span>WhatsApp</span>
+              </a>
+            )}
+          </div>
           {inCart && (
             <Link
               to="/orders/checkout"
-              className="mt-3 flex items-center justify-center gap-2 w-full px-4 py-3 rounded-2xl bg-green-600 text-white font-semibold hover:bg-green-700 active:scale-[0.98] transition-transform"
+              className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-2xl bg-green-600 text-white font-semibold hover:bg-green-700 active:scale-[0.98] transition-transform"
             >
               <ShoppingCart size={18} />
               Passer la commande

@@ -3,6 +3,10 @@ import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import api from '../services/api';
 
+const isDev = import.meta.env?.DEV === true;
+const PUSH_TOKEN_RETRY_DELAY_MS = 3000;
+const PUSH_TOKEN_MAX_RETRIES = 2;
+
 export default function usePushNotifications(user) {
   const initializedRef = useRef(false);
 
@@ -18,28 +22,41 @@ export default function usePushNotifications(user) {
       if (permission.receive !== 'granted') {
         const request = await PushNotifications.requestPermissions();
         if (request.receive !== 'granted') {
+          if (isDev) console.warn('[HDMarket] Push: permission not granted');
           return;
         }
       }
       await PushNotifications.register();
     };
 
-    register().catch(() => {});
+    register().catch((err) => {
+      if (isDev) console.warn('[HDMarket] Push register error:', err);
+    });
+
+    const sendTokenToServer = async (tokenValue, retryCount = 0) => {
+      try {
+        await api.post('/users/push-tokens', {
+          token: tokenValue,
+          platform: Capacitor.getPlatform()
+        });
+        if (isDev) console.log('[HDMarket] Push token registered');
+        return true;
+      } catch (err) {
+        if (isDev) console.warn('[HDMarket] Push token API error:', err?.response?.status ?? err.message);
+        if (active && retryCount < PUSH_TOKEN_MAX_RETRIES) {
+          setTimeout(() => sendTokenToServer(tokenValue, retryCount + 1), PUSH_TOKEN_RETRY_DELAY_MS);
+        }
+        return false;
+      }
+    };
 
     const registrationListener = PushNotifications.addListener('registration', async (token) => {
       if (!active || !token?.value) return;
-      try {
-        await api.post('/users/push-tokens', {
-          token: token.value,
-          platform: Capacitor.getPlatform()
-        });
-      } catch {
-        // ignore registration errors
-      }
+      await sendTokenToServer(token.value);
     });
 
-    const registrationErrorListener = PushNotifications.addListener('registrationError', () => {
-      // ignore registration errors
+    const registrationErrorListener = PushNotifications.addListener('registrationError', (err) => {
+      if (isDev) console.warn('[HDMarket] Push registrationError:', err);
     });
 
     const resolveNotificationLink = (payload) => {

@@ -502,13 +502,22 @@ const loadDiscountProducts = async () => {
           })}
         </div>
 
+        {/* Buyer or Seller callout */}
+        <div className="flex items-center justify-center gap-2 py-2.5 px-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100/80">
+          <ShoppingBag className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+          <span className="text-xs text-gray-700 text-center">
+            Achetez ou vendez sur HDMarket — <span className="font-semibold text-indigo-700">vous choisissez</span>.
+          </span>
+          <Tag className="w-4 h-4 text-purple-600 flex-shrink-0" />
+        </div>
+
         {/* Compact Promo Banner */}
         {promoBanner && (() => {
           const activeBanner = promoBannerMobile || promoBanner;
           const bannerSrc = isPromoActive ? activeBanner : defaultPromoBanner;
           const bannerLink = isPromoActive ? promoBannerLink : '/products';
           const img = <img src={bannerSrc} alt="Promo" className="h-full w-full object-cover" loading="eager" />;
-          const cls = "block w-full overflow-hidden rounded-xl shadow-sm aspect-[2/1]";
+          const cls = "block w-full overflow-hidden rounded-xl shadow-sm aspect-[2/1] h-[331px]";
           if (bannerLink?.startsWith('/')) return <Link to={bannerLink} {...externalLinkProps} className={cls}>{img}</Link>;
           if (bannerLink) return <a href={bannerLink} target="_blank" rel="noopener noreferrer" className={cls}>{img}</a>;
           return <div className={cls}>{img}</div>;
@@ -861,6 +870,15 @@ const loadDiscountProducts = async () => {
           >
             Tout voir <ChevronRight className="w-3.5 h-3.5" />
           </button>
+        </div>
+
+        {/* Buyer or Seller callout */}
+        <div className="flex items-center justify-center gap-3 py-3 px-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100/80">
+          <ShoppingBag className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+          <span className="text-sm text-gray-700 text-center">
+            Achetez ou vendez sur HDMarket — <span className="font-semibold text-indigo-700">vous choisissez</span>.
+          </span>
+          <Tag className="w-5 h-5 text-purple-600 flex-shrink-0" />
         </div>
 
         {/* Zone 1: Hero (65%) + Flash Deals Panel (35%) */}

@@ -126,7 +126,10 @@ export const schemas = {
   paymentCreate: Joi.object({
     productId: Joi.string().hex().length(24).required(),
     payerName: Joi.string().min(2).max(120).required(),
-    transactionNumber: Joi.string().min(3).max(120).required(),
+    transactionNumber: Joi.string()
+      .pattern(/^\d{10}$/)
+      .required()
+      .messages({ 'string.pattern.base': 'Le numéro de transaction doit contenir exactement 10 chiffres.' }),
     amount: Joi.number().min(0).required(),
     operator: Joi.string().valid('MTN', 'Airtel', 'Orange', 'Moov', 'Other').required(),
   }),
@@ -205,7 +208,10 @@ export const schemas = {
             Joi.object({
               sellerId: Joi.string().hex().length(24).required(),
               payerName: Joi.string().min(2).max(120).required(),
-              transactionCode: Joi.string().min(3).max(120).required()
+              transactionCode: Joi.string()
+                .pattern(/^\d{10}$/)
+                .required()
+                .messages({ 'string.pattern.base': 'Le code de transaction doit contenir exactement 10 chiffres.' })
             })
           )
           .min(1)
@@ -213,7 +219,10 @@ export const schemas = {
       }),
       Joi.object({
         payerName: Joi.string().min(2).max(120).required(),
-        transactionCode: Joi.string().min(3).max(120).required()
+        transactionCode: Joi.string()
+          .pattern(/^\d{10}$/)
+          .required()
+          .messages({ 'string.pattern.base': 'Le code de transaction doit contenir exactement 10 chiffres.' })
       })
     )
     .required(),
@@ -223,6 +232,11 @@ export const schemas = {
   orderAddressUpdate: Joi.object({
     deliveryAddress: Joi.string().min(4).max(300).required(),
     deliveryCity: Joi.string().valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo').required()
+  }),
+  orderMessageUpdate: Joi.object({
+    text: Joi.string().trim().min(0).max(1000).required().messages({
+      'any.required': 'Le texte du message est requis.'
+    })
   }),
   orderMessage: Joi.object({
     text: Joi.string().trim().min(0).max(1000).allow('', null).optional(),

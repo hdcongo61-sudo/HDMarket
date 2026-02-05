@@ -91,6 +91,15 @@ export default function OrderCheckout() {
       );
       return;
     }
+    const invalidTransactionCode = sellerGroups.some((group) => {
+      const entry = payments[group.sellerId] || {};
+      const code = (entry.transactionCode || '').trim().replace(/\D/g, '');
+      return code.length !== 10;
+    });
+    if (invalidTransactionCode) {
+      setError('Le code de transaction doit contenir exactement 10 chiffres.');
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -100,7 +109,7 @@ export default function OrderCheckout() {
           return {
             sellerId: group.sellerId,
             payerName: entry.payerName.trim(),
-            transactionCode: entry.transactionCode.trim()
+            transactionCode: entry.transactionCode.trim().replace(/\D/g, '')
           };
         })
       });
@@ -117,6 +126,9 @@ export default function OrderCheckout() {
   };
 
   const handlePaymentChange = (sellerId, field, value) => {
+    if (field === 'transactionCode') {
+      value = String(value).replace(/\D/g, '').slice(0, 10);
+    }
     setPayments((prev) => ({
       ...prev,
       [sellerId]: {
@@ -140,9 +152,10 @@ export default function OrderCheckout() {
             if (draft.draftPayments && draft.draftPayments.length > 0) {
               draft.draftPayments.forEach((payment) => {
                 if (payment.sellerId) {
+                  const code = (payment.transactionCode || '').replace(/\D/g, '').slice(0, 10);
                   draftPayments[String(payment.sellerId)] = {
                     payerName: payment.payerName || '',
-                    transactionCode: payment.transactionCode || ''
+                    transactionCode: code
                   };
                 }
               });
@@ -367,12 +380,15 @@ export default function OrderCheckout() {
                         <CreditCard size={18} className="text-gray-400 flex-shrink-0" />
                         <input
                           type="text"
+                          inputMode="numeric"
+                          maxLength={10}
                           value={payment.transactionCode || ''}
                           onChange={(e) =>
                             handlePaymentChange(group.sellerId, 'transactionCode', e.target.value)
                           }
                           className="w-full border-none p-0 text-sm font-medium focus:outline-none"
-                          placeholder="ID de votre transaction Mobile Money"
+                          placeholder="10 chiffres (ex: 7232173826)"
+                          title="ID de la transaction : 10 chiffres reçus par SMS"
                         />
                       </div>
                     </div>

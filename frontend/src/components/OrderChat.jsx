@@ -12,8 +12,6 @@ import {
   Image as ImageIcon,
   Smile,
   MoreVertical,
-  Phone,
-  Video,
   Info,
   ArrowLeft,
   ShieldCheck,
@@ -31,7 +29,8 @@ import {
   Search,
   ExternalLink,
   Archive,
-  Trash2
+  Trash2,
+  Pencil
 } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import api from '../services/api';
@@ -109,6 +108,8 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
   const [showInfo, setShowInfo] = useState(false);
   const [typingIndicator, setTypingIndicator] = useState(false);
   const [attachments, setAttachments] = useState([]);
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const [uploadingLabel, setUploadingLabel] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [encryptionEnabled, setEncryptionEnabled] = useState(() => {
@@ -162,7 +163,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
     if (isOpen && orderId) {
       initialLoadDoneRef.current = false;
       loadMessages();
-      const interval = setInterval(loadMessages, 5000);
+      const interval = setInterval(loadMessages, 2500);
       return () => clearInterval(interval);
     }
   }, [isOpen, orderId]);
@@ -237,7 +238,16 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
       if (isInitialLoad) setLoading(true);
       const { data } = await api.get(`/orders/${orderId}/messages`);
       const list = Array.isArray(data) ? data : [];
-      setMessages(list.map(normalizeMessage));
+      const fromApi = list.map(normalizeMessage);
+      setMessages((prev) => {
+        const pending = prev.filter((m) => m.pending);
+        if (pending.length === 0) return fromApi;
+        const apiIds = new Set(fromApi.map((m) => String(m._id)));
+        const stillPending = pending.filter((m) => !apiIds.has(String(m._id)));
+        const merged = [...fromApi, ...stillPending];
+        merged.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+        return merged;
+      });
       setError('');
     } catch (err) {
       setError(err.response?.data?.message || 'Impossible de charger les messages.');
@@ -288,6 +298,22 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
     setError('');
     setShowQuickReplies(false);
 
+    const tempId = `pending-${Date.now()}`;
+    const optimisticMessage = {
+      _id: tempId,
+      text: encryptionEnabled && encryptedText ? '[Message chiffré]' : text,
+      sender: { _id: user?._id, name: user?.name, shopName: user?.shopName },
+      recipient: null,
+      createdAt: new Date().toISOString(),
+      pending: true,
+      isDecrypted: !encryptionEnabled
+    };
+    if (messageAttachments?.length) optimisticMessage.attachments = messageAttachments;
+    else if (attachments.length) optimisticMessage.attachments = [...attachments];
+    if (voiceMsg) optimisticMessage.voiceMessage = voiceMsg;
+    setMessages((prev) => [...prev, normalizeMessage(optimisticMessage)]);
+    scrollToBottom();
+
     try {
       // Determine recipient based on user role (normalize to string; API may return populated objects or raw id)
       const toId = (val) => {
@@ -326,10 +352,14 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
       const { data } = await api.post(`/orders/${orderId}/messages`, payload);
       const normalized = data ? normalizeMessage({ ...data, createdAt: data.createdAt ?? new Date().toISOString() }) : data;
-      setMessages((prev) => [...prev, normalized]);
+      setMessages((prev) => {
+        const withoutPending = prev.filter((m) => m._id !== tempId && !m.pending);
+        return [...withoutPending, normalized];
+      });
       setAttachments([]);
       scrollToBottom();
     } catch (err) {
+      setMessages((prev) => prev.filter((m) => m._id !== tempId && !m.pending));
       const data = err.response?.data;
       const msg = data?.message || "Impossible d'envoyer le message.";
       const details = data?.details;
@@ -348,33 +378,55 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
+    setUploadProgress(0);
+    setUploadingLabel(files.length > 1 ? `1/${files.length}` : files[0].name || '');
+    setError('');
+
     try {
-      const uploadPromises = files.map(async (file) => {
+      const uploadedAttachments = [];
+      const total = files.length;
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setUploadingLabel(total > 1 ? `${i + 1}/${total}` : file.name || '');
+
         const formData = new FormData();
         formData.append('file', file);
-        
+
         const { data } = await api.post('/orders/messages/upload', formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
+          },
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total && progressEvent.total > 0) {
+              const filePercent = Math.round((progressEvent.loaded / progressEvent.total) * 100);
+              const overallPercent = total > 1
+                ? Math.round(((i + filePercent / 100) / total) * 100)
+                : filePercent;
+              setUploadProgress(Math.min(100, overallPercent));
+            } else {
+              setUploadProgress(total > 1 ? Math.round(((i + 0.5) / total) * 100) : 50);
+            }
           }
         });
-        
-        return {
+
+        uploadedAttachments.push({
           type: data.type,
           url: data.url,
           filename: data.filename,
           size: data.size,
           mimeType: data.mimeType
-        };
-      });
+        });
+      }
 
-      const uploadedAttachments = await Promise.all(uploadPromises);
+      setUploadProgress(100);
       setAttachments((prev) => [...prev, ...uploadedAttachments]);
     } catch (error) {
       console.error('File upload error:', error);
       setError('Erreur lors de l\'upload du fichier.');
     } finally {
-      // Reset file input
+      setUploadProgress(null);
+      setUploadingLabel('');
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -479,6 +531,10 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
   };
 
   const [deletingMessageId, setDeletingMessageId] = useState(null);
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editingText, setEditingText] = useState('');
+  const [savingEditId, setSavingEditId] = useState(null);
+
   const handleDeleteMessage = async (messageId) => {
     if (!messageId || !orderId) return;
     if (!window.confirm('Supprimer ce message pour tout le monde ?')) return;
@@ -492,6 +548,49 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
       setError(msg);
     } finally {
       setDeletingMessageId(null);
+    }
+  };
+
+  const canEditMessage = (msg) => {
+    if (!msg) return false;
+    const isOwn = String(msg.sender?._id) === String(user?._id);
+    const textOnly = !(msg.attachments?.length > 0) && !msg.voiceMessage?.url;
+    return isOwn && textOnly;
+  };
+
+  const handleStartEdit = (message) => {
+    const text = message.isDecrypted ? (message.text || '') : (message.text || '[Message chiffré]');
+    setEditingMessageId(message._id);
+    setEditingText(text);
+    setError('');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditingText('');
+  };
+
+  const handleSaveEdit = async () => {
+    if (editingMessageId == null) return;
+    const trimmed = editingText.trim();
+    if (!trimmed) {
+      setError('Le message ne peut pas être vide.');
+      return;
+    }
+    setSavingEditId(editingMessageId);
+    setError('');
+    try {
+      const { data } = await api.patch(`/orders/${orderId}/messages/${editingMessageId}`, { text: trimmed });
+      const normalized = normalizeMessage(data);
+      setMessages((prev) =>
+        prev.map((m) => (String(m._id) === String(editingMessageId) ? normalized : m))
+      );
+      handleCancelEdit();
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Impossible de modifier le message.';
+      setError(msg);
+    } finally {
+      setSavingEditId(null);
     }
   };
 
@@ -527,11 +626,13 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
     );
   }
 
+  const clientName = order?.customer?.name || order?.customer?.email || null;
   const recipientName = isAdmin
-    ? order?.customer?.name || 'Client'
+    ? (clientName || 'Client')
     : isCustomer
       ? seller?.name || 'Vendeur'
-      : order?.customer?.name || 'Client';
+      : (clientName || 'Client');
+  const showClientLabel = isAdmin || isSeller;
 
   const messageGroups = groupMessagesByDate(filteredMessages);
 
@@ -540,8 +641,11 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-900 w-full sm:rounded-2xl sm:max-w-lg sm:mx-4 h-full sm:h-[85vh] sm:max-h-[700px] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-300 border border-gray-200/50 dark:border-gray-700/50">
-        {/* Header — clean bar with avatar, name, ref and actions */}
-        <header className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+        {/* Header — matches app (iOS safe area top) */}
+        <header
+          className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+          style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))' }}
+        >
           <div className="flex items-center justify-between gap-3 px-4 py-3">
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <button
@@ -572,7 +676,14 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
               </div>
 
               <div className="flex-1 min-w-0">
-                <h2 className="font-semibold text-gray-900 dark:text-white truncate">{recipientName}</h2>
+                {showClientLabel && (
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide truncate">
+                    Client
+                  </p>
+                )}
+                <h2 className="font-semibold text-gray-900 dark:text-white truncate">
+                  {showClientLabel ? (clientName || '—') : recipientName}
+                </h2>
                 <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                   <span className="truncate">#{orderRef}</span>
                   <span className="flex-shrink-0">·</span>
@@ -690,7 +801,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
           </div>
         </header>
 
-        {/* Search panel — collapsible under header */}
+        {/* Search panel */}
         {showSearch && (
           <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-4 py-3">
             <div className="relative">
@@ -721,7 +832,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
           </div>
         )}
 
-        {/* Info panel — product, order ref, badges */}
+        {/* Info panel — product, order ref */}
         {showInfo && (
           <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-4 py-4 space-y-4">
             <div className="flex items-center gap-4">
@@ -766,11 +877,20 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
           </div>
         )}
 
-        {/* Messages — neutral background, date separators, bubbles */}
+        {/* Messages — neutral background, bubbles */}
         <div
           ref={messagesContainerRef}
           className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/80 dark:bg-gray-900/80 min-h-0"
         >
+          {/* Client name inside chat (when admin/seller) */}
+          {showClientLabel && clientName && (
+            <div className="flex justify-center mb-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-xs font-medium text-gray-600 dark:text-gray-400 shadow-sm">
+                <User className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
+                Client : {clientName}
+              </span>
+            </div>
+          )}
           {searchQuery && filteredMessages.length === 0 && !loading ? (
             <div className="flex flex-col items-center justify-center min-h-[200px] text-center px-6 py-8">
               <div className="w-14 h-14 rounded-2xl bg-gray-200 dark:bg-gray-700 flex items-center justify-center mb-4">
@@ -817,11 +937,12 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                   </span>
                 </div>
 
-                {/* Messages */}
+                {/* Messages — bubbles (app colors) */}
                 <div className="space-y-3">
                   {msgs.map((message, index) => {
                     const isOwnMessage = String(message.sender?._id) === String(user?._id);
                     const showAvatar = !isOwnMessage && (index === 0 || String(msgs[index - 1]?.sender?._id) !== String(message.sender?._id));
+                    const isPending = message.pending === true;
 
                     return (
                       <div
@@ -848,38 +969,78 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                             isOwnMessage
                               ? 'bg-indigo-600 text-white rounded-2xl rounded-br-md shadow-sm'
                               : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 rounded-2xl rounded-bl-md shadow-sm'
-                          } px-4 py-2.5 relative`}
+                          } px-4 py-2.5 relative ${isPending ? 'opacity-80' : ''}`}
                         >
                           {!isOwnMessage && showAvatar && (
                             <p className="text-xs font-semibold mb-1 text-indigo-600 dark:text-indigo-400">
                               {message.sender?.shopName || message.sender?.name || 'Utilisateur'}
                             </p>
                           )}
-                          
+
+                          {/* Inline edit mode (own text-only messages only) */}
+                          {editingMessageId === message._id ? (
+                            <div className="space-y-2">
+                              <textarea
+                                value={editingText}
+                                onChange={(e) => setEditingText(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Escape') handleCancelEdit();
+                                }}
+                                className="w-full min-h-[80px] px-3 py-2 rounded-lg text-sm bg-white/10 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/40 resize-none"
+                                placeholder="Modifier le message..."
+                                rows={3}
+                                autoFocus
+                              />
+                              <div className="flex items-center gap-2 justify-end">
+                                <button
+                                  type="button"
+                                  onClick={handleCancelEdit}
+                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-sm transition-colors"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                  Annuler
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleSaveEdit}
+                                  disabled={savingEditId === message._id || !editingText.trim()}
+                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white text-indigo-600 hover:bg-indigo-50 text-sm font-medium transition-colors disabled:opacity-50"
+                                >
+                                  {savingEditId === message._id ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <Check className="w-3.5 h-3.5" />
+                                  )}
+                                  Enregistrer
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
                           {/* Attachments */}
                           {message.attachments && message.attachments.length > 0 && (
-                            <div className="mb-2 flex flex-wrap gap-2">
+                            <div className="mb-1.5 flex flex-wrap gap-2">
                               {message.attachments.map((att, idx) => (
                                 <div key={att.url || att.filename || `att-${idx}`} className="relative">
                                   {att.type === 'image' ? (
                                     <img
                                       src={att.url}
                                       alt={att.filename}
-                                      className="max-h-32 max-w-[200px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                      className="max-h-28 max-w-[200px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
                                       onClick={() => setSelectedImage(att.url)}
                                     />
                                   ) : att.type === 'audio' ? (
-                                    <div className="flex items-center gap-2 rounded-lg bg-gray-100 dark:bg-gray-700 px-3 py-2">
+                                    <div className={`flex items-center gap-2 rounded-lg px-3 py-2 ${isOwnMessage ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-700'}`}>
                                       <span className="text-xs">{att.filename}</span>
                                       {message.voiceMessage?.duration && (
-                                        <span className="text-xs text-gray-500">{Math.round(message.voiceMessage.duration)}s</span>
+                                        <span className="text-[11px] opacity-80">{Math.round(message.voiceMessage.duration)}s</span>
                                       )}
                                     </div>
                                   ) : (
                                     <a
                                       href={att.url}
                                       download={att.filename}
-                                      className="flex items-center gap-2 rounded-lg bg-gray-100 dark:bg-gray-700 px-3 py-2 hover:bg-gray-200 dark:hover:bg-gray-600"
+                                      className={`flex items-center gap-2 rounded-lg px-3 py-2 ${isOwnMessage ? 'bg-white/20 hover:bg-white/30' : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
                                     >
                                       <File className="h-4 w-4" />
                                       <span className="text-xs">{att.filename}</span>
@@ -915,7 +1076,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                           
                           {/* Reactions */}
                           {message.reactions && message.reactions.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-1">
+                            <div className="mt-1 flex flex-wrap gap-1">
                               {Object.entries(
                                 message.reactions.reduce((acc, r) => {
                                   acc[r.emoji] = (acc[r.emoji] || 0) + 1;
@@ -936,13 +1097,13 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                                   className="flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-xs hover:bg-white/30 dark:bg-gray-700/50"
                                 >
                                   <span>{emoji}</span>
-                                  <span>{count}</span>
+                                  {count > 1 && <span>{count}</span>}
                                 </button>
                               ))}
                             </div>
                           )}
                           <div
-                            className={`flex items-center gap-1.5 mt-1 ${
+                            className={`flex items-center gap-1 mt-0.5 ${
                               isOwnMessage ? 'justify-end' : 'justify-start'
                             }`}
                           >
@@ -953,7 +1114,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                             >
                               {formatTimestamp(message.createdAt)}
                             </span>
-                            {isOwnMessage && (
+                            {isOwnMessage && !isPending && (
                               <span className="text-indigo-200">
                                 {message.readAt ? (
                                   <CheckCheck className="w-3.5 h-3.5" />
@@ -962,22 +1123,34 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                                 )}
                               </span>
                             )}
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteMessage(message._id)}
-                              disabled={deletingMessageId === message._id}
-                              title="Supprimer le message"
-                              className={`opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-0.5 rounded hover:bg-white/20 disabled:opacity-50 ${
-                                isOwnMessage ? 'text-indigo-200 hover:text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
-                              }`}
-                            >
-                              {deletingMessageId === message._id ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <Trash2 className="w-3.5 h-3.5" />
-                              )}
-                            </button>
+                            {isOwnMessage && canEditMessage(message) && !isPending && (
+                              <button
+                                type="button"
+                                onClick={() => handleStartEdit(message)}
+                                title="Modifier le message"
+                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-0.5 rounded hover:bg-white/20 text-indigo-200 hover:text-white"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {isOwnMessage && !isPending && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMessage(message._id)}
+                                disabled={deletingMessageId === message._id}
+                                title="Supprimer le message"
+                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-0.5 rounded hover:bg-white/20 disabled:opacity-50 text-indigo-200 hover:text-white"
+                              >
+                                {deletingMessageId === message._id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            )}
                           </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     );
@@ -993,7 +1166,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
               <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
                 <User className="w-4 h-4 text-gray-500" />
               </div>
-              <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl rounded-bl-md px-4 py-2.5">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl rounded-bl-md px-4 py-2.5 border border-gray-200 dark:border-gray-600 shadow-sm">
                 <div className="flex gap-1">
                   <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }} />
                   <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -1031,7 +1204,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
           </div>
         )}
 
-        {/* Quick replies — above input when toggled */}
+        {/* Quick replies */}
         {showQuickReplies && (
           <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-4 py-3">
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Réponses rapides</p>
@@ -1058,6 +1231,25 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
             <button type="button" onClick={() => setError('')} className="flex-shrink-0 p-1 rounded-lg text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors" aria-label="Fermer">
               <X className="w-4 h-4" />
             </button>
+          </div>
+        )}
+
+        {/* Upload progress */}
+        {uploadProgress != null && (
+          <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 bg-indigo-50 dark:bg-indigo-900/20 px-4 py-3">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Envoi en cours…</span>
+              <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 tabular-nums">{uploadProgress}%</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-indigo-200 dark:bg-indigo-800 overflow-hidden">
+              <div
+                className="h-full bg-indigo-600 dark:bg-indigo-500 rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+            {uploadingLabel && (
+              <p className="mt-1.5 text-xs text-indigo-600 dark:text-indigo-400 truncate">{uploadingLabel}</p>
+            )}
           </div>
         )}
 
@@ -1101,22 +1293,27 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
           </div>
         )}
 
-        {/* Input area — single row: attach | textarea | emoji | send */}
-        <form onSubmit={sendMessage} className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3">
+        {/* Input area — matches app (iOS safe area bottom) */}
+        <form
+          onSubmit={sendMessage}
+          className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+        >
           <div className="flex items-end gap-2">
             <div className="flex items-center gap-1">
               <input
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept="image/*,application/pdf,.doc,.docx,.txt,audio/*"
+                accept="image/*,video/*,application/pdf,.doc,.docx,.txt,audio/*"
                 onChange={handleFileSelect}
                 className="hidden"
               />
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+                disabled={uploadProgress != null}
+                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Joindre un fichier"
               >
                 <Paperclip className="h-5 w-5" />
@@ -1145,7 +1342,6 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
               )}
             </div>
 
-            {/* Input */}
             <div className="flex-1 relative">
               <textarea
                 ref={inputRef}
@@ -1176,7 +1372,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                 const emojis = ['👍', '❤️', '😊', '🎉', '🔥', '✅'];
                 const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
                 const lastMessage = messages[messages.length - 1];
-                if (lastMessage) {
+                if (lastMessage && !lastMessage.pending) {
                   handleAddReaction(lastMessage._id, randomEmoji);
                 }
               }}
@@ -1186,7 +1382,6 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
               <Smile className="h-5 w-5" />
             </button>
 
-            {/* Send Button */}
             <button
               type="submit"
               disabled={(!messageText.trim() && attachments.length === 0) || sending || isRecording}

@@ -61,6 +61,62 @@ export const getPromoBanner = asyncHandler(async (req, res) => {
   });
 });
 
+export const getSplash = asyncHandler(async (req, res) => {
+  const settings = await getSettings();
+  const duration = Math.min(30, Math.max(1, Number(settings?.splashDurationSeconds) || 3));
+  res.json({
+    splashImage: settings?.splashImage || null,
+    splashDurationSeconds: duration
+  });
+});
+
+export const updateSplash = asyncHandler(async (req, res) => {
+  const durationRaw = req.body?.splashDurationSeconds;
+  const duration =
+    durationRaw !== undefined && durationRaw !== ''
+      ? Math.min(30, Math.max(1, Math.round(Number(durationRaw)) || 3))
+      : undefined;
+
+  const updates = { updatedBy: req.user.id };
+  if (duration !== undefined) {
+    updates.splashDurationSeconds = duration;
+  }
+
+  if (req.file) {
+    if (!req.file.mimetype?.startsWith('image/')) {
+      return res.status(400).json({ message: 'Le fichier doit être une image.' });
+    }
+    if (!isCloudinaryConfigured()) {
+      return res
+        .status(503)
+        .json({ message: 'Cloudinary n’est pas configuré. Définissez CLOUDINARY_* pour publier des médias.' });
+    }
+    const folder = getCloudinaryFolder(['site', 'splash']);
+    const uploaded = await uploadToCloudinary({
+      buffer: req.file.buffer,
+      resourceType: 'image',
+      folder
+    });
+    updates.splashImage = uploaded.secure_url || uploaded.url;
+  }
+
+  if (!req.file && duration === undefined) {
+    return res.status(400).json({ message: 'Veuillez fournir une image ou une durée (secondes).' });
+  }
+
+  const settings = await SiteSetting.findOneAndUpdate(
+    { key: SETTINGS_KEY },
+    updates,
+    { new: true, upsert: true }
+  );
+
+  const finalDuration = Math.min(30, Math.max(1, Number(settings?.splashDurationSeconds) || 3));
+  res.json({
+    splashImage: settings?.splashImage || null,
+    splashDurationSeconds: finalDuration
+  });
+});
+
 const createAppLogoUpdater = (fieldKey, folderSegment) =>
   asyncHandler(async (req, res) => {
     if (!req.file) {
