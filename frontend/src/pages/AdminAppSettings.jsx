@@ -51,6 +51,7 @@ export default function AdminAppSettings() {
   const [splashImageFile, setSplashImageFile] = useState(null);
   const [splashImagePreview, setSplashImagePreview] = useState('');
   const [splashDurationSeconds, setSplashDurationSeconds] = useState(3);
+  const [splashEnabled, setSplashEnabled] = useState(true);
   const [splashSaving, setSplashSaving] = useState(false);
   const [splashError, setSplashError] = useState('');
   const [splashSuccess, setSplashSuccess] = useState('');
@@ -82,6 +83,7 @@ export default function AdminAppSettings() {
         if (splashRes?.data) {
           setSplashImagePreview(splashRes.data.splashImage || '');
           setSplashDurationSeconds(Math.min(30, Math.max(1, Number(splashRes.data.splashDurationSeconds) || 3)));
+          setSplashEnabled(splashRes.data.splashEnabled !== false);
         }
       } catch (err) {
         if (!active) return;
@@ -191,8 +193,9 @@ export default function AdminAppSettings() {
       setSplashError('La durée doit être entre 1 et 30 secondes.');
       return;
     }
-    if (!splashImageFile && !splashImagePreview) {
-      setSplashError('Veuillez ajouter une image pour l\'écran de démarrage.');
+    const hasImage = splashImageFile || splashImagePreview;
+    if (!hasImage && splashEnabled) {
+      setSplashError('Veuillez ajouter une image pour l\'écran de démarrage ou désactiver l\'écran.');
       return;
     }
     setSplashSaving(true);
@@ -202,11 +205,13 @@ export default function AdminAppSettings() {
       const payload = new FormData();
       if (splashImageFile) payload.append('splashImage', splashImageFile);
       payload.append('splashDurationSeconds', String(duration));
+      payload.append('splashEnabled', String(splashEnabled));
       const { data } = await api.put('/admin/splash', payload, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      if (data?.splashImage) setSplashImagePreview(data.splashImage);
+      if (data?.splashImage != null) setSplashImagePreview(data.splashImage || '');
       if (data?.splashDurationSeconds != null) setSplashDurationSeconds(data.splashDurationSeconds);
+      if (data?.splashEnabled !== undefined) setSplashEnabled(data.splashEnabled);
       setSplashImageFile(null);
       setSplashSuccess('Écran de démarrage mis à jour.');
       showToast('Écran de démarrage mis à jour.', { variant: 'success' });
@@ -217,7 +222,7 @@ export default function AdminAppSettings() {
     } finally {
       setSplashSaving(false);
     }
-  }, [splashImageFile, splashDurationSeconds, showToast]);
+  }, [splashImageFile, splashDurationSeconds, splashEnabled, showToast]);
 
   const saveHeroBanner = useCallback(async () => {
     if (!heroBannerFile) {
@@ -650,6 +655,18 @@ export default function AdminAppSettings() {
             </div>
             {splashError && <p className="text-sm text-red-600 mb-2">{splashError}</p>}
             {splashSuccess && <p className="text-sm text-emerald-600 mb-2">{splashSuccess}</p>}
+            <div className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-gray-50 border border-gray-200">
+              <input
+                type="checkbox"
+                id="splash-enabled"
+                checked={splashEnabled}
+                onChange={(e) => setSplashEnabled(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <label htmlFor="splash-enabled" className="text-sm font-medium text-gray-700 cursor-pointer">
+                Afficher l’écran de démarrage au chargement de l’app
+              </label>
+            </div>
             <div className="grid gap-4 lg:grid-cols-2 mb-6">
               <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 p-6 cursor-pointer hover:bg-gray-100 transition-colors">
                 {splashImagePreview ? (
@@ -689,7 +706,7 @@ export default function AdminAppSettings() {
             <button
               type="button"
               onClick={saveSplash}
-              disabled={splashSaving || (!splashImageFile && !splashImagePreview)}
+              disabled={splashSaving || (splashEnabled && !splashImageFile && !splashImagePreview)}
               className="w-full rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {splashSaving ? 'Mise à jour…' : 'Enregistrer l’écran de démarrage'}

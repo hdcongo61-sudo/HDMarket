@@ -74,7 +74,10 @@ function AppContent() {
   }, [pathname]);
 
   const showSplash =
-    pathname === '/' && splashConfig?.splashImage && !splashDismissed;
+    pathname === '/' &&
+    splashConfig?.splashEnabled !== false &&
+    splashConfig?.splashImage &&
+    !splashDismissed;
 
   if (showSplash) {
     return (

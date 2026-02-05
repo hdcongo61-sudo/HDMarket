@@ -8,13 +8,13 @@ import {
 } from 'firebase/analytics';
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyChYexMhZDqZ-8DaI-ynht7q_OL8M2260M',
-  authDomain: 'hdmarketcg.firebaseapp.com',
-  projectId: 'hdmarketcg',
-  storageBucket: 'hdmarketcg.firebasestorage.app',
-  messagingSenderId: '882664621680',
-  appId: '1:882664621680:web:976a95b6708fe409f0d6b5',
-  measurementId: 'G-NCC0QWVJQB'
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || ''
 };
 
 let analyticsInstance = null;
@@ -32,6 +32,7 @@ const canUseAnalytics = async () => {
 export const initAnalytics = async () => {
   if (initPromise) return initPromise;
   initPromise = (async () => {
+    if (!firebaseConfig.apiKey) return null;
     const supported = await canUseAnalytics();
     if (!supported) return null;
     const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);

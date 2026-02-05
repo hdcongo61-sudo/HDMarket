@@ -66,7 +66,8 @@ export const getSplash = asyncHandler(async (req, res) => {
   const duration = Math.min(30, Math.max(1, Number(settings?.splashDurationSeconds) || 3));
   res.json({
     splashImage: settings?.splashImage || null,
-    splashDurationSeconds: duration
+    splashDurationSeconds: duration,
+    splashEnabled: settings?.splashEnabled !== false
   });
 });
 
@@ -76,10 +77,14 @@ export const updateSplash = asyncHandler(async (req, res) => {
     durationRaw !== undefined && durationRaw !== ''
       ? Math.min(30, Math.max(1, Math.round(Number(durationRaw)) || 3))
       : undefined;
+  const splashEnabledRaw = req.body?.splashEnabled;
 
   const updates = { updatedBy: req.user.id };
   if (duration !== undefined) {
     updates.splashDurationSeconds = duration;
+  }
+  if (splashEnabledRaw !== undefined) {
+    updates.splashEnabled = splashEnabledRaw === true || splashEnabledRaw === 'true';
   }
 
   if (req.file) {
@@ -100,8 +105,9 @@ export const updateSplash = asyncHandler(async (req, res) => {
     updates.splashImage = uploaded.secure_url || uploaded.url;
   }
 
-  if (!req.file && duration === undefined) {
-    return res.status(400).json({ message: 'Veuillez fournir une image ou une durée (secondes).' });
+  const hasSplashEnabledUpdate = splashEnabledRaw !== undefined;
+  if (!req.file && duration === undefined && !hasSplashEnabledUpdate) {
+    return res.status(400).json({ message: 'Veuillez fournir une image, une durée (secondes) ou activer/désactiver l’écran de démarrage.' });
   }
 
   const settings = await SiteSetting.findOneAndUpdate(
@@ -113,7 +119,8 @@ export const updateSplash = asyncHandler(async (req, res) => {
   const finalDuration = Math.min(30, Math.max(1, Number(settings?.splashDurationSeconds) || 3));
   res.json({
     splashImage: settings?.splashImage || null,
-    splashDurationSeconds: finalDuration
+    splashDurationSeconds: finalDuration,
+    splashEnabled: settings?.splashEnabled !== false
   });
 });
 
