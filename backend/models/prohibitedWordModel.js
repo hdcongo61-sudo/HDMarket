@@ -8,6 +8,6 @@ const prohibitedWordSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-prohibitedWordSchema.index({ word: 1 });
+// word already has unique: true (creates index); no need for duplicate schema.index
 
 export default mongoose.model('ProhibitedWord', prohibitedWordSchema);
