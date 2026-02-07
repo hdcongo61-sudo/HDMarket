@@ -17,7 +17,9 @@ const DEFAULT_PREFERENCES = Object.freeze({
   order_reminder: true,
   order_delivering: true,
   order_delivered: true,
-  feedback_read: true
+  feedback_read: true,
+  complaint_created: true,
+  improvement_feedback_created: true
 });
 
 const buildDefaultPreferences = () => ({ ...DEFAULT_PREFERENCES });

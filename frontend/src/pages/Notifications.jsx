@@ -24,7 +24,9 @@ const DEFAULT_NOTIFICATION_PREFERENCES = {
   order_delivering: true,
   order_delivered: true,
   order_cancelled: true,
-  feedback_read: true
+  feedback_read: true,
+  complaint_created: true,
+  improvement_feedback_created: true
 };
 
 const formatDateTime = (value) => {
@@ -130,7 +132,9 @@ const NotificationPreferences = ({ preferences, onUpdate }) => {
                 { key: 'order_reminder', label: 'Relances commandes', icon: Timer },
                 { key: 'order_delivered', label: 'Commandes livrées', icon: CheckCircle2 },
                 { key: 'order_cancelled', label: 'Commandes annulées', icon: XCircle },
-                { key: 'feedback_read', label: 'Avis lus', icon: Check }
+                { key: 'feedback_read', label: 'Avis lus', icon: Check },
+                { key: 'complaint_created', label: 'Nouvelles réclamations', icon: AlertCircle },
+                { key: 'improvement_feedback_created', label: 'Nouveaux avis d\'amélioration', icon: MessageSquare }
               ].map(({ key, label, icon: Icon }) => (
                 <div
                   key={key}
@@ -283,6 +287,16 @@ export default function Notifications() {
       label: 'Avis lu',
       badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800',
       icon: <Check className="w-4 h-4" />
+    },
+    complaint_created: {
+      label: 'Nouvelle réclamation',
+      badgeClass: 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800',
+      icon: <AlertCircle className="w-4 h-4" />
+    },
+    improvement_feedback_created: {
+      label: 'Nouvel avis d\'amélioration',
+      badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800',
+      icon: <MessageSquare className="w-4 h-4" />
     }
   };
 
@@ -430,6 +444,30 @@ export default function Notifications() {
                   >
                     <CreditCard className="w-4 h-4" />
                     <span className="truncate">Vérifier paiements</span>
+                  </Link>
+                </div>
+              )}
+
+              {alert.type === 'complaint_created' && (user?.role === 'admin' || user?.role === 'manager' || user?.canManageComplaints) && (
+                <div className="mt-4 pt-4 border-t-2 border-gray-200 dark:border-gray-700">
+                  <Link
+                    to="/admin/complaints"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-rose-700 dark:text-rose-400 bg-gradient-to-br from-rose-50 to-rose-100/50 dark:from-rose-900/20 dark:to-rose-900/10 hover:from-rose-100 dark:hover:from-rose-900/30 transition-all duration-200 border-2 border-rose-200 dark:border-rose-800 active:scale-95"
+                  >
+                    <AlertCircle className="w-4 h-4" />
+                    <span className="truncate">Traiter les réclamations</span>
+                  </Link>
+                </div>
+              )}
+
+              {alert.type === 'improvement_feedback_created' && (user?.role === 'admin' || user?.canReadFeedback) && (
+                <div className="mt-4 pt-4 border-t-2 border-gray-200 dark:border-gray-700">
+                  <Link
+                    to="/admin/feedback"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-emerald-700 dark:text-emerald-400 bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-900/20 dark:to-emerald-900/10 hover:from-emerald-100 dark:hover:from-emerald-900/30 transition-all duration-200 border-2 border-emerald-200 dark:border-emerald-800 active:scale-95"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span className="truncate">Voir les avis d'amélioration</span>
                   </Link>
                 </div>
               )}
@@ -603,7 +641,9 @@ export default function Notifications() {
     { key: 'order_reminder', label: 'Relances', count: alerts.filter(a => a.type === 'order_reminder').length, icon: Timer },
     { key: 'order_delivered', label: 'Livrées', count: alerts.filter(a => a.type === 'order_delivered').length, icon: CheckCircle2 },
     { key: 'order_cancelled', label: 'Annulées', count: alerts.filter(a => a.type === 'order_cancelled').length, icon: XCircle },
-    { key: 'feedback_read', label: 'Avis lus', count: alerts.filter(a => a.type === 'feedback_read').length, icon: Check }
+    { key: 'feedback_read', label: 'Avis lus', count: alerts.filter(a => a.type === 'feedback_read').length, icon: Check },
+    { key: 'complaint_created', label: 'Réclamations', count: alerts.filter(a => a.type === 'complaint_created').length, icon: AlertCircle },
+    { key: 'improvement_feedback_created', label: 'Avis d\'amélioration', count: alerts.filter(a => a.type === 'improvement_feedback_created').length, icon: MessageSquare }
   ];
 
   const renderFilterButtons = ({ variant = 'stack', closeOnSelect = false } = {}) =>

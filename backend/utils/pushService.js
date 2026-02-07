@@ -233,10 +233,22 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       body = `${actorName} a marqué votre réclamation${subjectLabel} comme résolue.`;
       break;
     }
+    case 'complaint_created': {
+      const subjectLabel = metadata.subject ? ` : ${metadata.subject}` : '';
+      title = 'Nouvelle réclamation';
+      body = `${actorName} a déposé une réclamation${subjectLabel}`;
+      break;
+    }
     case 'feedback_read': {
       const subjectLabel = metadata.subject ? ` (${metadata.subject})` : '';
       title = 'Avis lu';
       body = `${actorName} a lu votre avis d’amélioration${subjectLabel}.`;
+      break;
+    }
+    case 'improvement_feedback_created': {
+      const subjectLabel = metadata.subject ? ` : ${metadata.subject}` : '';
+      title = "Nouvel avis d'amélioration";
+      body = `${actorName} a déposé un avis d'amélioration${subjectLabel}`;
       break;
     }
     default:

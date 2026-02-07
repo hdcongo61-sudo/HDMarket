@@ -79,6 +79,7 @@ const sanitizeUser = (user) => ({
   canReadFeedback: Boolean(user.canReadFeedback),
   canVerifyPayments: Boolean(user.canVerifyPayments),
   canManageBoosts: Boolean(user.canManageBoosts),
+  canManageComplaints: Boolean(user.canManageComplaints),
   createdAt: user.createdAt,
   updatedAt: user.updatedAt
 });
@@ -1068,6 +1069,16 @@ export const getNotifications = asyncHandler(async (req, res) => {
       case 'feedback_read': {
         const subjectLabel = metadata.subject ? ` (${metadata.subject})` : '';
         message = `${actorName} a lu votre avis d’amélioration${subjectLabel}. Merci pour votre retour.`;
+        break;
+      }
+      case 'complaint_created': {
+        const subjectLabel = metadata.subject ? ` : ${metadata.subject}` : '';
+        message = `${actorName} a déposé une réclamation${subjectLabel}. Consultez la section Réclamations pour la traiter.`;
+        break;
+      }
+      case 'improvement_feedback_created': {
+        const subjectLabel = metadata.subject ? ` : ${metadata.subject}` : '';
+        message = `${actorName} a déposé un avis d'amélioration${subjectLabel}. Consultez la section Avis pour le lire.`;
         break;
       }
       case 'payment_pending': {

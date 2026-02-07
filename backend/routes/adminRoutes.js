@@ -1,7 +1,7 @@
 import express from 'express';
 import Joi from 'joi';
 import { protect } from '../middlewares/authMiddleware.js';
-import { requireRole, requireFeedbackAccess, requirePaymentVerification, requireBoostManagement } from '../middlewares/roleMiddleware.js';
+import { requireRole, requireFeedbackAccess, requirePaymentVerification, requireBoostManagement, requireComplaintAccess } from '../middlewares/roleMiddleware.js';
 import { validate, schemas } from '../middlewares/validate.js';
 import { cacheMiddleware } from '../utils/cache.js';
 import { upload } from '../utils/upload.js';
@@ -20,6 +20,8 @@ import {
   togglePaymentVerifier,
   listBoostManagers,
   toggleBoostManager,
+  listComplaintManagers,
+  toggleComplaintManager,
   getSalesTrends,
   getOrderHeatmap,
   getConversionMetrics,
@@ -125,6 +127,26 @@ router.patch(
   toggleBoostManager
 );
 
+// Complaint access - admin, manager, or canManageComplaints
+router.get('/complaints', protect, requireComplaintAccess, listComplaintsAdmin);
+router.patch(
+  '/complaints/:id/status',
+  protect,
+  requireComplaintAccess,
+  validate(schemas.idParam, 'params'),
+  validate(schemas.complaintStatusUpdate),
+  updateComplaintStatus
+);
+// Complaint managers - admin only
+router.get('/complaint-managers', protect, requireRole(['admin']), listComplaintManagers);
+router.patch(
+  '/complaint-managers/:userId/toggle',
+  protect,
+  requireRole(['admin']),
+  validate(Joi.object({ userId: Joi.string().hex().length(24).required() }), 'params'),
+  toggleComplaintManager
+);
+
 // All other admin routes - require admin or manager role
 router.use(protect, requireRole(['admin', 'manager']));
 router.get('/analytics/sales-trends', cacheMiddleware({ ttl: 300000 }), getSalesTrends);
@@ -173,15 +195,8 @@ router.patch(
   validate(schemas.adminProductCertification),
   certifyProduct
 );
-router.get('/complaints', listComplaintsAdmin);
 router.post('/chat/templates', createChatTemplate);
 router.post('/chat/support-message', sendSupportMessage);
-router.patch(
-  '/complaints/:id/status',
-  validate(schemas.idParam, 'params'),
-  validate(schemas.complaintStatusUpdate),
-  updateComplaintStatus
-);
 router.get('/prohibited-words', listProhibitedWords);
 router.post(
   '/prohibited-words',

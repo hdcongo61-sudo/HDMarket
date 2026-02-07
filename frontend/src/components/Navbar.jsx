@@ -2931,6 +2931,15 @@ export default function Navbar() {
                           )}
                         </Link>
                       )}
+                      {(canAccessBackOffice || user?.canManageComplaints) && (
+                        <Link
+                          to="/admin/complaints"
+                          className="relative flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                        >
+                          <AlertCircle size={16} />
+                          <span className="text-sm font-semibold">Traiter les réclamations</span>
+                        </Link>
+                      )}
                       {!isAdmin && user?.canManageBoosts && (
                         <Link
                           to="/admin/product-boosts"
@@ -3219,6 +3228,35 @@ export default function Navbar() {
                 Nouveautés
               </NavLink>
 
+              {/* Réclamations & Avis amélioration - all users (desktop) */}
+              <Link
+                to="/reclamations"
+                className="px-4 py-2 text-white font-semibold text-sm hover:underline transition-all duration-200"
+              >
+                Réclamations
+              </Link>
+              <Link
+                to="/avis-amelioration"
+                className="px-4 py-2 text-white font-semibold text-sm hover:underline transition-all duration-200"
+              >
+                Avis amélioration
+              </Link>
+
+              {/* Admin (desktop) */}
+              {canAccessBackOffice && (
+                <NavLink
+                  to="/admin"
+                  className={({ isActive }) =>
+                    `px-4 py-2 text-white font-semibold text-sm hover:underline transition-all duration-200 flex items-center gap-1.5 ${
+                      isActive ? 'underline' : ''
+                    }`
+                  }
+                >
+                  <Settings size={16} />
+                  {isManager ? 'Gestion' : 'Admin'}
+                </NavLink>
+              )}
+
               {/* Vendre Button */}
               {user && (
                 <Link
@@ -3327,6 +3365,24 @@ export default function Navbar() {
                 <Sparkles size={20} />
                 Suggestions
               </NavLink>
+
+              {/* Réclamations & Avis amélioration - all users (mobile) */}
+              <Link
+                to="/reclamations"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              >
+                <AlertCircle size={20} />
+                Réclamations
+              </Link>
+              <Link
+                to="/avis-amelioration"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              >
+                <MessageSquare size={20} />
+                Avis amélioration
+              </Link>
 
               {/* Utilisateur connecté mobile - TOUJOURS AFFICHER "Mes annonces" */}
               {user && (
@@ -3466,6 +3522,16 @@ export default function Navbar() {
                           {waitingPayments > 99 ? '99+' : waitingPayments}
                         </span>
                       )}
+                    </NavLink>
+                  )}
+                  {(canAccessBackOffice || user?.canManageComplaints) && (
+                    <NavLink
+                      to="/admin/complaints"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <AlertCircle size={20} />
+                      Traiter les réclamations
                     </NavLink>
                   )}
                   {!isAdmin && user?.canManageBoosts && (

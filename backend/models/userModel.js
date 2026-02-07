@@ -14,6 +14,7 @@ const userSchema = new mongoose.Schema(
     canReadFeedback: { type: Boolean, default: false },
     canVerifyPayments: { type: Boolean, default: false },
     canManageBoosts: { type: Boolean, default: false },
+    canManageComplaints: { type: Boolean, default: false },
     accountType: { type: String, enum: ['person', 'shop'], default: 'person' },
     accountTypeChangedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     accountTypeChangedAt: { type: Date, default: null },

@@ -30,6 +30,8 @@ import ProductPreview from './pages/ProductPreview';
 import EditProduct from './pages/EditProduct';
 import Cart from './pages/Cart';
 import Profile from './pages/Profile';
+import MyComplaints from './pages/MyComplaints';
+import MyFeedback from './pages/MyFeedback';
 import Notifications from './pages/Notifications';
 import Favorites from './pages/Favorites';
 import ShopProfile from './pages/ShopProfile';
@@ -53,6 +55,8 @@ import AdminPaymentVerifiers from './pages/AdminPaymentVerifiers';
 import PaymentVerification from './pages/PaymentVerification';
 import AdminReports from './pages/AdminReports';
 import AdminAppSettings from './pages/AdminAppSettings';
+import AdminComplaints from './pages/AdminComplaints';
+import AdminLayout from './components/AdminLayout';
 import CertifiedProducts from './pages/CertifiedProducts';
 import Suggestions from './pages/Suggestions';
 import AdvancedSearch from './pages/AdvancedSearch';
@@ -146,6 +150,22 @@ function AppContent() {
             }
           />
           <Route
+            path="/reclamations"
+            element={
+              <ProtectedRoute>
+                <MyComplaints />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/avis-amelioration"
+            element={
+              <ProtectedRoute>
+                <MyFeedback />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/notifications"
             element={
               <ProtectedRoute>
@@ -233,118 +253,94 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/admin/chat-templates"
-            element={
-              <ProtectedRoute roles={['admin']}>
-                <AdminChatTemplates />
-              </ProtectedRoute>
-            }
-          />
+          {/* Admin: layout with sidebar on desktop, nested routes */}
           <Route
             path="/admin"
             element={
-              <ProtectedRoute roles={['admin', 'manager']}>
-                <AdminDashboard />
+              <ProtectedRoute allowAccess={(u) => u?.role === 'admin' || u?.role === 'manager' || u?.canManageComplaints === true}>
+                <AdminLayout />
               </ProtectedRoute>
             }
-          />
-          <Route
-            path="/admin/payments"
-            element={
-              <ProtectedRoute roles={['admin', 'manager']}>
-                <AdminPayments />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/orders"
-            element={
-              <ProtectedRoute roles={['admin', 'manager']}>
-                <AdminOrders />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/delivery-guys"
-            element={
-              <ProtectedRoute roles={['admin', 'manager']}>
-                <AdminDeliveryGuys />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/users"
-            element={
-              <ProtectedRoute role="admin">
-                <AdminUsers />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/users/:id/stats"
-            element={
-              <ProtectedRoute roles={['admin', 'manager']}>
-                <AdminUserStats />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/product-boosts"
-            element={
-              <ProtectedRoute allowAccess={(user) => user.role === 'admin' || user.canManageBoosts === true}>
-                <AdminProductBoosts />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/products"
-            element={
-              <ProtectedRoute roles={['admin', 'manager']}>
-                <AdminProducts />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/feedback"
-            element={
-              <ProtectedRoute allowAccess={(user) => user.role === 'admin' || user.canReadFeedback === true}>
-                <AdminFeedback />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/payment-verifiers"
-            element={
-              <ProtectedRoute roles={['admin']}>
-                <AdminPaymentVerifiers />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/payment-verification"
-            element={
-              <ProtectedRoute allowAccess={(user) => user.role === 'admin' || user.canVerifyPayments === true}>
-                <PaymentVerification />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/reports"
-            element={
-              <ProtectedRoute roles={['admin']}>
-                <AdminReports />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/settings"
-            element={
-              <ProtectedRoute roles={['admin']}>
-                <AdminAppSettings />
-              </ProtectedRoute>
-            }
-          />
+          >
+            <Route index element={<AdminDashboard />} />
+            <Route path="payments" element={<AdminPayments />} />
+            <Route path="orders" element={<AdminOrders />} />
+            <Route path="delivery-guys" element={<AdminDeliveryGuys />} />
+            <Route
+              path="complaints"
+              element={
+                <ProtectedRoute allowAccess={(u) => u?.role === 'admin' || u?.role === 'manager' || u?.canManageComplaints === true}>
+                  <AdminComplaints />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="users/:id/stats" element={<AdminUserStats />} />
+            <Route path="products" element={<AdminProducts />} />
+            <Route
+              path="product-boosts"
+              element={
+                <ProtectedRoute allowAccess={(user) => user.role === 'admin' || user.canManageBoosts === true}>
+                  <AdminProductBoosts />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="feedback"
+              element={
+                <ProtectedRoute allowAccess={(user) => user.role === 'admin' || user.canReadFeedback === true}>
+                  <AdminFeedback />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="payment-verification"
+              element={
+                <ProtectedRoute allowAccess={(user) => user.role === 'admin' || user.canVerifyPayments === true}>
+                  <PaymentVerification />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="chat-templates"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <AdminChatTemplates />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="payment-verifiers"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <AdminPaymentVerifiers />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="reports"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <AdminReports />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="settings"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <AdminAppSettings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="users"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <AdminUsers />
+                </ProtectedRoute>
+              }
+            />
+          </Route>
           <Route path="/certified-products" element={<CertifiedProducts />} />
         </Routes>
       </main>

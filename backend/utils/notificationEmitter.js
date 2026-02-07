@@ -9,6 +9,15 @@ const ensureSet = (userId) => {
   return clients.get(key);
 };
 
+const safeWrite = (res, chunk) => {
+  if (res.writableEnded) return false;
+  try {
+    return res.write(chunk);
+  } catch (err) {
+    return false;
+  }
+};
+
 const cleanupClient = (userId, res) => {
   const key = String(userId);
   const set = clients.get(key);
@@ -23,10 +32,18 @@ const cleanupClient = (userId, res) => {
     clearInterval(timer);
     heartbeats.delete(res);
   }
+  if (!res.writableEnded) {
+    try {
+      res.end();
+    } catch {
+      // ignore
+    }
+  }
 };
 
 export const registerNotificationStream = (userId, res) => {
   const key = String(userId);
+
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -37,20 +54,27 @@ export const registerNotificationStream = (userId, res) => {
     res.writeHead(200);
   }
 
-  res.write(`retry: 5000\n\n`);
-  res.write(`data: ${JSON.stringify({ type: 'connected' })}\n\n`);
+  const remove = () => cleanupClient(key, res);
+
+  if (!safeWrite(res, 'retry: 5000\n\n') || !safeWrite(res, `data: ${JSON.stringify({ type: 'connected' })}\n\n`)) {
+    remove();
+    return;
+  }
 
   const set = ensureSet(key);
   set.add(res);
 
   const heartbeat = setInterval(() => {
-    if (!res.writableEnded) {
-      res.write(': heartbeat\n\n');
+    if (res.writableEnded) {
+      remove();
+      return;
+    }
+    if (!safeWrite(res, ': heartbeat\n\n')) {
+      remove();
     }
   }, 25000);
   heartbeats.set(res, heartbeat);
 
-  const remove = () => cleanupClient(key, res);
   res.on('close', remove);
   res.on('error', remove);
   res.on('finish', remove);
@@ -61,9 +85,11 @@ export const emitNotification = (userId, payload) => {
   const set = clients.get(key);
   if (!set || !set.size) return;
   const data = `data: ${JSON.stringify(payload)}\n\n`;
+  const toRemove = [];
   set.forEach((res) => {
-    if (!res.writableEnded) {
-      res.write(data);
+    if (!safeWrite(res, data)) {
+      toRemove.push(res);
     }
   });
+  toRemove.forEach((res) => cleanupClient(key, res));
 };

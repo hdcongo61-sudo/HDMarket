@@ -64,10 +64,12 @@ export const getPromoBanner = asyncHandler(async (req, res) => {
 export const getSplash = asyncHandler(async (req, res) => {
   const settings = await getSettings();
   const duration = Math.min(30, Math.max(1, Number(settings?.splashDurationSeconds) || 3));
+  // Default to true when not set (backward compatible)
+  const splashEnabled = settings?.splashEnabled !== false;
   res.json({
     splashImage: settings?.splashImage || null,
     splashDurationSeconds: duration,
-    splashEnabled: settings?.splashEnabled !== false
+    splashEnabled
   });
 });
 
@@ -112,15 +114,16 @@ export const updateSplash = asyncHandler(async (req, res) => {
 
   const settings = await SiteSetting.findOneAndUpdate(
     { key: SETTINGS_KEY },
-    updates,
+    { $set: updates },
     { new: true, upsert: true }
   );
 
   const finalDuration = Math.min(30, Math.max(1, Number(settings?.splashDurationSeconds) || 3));
+  const splashEnabled = settings?.splashEnabled !== false;
   res.json({
     splashImage: settings?.splashImage || null,
     splashDurationSeconds: finalDuration,
-    splashEnabled: settings?.splashEnabled !== false
+    splashEnabled
   });
 });
 

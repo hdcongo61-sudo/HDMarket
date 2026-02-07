@@ -38,3 +38,13 @@ export const requireBoostManagement = (req, res, next) => {
   }
   return res.status(403).json({ message: 'Forbidden' });
 };
+
+export const requireComplaintAccess = (req, res, next) => {
+  if (!req.user) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+  if (req.user.role === 'admin' || req.user.role === 'manager' || req.user.canManageComplaints === true) {
+    return next();
+  }
+  return res.status(403).json({ message: 'Forbidden' });
+};

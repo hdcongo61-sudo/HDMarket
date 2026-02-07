@@ -1,5 +1,6 @@
 import asyncHandler from 'express-async-handler';
 import Complaint from '../models/complaintModel.js';
+import User from '../models/userModel.js';
 import { createNotification } from '../utils/notificationService.js';
 
 const ALLOWED_STATUSES = new Set(['pending', 'in_review', 'resolved']);
@@ -24,6 +25,30 @@ export const createComplaint = asyncHandler(async (req, res) => {
     message,
     attachments
   });
+
+  // Notify admins, managers, and users with complaint access
+  const recipients = await User.find({
+    $or: [
+      { role: 'admin' },
+      { role: 'manager' },
+      { canManageComplaints: true }
+    ]
+  })
+    .select('_id')
+    .lean();
+  const actorId = req.user.id;
+  const metadata = { complaintId: complaint._id, subject: subject || '' };
+  for (const r of recipients) {
+    const recipientId = r._id.toString();
+    if (recipientId === actorId) continue;
+    await createNotification({
+      userId: r._id,
+      actorId,
+      type: 'complaint_created',
+      metadata
+    });
+  }
+
   res.status(201).json(complaint);
 });
 

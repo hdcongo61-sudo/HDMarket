@@ -31,7 +31,9 @@ const notificationSchema = new mongoose.Schema(
       'order_address_updated',
       'order_message',
       'complaint_resolved',
-      'feedback_read'
+      'complaint_created',
+      'feedback_read',
+      'improvement_feedback_created'
     ],
       required: true
     },

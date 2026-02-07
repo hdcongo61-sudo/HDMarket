@@ -32,6 +32,25 @@ export const createImprovementFeedback = asyncHandler(async (req, res) => {
     body: body.trim()
   });
 
+  // Notify admins and users with feedback read access
+  const recipients = await User.find({
+    $or: [{ role: 'admin' }, { canReadFeedback: true }]
+  })
+    .select('_id')
+    .lean();
+  const actorId = req.user.id;
+  const metadata = { feedbackId: feedback._id, subject: feedback.subject || '' };
+  for (const r of recipients) {
+    const recipientId = r._id.toString();
+    if (recipientId === actorId) continue;
+    await createNotification({
+      userId: r._id,
+      actorId,
+      type: 'improvement_feedback_created',
+      metadata
+    });
+  }
+
   res.status(201).json({
     feedback: {
       _id: feedback._id,

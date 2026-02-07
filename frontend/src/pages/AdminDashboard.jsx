@@ -1015,7 +1015,7 @@ const refreshAll = useCallback(() => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/20">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/20 lg:min-h-0 lg:bg-transparent">
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-8 sm:px-6 lg:px-8">
       <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between pb-6 border-b border-gray-200/60">
         <div className="space-y-2">

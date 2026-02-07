@@ -1227,3 +1227,48 @@ export const togglePaymentVerifier = asyncHandler(async (req, res) => {
     }
   });
 });
+
+export const listComplaintManagers = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const managers = await User.find({ canManageComplaints: true })
+    .select('_id name email phone canManageComplaints')
+    .sort({ name: 1 })
+    .lean();
+  res.json({
+    managers: managers.map((m) => ({
+      id: m._id.toString(),
+      name: m.name,
+      email: m.email,
+      phone: m.phone,
+      canManageComplaints: Boolean(m.canManageComplaints)
+    }))
+  });
+});
+
+export const toggleComplaintManager = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { userId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
+  }
+  const user = await User.findById(userId);
+  if (!user) {
+    return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  }
+  if (user.role === 'admin') {
+    return res.status(400).json({ message: 'Impossible de modifier les permissions d\'un administrateur.' });
+  }
+  user.canManageComplaints = !user.canManageComplaints;
+  await user.save();
+  res.json({
+    message: user.canManageComplaints
+      ? 'Utilisateur ajouté comme responsable des réclamations.'
+      : 'Permission responsable réclamations retirée.',
+    user: {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      canManageComplaints: user.canManageComplaints
+    }
+  });
+});

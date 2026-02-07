@@ -23,7 +23,8 @@ const readPersistedUser = async () => {
       followingShops: Array.isArray(parsed.followingShops) ? parsed.followingShops : [],
       canReadFeedback: Boolean(parsed.canReadFeedback),
       canVerifyPayments: Boolean(parsed.canVerifyPayments),
-      canManageBoosts: Boolean(parsed.canManageBoosts)
+      canManageBoosts: Boolean(parsed.canManageBoosts),
+      canManageComplaints: Boolean(parsed.canManageComplaints)
     };
     return { id: payload.id, role: payload.role, token, ...normalized };
   } catch {
@@ -74,6 +75,7 @@ export const AuthProvider = ({ children }) => {
       canReadFeedback: Boolean(data.canReadFeedback),
       canVerifyPayments: Boolean(data.canVerifyPayments),
       canManageBoosts: Boolean(data.canManageBoosts),
+      canManageComplaints: Boolean(data.canManageComplaints),
       country: data.country || 'République du Congo',
       address: data.address || '',
       city: data.city || '',
