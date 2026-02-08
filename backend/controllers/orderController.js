@@ -10,6 +10,7 @@ import { createNotification } from '../utils/notificationService.js';
 import { isTwilioMessagingConfigured, sendSms } from '../utils/twilioMessaging.js';
 import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
 import { calculateProductSalesCount } from '../utils/salesCalculator.js';
+import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
 
 const ORDER_STATUS = ['pending', 'confirmed', 'delivering', 'delivered', 'cancelled'];
 
@@ -352,9 +353,15 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
   const { payerName, transactionCode, payments } = req.body;
   const userId = req.user?.id || req.user?._id;
 
-  const customer = await User.findById(userId).select('name email phone address city');
+  const customer = await User.findById(userId).select('name email phone address city restrictions');
   if (!customer) {
     return res.status(404).json({ message: 'Client introuvable.' });
+  }
+  if (isRestricted(customer, 'canOrder')) {
+    return res.status(403).json({
+      message: getRestrictionMessage('canOrder'),
+      restrictionType: 'canOrder'
+    });
   }
   if (!customer.address || !customer.city) {
     return res.status(400).json({
@@ -1058,9 +1065,15 @@ export const saveDraftOrder = asyncHandler(async (req, res) => {
   const { payments } = req.body;
   const userId = req.user?.id || req.user?._id;
 
-  const customer = await User.findById(userId).select('name email phone address city');
+  const customer = await User.findById(userId).select('name email phone address city restrictions');
   if (!customer) {
     return res.status(404).json({ message: 'Client introuvable.' });
+  }
+  if (isRestricted(customer, 'canOrder')) {
+    return res.status(403).json({
+      message: getRestrictionMessage('canOrder'),
+      restrictionType: 'canOrder'
+    });
   }
 
   const cart = await Cart.findOne({ user: userId }).lean();

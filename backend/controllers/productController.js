@@ -14,6 +14,7 @@ import {
 } from '../utils/cloudinaryUploader.js';
 import { buildIdentifierQuery } from '../utils/idResolver.js';
 import { ensureDocumentSlug, ensureModelSlugsForItems } from '../utils/slugUtils.js';
+import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
 
 const MAX_PRODUCT_IMAGES = 3;
 const SHOP_SELECT_FIELDS =
@@ -84,9 +85,22 @@ const detectProhibitedWords = async (title = '', description = '') => {
 };
 
 const getBlockedSellerIdsSet = async () => {
-  const blockedUsers = await User.find({ isBlocked: true }).select('_id').lean();
+  // Get users that are blocked OR have canBeViewed restriction
+  const blockedUsers = await User.find({
+    $or: [
+      { isBlocked: true },
+      { 'restrictions.canBeViewed.restricted': true }
+    ]
+  }).select('_id restrictions').lean();
+
   if (!blockedUsers.length) return new Set();
-  return new Set(blockedUsers.map((user) => String(user._id)));
+
+  // Filter to only include users that are actually blocked or have active canBeViewed restriction
+  const blockedIds = blockedUsers
+    .filter((user) => user.isBlocked || isRestricted(user, 'canBeViewed'))
+    .map((user) => String(user._id));
+
+  return new Set(blockedIds);
 };
 
 const applyBlockedUsersToFilter = (baseFilter = {}, blockedSet) => {
@@ -153,7 +167,7 @@ export const createProduct = asyncHandler(async (req, res) => {
   const resolvedCondition = (condition || 'used').toString().toLowerCase();
   const safeCondition = resolvedCondition === 'new' ? 'new' : 'used';
   const seller =
-    (await User.findById(req.user.id).select('city country shopVerified accountType')) || null;
+    (await User.findById(req.user.id).select('city country shopVerified accountType restrictions')) || null;
   if (!seller) {
     return res.status(404).json({ message: 'Utilisateur introuvable' });
   }
@@ -165,6 +179,13 @@ export const createProduct = asyncHandler(async (req, res) => {
   const imageFiles = getUploadedFiles(req.files, 'images');
   const videoFiles = getUploadedFiles(req.files, 'video');
   const pdfFiles = getUploadedFiles(req.files, 'pdf');
+
+  if (isRestricted(seller, 'canUploadImages') && (imageFiles.length || videoFiles.length || pdfFiles.length)) {
+    return res.status(403).json({
+      message: getRestrictionMessage('canUploadImages'),
+      restrictionType: 'canUploadImages'
+    });
+  }
 
   if (imageFiles.length > MAX_PRODUCT_IMAGES) {
     return res.status(400).json({
@@ -920,7 +941,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Forbidden' });
 
   const seller =
-    (await User.findById(req.user.id).select('shopVerified accountType')) || null;
+    (await User.findById(req.user.id).select('shopVerified accountType restrictions')) || null;
   const isShop = seller?.accountType === 'shop';
   const isVerifiedShop = isShop && Boolean(seller?.shopVerified);
   if (!seller) {
@@ -989,6 +1010,13 @@ export const updateProduct = asyncHandler(async (req, res) => {
   const videoFiles = getUploadedFiles(req.files, 'video');
   const pdfFiles = getUploadedFiles(req.files, 'pdf');
   const hasUploads = imageFiles.length + videoFiles.length + pdfFiles.length > 0;
+
+  if (hasUploads && isRestricted(seller, 'canUploadImages')) {
+    return res.status(403).json({
+      message: getRestrictionMessage('canUploadImages'),
+      restrictionType: 'canUploadImages'
+    });
+  }
 
   if (videoFiles.length > 1) {
     return res.status(400).json({

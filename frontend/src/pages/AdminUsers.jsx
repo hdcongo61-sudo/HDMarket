@@ -1,9 +1,18 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Ban, CheckCircle2, RefreshCw, Search } from 'lucide-react';
+import { ArrowLeft, Ban, CheckCircle2, RefreshCw, Search, ShieldAlert, MessageSquareOff, ShoppingCartIcon, HeartOff, ImageOff, X, Calendar, ChevronDown, Package, EyeOff, History } from 'lucide-react';
 import { buildShopPath } from '../utils/links';
 import api from '../services/api';
 import useIsMobile from '../hooks/useIsMobile';
+
+const RESTRICTION_TYPES = [
+  { key: 'canComment', label: 'Commentaires', icon: MessageSquareOff, color: 'orange', shopOnly: false },
+  { key: 'canOrder', label: 'Commandes', icon: ShoppingCartIcon, color: 'red', shopOnly: false },
+  { key: 'canMessage', label: 'Messages', icon: MessageSquareOff, color: 'purple', shopOnly: false },
+  { key: 'canAddFavorites', label: 'Favoris', icon: HeartOff, color: 'pink', shopOnly: false },
+  { key: 'canUploadImages', label: 'Images', icon: ImageOff, color: 'blue', shopOnly: false },
+  { key: 'canBeViewed', label: 'Visibilité boutique', icon: EyeOff, color: 'gray', shopOnly: true }
+];
 
 const accountTypeLabels = {
   person: 'Particulier',
@@ -39,6 +48,17 @@ const statusFilterOptions = [
   { value: 'active', label: 'Actifs' },
   { value: 'blocked', label: 'Suspendus' }
 ];
+const restrictionFilterOptions = [
+  { value: 'all', label: 'Toutes restrictions' },
+  { value: 'any_active', label: 'Avec restriction(s)' },
+  { value: 'none', label: 'Sans restriction' },
+  { value: 'canComment', label: 'Commentaires' },
+  { value: 'canOrder', label: 'Commandes' },
+  { value: 'canMessage', label: 'Messages' },
+  { value: 'canAddFavorites', label: 'Favoris' },
+  { value: 'canUploadImages', label: 'Images' },
+  { value: 'canBeViewed', label: 'Visibilité' }
+];
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -49,10 +69,37 @@ export default function AdminUsers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [accountTypeFilter, setAccountTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [restrictionFilter, setRestrictionFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [pendingUserId, setPendingUserId] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const isMobileView = useIsMobile(1023);
+
+  // Restriction modal state
+  const [restrictionModal, setRestrictionModal] = useState({ open: false, user: null });
+  const [restrictionMenuOpen, setRestrictionMenuOpen] = useState(null);
+  const [restrictionLoading, setRestrictionLoading] = useState(false);
+  const [restrictionForm, setRestrictionForm] = useState({
+    type: '',
+    restricted: false,
+    startDate: '',
+    endDate: '',
+    reason: ''
+  });
+
+  // Received orders modal state
+  const [ordersModal, setOrdersModal] = useState({ open: false, user: null });
+  const [receivedOrders, setReceivedOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [ordersTotalPages, setOrdersTotalPages] = useState(0);
+
+  // Audit log modal state
+  const [auditModal, setAuditModal] = useState({ open: false, user: null });
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditTotalPages, setAuditTotalPages] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -95,29 +142,50 @@ export default function AdminUsers() {
   }, [accountTypeFilter, searchTerm, refreshKey]);
 
   const displayedUsers = useMemo(() => {
+    let filtered = users;
+
+    // Status filter
     if (statusFilter === 'blocked') {
-      return users.filter((user) => user.isBlocked);
+      filtered = filtered.filter((user) => user.isBlocked);
+    } else if (statusFilter === 'active') {
+      filtered = filtered.filter((user) => !user.isBlocked);
     }
-    if (statusFilter === 'active') {
-      return users.filter((user) => !user.isBlocked);
+
+    // Restriction filter
+    if (restrictionFilter === 'any_active') {
+      filtered = filtered.filter((user) =>
+        RESTRICTION_TYPES.some((rt) => user.restrictions?.[rt.key]?.isActive)
+      );
+    } else if (restrictionFilter === 'none') {
+      filtered = filtered.filter((user) =>
+        !RESTRICTION_TYPES.some((rt) => user.restrictions?.[rt.key]?.isActive)
+      );
+    } else if (restrictionFilter !== 'all') {
+      // Filter by specific restriction type
+      filtered = filtered.filter((user) => user.restrictions?.[restrictionFilter]?.isActive);
     }
-    return users;
-  }, [statusFilter, users]);
+
+    return filtered;
+  }, [statusFilter, restrictionFilter, users]);
 
   const stats = useMemo(() => {
     const total = users.length;
     const blocked = users.filter((user) => user.isBlocked).length;
     const shops = users.filter((user) => user.accountType === 'shop').length;
+    const restricted = users.filter((user) =>
+      RESTRICTION_TYPES.some((rt) => user.restrictions?.[rt.key]?.isActive)
+    ).length;
     return {
       total,
       blocked,
-      shops
+      shops,
+      restricted
     };
   }, [users]);
 
   useEffect(() => {
     setPage(1);
-  }, [accountTypeFilter, statusFilter, searchTerm]);
+  }, [accountTypeFilter, statusFilter, restrictionFilter, searchTerm]);
 
   useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(displayedUsers.length / USERS_PER_PAGE));
@@ -203,6 +271,163 @@ export default function AdminUsers() {
     setRefreshKey((value) => value + 1);
   };
 
+  // Restriction handlers
+  const openRestrictionModal = useCallback((user, restrictionType) => {
+    const currentRestriction = user.restrictions?.[restrictionType] || {};
+    setRestrictionForm({
+      type: restrictionType,
+      restricted: currentRestriction.restricted || false,
+      startDate: currentRestriction.startDate ? new Date(currentRestriction.startDate).toISOString().slice(0, 16) : '',
+      endDate: currentRestriction.endDate ? new Date(currentRestriction.endDate).toISOString().slice(0, 16) : '',
+      reason: currentRestriction.reason || ''
+    });
+    setRestrictionModal({ open: true, user });
+    setRestrictionMenuOpen(null);
+  }, []);
+
+  const closeRestrictionModal = useCallback(() => {
+    setRestrictionModal({ open: false, user: null });
+    setRestrictionForm({ type: '', restricted: false, startDate: '', endDate: '', reason: '' });
+  }, []);
+
+  const handleApplyRestriction = async () => {
+    if (!restrictionModal.user || !restrictionForm.type) return;
+    setRestrictionLoading(true);
+    setActionError('');
+    try {
+      await api.patch(`/admin/users/${restrictionModal.user.id}/restrictions/${restrictionForm.type}`, {
+        restricted: restrictionForm.restricted,
+        startDate: restrictionForm.startDate || null,
+        endDate: restrictionForm.endDate || null,
+        reason: restrictionForm.reason
+      });
+      // Refresh user data
+      const { data } = await api.get('/admin/users', { params: { limit: 100, search: searchTerm || undefined, accountType: accountTypeFilter !== 'all' ? accountTypeFilter : undefined } });
+      setUsers(Array.isArray(data) ? data : []);
+      closeRestrictionModal();
+    } catch (e) {
+      setActionError(e.response?.data?.message || e.message || 'Erreur lors de l\'application de la restriction.');
+    } finally {
+      setRestrictionLoading(false);
+    }
+  };
+
+  const handleRemoveRestriction = async (userId, restrictionType) => {
+    setRestrictionLoading(true);
+    setActionError('');
+    try {
+      await api.delete(`/admin/users/${userId}/restrictions/${restrictionType}`);
+      const { data } = await api.get('/admin/users', { params: { limit: 100, search: searchTerm || undefined, accountType: accountTypeFilter !== 'all' ? accountTypeFilter : undefined } });
+      setUsers(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setActionError(e.response?.data?.message || e.message || 'Erreur lors de la suppression de la restriction.');
+    } finally {
+      setRestrictionLoading(false);
+    }
+  };
+
+  // Received orders handlers
+  const openOrdersModal = useCallback(async (user) => {
+    setOrdersModal({ open: true, user });
+    setOrdersLoading(true);
+    setOrdersPage(1);
+    try {
+      const { data } = await api.get(`/admin/users/${user.id}/received-orders`, { params: { page: 1, limit: 10 } });
+      setReceivedOrders(data.orders || []);
+      setOrdersTotalPages(data.totalPages || 0);
+    } catch (e) {
+      setActionError(e.response?.data?.message || 'Erreur lors du chargement des commandes.');
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, []);
+
+  const closeOrdersModal = useCallback(() => {
+    setOrdersModal({ open: false, user: null });
+    setReceivedOrders([]);
+  }, []);
+
+  const loadOrdersPage = async (newPage) => {
+    if (!ordersModal.user) return;
+    setOrdersLoading(true);
+    try {
+      const { data } = await api.get(`/admin/users/${ordersModal.user.id}/received-orders`, { params: { page: newPage, limit: 10 } });
+      setReceivedOrders(data.orders || []);
+      setOrdersPage(newPage);
+      setOrdersTotalPages(data.totalPages || 0);
+    } catch (e) {
+      setActionError(e.response?.data?.message || 'Erreur lors du chargement des commandes.');
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
+  // Audit log handlers
+  const openAuditModal = useCallback(async (user) => {
+    setAuditModal({ open: true, user });
+    setAuditLoading(true);
+    setAuditPage(1);
+    try {
+      const { data } = await api.get(`/admin/users/${user.id}/audit-logs`, { params: { page: 1, limit: 10 } });
+      setAuditLogs(data.logs || []);
+      setAuditTotalPages(data.totalPages || 0);
+    } catch (e) {
+      setActionError(e.response?.data?.message || 'Erreur lors du chargement de l\'historique.');
+    } finally {
+      setAuditLoading(false);
+    }
+  }, []);
+
+  const closeAuditModal = useCallback(() => {
+    setAuditModal({ open: false, user: null });
+    setAuditLogs([]);
+  }, []);
+
+  const loadAuditPage = async (newPage) => {
+    if (!auditModal.user) return;
+    setAuditLoading(true);
+    try {
+      const { data } = await api.get(`/admin/users/${auditModal.user.id}/audit-logs`, { params: { page: newPage, limit: 10 } });
+      setAuditLogs(data.logs || []);
+      setAuditPage(newPage);
+      setAuditTotalPages(data.totalPages || 0);
+    } catch (e) {
+      setActionError(e.response?.data?.message || 'Erreur lors du chargement de l\'historique.');
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  const getActionLabel = (action) => {
+    const labels = {
+      restriction_applied: 'Restriction appliquée',
+      restriction_removed: 'Restriction levée',
+      user_blocked: 'Compte suspendu',
+      user_unblocked: 'Compte réactivé',
+      shop_verified: 'Boutique vérifiée',
+      shop_unverified: 'Vérification retirée',
+      role_changed: 'Rôle modifié',
+      account_type_changed: 'Type de compte modifié'
+    };
+    return labels[action] || action;
+  };
+
+  const getActionColor = (action) => {
+    if (action.includes('blocked') || action.includes('applied') || action === 'shop_unverified') {
+      return 'bg-red-100 text-red-700';
+    }
+    if (action.includes('unblocked') || action.includes('removed') || action === 'shop_verified') {
+      return 'bg-green-100 text-green-700';
+    }
+    return 'bg-blue-100 text-blue-700';
+  };
+
+  // Get active restrictions count for a user
+  const getActiveRestrictionsCount = (user) => {
+    if (!user.restrictions) return 0;
+    return RESTRICTION_TYPES.filter((rt) => user.restrictions[rt.key]?.isActive).length;
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 space-y-6">
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -231,18 +456,22 @@ export default function AdminUsers() {
         </div>
       </header>
 
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="rounded-lg border bg-white p-4 shadow-sm">
           <p className="text-xs text-gray-500 uppercase tracking-wide">Utilisateurs totaux</p>
           <p className="text-2xl font-semibold text-gray-900">{stats.total}</p>
         </div>
         <div className="rounded-lg border bg-white p-4 shadow-sm">
-          <p className="text-xs text-gray-500 uppercase tracking-wide">Boutiques enregistrées</p>
+          <p className="text-xs text-gray-500 uppercase tracking-wide">Boutiques</p>
           <p className="text-2xl font-semibold text-gray-900">{stats.shops}</p>
         </div>
         <div className="rounded-lg border bg-white p-4 shadow-sm">
-          <p className="text-xs text-gray-500 uppercase tracking-wide">Utilisateurs bloqués</p>
-          <p className="text-2xl font-semibold text-gray-900">{stats.blocked}</p>
+          <p className="text-xs text-gray-500 uppercase tracking-wide">Bloqués</p>
+          <p className="text-2xl font-semibold text-red-600">{stats.blocked}</p>
+        </div>
+        <div className="rounded-lg border bg-white p-4 shadow-sm">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">Avec restrictions</p>
+          <p className="text-2xl font-semibold text-amber-600">{stats.restricted}</p>
         </div>
       </section>
 
@@ -314,6 +543,22 @@ export default function AdminUsers() {
                   </button>
                 ))}
               </div>
+              <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
+                {restrictionFilterOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setRestrictionFilter(option.value)}
+                    className={`flex-shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      restrictionFilter === option.value
+                        ? 'bg-amber-500 text-white shadow'
+                        : 'border border-gray-200 bg-white text-gray-600'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
@@ -334,6 +579,19 @@ export default function AdminUsers() {
                 className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
               >
                 {statusFilterOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={restrictionFilter}
+                onChange={(e) => setRestrictionFilter(e.target.value)}
+                className={`rounded-lg border px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 ${
+                  restrictionFilter !== 'all' ? 'border-amber-400 bg-amber-50 text-amber-700' : 'border-gray-200 text-gray-700'
+                }`}
+              >
+                {restrictionFilterOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -393,13 +651,27 @@ export default function AdminUsers() {
                         {user.blockedReason ? <p className="italic">Motif : {user.blockedReason}</p> : null}
                       </div>
                     ) : null}
+                    {/* Active restrictions badges */}
+                    {getActiveRestrictionsCount(user) > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {RESTRICTION_TYPES.filter((rt) => user.restrictions?.[rt.key]?.isActive).map((rt) => {
+                          const IconComponent = rt.icon;
+                          return (
+                            <span key={rt.key} className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                              <IconComponent size={10} />
+                              {rt.label}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
                     <div className="flex flex-wrap gap-2">
                       {isBlocked ? (
                         <button
                           type="button"
                           onClick={() => handleUnblock(user)}
                           disabled={pendingUserId === user.id}
-                          className="flex-1 min-w-[140px] rounded-lg border border-green-500 px-3 py-2 text-xs font-semibold text-green-600 hover:bg-green-50 disabled:opacity-50"
+                          className="flex-1 min-w-[100px] rounded-lg border border-green-500 px-3 py-2 text-xs font-semibold text-green-600 hover:bg-green-50 disabled:opacity-50"
                         >
                           Réactiver
                         </button>
@@ -408,11 +680,63 @@ export default function AdminUsers() {
                           type="button"
                           onClick={() => handleBlock(user)}
                           disabled={pendingUserId === user.id}
-                          className="flex-1 min-w-[140px] rounded-lg border border-red-500 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                          className="flex-1 min-w-[100px] rounded-lg border border-red-500 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
                         >
                           Suspendre
                         </button>
                       )}
+                      {/* Restrictions dropdown */}
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setRestrictionMenuOpen(restrictionMenuOpen === user.id ? null : user.id)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-amber-500 px-3 py-2 text-xs font-semibold text-amber-600 hover:bg-amber-50"
+                        >
+                          <ShieldAlert size={14} />
+                          Restrictions
+                          <ChevronDown size={12} />
+                        </button>
+                        {restrictionMenuOpen === user.id && (
+                          <div className="absolute right-0 mt-1 w-48 rounded-lg border bg-white shadow-lg z-20">
+                            {RESTRICTION_TYPES.filter((rt) => !rt.shopOnly || user.accountType === 'shop').map((rt) => {
+                              const isActive = user.restrictions?.[rt.key]?.isActive;
+                              const IconComponent = rt.icon;
+                              return (
+                                <button
+                                  key={rt.key}
+                                  type="button"
+                                  onClick={() => openRestrictionModal(user, rt.key)}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg"
+                                >
+                                  <IconComponent size={14} className={isActive ? 'text-red-500' : 'text-gray-400'} />
+                                  <span className={isActive ? 'text-red-600 font-semibold' : 'text-gray-700'}>{rt.label}</span>
+                                  {isActive && <span className="ml-auto text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Actif</span>}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                      {/* Received orders button for shops */}
+                      {user.accountType === 'shop' && (
+                        <button
+                          type="button"
+                          onClick={() => openOrdersModal(user)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-indigo-500 px-3 py-2 text-xs font-semibold text-indigo-600 hover:bg-indigo-50"
+                        >
+                          <Package size={14} />
+                          Commandes
+                        </button>
+                      )}
+                      {/* Audit log button */}
+                      <button
+                        type="button"
+                        onClick={() => openAuditModal(user)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                      >
+                        <History size={14} />
+                        Historique
+                      </button>
                     </div>
                   </article>
                 );
@@ -506,25 +830,88 @@ export default function AdminUsers() {
                           )}
                         </td>
                         <td className="px-3 py-3">
-                          {isBlocked ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            {isBlocked ? (
+                              <button
+                                type="button"
+                                onClick={() => handleUnblock(user)}
+                                disabled={pendingUserId === user.id}
+                                className="rounded-lg border border-green-500 px-3 py-1.5 text-xs font-semibold text-green-600 hover:bg-green-50 disabled:opacity-50"
+                              >
+                                Réactiver
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleBlock(user)}
+                                disabled={pendingUserId === user.id}
+                                className="rounded-lg border border-red-500 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                              >
+                                Suspendre
+                              </button>
+                            )}
+                            {/* Restrictions dropdown */}
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setRestrictionMenuOpen(restrictionMenuOpen === user.id ? null : user.id)}
+                                className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1.5 text-xs font-semibold hover:bg-amber-50 ${
+                                  getActiveRestrictionsCount(user) > 0 ? 'border-amber-500 text-amber-600 bg-amber-50' : 'border-gray-300 text-gray-600'
+                                }`}
+                              >
+                                <ShieldAlert size={12} />
+                                {getActiveRestrictionsCount(user) > 0 && <span>{getActiveRestrictionsCount(user)}</span>}
+                                <ChevronDown size={10} />
+                              </button>
+                              {restrictionMenuOpen === user.id && (
+                                <div className="absolute right-0 mt-1 w-52 rounded-lg border bg-white shadow-lg z-20">
+                                  <div className="px-3 py-2 border-b text-xs font-semibold text-gray-500">Restrictions</div>
+                                  {RESTRICTION_TYPES.filter((rt) => !rt.shopOnly || user.accountType === 'shop').map((rt) => {
+                                    const isActive = user.restrictions?.[rt.key]?.isActive;
+                                    const IconComponent = rt.icon;
+                                    return (
+                                      <button
+                                        key={rt.key}
+                                        type="button"
+                                        onClick={() => openRestrictionModal(user, rt.key)}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-gray-50"
+                                      >
+                                        <IconComponent size={14} className={isActive ? 'text-red-500' : 'text-gray-400'} />
+                                        <span className={isActive ? 'text-red-600 font-semibold' : 'text-gray-700'}>{rt.label}</span>
+                                        {isActive && <span className="ml-auto text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Actif</span>}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                            {/* Received orders button for shops */}
+                            {user.accountType === 'shop' && (
+                              <button
+                                type="button"
+                                onClick={() => openOrdersModal(user)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-indigo-400 px-2 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50"
+                                title="Commandes reçues"
+                              >
+                                <Package size={12} />
+                              </button>
+                            )}
                             <button
                               type="button"
-                              onClick={() => handleUnblock(user)}
-                              disabled={pendingUserId === user.id}
-                              className="rounded-lg border border-green-500 px-3 py-1.5 text-xs font-semibold text-green-600 hover:bg-green-50 disabled:opacity-50"
+                              onClick={() => openAuditModal(user)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                              title="Historique des actions"
                             >
-                              Réactiver
+                              <History size={12} />
                             </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleBlock(user)}
-                              disabled={pendingUserId === user.id}
-                              className="rounded-lg border border-red-500 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            <Link
+                              to={`/admin/users/${user.id}/stats`}
+                              className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                              title="Statistiques"
                             >
-                              Suspendre
-                            </button>
-                          )}
+                              Stats
+                            </Link>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -563,6 +950,281 @@ export default function AdminUsers() {
           </div>
         ) : null}
       </section>
+
+      {/* Restriction Modal */}
+      {restrictionModal.open && restrictionModal.user && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={closeRestrictionModal}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b px-4 py-3">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">
+                  Restriction: {RESTRICTION_TYPES.find((rt) => rt.key === restrictionForm.type)?.label}
+                </h3>
+                <p className="text-xs text-gray-500">{restrictionModal.user.name} ({restrictionModal.user.email})</p>
+              </div>
+              <button type="button" onClick={closeRestrictionModal} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={restrictionForm.restricted}
+                  onChange={(e) => setRestrictionForm((prev) => ({ ...prev, restricted: e.target.checked }))}
+                  className="w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                />
+                <span className="text-sm font-semibold text-gray-700">Activer cette restriction</span>
+              </label>
+
+              {restrictionForm.restricted && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">
+                        <Calendar size={12} className="inline mr-1" />
+                        Date de début (optionnel)
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={restrictionForm.startDate}
+                        onChange={(e) => setRestrictionForm((prev) => ({ ...prev, startDate: e.target.value }))}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">
+                        <Calendar size={12} className="inline mr-1" />
+                        Date de fin (optionnel)
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={restrictionForm.endDate}
+                        onChange={(e) => setRestrictionForm((prev) => ({ ...prev, endDate: e.target.value }))}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400">Laissez vide pour une restriction immédiate et permanente.</p>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Raison (interne)</label>
+                    <textarea
+                      value={restrictionForm.reason}
+                      onChange={(e) => setRestrictionForm((prev) => ({ ...prev, reason: e.target.value }))}
+                      placeholder="Ex: Spam détecté, comportement abusif..."
+                      rows={2}
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 resize-none"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="flex gap-2 border-t px-4 py-3">
+              <button
+                type="button"
+                onClick={closeRestrictionModal}
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyRestriction}
+                disabled={restrictionLoading}
+                className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 ${
+                  restrictionForm.restricted ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
+                }`}
+              >
+                {restrictionLoading ? '...' : restrictionForm.restricted ? 'Appliquer' : 'Désactiver'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Received Orders Modal */}
+      {ordersModal.open && ordersModal.user && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={closeOrdersModal}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b px-4 py-3 flex-shrink-0">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Commandes reçues</h3>
+                <p className="text-xs text-gray-500">{ordersModal.user.shopName || ordersModal.user.name}</p>
+              </div>
+              <button type="button" onClick={closeOrdersModal} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {ordersLoading ? (
+                <p className="text-sm text-gray-500 text-center py-8">Chargement...</p>
+              ) : receivedOrders.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-8">Aucune commande trouvée.</p>
+              ) : (
+                <div className="space-y-3">
+                  {receivedOrders.map((order) => (
+                    <div key={order.id} className="rounded-xl border border-gray-100 p-3 hover:bg-gray-50">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div>
+                          <p className="text-sm font-bold text-gray-900">#{order.orderNumber}</p>
+                          <p className="text-xs text-gray-500">{formatDate(order.createdAt)}</p>
+                        </div>
+                        <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                          order.status === 'delivered' ? 'bg-green-100 text-green-700' :
+                          order.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                          'bg-amber-100 text-amber-700'
+                        }`}>
+                          {order.status}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-600 mb-2">
+                        <p><strong>Acheteur:</strong> {order.buyer?.name || '—'} ({order.buyer?.phone || '—'})</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {order.items.map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-2 bg-gray-100 rounded-lg px-2 py-1">
+                            {item.product?.image && (
+                              <img src={item.product.image} alt="" className="w-8 h-8 rounded object-cover" />
+                            )}
+                            <div className="text-xs">
+                              <p className="font-medium text-gray-800 line-clamp-1">{item.product?.title || 'Produit'}</p>
+                              <p className="text-gray-500">x{item.quantity} · {formatNumber(item.price)} FCFA</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {ordersTotalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 border-t px-4 py-3 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => loadOrdersPage(ordersPage - 1)}
+                  disabled={ordersPage <= 1 || ordersLoading}
+                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Précédent
+                </button>
+                <span className="text-xs text-gray-600">Page {ordersPage} / {ordersTotalPages}</span>
+                <button
+                  type="button"
+                  onClick={() => loadOrdersPage(ordersPage + 1)}
+                  disabled={ordersPage >= ordersTotalPages || ordersLoading}
+                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Suivant
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Audit Log Modal */}
+      {auditModal.open && auditModal.user && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={closeAuditModal}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b px-4 py-3 flex-shrink-0">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Historique des actions</h3>
+                <p className="text-xs text-gray-500">{auditModal.user.name} ({auditModal.user.email})</p>
+              </div>
+              <button type="button" onClick={closeAuditModal} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {auditLoading ? (
+                <p className="text-sm text-gray-500 text-center py-8">Chargement...</p>
+              ) : auditLogs.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-8">Aucune action enregistrée.</p>
+              ) : (
+                <div className="space-y-3">
+                  {auditLogs.map((log) => (
+                    <div key={log.id} className="rounded-xl border border-gray-100 p-3 hover:bg-gray-50">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getActionColor(log.action)}`}>
+                            {getActionLabel(log.action)}
+                          </span>
+                        </div>
+                        <span className="text-xs text-gray-400">{formatDate(log.createdAt)}</span>
+                      </div>
+                      <div className="text-xs text-gray-600 space-y-1">
+                        {log.performedBy && (
+                          <p>
+                            <span className="font-semibold">Par:</span> {log.performedBy.name} ({log.performedBy.email})
+                          </p>
+                        )}
+                        {log.details?.restrictionType && (
+                          <p>
+                            <span className="font-semibold">Restriction:</span> {log.details.restrictionLabel || log.details.restrictionType}
+                          </p>
+                        )}
+                        {log.details?.reason && (
+                          <p className="italic text-gray-500">
+                            <span className="font-semibold not-italic">Raison:</span> {log.details.reason}
+                          </p>
+                        )}
+                        {log.details?.previousRole && (
+                          <p>
+                            <span className="font-semibold">Rôle:</span> {log.details.previousRole} → {log.details.newRole}
+                          </p>
+                        )}
+                        {log.details?.startDate && (
+                          <p>
+                            <span className="font-semibold">Début:</span> {formatDate(log.details.startDate)}
+                          </p>
+                        )}
+                        {log.details?.endDate && (
+                          <p>
+                            <span className="font-semibold">Fin:</span> {formatDate(log.details.endDate)}
+                          </p>
+                        )}
+                        {log.ipAddress && (
+                          <p className="text-gray-400">
+                            <span className="font-semibold">IP:</span> {log.ipAddress}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {auditTotalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 border-t px-4 py-3 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => loadAuditPage(auditPage - 1)}
+                  disabled={auditPage <= 1 || auditLoading}
+                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Précédent
+                </button>
+                <span className="text-xs text-gray-600">Page {auditPage} / {auditTotalPages}</span>
+                <button
+                  type="button"
+                  onClick={() => loadAuditPage(auditPage + 1)}
+                  disabled={auditPage >= auditTotalPages || auditLoading}
+                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Suivant
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Click outside to close restriction menu */}
+      {restrictionMenuOpen && (
+        <div className="fixed inset-0 z-10" onClick={() => setRestrictionMenuOpen(null)} />
+      )}
     </div>
   );
 }

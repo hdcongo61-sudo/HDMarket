@@ -8,45 +8,80 @@ import Rating from '../models/ratingModel.js';
 import Order from '../models/orderModel.js';
 import ImprovementFeedback from '../models/improvementFeedbackModel.js';
 import AccountTypeChange from '../models/accountTypeChangeModel.js';
+import AdminAuditLog from '../models/adminAuditLogModel.js';
 import { createNotification } from '../utils/notificationService.js';
 import { updateProductSalesCount } from '../utils/salesCalculator.js';
+import { getRestrictionTypes, formatRestriction, getRestrictionLabel } from '../utils/restrictionCheck.js';
 
 const monthKey = (year, month) => `${year}-${String(month).padStart(2, '0')}`;
 
-  const toAdminUserResponse = (user) => ({
-    id: user._id.toString(),
-    name: user.name,
-    email: user.email,
-    phone: user.phone,
-    role: user.role,
-    accountType: user.accountType,
-    accountTypeChangedBy: user.accountTypeChangedBy,
-    accountTypeChangedAt: user.accountTypeChangedAt,
-    shopName: user.shopName || '',
-    shopAddress: user.shopAddress || '',
-    shopLogo: user.shopLogo || '',
-    shopVerified: Boolean(user.shopVerified),
-    shopVerifiedBy: user.shopVerifiedBy
-    ? {
-        id: user.shopVerifiedBy._id.toString(),
-        name: user.shopVerifiedBy.name,
-        email: user.shopVerifiedBy.email
-      }
-    : null,
-    shopVerifiedAt: user.shopVerifiedAt || null,
-    followersCount: Number(user.followersCount || 0),
-    createdAt: user.createdAt,
-    updatedAt: user.updatedAt,
-  isBlocked: Boolean(user.isBlocked),
-  blockedAt: user.blockedAt || null,
-  blockedReason: user.blockedReason || ''
-});
+  const toAdminUserResponse = (user) => {
+    const restrictions = {};
+    const restrictionTypes = getRestrictionTypes();
+    for (const type of restrictionTypes) {
+      restrictions[type] = formatRestriction(user.restrictions?.[type]);
+    }
+
+    return {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      accountType: user.accountType,
+      accountTypeChangedBy: user.accountTypeChangedBy,
+      accountTypeChangedAt: user.accountTypeChangedAt,
+      shopName: user.shopName || '',
+      shopAddress: user.shopAddress || '',
+      shopLogo: user.shopLogo || '',
+      shopVerified: Boolean(user.shopVerified),
+      shopVerifiedBy: user.shopVerifiedBy
+        ? {
+            id: user.shopVerifiedBy._id.toString(),
+            name: user.shopVerifiedBy.name,
+            email: user.shopVerifiedBy.email
+          }
+        : null,
+      shopVerifiedAt: user.shopVerifiedAt || null,
+      followersCount: Number(user.followersCount || 0),
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      isBlocked: Boolean(user.isBlocked),
+      blockedAt: user.blockedAt || null,
+      blockedReason: user.blockedReason || '',
+      restrictions
+    };
+  };
 
 const ensureAdminRole = (req) => {
   if (req.user?.role !== 'admin') {
     const error = new Error('Seuls les administrateurs peuvent accéder à cette ressource.');
     error.status = 403;
     throw error;
+  }
+};
+
+/**
+ * Create an admin audit log entry
+ * @param {Object} params - Log parameters
+ * @param {string} params.action - Action type (e.g., 'restriction_applied')
+ * @param {string} params.targetUser - Target user ID
+ * @param {string} params.performedBy - Admin user ID
+ * @param {Object} params.details - Additional details
+ * @param {string} [params.ipAddress] - IP address of the admin
+ */
+const createAuditLog = async ({ action, targetUser, performedBy, details, ipAddress }) => {
+  try {
+    await AdminAuditLog.create({
+      action,
+      targetUser,
+      performedBy,
+      details,
+      ipAddress
+    });
+  } catch (error) {
+    console.error('Failed to create audit log:', error);
+    // Don't fail the main operation if audit logging fails
   }
 };
 
@@ -835,7 +870,7 @@ export const listUsers = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(safeLimit)
     .select(
-      'name email phone role accountType shopName shopAddress shopLogo shopVerified shopVerifiedBy shopVerifiedAt createdAt updatedAt isBlocked blockedAt blockedReason followersCount'
+      'name email phone role accountType shopName shopAddress shopLogo shopVerified shopVerifiedBy shopVerifiedAt createdAt updatedAt isBlocked blockedAt blockedReason followersCount restrictions'
     )
     .populate('shopVerifiedBy', 'name email');
 
@@ -972,6 +1007,20 @@ export const blockUser = asyncHandler(async (req, res) => {
 
   await user.save();
   await suspendUserProducts(user._id);
+
+  // Create audit log
+  await createAuditLog({
+    action: 'user_blocked',
+    targetUser: user._id,
+    performedBy: req.user.id,
+    details: {
+      userName: user.name,
+      userEmail: user.email,
+      reason: user.blockedReason
+    },
+    ipAddress: req.ip || req.connection?.remoteAddress
+  });
+
   const populated = await user.populate('shopVerifiedBy', 'name email');
   res.json(toAdminUserResponse(populated));
 });
@@ -993,6 +1042,18 @@ export const unblockUser = asyncHandler(async (req, res) => {
 
   await user.save();
   await restoreSuspendedProducts(user._id);
+
+  // Create audit log
+  await createAuditLog({
+    action: 'user_unblocked',
+    targetUser: user._id,
+    performedBy: req.user.id,
+    details: {
+      userName: user.name,
+      userEmail: user.email
+    },
+    ipAddress: req.ip || req.connection?.remoteAddress
+  });
 
   res.json(toAdminUserResponse(user));
 });
@@ -1020,6 +1081,23 @@ export const updateShopVerification = asyncHandler(async (req, res) => {
   user.shopVerifiedAt = shouldVerify ? new Date() : null;
   await user.save();
   const populated = await user.populate('shopVerifiedBy', 'name email');
+
+  // Create audit log if status changed
+  if (previouslyVerified !== shouldVerify) {
+    await createAuditLog({
+      action: shouldVerify ? 'shop_verified' : 'shop_unverified',
+      targetUser: user._id,
+      performedBy: req.user.id,
+      details: {
+        userName: user.name,
+        shopName: user.shopName || '',
+        previouslyVerified,
+        nowVerified: shouldVerify
+      },
+      ipAddress: req.ip || req.connection?.remoteAddress
+    });
+  }
+
   if (shouldVerify && !previouslyVerified) {
     await createNotification({
       userId: user._id,
@@ -1055,11 +1133,26 @@ export const updateUserRole = asyncHandler(async (req, res) => {
   if (!user) return res.status(404).json({ message: 'Utilisateur introuvable.' });
 
   if (user.role === 'admin') {
-    return res.status(400).json({ message: 'Impossible de modifier le rôle d’un administrateur.' });
+    return res.status(400).json({ message: "Impossible de modifier le rôle d'un administrateur." });
   }
 
+  const previousRole = user.role;
   user.role = role;
   await user.save();
+
+  // Create audit log
+  await createAuditLog({
+    action: 'role_changed',
+    targetUser: user._id,
+    performedBy: req.user.id,
+    details: {
+      userName: user.name,
+      userEmail: user.email,
+      previousRole,
+      newRole: role
+    },
+    ipAddress: req.ip || req.connection?.remoteAddress
+  });
 
   const populated = await user.populate('shopVerifiedBy', 'name email');
   res.json(toAdminUserResponse(populated));
@@ -1270,5 +1363,532 @@ export const toggleComplaintManager = asyncHandler(async (req, res) => {
       email: user.email,
       canManageComplaints: user.canManageComplaints
     }
+  });
+});
+
+/** Broadcast a notification to all users (or filtered by accountType). Admin only. */
+export const broadcastNotification = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { message, title, target = 'all' } = req.body;
+  if (!message || typeof message !== 'string' || !message.trim()) {
+    return res.status(400).json({ message: 'Le message de la notification est requis.' });
+  }
+  const filter = { role: { $in: ['user', 'manager'] } };
+  if (target === 'person') {
+    filter.accountType = 'person';
+  } else if (target === 'shop') {
+    filter.accountType = 'shop';
+  }
+  const users = await User.find(filter).select('_id').lean();
+  const actorId = req.user.id;
+  const trimmedMessage = message.trim();
+  const trimmedTitle = title && typeof title === 'string' ? title.trim() : 'HDMarketCG';
+  let sent = 0;
+  for (const u of users) {
+    if (String(u._id) === actorId) continue;
+    const created = await createNotification({
+      userId: u._id,
+      actorId,
+      type: 'admin_broadcast',
+      metadata: { message: trimmedMessage, title: trimmedTitle }
+    });
+    if (created) sent++;
+  }
+  res.json({
+    success: true,
+    sent,
+    total: users.length,
+    message: `Notification envoyée à ${sent} utilisateur(s).`
+  });
+});
+
+/** Export user phone numbers (admin only). Query: target = all | person | shop */
+export const exportPhones = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const target = req.query.target || 'all';
+  const filter = { role: { $in: ['user', 'manager'] } };
+  if (target === 'person') {
+    filter.accountType = 'person';
+  } else if (target === 'shop') {
+    filter.accountType = 'shop';
+  }
+  const users = await User.find(filter)
+    .select('name email phone accountType')
+    .sort({ createdAt: 1 })
+    .lean();
+  const list = users.map((u) => ({
+    phone: u.phone || '',
+    name: u.name || '',
+    email: u.email || '',
+    accountType: u.accountType || 'person'
+  }));
+  res.json({ users: list, total: list.length });
+});
+
+// ============================================================================
+// USER RESTRICTIONS MANAGEMENT
+// ============================================================================
+
+const VALID_RESTRICTION_TYPES = ['canComment', 'canOrder', 'canMessage', 'canAddFavorites', 'canUploadImages', 'canBeViewed'];
+
+/** Get all restrictions for a user */
+export const getUserRestrictions = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
+  }
+
+  const user = await User.findById(id).select('restrictions name email');
+  if (!user) {
+    return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  }
+
+  const restrictions = {};
+  for (const type of VALID_RESTRICTION_TYPES) {
+    restrictions[type] = formatRestriction(user.restrictions?.[type]);
+  }
+
+  res.json({ userId: id, restrictions });
+});
+
+/** Apply or update a restriction for a user */
+export const setUserRestriction = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { id, type } = req.params;
+  const { restricted, startDate, endDate, reason } = req.body || {};
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
+  }
+
+  if (!VALID_RESTRICTION_TYPES.includes(type)) {
+    return res.status(400).json({
+      message: `Type de restriction invalide. Types valides: ${VALID_RESTRICTION_TYPES.join(', ')}`
+    });
+  }
+
+  const user = await User.findById(id);
+  if (!user) {
+    return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  }
+
+  if (user.role === 'admin') {
+    return res.status(400).json({ message: 'Impossible de restreindre un administrateur.' });
+  }
+
+  if (req.user?.id && user._id.equals(req.user.id)) {
+    return res.status(400).json({ message: 'Vous ne pouvez pas vous restreindre vous-même.' });
+  }
+
+  // Initialize restrictions object if it doesn't exist
+  if (!user.restrictions) {
+    user.restrictions = {};
+  }
+
+  // Parse dates
+  let parsedStartDate = null;
+  let parsedEndDate = null;
+
+  if (startDate) {
+    parsedStartDate = new Date(startDate);
+    if (isNaN(parsedStartDate.getTime())) {
+      return res.status(400).json({ message: 'Date de début invalide.' });
+    }
+  }
+
+  if (endDate) {
+    parsedEndDate = new Date(endDate);
+    if (isNaN(parsedEndDate.getTime())) {
+      return res.status(400).json({ message: 'Date de fin invalide.' });
+    }
+  }
+
+  if (parsedStartDate && parsedEndDate && parsedStartDate >= parsedEndDate) {
+    return res.status(400).json({ message: 'La date de fin doit être après la date de début.' });
+  }
+
+  // Set the restriction
+  const trimmedReason = typeof reason === 'string' ? reason.trim().slice(0, 500) : '';
+  const wasRestricted = user.restrictions?.[type]?.restricted || false;
+
+  user.restrictions[type] = {
+    restricted: Boolean(restricted),
+    startDate: parsedStartDate,
+    endDate: parsedEndDate,
+    reason: trimmedReason,
+    restrictedBy: restricted ? req.user.id : null,
+    restrictedAt: restricted ? new Date() : null
+  };
+
+  await user.save();
+
+  // Create audit log
+  await createAuditLog({
+    action: restricted ? 'restriction_applied' : 'restriction_removed',
+    targetUser: user._id,
+    performedBy: req.user.id,
+    details: {
+      userName: user.name,
+      userEmail: user.email,
+      restrictionType: type,
+      restrictionLabel: getRestrictionLabel(type),
+      wasRestricted,
+      isRestricted: Boolean(restricted),
+      startDate: parsedStartDate,
+      endDate: parsedEndDate,
+      reason: trimmedReason
+    },
+    ipAddress: req.ip || req.connection?.remoteAddress
+  });
+
+  // Send notification to user when restriction is applied
+  if (restricted) {
+    const restrictionLabel = getRestrictionLabel(type);
+    const dateOptions = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' };
+
+    let dateInfo = '';
+    if (parsedStartDate && parsedEndDate) {
+      dateInfo = `Du ${parsedStartDate.toLocaleDateString('fr-FR', dateOptions)} au ${parsedEndDate.toLocaleDateString('fr-FR', dateOptions)}`;
+    } else if (parsedStartDate) {
+      dateInfo = `À partir du ${parsedStartDate.toLocaleDateString('fr-FR', dateOptions)}`;
+    } else if (parsedEndDate) {
+      dateInfo = `Jusqu'au ${parsedEndDate.toLocaleDateString('fr-FR', dateOptions)}`;
+    } else {
+      dateInfo = 'Immédiat et permanent';
+    }
+
+    const notificationMessage = trimmedReason
+      ? `Restriction "${restrictionLabel}" appliquée. ${dateInfo}. Raison: ${trimmedReason}`
+      : `Restriction "${restrictionLabel}" appliquée. ${dateInfo}.`;
+
+    await createNotification({
+      userId: user._id,
+      actorId: req.user.id,
+      type: 'account_restriction',
+      metadata: {
+        restrictionType: type,
+        restrictionLabel,
+        startDate: parsedStartDate,
+        endDate: parsedEndDate,
+        reason: trimmedReason,
+        message: notificationMessage
+      }
+    });
+  } else if (wasRestricted) {
+    const restrictionLabel = getRestrictionLabel(type);
+    await createNotification({
+      userId: user._id,
+      actorId: req.user.id,
+      type: 'account_restriction_lifted',
+      metadata: {
+        restrictionType: type,
+        restrictionLabel,
+        message: `Votre restriction "${restrictionLabel}" a été levée. Vous pouvez à nouveau utiliser cette fonctionnalité.`
+      }
+    });
+  }
+
+  res.json({
+    message: restricted
+      ? `Restriction "${type}" appliquée avec succès.`
+      : `Restriction "${type}" désactivée.`,
+    restriction: formatRestriction(user.restrictions[type])
+  });
+});
+
+/** Remove a restriction from a user */
+export const removeUserRestriction = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { id, type } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
+  }
+
+  if (!VALID_RESTRICTION_TYPES.includes(type)) {
+    return res.status(400).json({
+      message: `Type de restriction invalide. Types valides: ${VALID_RESTRICTION_TYPES.join(', ')}`
+    });
+  }
+
+  const user = await User.findById(id);
+  if (!user) {
+    return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  }
+
+  const wasRestricted = user.restrictions?.[type]?.restricted;
+
+  if (user.restrictions?.[type]) {
+    const previousRestriction = { ...user.restrictions[type].toObject?.() || user.restrictions[type] };
+
+    user.restrictions[type] = {
+      restricted: false,
+      startDate: null,
+      endDate: null,
+      reason: '',
+      restrictedBy: null,
+      restrictedAt: null
+    };
+    await user.save();
+
+    // Create audit log
+    if (wasRestricted) {
+      await createAuditLog({
+        action: 'restriction_removed',
+        targetUser: user._id,
+        performedBy: req.user.id,
+        details: {
+          userName: user.name,
+          userEmail: user.email,
+          restrictionType: type,
+          restrictionLabel: getRestrictionLabel(type),
+          previousRestriction: {
+            startDate: previousRestriction.startDate,
+            endDate: previousRestriction.endDate,
+            reason: previousRestriction.reason
+          }
+        },
+        ipAddress: req.ip || req.connection?.remoteAddress
+      });
+    }
+
+    // Send notification if restriction was previously active
+    if (wasRestricted) {
+      const restrictionLabel = getRestrictionLabel(type);
+      await createNotification({
+        userId: user._id,
+        actorId: req.user.id,
+        type: 'account_restriction_lifted',
+        metadata: {
+          restrictionType: type,
+          restrictionLabel,
+          message: `Votre restriction "${restrictionLabel}" a été levée. Vous pouvez à nouveau utiliser cette fonctionnalité.`
+        }
+      });
+    }
+  }
+
+  res.json({
+    message: `Restriction "${type}" supprimée.`,
+    restriction: formatRestriction(user.restrictions?.[type])
+  });
+});
+
+/** Get orders received by a seller (orders containing their products) */
+export const getSellerReceivedOrders = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { id } = req.params;
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
+  const status = req.query.status || 'all';
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
+  }
+
+  const user = await User.findById(id).select('name email accountType shopName');
+  if (!user) {
+    return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  }
+
+  // Find all products owned by this seller
+  const sellerProductIds = await Product.find({ user: id }).distinct('_id');
+
+  if (sellerProductIds.length === 0) {
+    return res.json({
+      seller: { id: user._id, name: user.name, shopName: user.shopName || '' },
+      orders: [],
+      total: 0,
+      page,
+      totalPages: 0
+    });
+  }
+
+  // Build order filter
+  const orderFilter = { 'items.product': { $in: sellerProductIds } };
+  if (status !== 'all') {
+    orderFilter.status = status;
+  }
+
+  const total = await Order.countDocuments(orderFilter);
+  const totalPages = Math.ceil(total / limit);
+  const skip = (page - 1) * limit;
+
+  const orders = await Order.find(orderFilter)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .populate('user', 'name email phone')
+    .populate('items.product', 'title images price')
+    .lean();
+
+  // Filter items to only show this seller's products
+  const formattedOrders = orders.map((order) => ({
+    id: order._id.toString(),
+    orderNumber: order.orderNumber || order._id.toString().slice(-8).toUpperCase(),
+    status: order.status,
+    createdAt: order.createdAt,
+    buyer: order.user ? {
+      id: order.user._id.toString(),
+      name: order.user.name,
+      email: order.user.email,
+      phone: order.user.phone
+    } : null,
+    items: order.items
+      .filter((item) => sellerProductIds.some((pid) => pid.equals(item.product?._id)))
+      .map((item) => ({
+        product: item.product ? {
+          id: item.product._id.toString(),
+          title: item.product.title,
+          image: item.product.images?.[0] || null,
+          price: item.product.price
+        } : null,
+        quantity: item.quantity,
+        price: item.price
+      })),
+    totalAmount: order.totalAmount,
+    address: order.address || null
+  }));
+
+  res.json({
+    seller: { id: user._id, name: user.name, shopName: user.shopName || '' },
+    orders: formattedOrders,
+    total,
+    page,
+    totalPages
+  });
+});
+
+// ============================================================================
+// ADMIN AUDIT LOGS
+// ============================================================================
+
+/** List audit logs with filtering and pagination */
+export const listAuditLogs = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 25));
+  const { action, targetUser, performedBy, startDate, endDate } = req.query;
+
+  const filter = {};
+
+  // Filter by action type
+  if (action && typeof action === 'string') {
+    filter.action = action;
+  }
+
+  // Filter by target user
+  if (targetUser && mongoose.Types.ObjectId.isValid(targetUser)) {
+    filter.targetUser = targetUser;
+  }
+
+  // Filter by admin who performed the action
+  if (performedBy && mongoose.Types.ObjectId.isValid(performedBy)) {
+    filter.performedBy = performedBy;
+  }
+
+  // Filter by date range
+  if (startDate || endDate) {
+    filter.createdAt = {};
+    if (startDate) {
+      const parsedStart = new Date(startDate);
+      if (!isNaN(parsedStart.getTime())) {
+        filter.createdAt.$gte = parsedStart;
+      }
+    }
+    if (endDate) {
+      const parsedEnd = new Date(endDate);
+      if (!isNaN(parsedEnd.getTime())) {
+        filter.createdAt.$lte = parsedEnd;
+      }
+    }
+  }
+
+  const total = await AdminAuditLog.countDocuments(filter);
+  const totalPages = Math.ceil(total / limit);
+  const skip = (page - 1) * limit;
+
+  const logs = await AdminAuditLog.find(filter)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .populate('targetUser', 'name email phone shopName accountType')
+    .populate('performedBy', 'name email')
+    .lean();
+
+  const formattedLogs = logs.map((log) => ({
+    id: log._id.toString(),
+    action: log.action,
+    targetUser: log.targetUser ? {
+      id: log.targetUser._id.toString(),
+      name: log.targetUser.name,
+      email: log.targetUser.email,
+      shopName: log.targetUser.shopName || '',
+      accountType: log.targetUser.accountType
+    } : null,
+    performedBy: log.performedBy ? {
+      id: log.performedBy._id.toString(),
+      name: log.performedBy.name,
+      email: log.performedBy.email
+    } : null,
+    details: log.details || {},
+    ipAddress: log.ipAddress,
+    createdAt: log.createdAt
+  }));
+
+  res.json({
+    logs: formattedLogs,
+    total,
+    page,
+    totalPages,
+    limit
+  });
+});
+
+/** Get audit logs for a specific user */
+export const getUserAuditLogs = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
+  }
+
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
+  const skip = (page - 1) * limit;
+
+  const filter = { targetUser: id };
+  const total = await AdminAuditLog.countDocuments(filter);
+  const totalPages = Math.ceil(total / limit);
+
+  const logs = await AdminAuditLog.find(filter)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .populate('performedBy', 'name email')
+    .lean();
+
+  const formattedLogs = logs.map((log) => ({
+    id: log._id.toString(),
+    action: log.action,
+    performedBy: log.performedBy ? {
+      id: log.performedBy._id.toString(),
+      name: log.performedBy.name,
+      email: log.performedBy.email
+    } : null,
+    details: log.details || {},
+    ipAddress: log.ipAddress,
+    createdAt: log.createdAt
+  }));
+
+  res.json({
+    logs: formattedLogs,
+    total,
+    page,
+    totalPages
   });
 });

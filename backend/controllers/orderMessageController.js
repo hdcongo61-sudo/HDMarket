@@ -6,6 +6,7 @@ import User from '../models/userModel.js';
 import Product from '../models/productModel.js';
 import { createNotification } from '../utils/notificationService.js';
 import { uploadToCloudinary } from '../utils/cloudinaryUploader.js';
+import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
 
 /**
  * Get messages for an order
@@ -112,6 +113,19 @@ export const sendOrderMessage = asyncHandler(async (req, res) => {
 
   if (!isCustomer && !isSeller && !isAdmin) {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à envoyer un message pour cette commande.' });
+  }
+
+  if (!isAdmin) {
+    const sender = await User.findById(userId).select('restrictions');
+    if (!sender) {
+      return res.status(404).json({ message: 'Utilisateur introuvable.' });
+    }
+    if (isRestricted(sender, 'canMessage')) {
+      return res.status(403).json({
+        message: getRestrictionMessage('canMessage'),
+        restrictionType: 'canMessage'
+      });
+    }
   }
 
   // Determine recipient

@@ -13,6 +13,7 @@ import { registerNotificationStream } from '../utils/notificationEmitter.js';
 import { createNotification } from '../utils/notificationService.js';
 import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
 import { buildIdentifierQuery } from '../utils/idResolver.js';
+import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
 import {
   uploadToCloudinary,
   getCloudinaryFolder,
@@ -41,7 +42,9 @@ const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   order_reminder: true,
   order_delivering: true,
   order_delivered: true,
-  feedback_read: true
+  feedback_read: true,
+  account_restriction: true,
+  account_restriction_lifted: true
 });
 
 const mergeNotificationPreferences = (prefs = {}) => {
@@ -1081,6 +1084,26 @@ export const getNotifications = asyncHandler(async (req, res) => {
         message = `${actorName} a déposé un avis d'amélioration${subjectLabel}. Consultez la section Avis pour le lire.`;
         break;
       }
+      case 'admin_broadcast': {
+        message = metadata.message && String(metadata.message).trim() ? String(metadata.message).trim() : 'Message de l\'équipe HDMarket.';
+        break;
+      }
+      case 'account_restriction': {
+        const restrictionLabel = metadata.restrictionLabel || 'restriction';
+        const fallback = `${actorName} a appliqué une restriction "${restrictionLabel}".`;
+        message = metadata.message && String(metadata.message).trim()
+          ? String(metadata.message).trim()
+          : fallback;
+        break;
+      }
+      case 'account_restriction_lifted': {
+        const restrictionLabel = metadata.restrictionLabel || 'restriction';
+        const fallback = `${actorName} a levé la restriction "${restrictionLabel}".`;
+        message = metadata.message && String(metadata.message).trim()
+          ? String(metadata.message).trim()
+          : fallback;
+        break;
+      }
       case 'payment_pending': {
         const amountValue = Number(metadata.amount || 0);
         const amountText = Number.isFinite(amountValue) && amountValue > 0
@@ -1168,6 +1191,11 @@ export const getNotifications = asyncHandler(async (req, res) => {
         ? { message: metadata.parentMessage }
         : null;
 
+    const displayActor =
+      notification.type === 'admin_broadcast' && actor
+        ? { ...actor, name: 'HDMarketCG' }
+        : actor;
+
     return {
       _id: notification._id,
       type: notification.type,
@@ -1176,8 +1204,8 @@ export const getNotifications = asyncHandler(async (req, res) => {
       updatedAt: notification.updatedAt,
       readAt: notification.readAt,
       product,
-      user: actor,
-      actor,
+      user: displayActor,
+      actor: displayActor,
       shop: shopInfo,
       metadata,
       parent,
@@ -1338,8 +1366,15 @@ export const addFavorite = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Produit introuvable ou désactivé.' });
   }
 
-  const user = await User.findById(req.user.id).select('favorites');
+  const user = await User.findById(req.user.id).select('favorites restrictions');
   if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
+
+  if (isRestricted(user, 'canAddFavorites')) {
+    return res.status(403).json({
+      message: getRestrictionMessage('canAddFavorites'),
+      restrictionType: 'canAddFavorites'
+    });
+  }
 
   const exists = user.favorites.some((fav) => fav.toString() === productId);
   if (!exists) {

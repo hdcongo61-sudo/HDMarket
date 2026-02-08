@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import api from './services/api';
 import Navbar from './components/Navbar';
 import SplashScreen from './components/SplashScreen';
+import AppLoader from './components/AppLoader';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -68,6 +69,9 @@ function AppContent() {
   const { pathname } = useLocation();
   const [splashConfig, setSplashConfig] = useState(null);
   const [splashDismissed, setSplashDismissed] = useState(false);
+  const [bootLoading, setBootLoading] = useState(true);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const firstRouteRef = useRef(true);
 
   useEffect(() => {
     if (pathname !== '/') return;
@@ -77,11 +81,28 @@ function AppContent() {
       .catch(() => setSplashConfig(null));
   }, [pathname]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => setBootLoading(false), 700);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (firstRouteRef.current) {
+      firstRouteRef.current = false;
+      return;
+    }
+    setRouteLoading(true);
+    const timer = setTimeout(() => setRouteLoading(false), 450);
+    return () => clearTimeout(timer);
+  }, [pathname]);
+
   const showSplash =
     pathname === '/' &&
     splashConfig?.splashEnabled !== false &&
     splashConfig?.splashImage &&
     !splashDismissed;
+
+  const showLoader = !showSplash && (bootLoading || routeLoading);
 
   if (showSplash) {
     return (
@@ -95,6 +116,7 @@ function AppContent() {
 
   return (
     <>
+      <AppLoader visible={showLoader} />
       <PushNotificationsManager />
       <AnalyticsTracker />
       <ScrollToTop />

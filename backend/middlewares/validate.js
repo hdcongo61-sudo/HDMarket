@@ -150,6 +150,12 @@ export const schemas = {
   idParam: Joi.object({
     id: Joi.string().hex().length(24).required()
   }),
+  restrictionParam: Joi.object({
+    id: Joi.string().hex().length(24).required(),
+    type: Joi.string()
+      .valid('canComment', 'canOrder', 'canMessage', 'canAddFavorites', 'canUploadImages', 'canBeViewed')
+      .required()
+  }),
   slugParam: Joi.object({
     id: Joi.string()
       .lowercase()
@@ -315,7 +321,9 @@ export const schemas = {
     order_address_updated: Joi.boolean(),
     order_message: Joi.boolean(),
     order_cancelled: Joi.boolean(),
-    feedback_read: Joi.boolean()
+    feedback_read: Joi.boolean(),
+    account_restriction: Joi.boolean(),
+    account_restriction_lifted: Joi.boolean()
   }).min(1),
   pushTokenRegister: Joi.object({
     token: Joi.string().trim().required(),

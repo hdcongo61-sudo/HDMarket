@@ -233,6 +233,15 @@ export default function AdminDashboard() {
   const [remindersLoading, setRemindersLoading] = useState(false);
   const [remindersError, setRemindersError] = useState('');
   const [reminderActioningId, setReminderActioningId] = useState('');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastTarget, setBroadcastTarget] = useState('all');
+  const [broadcastSending, setBroadcastSending] = useState(false);
+  const [broadcastError, setBroadcastError] = useState('');
+  const [broadcastSuccess, setBroadcastSuccess] = useState('');
+  const [exportTarget, setExportTarget] = useState('all');
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportError, setExportError] = useState('');
   const { showToast } = useToast();
 
   const { user: authUser } = useContext(AuthContext);
@@ -545,8 +554,63 @@ export default function AdminDashboard() {
     }
   }, [canManageComplaints, complaintsFilter, normalizeUrl]);
 
+  const sendBroadcast = useCallback(async () => {
+    const msg = broadcastMessage.trim();
+    if (!msg) {
+      setBroadcastError('Veuillez saisir un message.');
+      return;
+    }
+    setBroadcastSending(true);
+    setBroadcastError('');
+    setBroadcastSuccess('');
+    try {
+      const { data } = await api.post('/admin/notifications/broadcast', {
+        message: msg,
+        title: broadcastTitle.trim() || undefined,
+        target: broadcastTarget
+      });
+      setBroadcastSuccess(data?.message || `Envoyé à ${data?.sent ?? 0} utilisateur(s).`);
+      setBroadcastMessage('');
+      setBroadcastTitle('');
+      showToast(data?.message || 'Notification envoyée', { variant: 'success' });
+    } catch (e) {
+      const err = e.response?.data?.message || e.message || 'Erreur lors de l\'envoi.';
+      setBroadcastError(err);
+      showToast(err, { variant: 'error' });
+    } finally {
+      setBroadcastSending(false);
+    }
+  }, [broadcastMessage, broadcastTitle, broadcastTarget, showToast]);
 
-
+  const handleExportPhones = useCallback(async () => {
+    setExportLoading(true);
+    setExportError('');
+    try {
+      const { data } = await api.get('/admin/users/export-phones', { params: { target: exportTarget } });
+      const users = data?.users || [];
+      if (!users.length) {
+        setExportError('Aucun numéro à exporter pour ce filtre.');
+        return;
+      }
+      const headers = ['Téléphone', 'Nom', 'Email', 'Type compte'];
+      const rows = users.map((u) => [u.phone || '', u.name || '', u.email || '', u.accountType === 'shop' ? 'Boutique' : 'Particulier']);
+      const csv = [headers.join(';'), ...rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';'))].join('\n');
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `numeros_${exportTarget}_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`${users.length} numéro(s) exporté(s)`, { variant: 'success' });
+    } catch (e) {
+      const err = e.response?.data?.message || e.message || 'Erreur lors de l\'export.';
+      setExportError(err);
+      showToast(err, { variant: 'error' });
+    } finally {
+      setExportLoading(false);
+    }
+  }, [exportTarget, showToast]);
 
   useEffect(() => {
     if (!canViewStats) return;
@@ -1250,6 +1314,125 @@ const refreshAll = useCallback(() => {
               </div>
             )}
           </section>
+
+          {isAdmin && (
+            <>
+              <section className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-purple-100">
+                    <MessageSquare size={20} className="text-violet-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">Notification globale</h2>
+                    <p className="text-xs text-gray-500 mt-0.5">Envoyer une notification à tous les utilisateurs ou filtrer par type de compte</p>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
+                  {broadcastError && <p className="text-sm text-red-600 mb-3">{broadcastError}</p>}
+                  {broadcastSuccess && <p className="text-sm text-emerald-600 mb-3">{broadcastSuccess}</p>}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Destinataires</label>
+                      <select
+                        value={broadcastTarget}
+                        onChange={(e) => setBroadcastTarget(e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      >
+                        <option value="all">Tous les utilisateurs</option>
+                        <option value="person">Particuliers uniquement</option>
+                        <option value="shop">Boutiques uniquement</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Titre (optionnel)</label>
+                      <input
+                        type="text"
+                        value={broadcastTitle}
+                        onChange={(e) => setBroadcastTitle(e.target.value)}
+                        placeholder="Ex : Actualités"
+                        maxLength={200}
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Message *</label>
+                      <textarea
+                        value={broadcastMessage}
+                        onChange={(e) => setBroadcastMessage(e.target.value)}
+                        placeholder="Contenu de la notification..."
+                        rows={4}
+                        maxLength={2000}
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">{broadcastMessage.length} / 2000</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={sendBroadcast}
+                      disabled={broadcastSending || !broadcastMessage.trim()}
+                      className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {broadcastSending ? (
+                        <>
+                          <RefreshCw size={16} className="animate-spin" />
+                          Envoi en cours…
+                        </>
+                      ) : (
+                        <>
+                          <MessageSquare size={16} />
+                          Envoyer la notification
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              <section className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-100 to-blue-100">
+                    <Phone size={20} className="text-sky-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">Export des numéros de téléphone</h2>
+                    <p className="text-xs text-gray-500 mt-0.5">Télécharger la liste des numéros au format CSV (particuliers, boutiques ou tous)</p>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
+                  {exportError && <p className="text-sm text-red-600 mb-3">{exportError}</p>}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <select
+                      value={exportTarget}
+                      onChange={(e) => setExportTarget(e.target.value)}
+                      className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    >
+                      <option value="all">Tous les utilisateurs</option>
+                      <option value="person">Particuliers uniquement</option>
+                      <option value="shop">Boutiques uniquement</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleExportPhones}
+                      disabled={exportLoading}
+                      className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {exportLoading ? (
+                        <>
+                          <RefreshCw size={16} className="animate-spin" />
+                          Export…
+                        </>
+                      ) : (
+                        <>
+                          <FileText size={16} />
+                          Exporter en CSV
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </section>
+            </>
+          )}
 
           {remindersOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">

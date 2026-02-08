@@ -21,8 +21,10 @@ import {
   Info,
   CreditCard,
   Receipt,
-  ShieldCheck
+  ShieldCheck,
+  ChevronDown
 } from 'lucide-react';
+import useIsMobile from '../hooks/useIsMobile';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import AuthContext from '../context/AuthContext';
@@ -183,6 +185,371 @@ const OrderProgress = ({ status }) => {
             );
           })}
         </div>
+      </div>
+    </div>
+  );
+};
+
+// Mobile Order Tracking Card for Sellers - App-style tracking UI
+const SellerMobileOrderCard = ({
+  order,
+  onStatusUpdate,
+  onOpenCancelModal,
+  statusUpdatingId,
+  statusUpdateError,
+  orderUnreadCounts,
+  externalLinkProps
+}) => {
+  const orderItems = Array.isArray(order.items) ? order.items : [];
+  const itemCount = orderItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
+  const computedTotal = orderItems.reduce((sum, item) => sum + Number(item.snapshot?.price || 0) * Number(item.quantity || 1), 0);
+  const totalAmount = Number(order.totalAmount ?? computedTotal);
+  const paidAmount = Number(order.paidAmount || 0);
+  const remainingAmount = Number(order.remainingAmount ?? Math.max(0, totalAmount - paidAmount));
+
+  // Progress percentage based on status
+  const progressMap = { pending: 25, confirmed: 50, delivering: 75, delivered: 100, cancelled: 0 };
+  const progress = progressMap[order.status] || 0;
+
+  // Status colors
+  const statusColors = {
+    pending: { bg: 'bg-amber-500', light: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+    confirmed: { bg: 'bg-blue-500', light: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+    delivering: { bg: 'bg-teal-500', light: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200' },
+    delivered: { bg: 'bg-emerald-500', light: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+    cancelled: { bg: 'bg-red-500', light: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' }
+  };
+  const colors = statusColors[order.status] || statusColors.pending;
+
+  // Timeline steps with timestamps
+  const timelineSteps = [
+    { id: 'pending', label: 'Passée', icon: ClipboardList, time: order.createdAt },
+    { id: 'confirmed', label: 'Confirmée', icon: Package, time: order.confirmedAt },
+    { id: 'delivering', label: 'Expédiée', icon: Truck, time: order.shippedAt },
+    { id: 'delivered', label: 'Livrée', icon: CheckCircle, time: order.deliveredAt }
+  ];
+
+  const statusIndex = ['pending', 'confirmed', 'delivering', 'delivered'].indexOf(order.status);
+  const isCancelled = order.status === 'cancelled';
+  const canUpdateStatus = !isCancelled && order.status !== 'delivered' && !order.cancellationWindow?.isActive;
+
+  const formatTime = (date) => {
+    if (!date) return null;
+    return new Date(date).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatDate = (date) => {
+    if (!date) return null;
+    return new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+  };
+
+  return (
+    <div className="bg-white rounded-3xl shadow-lg overflow-hidden border border-gray-100">
+      {/* Header with Progress Circle */}
+      <div className="px-5 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {/* Circular Progress */}
+            <div className="relative w-14 h-14">
+              <svg className="w-14 h-14 transform -rotate-90">
+                <circle cx="28" cy="28" r="24" stroke="#e5e7eb" strokeWidth="4" fill="none" />
+                <circle
+                  cx="28" cy="28" r="24"
+                  stroke={isCancelled ? '#ef4444' : '#6366f1'}
+                  strokeWidth="4"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeDasharray={`${(progress / 100) * 150.8} 150.8`}
+                  className="transition-all duration-500"
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-sm font-bold text-gray-900">{progress}%</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 font-medium">Commande</p>
+              <h3 className="text-lg font-bold text-gray-900">#{order._id.slice(-6)}</h3>
+              <p className="text-xs text-gray-500">{itemCount} article{itemCount > 1 ? 's' : ''} • {formatCurrency(totalAmount)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Status Card */}
+      <div className={`mx-4 mt-4 p-4 rounded-2xl ${colors.light} ${colors.border} border`}>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            {isCancelled ? (
+              <X className={`w-5 h-5 ${colors.text}`} />
+            ) : (
+              <div className={`w-2 h-2 rounded-full ${colors.bg} animate-pulse`} />
+            )}
+            <span className={`font-semibold ${colors.text}`}>
+              {STATUS_LABELS[order.status]}
+            </span>
+          </div>
+          {order.deliveryGuy && (
+            <div className="flex items-center gap-1 text-xs text-gray-600">
+              <Truck className="w-3.5 h-3.5" />
+              <span>{order.deliveryGuy.name}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Progress Dots */}
+        {!isCancelled && (
+          <div className="flex items-center gap-2">
+            {[0, 1, 2, 3].map((step) => (
+              <div
+                key={step}
+                className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${
+                  step <= statusIndex ? colors.bg : 'bg-gray-200'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Delivery Code - Prominent display */}
+      {order.deliveryCode && order.status !== 'cancelled' && (
+        <div className="mx-4 mt-3 p-4 rounded-2xl bg-indigo-50 border-2 border-indigo-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-indigo-600 uppercase tracking-wide">Code de livraison</p>
+              <p className="text-3xl font-black text-indigo-900 tracking-widest font-mono mt-1">
+                {order.deliveryCode}
+              </p>
+            </div>
+            <ShieldCheck className="w-10 h-10 text-indigo-400" />
+          </div>
+        </div>
+      )}
+
+      {/* Customer Info */}
+      <div className="mx-4 mt-3 p-4 rounded-2xl bg-gray-50">
+        <div className="flex items-center gap-2 mb-2">
+          <User className="w-4 h-4 text-gray-500" />
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Client</span>
+        </div>
+        <p className="text-sm font-semibold text-gray-900">{order.customer?.name || 'Client'}</p>
+        {order.customer?.phone && (
+          <a href={`tel:${order.customer.phone}`} className="flex items-center gap-1 text-xs text-indigo-600 mt-1">
+            <Phone className="w-3 h-3" />
+            <span>{order.customer.phone}</span>
+          </a>
+        )}
+        <div className="mt-2 pt-2 border-t border-gray-200">
+          <div className="flex items-center gap-1 text-xs text-gray-500">
+            <MapPin className="w-3 h-3" />
+            <span>{order.deliveryAddress || 'Adresse non renseignée'}</span>
+          </div>
+          <p className="text-xs text-gray-400 ml-4">{order.deliveryCity || ''}</p>
+        </div>
+      </div>
+
+      {/* Timeline */}
+      {!isCancelled && (
+        <div className="px-5 py-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Clock className="w-4 h-4 text-gray-400" />
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Suivi</span>
+          </div>
+          <div className="relative">
+            {/* Timeline Line */}
+            <div className="absolute left-[15px] top-4 bottom-4 w-0.5 bg-gray-200">
+              <div
+                className="absolute top-0 left-0 w-full bg-indigo-500 transition-all duration-500"
+                style={{ height: `${(statusIndex / 3) * 100}%` }}
+              />
+            </div>
+
+            <div className="space-y-4">
+              {timelineSteps.map((step, index) => {
+                const Icon = step.icon;
+                const isReached = statusIndex >= index;
+                const isCurrent = statusIndex === index;
+
+                return (
+                  <div key={step.id} className="flex items-center gap-4 relative">
+                    <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                      isReached
+                        ? 'bg-indigo-500 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-400'
+                    } ${isCurrent ? 'ring-4 ring-indigo-100' : ''}`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 flex items-center justify-between">
+                      <span className={`text-sm font-medium ${isReached ? 'text-gray-900' : 'text-gray-400'}`}>
+                        {step.label}
+                      </span>
+                      {step.time && (
+                        <div className="text-right">
+                          <p className="text-xs font-medium text-gray-900">{formatTime(step.time)}</p>
+                          <p className="text-[10px] text-gray-500">{formatDate(step.time)}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancelled Status */}
+      {isCancelled && (
+        <div className="mx-4 my-4 p-4 rounded-2xl bg-red-50 border border-red-200">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-full bg-red-100">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-red-800">Commande annulée</p>
+              {order.cancellationReason && (
+                <p className="text-sm text-red-600 mt-1">{order.cancellationReason}</p>
+              )}
+              {order.cancelledAt && (
+                <p className="text-xs text-red-500 mt-1">
+                  {formatOrderTimestamp(order.cancelledAt)}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancellation Window Warning */}
+      {order.cancellationWindow?.isActive && order.status !== 'cancelled' && (
+        <div className="mx-4 mt-3 p-4 rounded-2xl bg-amber-50 border border-amber-200">
+          <CancellationTimer
+            deadline={order.cancellationWindow.deadline}
+            remainingMs={order.cancellationWindow.remainingMs}
+            isActive={order.cancellationWindow.isActive}
+          />
+          <p className="text-xs text-amber-700 mt-2">
+            ⏱️ Délai d'annulation client actif. Modifications temporairement désactivées.
+          </p>
+        </div>
+      )}
+
+      {/* Products Preview - Collapsible */}
+      <div className="px-4 pb-4">
+        <details className="group">
+          <summary className="flex items-center justify-between cursor-pointer list-none py-3 px-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
+            <div className="flex items-center gap-3">
+              <Package className="w-4 h-4 text-gray-500" />
+              <span className="text-sm font-semibold text-gray-700">Articles ({itemCount})</span>
+            </div>
+            <ChevronDown className="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" />
+          </summary>
+          <div className="mt-3 space-y-2">
+            {orderItems.slice(0, 3).map((item, index) => (
+              <div key={index} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
+                {item.snapshot?.image || item.product?.images?.[0] ? (
+                  <img
+                    src={item.snapshot?.image || item.product?.images?.[0]}
+                    alt={item.snapshot?.title || 'Produit'}
+                    className="w-12 h-12 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-lg bg-indigo-100 flex items-center justify-center">
+                    <Package className="w-5 h-5 text-indigo-500" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{item.snapshot?.title || 'Produit'}</p>
+                  <p className="text-xs text-gray-500">Qté: {item.quantity || 1} • {formatCurrency(item.snapshot?.price || 0)}</p>
+                </div>
+              </div>
+            ))}
+            {orderItems.length > 3 && (
+              <p className="text-xs text-gray-500 text-center py-2">+{orderItems.length - 3} autre(s) article(s)</p>
+            )}
+          </div>
+        </details>
+      </div>
+
+      {/* Payment Summary */}
+      <div className="mx-4 mb-4 p-4 rounded-xl bg-gray-50">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-gray-600">Total</span>
+          <span className="text-lg font-bold text-gray-900">{formatCurrency(totalAmount)}</span>
+        </div>
+        {paidAmount > 0 && (
+          <>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500">Acompte versé</span>
+              <span className="font-medium text-emerald-600">{formatCurrency(paidAmount)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500">Reste à payer</span>
+              <span className="font-medium text-amber-600">{formatCurrency(remainingAmount)}</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Status Update Actions */}
+      {canUpdateStatus && (
+        <div className="px-4 pb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <ShieldCheck className="w-4 h-4 text-gray-400" />
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Actions</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => onStatusUpdate(order._id, 'confirmed')}
+              disabled={order.status !== 'pending' || statusUpdatingId === order._id}
+              className="flex items-center justify-center gap-2 py-3 rounded-xl bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              <Package className="w-4 h-4" />
+              Confirmer
+            </button>
+            <button
+              type="button"
+              onClick={() => onStatusUpdate(order._id, 'delivering')}
+              disabled={order.status !== 'confirmed' || statusUpdatingId === order._id}
+              className="flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              <Truck className="w-4 h-4" />
+              Expédier
+            </button>
+            <button
+              type="button"
+              onClick={() => onStatusUpdate(order._id, 'delivered')}
+              disabled={order.status !== 'delivering' || statusUpdatingId === order._id}
+              className="flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500 text-white font-semibold text-sm hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              <CheckCircle className="w-4 h-4" />
+              Livrée
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenCancelModal(order._id)}
+              disabled={statusUpdatingId === order._id}
+              className="flex items-center justify-center gap-2 py-3 rounded-xl bg-red-500 text-white font-semibold text-sm hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              <X className="w-4 h-4" />
+              Annuler
+            </button>
+          </div>
+          {statusUpdateError.id === order._id && (
+            <p className="text-xs text-red-600 mt-2 text-center">{statusUpdateError.message}</p>
+          )}
+        </div>
+      )}
+
+      {/* Chat Button */}
+      <div className="px-4 pb-4">
+        <OrderChat
+          order={order}
+          buttonText="Contacter l'acheteur"
+          unreadCount={orderUnreadCounts[order._id] || 0}
+        />
       </div>
     </div>
   );

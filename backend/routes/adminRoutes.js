@@ -26,7 +26,15 @@ import {
   getOrderHeatmap,
   getConversionMetrics,
   getCohortAnalysis,
-  getOrdersByHour
+  getOrdersByHour,
+  broadcastNotification,
+  exportPhones,
+  getUserRestrictions,
+  setUserRestriction,
+  removeUserRestriction,
+  getSellerReceivedOrders,
+  listAuditLogs,
+  getUserAuditLogs
 } from '../controllers/adminController.js';
 import { getAdminUserStats } from '../controllers/userController.js';
 import {
@@ -102,6 +110,13 @@ router.get('/reports', protect, requireRole(['admin']), generateReport);
 
 // Review reminders - admin only
 router.post('/review-reminders/send', protect, requireRole(['admin']), triggerReviewReminders);
+router.post(
+  '/notifications/broadcast',
+  protect,
+  requireRole(['admin']),
+  validate(Joi.object({ message: Joi.string().min(1).max(2000).required(), title: Joi.string().max(200).allow(''), target: Joi.string().valid('all', 'person', 'shop') })),
+  broadcastNotification
+);
 
 // Stats endpoint - accessible by admin, manager, or users with payment verification access
 router.get('/stats', protect, (req, res, next) => {
@@ -155,6 +170,7 @@ router.get('/analytics/conversion', cacheMiddleware({ ttl: 300000 }), getConvers
 router.get('/analytics/cohorts', cacheMiddleware({ ttl: 300000 }), getCohortAnalysis);
 router.get('/analytics/orders-by-hour', getOrdersByHour);
 router.get('/users', listUsers);
+router.get('/users/export-phones', protect, requireRole(['admin']), exportPhones);
 router.get('/users/:id/stats', validate(schemas.idParam, 'params'), getAdminUserStats);
 router.get('/users/:userId/account-type-history', getUserAccountTypeHistory);
 router.patch(
@@ -186,6 +202,16 @@ router.patch(
   validate(schemas.adminUserRole),
   updateUserRole
 );
+// User restrictions management
+router.get('/users/:id/restrictions', validate(schemas.idParam, 'params'), getUserRestrictions);
+router.patch('/users/:id/restrictions/:type', validate(schemas.restrictionParam, 'params'), setUserRestriction);
+router.delete('/users/:id/restrictions/:type', validate(schemas.restrictionParam, 'params'), removeUserRestriction);
+// Seller received orders
+router.get('/users/:id/received-orders', validate(schemas.idParam, 'params'), getSellerReceivedOrders);
+// User audit logs
+router.get('/users/:id/audit-logs', validate(schemas.idParam, 'params'), getUserAuditLogs);
+// Global audit logs
+router.get('/audit-logs', listAuditLogs);
 router.get('/shops/verified', listVerifiedShopsAdmin);
 router.post('/products/update-sales-count', updateAllProductSalesCount);
 router.get('/products', listAdminProducts);

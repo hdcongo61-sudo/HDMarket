@@ -33,7 +33,10 @@ const notificationSchema = new mongoose.Schema(
       'complaint_resolved',
       'complaint_created',
       'feedback_read',
-      'improvement_feedback_created'
+      'improvement_feedback_created',
+      'admin_broadcast',
+      'account_restriction',
+      'account_restriction_lifted'
     ],
       required: true
     },

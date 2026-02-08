@@ -251,6 +251,27 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       body = `${actorName} a déposé un avis d'amélioration${subjectLabel}`;
       break;
     }
+    case 'admin_broadcast': {
+      title = metadata.title && String(metadata.title).trim() ? String(metadata.title).trim() : 'HDMarketCG';
+      body = metadata.message && String(metadata.message).trim() ? String(metadata.message).trim() : 'Nouvelle notification.';
+      break;
+    }
+    case 'account_restriction': {
+      const restrictionLabel = metadata.restrictionLabel || 'restriction';
+      title = 'Restriction de compte';
+      body = metadata.message && String(metadata.message).trim()
+        ? String(metadata.message).trim()
+        : `${actorName} a appliqué une restriction "${restrictionLabel}".`;
+      break;
+    }
+    case 'account_restriction_lifted': {
+      const restrictionLabel = metadata.restrictionLabel || 'restriction';
+      title = 'Restriction levée';
+      body = metadata.message && String(metadata.message).trim()
+        ? String(metadata.message).trim()
+        : `${actorName} a levé la restriction "${restrictionLabel}".`;
+      break;
+    }
     default:
       title = 'Nouvelle notification';
       body = `${actorName} a interagi avec votre compte.`;

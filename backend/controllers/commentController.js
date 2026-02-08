@@ -2,9 +2,11 @@ import asyncHandler from 'express-async-handler';
 import mongoose from 'mongoose';
 import Comment from '../models/commentModel.js';
 import Product from '../models/productModel.js';
+import User from '../models/userModel.js';
 import { createNotification } from '../utils/notificationService.js';
 import { buildIdentifierQuery } from '../utils/idResolver.js';
 import { ensureDocumentSlug } from '../utils/slugUtils.js';
+import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
 
 const formatComment = (comment) => {
   const plain = comment.toObject ? comment.toObject() : comment;
@@ -76,6 +78,17 @@ export const addComment = asyncHandler(async (req, res) => {
   );
   if (!product || product.status !== 'approved') {
     return res.status(404).json({ message: 'Produit introuvable ou non publié.' });
+  }
+
+  const commenter = await User.findById(req.user.id).select('restrictions');
+  if (!commenter) {
+    return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  }
+  if (isRestricted(commenter, 'canComment')) {
+    return res.status(403).json({
+      message: getRestrictionMessage('canComment'),
+      restrictionType: 'canComment'
+    });
   }
 
   const { message, parentId, parentReadIds } = req.body;

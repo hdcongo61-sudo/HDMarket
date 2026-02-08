@@ -67,12 +67,64 @@ const userSchema = new mongoose.Schema(
       review_reminder: { type: Boolean, default: true },
       order_address_updated: { type: Boolean, default: true },
       order_message: { type: Boolean, default: true },
-      feedback_read: { type: Boolean, default: true }
+      feedback_read: { type: Boolean, default: true },
+      account_restriction: { type: Boolean, default: true },
+      account_restriction_lifted: { type: Boolean, default: true }
     },
     notificationsReadAt: { type: Date },
     isBlocked: { type: Boolean, default: false },
     blockedAt: { type: Date },
-    blockedReason: { type: String }
+    blockedReason: { type: String },
+    restrictions: {
+      canComment: {
+        restricted: { type: Boolean, default: false },
+        startDate: { type: Date, default: null },
+        endDate: { type: Date, default: null },
+        reason: { type: String, default: '' },
+        restrictedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+        restrictedAt: { type: Date, default: null }
+      },
+      canOrder: {
+        restricted: { type: Boolean, default: false },
+        startDate: { type: Date, default: null },
+        endDate: { type: Date, default: null },
+        reason: { type: String, default: '' },
+        restrictedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+        restrictedAt: { type: Date, default: null }
+      },
+      canMessage: {
+        restricted: { type: Boolean, default: false },
+        startDate: { type: Date, default: null },
+        endDate: { type: Date, default: null },
+        reason: { type: String, default: '' },
+        restrictedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+        restrictedAt: { type: Date, default: null }
+      },
+      canAddFavorites: {
+        restricted: { type: Boolean, default: false },
+        startDate: { type: Date, default: null },
+        endDate: { type: Date, default: null },
+        reason: { type: String, default: '' },
+        restrictedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+        restrictedAt: { type: Date, default: null }
+      },
+      canUploadImages: {
+        restricted: { type: Boolean, default: false },
+        startDate: { type: Date, default: null },
+        endDate: { type: Date, default: null },
+        reason: { type: String, default: '' },
+        restrictedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+        restrictedAt: { type: Date, default: null }
+      },
+      canBeViewed: {
+        restricted: { type: Boolean, default: false },
+        startDate: { type: Date, default: null },
+        endDate: { type: Date, default: null },
+        reason: { type: String, default: '' },
+        restrictedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+        restrictedAt: { type: Date, default: null }
+      }
+    }
   },
   { timestamps: true }
 );

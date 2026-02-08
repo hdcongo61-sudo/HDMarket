@@ -209,6 +209,330 @@ const OrderProgress = ({ status }) => {
   );
 };
 
+// Mobile Order Tracking Card - App-style tracking UI
+const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancelOrder, onSkipWindow, onReorder, skipLoadingId, reordering, orderUnreadCounts }) => {
+  const externalLinkProps = useDesktopExternalLink();
+  const orderItems = order.items?.length ? order.items : order.productSnapshot ? [{ snapshot: order.productSnapshot, quantity: 1, product: order.product }] : [];
+  const itemCount = orderItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
+  const computedTotal = orderItems.reduce((sum, item) => sum + Number(item.snapshot?.price || 0) * Number(item.quantity || 1), 0);
+  const totalAmount = Number(order.totalAmount ?? computedTotal);
+
+  // Progress percentage based on status
+  const progressMap = { pending: 25, confirmed: 50, delivering: 75, delivered: 100, cancelled: 0 };
+  const progress = progressMap[order.status] || 0;
+
+  // Status colors
+  const statusColors = {
+    pending: { bg: 'bg-amber-500', light: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+    confirmed: { bg: 'bg-blue-500', light: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+    delivering: { bg: 'bg-teal-500', light: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200' },
+    delivered: { bg: 'bg-emerald-500', light: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+    cancelled: { bg: 'bg-red-500', light: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' }
+  };
+  const colors = statusColors[order.status] || statusColors.pending;
+
+  // Timeline steps with timestamps
+  const timelineSteps = [
+    { id: 'pending', label: 'Passée', icon: ClipboardList, time: order.createdAt },
+    { id: 'confirmed', label: 'Confirmée', icon: Package, time: order.confirmedAt },
+    { id: 'delivering', label: 'Expédiée', icon: Truck, time: order.shippedAt },
+    { id: 'delivered', label: 'Livrée', icon: CheckCircle, time: order.deliveredAt }
+  ];
+
+  const statusIndex = ['pending', 'confirmed', 'delivering', 'delivered'].indexOf(order.status);
+  const isCancelled = order.status === 'cancelled';
+
+  const formatTime = (date) => {
+    if (!date) return null;
+    return new Date(date).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatDate = (date) => {
+    if (!date) return null;
+    return new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+  };
+
+  return (
+    <div className="bg-white rounded-3xl shadow-lg overflow-hidden border border-gray-100">
+      {/* Header with Progress Circle */}
+      <div className="px-5 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {/* Circular Progress */}
+            <div className="relative w-14 h-14">
+              <svg className="w-14 h-14 transform -rotate-90">
+                <circle cx="28" cy="28" r="24" stroke="#e5e7eb" strokeWidth="4" fill="none" />
+                <circle
+                  cx="28" cy="28" r="24"
+                  stroke={isCancelled ? '#ef4444' : '#6366f1'}
+                  strokeWidth="4"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeDasharray={`${(progress / 100) * 150.8} 150.8`}
+                  className="transition-all duration-500"
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-sm font-bold text-gray-900">{progress}%</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 font-medium">Commande</p>
+              <h3 className="text-lg font-bold text-gray-900">#{order._id.slice(-6)}</h3>
+              <p className="text-xs text-gray-500">{itemCount} article{itemCount > 1 ? 's' : ''} • {formatCurrency(totalAmount)}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => onDownloadPdf(order)}
+            className="p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors"
+          >
+            <Download className="w-5 h-5 text-gray-600" />
+          </button>
+        </div>
+      </div>
+
+      {/* Status Card */}
+      <div className={`mx-4 mt-4 p-4 rounded-2xl ${colors.light} ${colors.border} border`}>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            {isCancelled ? (
+              <X className={`w-5 h-5 ${colors.text}`} />
+            ) : (
+              <div className={`w-2 h-2 rounded-full ${colors.bg} animate-pulse`} />
+            )}
+            <span className={`font-semibold ${colors.text}`}>
+              {STATUS_LABELS[order.status]}
+            </span>
+          </div>
+          {order.deliveryGuy && (
+            <div className="flex items-center gap-1 text-xs text-gray-600">
+              <Truck className="w-3.5 h-3.5" />
+              <span>{order.deliveryGuy.name}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Progress Dots */}
+        {!isCancelled && (
+          <div className="flex items-center gap-2">
+            {[0, 1, 2, 3].map((step) => (
+              <div
+                key={step}
+                className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${
+                  step <= statusIndex ? colors.bg : 'bg-gray-200'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Delivery Code - Prominent display */}
+      {order.deliveryCode && order.status !== 'cancelled' && (
+        <div className="mx-4 mt-3 p-4 rounded-2xl bg-indigo-50 border-2 border-indigo-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-indigo-600 uppercase tracking-wide">Code de livraison</p>
+              <p className="text-3xl font-black text-indigo-900 tracking-widest font-mono mt-1">
+                {order.deliveryCode}
+              </p>
+            </div>
+            <ShieldCheck className="w-10 h-10 text-indigo-400" />
+          </div>
+        </div>
+      )}
+
+      {/* Timeline */}
+      {!isCancelled && (
+        <div className="px-5 py-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Clock className="w-4 h-4 text-gray-400" />
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Suivi</span>
+          </div>
+          <div className="relative">
+            {/* Timeline Line */}
+            <div className="absolute left-[15px] top-4 bottom-4 w-0.5 bg-gray-200">
+              <div
+                className="absolute top-0 left-0 w-full bg-indigo-500 transition-all duration-500"
+                style={{ height: `${(statusIndex / 3) * 100}%` }}
+              />
+            </div>
+
+            <div className="space-y-4">
+              {timelineSteps.map((step, index) => {
+                const Icon = step.icon;
+                const isReached = statusIndex >= index;
+                const isCurrent = statusIndex === index;
+
+                return (
+                  <div key={step.id} className="flex items-center gap-4 relative">
+                    <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                      isReached
+                        ? 'bg-indigo-500 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-400'
+                    } ${isCurrent ? 'ring-4 ring-indigo-100' : ''}`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 flex items-center justify-between">
+                      <span className={`text-sm font-medium ${isReached ? 'text-gray-900' : 'text-gray-400'}`}>
+                        {step.label}
+                      </span>
+                      {step.time && (
+                        <div className="text-right">
+                          <p className="text-xs font-medium text-gray-900">{formatTime(step.time)}</p>
+                          <p className="text-[10px] text-gray-500">{formatDate(step.time)}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancelled Status */}
+      {isCancelled && (
+        <div className="mx-4 my-4 p-4 rounded-2xl bg-red-50 border border-red-200">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-full bg-red-100">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-red-800">Commande annulée</p>
+              {order.cancellationReason && (
+                <p className="text-sm text-red-600 mt-1">{order.cancellationReason}</p>
+              )}
+              {order.cancelledAt && (
+                <p className="text-xs text-red-500 mt-1">
+                  {formatOrderTimestamp(order.cancelledAt)}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancellation Window Actions */}
+      {order.cancellationWindow?.isActive && order.status !== 'cancelled' && (
+        <div className="px-4 pb-4 space-y-3">
+          <CancellationTimer
+            deadline={order.cancellationWindow.deadline}
+            remainingMs={order.cancellationWindow.remainingMs}
+            isActive={order.cancellationWindow.isActive}
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => onSkipWindow(order._id)}
+              disabled={skipLoadingId === order._id}
+              className="px-4 py-3 rounded-xl bg-emerald-500 text-white font-semibold text-sm hover:bg-emerald-600 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              {skipLoadingId === order._id ? '...' : 'Autoriser'}
+            </button>
+            <button
+              type="button"
+              onClick={() => onCancelOrder(order._id)}
+              className="px-4 py-3 rounded-xl bg-red-500 text-white font-semibold text-sm hover:bg-red-600 transition-all flex items-center justify-center gap-2"
+            >
+              <X className="w-4 h-4" />
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Products Preview - Collapsible */}
+      <div className="px-4 pb-4">
+        <details className="group">
+          <summary className="flex items-center justify-between cursor-pointer list-none py-3 px-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
+            <div className="flex items-center gap-3">
+              <Package className="w-4 h-4 text-gray-500" />
+              <span className="text-sm font-semibold text-gray-700">Articles ({itemCount})</span>
+            </div>
+            <ChevronDown className="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" />
+          </summary>
+          <div className="mt-3 space-y-2">
+            {orderItems.slice(0, 3).map((item, index) => (
+              <div key={index} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
+                {item.snapshot?.image || item.product?.images?.[0] ? (
+                  <img
+                    src={item.snapshot?.image || item.product?.images?.[0]}
+                    alt={item.snapshot?.title || 'Produit'}
+                    className="w-12 h-12 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-lg bg-indigo-100 flex items-center justify-center">
+                    <Package className="w-5 h-5 text-indigo-500" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{item.snapshot?.title || 'Produit'}</p>
+                  <p className="text-xs text-gray-500">Qté: {item.quantity || 1} • {formatCurrency(item.snapshot?.price || 0)}</p>
+                </div>
+              </div>
+            ))}
+            {orderItems.length > 3 && (
+              <p className="text-xs text-gray-500 text-center py-2">+{orderItems.length - 3} autre(s) article(s)</p>
+            )}
+          </div>
+        </details>
+      </div>
+
+      {/* Delivery Address */}
+      <div className="px-4 pb-4">
+        <div className="p-4 rounded-xl bg-gray-50">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-gray-500" />
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Livraison</span>
+            </div>
+            {(order.status === 'pending' || order.status === 'confirmed') && (
+              <button
+                type="button"
+                onClick={() => onEditAddress(order)}
+                className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+              >
+                Modifier
+              </button>
+            )}
+          </div>
+          <p className="text-sm font-medium text-gray-900">{order.deliveryAddress || 'Non renseignée'}</p>
+          <p className="text-xs text-gray-500 mt-1">{order.deliveryCity || 'Ville non renseignée'}</p>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="px-4 pb-4 space-y-2">
+        <OrderChat
+          order={order}
+          buttonText="Contacter le vendeur"
+          unreadCount={orderUnreadCounts[order._id] || 0}
+        />
+
+        {order.status === 'delivered' && orderItems.length > 0 && (
+          <button
+            type="button"
+            onClick={() => onReorder(order)}
+            disabled={reordering}
+            className="w-full px-4 py-3 rounded-xl bg-indigo-500 text-white font-semibold hover:bg-indigo-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {reordering ? (
+              <Clock className="w-4 h-4 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4" />
+            )}
+            Commander à nouveau
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export default function UserOrders() {
   const externalLinkProps = useDesktopExternalLink();
   const { user } = useContext(AuthContext);
@@ -1383,6 +1707,25 @@ export default function UserOrders() {
             {(viewMode === 'card' || isMobile) && (
             <div className={`space-y-4 sm:space-y-6 ${isMobile ? 'pb-4' : ''}`}>
               {filteredOrders.map((order) => {
+                // Mobile: Use new app-style tracking card
+                if (isMobile) {
+                  return (
+                    <MobileOrderTrackingCard
+                      key={order._id}
+                      order={order}
+                      onDownloadPdf={openOrderPdf}
+                      onEditAddress={handleEditAddress}
+                      onCancelOrder={handleCancelOrder}
+                      onSkipWindow={handleSkipCancellationWindow}
+                      onReorder={handleReorder}
+                      skipLoadingId={skipLoadingId}
+                      reordering={reordering}
+                      orderUnreadCounts={orderUnreadCounts}
+                    />
+                  );
+                }
+
+                // Desktop: Keep existing detailed card view
                 const orderItems =
                   order.items && order.items.length
                     ? order.items

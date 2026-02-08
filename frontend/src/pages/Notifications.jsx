@@ -26,7 +26,10 @@ const DEFAULT_NOTIFICATION_PREFERENCES = {
   order_cancelled: true,
   feedback_read: true,
   complaint_created: true,
-  improvement_feedback_created: true
+  improvement_feedback_created: true,
+  admin_broadcast: true,
+  account_restriction: true,
+  account_restriction_lifted: true
 };
 
 const formatDateTime = (value) => {
@@ -134,7 +137,10 @@ const NotificationPreferences = ({ preferences, onUpdate }) => {
                 { key: 'order_cancelled', label: 'Commandes annulées', icon: XCircle },
                 { key: 'feedback_read', label: 'Avis lus', icon: Check },
                 { key: 'complaint_created', label: 'Nouvelles réclamations', icon: AlertCircle },
-                { key: 'improvement_feedback_created', label: 'Nouveaux avis d\'amélioration', icon: MessageSquare }
+                { key: 'improvement_feedback_created', label: 'Nouveaux avis d\'amélioration', icon: MessageSquare },
+                { key: 'admin_broadcast', label: 'Messages de l\'équipe', icon: Bell },
+                { key: 'account_restriction', label: 'Restrictions de compte', icon: AlertCircle },
+                { key: 'account_restriction_lifted', label: 'Restrictions levées', icon: CheckCircle2 }
               ].map(({ key, label, icon: Icon }) => (
                 <div
                   key={key}
@@ -297,6 +303,21 @@ export default function Notifications() {
       label: 'Nouvel avis d\'amélioration',
       badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800',
       icon: <MessageSquare className="w-4 h-4" />
+    },
+    admin_broadcast: {
+      label: 'Message de l\'équipe',
+      badgeClass: 'bg-violet-50 text-violet-700 border border-violet-200 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-800',
+      icon: <Bell className="w-4 h-4" />
+    },
+    account_restriction: {
+      label: 'Restriction de compte',
+      badgeClass: 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800',
+      icon: <AlertCircle className="w-4 h-4" />
+    },
+    account_restriction_lifted: {
+      label: 'Restriction levée',
+      badgeClass: 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800',
+      icon: <CheckCircle2 className="w-4 h-4" />
     }
   };
 
@@ -643,7 +664,10 @@ export default function Notifications() {
     { key: 'order_cancelled', label: 'Annulées', count: alerts.filter(a => a.type === 'order_cancelled').length, icon: XCircle },
     { key: 'feedback_read', label: 'Avis lus', count: alerts.filter(a => a.type === 'feedback_read').length, icon: Check },
     { key: 'complaint_created', label: 'Réclamations', count: alerts.filter(a => a.type === 'complaint_created').length, icon: AlertCircle },
-    { key: 'improvement_feedback_created', label: 'Avis d\'amélioration', count: alerts.filter(a => a.type === 'improvement_feedback_created').length, icon: MessageSquare }
+    { key: 'improvement_feedback_created', label: 'Avis d\'amélioration', count: alerts.filter(a => a.type === 'improvement_feedback_created').length, icon: MessageSquare },
+    { key: 'admin_broadcast', label: 'Messages équipe', count: alerts.filter(a => a.type === 'admin_broadcast').length, icon: Bell },
+    { key: 'account_restriction', label: 'Restrictions', count: alerts.filter(a => a.type === 'account_restriction').length, icon: AlertCircle },
+    { key: 'account_restriction_lifted', label: 'Restrictions levées', count: alerts.filter(a => a.type === 'account_restriction_lifted').length, icon: CheckCircle2 }
   ];
 
   const renderFilterButtons = ({ variant = 'stack', closeOnSelect = false } = {}) =>
