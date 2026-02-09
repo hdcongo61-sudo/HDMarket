@@ -126,7 +126,7 @@ export default function Register() {
                 inputMode="tel"
                 autoComplete="tel"
                 className="apple-input w-full"
-                placeholder="Numéro de téléphone *"
+                placeholder="060000000"
                 value={form.phone}
                 onChange={(e) => {
                   setForm({ ...form, phone: e.target.value });

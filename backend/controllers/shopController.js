@@ -1,6 +1,8 @@
 import asyncHandler from 'express-async-handler';
+import mongoose from 'mongoose';
 import User from '../models/userModel.js';
 import Product from '../models/productModel.js';
+import ProductView from '../models/productViewModel.js';
 import Comment from '../models/commentModel.js';
 import Rating from '../models/ratingModel.js';
 import ShopReview from '../models/shopReviewModel.js';
@@ -36,6 +38,31 @@ const loadShopByIdentifier = async (identifier, projection = 'shopName shopAddre
   return shop;
 };
 
+// Helper function to check if a shop is currently boosted based on date range
+export const isShopCurrentlyBoosted = (shop) => {
+  if (!shop.shopBoosted) return false;
+  
+  const now = new Date();
+  const hasStartDate = shop.shopBoostStartDate !== null && shop.shopBoostStartDate !== undefined;
+  const hasEndDate = shop.shopBoostEndDate !== null && shop.shopBoostEndDate !== undefined;
+  
+  // If no dates are set, consider it always boosted (backward compatibility)
+  if (!hasStartDate && !hasEndDate) {
+    return true;
+  }
+  
+  // Check if current date is within the boost range
+  if (hasStartDate && now < new Date(shop.shopBoostStartDate)) {
+    return false; // Boost hasn't started yet
+  }
+  
+  if (hasEndDate && now > new Date(shop.shopBoostEndDate)) {
+    return false; // Boost has ended
+  }
+  
+  return true;
+};
+
 export const listShops = asyncHandler(async (req, res) => {
   const filters = { accountType: 'shop' };
   if (req.query?.verified === 'true') {
@@ -44,8 +71,8 @@ export const listShops = asyncHandler(async (req, res) => {
   const includeImages = req.query?.withImages === 'true';
   const imageLimit = Math.max(1, Math.min(Number(req.query?.imageLimit) || 6, 12));
   const shops = await User.find(filters)
-    .select('shopName shopAddress shopLogo shopBanner name createdAt shopVerified followersCount')
-    .sort({ shopName: 1, createdAt: 1 })
+    .select('shopName shopAddress shopLogo shopBanner name createdAt shopVerified followersCount shopBoosted shopBoostScore shopBoostStartDate shopBoostEndDate')
+    .sort({ shopBoosted: -1, shopBoostScore: -1, followersCount: -1, shopName: 1, createdAt: -1 })
     .lean();
 
   if (!shops.length) {
@@ -59,6 +86,15 @@ export const listShops = asyncHandler(async (req, res) => {
   ]);
 
   const productCountMap = new Map(productCounts.map((entry) => [String(entry._id), entry.count]));
+
+  const viewsAgg = await ProductView.aggregate([
+    { $lookup: { from: 'products', localField: 'product', foreignField: '_id', as: 'prod' } },
+    { $unwind: '$prod' },
+    { $match: { 'prod.user': { $in: shopIds } } },
+    { $group: { _id: '$prod.user', totalViews: { $sum: '$viewsCount' } } }
+  ]);
+  const totalViewsMap = new Map(viewsAgg.map((entry) => [String(entry._id), Number(entry.totalViews || 0)]));
+
   let ratingMap = new Map();
 
   if (shopIds.length) {
@@ -112,6 +148,7 @@ export const listShops = asyncHandler(async (req, res) => {
     const id = String(shop._id);
     const ratingStats = ratingMap.get(id) || { average: 0, count: 0 };
     const sampleImages = includeImages ? pickRandomImages(imageMap.get(id) || [], imageLimit) : [];
+    const isCurrentlyBoosted = isShopCurrentlyBoosted(shop);
     return {
       _id: shop._id,
       slug: shop.slug,
@@ -120,8 +157,14 @@ export const listShops = asyncHandler(async (req, res) => {
       shopLogo: shop.shopLogo || null,
       shopBanner: shop.shopBanner || null,
       shopVerified: Boolean(shop.shopVerified),
+      shopBoosted: Boolean(shop.shopBoosted),
+      shopBoostScore: Number(shop.shopBoostScore || 0),
+      shopBoostStartDate: shop.shopBoostStartDate || null,
+      shopBoostEndDate: shop.shopBoostEndDate || null,
+      isCurrentlyBoosted,
       followersCount: Number(shop.followersCount || 0),
       productCount: productCountMap.get(id) || 0,
+      totalViews: totalViewsMap.get(id) || 0,
       ratingAverage: ratingStats.average,
       ratingCount: ratingStats.count,
       createdAt: shop.createdAt,
@@ -366,4 +409,306 @@ export const deleteShopReview = asyncHandler(async (req, res) => {
   }
 
   res.status(204).send();
+});
+
+// Shop Boost Management Functions
+export const listBoostShopCandidatesAdmin = asyncHandler(async (req, res) => {
+  const {
+    q,
+    page = 1,
+    limit = 12,
+    sort = 'boosted'
+  } = req.query;
+  const filter = { accountType: 'shop', shopVerified: true };
+  const boostedFilter = req.query.boosted;
+
+  if (q) {
+    const matcher = new RegExp(q.trim(), 'i');
+    filter.$or = [{ shopName: matcher }, { shopAddress: matcher }, { name: matcher }];
+  }
+  if (boostedFilter !== undefined) {
+    if (boostedFilter === 'true' || boostedFilter === true) {
+      filter.shopBoosted = true;
+      // Add date range check for currently active boosts
+      const now = new Date();
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [
+          // Shops with no date range (always boosted)
+          { $and: [{ shopBoostStartDate: null }, { shopBoostEndDate: null }] },
+          // Shops where start/end are missing (legacy boosted)
+          { shopBoostStartDate: { $exists: false }, shopBoostEndDate: { $exists: false } },
+          // Shops where boost has started and hasn't ended
+          {
+            $and: [
+              {
+                $or: [
+                  { shopBoostStartDate: null },
+                  { shopBoostStartDate: { $exists: false } },
+                  { shopBoostStartDate: { $lte: now } }
+                ]
+              },
+              {
+                $or: [
+                  { shopBoostEndDate: null },
+                  { shopBoostEndDate: { $exists: false } },
+                  { shopBoostEndDate: { $gte: now } }
+                ]
+              }
+            ]
+          }
+        ]
+      });
+    } else if (boostedFilter === 'false' || boostedFilter === false) {
+      // Include shops where shopBoosted is false or field is missing (never boosted)
+      filter.shopBoosted = { $ne: true };
+    }
+  }
+
+  const sortOptions = {
+    boosted: { shopBoosted: -1, shopBoostScore: -1, createdAt: -1 },
+    recent: { createdAt: -1 },
+    followers: { followersCount: -1 }
+  };
+
+  const pageNumber = Math.max(1, Number(page) || 1);
+  const pageSize = Math.max(1, Math.min(50, Number(limit) || 12));
+  const skip = (pageNumber - 1) * pageSize;
+
+  const [items, total] = await Promise.all([
+    User.find(filter)
+      .select('shopName shopAddress shopLogo shopBanner name createdAt shopVerified shopBoosted shopBoostScore shopBoostStartDate shopBoostEndDate shopBoostedBy shopBoostedAt shopBoostedByName followersCount slug')
+      .sort(sortOptions[sort] || sortOptions.boosted)
+      .skip(skip)
+      .limit(pageSize)
+      .lean(),
+    User.countDocuments(filter)
+  ]);
+
+  // Get product counts for shops
+  const shopIds = items.map((shop) => shop._id);
+  const productCounts = await Product.aggregate([
+    { $match: { user: { $in: shopIds }, status: 'approved' } },
+    { $group: { _id: '$user', count: { $sum: 1 } } }
+  ]);
+  const productCountMap = new Map(productCounts.map((entry) => [String(entry._id), entry.count]));
+
+  // Get rating summaries
+  const ratingSummaries = await ShopReview.aggregate([
+    { $match: { shop: { $in: shopIds } } },
+    { $group: { _id: '$shop', average: { $avg: '$rating' }, count: { $sum: 1 } } }
+  ]);
+  const ratingMap = new Map(
+    ratingSummaries.map((summary) => [
+      String(summary._id),
+      {
+        average: Number(summary.average?.toFixed(2) || 0),
+        count: summary.count || 0
+      }
+    ])
+  );
+
+  const enrichedItems = items.map((shop) => {
+    const id = String(shop._id);
+    const ratingStats = ratingMap.get(id) || { average: 0, count: 0 };
+    const isCurrentlyBoosted = isShopCurrentlyBoosted(shop);
+    return {
+      ...shop,
+      productCount: productCountMap.get(id) || 0,
+      ratingAverage: ratingStats.average,
+      ratingCount: ratingStats.count,
+      isCurrentlyBoosted
+    };
+  });
+
+  res.json({
+    items: enrichedItems,
+    pagination: {
+      page: pageNumber,
+      limit: pageSize,
+      total,
+      pages: Math.max(1, Math.ceil(total / pageSize))
+    }
+  });
+});
+
+export const toggleShopBoost = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { shopBoostStartDate, shopBoostEndDate } = req.body;
+  
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Identifiant boutique invalide.' });
+  }
+  
+  // Check permissions
+  const isAdmin = req.user.role === 'admin';
+  const canManageBoosts = req.user.canManageBoosts === true;
+  if (!isAdmin && !canManageBoosts) {
+    return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à gérer les boosts.' });
+  }
+  
+  const shop = await User.findById(id);
+  if (!shop || shop.accountType !== 'shop') {
+    return res.status(404).json({ message: 'Boutique introuvable.' });
+  }
+
+  if (!shop.shopVerified) {
+    return res.status(400).json({ message: 'Seules les boutiques vérifiées peuvent être boostées.' });
+  }
+  
+  // Validate date range if provided
+  if (shopBoostStartDate && shopBoostEndDate) {
+    const start = new Date(shopBoostStartDate);
+    const end = new Date(shopBoostEndDate);
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({ message: 'Dates de boost invalides.' });
+    }
+    
+    if (start >= end) {
+      return res.status(400).json({ message: 'La date de fin doit être postérieure à la date de début.' });
+    }
+    
+    // Check if end date is in the past
+    if (end < new Date()) {
+      return res.status(400).json({ message: 'La date de fin ne peut pas être dans le passé.' });
+    }
+  }
+  
+  const wasBoosted = shop.shopBoosted;
+  shop.shopBoosted = !shop.shopBoosted;
+  shop.shopBoostScore = shop.shopBoosted ? Date.now() : 0;
+  
+  // Store who boosted the shop and when
+  if (shop.shopBoosted) {
+    // Fetch the user who is boosting to get their name
+    const boosterUser = await User.findById(req.user.id).select('name');
+    shop.shopBoostedBy = req.user.id;
+    shop.shopBoostedAt = new Date();
+    shop.shopBoostedByName = boosterUser?.name || 'Administrateur';
+    
+    // Set boost date range if provided
+    if (shopBoostStartDate) {
+      shop.shopBoostStartDate = new Date(shopBoostStartDate);
+    } else {
+      shop.shopBoostStartDate = new Date(); // Default to now if not provided
+    }
+    
+    if (shopBoostEndDate) {
+      shop.shopBoostEndDate = new Date(shopBoostEndDate);
+    } else {
+      shop.shopBoostEndDate = null; // No end date means boost indefinitely
+    }
+  } else {
+    // Clear boost information when unboosting
+    shop.shopBoostedBy = null;
+    shop.shopBoostedAt = null;
+    shop.shopBoostedByName = null;
+    shop.shopBoostStartDate = null;
+    shop.shopBoostEndDate = null;
+  }
+  
+  await shop.save();
+  
+  // Send notification to shop owner when shop is boosted (not when unboosted)
+  if (shop.shopBoosted && !wasBoosted) {
+    await createNotification({
+      userId: shop._id,
+      actorId: req.user.id,
+      shopId: shop._id,
+      type: 'shop_boosted',
+      metadata: {
+        shopName: shop.shopName || shop.name,
+        boostedByName: shop.shopBoostedByName,
+        boostStartDate: shop.shopBoostStartDate,
+        boostEndDate: shop.shopBoostEndDate
+      },
+      allowSelf: true
+    });
+  }
+  
+  res.json({
+    _id: shop._id,
+    shopBoosted: shop.shopBoosted,
+    shopBoostScore: shop.shopBoostScore,
+    shopBoostedBy: shop.shopBoostedBy,
+    shopBoostedAt: shop.shopBoostedAt,
+    shopBoostedByName: shop.shopBoostedByName,
+    shopBoostStartDate: shop.shopBoostStartDate,
+    shopBoostEndDate: shop.shopBoostEndDate,
+    isCurrentlyBoosted: isShopCurrentlyBoosted(shop)
+  });
+});
+
+export const getShopBoostStatistics = asyncHandler(async (req, res) => {
+  const isAdmin = req.user.role === 'admin';
+  const canManageBoosts = req.user.canManageBoosts === true;
+  if (!isAdmin && !canManageBoosts) {
+    return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à voir les statistiques de boost.' });
+  }
+
+  const [
+    totalBoosted,
+    totalNonBoosted,
+    recentBoosts,
+    topBoostedShops,
+    boostedToday,
+    boostedThisWeek,
+    boostedThisMonth
+  ] = await Promise.all([
+    User.countDocuments({ accountType: 'shop', shopVerified: true, shopBoosted: true }),
+    User.countDocuments({ accountType: 'shop', shopVerified: true, shopBoosted: { $ne: true } }),
+    User.find({ accountType: 'shop', shopVerified: true, shopBoosted: true })
+      .sort({ shopBoostScore: -1 })
+      .limit(5)
+      .select('shopName shopBoostScore createdAt')
+      .lean(),
+    User.find({ accountType: 'shop', shopVerified: true, shopBoosted: true })
+      .sort({ shopBoostScore: -1 })
+      .limit(10)
+      .select('shopName followersCount productCount shopBoostScore')
+      .lean(),
+    User.countDocuments({
+      accountType: 'shop',
+      shopVerified: true,
+      shopBoosted: true,
+      shopBoostScore: { $gte: new Date().setHours(0, 0, 0, 0) }
+    }),
+    User.countDocuments({
+      accountType: 'shop',
+      shopVerified: true,
+      shopBoosted: true,
+      shopBoostScore: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+    }),
+    User.countDocuments({
+      accountType: 'shop',
+      shopVerified: true,
+      shopBoosted: true,
+      shopBoostScore: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+    })
+  ]);
+
+  // Get product counts for top boosted shops
+  const shopIds = topBoostedShops.map((shop) => shop._id);
+  const productCounts = await Product.aggregate([
+    { $match: { user: { $in: shopIds }, status: 'approved' } },
+    { $group: { _id: '$user', count: { $sum: 1 } } }
+  ]);
+  const productCountMap = new Map(productCounts.map((entry) => [String(entry._id), entry.count]));
+
+  const enrichedTopShops = topBoostedShops.map((shop) => ({
+    ...shop,
+    productCount: productCountMap.get(String(shop._id)) || 0
+  }));
+
+  res.json({
+    totalBoosted,
+    totalNonBoosted,
+    totalShops: totalBoosted + totalNonBoosted,
+    boostedToday,
+    boostedThisWeek,
+    boostedThisMonth,
+    recentBoosts,
+    topBoostedShops: enrichedTopShops
+  });
 });

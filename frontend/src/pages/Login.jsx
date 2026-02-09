@@ -12,16 +12,19 @@ export default function Login() {
   const [form, setForm] = useState({ phone: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const submit = async (e) => {
     e.preventDefault();
+    setError('');
     setLoading(true);
     try {
       const { data } = await api.post('/auth/login', form);
       login(data);
       nav(from, { replace: true });
     } catch (e) {
-      alert(e.response?.data?.message || e.message);
+      const msg = e.response?.data?.message || e.message;
+      setError(msg || 'Numéro de téléphone ou mot de passe incorrect.');
     } finally {
       setLoading(false);
     }
@@ -43,6 +46,11 @@ export default function Login() {
         {/* Login Form - Apple card */}
         <div className="apple-card p-6">
           <form onSubmit={submit} className="space-y-4">
+            {error && (
+              <div className="rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300" role="alert">
+                {error}
+              </div>
+            )}
             <div>
               <input
                 type="tel"
@@ -51,7 +59,7 @@ export default function Login() {
                 className="apple-input w-full"
                 placeholder="Numéro de téléphone"
                 value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                onChange={(e) => { setForm({ ...form, phone: e.target.value }); setError(''); }}
                 required
               />
             </div>
@@ -62,7 +70,7 @@ export default function Login() {
                 className="apple-input w-full pr-12"
                 placeholder="Mot de passe"
                 value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                onChange={(e) => { setForm({ ...form, password: e.target.value }); setError(''); }}
                 required
               />
               <button

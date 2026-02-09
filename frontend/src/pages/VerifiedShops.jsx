@@ -179,15 +179,57 @@ export default function VerifiedShops() {
     [shops.length]
   );
 
-  const randomizedShops = useMemo(() => {
-    if (!shops.length) return [];
-    const shuffled = [...shops];
-    for (let i = shuffled.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  // Helper function to check if a shop is currently boosted based on date range
+  const isShopCurrentlyBoosted = useMemo(() => (shop) => {
+    if (!shop.shopBoosted) return false;
+    
+    const now = new Date();
+    const hasStartDate = shop.shopBoostStartDate !== null && shop.shopBoostStartDate !== undefined;
+    const hasEndDate = shop.shopBoostEndDate !== null && shop.shopBoostEndDate !== undefined;
+    
+    // If no dates are set, consider it always boosted (backward compatibility)
+    if (!hasStartDate && !hasEndDate) {
+      return true;
     }
-    return shuffled;
-  }, [shops]);
+    
+    // Check if current date is within the boost range
+    if (hasStartDate && now < new Date(shop.shopBoostStartDate)) {
+      return false; // Boost hasn't started yet
+    }
+    
+    if (hasEndDate && now > new Date(shop.shopBoostEndDate)) {
+      return false; // Boost has ended
+    }
+    
+    return true;
+  }, []);
+
+  // Display order: boosted shops first (by boost score), then by followers
+  const shopsSortedByFollowers = useMemo(() => {
+    if (!shops.length) return [];
+    return [...shops].sort((a, b) => {
+      const aIsBoosted = isShopCurrentlyBoosted(a);
+      const bIsBoosted = isShopCurrentlyBoosted(b);
+      
+      // Boosted shops first
+      if (aIsBoosted && !bIsBoosted) return -1;
+      if (!aIsBoosted && bIsBoosted) return 1;
+      
+      // If both boosted or both not boosted, sort by boost score (if boosted) then followers
+      if (aIsBoosted && bIsBoosted) {
+        const aScore = Number(a.shopBoostScore ?? 0);
+        const bScore = Number(b.shopBoostScore ?? 0);
+        if (aScore !== bScore) return bScore - aScore;
+      }
+      
+      // Then by followers count
+      const aFollowers = Number(a.followersCount ?? 0);
+      const bFollowers = Number(b.followersCount ?? 0);
+      if (aFollowers !== bFollowers) return bFollowers - aFollowers;
+      
+      return 0;
+    });
+  }, [shops, isShopCurrentlyBoosted]);
 
   const formatRelativeTime = (date) => {
     if (!date) return 'Récemment';
@@ -218,10 +260,31 @@ export default function VerifiedShops() {
     );
   }, [shops, pendingShops, allShopsSearch]);
 
-  const certifiedShopsInModal = useMemo(
-    () => allShopsForModal.filter((shop) => shop.shopVerified),
-    [allShopsForModal]
-  );
+  const certifiedShopsInModal = useMemo(() => {
+    const certified = allShopsForModal.filter((shop) => shop.shopVerified);
+    return [...certified].sort((a, b) => {
+      const aIsBoosted = isShopCurrentlyBoosted(a);
+      const bIsBoosted = isShopCurrentlyBoosted(b);
+      
+      // Boosted shops first
+      if (aIsBoosted && !bIsBoosted) return -1;
+      if (!aIsBoosted && bIsBoosted) return 1;
+      
+      // If both boosted or both not boosted, sort by boost score (if boosted) then followers
+      if (aIsBoosted && bIsBoosted) {
+        const aScore = Number(a.shopBoostScore ?? 0);
+        const bScore = Number(b.shopBoostScore ?? 0);
+        if (aScore !== bScore) return bScore - aScore;
+      }
+      
+      // Then by followers count
+      const aFollowers = Number(a.followersCount ?? 0);
+      const bFollowers = Number(b.followersCount ?? 0);
+      if (aFollowers !== bFollowers) return bFollowers - aFollowers;
+      
+      return 0;
+    });
+  }, [allShopsForModal, isShopCurrentlyBoosted]);
   const nonCertifiedShopsInModal = useMemo(
     () => allShopsForModal.filter((shop) => !shop.shopVerified),
     [allShopsForModal]
@@ -301,7 +364,7 @@ export default function VerifiedShops() {
         ) : (
           <div className="space-y-4">
             {/* Feed-style Shop Cards */}
-            {randomizedShops.map((shop) => {
+            {shopsSortedByFollowers.map((shop) => {
               const meta = adminMeta[String(shop._id)];
               const products = shopProducts.get(shop._id) || [];
               const shopImages = shopImageMap.get(shop._id) || [];
@@ -478,7 +541,7 @@ export default function VerifiedShops() {
                         </span>
                         <span className="flex items-center gap-1.5">
                           <Eye className="w-4 h-4 text-gray-500" />
-                          <span className="font-semibold">{formatCount(Math.floor((shop.productCount || 0) * 12.5))}</span>
+                          <span className="font-semibold">{formatCount(shop.totalViews ?? Math.floor((shop.productCount || 0) * 12.5))}</span>
                         </span>
                       </div>
                       <Link

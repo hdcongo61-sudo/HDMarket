@@ -147,6 +147,11 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       body = `${actorName} a vérifié votre boutique${shopLabel}.`;
       break;
     }
+    case 'shop_boosted': {
+      title = 'Boutique boostée';
+      body = `${actorName} a boosté votre boutique${shopLabel}. Elle sera maintenant mise en avant.`;
+      break;
+    }
     case 'payment_pending': {
       const amountValue = Number(metadata.amount || 0);
       const amountText =
@@ -276,6 +281,19 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       const shopNameLabel = metadata.shopName ? ` "${metadata.shopName}"` : '';
       title = 'Nouvelle demande de conversion';
       body = `${actorName} a soumis une demande de conversion en boutique${shopNameLabel}.`;
+      break;
+    }
+    case 'shop_conversion_approved': {
+      const shopNameLabel = metadata.shopName ? ` "${metadata.shopName}"` : '';
+      title = 'Demande de boutique acceptée';
+      body = `Votre demande de conversion en boutique${shopNameLabel} a été acceptée. Vous êtes maintenant une boutique sur HDMarket.`;
+      break;
+    }
+    case 'shop_conversion_rejected': {
+      title = 'Demande de boutique refusée';
+      body = metadata.rejectionReason
+        ? `Votre demande de conversion en boutique n'a pas été acceptée. Motif : ${metadata.rejectionReason}`
+        : `Votre demande de conversion en boutique n'a pas été acceptée. Contactez le support pour plus d'informations.`;
       break;
     }
     default:

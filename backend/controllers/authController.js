@@ -132,7 +132,7 @@ export const login = asyncHandler(async (req, res) => {
   const phoneCandidates = buildPhoneCandidates(normalizedPhone);
   const user = await User.findOne({ phone: { $in: phoneCandidates } });
   if (!user || !(await user.matchPassword(password))) {
-    return res.status(401).json({ message: 'Invalid credentials' });
+    return res.status(401).json({ message: 'Numéro de téléphone ou mot de passe incorrect.' });
   }
   if (user.isBlocked) {
     const reason = user.blockedReason ? ` Motif : ${user.blockedReason}` : '';

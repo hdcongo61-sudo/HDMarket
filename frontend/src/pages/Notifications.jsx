@@ -29,7 +29,9 @@ const DEFAULT_NOTIFICATION_PREFERENCES = {
   improvement_feedback_created: true,
   admin_broadcast: true,
   account_restriction: true,
-  account_restriction_lifted: true
+  account_restriction_lifted: true,
+  shop_conversion_approved: true,
+  shop_conversion_rejected: true
 };
 
 const formatDateTime = (value) => {
@@ -140,7 +142,9 @@ const NotificationPreferences = ({ preferences, onUpdate }) => {
                 { key: 'improvement_feedback_created', label: 'Nouveaux avis d\'amélioration', icon: MessageSquare },
                 { key: 'admin_broadcast', label: 'Messages de l\'équipe', icon: Bell },
                 { key: 'account_restriction', label: 'Restrictions de compte', icon: AlertCircle },
-                { key: 'account_restriction_lifted', label: 'Restrictions levées', icon: CheckCircle2 }
+                { key: 'account_restriction_lifted', label: 'Restrictions levées', icon: CheckCircle2 },
+                { key: 'shop_conversion_approved', label: 'Demande boutique acceptée', icon: CheckCircle2 },
+                { key: 'shop_conversion_rejected', label: 'Demande boutique refusée', icon: XCircle }
               ].map(({ key, label, icon: Icon }) => (
                 <div
                   key={key}
@@ -318,6 +322,16 @@ export default function Notifications() {
       label: 'Restriction levée',
       badgeClass: 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800',
       icon: <CheckCircle2 className="w-4 h-4" />
+    },
+    shop_conversion_approved: {
+      label: 'Demande boutique acceptée',
+      badgeClass: 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800',
+      icon: <CheckCircle2 className="w-4 h-4" />
+    },
+    shop_conversion_rejected: {
+      label: 'Demande boutique refusée',
+      badgeClass: 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800',
+      icon: <XCircle className="w-4 h-4" />
     }
   };
 
@@ -667,7 +681,9 @@ export default function Notifications() {
     { key: 'improvement_feedback_created', label: 'Avis d\'amélioration', count: alerts.filter(a => a.type === 'improvement_feedback_created').length, icon: MessageSquare },
     { key: 'admin_broadcast', label: 'Messages équipe', count: alerts.filter(a => a.type === 'admin_broadcast').length, icon: Bell },
     { key: 'account_restriction', label: 'Restrictions', count: alerts.filter(a => a.type === 'account_restriction').length, icon: AlertCircle },
-    { key: 'account_restriction_lifted', label: 'Restrictions levées', count: alerts.filter(a => a.type === 'account_restriction_lifted').length, icon: CheckCircle2 }
+    { key: 'account_restriction_lifted', label: 'Restrictions levées', count: alerts.filter(a => a.type === 'account_restriction_lifted').length, icon: CheckCircle2 },
+    { key: 'shop_conversion_approved', label: 'Boutique acceptée', count: alerts.filter(a => a.type === 'shop_conversion_approved').length, icon: CheckCircle2 },
+    { key: 'shop_conversion_rejected', label: 'Boutique refusée', count: alerts.filter(a => a.type === 'shop_conversion_rejected').length, icon: XCircle }
   ];
 
   const renderFilterButtons = ({ variant = 'stack', closeOnSelect = false } = {}) =>

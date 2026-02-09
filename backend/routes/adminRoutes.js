@@ -45,6 +45,11 @@ import {
   listAdminProducts
 } from '../controllers/productController.js';
 import {
+  listBoostShopCandidatesAdmin,
+  toggleShopBoost,
+  getShopBoostStatistics
+} from '../controllers/shopController.js';
+import {
   listComplaintsAdmin,
   updateComplaintStatus
 } from '../controllers/complaintController.js';
@@ -146,6 +151,9 @@ router.get('/stats', protect, (req, res, next) => {
 router.get('/products/boosts', protect, requireBoostManagement, listBoostProductCandidatesAdmin);
 router.get('/products/boosts/stats', protect, requireBoostManagement, getBoostStatistics);
 router.patch('/products/:id/boost', protect, requireBoostManagement, validate(schemas.idParam, 'params'), toggleProductBoost);
+router.get('/shops/boosts', protect, requireBoostManagement, listBoostShopCandidatesAdmin);
+router.get('/shops/boosts/stats', protect, requireBoostManagement, getShopBoostStatistics);
+router.patch('/shops/:id/boost', protect, requireBoostManagement, validate(schemas.idParam, 'params'), toggleShopBoost);
 router.get('/boost-managers', protect, requireRole(['admin']), listBoostManagers);
 router.patch(
   '/boost-managers/:userId/toggle',

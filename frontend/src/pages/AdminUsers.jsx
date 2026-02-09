@@ -4,6 +4,7 @@ import { ArrowLeft, Ban, CheckCircle2, RefreshCw, Search, ShieldAlert, MessageSq
 import { buildShopPath } from '../utils/links';
 import api from '../services/api';
 import useIsMobile from '../hooks/useIsMobile';
+import VerifiedBadge from '../components/VerifiedBadge';
 
 const RESTRICTION_TYPES = [
   { key: 'canComment', label: 'Commentaires', icon: MessageSquareOff, color: 'orange', shopOnly: false },
@@ -77,6 +78,7 @@ export default function AdminUsers() {
   const [conversionFilter, setConversionFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [pendingUserId, setPendingUserId] = useState('');
+  const [verifyingShopId, setVerifyingShopId] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const isMobileView = useIsMobile(1023);
 
@@ -411,6 +413,26 @@ export default function AdminUsers() {
       setConvertingUserId('');
     }
   };
+
+  const toggleShopVerification = useCallback(async (id, nextValue) => {
+    setVerifyingShopId(id);
+    setActionError('');
+    try {
+      const { data } = await api.patch(`/admin/users/${id}/shop-verification`, {
+        verified: nextValue
+      });
+      upsertUser(data);
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      setActionError(
+        e.response?.data?.message ||
+          e.message ||
+          'Impossible de mettre à jour l’état de vérification de la boutique.'
+      );
+    } finally {
+      setVerifyingShopId('');
+    }
+  }, []);
 
   const getUserConversionRequest = (userId) => {
     return conversionRequests.find((r) => r.user?._id === userId || r.user === userId);
@@ -808,7 +830,10 @@ export default function AdminUsers() {
                         <p className="text-xs text-gray-400">{user.phone || '—'}</p>
                         {user.accountType === 'shop' && user.shopName ? (
                           <div className="text-xs space-y-1">
-                            <p className="font-semibold text-indigo-600">Boutique : {user.shopName}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-indigo-600">Boutique : {user.shopName}</span>
+                              <VerifiedBadge verified={Boolean(user.shopVerified)} />
+                            </div>
                             <p className="text-gray-500">Abonnés : {formatNumber(user.followersCount)}</p>
                           </div>
                         ) : null}
@@ -928,6 +953,20 @@ export default function AdminUsers() {
                           Convertir en boutique
                         </button>
                       )}
+                      {/* Shop certified button for shops */}
+                      {user.accountType === 'shop' && (
+                        <button
+                          type="button"
+                          onClick={() => toggleShopVerification(user.id, !user.shopVerified)}
+                          disabled={verifyingShopId === user.id}
+                          className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold text-white disabled:opacity-50 ${
+                            user.shopVerified ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-600 hover:bg-emerald-700'
+                          }`}
+                        >
+                          <CheckCircle size={14} />
+                          {user.shopVerified ? 'Retirer le badge' : 'Vérifier la boutique'}
+                        </button>
+                      )}
                       {/* Received orders button for shops */}
                       {user.accountType === 'shop' && (
                         <button
@@ -1008,9 +1047,14 @@ export default function AdminUsers() {
                           </div>
                         </td>
                         <td className="px-3 py-3">
-                          <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
-                            {accountTypeLabels[user.accountType] || user.accountType}
-                          </span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+                              {accountTypeLabels[user.accountType] || user.accountType}
+                            </span>
+                            {user.accountType === 'shop' && (
+                              <VerifiedBadge verified={Boolean(user.shopVerified)} />
+                            )}
+                          </div>
                         </td>
                         <td className="px-3 py-3">
                           <span className="text-sm text-gray-700">
@@ -1094,6 +1138,20 @@ export default function AdminUsers() {
                               >
                                 <User size={14} className="inline mr-1" />
                                 Reconvertir
+                              </button>
+                            )}
+                            {/* Shop certified button for shops */}
+                            {user.accountType === 'shop' && (
+                              <button
+                                type="button"
+                                onClick={() => toggleShopVerification(user.id, !user.shopVerified)}
+                                disabled={verifyingShopId === user.id}
+                                className={`rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50 ${
+                                  user.shopVerified ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-600 hover:bg-emerald-700'
+                                }`}
+                                title={user.shopVerified ? 'Retirer le badge certifié' : 'Vérifier la boutique'}
+                              >
+                                {user.shopVerified ? 'Retirer le badge' : 'Vérifier la boutique'}
                               </button>
                             )}
                             {/* Restrictions dropdown */}

@@ -17,6 +17,7 @@ const notificationSchema = new mongoose.Schema(
       'product_rejection',
       'product_certified',
       'product_boosted',
+      'shop_boosted',
       'shop_verified',
       'promotional',
       'shop_review',
@@ -37,7 +38,9 @@ const notificationSchema = new mongoose.Schema(
       'admin_broadcast',
       'account_restriction',
       'account_restriction_lifted',
-      'shop_conversion_request'
+      'shop_conversion_request',
+      'shop_conversion_approved',
+      'shop_conversion_rejected'
     ],
       required: true
     },

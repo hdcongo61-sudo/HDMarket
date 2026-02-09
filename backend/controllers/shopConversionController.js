@@ -243,6 +243,22 @@ export const approveShopConversionRequest = asyncHandler(async (req, res) => {
   request.processedAt = new Date();
   await request.save();
 
+  // Notify the user that their conversion was approved
+  try {
+    await createNotification({
+      userId: user._id,
+      actorId: req.user.id,
+      type: 'shop_conversion_approved',
+      metadata: {
+        requestId: request._id.toString(),
+        shopName: request.shopName
+      },
+      allowSelf: false
+    });
+  } catch (error) {
+    console.error('Failed to send approval notification to user:', error);
+  }
+
   res.json({
     message: 'Demande approuvée. Le compte a été converti en boutique.',
     request
@@ -271,6 +287,26 @@ export const rejectShopConversionRequest = asyncHandler(async (req, res) => {
   request.processedAt = new Date();
   request.rejectionReason = (rejectionReason || '').trim();
   await request.save();
+
+  // Notify the user that their conversion was rejected
+  try {
+    const requestPopulated = await ShopConversionRequest.findById(request._id).populate('user').lean();
+    if (requestPopulated?.user?._id) {
+      await createNotification({
+        userId: requestPopulated.user._id,
+        actorId: req.user.id,
+        type: 'shop_conversion_rejected',
+        metadata: {
+          requestId: request._id.toString(),
+          shopName: request.shopName,
+          rejectionReason: (rejectionReason || '').trim()
+        },
+        allowSelf: false
+      });
+    }
+  } catch (error) {
+    console.error('Failed to send rejection notification to user:', error);
+  }
 
   res.json({
     message: 'Demande rejetée.',

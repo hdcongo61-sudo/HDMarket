@@ -405,7 +405,7 @@ export const followShop = asyncHandler(async (req, res) => {
   if (shopId === req.user.id) {
     return res.status(400).json({ message: 'Vous ne pouvez pas suivre votre propre boutique.' });
   }
-  const shop = await User.findById(shopId).select('accountType shopVerified');
+  const shop = await User.findById(shopId).select('accountType shopVerified shopName name');
   if (!shop || shop.accountType !== 'shop') {
     return res.status(404).json({ message: 'Boutique introuvable.' });
   }
@@ -427,12 +427,18 @@ export const followShop = asyncHandler(async (req, res) => {
     { new: true }
   ).select('followersCount');
 
+  // Notify the shop owner that someone followed their shop
+  const actorName = req.user.name || 'Un utilisateur';
   await createNotification({
     userId: shopId,
     actorId: req.user.id,
     shopId,
     type: 'shop_follow',
-    metadata: { shopName: shop.shopName || shop.name }
+    metadata: {
+      shopName: shop.shopName || shop.name,
+      followerName: actorName
+    },
+    allowSelf: false
   });
 
   res.json({

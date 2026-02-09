@@ -122,11 +122,11 @@ export default function ShopConversionRequest() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      setError('La preuve de paiement doit être une image.');
+      setError('La preuve de boutique doit être une image.');
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setError('La preuve de paiement doit faire moins de 5 Mo.');
+      setError('La preuve de boutique doit faire moins de 5 Mo.');
       return;
     }
     setPaymentProofFile(file);
@@ -177,7 +177,7 @@ export default function ShopConversionRequest() {
       return;
     }
     if (!paymentProofFile) {
-      setError('La preuve de paiement est requise.');
+      setError('La preuve de boutique est requise.');
       return;
     }
 
@@ -439,6 +439,23 @@ export default function ShopConversionRequest() {
                   </p>
                 </div>
 
+                {/* Transaction image example */}
+                <div className="mb-6 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-sm font-semibold text-gray-800 mb-2">
+                    Exemple de message de confirmation (où trouver l’ID de la transaction)
+                  </p>
+                  <p className="text-xs text-gray-600 mb-3">
+                    Après votre paiement Mobile Money, vous recevrez un SMS. L’<strong>ID de la transaction</strong> (souvent noté « ID : ») est le numéro à 10 chiffres à indiquer ci-dessous.
+                  </p>
+                  <div className="flex justify-center">
+                    <img
+                      src="/images/transaction-sms-example-shop-conversion.png"
+                      alt="Exemple de SMS de confirmation avec l’ID de la transaction"
+                      className="max-w-full rounded-lg border border-gray-200 shadow-sm max-h-64 object-contain"
+                    />
+                  </div>
+                </div>
+
                 {/* Transaction Name */}
                 <div className="mb-4">
                   <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -558,16 +575,19 @@ export default function ShopConversionRequest() {
                   </p>
                 </div>
 
-                {/* Payment Proof */}
+                {/* Preuve de boutique */}
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">
-                    Preuve de paiement <span className="text-red-500">*</span>
+                    Preuve de boutique <span className="text-red-500">*</span>
                   </label>
+                  <p className="text-xs text-gray-600 mb-3">
+                    Joignez une preuve d’existence de votre boutique : papier de la boutique, photo de la boutique, ou une facture portant le nom de la boutique.
+                  </p>
                   {paymentProofPreview ? (
                     <div className="relative inline-block">
                       <img
                         src={paymentProofPreview}
-                        alt="Payment proof preview"
+                        alt="Aperçu de la preuve de boutique"
                         className="max-w-md h-auto rounded-xl border-2 border-gray-300"
                       />
                       <button
@@ -579,10 +599,13 @@ export default function ShopConversionRequest() {
                       </button>
                     </div>
                   ) : (
-                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
-                      <FileImage className="text-gray-400 mb-2" size={32} />
-                      <span className="text-sm text-gray-600">
-                        Cliquez pour ajouter la preuve de paiement
+                    <label className="flex flex-col items-center justify-center w-full min-h-[140px] py-6 px-4 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 hover:border-indigo-300 transition-colors">
+                      <FileImage className="text-gray-400 mb-2 flex-shrink-0" size={32} />
+                      <span className="text-sm text-gray-600 text-center">
+                        Cliquez pour ajouter une preuve
+                      </span>
+                      <span className="text-xs text-gray-500 text-center mt-1">
+                        Papier de la boutique, photo ou facture avec le nom de la boutique
                       </span>
                       <input
                         type="file"
