@@ -6,8 +6,10 @@ import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { FavoriteProvider } from './context/FavoriteContext';
 import { ToastProvider } from './context/ToastContext';
+import { registerServiceWorker } from './utils/serviceWorker';
 
-createRoot(document.getElementById('root')).render(
+const root = createRoot(document.getElementById('root'));
+root.render(
   <React.StrictMode>
     <AuthProvider>
       <CartProvider>
@@ -20,3 +22,8 @@ createRoot(document.getElementById('root')).render(
     </AuthProvider>
   </React.StrictMode>
 );
+
+// Register service worker for PWA (offline support)
+if (import.meta.env.PROD) {
+  registerServiceWorker();
+}
