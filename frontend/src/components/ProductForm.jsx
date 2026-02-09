@@ -6,11 +6,6 @@ import categoryGroups from '../data/categories';
 import ProductCard from './ProductCard';
 import useIsMobile from '../hooks/useIsMobile';
 
-const operatorPhones = {
-  MTN: '069822930',
-  Airtel: '050237023'
-};
-
 const MAX_IMAGES = 3;
 const MAX_VIDEO_SIZE_MB = 20;
 const MAX_PDF_SIZE_MB = 10;
@@ -1076,18 +1071,6 @@ export default function ProductForm(props) {
               </div>
             </div>
 
-            {/* Opérateur */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Opérateur mobile</label>
-              <select
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                value={form.operator}
-                onChange={(e) => setForm({ ...form, operator: e.target.value })}
-              >
-                <option value="MTN">MTN</option>
-                <option value="Airtel">Airtel</option>
-              </select>
-            </div>
           </div>
                 </div>
           )}
@@ -1528,8 +1511,7 @@ export default function ProductForm(props) {
                 <div className="space-y-2">
                   <h3 className="font-semibold text-amber-800 text-sm">Commission de publication</h3>
                   <p className="text-amber-700 text-sm">
-                    Pour valider votre annonce, envoyez <span className="font-bold">{calculateCommission().toLocaleString()} FCFA</span> 
-                    (3% du prix) au numéro <span className="font-bold">{operatorPhones[form.operator]}</span> ({form.operator}).
+                    Pour valider votre annonce, envoyez <span className="font-bold">{calculateCommission().toLocaleString()} FCFA</span> (3% du prix).
                   </p>
                   <div className="flex items-center space-x-2 text-xs text-amber-600">
                     <CheckCircle2 className="w-4 h-4" />

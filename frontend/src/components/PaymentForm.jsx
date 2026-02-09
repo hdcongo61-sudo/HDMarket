@@ -1,6 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../services/api';
 import { CreditCard, CheckCircle, Clock, AlertCircle, User, Hash, DollarSign, Send, Shield } from 'lucide-react';
+import { useNetworks, getNetworkPhoneByName, getFirstNetworkPhone } from '../hooks/useNetworks';
+
+const defaultOperatorPhones = {
+  MTN: '069822930',
+  Airtel: '050237023',
+  Other: null
+};
 
 export default function PaymentForm({ product, onSubmitted }) {
   const expected = useMemo(() => Math.round(product.price * 0.03 * 100) / 100, [product.price]);
@@ -11,6 +18,10 @@ export default function PaymentForm({ product, onSubmitted }) {
     amount: expected
   });
   const [loading, setLoading] = useState(false);
+  const { networks } = useNetworks();
+  const sendMoneyNumber = getNetworkPhoneByName(networks, form.operator)
+    || (form.operator === 'Other' ? getFirstNetworkPhone(networks) : null)
+    || defaultOperatorPhones[form.operator];
 
   useEffect(() => setForm((f) => ({ ...f, amount: expected })), [expected]);
 
@@ -233,6 +244,11 @@ export default function PaymentForm({ product, onSubmitted }) {
                 <option value="Airtel">Airtel</option>
                 <option value="Other">Autre</option>
               </select>
+              {sendMoneyNumber && (
+                <p className="text-sm text-indigo-700 bg-indigo-50 rounded-xl px-3 py-2 border border-indigo-100">
+                  Envoyer l&apos;argent au numéro : <span className="font-bold">{sendMoneyNumber}</span>
+                </p>
+              )}
             </div>
 
             {/* Exemple SMS : où trouver l'ID de la transaction */}
