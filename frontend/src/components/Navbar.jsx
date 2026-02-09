@@ -485,7 +485,8 @@ export default function Navbar() {
     { id: 'orders', label: 'Commandes', path: '/orders', icon: ClipboardList, badge: activeOrders, visible: user ? true : false, order: 7 },
     { id: 'messages', label: 'Messages', path: '/orders/messages', icon: MessageSquare, badge: unreadOrderMessages, visible: user ? true : false, order: 8 },
     { id: 'my', label: 'Mes annonces', path: '/my', icon: Package, badge: null, visible: user ? true : false, order: 9 },
-    { id: 'suggestions', label: 'Suggestions', path: '/suggestions', icon: Sparkles, badge: null, visible: true, order: 10 }
+    { id: 'shop-conversion', label: 'Devenir Boutique', path: '/shop-conversion-request', icon: Store, badge: null, visible: user && user.accountType !== 'shop' ? true : false, order: 10 },
+    { id: 'suggestions', label: 'Suggestions', path: '/suggestions', icon: Sparkles, badge: null, visible: true, order: 11 }
   ];
 
   const navItems = customNavItems || defaultNavItems;
@@ -3242,6 +3243,20 @@ export default function Navbar() {
                 Avis amélioration
               </Link>
 
+              {/* Devenir Boutique - non-shop users (desktop) */}
+              {user && user.accountType !== 'shop' && (
+                <NavLink
+                  to="/shop-conversion-request"
+                  className={({ isActive }) =>
+                    `px-4 py-2 text-white font-semibold text-sm hover:underline transition-all duration-200 ${
+                      isActive ? 'underline' : ''
+                    }`
+                  }
+                >
+                  Devenir Boutique
+                </NavLink>
+              )}
+
               {/* Admin (desktop) */}
               {canAccessBackOffice && (
                 <NavLink
@@ -3431,6 +3446,23 @@ export default function Navbar() {
                     <BarChart3 size={20} />
                     Statistiques
                   </NavLink>
+
+                  {user && user.accountType !== 'shop' && (
+                    <NavLink 
+                      to="/shop-conversion-request" 
+                      onClick={() => setIsMenuOpen(false)}
+                      className={({ isActive }) => 
+                        `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                          isActive 
+                            ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg' 
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
+                        }`
+                      }
+                    >
+                      <Store size={20} />
+                      Devenir Boutique
+                    </NavLink>
+                  )}
 
                   <NavLink 
                     to="/notifications" 

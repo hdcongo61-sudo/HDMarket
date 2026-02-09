@@ -36,7 +36,8 @@ const notificationSchema = new mongoose.Schema(
       'improvement_feedback_created',
       'admin_broadcast',
       'account_restriction',
-      'account_restriction_lifted'
+      'account_restriction_lifted',
+      'shop_conversion_request'
     ],
       required: true
     },

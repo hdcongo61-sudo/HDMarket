@@ -699,6 +699,10 @@ export default function ProductForm(props) {
     setRemoveExistingVideo(true);
   };
 
+  const handleKeepExistingVideo = () => {
+    // No action needed - just keep the existing video as is
+    // This button confirms the user wants to keep the current video
+  };
 
   const handlePdfChange = (e) => {
     const file = e.target.files?.[0];
@@ -1092,159 +1096,159 @@ export default function ProductForm(props) {
         {/* Section Images */}
         <div className="space-y-4">
           {isMobile ? (
-            <>
-              <button
-                type="button"
-                onClick={() => toggleSection('images')}
-                className="flex items-center justify-between w-full py-3.5 px-0 text-left rounded-xl -mx-2 px-2 -mt-1 active:bg-gray-100/80 touch-manipulation min-h-[48px] transition-colors"
-                aria-expanded={expandedSections.images}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <Camera className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <h2 className="text-[17px] font-semibold text-gray-900">Photos du produit</h2>
+            <button
+              type="button"
+              onClick={() => toggleSection('images')}
+              className="flex items-center justify-between w-full py-3.5 px-0 text-left rounded-xl -mx-2 px-2 -mt-1 active:bg-gray-100/80 touch-manipulation min-h-[48px] transition-colors"
+              aria-expanded={expandedSections.images}
+            >
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <Camera className="w-4 h-4 text-blue-600" />
                 </div>
-                <span className="min-w-[44px] min-h-[44px] flex items-center justify-center -m-2 text-gray-400">
-                  {expandedSections.images ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                </span>
-              </button>
-              {(!isMobile || expandedSections.images) && (
-                <div className="space-y-3 pt-1">
-          {/* Upload d'images */}
-          <div className="space-y-3">
-            <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-              <Camera className="w-4 h-4 text-blue-500" />
-              <span>
-                Photos{' '}
-                {(existingImages.length + files.length) > 0 &&
-                  `(${existingImages.length + files.length})`}
-              </span>
-            </label>
-            <p className="text-xs text-gray-500">Jusqu&apos;à {MAX_IMAGES} photos (PNG ou JPG, 10&nbsp;MB max chacun).</p>
-
-            {existingImages.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs text-gray-500">Images actuelles</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {existingImages.map((src, index) => (
-                    <div key={`${src}-${index}`} className="relative group">
-                      <img
-                        src={src}
-                        alt={`Image existante ${index + 1}`}
-                        className="w-full h-24 object-cover rounded-lg border border-gray-200"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeExistingImage(index)}
-                        className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center shadow-sm hover:bg-red-600 transition-colors"
-                        aria-label="Supprimer l'image"
-                      >
-                        <DeleteIcon className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                <h2 className="text-[17px] font-semibold text-gray-900">Photos du produit</h2>
               </div>
-            )}
-            
-            <label className={`flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 active:bg-gray-100 transition-colors group ${isMobile ? 'h-28 min-h-[120px] py-4' : 'h-32'}`}>
-              <Upload className={`text-gray-400 group-hover:text-indigo-500 transition-colors mb-2 ${isMobile ? 'w-10 h-10' : 'w-8 h-8'}`} />
-              <span className={`text-gray-500 text-center ${isMobile ? 'text-sm' : 'text-sm'}`}>
-                <span className="text-indigo-600 font-medium">{isMobile ? 'Appuyez pour ajouter des photos' : 'Cliquez pour uploader'}</span>
-                <br />
-                <span className="text-xs">PNG, JPG jusqu'à 10MB</span>
+              <span className="min-w-[44px] min-h-[44px] flex items-center justify-center -m-2 text-gray-400">
+                {expandedSections.images ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
               </span>
-              <input
-                type="file"
-                multiple
-                onChange={handleImageChange}
-                className="hidden"
-                accept="image/*"
-              />
-            </label>
-            {imageError && (
-              <p className="text-xs text-red-500">{imageError}</p>
-            )}
-
-            {/* Previews des images – choisir Recadrer ou Laisser tel quel pour chaque photo */}
-            {imagePreviews.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-xs text-gray-500">
-                  Pour chaque photo : <strong>Recadrer</strong> pour ajuster le cadre, ou <strong>Laisser tel quel</strong> pour garder l&apos;originale.
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {imagePreviews.map((preview, index) => {
-                    const item = files[index];
-                    const cropped = item?.cropped;
-                    const leftAsIs = item?.leftAsIs;
-                    return (
-                      <div key={index} className="relative group rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
-                        <img
-                          src={preview.url}
-                          alt={`Preview ${index + 1}`}
-                          className="w-full h-28 sm:h-32 object-cover"
-                        />
-                        <div className="absolute top-1 left-1 flex flex-wrap gap-1">
-                          {cropped && (
-                            <span className="bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded font-semibold">
-                              Recadré
-                            </span>
-                          )}
-                          {leftAsIs && (
-                            <span className="bg-slate-500 text-white text-[10px] px-2 py-0.5 rounded font-semibold">
-                              Tel quel
-                            </span>
-                          )}
-                        </div>
-                        <div className="absolute top-1 right-1">
-                          <button
-                            type="button"
-                            onClick={() => removeImage(index)}
-                            className="bg-red-500 text-white p-1.5 rounded-full shadow-lg hover:bg-red-600 transition-all"
-                            aria-label="Supprimer l'image"
-                            title="Supprimer"
-                          >
-                            <DeleteIcon className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <div className="p-2 flex flex-wrap gap-1.5 border-t border-gray-200 bg-white">
-                          <button
-                            type="button"
-                            onClick={() => editImageCrop(index)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
-                            aria-label="Recadrer cette image"
-                            title="Recadrer"
-                          >
-                            <Crop className="w-3.5 h-3.5" />
-                            Recadrer
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleLeaveAsIs(index)}
-                            disabled={leftAsIs}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-60 disabled:cursor-default transition-colors"
-                            aria-label="Laisser cette image telle quelle"
-                            title="Laisser tel quel"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            Laisser tel quel
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-                </div>
-              )}
-            </>
+            </button>
           ) : (
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-2 h-6 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full"></div>
               <h2 className="text-lg font-semibold text-gray-900">Photos du produit</h2>
+            </div>
+          )}
+
+          {/* Image upload content - shown on desktop always, on mobile when expanded */}
+          {(!isMobile || expandedSections.images) && (
+            <div className="space-y-3 pt-1">
+              {/* Upload d'images */}
+              <div className="space-y-3">
+                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                  <Camera className="w-4 h-4 text-blue-500" />
+                  <span>
+                    Photos{' '}
+                    {(existingImages.length + files.length) > 0 &&
+                      `(${existingImages.length + files.length})`}
+                  </span>
+                </label>
+                <p className="text-xs text-gray-500">Jusqu&apos;à {MAX_IMAGES} photos (PNG ou JPG, 10&nbsp;MB max chacun).</p>
+
+                {existingImages.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-gray-500">Images actuelles</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {existingImages.map((src, index) => (
+                        <div key={`${src}-${index}`} className="relative group">
+                          <img
+                            src={src}
+                            alt={`Image existante ${index + 1}`}
+                            className="w-full h-24 object-cover rounded-lg border border-gray-200"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeExistingImage(index)}
+                            className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center shadow-sm hover:bg-red-600 transition-colors"
+                            aria-label="Supprimer l'image"
+                          >
+                            <DeleteIcon className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <label className={`flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 active:bg-gray-100 transition-colors group ${isMobile ? 'h-28 min-h-[120px] py-4' : 'h-32'}`}>
+                  <Upload className={`text-gray-400 group-hover:text-indigo-500 transition-colors mb-2 ${isMobile ? 'w-10 h-10' : 'w-8 h-8'}`} />
+                  <span className={`text-gray-500 text-center ${isMobile ? 'text-sm' : 'text-sm'}`}>
+                    <span className="text-indigo-600 font-medium">{isMobile ? 'Appuyez pour ajouter des photos' : 'Cliquez pour uploader'}</span>
+                    <br />
+                    <span className="text-xs">PNG, JPG jusqu'à 10MB</span>
+                  </span>
+                  <input
+                    type="file"
+                    multiple
+                    onChange={handleImageChange}
+                    className="hidden"
+                    accept="image/*"
+                  />
+                </label>
+                {imageError && (
+                  <p className="text-xs text-red-500">{imageError}</p>
+                )}
+
+                {/* Previews des images – choisir Recadrer ou Laisser tel quel pour chaque photo */}
+                {imagePreviews.length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-xs text-gray-500">
+                      Pour chaque photo : <strong>Recadrer</strong> pour ajuster le cadre, ou <strong>Laisser tel quel</strong> pour garder l&apos;originale.
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {imagePreviews.map((preview, index) => {
+                        const item = files[index];
+                        const cropped = item?.cropped;
+                        const leftAsIs = item?.leftAsIs;
+                        return (
+                          <div key={index} className="relative group rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
+                            <img
+                              src={preview.url}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-28 sm:h-32 object-cover"
+                            />
+                            <div className="absolute top-1 left-1 flex flex-wrap gap-1">
+                              {cropped && (
+                                <span className="bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded font-semibold">
+                                  Recadré
+                                </span>
+                              )}
+                              {leftAsIs && (
+                                <span className="bg-slate-500 text-white text-[10px] px-2 py-0.5 rounded font-semibold">
+                                  Tel quel
+                                </span>
+                              )}
+                            </div>
+                            <div className="absolute top-1 right-1">
+                              <button
+                                type="button"
+                                onClick={() => removeImage(index)}
+                                className="bg-red-500 text-white p-1.5 rounded-full shadow-lg hover:bg-red-600 transition-all"
+                                aria-label="Supprimer l'image"
+                                title="Supprimer"
+                              >
+                                <DeleteIcon className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <div className="p-2 flex flex-wrap gap-1.5 border-t border-gray-200 bg-white">
+                              <button
+                                type="button"
+                                onClick={() => editImageCrop(index)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
+                                aria-label="Recadrer cette image"
+                                title="Recadrer"
+                              >
+                                <Crop className="w-3.5 h-3.5" />
+                                Recadrer
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleLeaveAsIs(index)}
+                                disabled={leftAsIs}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-60 disabled:cursor-default transition-colors"
+                                aria-label="Laisser cette image telle quelle"
+                                title="Laisser tel quel"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                Laisser tel quel
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

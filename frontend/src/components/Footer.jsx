@@ -1,9 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin } from 'lucide-react';
+import { useNetworks } from '../hooks/useNetworks';
 
 export default function Footer() {
   const year = new Date().getFullYear();
+  const { networks, loading } = useNetworks();
+  const activeNetworks = useMemo(
+    () => networks.filter((n) => n.isActive).sort((a, b) => (a.order || 0) - (b.order || 0)),
+    [networks]
+  );
 
   return (
     <footer className="hidden md:block bg-gray-900 text-gray-300">
@@ -52,10 +58,19 @@ export default function Footer() {
               <Mail size={16} className="text-indigo-400" />
               support@hdmarket.cg
             </li>
-            <li className="flex items-center gap-2">
-              <Phone size={16} className="text-indigo-400" />
-              +242 06 000 00 00
-            </li>
+            {activeNetworks.length > 0 ? (
+              activeNetworks.map((network) => (
+                <li key={network._id} className="flex items-center gap-2">
+                  <Phone size={16} className="text-indigo-400" />
+                  <span>{network.name}: {network.phoneNumber}</span>
+                </li>
+              ))
+            ) : (
+              <li className="flex items-center gap-2">
+                <Phone size={16} className="text-indigo-400" />
+                +242 06 000 00 00
+              </li>
+            )}
             <li className="flex items-center gap-2">
               <MapPin size={16} className="text-indigo-400" />
               Brazzaville, Congo

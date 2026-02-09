@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Ban, CheckCircle2, RefreshCw, Search, ShieldAlert, MessageSquareOff, ShoppingCartIcon, HeartOff, ImageOff, X, Calendar, ChevronDown, Package, EyeOff, History } from 'lucide-react';
+import { ArrowLeft, Ban, CheckCircle2, RefreshCw, Search, ShieldAlert, MessageSquareOff, ShoppingCartIcon, HeartOff, ImageOff, X, Calendar, ChevronDown, Package, EyeOff, History, Store, CheckCircle, XCircle, DollarSign, Hash, CreditCard, FileImage, User, AlertCircle } from 'lucide-react';
 import { buildShopPath } from '../utils/links';
 import api from '../services/api';
 import useIsMobile from '../hooks/useIsMobile';
@@ -59,6 +59,10 @@ const restrictionFilterOptions = [
   { value: 'canUploadImages', label: 'Images' },
   { value: 'canBeViewed', label: 'Visibilité' }
 ];
+const conversionFilterOptions = [
+  { value: 'all', label: 'Tous' },
+  { value: 'pending_conversion', label: 'Demande boutique en attente' }
+];
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -70,6 +74,7 @@ export default function AdminUsers() {
   const [accountTypeFilter, setAccountTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [restrictionFilter, setRestrictionFilter] = useState('all');
+  const [conversionFilter, setConversionFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [pendingUserId, setPendingUserId] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -100,6 +105,12 @@ export default function AdminUsers() {
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditPage, setAuditPage] = useState(1);
   const [auditTotalPages, setAuditTotalPages] = useState(0);
+
+  // Shop conversion request modal state
+  const [conversionModal, setConversionModal] = useState({ open: false, user: null, request: null });
+  const [conversionRequests, setConversionRequests] = useState([]);
+  const [conversionLoading, setConversionLoading] = useState(false);
+  const [convertingUserId, setConvertingUserId] = useState('');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -141,6 +152,19 @@ export default function AdminUsers() {
     };
   }, [accountTypeFilter, searchTerm, refreshKey]);
 
+  // Load shop conversion requests
+  useEffect(() => {
+    const loadConversionRequests = async () => {
+      try {
+        const { data } = await api.get('/admin/shop-conversion-requests?status=pending');
+        setConversionRequests(data || []);
+      } catch (err) {
+        console.error('Error loading conversion requests:', err);
+      }
+    };
+    loadConversionRequests();
+  }, [refreshKey]);
+
   const displayedUsers = useMemo(() => {
     let filtered = users;
 
@@ -165,8 +189,16 @@ export default function AdminUsers() {
       filtered = filtered.filter((user) => user.restrictions?.[restrictionFilter]?.isActive);
     }
 
+    // Conversion filter: users with pending shop conversion request
+    if (conversionFilter === 'pending_conversion') {
+      const pendingUserIds = new Set(
+        (conversionRequests || []).map((r) => (r.user?._id || r.user)?.toString()).filter(Boolean)
+      );
+      filtered = filtered.filter((user) => pendingUserIds.has(user.id));
+    }
+
     return filtered;
-  }, [statusFilter, restrictionFilter, users]);
+  }, [statusFilter, restrictionFilter, conversionFilter, users, conversionRequests]);
 
   const stats = useMemo(() => {
     const total = users.length;
@@ -175,17 +207,19 @@ export default function AdminUsers() {
     const restricted = users.filter((user) =>
       RESTRICTION_TYPES.some((rt) => user.restrictions?.[rt.key]?.isActive)
     ).length;
+    const pendingConversion = conversionRequests.length;
     return {
       total,
       blocked,
       shops,
-      restricted
+      restricted,
+      pendingConversion
     };
-  }, [users]);
+  }, [users, conversionRequests]);
 
   useEffect(() => {
     setPage(1);
-  }, [accountTypeFilter, statusFilter, restrictionFilter, searchTerm]);
+  }, [accountTypeFilter, statusFilter, restrictionFilter, conversionFilter, searchTerm]);
 
   useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(displayedUsers.length / USERS_PER_PAGE));
@@ -267,6 +301,121 @@ export default function AdminUsers() {
     }
   };
 
+  const openConversionModal = (user) => {
+    const request = conversionRequests.find((r) => r.user?._id === user.id || r.user === user.id);
+    setConversionModal({ open: true, user, request });
+  };
+
+  const closeConversionModal = () => {
+    setConversionModal({ open: false, user: null, request: null });
+  };
+
+  const handleApproveConversion = async (requestId) => {
+    setConversionLoading(true);
+    setActionError('');
+    try {
+      await api.patch(`/admin/shop-conversion-requests/${requestId}/approve`);
+      setConversionRequests((prev) => prev.filter((r) => r._id !== requestId));
+      closeConversionModal();
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      setActionError(
+        e.response?.data?.message ||
+          e.message ||
+          'Impossible d\'approuver la demande pour le moment.'
+      );
+    } finally {
+      setConversionLoading(false);
+    }
+  };
+
+  const handleRejectConversion = async (requestId) => {
+    const reason = window.prompt('Raison du rejet (facultatif) :', '');
+    if (reason === null) return;
+    setConversionLoading(true);
+    setActionError('');
+    try {
+      await api.patch(`/admin/shop-conversion-requests/${requestId}/reject`, {
+        rejectionReason: reason || ''
+      });
+      setConversionRequests((prev) => prev.filter((r) => r._id !== requestId));
+      closeConversionModal();
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      setActionError(
+        e.response?.data?.message ||
+          e.message ||
+          'Impossible de rejeter la demande pour le moment.'
+      );
+    } finally {
+      setConversionLoading(false);
+    }
+  };
+
+  const handleConvertToShop = async (user) => {
+    const shopName = window.prompt('Nom de la boutique :', user.shopName || '');
+    if (shopName === null) return;
+    if (!shopName.trim()) {
+      setActionError('Le nom de la boutique est requis.');
+      return;
+    }
+    const shopAddress = window.prompt('Adresse de la boutique :', user.shopAddress || '');
+    if (shopAddress === null) return;
+    if (!shopAddress.trim()) {
+      setActionError("L'adresse de la boutique est requise.");
+      return;
+    }
+    setConvertingUserId(user.id);
+    setActionError('');
+    try {
+      const { data } = await api.patch(`/admin/users/${user.id}/account-type`, {
+        accountType: 'shop',
+        shopName: shopName.trim(),
+        shopAddress: shopAddress.trim(),
+        reason: `Conversion manuelle en boutique par l'administrateur`
+      });
+      upsertUser(data);
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      setActionError(
+        e.response?.data?.message ||
+          e.message ||
+          'Impossible de convertir le compte en boutique pour le moment.'
+      );
+    } finally {
+      setConvertingUserId('');
+    }
+  };
+
+  const handleConvertToParticulier = async (user) => {
+    const confirmed = window.confirm(
+      `Êtes-vous sûr de vouloir reconvertir "${user.name}" (${user.shopName || 'Boutique'}) en compte particulier ?\n\nCette action supprimera les informations de la boutique.`
+    );
+    if (!confirmed) return;
+    setConvertingUserId(user.id);
+    setActionError('');
+    try {
+      const { data } = await api.patch(`/admin/users/${user.id}/account-type`, {
+        accountType: 'person',
+        reason: `Reconversion en particulier par l'administrateur`
+      });
+      upsertUser(data);
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      setActionError(
+        e.response?.data?.message ||
+          e.message ||
+          'Impossible de reconvertir le compte en particulier pour le moment.'
+      );
+    } finally {
+      setConvertingUserId('');
+    }
+  };
+
+  const getUserConversionRequest = (userId) => {
+    return conversionRequests.find((r) => r.user?._id === userId || r.user === userId);
+  };
+
   const handleRefresh = () => {
     setRefreshKey((value) => value + 1);
   };
@@ -281,6 +430,7 @@ export default function AdminUsers() {
       endDate: currentRestriction.endDate ? new Date(currentRestriction.endDate).toISOString().slice(0, 16) : '',
       reason: currentRestriction.reason || ''
     });
+    setActionError('');
     setRestrictionModal({ open: true, user });
     setRestrictionMenuOpen(null);
   }, []);
@@ -407,7 +557,9 @@ export default function AdminUsers() {
       shop_verified: 'Boutique vérifiée',
       shop_unverified: 'Vérification retirée',
       role_changed: 'Rôle modifié',
-      account_type_changed: 'Type de compte modifié'
+      account_type_changed: 'Type de compte modifié',
+      account_type_changed_to_shop: 'Converti en boutique',
+      account_type_changed_to_person: 'Reconverti en particulier'
     };
     return labels[action] || action;
   };
@@ -418,6 +570,9 @@ export default function AdminUsers() {
     }
     if (action.includes('unblocked') || action.includes('removed') || action === 'shop_verified') {
       return 'bg-green-100 text-green-700';
+    }
+    if (action.includes('account_type_changed')) {
+      return 'bg-purple-100 text-purple-700';
     }
     return 'bg-blue-100 text-blue-700';
   };
@@ -456,7 +611,7 @@ export default function AdminUsers() {
         </div>
       </header>
 
-      <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <div className="rounded-lg border bg-white p-4 shadow-sm">
           <p className="text-xs text-gray-500 uppercase tracking-wide">Utilisateurs totaux</p>
           <p className="text-2xl font-semibold text-gray-900">{stats.total}</p>
@@ -472,6 +627,10 @@ export default function AdminUsers() {
         <div className="rounded-lg border bg-white p-4 shadow-sm">
           <p className="text-xs text-gray-500 uppercase tracking-wide">Avec restrictions</p>
           <p className="text-2xl font-semibold text-amber-600">{stats.restricted}</p>
+        </div>
+        <div className="rounded-lg border bg-white p-4 shadow-sm">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">Demandes boutique</p>
+          <p className="text-2xl font-semibold text-teal-600">{stats.pendingConversion}</p>
         </div>
       </section>
 
@@ -559,6 +718,22 @@ export default function AdminUsers() {
                   </button>
                 ))}
               </div>
+              <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
+                {conversionFilterOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setConversionFilter(option.value)}
+                    className={`flex-shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      conversionFilter === option.value
+                        ? 'bg-teal-600 text-white shadow'
+                        : 'border border-gray-200 bg-white text-gray-600'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
@@ -592,6 +767,19 @@ export default function AdminUsers() {
                 }`}
               >
                 {restrictionFilterOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={conversionFilter}
+                onChange={(e) => setConversionFilter(e.target.value)}
+                className={`rounded-lg border px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 ${
+                  conversionFilter !== 'all' ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-700'
+                }`}
+              >
+                {conversionFilterOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -717,6 +905,29 @@ export default function AdminUsers() {
                           </div>
                         )}
                       </div>
+                      {/* Conversion request button */}
+                      {user.accountType !== 'shop' && getUserConversionRequest(user.id) && (
+                        <button
+                          type="button"
+                          onClick={() => openConversionModal(user)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-purple-500 px-3 py-2 text-xs font-semibold text-purple-600 hover:bg-purple-50 bg-purple-50"
+                        >
+                          <Store size={14} />
+                          Demande boutique
+                        </button>
+                      )}
+                      {/* Convert to shop button for particulier */}
+                      {user.accountType !== 'shop' && !getUserConversionRequest(user.id) && (
+                        <button
+                          type="button"
+                          onClick={() => handleConvertToShop(user)}
+                          disabled={convertingUserId === user.id}
+                          className="inline-flex items-center gap-1 rounded-lg border border-teal-500 px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-50 disabled:opacity-50"
+                        >
+                          <Store size={14} />
+                          Convertir en boutique
+                        </button>
+                      )}
                       {/* Received orders button for shops */}
                       {user.accountType === 'shop' && (
                         <button
@@ -850,6 +1061,41 @@ export default function AdminUsers() {
                                 Suspendre
                               </button>
                             )}
+                            {/* Conversion request button */}
+                            {user.accountType !== 'shop' && getUserConversionRequest(user.id) && (
+                              <button
+                                type="button"
+                                onClick={() => openConversionModal(user)}
+                                className="rounded-lg border border-purple-500 px-3 py-1.5 text-xs font-semibold text-purple-600 hover:bg-purple-50 bg-purple-50"
+                              >
+                                <Store size={14} className="inline mr-1" />
+                                Demande boutique
+                              </button>
+                            )}
+                            {/* Convert to shop button for particulier */}
+                            {user.accountType !== 'shop' && !getUserConversionRequest(user.id) && (
+                              <button
+                                type="button"
+                                onClick={() => handleConvertToShop(user)}
+                                disabled={convertingUserId === user.id}
+                                className="rounded-lg border border-teal-500 px-3 py-1.5 text-xs font-semibold text-teal-700 hover:bg-teal-50 disabled:opacity-50"
+                              >
+                                <Store size={14} className="inline mr-1" />
+                                Convertir
+                              </button>
+                            )}
+                            {/* Reconvert to particulier button for shops */}
+                            {user.accountType === 'shop' && (
+                              <button
+                                type="button"
+                                onClick={() => handleConvertToParticulier(user)}
+                                disabled={convertingUserId === user.id}
+                                className="rounded-lg border border-orange-500 px-3 py-1.5 text-xs font-semibold text-orange-600 hover:bg-orange-50 disabled:opacity-50"
+                              >
+                                <User size={14} className="inline mr-1" />
+                                Reconvertir
+                              </button>
+                            )}
                             {/* Restrictions dropdown */}
                             <div className="relative">
                               <button
@@ -952,96 +1198,218 @@ export default function AdminUsers() {
       </section>
 
       {/* Restriction Modal */}
-      {restrictionModal.open && restrictionModal.user && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={closeRestrictionModal}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b px-4 py-3">
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">
-                  Restriction: {RESTRICTION_TYPES.find((rt) => rt.key === restrictionForm.type)?.label}
-                </h3>
-                <p className="text-xs text-gray-500">{restrictionModal.user.name} ({restrictionModal.user.email})</p>
+      {restrictionModal.open && restrictionModal.user && (() => {
+        const restrictionType = RESTRICTION_TYPES.find((rt) => rt.key === restrictionForm.type);
+        const IconComponent = restrictionType?.icon || ShieldAlert;
+        const isActive = restrictionForm.restricted;
+        
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={closeRestrictionModal}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              {/* Header */}
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200 px-6 py-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2.5 rounded-xl ${isActive ? 'bg-red-100' : 'bg-gray-100'}`}>
+                      <IconComponent size={24} className={isActive ? 'text-red-600' : 'text-gray-500'} />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-gray-900 mb-1">
+                        {restrictionType?.label || 'Restriction'}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {restrictionModal.user.name}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {restrictionModal.user.email}
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={closeRestrictionModal} 
+                    className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-white/60 transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
               </div>
-              <button type="button" onClick={closeRestrictionModal} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-4 space-y-4">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={restrictionForm.restricted}
-                  onChange={(e) => setRestrictionForm((prev) => ({ ...prev, restricted: e.target.checked }))}
-                  className="w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500"
-                />
-                <span className="text-sm font-semibold text-gray-700">Activer cette restriction</span>
-              </label>
 
-              {restrictionForm.restricted && (
-                <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">
-                        <Calendar size={12} className="inline mr-1" />
-                        Date de début (optionnel)
-                      </label>
-                      <input
-                        type="datetime-local"
-                        value={restrictionForm.startDate}
-                        onChange={(e) => setRestrictionForm((prev) => ({ ...prev, startDate: e.target.value }))}
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                      />
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {/* Status Toggle */}
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-5 border-2 border-dashed border-gray-200">
+                  <label className="flex items-center justify-between cursor-pointer group">
+                    <div className="flex items-center gap-3">
+                      <div className={`relative w-14 h-8 rounded-full transition-all duration-300 ${
+                        isActive ? 'bg-red-500' : 'bg-gray-300'
+                      }`}>
+                        <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${
+                          isActive ? 'translate-x-6' : 'translate-x-0'
+                        }`} />
+                      </div>
+                      <div>
+                        <span className={`text-base font-bold block ${isActive ? 'text-red-700' : 'text-gray-600'}`}>
+                          {isActive ? 'Restriction Active' : 'Restriction Inactive'}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {isActive ? 'L\'utilisateur est actuellement restreint' : 'Aucune restriction en cours'}
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">
-                        <Calendar size={12} className="inline mr-1" />
-                        Date de fin (optionnel)
-                      </label>
-                      <input
-                        type="datetime-local"
-                        value={restrictionForm.endDate}
-                        onChange={(e) => setRestrictionForm((prev) => ({ ...prev, endDate: e.target.value }))}
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                      />
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-400">Laissez vide pour une restriction immédiate et permanente.</p>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Raison (interne)</label>
-                    <textarea
-                      value={restrictionForm.reason}
-                      onChange={(e) => setRestrictionForm((prev) => ({ ...prev, reason: e.target.value }))}
-                      placeholder="Ex: Spam détecté, comportement abusif..."
-                      rows={2}
-                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 resize-none"
+                    <input
+                      type="checkbox"
+                      checked={isActive}
+                      onChange={(e) => setRestrictionForm((prev) => ({ ...prev, restricted: e.target.checked }))}
+                      className="sr-only"
                     />
+                  </label>
+                </div>
+
+                {/* Active Restriction Details */}
+                {isActive && (
+                  <div className="space-y-5 animate-in fade-in slide-in-from-top-2 duration-300">
+                    {/* Dates Section */}
+                    <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                      <h4 className="text-sm font-bold text-blue-900 mb-3 flex items-center gap-2">
+                        <Calendar size={16} />
+                        Période de restriction
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-2">
+                            Date de début
+                          </label>
+                          <input
+                            type="datetime-local"
+                            value={restrictionForm.startDate}
+                            onChange={(e) => setRestrictionForm((prev) => ({ ...prev, startDate: e.target.value }))}
+                            className="w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-2.5 text-sm font-medium focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all"
+                          />
+                          <p className="text-xs text-gray-500 mt-1.5">Optionnel - Laissez vide pour commencer immédiatement</p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-2">
+                            Date de fin
+                          </label>
+                          <input
+                            type="datetime-local"
+                            value={restrictionForm.endDate}
+                            onChange={(e) => setRestrictionForm((prev) => ({ ...prev, endDate: e.target.value }))}
+                            className="w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-2.5 text-sm font-medium focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all"
+                          />
+                          <p className="text-xs text-gray-500 mt-1.5">Optionnel - Laissez vide pour une restriction permanente</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Reason Section */}
+                    <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
+                      <label className="block text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
+                        <ShieldAlert size={16} className="text-amber-600" />
+                        Raison de la restriction
+                        <span className="text-xs font-normal text-gray-500">(interne, visible uniquement par les administrateurs)</span>
+                      </label>
+                      <textarea
+                        value={restrictionForm.reason}
+                        onChange={(e) => setRestrictionForm((prev) => ({ ...prev, reason: e.target.value }))}
+                        placeholder="Ex: Spam détecté, comportement abusif, violation des règles..."
+                        rows={3}
+                        className="w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200 resize-none transition-all"
+                      />
+                      <p className="text-xs text-gray-500 mt-2">
+                        Cette raison sera enregistrée dans l'historique des actions pour référence future.
+                      </p>
+                    </div>
+
+                    {/* Info Box */}
+                    <div className="bg-indigo-50 rounded-xl p-4 border border-indigo-100">
+                      <div className="flex items-start gap-3">
+                        <div className="p-1.5 bg-indigo-100 rounded-lg">
+                          <ShieldAlert size={16} className="text-indigo-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs font-semibold text-indigo-900 mb-1">Information importante</p>
+                          <p className="text-xs text-indigo-700 leading-relaxed">
+                            Cette restriction sera appliquée immédiatement après validation. L'utilisateur sera notifié si nécessaire.
+                            Les restrictions peuvent être modifiées ou supprimées à tout moment depuis cette page.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </>
-              )}
-            </div>
-            <div className="flex gap-2 border-t px-4 py-3">
-              <button
-                type="button"
-                onClick={closeRestrictionModal}
-                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={handleApplyRestriction}
-                disabled={restrictionLoading}
-                className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 ${
-                  restrictionForm.restricted ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
-                }`}
-              >
-                {restrictionLoading ? '...' : restrictionForm.restricted ? 'Appliquer' : 'Désactiver'}
-              </button>
+                )}
+
+                {/* Inactive State Info */}
+                {!isActive && (
+                  <div className="bg-green-50 rounded-xl p-5 border border-green-100 text-center">
+                    <CheckCircle2 size={48} className="text-green-500 mx-auto mb-3" />
+                    <p className="text-sm font-semibold text-green-900 mb-1">
+                      Aucune restriction active
+                    </p>
+                    <p className="text-xs text-green-700">
+                      L'utilisateur peut utiliser toutes les fonctionnalités normalement.
+                    </p>
+                  </div>
+                )}
+
+                {/* Error Message */}
+                {actionError && (
+                  <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 animate-in fade-in slide-in-from-top-2">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-red-900 mb-1">Erreur</p>
+                        <p className="text-sm text-red-700">{actionError}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer Actions */}
+              <div className="border-t bg-gray-50 px-6 py-4 flex-shrink-0">
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={closeRestrictionModal}
+                    className="flex-1 rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleApplyRestriction}
+                    disabled={restrictionLoading}
+                    className={`flex-1 rounded-xl px-4 py-3 text-sm font-bold text-white shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                      isActive 
+                        ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800' 
+                        : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
+                    }`}
+                  >
+                    {restrictionLoading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <RefreshCw size={16} className="animate-spin" />
+                        Traitement...
+                      </span>
+                    ) : isActive ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Ban size={16} />
+                        Appliquer la restriction
+                      </span>
+                    ) : (
+                      <span className="flex items-center justify-center gap-2">
+                        <CheckCircle2 size={16} />
+                        Désactiver la restriction
+                      </span>
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Received Orders Modal */}
       {ordersModal.open && ordersModal.user && (
@@ -1124,6 +1492,157 @@ export default function AdminUsers() {
         </div>
       )}
 
+      {/* Shop Conversion Request Modal */}
+      {conversionModal.open && conversionModal.user && conversionModal.request && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={closeConversionModal}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b px-6 py-4 flex-shrink-0">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Demande de conversion en boutique</h3>
+                <p className="text-xs text-gray-500">{conversionModal.user.name} ({conversionModal.user.email})</p>
+              </div>
+              <button type="button" onClick={closeConversionModal} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              {conversionLoading ? (
+                <p className="text-sm text-gray-500 text-center py-8">Traitement en cours...</p>
+              ) : (
+                <div className="space-y-6">
+                  {/* Shop Information */}
+                  <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                    <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                      <Store size={18} className="text-indigo-600" />
+                      Informations de la boutique
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-semibold text-gray-600">Nom de la boutique</label>
+                        <p className="text-sm text-gray-900 mt-1">{conversionModal.request.shopName}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-600">Adresse</label>
+                        <p className="text-sm text-gray-900 mt-1">{conversionModal.request.shopAddress}</p>
+                      </div>
+                      {conversionModal.request.shopDescription && (
+                        <div className="md:col-span-2">
+                          <label className="text-xs font-semibold text-gray-600">Description</label>
+                          <p className="text-sm text-gray-900 mt-1">{conversionModal.request.shopDescription}</p>
+                        </div>
+                      )}
+                      {conversionModal.request.shopLogo && (
+                        <div className="md:col-span-2">
+                          <label className="text-xs font-semibold text-gray-600">Logo</label>
+                          <div className="mt-2">
+                            <img
+                              src={conversionModal.request.shopLogo}
+                              alt="Logo boutique"
+                              className="w-24 h-24 object-cover rounded-lg border border-gray-200"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Payment Information */}
+                  <div className="bg-blue-50 rounded-xl p-4 space-y-3">
+                    <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                      <DollarSign size={18} className="text-blue-600" />
+                      Informations de paiement
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-semibold text-gray-600">Opérateur</label>
+                        <p className="text-sm text-gray-900 mt-1 font-semibold">{conversionModal.request.operator || 'MTN'}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-600">Montant</label>
+                        <p className="text-sm text-gray-900 mt-1 font-semibold">
+                          {Number(conversionModal.request.paymentAmount || 50000).toLocaleString('fr-FR')} FCFA
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-600 flex items-center gap-1">
+                          <CreditCard size={14} />
+                          Nom de la transaction
+                        </label>
+                        <p className="text-sm text-gray-900 mt-1">{conversionModal.request.transactionName}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-600 flex items-center gap-1">
+                          <Hash size={14} />
+                          Numéro de transaction
+                        </label>
+                        <p className="text-sm text-gray-900 mt-1 font-mono">{conversionModal.request.transactionNumber}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payment Proof */}
+                  <div className="bg-green-50 rounded-xl p-4 space-y-3">
+                    <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                      <FileImage size={18} className="text-green-600" />
+                      Preuve de paiement
+                    </h4>
+                    {conversionModal.request.paymentProof && (
+                      <div className="mt-2">
+                        <img
+                          src={conversionModal.request.paymentProof}
+                          alt="Preuve de paiement"
+                          className="max-w-full h-auto rounded-lg border-2 border-gray-200 shadow-sm"
+                          onError={(e) => {
+                            e.target.src = '/api/placeholder/400/300';
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Request Details */}
+                  <div className="text-xs text-gray-500 space-y-1">
+                    <p>Demande soumise le : {formatDate(conversionModal.request.createdAt)}</p>
+                    {conversionModal.request.processedAt && (
+                      <p>Traitée le : {formatDate(conversionModal.request.processedAt)}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            {!conversionLoading && (
+              <div className="flex items-center justify-end gap-3 border-t px-6 py-4 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={closeConversionModal}
+                  className="px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Fermer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRejectConversion(conversionModal.request._id)}
+                  disabled={conversionLoading}
+                  className="px-4 py-2 text-sm font-semibold text-red-600 border border-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <XCircle size={16} className="inline mr-1" />
+                  Rejeter
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleApproveConversion(conversionModal.request._id)}
+                  disabled={conversionLoading}
+                  className="px-4 py-2 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <CheckCircle size={16} className="inline mr-1" />
+                  Approuver
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Audit Log Modal */}
       {auditModal.open && auditModal.user && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={closeAuditModal}>
@@ -1173,6 +1692,21 @@ export default function AdminUsers() {
                         {log.details?.previousRole && (
                           <p>
                             <span className="font-semibold">Rôle:</span> {log.details.previousRole} → {log.details.newRole}
+                          </p>
+                        )}
+                        {log.details?.previousType && (
+                          <p>
+                            <span className="font-semibold">Type de compte:</span> {log.details.previousType === 'shop' ? 'Boutique' : 'Particulier'} → {log.details.newType === 'shop' ? 'Boutique' : 'Particulier'}
+                          </p>
+                        )}
+                        {log.details?.shopName && (
+                          <p>
+                            <span className="font-semibold">Nom boutique:</span> {log.details.shopName}
+                          </p>
+                        )}
+                        {log.details?.shopAddress && (
+                          <p>
+                            <span className="font-semibold">Adresse boutique:</span> {log.details.shopAddress}
                           </p>
                         )}
                         {log.details?.startDate && (

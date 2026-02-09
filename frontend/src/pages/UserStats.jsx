@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -22,7 +22,8 @@ import {
   Calendar,
   Target,
   Zap,
-  MapPin
+  MapPin,
+  RefreshCw
 } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import api from '../services/api';
@@ -145,6 +146,7 @@ export default function UserStats() {
   const navigate = useNavigate();
   const [stats, setStats] = useState(DEFAULT_STATS);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [searchHistory, setSearchHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -158,66 +160,84 @@ export default function UserStats() {
   const [soldLoading, setSoldLoading] = useState(false);
   const [soldError, setSoldError] = useState('');
   const userShopLink = user?.accountType === 'shop' ? buildShopPath(user) : null;
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const fetchStats = useCallback(async ({ showLoading = false } = {}) => {
     if (!user) return;
-    let active = true;
-    const fetchStats = async () => {
+    if (showLoading) {
       setLoading(true);
       setError('');
-      try {
-        const { data } = await api.get('/users/profile/stats');
-        if (!active) return;
-        setStats((prev) => ({
-          ...DEFAULT_STATS,
-          ...data,
-          listings: { ...DEFAULT_STATS.listings, ...(data?.listings || {}) },
-          engagement: { ...DEFAULT_STATS.engagement, ...(data?.engagement || {}) },
-          performance: { ...DEFAULT_STATS.performance, ...(data?.performance || {}) },
-          breakdown: {
-            categories: data?.breakdown?.categories || [],
-            conditions: data?.breakdown?.conditions || []
+    } else {
+      setRefreshing(true);
+    }
+
+    try {
+      const { data } = await api.get('/users/profile/stats');
+      if (!isMountedRef.current) return;
+      setStats((prev) => ({
+        ...DEFAULT_STATS,
+        ...data,
+        listings: { ...DEFAULT_STATS.listings, ...(data?.listings || {}) },
+        engagement: { ...DEFAULT_STATS.engagement, ...(data?.engagement || {}) },
+        performance: { ...DEFAULT_STATS.performance, ...(data?.performance || {}) },
+        breakdown: {
+          categories: data?.breakdown?.categories || [],
+          conditions: data?.breakdown?.conditions || []
+        },
+        timeline: data?.timeline || [],
+        topProducts: data?.topProducts || [],
+        advertismentSpend: data?.advertismentSpend ?? prev.advertismentSpend ?? 0,
+        followedShops: Array.isArray(data?.followedShops) ? data.followedShops : [],
+        orders: {
+          ...DEFAULT_STATS.orders,
+          ...(data?.orders || {}),
+          purchases: {
+            ...DEFAULT_STATS.orders.purchases,
+            ...(data?.orders?.purchases || {}),
+            byStatus: {
+              ...DEFAULT_STATS.orders.purchases.byStatus,
+              ...(data?.orders?.purchases?.byStatus || {})
+            }
           },
-          timeline: data?.timeline || [],
-          topProducts: data?.topProducts || [],
-          advertismentSpend: data?.advertismentSpend ?? prev.advertismentSpend ?? 0,
-          followedShops: Array.isArray(data?.followedShops) ? data.followedShops : [],
-          orders: {
-            ...DEFAULT_STATS.orders,
-            ...(data?.orders || {}),
-            purchases: {
-              ...DEFAULT_STATS.orders.purchases,
-              ...(data?.orders?.purchases || {}),
-              byStatus: {
-                ...DEFAULT_STATS.orders.purchases.byStatus,
-                ...(data?.orders?.purchases?.byStatus || {})
-              }
-            },
-            sales: {
-              ...DEFAULT_STATS.orders.sales,
-              ...(data?.orders?.sales || {}),
-              byStatus: {
-                ...DEFAULT_STATS.orders.sales.byStatus,
-                ...(data?.orders?.sales?.byStatus || {})
-              }
+          sales: {
+            ...DEFAULT_STATS.orders.sales,
+            ...(data?.orders?.sales || {}),
+            byStatus: {
+              ...DEFAULT_STATS.orders.sales.byStatus,
+              ...(data?.orders?.sales?.byStatus || {})
             }
           }
-        }));
-      } catch (err) {
-        if (!active) return;
-        setError(err.response?.data?.message || err.message || 'Impossible de charger les statistiques.');
-      } finally {
-        if (active) {
-          setLoading(false);
         }
+      }));
+    } catch (err) {
+      if (!isMountedRef.current) return;
+      if (showLoading) {
+        setError(err.response?.data?.message || err.message || 'Impossible de charger les statistiques.');
       }
-    };
-
-    fetchStats();
-    return () => {
-      active = false;
-    };
+    } finally {
+      if (!isMountedRef.current) return;
+      if (showLoading) {
+        setLoading(false);
+      } else {
+        setRefreshing(false);
+      }
+    }
   }, [user]);
+
+  useEffect(() => {
+    fetchStats({ showLoading: true });
+  }, [fetchStats]);
+
+  const handleRefresh = () => {
+    if (refreshing) return;
+    fetchStats();
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -482,6 +502,15 @@ export default function UserStats() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition-all disabled:opacity-60"
+              >
+                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                {refreshing ? 'Actualisation...' : 'Actualiser'}
+              </button>
               <Link
                 to="/my"
                 className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition-all"

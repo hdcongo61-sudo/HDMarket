@@ -171,8 +171,11 @@ export default function AdminProductBoosts() {
   }, [searchTerm, nonBoostedPage, fetchProductsSection]);
 
   useEffect(() => {
-    if (showUserManager) {
+    // Only fetch users when search query has at least 2 characters
+    if (showUserManager && userSearchQuery.length >= 2) {
       fetchUsers(userSearchQuery);
+    } else if (showUserManager && userSearchQuery.length === 0) {
+      setAllUsers([]);
     }
   }, [showUserManager, userSearchQuery, fetchUsers]);
 

@@ -272,6 +272,12 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
         : `${actorName} a levé la restriction "${restrictionLabel}".`;
       break;
     }
+    case 'shop_conversion_request': {
+      const shopNameLabel = metadata.shopName ? ` "${metadata.shopName}"` : '';
+      title = 'Nouvelle demande de conversion';
+      body = `${actorName} a soumis une demande de conversion en boutique${shopNameLabel}.`;
+      break;
+    }
     default:
       title = 'Nouvelle notification';
       body = `${actorName} a interagi avec votre compte.`;

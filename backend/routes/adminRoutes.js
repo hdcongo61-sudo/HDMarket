@@ -73,6 +73,19 @@ import {
 } from '../controllers/feedbackController.js';
 import { generateReport } from '../controllers/reportController.js';
 import { triggerReviewReminders } from '../controllers/reviewReminderController.js';
+import {
+  getAllShopConversionRequests,
+  getShopConversionRequest,
+  approveShopConversionRequest,
+  rejectShopConversionRequest
+} from '../controllers/shopConversionController.js';
+import {
+  getAllNetworks,
+  getActiveNetworks,
+  createNetwork,
+  updateNetwork,
+  deleteNetwork
+} from '../controllers/networkSettingController.js';
 
 const router = express.Router();
 
@@ -255,5 +268,15 @@ router.patch(
   updateDeliveryGuyAdmin
 );
 router.delete('/delivery-guys/:id', validate(schemas.idParam, 'params'), deleteDeliveryGuyAdmin);
+// Shop conversion requests - admin only
+router.get('/shop-conversion-requests', protect, requireRole(['admin']), getAllShopConversionRequests);
+router.get('/shop-conversion-requests/:id', protect, requireRole(['admin']), validate(schemas.idParam, 'params'), getShopConversionRequest);
+router.patch('/shop-conversion-requests/:id/approve', protect, requireRole(['admin']), validate(schemas.idParam, 'params'), approveShopConversionRequest);
+router.patch('/shop-conversion-requests/:id/reject', protect, requireRole(['admin']), validate(schemas.idParam, 'params'), rejectShopConversionRequest);
+// Network settings - admin only
+router.get('/networks', protect, requireRole(['admin']), getAllNetworks);
+router.post('/networks', protect, requireRole(['admin']), createNetwork);
+router.patch('/networks/:id', protect, requireRole(['admin']), validate(schemas.idParam, 'params'), updateNetwork);
+router.delete('/networks/:id', protect, requireRole(['admin']), validate(schemas.idParam, 'params'), deleteNetwork);
 
 export default router;

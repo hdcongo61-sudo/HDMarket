@@ -38,6 +38,10 @@ import {
   createImprovementFeedback,
   listMyImprovementFeedback
 } from '../controllers/feedbackController.js';
+import {
+  createShopConversionRequest,
+  getUserShopConversionRequests
+} from '../controllers/shopConversionController.js';
 
 const router = express.Router();
 
@@ -91,5 +95,14 @@ router.post('/push-tokens', validate(schemas.pushTokenRegister), registerPushTok
 router.delete('/push-tokens', validate(schemas.pushTokenRemove), unregisterPushToken);
 router.get('/feedback', listMyImprovementFeedback);
 router.post('/feedback', validate(schemas.feedbackCreate), createImprovementFeedback);
+router.get('/shop-conversion-requests', getUserShopConversionRequests);
+router.post(
+  '/shop-conversion-requests',
+  upload.fields([
+    { name: 'shopLogo', maxCount: 1 },
+    { name: 'paymentProof', maxCount: 1 }
+  ]),
+  createShopConversionRequest
+);
 
 export default router;

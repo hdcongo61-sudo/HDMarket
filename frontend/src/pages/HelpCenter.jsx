@@ -13,6 +13,18 @@ import {
 } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import api from '../services/api';
+import { useNetworks, getFirstNetworkPhone } from '../hooks/useNetworks';
+
+function ContactPhoneDisplay() {
+  const { networks } = useNetworks();
+  const contactPhone = getFirstNetworkPhone(networks) || '+242 06 000 00 00';
+  return (
+    <p className="flex items-center gap-2">
+      <Phone size={16} className="text-green-600" />
+      {contactPhone}
+    </p>
+  );
+}
 
 const defaultConditions = [
   {
@@ -102,9 +114,9 @@ export default function HelpCenter() {
       { label: 'Entreprise', value: companyName },
       { label: 'Siège social', value: 'Brazzaville, Congo' },
       { label: 'Support 24/7', value: 'support@hdmarket.cg' },
-      { label: 'WhatsApp', value: '+242 06 000 00 00' }
+      { label: 'WhatsApp', value: getFirstNetworkPhone(networks) || '+242 06 000 00 00' }
     ],
-    [companyName]
+    [companyName, networks]
   );
 
   const persistConditions = useCallback(
@@ -253,10 +265,7 @@ export default function HelpCenter() {
                 <Mail size={16} className="text-indigo-600" />
                 support@hdmarket.cg
               </p>
-              <p className="flex items-center gap-2">
-                <Phone size={16} className="text-green-600" />
-                +242 06 000 00 00
-              </p>
+              <ContactPhoneDisplay />
               <p className="flex items-center gap-2">
                 <MessageSquare size={16} className="text-emerald-600" />
                 Assistance WhatsApp disponible 7j/7

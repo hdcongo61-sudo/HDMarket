@@ -64,6 +64,7 @@ import AdvancedSearch from './pages/AdvancedSearch';
 import OrderMessages from './pages/OrderMessages';
 import PushNotificationsManager from './components/PushNotificationsManager';
 import AnalyticsTracker from './components/AnalyticsTracker';
+import ShopConversionRequest from './pages/ShopConversionRequest';
 
 function AppContent() {
   const { pathname } = useLocation();
@@ -216,6 +217,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <UserStats />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/shop-conversion-request"
+            element={
+              <ProtectedRoute>
+                <ShopConversionRequest />
               </ProtectedRoute>
             }
           />

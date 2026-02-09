@@ -937,12 +937,12 @@ export const updateUserAccountType = asyncHandler(async (req, res) => {
     user.shopVerifiedAt = null;
   } else if (accountType === 'person') {
     user.accountType = 'person';
-    user.shopName = undefined;
-    user.shopAddress = undefined;
-    user.shopLogo = undefined;
+    // Keep all shop information and data when reconverting to particulier
+    // Only reset verification status since it's shop-specific
     user.shopVerified = false;
     user.shopVerifiedBy = null;
     user.shopVerifiedAt = null;
+    // shopName, shopAddress, shopLogo, shopDescription, shopHours, shopBanner are preserved
   } else {
     return res.status(400).json({ message: 'Type de compte invalide.' });
   }
@@ -962,15 +962,41 @@ export const updateUserAccountType = asyncHandler(async (req, res) => {
       newType: accountType,
       previousShopData,
       newShopData: {
-        shopName: accountType === 'shop' ? shopName : null,
-        shopAddress: accountType === 'shop' ? shopAddress : null,
-        shopLogo: accountType === 'shop' ? (shopLogo || '') : null
+        shopName: accountType === 'shop' ? shopName : (user.shopName || null),
+        shopAddress: accountType === 'shop' ? shopAddress : (user.shopAddress || null),
+        shopLogo: accountType === 'shop' ? (shopLogo || '') : (user.shopLogo || null),
+        shopDescription: user.shopDescription || null,
+        shopBanner: user.shopBanner || null
       },
       reason: reason || ''
     });
   } catch (error) {
     console.error('Failed to create account type change record:', error);
     // Don't fail the request if history tracking fails
+  }
+
+  // Create audit log
+  try {
+    await createAuditLog({
+      action: accountType === 'shop' ? 'account_type_changed_to_shop' : 'account_type_changed_to_person',
+      targetUser: user._id,
+      performedBy: req.user.id,
+      details: {
+        userName: user.name,
+        userEmail: user.email,
+        previousType,
+        newType: accountType,
+        shopName: accountType === 'shop' ? shopName : (user.shopName || null),
+        shopAddress: accountType === 'shop' ? shopAddress : (user.shopAddress || null),
+        shopLogo: accountType === 'shop' ? (shopLogo || null) : (user.shopLogo || null),
+        shopDescription: accountType === 'shop' ? (user.shopDescription || null) : (user.shopDescription || null),
+        reason: reason || ''
+      },
+      ipAddress: req.ip || req.connection?.remoteAddress
+    });
+  } catch (error) {
+    console.error('Failed to create audit log:', error);
+    // Don't fail the request if audit log creation fails
   }
 
   const populated = await user.populate('shopVerifiedBy', 'name email');

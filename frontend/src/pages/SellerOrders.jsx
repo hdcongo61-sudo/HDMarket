@@ -559,6 +559,7 @@ export default function SellerOrders() {
   const { user } = useContext(AuthContext);
   const { showToast } = useToast();
   const externalLinkProps = useDesktopExternalLink();
+  const isMobile = useIsMobile(768);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -975,6 +976,23 @@ export default function SellerOrders() {
           <>
             <div className="space-y-6">
               {orders.map((order) => {
+                // Mobile view - use app-style tracking card
+                if (isMobile) {
+                  return (
+                    <SellerMobileOrderCard
+                      key={order._id}
+                      order={order}
+                      onStatusUpdate={handleStatusUpdate}
+                      onOpenCancelModal={openCancelModal}
+                      statusUpdatingId={statusUpdatingId}
+                      statusUpdateError={statusUpdateError}
+                      orderUnreadCounts={orderUnreadCounts}
+                      externalLinkProps={externalLinkProps}
+                    />
+                  );
+                }
+
+                // Desktop view - existing card design
                 const orderItems = Array.isArray(order.items) ? order.items : [];
                 const computedTotal = orderItems.reduce(
                   (sum, item) =>

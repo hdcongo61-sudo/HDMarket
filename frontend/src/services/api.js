@@ -28,7 +28,7 @@ const CACHE_CONFIG = {
 };
 
 const CACHE_ALLOW_PREFIXES = Object.keys(CACHE_CONFIG);
-const CACHE_EXCLUDE_PREFIXES = ['/users/auth', '/users/login', '/users/register', '/cart', '/orders/create', '/admin', '/payments', '/support', '/chat'];
+const CACHE_EXCLUDE_PREFIXES = ['/users/auth', '/users/login', '/users/register', '/cart', '/orders/create', '/admin', '/payments', '/support', '/chat', '/settings/networks'];
 
 // Enable caching for all platforms (not just native)
 const isCacheEnabled = () => typeof window !== 'undefined';

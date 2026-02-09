@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Image, Layout, Smartphone, Upload, Shield, Search, X, Sparkles } from 'lucide-react';
+import { ArrowLeft, Image, Layout, Smartphone, Upload, Shield, Search, X, Sparkles, Plus, Trash2, Edit, Save } from 'lucide-react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 
@@ -10,6 +10,46 @@ const formatDateInput = (value) => {
   if (Number.isNaN(date.getTime())) return '';
   return date.toISOString().slice(0, 10);
 };
+
+function NetworkEditForm({ network, onSave, onCancel }) {
+  const [name, setName] = useState(network.name);
+  const [phoneNumber, setPhoneNumber] = useState(network.phoneNumber);
+
+  return (
+    <>
+      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+        />
+        <input
+          type="text"
+          value={phoneNumber}
+          onChange={(e) => setPhoneNumber(e.target.value)}
+          className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onSave(name.trim(), phoneNumber.trim())}
+          className="p-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors"
+        >
+          <Save size={16} />
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="p-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+        >
+          <X size={16} />
+        </button>
+      </div>
+    </>
+  );
+}
 
 export default function AdminAppSettings() {
   const { showToast } = useToast();
@@ -56,6 +96,13 @@ export default function AdminAppSettings() {
   const [splashError, setSplashError] = useState('');
   const [splashSuccess, setSplashSuccess] = useState('');
 
+  // Network settings state
+  const [networks, setNetworks] = useState([]);
+  const [networkLoading, setNetworkLoading] = useState(false);
+  const [editingNetworkId, setEditingNetworkId] = useState(null);
+  const [newNetwork, setNewNetwork] = useState({ name: '', phoneNumber: '', isActive: true, order: 0 });
+  const [networkError, setNetworkError] = useState('');
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -63,12 +110,13 @@ export default function AdminAppSettings() {
     const load = async () => {
       setLoading(true);
       try {
-        const [heroRes, logoRes, promoRes, prohibitedRes, splashRes] = await Promise.all([
+        const [heroRes, logoRes, promoRes, prohibitedRes, splashRes, networksRes] = await Promise.all([
           api.get('/settings/hero-banner'),
           api.get('/settings/app-logo'),
           api.get('/settings/promo-banner'),
           api.get('/admin/prohibited-words').catch(() => ({ data: [] })),
-          api.get('/settings/splash').catch(() => ({ data: null }))
+          api.get('/settings/splash').catch(() => ({ data: null })),
+          api.get('/admin/networks').catch(() => ({ data: [] }))
         ]);
         if (!active) return;
         setHeroBannerPreview(heroRes?.data?.heroBanner || '');
@@ -85,6 +133,7 @@ export default function AdminAppSettings() {
           setSplashDurationSeconds(Math.min(30, Math.max(1, Number(splashRes.data.splashDurationSeconds) || 3)));
           setSplashEnabled(splashRes.data.splashEnabled !== false);
         }
+        setNetworks(Array.isArray(networksRes?.data) ? networksRes.data : []);
       } catch (err) {
         if (!active) return;
         showToast(err.response?.data?.message || 'Erreur chargement paramètres.', { variant: 'error' });
@@ -780,6 +829,203 @@ export default function AdminAppSettings() {
               ))}
               {!prohibitedWords.length && (
                 <p className="text-sm text-gray-400">Aucun mot interdit défini pour l'instant.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Network Settings Section */}
+          <div className="rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100">
+                <Smartphone size={20} className="text-teal-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Réseaux de contact</h2>
+                <p className="text-sm text-gray-500">
+                  Configurez les réseaux téléphoniques et leurs numéros. Ces numéros remplaceront les numéros codés en dur dans l'application.
+                </p>
+              </div>
+            </div>
+
+            {networkError && (
+              <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200">
+                <p className="text-sm text-red-600">{networkError}</p>
+              </div>
+            )}
+
+            {/* Add New Network Form */}
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!newNetwork.name.trim() || !newNetwork.phoneNumber.trim()) {
+                  setNetworkError('Le nom et le numéro de téléphone sont requis.');
+                  return;
+                }
+                setNetworkLoading(true);
+                setNetworkError('');
+                try {
+                  const res = await api.post('/admin/networks', newNetwork);
+                  setNetworks([...networks, res.data]);
+                  setNewNetwork({ name: '', phoneNumber: '', isActive: true, order: 0 });
+                  showToast('Réseau ajouté avec succès.', { variant: 'success' });
+                } catch (err) {
+                  setNetworkError(err.response?.data?.message || 'Erreur lors de l\'ajout du réseau.');
+                } finally {
+                  setNetworkLoading(false);
+                }
+              }}
+              className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Nom du réseau <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newNetwork.name}
+                    onChange={(e) => setNewNetwork({ ...newNetwork, name: e.target.value })}
+                    placeholder="Ex: MTN, Airtel"
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    disabled={networkLoading}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Numéro de téléphone <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newNetwork.phoneNumber}
+                    onChange={(e) => setNewNetwork({ ...newNetwork, phoneNumber: e.target.value })}
+                    placeholder="Ex: +242 06 000 00 00"
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    disabled={networkLoading}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-4 mb-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newNetwork.isActive}
+                    onChange={(e) => setNewNetwork({ ...newNetwork, isActive: e.target.checked })}
+                    className="rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                    disabled={networkLoading}
+                  />
+                  <span className="text-sm text-gray-700">Actif</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-gray-700">Ordre:</label>
+                  <input
+                    type="number"
+                    value={newNetwork.order}
+                    onChange={(e) => setNewNetwork({ ...newNetwork, order: Number(e.target.value) || 0 })}
+                    className="w-20 rounded-xl border border-gray-200 px-2 py-1 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    disabled={networkLoading}
+                    min="0"
+                  />
+                </div>
+              </div>
+              <button
+                type="submit"
+                disabled={networkLoading || !newNetwork.name.trim() || !newNetwork.phoneNumber.trim()}
+                className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {networkLoading ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Ajout...
+                  </>
+                ) : (
+                  <>
+                    <Plus size={16} />
+                    Ajouter un réseau
+                  </>
+                )}
+              </button>
+            </form>
+
+            {/* Networks List */}
+            <div className="space-y-3">
+              {networks.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-4">Aucun réseau configuré.</p>
+              ) : (
+                networks.map((network) => (
+                  <div
+                    key={network._id}
+                    className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
+                  >
+                    {editingNetworkId === network._id ? (
+                      <NetworkEditForm
+                        network={network}
+                        onSave={async (name, phoneNumber) => {
+                          if (!name || !phoneNumber) {
+                            setNetworkError('Le nom et le numéro sont requis.');
+                            return;
+                          }
+                          setNetworkLoading(true);
+                          setNetworkError('');
+                          try {
+                            const res = await api.patch(`/admin/networks/${network._id}`, {
+                              name,
+                              phoneNumber
+                            });
+                            setNetworks(networks.map((n) => (n._id === network._id ? res.data : n)));
+                            setEditingNetworkId(null);
+                            showToast('Réseau mis à jour.', { variant: 'success' });
+                          } catch (err) {
+                            setNetworkError(err.response?.data?.message || 'Erreur lors de la mise à jour.');
+                          } finally {
+                            setNetworkLoading(false);
+                          }
+                        }}
+                        onCancel={() => setEditingNetworkId(null)}
+                      />
+                    ) : (
+                      <>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold text-gray-900">{network.name}</span>
+                            <span className="text-sm text-gray-600">{network.phoneNumber}</span>
+                            {!network.isActive && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-200 text-gray-600">Inactif</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditingNetworkId(network._id)}
+                            className="p-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!window.confirm(`Supprimer le réseau "${network.name}" ?`)) return;
+                              setNetworkLoading(true);
+                              setNetworkError('');
+                              try {
+                                await api.delete(`/admin/networks/${network._id}`);
+                                setNetworks(networks.filter((n) => n._id !== network._id));
+                                showToast('Réseau supprimé.', { variant: 'success' });
+                              } catch (err) {
+                                setNetworkError(err.response?.data?.message || 'Erreur lors de la suppression.');
+                              } finally {
+                                setNetworkLoading(false);
+                              }
+                            }}
+                            className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))
               )}
             </div>
           </div>
