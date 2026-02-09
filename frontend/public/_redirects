@@ -1,0 +1,6 @@
+# SPA fallback: serve index.html for all routes so client-side routing works
+# Required for direct links and page refresh (e.g. /top-deals, /login)
+# 200 = rewrite (return index.html but keep the URL)
+# Used by Netlify and similar hosts. On Render: add in Dashboard → Static Site →
+# Redirects/Rewrites: Source "/*", Destination "/index.html", Action "Rewrite"
+/*    /index.html   200

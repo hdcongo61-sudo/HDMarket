@@ -198,8 +198,11 @@ export default function Navbar() {
   const [longPressTimer, setLongPressTimer] = useState(null);
   const [showQuickActions, setShowQuickActions] = useState(null); // ID of item showing quick actions
   const [customNavItems, setCustomNavItems] = useState(null); // Will be loaded from localStorage
-  const desktopLogo = appLogos.desktop || appLogos.mobile;
-  const mobileLogo = appLogos.mobile || appLogos.desktop;
+  // Default app logos (PWA assets) when no custom logo from API
+  const defaultAppLogo = '/favicon.svg';
+  const defaultMobileAppLogo = '/icons/icon-192.svg';
+  const desktopLogo = appLogos.desktop || appLogos.mobile || defaultAppLogo;
+  const mobileLogo = appLogos.mobile || appLogos.desktop || defaultMobileAppLogo;
 
   const handleSearchBlur = () => {
     setTimeout(() => {
