@@ -19,6 +19,7 @@ import {
   MoreHorizontal,
   Star,
   Archive,
+  ArchiveRestore,
   Trash2,
   Pin,
   CheckCheck,
@@ -195,7 +196,9 @@ export default function OrderMessages() {
     e?.stopPropagation();
     try {
       await api.post(`/orders/${String(orderId)}/unarchive`);
-      loadConversations();
+      setActiveFilter('all');
+      setPage(1);
+      loadUnreadCount();
     } catch (err) {
       setError(err.response?.data?.message || 'Impossible de désarchiver.');
     }
@@ -504,6 +507,16 @@ export default function OrderMessages() {
                       <p className="text-[11px] text-slate-400 dark:text-gray-500 mt-1">
                         {formatTimestamp(conversation.latestMessage?.createdAt)}
                       </p>
+                      {activeFilter === 'archived' && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleUnarchive(conversation.orderId, e)}
+                          className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800/50 transition-colors"
+                        >
+                          <ArchiveRestore className="w-3.5 h-3.5" />
+                          Désarchiver
+                        </button>
+                      )}
                     </div>
                     <ChevronRight className="w-5 h-5 text-slate-300 dark:text-gray-600 flex-shrink-0 self-center group-hover:text-indigo-500 transition-colors" />
                   </div>

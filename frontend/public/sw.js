@@ -304,3 +304,47 @@ async function syncOfflineSearchHistory() {
   // Implementation depends on your backend API
   console.log('Syncing offline search history...');
 }
+
+// Push event: show notification when PWA receives FCM (e.g. in background)
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+  let payload = {};
+  try {
+    payload = event.data.json();
+  } catch {
+    return;
+  }
+  const notification = payload.notification || {};
+  const data = payload.data || payload.notification?.data || {};
+  const title = notification.title || data.title || 'HDMarket';
+  const body = notification.body || data.body || '';
+  const url = data.url || data.link || data.deeplink || data.path || '/';
+  const options = {
+    body: body || undefined,
+    icon: '/favicon.svg',
+    badge: '/favicon.svg',
+    data: { url: url.startsWith('http') ? url : self.location.origin + (url.startsWith('/') ? url : '/' + url) },
+    tag: 'hdmarket-push',
+    renotify: true
+  };
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
+});
+
+// Notification click: open app at the link
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification?.data?.url || '/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      if (clientList.length) {
+        const client = clientList[0];
+        client.navigate(url);
+        client.focus();
+      } else if (self.clients.openWindow) {
+        self.clients.openWindow(url);
+      }
+    })
+  );
+});

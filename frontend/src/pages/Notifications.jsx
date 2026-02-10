@@ -474,7 +474,7 @@ export default function Notifications() {
               {alert.type === 'payment_pending' && (user?.role === 'admin' || user?.role === 'manager') && (
                 <div className="mt-4 pt-4 border-t-2 border-gray-200 dark:border-gray-700">
                   <Link
-                    to="/admin"
+                    to="/admin/payment-verification"
                     className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg active:scale-95"
                   >
                     <CreditCard className="w-4 h-4" />

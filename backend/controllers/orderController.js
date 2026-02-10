@@ -580,8 +580,12 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
 });
 
 export const adminListOrders = asyncHandler(async (req, res) => {
-  const { status, search = '', page = 1, limit = 20 } = req.query;
+  const { status, search = '', page = 1, limit = 20, orderId: orderIdParam } = req.query;
   const filter = {};
+
+  if (orderIdParam && mongoose.Types.ObjectId.isValid(orderIdParam)) {
+    filter._id = new mongoose.Types.ObjectId(orderIdParam);
+  }
 
   if (status && ORDER_STATUS.includes(status)) {
     filter.status = status;
@@ -1058,6 +1062,21 @@ export const userListOrders = asyncHandler(async (req, res) => {
     pageSize,
     totalPages
   });
+});
+
+// Get single order (buyer)
+export const getUserOrder = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user?.id || req.user?._id;
+  if (!ensureObjectId(id)) {
+    return res.status(400).json({ message: 'Commande inconnue.' });
+  }
+  const order = await baseOrderQuery().findOne({ _id: id, customer: userId, isDraft: false });
+  if (!order) {
+    return res.status(404).json({ message: 'Commande introuvable.' });
+  }
+  await ensureOrderProductSlugs([order]);
+  res.json(buildOrderResponse(order));
 });
 
 // Save draft order
@@ -1545,6 +1564,30 @@ export const sellerListOrders = asyncHandler(async (req, res) => {
     pageSize,
     totalPages
   });
+});
+
+// Get single order (seller)
+export const sellerGetOrder = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user?.id || req.user?._id;
+  if (!ensureObjectId(id)) {
+    return res.status(400).json({ message: 'Commande inconnue.' });
+  }
+  const order = await baseOrderQuery().findOne({ _id: id, 'items.snapshot.shopId': userId, isDraft: false });
+  if (!order) {
+    return res.status(404).json({ message: 'Commande introuvable.' });
+  }
+  await ensureOrderProductSlugs([order]);
+  const filteredItems = filterOrderItemsForSeller(order, userId);
+  if (!filteredItems.length) {
+    return res.status(404).json({ message: 'Commande introuvable.' });
+  }
+  const response = buildOrderResponse(order);
+  response.items = filteredItems.map((item) => {
+    const normalized = item.toObject ? item.toObject() : item;
+    return { ...normalized, snapshot: normalized.snapshot || {} };
+  });
+  res.json(response);
 });
 
 export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {

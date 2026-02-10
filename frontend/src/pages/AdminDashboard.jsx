@@ -242,6 +242,7 @@ export default function AdminDashboard() {
   const [exportTarget, setExportTarget] = useState('all');
   const [exportLoading, setExportLoading] = useState(false);
   const [exportError, setExportError] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
   const { showToast } = useToast();
 
   const { user: authUser } = useContext(AuthContext);
@@ -899,22 +900,40 @@ export default function AdminDashboard() {
     [canViewStats, loadStats]
   );
 
-const refreshAll = useCallback(() => {
-  if (canViewStats) loadStats();
-  if (canManagePayments) loadPayments();
-  if (canManageUsers) loadUsers();
-  if (canManageComplaints) loadComplaints();
-}, [
-  loadStats,
-  loadPayments,
-  loadUsers,
-  loadComplaints,
-  canManagePayments,
-  canManageUsers,
-  canViewStats,
-  canManageComplaints,
-  canAccessBackOffice
-]);
+  const refreshAll = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const tasks = [];
+      if (canViewStats) {
+        tasks.push(loadStats(), loadSalesTrends(), loadOrderHeatmap(), loadConversionMetrics(), loadCohortAnalysis());
+      }
+      if (canManagePayments) tasks.push(loadPayments());
+      if (canManageUsers) tasks.push(loadUsers());
+      if (canManageComplaints) tasks.push(loadComplaints());
+      tasks.push(loadReminderOrders());
+      await Promise.all(tasks);
+      showToast('Données actualisées.', { variant: 'success' });
+    } catch (e) {
+      showToast(e?.message || 'Erreur lors de l’actualisation.', { variant: 'error' });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [
+    loadStats,
+    loadSalesTrends,
+    loadOrderHeatmap,
+    loadConversionMetrics,
+    loadCohortAnalysis,
+    loadPayments,
+    loadUsers,
+    loadComplaints,
+    loadReminderOrders,
+    canManagePayments,
+    canManageUsers,
+    canViewStats,
+    canManageComplaints,
+    showToast
+  ]);
 
   useEffect(() => {
     if (!paymentActionMessage && !paymentActionError) return;
@@ -1059,7 +1078,7 @@ const refreshAll = useCallback(() => {
             Rappel
           </button>
           <Link
-            to="/admin/orders"
+            to={`/admin/orders?orderId=${order._id}`}
             className="text-xs font-semibold text-indigo-600 hover:underline"
           >
             Voir dans commandes
@@ -1099,10 +1118,11 @@ const refreshAll = useCallback(() => {
           <button
             type="button"
             onClick={refreshAll}
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            disabled={refreshing}
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-60 disabled:pointer-events-none"
           >
-            <RefreshCw size={16} className="transition-transform duration-300 hover:rotate-180" />
-            Actualiser
+            <RefreshCw size={16} className={refreshing ? 'animate-spin' : 'transition-transform duration-300 hover:rotate-180'} />
+            {refreshing ? 'Actualisation…' : 'Actualiser'}
           </button>
           <Link
             to="/admin/settings"

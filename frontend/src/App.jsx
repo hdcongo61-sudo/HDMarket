@@ -40,7 +40,9 @@ import HelpCenter from './pages/HelpCenter';
 import VerifiedShops from './pages/VerifiedShops';
 import UserStats from './pages/UserStats';
 import UserOrders from './pages/UserOrders';
+import OrderDetail from './pages/OrderDetail';
 import SellerOrders from './pages/SellerOrders';
+import SellerOrderDetail from './pages/SellerOrderDetail';
 import OrderCheckout from './pages/OrderCheckout';
 import DraftOrders from './pages/DraftOrders';
 import usePreventNewTabOnMobile from './hooks/usePreventNewTabOnMobile';
@@ -65,6 +67,7 @@ import OrderMessages from './pages/OrderMessages';
 import PushNotificationsManager from './components/PushNotificationsManager';
 import AnalyticsTracker from './components/AnalyticsTracker';
 import ShopConversionRequest from './pages/ShopConversionRequest';
+import PendingActionHandler from './components/PendingActionHandler';
 
 function AppContent() {
   const { pathname } = useLocation();
@@ -83,7 +86,7 @@ function AppContent() {
   }, [pathname]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setBootLoading(false), 700);
+    const timer = setTimeout(() => setBootLoading(false), 1400);
     return () => clearTimeout(timer);
   }, []);
 
@@ -93,7 +96,7 @@ function AppContent() {
       return;
     }
     setRouteLoading(true);
-    const timer = setTimeout(() => setRouteLoading(false), 450);
+    const timer = setTimeout(() => setRouteLoading(false), 800);
     return () => clearTimeout(timer);
   }, [pathname]);
 
@@ -117,6 +120,7 @@ function AppContent() {
 
   return (
     <>
+      <PendingActionHandler />
       <AppLoader visible={showLoader} />
       <PushNotificationsManager />
       <AnalyticsTracker />
@@ -229,14 +233,6 @@ function AppContent() {
             }
           />
           <Route
-            path="/orders"
-            element={
-              <ProtectedRoute>
-                <UserOrders />
-              </ProtectedRoute>
-            }
-          />
-          <Route
             path="/orders/checkout"
             element={
               <ProtectedRoute>
@@ -253,10 +249,10 @@ function AppContent() {
             }
           />
           <Route
-            path="/orders/:status"
+            path="/orders/detail/:orderId"
             element={
               <ProtectedRoute>
-                <UserOrders />
+                <OrderDetail />
               </ProtectedRoute>
             }
           />
@@ -269,15 +265,23 @@ function AppContent() {
             }
           />
           <Route
-            path="/seller/orders"
+            path="/orders/:status?"
             element={
               <ProtectedRoute>
-                <SellerOrders />
+                <UserOrders />
               </ProtectedRoute>
             }
           />
           <Route
-            path="/seller/orders/:status"
+            path="/seller/orders/detail/:orderId"
+            element={
+              <ProtectedRoute>
+                <SellerOrderDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seller/orders/:status?"
             element={
               <ProtectedRoute>
                 <SellerOrders />

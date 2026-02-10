@@ -1174,8 +1174,8 @@ export default function AdminProductBoosts() {
         </div>
         <div className="flex items-center justify-between pl-12">
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Recherche dans les produits approuvés avec tri par statut de boost
-          </p>
+          Recherche dans les produits approuvés avec tri par statut de boost
+        </p>
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Filtrer:</span>
             <button
@@ -1281,7 +1281,7 @@ export default function AdminProductBoosts() {
           {(productFilter === 'all' || productFilter === 'non-boosted') && nonBoostedPagination && nonBoostedPagination.length > 0 && (
             <div className="flex flex-wrap justify-center gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
               {nonBoostedPagination}
-            </div>
+        </div>
           )}
         </div>
       </section>

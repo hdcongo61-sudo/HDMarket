@@ -371,7 +371,7 @@ export const unarchiveOrderConversation = asyncHandler(async (req, res) => {
 });
 
 /**
- * Delete (hide) an order conversation for the current user
+ * Delete (hide) an order conversation for both sides (customer and seller(s))
  */
 export const deleteOrderConversation = asyncHandler(async (req, res) => {
   const orderId = req.params.id || req.params.orderId;
@@ -391,11 +391,18 @@ export const deleteOrderConversation = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à supprimer cette conversation.' });
   }
 
-  if (!order.deletedBy) order.deletedBy = [];
-  if (!order.deletedBy.some((id) => String(id) === String(userId))) {
-    order.deletedBy.push(userId);
-    await order.save();
-  }
+  // Collect all parties: customer + all sellers (delete for both sides)
+  const partyIds = new Set();
+  if (order.customer) partyIds.add(String(order.customer));
+  (order.items || []).forEach((item) => {
+    const shopId = item?.snapshot?.shopId;
+    if (shopId) partyIds.add(String(shopId));
+  });
+
+  order.deletedBy = [...partyIds]
+    .filter((id) => mongoose.Types.ObjectId.isValid(id))
+    .map((id) => new mongoose.Types.ObjectId(id));
+  await order.save();
 
   res.json({ message: 'Conversation supprimée.', deleted: true });
 });
@@ -448,9 +455,15 @@ export const getAllOrderConversations = asyncHandler(async (req, res) => {
 
   const orderIds = allOrders.map((order) => order._id);
 
+  // Only show orders that have at least one message (user or seller must have started the conversation)
+  const orderIdsWithMessages = new Set(
+    (await OrderMessage.distinct('order', { order: { $in: orderIds } })).map((id) => String(id))
+  );
+  const ordersWithConversation = allOrders.filter((o) => orderIdsWithMessages.has(String(o._id)));
+
   // Get latest message and unread count for each order
   const conversations = await Promise.all(
-    allOrders.map(async (order) => {
+    ordersWithConversation.map(async (order) => {
       // Get latest message
       const latestMessage = await OrderMessage.findOne({ order: order._id })
         .populate('sender', 'name email shopName')

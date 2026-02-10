@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import { buildProductPath } from '../utils/links';
@@ -28,6 +28,8 @@ const ORDERS_PER_PAGE = 12;
 
 export default function AdminOrders() {
   const { user } = useContext(AuthContext);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const orderIdFromUrl = searchParams.get('orderId') || '';
   const externalLinkProps = useDesktopExternalLink();
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(false);
@@ -525,6 +527,7 @@ export default function AdminOrders() {
       params.set('limit', ORDERS_PER_PAGE);
       if (statusFilter !== 'all') params.append('status', statusFilter);
       if (searchValue) params.append('search', searchValue);
+      if (orderIdFromUrl) params.set('orderId', orderIdFromUrl);
       const { data } = await api.get(`/orders/admin?${params.toString()}`);
       const items = Array.isArray(data) ? data : data?.items || [];
       // Deduplicate orders by _id to prevent any duplicate display issues
@@ -555,7 +558,7 @@ export default function AdminOrders() {
     } finally {
       setOrdersLoading(false);
     }
-  }, [statusFilter, searchValue, page]);
+  }, [statusFilter, searchValue, page, orderIdFromUrl]);
 
   const loadCustomers = useCallback(
     async (query = '') => {
@@ -598,6 +601,21 @@ export default function AdminOrders() {
   useEffect(() => {
     loadOrders();
   }, [loadOrders]);
+
+  useEffect(() => {
+    if (ordersLoading || !orderIdFromUrl) return;
+    const found = orders.some((o) => o._id === orderIdFromUrl);
+    if (!found) return;
+    const el = document.getElementById(`order-${orderIdFromUrl}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('orderId');
+        return next;
+      }, { replace: true });
+    }
+  }, [ordersLoading, orderIdFromUrl, orders, setSearchParams]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -1303,7 +1321,7 @@ export default function AdminOrders() {
                     ? Number(order.remainingAmount)
                     : Math.max(0, orderTotal - paidAmount);
                 return (
-                  <div key={order._id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
+                  <div id={`order-${order._id}`} key={order._id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3 scroll-mt-4">
                     <div className="flex items-center justify-between">
                       <div className="text-sm font-semibold text-gray-900">Commande #{order._id.slice(-6)}</div>
                       <span className={`inline-flex px-2 py-1 rounded-full text-[11px] font-semibold ${STATUS_CLASSES[order.status] || STATUS_CLASSES.pending}`}>
@@ -1507,7 +1525,7 @@ export default function AdminOrders() {
                         ? Number(order.remainingAmount)
                         : Math.max(0, orderTotal - paidAmount);
                     return (
-                      <tr key={order._id} className="hover:bg-gray-50">
+                      <tr id={`order-${order._id}`} key={order._id} className="hover:bg-gray-50 scroll-mt-4">
                         <td className="px-3 py-3 space-y-2">
                           <div className="font-semibold text-gray-900 flex items-center gap-2">
                             <Package size={14} className="text-gray-400" />

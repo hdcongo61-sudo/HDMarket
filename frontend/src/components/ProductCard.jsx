@@ -8,6 +8,7 @@ import api from '../services/api';
 import { buildWhatsappLink } from '../utils/whatsapp';
 import { buildProductPath, buildShopPath } from '../utils/links';
 import { recordProductView } from '../utils/recentViews';
+import { setPendingAction } from '../utils/pendingAction';
 import VerifiedBadge from './VerifiedBadge';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import useIsMobile from '../hooks/useIsMobile';
@@ -257,7 +258,11 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
       event.preventDefault();
       event.stopPropagation();
     }
-    if (!requireAuth()) return;
+    if (!user) {
+      setPendingAction({ type: 'addFavorite', payload: { product: p } });
+      redirectToLogin();
+      return;
+    }
     try {
       const result = await toggleFavorite(p);
       if (result === true) {
@@ -271,7 +276,12 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
   };
 
   const handleAddToCart = async () => {
-    if (!requireAuth() || inCart) return;
+    if (!user) {
+      setPendingAction({ type: 'addToCart', payload: { productId: p._id, quantity: 1 } });
+      redirectToLogin();
+      return;
+    }
+    if (inCart) return;
     setAdding(true);
     setAddError('');
     try {

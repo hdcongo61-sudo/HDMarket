@@ -33,6 +33,7 @@ import api from "../services/api";
 import { buildWhatsappLink } from "../utils/whatsapp";
 import { buildProductShareUrl, buildProductPath, buildShopPath } from "../utils/links";
 import { recordProductView } from "../utils/recentViews";
+import { setPendingAction } from "../utils/pendingAction";
 import VerifiedBadge from "../components/VerifiedBadge";
 import OrderChat from "../components/OrderChat";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
@@ -143,6 +144,7 @@ export default function ProductDetails() {
   const handleFollowToggle = async () => {
     if (!product?.user?._id) return;
     if (!user) {
+      setPendingAction({ type: 'followShop', payload: { shopId: product.user._id } });
       navigate('/login', { state: { from: `/product/${slug}` } });
       return;
     }
@@ -531,6 +533,7 @@ export default function ProductDetails() {
     if (!product) return;
     
     if (!user) {
+      setPendingAction({ type: 'addToCart', payload: { productId: product._id, quantity: 1 } });
       navigate('/login', { state: { from: `/product/${slug}` } });
       return;
     }
@@ -559,6 +562,7 @@ export default function ProductDetails() {
     if (!product) return;
     
     if (!user) {
+      setPendingAction({ type: 'addFavorite', payload: { product } });
       navigate('/login', { state: { from: `/product/${slug}` } });
       return;
     }

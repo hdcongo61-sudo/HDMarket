@@ -13,10 +13,12 @@ import {
   adminUpdateOrder,
   userCheckoutOrder,
   userListOrders,
+  getUserOrder,
   userUpdateOrderStatus,
   userUpdateOrderAddress,
   userSkipCancellationWindow,
   sellerListOrders,
+  sellerGetOrder,
   sellerUpdateOrderStatus,
   sellerCancelOrder,
   saveDraftOrder,
@@ -65,6 +67,8 @@ router.post('/draft', saveDraftOrder);
 router.get('/draft', getDraftOrders);
 router.delete('/draft/:id', validate(schemas.idParam, 'params'), deleteDraftOrder);
 router.get('/seller', sellerListOrders);
+router.get('/detail/:id', validate(schemas.idParam, 'params'), getUserOrder);
+router.get('/seller/detail/:id', validate(schemas.idParam, 'params'), sellerGetOrder);
 router.patch(
   '/:id/status',
   validate(schemas.idParam, 'params'),

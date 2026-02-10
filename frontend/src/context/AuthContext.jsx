@@ -4,6 +4,7 @@ import { jwtDecode } from 'jwt-decode';
 import storage from '../utils/storage';
 import indexedDB, { STORES } from '../utils/indexedDB';
 import { clearSearchCache } from '../utils/searchCache';
+import { clearUserDataOnLogout } from '../utils/clearUserDataOnLogout';
 
 const AuthContext = createContext();
 
@@ -90,6 +91,7 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       await clearAllCache();
+      await clearUserDataOnLogout();
       await Promise.all([
         indexedDB.clear(STORES.PRODUCTS),
         indexedDB.clear(STORES.SEARCH_RESULTS),
@@ -102,6 +104,10 @@ export const AuthProvider = ({ children }) => {
     await storage.remove('qm_token');
     await storage.remove('qm_user');
     setUser(null);
+    // Full reload so the next user on the same device does not see any cached UI state
+    if (typeof window !== 'undefined') {
+      window.location.href = '/';
+    }
   };
 
   useEffect(() => {
