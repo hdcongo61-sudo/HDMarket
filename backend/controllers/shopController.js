@@ -63,15 +63,21 @@ export const isShopCurrentlyBoosted = (shop) => {
   return true;
 };
 
+const SHOP_CITIES = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
+
 export const listShops = asyncHandler(async (req, res) => {
   const filters = { accountType: 'shop' };
   if (req.query?.verified === 'true') {
     filters.shopVerified = true;
   }
+  const cityParam = typeof req.query?.city === 'string' ? req.query.city.trim() : '';
+  if (cityParam && SHOP_CITIES.includes(cityParam)) {
+    filters.city = cityParam;
+  }
   const includeImages = req.query?.withImages === 'true';
   const imageLimit = Math.max(1, Math.min(Number(req.query?.imageLimit) || 6, 12));
   const shops = await User.find(filters)
-    .select('shopName shopAddress shopLogo shopBanner name createdAt shopVerified followersCount shopBoosted shopBoostScore shopBoostStartDate shopBoostEndDate')
+    .select('shopName shopAddress shopLogo shopBanner name createdAt shopVerified followersCount shopBoosted shopBoostScore shopBoostStartDate shopBoostEndDate city')
     .sort({ shopBoosted: -1, shopBoostScore: -1, followersCount: -1, shopName: 1, createdAt: -1 })
     .lean();
 
@@ -168,6 +174,7 @@ export const listShops = asyncHandler(async (req, res) => {
       ratingAverage: ratingStats.average,
       ratingCount: ratingStats.count,
       createdAt: shop.createdAt,
+      city: shop.city || '',
       sampleImages
     };
   });

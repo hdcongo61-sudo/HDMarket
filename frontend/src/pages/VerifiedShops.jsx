@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import api from '../services/api';
@@ -30,10 +30,23 @@ import {
 } from 'lucide-react';
 import VerifiedBadge from '../components/VerifiedBadge';
 
+const CITY_LIST = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
+
 export default function VerifiedShops() {
   const { user } = useContext(AuthContext);
   const isAdmin = user?.role === 'admin';
+  const [selectedCity, setSelectedCity] = useState('');
   const [shops, setShops] = useState([]);
+  const hasAppliedDefaultCity = useRef(false);
+
+  // Default to connected user's city once when available
+  useEffect(() => {
+    if (hasAppliedDefaultCity.current) return;
+    if (user?.city && CITY_LIST.includes(user.city)) {
+      setSelectedCity(user.city);
+      hasAppliedDefaultCity.current = true;
+    }
+  }, [user?.city]);
   const [pendingShops, setPendingShops] = useState([]);
   const bestReviewedShop = useMemo(() => {
     if (!shops.length) return null;
@@ -70,7 +83,11 @@ export default function VerifiedShops() {
       setError('');
       try {
         const { data: allShops } = await api.get('/shops', {
-          params: { withImages: true, imageLimit: 6 }
+          params: {
+            withImages: true,
+            imageLimit: 6,
+            ...(selectedCity ? { city: selectedCity } : {})
+          }
         });
         const publicData = Array.isArray(allShops) ? allShops : [];
         const verifiedList = publicData.filter((shop) => shop.shopVerified);
@@ -131,7 +148,7 @@ export default function VerifiedShops() {
     return () => {
       active = false;
     };
-  }, [isAdmin]);
+  }, [isAdmin, selectedCity]);
 
   const pageTitle = useMemo(
     () => (isAdmin ? 'Boutiques vérifiées (Admin)' : 'Boutiques vérifiées'),
@@ -329,6 +346,40 @@ export default function VerifiedShops() {
       </header>
 
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+        {/* City filter */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 hide-scrollbar">
+          <span className="flex-shrink-0 flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-gray-400">
+            <MapPin className="w-4 h-4" />
+            Ville
+          </span>
+          <div className="flex gap-2 flex-1 min-w-0">
+            <button
+              type="button"
+              onClick={() => setSelectedCity('')}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-sm font-semibold transition-all ${
+                selectedCity === ''
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+              }`}
+            >
+              Toutes
+            </button>
+            {CITY_LIST.map((city) => (
+              <button
+                key={city}
+                type="button"
+                onClick={() => setSelectedCity(city)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-sm font-semibold transition-all ${
+                  selectedCity === city
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                {city}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {loading ? (
           <div className="space-y-4">
@@ -359,7 +410,20 @@ export default function VerifiedShops() {
         ) : !shops.length ? (
           <div className="bg-white rounded-2xl border-2 border-dashed border-gray-300 p-12 text-center">
             <Store className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 font-semibold">Aucune boutique vérifiée pour le moment.</p>
+            <p className="text-gray-600 font-semibold">
+              {selectedCity
+                ? `Aucune boutique vérifiée à ${selectedCity} pour le moment.`
+                : 'Aucune boutique vérifiée pour le moment.'}
+            </p>
+            {selectedCity && (
+              <button
+                type="button"
+                onClick={() => setSelectedCity('')}
+                className="mt-3 text-sm font-medium text-indigo-600 hover:text-indigo-700"
+              >
+                Voir toutes les villes
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-4">

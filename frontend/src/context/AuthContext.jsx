@@ -1,7 +1,9 @@
 import React, { createContext, useEffect, useState } from 'react';
-import api from '../services/api';
+import api, { clearAllCache } from '../services/api';
 import { jwtDecode } from 'jwt-decode';
 import storage from '../utils/storage';
+import indexedDB, { STORES } from '../utils/indexedDB';
+import { clearSearchCache } from '../utils/searchCache';
 
 const AuthContext = createContext();
 
@@ -86,6 +88,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    try {
+      await clearAllCache();
+      await Promise.all([
+        indexedDB.clear(STORES.PRODUCTS),
+        indexedDB.clear(STORES.SEARCH_RESULTS),
+        indexedDB.clear(STORES.SHOP_DATA)
+      ]);
+      await clearSearchCache();
+    } catch {
+      // ignore cache clear errors
+    }
     await storage.remove('qm_token');
     await storage.remove('qm_user');
     setUser(null);

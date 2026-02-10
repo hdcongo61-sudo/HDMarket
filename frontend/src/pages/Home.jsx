@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import ProductCard from "../components/ProductCard";
@@ -9,9 +9,10 @@ import { Navigation, Pagination, Autoplay } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
-import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag } from "lucide-react";
+import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User } from "lucide-react";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
 import { buildProductPath, buildShopPath } from "../utils/links";
+import AuthContext from "../context/AuthContext";
 
 /**
  * 🎨 PAGE D'ACCUEIL HDMarket - Design Alibaba Mobile First
@@ -20,6 +21,7 @@ import { buildProductPath, buildShopPath } from "../utils/links";
  */
 
 export default function Home() {
+  const { user } = useContext(AuthContext);
   // === ÉTATS PRINCIPAUX ===
   const [items, setItems] = useState([]);
   const [certifiedProducts, setCertifiedProducts] = useState([]);
@@ -643,11 +645,26 @@ const loadDiscountProducts = async () => {
           </section>
         )}
 
-        {/* City Products Strip */}
+        {/* City section: connected user's city + products + sellers from same city */}
         {(() => {
-          const firstCity = cityList.find(c => (cityHighlights[c] || []).length > 0);
-          const cityProds = firstCity ? (cityHighlights[firstCity] || []).slice(0, 8) : [];
-          if (!firstCity || !cityProds.length) return null;
+          const firstCityWithData = cityList.find(c => (cityHighlights[c] || []).length > 0);
+          // Prefer connected user's city when set (show their city even if no data yet)
+          const displayCity =
+            user?.city && cityList.includes(user.city)
+              ? user.city
+              : firstCityWithData;
+          const cityProds = displayCity ? (cityHighlights[displayCity] || []).slice(0, 8) : [];
+          const uniqueSellers = [];
+          const seenIds = new Set();
+          for (const p of cityProds) {
+            const u = p.user;
+            const uid = u?._id || u?.id;
+            if (uid && !seenIds.has(String(uid)) && u?.accountType === 'shop') {
+              seenIds.add(String(uid));
+              uniqueSellers.push(u);
+            }
+          }
+          if (!displayCity) return null;
           return (
             <section>
               <div className="flex items-center justify-between mb-2">
@@ -655,33 +672,76 @@ const loadDiscountProducts = async () => {
                   <div className="w-6 h-6 bg-blue-500 rounded-lg flex items-center justify-center">
                     <MapPin className="w-3.5 h-3.5 text-white" />
                   </div>
-                  <h2 className="text-sm font-bold text-gray-900">{firstCity}</h2>
+                  <h2 className="text-sm font-bold text-gray-900">{displayCity}</h2>
                 </div>
-                <Link to={`/cities?city=${encodeURIComponent(firstCity)}`} {...externalLinkProps} className="text-xs font-semibold text-[#007AFF] flex items-center">
+                <Link to={`/cities?city=${encodeURIComponent(displayCity)}`} {...externalLinkProps} className="text-xs font-semibold text-[#007AFF] flex items-center">
                   Voir tout <ChevronRight className="w-3 h-3 ml-0.5" />
                 </Link>
               </div>
-              <div className="flex gap-2.5 overflow-x-auto pb-2 hide-scrollbar" style={scrollStyle}>
-                {cityProds.map((product, idx) => (
-                  <Link
-                    key={`city-m-${product._id}-${idx}`}
-                    to={buildHomeProductLink(product)}
-                    {...externalLinkProps}
-                    className="flex-shrink-0 w-[130px] bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden active:scale-[0.97] transition-transform"
-                  >
-                    <div className="relative aspect-square bg-gray-100">
-                      <img src={product.images?.[0] || '/api/placeholder/200/200'} alt={product.title} className="w-full h-full object-cover" loading="lazy" />
-                      <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 text-[9px] font-semibold rounded-md bg-white/90 text-gray-600">
-                        {product.condition === 'new' ? 'Neuf' : 'Occasion'}
-                      </span>
-                    </div>
-                    <div className="p-2">
-                      <p className="text-xs font-bold text-gray-900 truncate">{Number(product.price || 0).toLocaleString()} F</p>
-                      <p className="text-[10px] text-gray-500 truncate">{product.title}</p>
-                    </div>
+              {displayCity && cityProds.length === 0 && uniqueSellers.length === 0 && (
+                <p className="text-xs text-gray-500 py-2">
+                  Aucune annonce dans votre ville pour le moment.{' '}
+                  <Link to={`/cities?city=${encodeURIComponent(displayCity)}`} {...externalLinkProps} className="text-indigo-600 font-medium">
+                    Explorer {displayCity}
                   </Link>
-                ))}
-              </div>
+                </p>
+              )}
+              {uniqueSellers.length > 0 && (
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 hide-scrollbar" style={scrollStyle}>
+                  {uniqueSellers.slice(0, 12).map((seller) => {
+                    const shopName = seller.shopName || seller.name || 'Vendeur';
+                    const photo = seller.shopLogo || null;
+                    const slug = seller.slug;
+                    const href = slug ? buildShopPath(seller) : null;
+                    const avatar = (
+                      <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 border-2 border-gray-200 flex items-center justify-center flex-shrink-0">
+                        {photo ? (
+                          <img src={photo} alt={shopName} className="w-full h-full object-cover" loading="lazy" />
+                        ) : (
+                          <User className="w-6 h-6 text-gray-400" />
+                        )}
+                      </div>
+                    );
+                    return href ? (
+                      <Link
+                        key={seller._id || seller.id}
+                        to={href}
+                        className="active:scale-[0.97] transition-transform"
+                        title={shopName}
+                      >
+                        {avatar}
+                      </Link>
+                    ) : (
+                      <div key={seller._id || seller.id} title={shopName}>
+                        {avatar}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {cityProds.length > 0 && (
+                <div className="flex gap-2.5 overflow-x-auto pb-2 hide-scrollbar" style={scrollStyle}>
+                  {cityProds.map((product, idx) => (
+                    <Link
+                      key={`city-m-${product._id}-${idx}`}
+                      to={buildHomeProductLink(product)}
+                      {...externalLinkProps}
+                      className="flex-shrink-0 w-[130px] bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden active:scale-[0.97] transition-transform"
+                    >
+                      <div className="relative aspect-square bg-gray-100">
+                        <img src={product.images?.[0] || '/api/placeholder/200/200'} alt={product.title} className="w-full h-full object-cover" loading="lazy" />
+                        <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 text-[9px] font-semibold rounded-md bg-white/90 text-gray-600">
+                          {product.condition === 'new' ? 'Neuf' : 'Occasion'}
+                        </span>
+                      </div>
+                      <div className="p-2">
+                        <p className="text-xs font-bold text-gray-900 truncate">{Number(product.price || 0).toLocaleString()} F</p>
+                        <p className="text-[10px] text-gray-500 truncate">{product.title}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </section>
           );
         })()}
@@ -712,14 +772,23 @@ const loadDiscountProducts = async () => {
         {/* All Products Grid */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-bold text-gray-900">Pour vous</h2>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md shadow-indigo-500/25">
+                <ShoppingBag className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-gray-900">Pour vous</h2>
+                <p className="text-xs text-gray-500 font-medium">
+                  <span className="tabular-nums font-semibold text-indigo-600">{formatCount(totalProducts)}</span> annonces
+                </p>
+              </div>
+            </div>
             <Link
               to="/products"
-              className="inline-flex items-center gap-1 text-sm font-semibold text-[#007AFF] hover:text-[#0051D5] hover:underline transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 text-indigo-700 font-semibold text-sm hover:bg-indigo-100 active:scale-[0.98] transition-all"
             >
-              <span className="font-black tabular-nums">{formatCount(totalProducts)}</span>
-              <span className="text-gray-600 font-medium">produits</span>
-              <ChevronRight className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+              Voir tout
+              <ChevronRight className="w-4 h-4 flex-shrink-0" />
             </Link>
           </div>
 

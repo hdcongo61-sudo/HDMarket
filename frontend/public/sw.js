@@ -3,9 +3,9 @@
  * Caches API responses and static assets for offline access
  */
 
-const CACHE_NAME = 'hdmarket-v1';
-const API_CACHE_NAME = 'hdmarket-api-v1';
-const STATIC_CACHE_NAME = 'hdmarket-static-v1';
+const CACHE_NAME = 'hdmarket-v2';
+const API_CACHE_NAME = 'hdmarket-api-v2';
+const STATIC_CACHE_NAME = 'hdmarket-static-v2';
 
 // Assets to cache on install
 const STATIC_ASSETS = [
@@ -154,15 +154,36 @@ async function handleApiRequest(request) {
 }
 
 /**
- * Handle static asset requests with cache-first strategy
+ * Handle static asset requests.
+ * Navigation/document requests (SPA routes): network-first so reload on /path always
+ * gets index.html from the server. Prevents serving a cached 404 from before the
+ * rewrite was configured.
+ * Other static assets: cache-first for performance.
  */
 async function handleStaticRequest(request) {
+  const isNavigation = request.mode === 'navigate';
+
+  if (isNavigation) {
+    const staticCache = await caches.open(STATIC_CACHE_NAME);
+    try {
+      const networkResponse = await fetch(request);
+      if (networkResponse.ok) {
+        return networkResponse;
+      }
+      // 404/5xx: fall back to index.html so SPA can load (e.g. old cached 404)
+      const indexResponse = await staticCache.match('/index.html');
+      if (indexResponse) return indexResponse;
+      return networkResponse;
+    } catch (error) {
+      const offlinePage = await staticCache.match('/index.html');
+      if (offlinePage) return offlinePage;
+      return new Response('Offline', { status: 503 });
+    }
+  }
+
   const cache = await caches.open(STATIC_CACHE_NAME);
   const cachedResponse = await cache.match(request);
-
-  if (cachedResponse) {
-    return cachedResponse;
-  }
+  if (cachedResponse) return cachedResponse;
 
   try {
     const networkResponse = await fetch(request);
@@ -171,11 +192,8 @@ async function handleStaticRequest(request) {
     }
     return networkResponse;
   } catch (error) {
-    // Return offline page if available
     const offlinePage = await cache.match('/index.html');
-    if (offlinePage) {
-      return offlinePage;
-    }
+    if (offlinePage) return offlinePage;
     return new Response('Offline', { status: 503 });
   }
 }
