@@ -2,6 +2,7 @@ import api from '../services/api';
 
 const STORAGE_KEY = 'hdmarket:recent-product-views';
 const MAX_VIEWS = 50;
+const OBJECT_ID_REGEX = /^[a-fA-F0-9]{24}$/;
 
 const safeParse = (value) => {
   if (!value) return [];
@@ -24,19 +25,25 @@ export const saveRecentProductViews = (views) => {
 };
 
 export const recordProductView = (product) => {
-  if (!product?._id) return;
+  if (!product) return;
+  const rawId = product?._id ? String(product._id) : '';
+  const rawSlug = product?.slug ? String(product.slug) : '';
+  const viewId = rawId || rawSlug;
+  if (!viewId) return;
   const category = product.category || '';
   const current = loadRecentProductViews();
   const next = [
-    { id: String(product._id), category, visitedAt: Date.now() },
-    ...current.filter((entry) => String(entry.id) !== String(product._id))
+    { id: viewId, category, visitedAt: Date.now() },
+    ...current.filter((entry) => String(entry.id) !== viewId)
   ].slice(0, MAX_VIEWS);
   saveRecentProductViews(next);
 
   if (typeof window !== 'undefined') {
     const token = window.localStorage.getItem('qm_token');
     if (token) {
-      const identifier = product.slug || product._id;
+      if (product?.status && product.status !== 'approved') return;
+      const identifier = OBJECT_ID_REGEX.test(rawId) ? rawId : rawSlug;
+      if (!identifier) return;
       api.post(`/users/product-views/${identifier}`).catch(() => undefined);
     }
   }

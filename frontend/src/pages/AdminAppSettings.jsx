@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Image, Layout, Smartphone, Upload, Shield, Search, X, Sparkles, Plus, Trash2, Edit, Save } from 'lucide-react';
+import { ArrowLeft, Image, Layout, Smartphone, Upload, Shield, Search, X, Sparkles, Plus, Trash2, Edit, Save, Flag, MessageSquare, FileImage, User, Package, CheckCircle, XCircle, Clock } from 'lucide-react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 
@@ -103,6 +103,13 @@ export default function AdminAppSettings() {
   const [newNetwork, setNewNetwork] = useState({ name: '', phoneNumber: '', isActive: true, order: 0 });
   const [networkError, setNetworkError] = useState('');
 
+  // Reports state
+  const [reports, setReports] = useState([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportsFilter, setReportsFilter] = useState('all');
+  const [reportsTypeFilter, setReportsTypeFilter] = useState('all');
+  const [updatingReportId, setUpdatingReportId] = useState(null);
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -118,6 +125,7 @@ export default function AdminAppSettings() {
           api.get('/settings/splash').catch(() => ({ data: null })),
           api.get('/admin/networks').catch(() => ({ data: [] }))
         ]);
+        loadReports();
         if (!active) return;
         setHeroBannerPreview(heroRes?.data?.heroBanner || '');
         setAppLogoDesktopPreview(logoRes?.data?.appLogoDesktop || '');
@@ -144,6 +152,70 @@ export default function AdminAppSettings() {
     load();
     return () => { active = false; };
   }, [showToast]);
+
+  const loadReports = useCallback(async () => {
+    setReportsLoading(true);
+    try {
+      const params = {};
+      if (reportsFilter !== 'all') params.status = reportsFilter;
+      if (reportsTypeFilter !== 'all') params.type = reportsTypeFilter;
+      const { data } = await api.get('/admin/content-reports', { params });
+      setReports(Array.isArray(data) ? data : []);
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Erreur chargement signalements.', { variant: 'error' });
+      setReports([]);
+    } finally {
+      setReportsLoading(false);
+    }
+  }, [reportsFilter, reportsTypeFilter, showToast]);
+
+  useEffect(() => {
+    loadReports();
+  }, [loadReports]);
+
+  const handleReportStatusChange = useCallback(async (reportId, newStatus, adminNote = '') => {
+    setUpdatingReportId(reportId);
+    try {
+      await api.patch(`/admin/content-reports/${reportId}/status`, { status: newStatus, adminNote });
+      await loadReports();
+      showToast('Statut du signalement mis à jour.', { variant: 'success' });
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Erreur mise à jour.', { variant: 'error' });
+    } finally {
+      setUpdatingReportId(null);
+    }
+  }, [loadReports, showToast]);
+
+  const formatDateTime = (date) => {
+    if (!date) return '—';
+    return new Date(date).toLocaleString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getStatusBadge = (status) => {
+    const styles = {
+      pending: 'bg-yellow-100 text-yellow-700 border-yellow-300',
+      reviewed: 'bg-blue-100 text-blue-700 border-blue-300',
+      resolved: 'bg-green-100 text-green-700 border-green-300',
+      dismissed: 'bg-gray-100 text-gray-700 border-gray-300'
+    };
+    const labels = {
+      pending: 'En attente',
+      reviewed: 'Examiné',
+      resolved: 'Résolu',
+      dismissed: 'Rejeté'
+    };
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${styles[status] || styles.pending}`}>
+        {labels[status] || status}
+      </span>
+    );
+  };
 
   useEffect(() => {
     return () => {
@@ -1028,6 +1100,153 @@ export default function AdminAppSettings() {
                 ))
               )}
             </div>
+          </div>
+
+          {/* Reports Section */}
+          <div className="rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100">
+                <Flag size={20} className="text-red-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Signalements de contenu</h2>
+                <p className="text-sm text-gray-500">
+                  Consultez et gérez les signalements de commentaires et photos.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+              <div className="flex flex-wrap gap-2">
+                <select
+                  value={reportsFilter}
+                  onChange={(e) => setReportsFilter(e.target.value)}
+                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                >
+                  <option value="all">Tous les statuts</option>
+                  <option value="pending">En attente</option>
+                  <option value="reviewed">Examiné</option>
+                  <option value="resolved">Résolu</option>
+                  <option value="dismissed">Rejeté</option>
+                </select>
+                <select
+                  value={reportsTypeFilter}
+                  onChange={(e) => setReportsTypeFilter(e.target.value)}
+                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                >
+                  <option value="all">Tous les types</option>
+                  <option value="comment">Commentaires</option>
+                  <option value="photo">Photos</option>
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={loadReports}
+                disabled={reportsLoading}
+                className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                {reportsLoading ? 'Chargement...' : 'Actualiser'}
+              </button>
+            </div>
+
+            {reportsLoading ? (
+              <div className="py-12 text-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-red-200 border-t-red-600 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">Chargement des signalements...</p>
+              </div>
+            ) : reports.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-8">Aucun signalement pour le moment.</p>
+            ) : (
+              <div className="space-y-4">
+                {reports.map((report) => (
+                  <div key={report._id} className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+                    <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          {report.type === 'comment' ? (
+                            <MessageSquare size={16} className="text-blue-600" />
+                          ) : (
+                            <FileImage size={16} className="text-purple-600" />
+                          )}
+                          <span className="font-semibold text-gray-900">
+                            {report.type === 'comment' ? 'Commentaire signalé' : 'Photo signalée'}
+                          </span>
+                          {getStatusBadge(report.status)}
+                        </div>
+                        <div className="text-xs text-gray-600 space-y-1">
+                          <p>
+                            <span className="font-medium">Signalé par:</span>{' '}
+                            {report.reporter?.name || 'Anonyme'} ({report.reporter?.email || '—'})
+                          </p>
+                          <p>
+                            <span className="font-medium">Utilisateur signalé:</span>{' '}
+                            {report.reportedUser?.name || '—'} ({report.reportedUser?.email || '—'})
+                          </p>
+                          <p>
+                            <span className="font-medium">Produit:</span>{' '}
+                            <Link
+                              to={`/product/${report.product?.slug || report.product?._id}`}
+                              target="_blank"
+                              className="text-indigo-600 hover:underline"
+                            >
+                              {report.product?.title || '—'}
+                            </Link>
+                          </p>
+                          {report.type === 'comment' && report.comment && (
+                            <div className="mt-2 p-2 bg-white rounded-lg border border-gray-200">
+                              <p className="text-xs text-gray-500 mb-1">Commentaire:</p>
+                              <p className="text-sm text-gray-700">{report.comment?.message || '—'}</p>
+                            </div>
+                          )}
+                          {report.type === 'photo' && report.photoUrl && (
+                            <div className="mt-2">
+                              <img
+                                src={report.photoUrl}
+                                alt="Photo signalée"
+                                className="max-w-xs h-32 object-cover rounded-lg border border-gray-200"
+                              />
+                            </div>
+                          )}
+                          {report.reason && (
+                            <div className="mt-2 p-2 bg-white rounded-lg border border-gray-200">
+                              <p className="text-xs text-gray-500 mb-1">Raison:</p>
+                              <p className="text-sm text-gray-700">{report.reason}</p>
+                            </div>
+                          )}
+                          <p className="text-gray-400 mt-2">
+                            Signalé le {formatDateTime(report.createdAt)}
+                            {report.handledAt && ` · Traité le ${formatDateTime(report.handledAt)}`}
+                            {report.handledBy && ` par ${report.handledBy?.name || '—'}`}
+                          </p>
+                          {report.adminNote && (
+                            <div className="mt-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                              <p className="text-xs text-blue-600 font-medium mb-1">Note admin:</p>
+                              <p className="text-sm text-blue-700">{report.adminNote}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <select
+                          value={report.status}
+                          onChange={(e) => handleReportStatusChange(report._id, e.target.value)}
+                          disabled={updatingReportId === report._id}
+                          className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs focus:ring-2 focus:ring-red-500"
+                        >
+                          <option value="pending">En attente</option>
+                          <option value="reviewed">Examiné</option>
+                          <option value="resolved">Résolu</option>
+                          <option value="dismissed">Rejeté</option>
+                        </select>
+                        {updatingReportId === report._id && (
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-200 border-t-red-600 mx-auto" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       </div>

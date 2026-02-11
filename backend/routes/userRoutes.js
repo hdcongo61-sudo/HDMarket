@@ -34,6 +34,7 @@ import {
   exportSearchHistory
 } from '../controllers/userController.js';
 import { createComplaint, getUserComplaints } from '../controllers/complaintController.js';
+import { createReport } from '../controllers/contentReportController.js';
 import {
   createImprovementFeedback,
   listMyImprovementFeedback
@@ -80,6 +81,7 @@ router.post(
   validate(schemas.complaintCreate),
   createComplaint
 );
+router.post('/reports', validate(schemas.reportCreate), createReport);
 router.post('/shops/:id/follow', validate(schemas.idParam, 'params'), followShop);
 router.delete('/shops/:id/follow', validate(schemas.idParam, 'params'), unfollowShop);
 router.get('/shops/following', getFollowingShops);

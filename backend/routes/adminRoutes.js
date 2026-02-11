@@ -54,6 +54,13 @@ import {
   updateComplaintStatus
 } from '../controllers/complaintController.js';
 import {
+  listReportsAdmin,
+  updateReportStatus
+} from '../controllers/contentReportController.js';
+import {
+  deleteCommentAdmin
+} from '../controllers/commentController.js';
+import {
   createProhibitedWord,
   listProhibitedWords,
   deleteProhibitedWord
@@ -181,6 +188,24 @@ router.patch(
   requireRole(['admin']),
   validate(Joi.object({ userId: Joi.string().hex().length(24).required() }), 'params'),
   toggleComplaintManager
+);
+// Content reports - admin, manager, or canManageComplaints
+router.get('/content-reports', protect, requireComplaintAccess, listReportsAdmin);
+router.patch(
+  '/content-reports/:id/status',
+  protect,
+  requireComplaintAccess,
+  validate(schemas.idParam, 'params'),
+  validate(schemas.reportStatusUpdate),
+  updateReportStatus
+);
+// Comments - admin only
+router.delete(
+  '/comments/:id',
+  protect,
+  requireRole(['admin']),
+  validate(schemas.idParam, 'params'),
+  deleteCommentAdmin
 );
 
 // All other admin routes - require admin or manager role

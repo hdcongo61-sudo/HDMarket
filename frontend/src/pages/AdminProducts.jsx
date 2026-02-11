@@ -134,6 +134,9 @@ export default function AdminProducts() {
   const [detailMessage, setDetailMessage] = useState('');
   const [detailError, setDetailError] = useState('');
   const [detailBusy, setDetailBusy] = useState(false);
+  const [actionMessage, setActionMessage] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [actionBusyId, setActionBusyId] = useState('');
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -215,6 +218,95 @@ export default function AdminProducts() {
       setDetailBusy(false);
     }
   };
+
+  const applyStatusUpdate = useCallback((productId, previousStatus, nextStatus) => {
+    if (!productId || !nextStatus) return;
+    setProducts((prev) =>
+      prev.map((item) =>
+        item._id === productId
+          ? {
+              ...item,
+              status: nextStatus
+            }
+          : item
+      )
+    );
+    setSelectedProduct((prev) => {
+      if (!prev || prev._id !== productId) return prev;
+      return {
+        ...prev,
+        status: nextStatus
+      };
+    });
+    setStats((prev) => {
+      if (!prev?.statusCounts) return prev;
+      if (previousStatus === nextStatus) return prev;
+      const nextCounts = { ...prev.statusCounts };
+      if (previousStatus) {
+        nextCounts[previousStatus] = Math.max(0, (nextCounts[previousStatus] || 0) - 1);
+      }
+      nextCounts[nextStatus] = (nextCounts[nextStatus] || 0) + 1;
+      return {
+        ...prev,
+        statusCounts: nextCounts
+      };
+    });
+  }, []);
+
+  const handleDisableProduct = useCallback(
+    async (product) => {
+      if (!product?._id) return;
+      setActionBusyId(product._id);
+      setActionMessage('');
+      setActionError('');
+      setDetailMessage('');
+      setDetailError('');
+      try {
+        const identifier = product.slug || product._id;
+        const { data } = await api.patch(`/products/${identifier}/disable`);
+        const nextStatus = data?.status || 'disabled';
+        applyStatusUpdate(product._id, product.status, nextStatus);
+        setActionMessage("Annonce désactivée avec succès.");
+      } catch (err) {
+        setActionError(err?.response?.data?.message || err.message || "Impossible de désactiver l'annonce.");
+      } finally {
+        setActionBusyId('');
+      }
+    },
+    [applyStatusUpdate]
+  );
+
+  const handleEnableProduct = useCallback(
+    async (product) => {
+      if (!product?._id) return;
+      setActionBusyId(product._id);
+      setActionMessage('');
+      setActionError('');
+      setDetailMessage('');
+      setDetailError('');
+      try {
+        const identifier = product.slug || product._id;
+        const { data } = await api.patch(`/products/${identifier}/enable`);
+        const nextStatus = data?.status || 'approved';
+        applyStatusUpdate(product._id, product.status, nextStatus);
+        setActionMessage("Annonce réactivée avec succès.");
+      } catch (err) {
+        setActionError(err?.response?.data?.message || err.message || "Impossible de réactiver l'annonce.");
+      } finally {
+        setActionBusyId('');
+      }
+    },
+    [applyStatusUpdate]
+  );
+
+  useEffect(() => {
+    if (!actionMessage && !actionError) return;
+    const timer = setTimeout(() => {
+      setActionMessage('');
+      setActionError('');
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [actionMessage, actionError]);
 
   const statusCards = useMemo(() => {
     if (!stats) return [];
@@ -392,6 +484,11 @@ export default function AdminProducts() {
 
         <section className="space-y-4">
           {error && <p className="text-sm text-red-600">{error}</p>}
+          {(actionMessage || actionError) && (
+            <p className={`text-sm ${actionError ? 'text-red-600' : 'text-green-600'}`}>
+              {actionError || actionMessage}
+            </p>
+          )}
           {loading ? (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, idx) => (
@@ -461,18 +558,39 @@ export default function AdminProducts() {
                           Non certifié
                         </span>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedProduct(product);
-                          setDetailMessage('');
-                          setDetailError('');
-                        }}
-                        className="inline-flex items-center gap-2 text-xs font-semibold text-indigo-600 hover:text-indigo-500"
-                      >
-                        Détails
-                        <ChevronRight className="w-3 h-3" />
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedProduct(product);
+                            setDetailMessage('');
+                            setDetailError('');
+                          }}
+                          className="inline-flex items-center gap-2 text-xs font-semibold text-indigo-600 hover:text-indigo-500"
+                        >
+                          Détails
+                          <ChevronRight className="w-3 h-3" />
+                        </button>
+                        {product.status !== 'disabled' ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDisableProduct(product)}
+                            disabled={actionBusyId === product._id}
+                            className="inline-flex items-center gap-2 rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
+                          >
+                            Désactiver
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleEnableProduct(product)}
+                            disabled={actionBusyId === product._id}
+                            className="inline-flex items-center gap-2 rounded-full border border-green-200 px-3 py-1 text-xs font-semibold text-green-700 hover:bg-green-50 disabled:opacity-60"
+                          >
+                            Activer
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </article>
                 ))}
@@ -622,6 +740,32 @@ export default function AdminProducts() {
                         Produit non certifié
                       </span>
                     </div>
+                  )}
+                </div>
+                <div className="border-t border-gray-100 pt-3 space-y-2">
+                  {selectedProduct.status !== 'disabled' ? (
+                    <button
+                      type="button"
+                      onClick={() => handleDisableProduct(selectedProduct)}
+                      disabled={actionBusyId === selectedProduct._id || detailBusy}
+                      className="w-full rounded-full border border-red-200 px-4 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
+                    >
+                      Désactiver l&apos;annonce
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleEnableProduct(selectedProduct)}
+                      disabled={actionBusyId === selectedProduct._id || detailBusy}
+                      className="w-full rounded-full border border-green-200 px-4 py-2 text-xs font-semibold text-green-700 hover:bg-green-50 disabled:opacity-60"
+                    >
+                      Activer l&apos;annonce
+                    </button>
+                  )}
+                  {(actionMessage || actionError) && (
+                    <p className={`text-xs ${actionError ? 'text-red-600' : 'text-green-600'}`}>
+                      {actionError || actionMessage}
+                    </p>
                   )}
                 </div>
                 {isAdminUser && (

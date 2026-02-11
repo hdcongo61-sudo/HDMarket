@@ -7,6 +7,7 @@ import { createNotification } from '../utils/notificationService.js';
 import { buildIdentifierQuery } from '../utils/idResolver.js';
 import { ensureDocumentSlug } from '../utils/slugUtils.js';
 import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
+import { invalidateProductCache } from '../utils/cache.js';
 
 const formatComment = (comment) => {
   const plain = comment.toObject ? comment.toObject() : comment;
@@ -162,5 +163,28 @@ export const addComment = asyncHandler(async (req, res) => {
     await Promise.all(notifications);
   }
 
+  // Invalidate product cache (comments are served under /products/public)
+  invalidateProductCache();
+
   res.status(201).json(formatComment(comment));
+});
+
+export const deleteCommentAdmin = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  // Delete the comment and all its replies (cascade delete)
+  const result = await Comment.deleteMany({
+    $or: [
+      { _id: id },
+      { parent: id }
+    ]
+  });
+
+  if (!result.deletedCount) {
+    return res.json({ success: true, message: 'Commentaire déjà supprimé.' });
+  }
+
+  // Invalidate product cache (comments are served under /products/public)
+  invalidateProductCache();
+
+  res.json({ success: true, message: 'Commentaire supprimé avec succès.' });
 });

@@ -24,7 +24,9 @@ import {
   Video,
   X,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Flag,
+  Trash2
 } from "lucide-react";
 import AuthContext from "../context/AuthContext";
 import CartContext from "../context/CartContext";
@@ -36,6 +38,8 @@ import { recordProductView } from "../utils/recentViews";
 import { setPendingAction } from "../utils/pendingAction";
 import VerifiedBadge from "../components/VerifiedBadge";
 import OrderChat from "../components/OrderChat";
+import ReportModal from "../components/ReportModal";
+import { useToast } from "../context/ToastContext";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
 import useIsMobile from "../hooks/useIsMobile";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -51,6 +55,7 @@ export default function ProductDetails() {
   const updateUser = authContextValue?.updateUser;
   const { addItem, cart } = useContext(CartContext);
   const { toggleFavorite, isFavorite } = useContext(FavoriteContext);
+  const { showToast } = useToast();
   
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -94,6 +99,8 @@ export default function ProductDetails() {
   const [inquiryOrder, setInquiryOrder] = useState(null);
   const [inquiryLoading, setInquiryLoading] = useState(false);
   const [inquiryError, setInquiryError] = useState("");
+  const [reportModal, setReportModal] = useState({ isOpen: false, type: null, commentId: null, photoUrl: null });
+  const [deletingCommentId, setDeletingCommentId] = useState(null);
 
   const handleSessionExpired = useCallback(() => {
     if (typeof authContextValue?.logout === 'function') {
@@ -324,7 +331,7 @@ export default function ProductDetails() {
   const loadComments = async (identifier) => {
     const target = identifier || slug;
     try {
-      const { data } = await api.get(`/products/public/${target}/comments`);
+      const { data } = await api.get(`/products/public/${target}/comments`, { skipCache: true });
       setComments(organizeComments(Array.isArray(data) ? data : []));
       return;
     } catch (error) {
@@ -454,6 +461,27 @@ export default function ProductDetails() {
       }
     } finally {
       setSubmittingComment(false);
+    }
+  };
+
+  // 🗑️ SUPPRESSION D'UN COMMENTAIRE (ADMIN)
+  const handleDeleteComment = async (commentId) => {
+    if (!user || user.role !== 'admin') return;
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce commentaire ? Cette action supprimera également toutes les réponses associées.')) {
+      return;
+    }
+
+    setDeletingCommentId(commentId);
+    try {
+      await api.delete(`/admin/comments/${commentId}`);
+      await loadComments(product?.slug || product?._id);
+      showToast('Commentaire supprimé avec succès.', { variant: 'success' });
+    } catch (error) {
+      console.error('Erreur suppression commentaire:', error);
+      const msg = error.response?.data?.message || 'Erreur lors de la suppression.';
+      showToast(msg, { variant: 'error' });
+    } finally {
+      setDeletingCommentId(null);
     }
   };
 
@@ -2272,17 +2300,21 @@ export default function ProductDetails() {
                       </div>
                     ) : (
                       comments.map((comment) => (
-                        <CommentThread 
-                          key={comment._id}
-                          comment={comment}
-                          user={user}
-                          replyingTo={replyingTo}
-                          setReplyingTo={setReplyingTo}
-                          replyText={replyText}
-                          setReplyText={setReplyText}
-                          onSubmitReply={handleSubmitReply}
-                          submittingComment={submittingComment}
-                        />
+                  <CommentThread 
+                    key={comment._id}
+                    comment={comment}
+                    user={user}
+                    replyingTo={replyingTo}
+                    setReplyingTo={setReplyingTo}
+                    replyText={replyText}
+                    setReplyText={setReplyText}
+                    onSubmitReply={handleSubmitReply}
+                    submittingComment={submittingComment}
+                    onReport={(replyId) => setReportModal({ isOpen: true, type: 'comment', commentId: replyId || comment._id, photoUrl: null })}
+                    productId={product?._id}
+                    onDelete={handleDeleteComment}
+                    deletingCommentId={deletingCommentId}
+                  />
                       ))
                     )}
                   </div>
@@ -2546,6 +2578,10 @@ export default function ProductDetails() {
                     setReplyText={setReplyText}
                     onSubmitReply={handleSubmitReply}
                     submittingComment={submittingComment}
+                    onReport={(replyId) => setReportModal({ isOpen: true, type: 'comment', commentId: replyId || comment._id, photoUrl: null })}
+                    productId={product?._id}
+                    onDelete={handleDeleteComment}
+                    deletingCommentId={deletingCommentId}
                   />
                 ))
               )}
@@ -2583,13 +2619,28 @@ export default function ProductDetails() {
                 style={{ width: `${modalZoom * 100}%`, height: 'auto' }}
               />
             </div>
-            <button
-              type="button"
-              onClick={closeImageModal}
-              className="absolute right-4 top-4 rounded-full bg-white/95 backdrop-blur-md w-10 h-10 flex items-center justify-center text-gray-700 shadow-md hover:bg-white transition-all duration-200 active:scale-90 z-10 border border-gray-200"
-            >
-              <X size={20} />
-            </button>
+            <div className="absolute right-4 top-4 flex gap-2 z-10">
+              {user && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setReportModal({ isOpen: true, type: 'photo', commentId: null, photoUrl: displayedImage });
+                  }}
+                  className="rounded-full bg-white/95 backdrop-blur-md w-10 h-10 flex items-center justify-center text-red-600 shadow-md hover:bg-white transition-all duration-200 active:scale-90 border border-gray-200"
+                  title="Signaler cette photo"
+                >
+                  <Flag size={18} />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={closeImageModal}
+                className="rounded-full bg-white/95 backdrop-blur-md w-10 h-10 flex items-center justify-center text-gray-700 shadow-md hover:bg-white transition-all duration-200 active:scale-90 border border-gray-200"
+              >
+                <X size={20} />
+              </button>
+            </div>
             {galleryImages.length > 1 && (
               <>
                 <button
@@ -2624,6 +2675,17 @@ export default function ProductDetails() {
           buttonText="Contacter le vendeur"
         />
       )}
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={reportModal.isOpen}
+        onClose={() => setReportModal({ isOpen: false, type: null, commentId: null, photoUrl: null })}
+        type={reportModal.type}
+        commentId={reportModal.commentId}
+        productId={product?._id}
+        photoUrl={reportModal.photoUrl}
+        productTitle={product?.title}
+      />
     </>
   );
 }
@@ -2637,8 +2699,13 @@ function CommentThread({
   replyText, 
   setReplyText, 
   onSubmitReply, 
-  submittingComment 
+  submittingComment,
+  onReport,
+  productId,
+  onDelete,
+  deletingCommentId
 }) {
+  const isAdmin = user?.role === 'admin';
   return (
     <div className="bg-white rounded-3xl border-2 border-gray-200 overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
       {/* Commentaire principal */}
@@ -2660,8 +2727,33 @@ function CommentThread({
             </div>
           </div>
           
-          {/* Bouton répondre */}
+          {/* Boutons actions */}
           {user && (
+            <div className="flex items-center gap-2">
+              {isAdmin && onDelete && (
+                <button
+                  onClick={() => onDelete(comment._id)}
+                  disabled={deletingCommentId === comment._id}
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-3xl hover:bg-red-100 transition-all duration-200 active:scale-95 text-sm font-medium disabled:opacity-50"
+                  title="Supprimer ce commentaire"
+                >
+                  {deletingCommentId === comment._id ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
+                  ) : (
+                    <Trash2 size={14} />
+                  )}
+                </button>
+              )}
+              {onReport && user && user._id !== comment.user?._id && (
+                <button
+                  onClick={() => onReport(comment._id)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 rounded-3xl hover:bg-red-100 transition-all duration-200 active:scale-95 text-sm font-medium"
+                  title="Signaler ce commentaire"
+                >
+                  <Flag size={14} />
+                  <span className="hidden sm:inline">Signaler</span>
+                </button>
+              )}
               <button
                 onClick={() => setReplyingTo(replyingTo === comment._id ? null : comment._id)}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-3xl hover:bg-gray-200 transition-all duration-200 active:scale-95 text-sm font-medium"
@@ -2669,6 +2761,7 @@ function CommentThread({
                 <Reply size={16} />
                 <span>Répondre</span>
               </button>
+            </div>
           )}
         </div>
         
@@ -2723,13 +2816,43 @@ function CommentThread({
                     {reply.user?.name?.charAt(0) || 'U'}
                   </span>
                 </div>
-                <div>
+                <div className="flex-1">
                   <span className="font-black text-gray-900 text-sm">
                     {reply.user?.name || 'Utilisateur'}
                   </span>
                   <div className="text-xs text-gray-600 font-medium">
                     {new Date(reply.createdAt).toLocaleDateString('fr-FR')}
                   </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  {isAdmin && onDelete && (
+                    <button
+                      onClick={() => onDelete(reply._id)}
+                      disabled={deletingCommentId === reply._id}
+                      className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                      title="Supprimer cette réponse"
+                    >
+                      {deletingCommentId === reply._id ? (
+                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
+                      ) : (
+                        <Trash2 size={14} />
+                      )}
+                    </button>
+                  )}
+                  {user && onReport && user._id !== reply.user?._id && (
+                    <button
+                      onClick={() => {
+                        if (typeof onReport === 'function') {
+                          onReport(reply._id);
+                        }
+                      }}
+                      className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Signaler cette réponse"
+                      aria-label="Signaler cette réponse"
+                    >
+                      <Flag size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
               <p className="text-gray-700 text-sm ml-14 leading-relaxed">{reply.message}</p>

@@ -302,6 +302,25 @@ export const schemas = {
     status: Joi.string().valid('pending', 'in_review', 'resolved').required(),
     note: Joi.string().max(500).allow('', null)
   }),
+  reportCreate: Joi.object({
+    type: Joi.string().valid('comment', 'photo').required(),
+    commentId: Joi.string().hex().length(24).when('type', {
+      is: 'comment',
+      then: Joi.required(),
+      otherwise: Joi.optional().allow(null, '')
+    }),
+    productId: Joi.string().hex().length(24).required(),
+    photoUrl: Joi.string().max(500).when('type', {
+      is: 'photo',
+      then: Joi.required(),
+      otherwise: Joi.optional().allow(null, '')
+    }),
+    reason: Joi.string().max(500).allow('', null)
+  }),
+  reportStatusUpdate: Joi.object({
+    status: Joi.string().valid('pending', 'reviewed', 'resolved', 'dismissed').required(),
+    adminNote: Joi.string().max(1000).allow('', null)
+  }),
   notificationPreferencesUpdate: Joi.object({
     product_comment: Joi.boolean(),
     reply: Joi.boolean(),

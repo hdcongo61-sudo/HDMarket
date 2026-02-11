@@ -1,57 +1,66 @@
 import asyncHandler from 'express-async-handler';
 import User from '../models/userModel.js';
 import Product from '../models/productModel.js';
-import Order from '../models/orderModel.js';
 import Payment from '../models/paymentModel.js';
+import Order from '../models/orderModel.js';
+import Comment from '../models/commentModel.js';
+import Rating from '../models/ratingModel.js';
 import ImprovementFeedback from '../models/improvementFeedbackModel.js';
 import Complaint from '../models/complaintModel.js';
+import AccountTypeChange from '../models/accountTypeChangeModel.js';
 
-// Helper function to get date range
-const getDateRange = (period, startDate, endDate) => {
+const getPeriodDates = (period, startDate, endDate) => {
   const now = new Date();
-  let start, end;
+  let start, end, label;
 
   switch (period) {
     case 'today':
-      start = new Date(now.setHours(0, 0, 0, 0));
-      end = new Date(now.setHours(23, 59, 59, 999));
+      start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(now);
+      end.setHours(23, 59, 59, 999);
+      label = 'Aujourd\'hui';
       break;
     case 'week':
-      start = new Date(now.setDate(now.getDate() - 7));
-      end = new Date();
+      start = new Date(now);
+      start.setDate(start.getDate() - 7);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(now);
+      end.setHours(23, 59, 59, 999);
+      label = 'Cette semaine';
       break;
     case 'month':
       start = new Date(now.getFullYear(), now.getMonth(), 1);
       end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      label = 'Ce mois';
       break;
     case 'year':
       start = new Date(now.getFullYear(), 0, 1);
       end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+      label = 'Cette année';
       break;
     case 'custom':
-      start = startDate ? new Date(startDate) : new Date(0);
-      end = endDate ? new Date(endDate) : new Date();
+      if (!startDate || !endDate) {
+        throw new Error('Dates de début et de fin requises pour une période personnalisée.');
+      }
+      start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      label = `Du ${start.toLocaleDateString('fr-FR')} au ${end.toLocaleDateString('fr-FR')}`;
       break;
     default:
-      start = new Date(0);
-      end = new Date();
+      throw new Error('Période invalide.');
   }
 
-  return { start, end };
+  return { start, end, label, type: period };
 };
 
-// Main report generation endpoint
 export const generateReport = asyncHandler(async (req, res) => {
   const { period = 'month', startDate, endDate } = req.query;
+  const { start, end, label, type } = getPeriodDates(period, startDate, endDate);
 
-  // Ensure admin
-  if (req.user?.role !== 'admin') {
-    return res.status(403).json({ message: 'Accès refusé' });
-  }
-
-  const { start, end } = getDateRange(period, startDate, endDate);
-
-  // 1. User Statistics
+  // Users stats
   const [
     totalUsers,
     newUsers,
@@ -69,103 +78,129 @@ export const generateReport = asyncHandler(async (req, res) => {
     User.aggregate([
       { $group: { _id: '$city', count: { $sum: 1 } } }
     ]),
-    User.countDocuments({
-      accountType: 'shop',
-      accountTypeChangedAt: { $gte: start, $lte: end }
-    }),
+    AccountTypeChange.countDocuments({ newAccountType: 'shop', createdAt: { $gte: start, $lte: end } }),
     User.countDocuments({ isBlocked: true }),
     User.countDocuments({ phoneVerified: true })
   ]);
 
-  // 2. Order Statistics
+  const usersByGenderMap = usersByGender.reduce((acc, item) => {
+    acc[item._id || 'unknown'] = item.count;
+    return acc;
+  }, {});
+
+  const usersByCityMap = usersByCity.reduce((acc, item) => {
+    acc[item._id || 'unknown'] = item.count;
+    return acc;
+  }, {});
+
+  // Orders stats
   const [
     totalOrders,
     newOrders,
     ordersByStatus,
     ordersValue
   ] = await Promise.all([
-    Order.countDocuments(),
-    Order.countDocuments({ createdAt: { $gte: start, $lte: end } }),
+    Order.countDocuments({ isDraft: { $ne: true } }),
+    Order.countDocuments({ isDraft: { $ne: true }, createdAt: { $gte: start, $lte: end } }),
     Order.aggregate([
-      { $match: { createdAt: { $gte: start, $lte: end } } },
-      { $group: { _id: '$status', count: { $sum: 1 } } }
+      { $match: { isDraft: { $ne: true } } },
+      { $group: { _id: '$status', count: { $sum: 1 }, totalValue: { $sum: { $ifNull: ['$totalAmount', 0] } } } }
     ]),
     Order.aggregate([
-      { $match: { createdAt: { $gte: start, $lte: end } } },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: '$totalPrice' },
-          average: { $avg: '$totalPrice' }
-        }
-      }
+      { $match: { isDraft: { $ne: true } } },
+      { $group: { _id: null, totalValue: { $sum: { $ifNull: ['$totalAmount', 0] } }, avgValue: { $avg: { $ifNull: ['$totalAmount', 0] } } } }
     ])
   ]);
 
-  // 3. Product/Annonce Statistics
+  const ordersByStatusMap = ordersByStatus.reduce((acc, item) => {
+    acc[item._id] = item.count;
+    return acc;
+  }, {});
+
+  const totalOrderValue = ordersValue[0]?.totalValue || 0;
+  const avgOrderValue = ordersValue[0]?.avgValue || 0;
+
+  // Products stats
   const [
     totalProducts,
     newProducts,
-    productsByCategory,
     productsByStatus,
+    productsByCategory,
     productsWithPayment
   ] = await Promise.all([
     Product.countDocuments(),
     Product.countDocuments({ createdAt: { $gte: start, $lte: end } }),
     Product.aggregate([
-      { $match: { createdAt: { $gte: start, $lte: end } } },
-      { $group: { _id: '$category', count: { $sum: 1 } } }
+      { $group: { _id: '$status', count: { $sum: 1 } } }
     ]),
     Product.aggregate([
-      { $group: { _id: '$status', count: { $sum: 1 } } }
+      { $match: { status: 'approved' } },
+      { $group: { _id: '$category', count: { $sum: 1 }, avgPrice: { $avg: '$price' } } },
+      { $sort: { count: -1 } },
+      { $limit: 10 }
     ]),
     Product.countDocuments({ payment: { $exists: true, $ne: null } })
   ]);
 
-  // 4. Payment Statistics
+  const productsByStatusMap = productsByStatus.reduce((acc, item) => {
+    acc[item._id] = item.count;
+    return acc;
+  }, {});
+
+  const productsByCategoryMap = productsByCategory.reduce((acc, item) => {
+    acc[item._id] = item.count;
+    return acc;
+  }, {});
+
+  // Payments stats
   const [
     totalPayments,
     newPayments,
+    paymentsValue,
     paymentsByOperator,
     paymentsByStatus,
-    paymentsValue
+    verifiedPayments
   ] = await Promise.all([
     Payment.countDocuments(),
     Payment.countDocuments({ createdAt: { $gte: start, $lte: end } }),
     Payment.aggregate([
-      { $match: { createdAt: { $gte: start, $lte: end } } },
+      { $group: { _id: null, totalValue: { $sum: '$amount' }, avgValue: { $avg: '$amount' } } }
+    ]),
+    Payment.aggregate([
       { $group: { _id: '$operator', count: { $sum: 1 } } }
     ]),
     Payment.aggregate([
-      { $match: { createdAt: { $gte: start, $lte: end } } },
       { $group: { _id: '$status', count: { $sum: 1 } } }
     ]),
-    Payment.aggregate([
-      { $match: { createdAt: { $gte: start, $lte: end } } },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: '$amount' },
-          average: { $avg: '$amount' }
-        }
-      }
-    ])
+    Payment.countDocuments({ status: 'verified' })
   ]);
 
-  // 5. Feedback Statistics
+  const totalPaymentValue = paymentsValue[0]?.totalValue || 0;
+  const avgPaymentValue = paymentsValue[0]?.avgValue || 0;
+  const verificationRate = totalPayments > 0 ? ((verifiedPayments / totalPayments) * 100).toFixed(2) : 0;
+
+  const paymentsByOperatorMap = paymentsByOperator.reduce((acc, item) => {
+    acc[item._id || 'unknown'] = item.count;
+    return acc;
+  }, {});
+
+  const paymentsByStatusMap = paymentsByStatus.reduce((acc, item) => {
+    acc[item._id] = item.count;
+    return acc;
+  }, {});
+
+  // Feedback stats
   const [
     totalFeedback,
     newFeedback,
-    readFeedback,
-    unreadFeedback
+    readFeedback
   ] = await Promise.all([
     ImprovementFeedback.countDocuments(),
     ImprovementFeedback.countDocuments({ createdAt: { $gte: start, $lte: end } }),
-    ImprovementFeedback.countDocuments({ isRead: true }),
-    ImprovementFeedback.countDocuments({ isRead: false })
+    ImprovementFeedback.countDocuments({ readAt: { $ne: null } })
   ]);
 
-  // 6. Complaint Statistics
+  // Complaints stats
   const [
     totalComplaints,
     newComplaints,
@@ -174,394 +209,150 @@ export const generateReport = asyncHandler(async (req, res) => {
     Complaint.countDocuments(),
     Complaint.countDocuments({ createdAt: { $gte: start, $lte: end } }),
     Complaint.aggregate([
-      { $match: { createdAt: { $gte: start, $lte: end } } },
       { $group: { _id: '$status', count: { $sum: 1 } } }
     ])
   ]);
 
-  // 7. Shop Statistics
-  const [
-    totalShops,
-    verifiedShops,
-    topShops
-  ] = await Promise.all([
-    User.countDocuments({ accountType: 'shop' }),
-    User.countDocuments({ accountType: 'shop', shopVerified: true }),
-    User.find({ accountType: 'shop' })
-      .select('shopName followersCount')
-      .sort({ followersCount: -1 })
-      .limit(5)
-      .lean()
-  ]);
+  const complaintsByStatusMap = complaintsByStatus.reduce((acc, item) => {
+    acc[item._id] = item.count;
+    return acc;
+  }, {});
 
-  // 8. Top Products
-  const topProducts = await Product.find()
-    .select('title viewsCount favoritesCount price')
-    .sort({ viewsCount: -1 })
+  // Shops stats
+  const totalShops = await User.countDocuments({ accountType: 'shop' });
+  const verifiedShops = await User.countDocuments({ accountType: 'shop', shopVerified: true });
+  const shopConversionRate = totalUsers > 0 ? ((totalShops / totalUsers) * 100).toFixed(2) : 0;
+
+  // Top shops
+  const topShops = await User.find({ accountType: 'shop' })
+    .sort({ followersCount: -1 })
     .limit(5)
+    .select('name followersCount')
     .lean();
 
-  // 9. Activity by City
-  const ordersByCity = await Order.aggregate([
-    { $match: { createdAt: { $gte: start, $lte: end } } },
-    {
-      $lookup: {
-        from: 'users',
-        localField: 'user',
-        foreignField: '_id',
-        as: 'userInfo'
-      }
-    },
-    { $unwind: '$userInfo' },
-    {
-      $group: {
-        _id: '$userInfo.city',
-        count: { $sum: 1 },
-        totalValue: { $sum: '$totalPrice' }
-      }
-    },
-    { $sort: { count: -1 } }
-  ]);
-
-  // 10. Growth Metrics - Calculate previous period for comparison
-  const calculatePreviousPeriod = (currentStart, currentEnd) => {
-    const duration = currentEnd.getTime() - currentStart.getTime();
-    const previousEnd = new Date(currentStart.getTime() - 1);
-    const previousStart = new Date(previousEnd.getTime() - duration);
-    return { previousStart, previousEnd };
-  };
-
-  const { previousStart, previousEnd } = calculatePreviousPeriod(start, end);
-  
+  // Content metrics
   const [
-    previousUsers,
-    previousProducts,
-    previousOrders,
-    previousPayments,
-    usersByCityPrevious,
-    productsByCityPrevious
+    avgPhotosPerListing,
+    avgDescriptionLength
   ] = await Promise.all([
-    User.countDocuments({ createdAt: { $gte: previousStart, $lte: previousEnd } }),
-    Product.countDocuments({ createdAt: { $gte: previousStart, $lte: previousEnd } }),
-    Order.countDocuments({ createdAt: { $gte: previousStart, $lte: previousEnd } }),
-    Payment.countDocuments({ createdAt: { $gte: previousStart, $lte: previousEnd } }),
-    User.aggregate([
-      { $match: { createdAt: { $gte: previousStart, $lte: previousEnd } } },
-      { $group: { _id: '$city', count: { $sum: 1 } } }
+    Product.aggregate([
+      { $match: { status: 'approved' } },
+      { $project: { photoCount: { $size: { $ifNull: ['$images', []] } } } },
+      { $group: { _id: null, avg: { $avg: '$photoCount' } } }
     ]),
     Product.aggregate([
-      { $match: { createdAt: { $gte: previousStart, $lte: previousEnd } } },
-      { $group: { _id: '$city', count: { $sum: 1 } } }
+      { $match: { status: 'approved' } },
+      { $project: { descLength: { $strLenCP: { $ifNull: ['$description', ''] } } } },
+      { $group: { _id: null, avg: { $avg: '$descLength' } } }
     ])
   ]);
 
-  // Calculate monthly growth rate
+  // Metrics
+  const approvalRate = totalProducts > 0 ? ((productsByStatusMap.approved || 0) / totalProducts * 100).toFixed(2) : 0;
+
+  // Growth rates (simplified - comparing current period to previous period)
+  const prevStart = new Date(start);
+  const prevEnd = new Date(end);
+  const periodDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+  prevStart.setDate(prevStart.getDate() - periodDays);
+  prevEnd.setDate(prevEnd.getDate() - periodDays);
+
+  const [
+    prevNewUsers,
+    prevNewProducts,
+    prevNewOrders,
+    prevNewPayments
+  ] = await Promise.all([
+    User.countDocuments({ createdAt: { $gte: prevStart, $lte: prevEnd } }),
+    Product.countDocuments({ createdAt: { $gte: prevStart, $lte: prevEnd } }),
+    Order.countDocuments({ isDraft: { $ne: true }, createdAt: { $gte: prevStart, $lte: prevEnd } }),
+    Payment.countDocuments({ createdAt: { $gte: prevStart, $lte: prevEnd } })
+  ]);
+
   const calculateGrowthRate = (current, previous) => {
     if (previous === 0) return current > 0 ? 100 : 0;
-    return ((current - previous) / previous * 100).toFixed(2);
+    return (((current - previous) / previous) * 100).toFixed(2);
   };
 
-  const monthlyGrowthRate = {
-    users: parseFloat(calculateGrowthRate(newUsers, previousUsers)),
-    products: parseFloat(calculateGrowthRate(newProducts, previousProducts)),
-    orders: parseFloat(calculateGrowthRate(newOrders, previousOrders)),
-    payments: parseFloat(calculateGrowthRate(newPayments, previousPayments))
-  };
-
-  // Growth by city - Get current period products by city
-  const productsByCityCurrent = await Product.aggregate([
-    { $match: { createdAt: { $gte: start, $lte: end } } },
-    { $group: { _id: '$city', count: { $sum: 1 } } }
-  ]);
-
-  const usersByCityMap = usersByCity.reduce((acc, { _id, count }) => {
-    acc[_id || 'non-spécifié'] = count;
-    return acc;
-  }, {});
-  const usersByCityPreviousMap = usersByCityPrevious.reduce((acc, { _id, count }) => {
-    acc[_id || 'non-spécifié'] = count;
-    return acc;
-  }, {});
-  const productsByCityMap = productsByCityCurrent.reduce((acc, { _id, count }) => {
-    acc[_id || 'non-spécifié'] = count;
-    return acc;
-  }, {});
-  const productsByCityPreviousMap = productsByCityPrevious.reduce((acc, { _id, count }) => {
-    acc[_id || 'non-spécifié'] = count;
-    return acc;
-  }, {});
-
-  const growthByCity = {};
-  const allCities = new Set([
-    ...Object.keys(usersByCityMap),
-    ...Object.keys(usersByCityPreviousMap),
-    ...Object.keys(productsByCityMap),
-    ...Object.keys(productsByCityPreviousMap)
-  ]);
-
-  allCities.forEach(city => {
-    const currentUsers = usersByCityMap[city] || 0;
-    const previousUsers = usersByCityPreviousMap[city] || 0;
-    const currentProducts = productsByCityMap[city] || 0;
-    const previousProducts = productsByCityPreviousMap[city] || 0;
-    
-    growthByCity[city] = {
-      users: parseFloat(calculateGrowthRate(currentUsers, previousUsers)),
-      products: parseFloat(calculateGrowthRate(currentProducts, previousProducts))
-    };
-  });
-
-  // Seasonal trends - Group by month for the last 12 months
-  const twelveMonthsAgo = new Date(end);
-  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
-  
-  const seasonalTrends = await Promise.all([
-    User.aggregate([
-      { $match: { createdAt: { $gte: twelveMonthsAgo, $lte: end } } },
-      {
-        $group: {
-          _id: {
-            year: { $year: '$createdAt' },
-            month: { $month: '$createdAt' }
-          },
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { '_id.year': 1, '_id.month': 1 } }
-    ]),
-    Product.aggregate([
-      { $match: { createdAt: { $gte: twelveMonthsAgo, $lte: end } } },
-      {
-        $group: {
-          _id: {
-            year: { $year: '$createdAt' },
-            month: { $month: '$createdAt' }
-          },
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { '_id.year': 1, '_id.month': 1 } }
-    ]),
-    Order.aggregate([
-      { $match: { createdAt: { $gte: twelveMonthsAgo, $lte: end } } },
-      {
-        $group: {
-          _id: {
-            year: { $year: '$createdAt' },
-            month: { $month: '$createdAt' }
-          },
-          count: { $sum: 1 },
-          totalValue: { $sum: '$totalPrice' }
-        }
-      },
-      { $sort: { '_id.year': 1, '_id.month': 1 } }
-    ])
-  ]);
-
-  // 11. Content Metrics
-  const contentMetrics = await Product.aggregate([
-    { $match: { createdAt: { $gte: start, $lte: end } } },
-    {
-      $project: {
-        imagesCount: { $size: { $ifNull: ['$images', []] } },
-        descriptionLength: { $strLenCP: { $ifNull: ['$description', ''] } },
-        price: 1,
-        category: 1
-      }
-    },
-    {
-      $group: {
-        _id: null,
-        avgPhotos: { $avg: '$imagesCount' },
-        avgDescriptionLength: { $avg: '$descriptionLength' },
-        avgPriceByCategory: {
-          $push: {
-            category: '$category',
-            price: '$price'
-          }
-        }
-      }
-    }
-  ]);
-
-  // Calculate average price by category
-  const avgPriceByCategory = await Product.aggregate([
-    { $match: { createdAt: { $gte: start, $lte: end } } },
-    {
-      $group: {
-        _id: '$category',
-        avgPrice: { $avg: '$price' },
-        count: { $sum: 1 }
-      }
-    },
-    { $sort: { count: -1 } }
-  ]);
-
-  const contentMetricsData = {
-    avgPhotosPerListing: contentMetrics[0]?.avgPhotos 
-      ? Math.round(contentMetrics[0].avgPhotos * 100) / 100 
-      : 0,
-    avgDescriptionLength: contentMetrics[0]?.avgDescriptionLength 
-      ? Math.round(contentMetrics[0].avgDescriptionLength) 
-      : 0,
-    avgPriceByCategory: avgPriceByCategory.reduce((acc, { _id, avgPrice }) => {
-      acc[_id] = Math.round(avgPrice);
-      return acc;
-    }, {})
-  };
-
-  // Calculate metrics
-  const verificationRate = totalPayments > 0
-    ? ((paymentsByStatus.find(p => p._id === 'verified')?.count || 0) / totalPayments * 100).toFixed(2)
-    : 0;
-
-  const approvalRate = totalProducts > 0
-    ? ((productsByStatus.find(p => p._id === 'approved')?.count || 0) / totalProducts * 100).toFixed(2)
-    : 0;
-
-  const shopConversionRate = totalUsers > 0
-    ? (totalShops / totalUsers * 100).toFixed(2)
-    : 0;
-
-  // Compile report
-  const report = {
+  res.json({
     period: {
-      type: period,
-      start: start.toISOString(),
-      end: end.toISOString(),
-      label: period === 'custom'
-        ? `${new Date(start).toLocaleDateString('fr-FR')} - ${new Date(end).toLocaleDateString('fr-FR')}`
-        : period === 'today' ? 'Aujourd\'hui'
-        : period === 'week' ? 'Cette semaine'
-        : period === 'month' ? 'Ce mois'
-        : 'Cette année'
+      type,
+      start,
+      end,
+      label
     },
-    generatedAt: new Date().toISOString(),
-
+    generatedAt: new Date(),
     users: {
       total: totalUsers,
       new: newUsers,
-      byGender: usersByGender.reduce((acc, { _id, count }) => {
-        acc[_id || 'non-spécifié'] = count;
-        return acc;
-      }, {}),
-      byCity: usersByCity.reduce((acc, { _id, count }) => {
-        acc[_id || 'non-spécifié'] = count;
-        return acc;
-      }, {}),
+      byGender: usersByGenderMap,
+      byCity: usersByCityMap,
       convertedToShop,
       suspended: suspendedUsers,
       verified: verifiedUsers
     },
-
     orders: {
       total: totalOrders,
       new: newOrders,
-      byStatus: ordersByStatus.reduce((acc, { _id, count }) => {
-        acc[_id] = count;
-        return acc;
-      }, {}),
-      totalValue: ordersValue[0]?.total || 0,
-      averageValue: ordersValue[0]?.average || 0,
-      byCity: ordersByCity.map(({ _id, count, totalValue }) => ({
-        city: _id || 'non-spécifié',
-        count,
-        totalValue
-      }))
+      byStatus: ordersByStatusMap,
+      totalValue,
+      averageValue: avgOrderValue
     },
-
     products: {
       total: totalProducts,
       new: newProducts,
-      byCategory: productsByCategory.reduce((acc, { _id, count }) => {
-        acc[_id] = count;
-        return acc;
-      }, {}),
-      byStatus: productsByStatus.reduce((acc, { _id, count }) => {
-        acc[_id] = count;
-        return acc;
-      }, {}),
-      withPayment: productsWithPayment,
-      topProducts: topProducts.map(p => ({
-        title: p.title,
-        views: p.viewsCount || 0,
-        favorites: p.favoritesCount || 0,
-        price: p.price
-      }))
+      byStatus: productsByStatusMap,
+      byCategory: productsByCategoryMap,
+      withPayment: productsWithPayment
     },
-
     payments: {
       total: totalPayments,
       new: newPayments,
-      byOperator: paymentsByOperator.reduce((acc, { _id, count }) => {
-        acc[_id] = count;
-        return acc;
-      }, {}),
-      byStatus: paymentsByStatus.reduce((acc, { _id, count }) => {
-        acc[_id] = count;
-        return acc;
-      }, {}),
-      totalValue: paymentsValue[0]?.total || 0,
-      averageValue: paymentsValue[0]?.average || 0,
+      totalValue: totalPaymentValue,
+      averageValue: avgPaymentValue,
+      byOperator: paymentsByOperatorMap,
+      byStatus: paymentsByStatusMap,
       verificationRate: parseFloat(verificationRate)
     },
-
     feedback: {
       total: totalFeedback,
       new: newFeedback,
       read: readFeedback,
-      unread: unreadFeedback
+      unread: totalFeedback - readFeedback
     },
-
     complaints: {
       total: totalComplaints,
       new: newComplaints,
-      byStatus: complaintsByStatus.reduce((acc, { _id, count }) => {
-        acc[_id] = count;
-        return acc;
-      }, {})
+      byStatus: complaintsByStatusMap
     },
-
     shops: {
       total: totalShops,
       verified: verifiedShops,
       conversionRate: parseFloat(shopConversionRate),
-      topShops: topShops.map(s => ({
-        name: s.shopName,
-        followers: s.followersCount || 0
-      }))
+      topShops: topShops.map(s => ({ name: s.name, followers: s.followersCount || 0 }))
     },
-
     metrics: {
       approvalRate: parseFloat(approvalRate),
       verificationRate: parseFloat(verificationRate),
       shopConversionRate: parseFloat(shopConversionRate),
-      averageOrderValue: ordersValue[0]?.average || 0,
-      averagePaymentValue: paymentsValue[0]?.average || 0
+      averageOrderValue: avgOrderValue,
+      averagePaymentValue: avgPaymentValue
     },
-
     growth: {
-      monthlyGrowthRate,
-      growthByCity,
-      seasonalTrends: {
-        users: seasonalTrends[0].map(({ _id, count }) => ({
-          period: `${_id.year}-${String(_id.month).padStart(2, '0')}`,
-          count
-        })),
-        products: seasonalTrends[1].map(({ _id, count }) => ({
-          period: `${_id.year}-${String(_id.month).padStart(2, '0')}`,
-          count
-        })),
-        orders: seasonalTrends[2].map(({ _id, count, totalValue }) => ({
-          period: `${_id.year}-${String(_id.month).padStart(2, '0')}`,
-          count,
-          totalValue
-        }))
+      monthlyGrowthRate: {
+        users: parseFloat(calculateGrowthRate(newUsers, prevNewUsers)),
+        products: parseFloat(calculateGrowthRate(newProducts, prevNewProducts)),
+        orders: parseFloat(calculateGrowthRate(newOrders, prevNewOrders)),
+        payments: parseFloat(calculateGrowthRate(newPayments, prevNewPayments))
       }
     },
-
-    content: contentMetricsData
-  };
-
-  res.json(report);
+    content: {
+      avgPhotosPerListing: avgPhotosPerListing[0]?.avg || 0,
+      avgDescriptionLength: Math.round(avgDescriptionLength[0]?.avg || 0),
+      avgPriceByCategory: productsByCategory.reduce((acc, item) => {
+        acc[item._id] = item.avgPrice || 0;
+        return acc;
+      }, {})
+    }
+  });
 });
