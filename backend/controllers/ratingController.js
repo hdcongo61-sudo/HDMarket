@@ -5,6 +5,7 @@ import Product from '../models/productModel.js';
 import { createNotification } from '../utils/notificationService.js';
 import { buildIdentifierQuery } from '../utils/idResolver.js';
 import { ensureDocumentSlug } from '../utils/slugUtils.js';
+import { invalidateProductCache } from '../utils/cache.js';
 
 const ensureProductVisible = async (identifier, fallbackId = null) => {
   const query = buildIdentifierQuery(identifier);
@@ -81,6 +82,8 @@ export const upsertRating = asyncHandler(async (req, res) => {
     });
   }
 
+  invalidateProductCache();
+
   res.status(201).json({ value: rating.value });
 });
 
@@ -88,5 +91,8 @@ export const deleteRating = asyncHandler(async (req, res) => {
   const product = await ensureProductVisible(req.params.id, req.query.productId);
 
   await Rating.findOneAndDelete({ product: product._id, user: req.user.id });
+
+  invalidateProductCache();
+
   res.status(204).end();
 });

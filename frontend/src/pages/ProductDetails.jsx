@@ -441,9 +441,13 @@ export default function ProductDetails() {
       };
 
       const response = await api.post(`/products/${slug}/comments`, commentData);
-      
+
       setNewComment("");
       await loadComments(product?.slug || product?._id);
+
+      // Reload product to update commentCount
+      const { data: updatedProduct } = await api.get(`/products/public/${slug}`, { skipCache: true });
+      setProduct(updatedProduct);
       
     } catch (error) {
       if (error.response?.status === 401) {
@@ -475,6 +479,11 @@ export default function ProductDetails() {
     try {
       await api.delete(`/admin/comments/${commentId}`);
       await loadComments(product?.slug || product?._id);
+
+      // Reload product to update commentCount
+      const { data: updatedProduct } = await api.get(`/products/public/${slug}`, { skipCache: true });
+      setProduct(updatedProduct);
+
       showToast('Commentaire supprimé avec succès.', { variant: 'success' });
     } catch (error) {
       console.error('Erreur suppression commentaire:', error);
@@ -500,10 +509,14 @@ export default function ProductDetails() {
       };
 
       const response = await api.post(`/products/${slug}/comments`, replyData);
-      
+
       setReplyText("");
       setReplyingTo(null);
       await loadComments(product?.slug || product?._id);
+
+      // Reload product to update commentCount
+      const { data: updatedProduct } = await api.get(`/products/public/${slug}`, { skipCache: true });
+      setProduct(updatedProduct);
       
     } catch (error) {
       if (error.response?.status === 401) {
@@ -535,9 +548,9 @@ export default function ProductDetails() {
       });
 
       setUserRating(newRating);
-      
+
       // Recharger le produit pour mettre à jour les notes moyennes
-      const { data } = await api.get(`/products/public/${slug}`);
+      const { data } = await api.get(`/products/public/${slug}`, { skipCache: true });
       setProduct(data);
       
     } catch (error) {
@@ -2207,33 +2220,43 @@ export default function ProductDetails() {
                       <h4 className="font-black text-gray-900 mb-4 text-lg">
                         {userRating > 0 ? 'Votre note' : 'Notez ce produit'}
                       </h4>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <button
-                            key={star}
-                            type="button"
-                            onClick={() => {
-                              if (isOwnProduct) return;
-                              handleSubmitRating(star);
-                            }}
-                            disabled={submittingRating || isOwnProduct}
-                            className="focus:outline-none disabled:opacity-50 hover:scale-110 transition-transform"
-                            title={isOwnProduct ? 'Vous ne pouvez pas noter votre propre produit.' : undefined}
-                          >
-                            <Star
-                              size={28}
-                              className={`${
-                                star <= userRating
-                                  ? 'text-amber-500 fill-amber-500'
-                                  : 'text-gray-300'
-                              } ${isOwnProduct ? 'cursor-not-allowed' : 'hover:text-amber-400'} transition-colors`}
-                            />
-                          </button>
-                        ))}
-                        {submittingRating && <span className="text-sm text-gray-600 font-semibold ml-2">Envoi...</span>}
-                      </div>
-                      {userRating > 0 && (
-                        <p className="text-sm text-green-600 font-bold mt-3 bg-green-50 px-3 py-2 rounded-xl inline-block">✓ Vous avez noté {userRating}/5</p>
+                      {!user ? (
+                        <Link
+                          to="/login"
+                          state={{ from: `/product/${slug}` }}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 font-semibold rounded-xl hover:bg-indigo-100 transition-colors text-sm border border-indigo-200"
+                        >
+                          Connectez-vous pour noter
+                        </Link>
+                      ) : isOwnProduct ? (
+                        <p className="text-sm text-gray-500">Vous ne pouvez pas noter votre propre produit.</p>
+                      ) : (
+                        <>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <button
+                                key={star}
+                                type="button"
+                                onClick={() => handleSubmitRating(star)}
+                                disabled={submittingRating}
+                                className="focus:outline-none disabled:opacity-50 hover:scale-110 transition-transform"
+                              >
+                                <Star
+                                  size={28}
+                                  className={`${
+                                    star <= userRating
+                                      ? 'text-amber-500 fill-amber-500'
+                                      : 'text-gray-300'
+                                  } hover:text-amber-400 transition-colors`}
+                                />
+                              </button>
+                            ))}
+                            {submittingRating && <span className="text-sm text-gray-600 font-semibold ml-2">Envoi...</span>}
+                          </div>
+                          {userRating > 0 && (
+                            <p className="text-sm text-green-600 font-bold mt-3 bg-green-50 px-3 py-2 rounded-xl inline-block">✓ Vous avez noté {userRating}/5</p>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
