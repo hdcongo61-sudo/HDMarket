@@ -9,15 +9,18 @@ import {
   Save,
   Edit3,
   RefreshCcw,
-  AlertCircle
+  AlertCircle,
+  Search,
+  UserPlus,
+  UserMinus,
+  Users
 } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import api from '../services/api';
-import { useNetworks, getFirstNetworkPhone } from '../hooks/useNetworks';
+import { useNetworks, formatNetworksForDisplay } from '../hooks/useNetworks';
 
-function ContactPhoneDisplay() {
-  const { networks } = useNetworks();
-  const contactPhone = getFirstNetworkPhone(networks) || '+242 06 000 00 00';
+function ContactPhoneDisplay({ phonesDisplay }) {
+  const contactPhone = phonesDisplay || 'Numéro indisponible';
   return (
     <p className="flex items-center gap-2">
       <Phone size={16} className="text-green-600" />
@@ -62,6 +65,12 @@ function toPayload(items = []) {
 export default function HelpCenter() {
   const { user } = useContext(AuthContext);
   const isAdmin = user?.role === 'admin';
+  const canEditHelpCenter = isAdmin || user?.canManageHelpCenter;
+  const { networks } = useNetworks();
+  const networkDisplay = useMemo(() => {
+    const formatted = formatNetworksForDisplay(networks);
+    return formatted.length ? formatted.map((item) => item.display).join(' • ') : '';
+  }, [networks]);
   const [companyName, setCompanyName] = useState('ETS HD Tech Filial');
   const [conditions, setConditions] = useState(() => addLocalIds(defaultConditions));
   const [formState, setFormState] = useState({ title: '', description: '' });
@@ -70,6 +79,12 @@ export default function HelpCenter() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [editors, setEditors] = useState([]);
+  const [loadingEditors, setLoadingEditors] = useState(false);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [searchingUsers, setSearchingUsers] = useState(false);
+  const [foundUsers, setFoundUsers] = useState([]);
+  const [editorMessage, setEditorMessage] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -109,20 +124,48 @@ export default function HelpCenter() {
     return () => clearTimeout(timer);
   }, [statusMessage]);
 
+  useEffect(() => {
+    if (!editorMessage) return;
+    const timer = setTimeout(() => setEditorMessage(''), 3000);
+    return () => clearTimeout(timer);
+  }, [editorMessage]);
+
   const companyHighlights = useMemo(
     () => [
       { label: 'Entreprise', value: companyName },
       { label: 'Siège social', value: 'Brazzaville, Congo' },
       { label: 'Support 24/7', value: 'support@hdmarket.cg' },
-      { label: 'WhatsApp', value: getFirstNetworkPhone(networks) || '+242 06 000 00 00' }
+      { label: 'WhatsApp', value: networkDisplay || 'Numéro indisponible' }
     ],
-    [companyName, networks]
+    [companyName, networkDisplay]
   );
+
+  const editorIds = useMemo(() => {
+    return new Set(editors.map((editor) => String(editor.id || editor._id)));
+  }, [editors]);
+
+  const loadEditors = useCallback(async () => {
+    if (!isAdmin) return;
+    setLoadingEditors(true);
+    try {
+      const { data } = await api.get('/admin/help-center-editors');
+      setEditors(Array.isArray(data?.editors) ? data.editors : []);
+    } catch (err) {
+      console.error('Load help center editors error:', err);
+      setEditors([]);
+    } finally {
+      setLoadingEditors(false);
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    loadEditors();
+  }, [loadEditors]);
 
   const persistConditions = useCallback(
     async (nextConditions, successMsg) => {
-      if (!isAdmin) {
-        setStatusMessage('Seuls les administrateurs peuvent enregistrer des changements.');
+      if (!canEditHelpCenter) {
+        setStatusMessage('Vous n’êtes pas autorisé à enregistrer des changements.');
         return false;
       }
       setSaving(true);
@@ -152,12 +195,12 @@ export default function HelpCenter() {
         setSaving(false);
       }
     },
-    [companyName, isAdmin]
+    [companyName, canEditHelpCenter]
   );
 
   const startEdit = (item) => {
-    if (!isAdmin) {
-      setStatusMessage('Seuls les administrateurs peuvent modifier les conditions.');
+    if (!canEditHelpCenter) {
+      setStatusMessage('Vous n’êtes pas autorisé à modifier les conditions.');
       return;
     }
     setEditingId(item.id);
@@ -166,8 +209,8 @@ export default function HelpCenter() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!isAdmin) {
-      setStatusMessage('Seuls les administrateurs peuvent enregistrer des changements.');
+    if (!canEditHelpCenter) {
+      setStatusMessage('Vous n’êtes pas autorisé à enregistrer des changements.');
       return;
     }
     if (!formState.title.trim() || !formState.description.trim()) {
@@ -203,8 +246,8 @@ export default function HelpCenter() {
   };
 
   const handleRestoreDefaults = async () => {
-    if (!isAdmin) {
-      setStatusMessage('Seuls les administrateurs peuvent restaurer la version officielle.');
+    if (!canEditHelpCenter) {
+      setStatusMessage('Vous n’êtes pas autorisé à restaurer la version officielle.');
       return;
     }
     const defaultsWithIds = addLocalIds(defaultConditions);
@@ -215,6 +258,40 @@ export default function HelpCenter() {
     if (success) {
       setEditingId(null);
       setFormState({ title: '', description: '' });
+    }
+  };
+
+  const handleSearchUsers = async () => {
+    if (!userSearchQuery.trim()) return;
+    setSearchingUsers(true);
+    try {
+      const { data } = await api.get(
+        `/admin/users?search=${encodeURIComponent(userSearchQuery.trim())}&limit=10`
+      );
+      const users = Array.isArray(data) ? data.filter((u) => u.role !== 'admin') : [];
+      setFoundUsers(users);
+    } catch (err) {
+      console.error('Search users error:', err);
+      setFoundUsers([]);
+    } finally {
+      setSearchingUsers(false);
+    }
+  };
+
+  const handleToggleEditor = async (userId) => {
+    if (!userId || typeof userId !== 'string') return;
+    if (!/^[0-9a-fA-F]{24}$/.test(userId)) {
+      setEditorMessage('Identifiant utilisateur invalide.');
+      return;
+    }
+    try {
+      const { data } = await api.patch(`/admin/help-center-editors/${userId}/toggle`);
+      setEditorMessage(data?.message || 'Statut mis à jour.');
+      await loadEditors();
+      setFoundUsers([]);
+      setUserSearchQuery('');
+    } catch (err) {
+      setEditorMessage(err.response?.data?.message || 'Erreur lors de la mise à jour.');
     }
   };
 
@@ -265,7 +342,7 @@ export default function HelpCenter() {
                 <Mail size={16} className="text-indigo-600" />
                 support@hdmarket.cg
               </p>
-              <ContactPhoneDisplay />
+              <ContactPhoneDisplay phonesDisplay={networkDisplay} />
               <p className="flex items-center gap-2">
                 <MessageSquare size={16} className="text-emerald-600" />
                 Assistance WhatsApp disponible 7j/7
@@ -286,7 +363,7 @@ export default function HelpCenter() {
               <FileText size={20} className="text-indigo-600" />
               Conditions d&apos;utilisation actuelles
             </h2>
-            {isAdmin ? (
+            {canEditHelpCenter ? (
               <button
                 type="button"
                 onClick={handleRestoreDefaults}
@@ -296,11 +373,7 @@ export default function HelpCenter() {
                 <RefreshCcw size={14} />
                 Restaurer la version officielle
               </button>
-            ) : (
-              <p className="text-xs font-medium text-gray-500">
-                Lecture seule — modifiable par les administrateurs.
-              </p>
-            )}
+            ) : null}
           </div>
           <ul className="space-y-4">
             {loading ? (
@@ -315,7 +388,7 @@ export default function HelpCenter() {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-base font-semibold text-gray-900">{condition.title}</p>
-                    {isAdmin && (
+                    {canEditHelpCenter && (
                       <button
                         type="button"
                         onClick={() => startEdit(condition)}
@@ -334,6 +407,122 @@ export default function HelpCenter() {
         </section>
 
         {isAdmin && (
+          <section className="rounded-2xl border border-amber-100 bg-white p-5 shadow-lg space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-amber-50 p-3 text-amber-600">
+                <Users size={20} />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Accès éditeurs Help Center
+                </h2>
+                <p className="text-sm text-gray-500">
+                  Autorisez un utilisateur à modifier cette page sans lui donner le rôle admin.
+                </p>
+              </div>
+            </div>
+
+            {editorMessage && (
+              <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                <AlertCircle size={16} />
+                {editorMessage}
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  type="text"
+                  placeholder="Rechercher un utilisateur (nom, email, téléphone)..."
+                  value={userSearchQuery}
+                  onChange={(e) => setUserSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
+                  className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                />
+                <button
+                  type="button"
+                  onClick={handleSearchUsers}
+                  disabled={searchingUsers || !userSearchQuery.trim()}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
+                >
+                  <Search size={16} />
+                  Rechercher
+                </button>
+              </div>
+
+              {foundUsers.length > 0 && (
+                <div className="space-y-2">
+                  {foundUsers.map((userItem) => {
+                    const id = userItem._id || userItem.id;
+                    const isEditor = editorIds.has(String(id));
+                    return (
+                      <div
+                        key={id}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{userItem.name}</p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {userItem.email} · {userItem.phone}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleEditor(String(id))}
+                          className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                            isEditor
+                              ? 'bg-red-600 text-white hover:bg-red-700'
+                              : 'bg-amber-600 text-white hover:bg-amber-700'
+                          }`}
+                        >
+                          {isEditor ? <UserMinus size={14} /> : <UserPlus size={14} />}
+                          {isEditor ? 'Retirer' : 'Ajouter'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-xs font-semibold text-gray-500 mb-2">
+                Éditeurs actuels ({editors.length})
+              </p>
+              {loadingEditors ? (
+                <p className="text-sm text-gray-500">Chargement…</p>
+              ) : editors.length === 0 ? (
+                <p className="text-sm text-gray-500">Aucun éditeur pour le moment.</p>
+              ) : (
+                <div className="space-y-2">
+                  {editors.map((editor) => (
+                    <div
+                      key={editor.id || editor._id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white p-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{editor.name}</p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {editor.email} · {editor.phone}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleEditor(String(editor.id || editor._id))}
+                        className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+                      >
+                        <UserMinus size={14} />
+                        Retirer
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {canEditHelpCenter && (
           <section className="rounded-2xl border border-indigo-100 bg-white p-5 shadow-lg space-y-4">
             <div className="flex items-center gap-3">
               <div className="rounded-xl bg-indigo-50 p-3 text-indigo-600">

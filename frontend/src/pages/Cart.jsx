@@ -1,6 +1,7 @@
-import React, { useContext, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import CartContext from '../context/CartContext';
+import AuthContext from '../context/AuthContext';
 import { buildWhatsappLink } from '../utils/whatsapp';
 import api from '../services/api';
 import { buildProductPath } from '../utils/links';
@@ -35,14 +36,44 @@ const formatPrice = (value) =>
   });
 
 export default function Cart() {
+  const navigate = useNavigate();
   const { cart, loading, error, updateItem, removeItem, clearCart } = useContext(CartContext);
+  const { user } = useContext(AuthContext);
   const [pending, setPending] = useState({});
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showDistanceWarning, setShowDistanceWarning] = useState(false);
   const [clickCounts, setClickCounts] = useState({});
   const externalLinkProps = useDesktopExternalLink();
 
   const items = cart.items || [];
   const totals = cart.totals || { quantity: 0, subtotal: 0 };
+  const buyerCity = useMemo(() => (user?.city || '').trim(), [user?.city]);
+
+  const sellerCityData = useMemo(() => {
+    const normalize = (value) => value?.toString().trim().toLowerCase();
+    const buyer = normalize(buyerCity);
+    const cityMap = new Map();
+    const mismatched = new Set();
+
+    items.forEach(({ product }) => {
+      const rawCity = (product?.user?.city || product?.city || '').toString().trim();
+      if (!rawCity) return;
+      const normalized = normalize(rawCity);
+      if (!cityMap.has(normalized)) {
+        cityMap.set(normalized, rawCity);
+      }
+      if (buyer && normalized !== buyer) {
+        mismatched.add(normalized);
+      }
+    });
+
+    return {
+      buyer,
+      buyerDisplay: buyerCity?.toString().trim() || '',
+      uniqueCities: Array.from(cityMap.values()),
+      mismatchedCities: Array.from(mismatched).map((key) => cityMap.get(key) || key)
+    };
+  }, [items, buyerCity]);
 
   const changeQuantity = async (productId, quantity) => {
     const value = Math.max(0, Number.isNaN(Number(quantity)) ? 0 : Number(quantity));
@@ -76,6 +107,32 @@ export default function Cart() {
       console.error(e);
     } finally {
       setPending({});
+    }
+  };
+
+  const handleCheckoutClick = () => {
+    if (sellerCityData.buyer && sellerCityData.mismatchedCities.length > 0) {
+      setShowDistanceWarning(true);
+      return;
+    }
+    navigate('/orders/checkout');
+  };
+
+  const handleProceedCheckout = () => {
+    setShowDistanceWarning(false);
+    navigate('/orders/checkout');
+  };
+
+  const handleCancelCheckout = async () => {
+    setPending({ all: true });
+    try {
+      await clearCart();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setPending({});
+      setShowDistanceWarning(false);
+      navigate('/products');
     }
   };
 
@@ -172,6 +229,57 @@ export default function Cart() {
                 className="flex-1 px-5 py-3 text-sm font-semibold text-white bg-red-600 rounded-3xl hover:bg-red-700 transition-all duration-200 active:scale-95 shadow-sm disabled:opacity-60"
               >
                 {pending.all ? 'Suppression...' : 'Vider le panier'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Distance Warning Modal */}
+      {showDistanceWarning && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full space-y-5 shadow-2xl border-2 border-amber-200">
+            <div className="w-16 h-16 bg-amber-100 rounded-3xl flex items-center justify-center mx-auto">
+              <span className="text-3xl">⚠️</span>
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-xl font-black text-gray-900">Attention à la distance</h3>
+              <p className="text-sm text-gray-700 font-medium">
+                Certains vendeurs sont dans une autre ville que la vôtre. Votre commande peut subir
+                des retards liés à la distance ou à la logistique. Les articles peuvent aussi être
+                endommagés pendant le transport et le vendeur ne pourra pas en être tenu responsable.
+              </p>
+              {sellerCityData.mismatchedCities.length > 0 && (
+                <p className="text-xs text-gray-600">
+                  Vendeurs :{' '}
+                  <span className="font-semibold text-gray-900">
+                    {sellerCityData.mismatchedCities.join(', ')}
+                  </span>
+                </p>
+              )}
+              {sellerCityData.buyerDisplay && (
+                <p className="text-xs text-gray-600">
+                  Votre ville :{' '}
+                  <span className="font-semibold text-gray-900">{sellerCityData.buyerDisplay}</span>
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleCancelCheckout}
+                disabled={pending.all}
+                className="flex-1 px-5 py-3 text-sm font-semibold text-gray-700 bg-gray-100 rounded-full hover:bg-gray-200 transition-all disabled:opacity-60"
+              >
+                {pending.all ? 'Annulation…' : 'Annuler'}
+              </button>
+              <button
+                type="button"
+                onClick={handleProceedCheckout}
+                disabled={pending.all}
+                className="flex-1 px-5 py-3 text-sm font-semibold text-white bg-amber-600 rounded-3xl hover:bg-amber-700 transition-all duration-200 active:scale-95 shadow-sm disabled:opacity-60"
+              >
+                Continuer quand même
               </button>
             </div>
           </div>
@@ -405,12 +513,13 @@ export default function Cart() {
 
                 {/* Action Buttons Enhanced */}
                 <div className="space-y-3 pt-2">
-                  <Link
-                    to="/orders/checkout"
+                  <button
+                    type="button"
+                    onClick={handleCheckoutClick}
                     className="apple-btn-primary block w-full text-center py-4 min-h-[52px]"
                   >
                     Continuer mes achats
-                  </Link>
+                  </button>
                 </div>
               </div>
             </div>

@@ -1,7 +1,7 @@
 import express from 'express';
 import Joi from 'joi';
 import { protect } from '../middlewares/authMiddleware.js';
-import { requireRole, requireFeedbackAccess, requirePaymentVerification, requireBoostManagement, requireComplaintAccess } from '../middlewares/roleMiddleware.js';
+import { requireRole, requireFeedbackAccess, requirePaymentVerification, requireBoostManagement, requireComplaintAccess, requireDeliveryAccess, requireProductAccess } from '../middlewares/roleMiddleware.js';
 import { validate, schemas } from '../middlewares/validate.js';
 import { cacheMiddleware } from '../utils/cache.js';
 import { upload } from '../utils/upload.js';
@@ -22,6 +22,12 @@ import {
   toggleBoostManager,
   listComplaintManagers,
   toggleComplaintManager,
+  listProductManagers,
+  toggleProductManager,
+  listDeliveryManagers,
+  toggleDeliveryManager,
+  listHelpCenterEditors,
+  toggleHelpCenterEditor,
   getSalesTrends,
   getOrderHeatmap,
   getConversionMetrics,
@@ -42,7 +48,8 @@ import {
   toggleProductBoost,
   getBoostStatistics,
   certifyProduct,
-  listAdminProducts
+  listAdminProducts,
+  getProductHistory
 } from '../controllers/productController.js';
 import {
   listBoostShopCandidatesAdmin,
@@ -189,6 +196,33 @@ router.patch(
   validate(Joi.object({ userId: Joi.string().hex().length(24).required() }), 'params'),
   toggleComplaintManager
 );
+// Product managers - admin only
+router.get('/product-managers', protect, requireRole(['admin']), listProductManagers);
+router.patch(
+  '/product-managers/:userId/toggle',
+  protect,
+  requireRole(['admin']),
+  validate(Joi.object({ userId: Joi.string().hex().length(24).required() }), 'params'),
+  toggleProductManager
+);
+// Delivery managers - admin only
+router.get('/delivery-managers', protect, requireRole(['admin']), listDeliveryManagers);
+router.patch(
+  '/delivery-managers/:userId/toggle',
+  protect,
+  requireRole(['admin']),
+  validate(Joi.object({ userId: Joi.string().hex().length(24).required() }), 'params'),
+  toggleDeliveryManager
+);
+// Help center editors - admin only
+router.get('/help-center-editors', protect, requireRole(['admin']), listHelpCenterEditors);
+router.patch(
+  '/help-center-editors/:userId/toggle',
+  protect,
+  requireRole(['admin']),
+  validate(Joi.object({ userId: Joi.string().hex().length(24).required() }), 'params'),
+  toggleHelpCenterEditor
+);
 // Content reports - admin, manager, or canManageComplaints
 router.get('/content-reports', protect, requireComplaintAccess, listReportsAdmin);
 router.patch(
@@ -206,6 +240,49 @@ router.delete(
   requireRole(['admin']),
   validate(schemas.idParam, 'params'),
   deleteCommentAdmin
+);
+
+// Products - admin, manager, or canManageProducts
+router.get('/products', protect, requireProductAccess, listAdminProducts);
+router.get(
+  '/products/:id/history',
+  protect,
+  requireProductAccess,
+  validate(schemas.idParam, 'params'),
+  getProductHistory
+);
+router.patch(
+  '/products/:id/certify',
+  protect,
+  requireProductAccess,
+  validate(schemas.idParam, 'params'),
+  validate(schemas.adminProductCertification),
+  certifyProduct
+);
+
+// Delivery guys - admin, manager, or canManageDelivery
+router.get('/delivery-guys', protect, requireDeliveryAccess, listDeliveryGuysAdmin);
+router.post(
+  '/delivery-guys',
+  protect,
+  requireDeliveryAccess,
+  validate(schemas.deliveryGuyCreate),
+  createDeliveryGuyAdmin
+);
+router.patch(
+  '/delivery-guys/:id',
+  protect,
+  requireDeliveryAccess,
+  validate(schemas.idParam, 'params'),
+  validate(schemas.deliveryGuyUpdate),
+  updateDeliveryGuyAdmin
+);
+router.delete(
+  '/delivery-guys/:id',
+  protect,
+  requireDeliveryAccess,
+  validate(schemas.idParam, 'params'),
+  deleteDeliveryGuyAdmin
 );
 
 // All other admin routes - require admin or manager role
@@ -260,13 +337,6 @@ router.get('/users/:id/audit-logs', validate(schemas.idParam, 'params'), getUser
 router.get('/audit-logs', listAuditLogs);
 router.get('/shops/verified', listVerifiedShopsAdmin);
 router.post('/products/update-sales-count', updateAllProductSalesCount);
-router.get('/products', listAdminProducts);
-router.patch(
-  '/products/:id/certify',
-  validate(schemas.idParam, 'params'),
-  validate(schemas.adminProductCertification),
-  certifyProduct
-);
 router.post('/chat/templates', createChatTemplate);
 router.post('/chat/support-message', sendSupportMessage);
 router.get('/prohibited-words', listProhibitedWords);
@@ -288,19 +358,6 @@ router.put(
   updatePromoBanner
 );
 router.put('/splash', upload.single('splashImage'), updateSplash);
-router.get('/delivery-guys', listDeliveryGuysAdmin);
-router.post(
-  '/delivery-guys',
-  validate(schemas.deliveryGuyCreate),
-  createDeliveryGuyAdmin
-);
-router.patch(
-  '/delivery-guys/:id',
-  validate(schemas.idParam, 'params'),
-  validate(schemas.deliveryGuyUpdate),
-  updateDeliveryGuyAdmin
-);
-router.delete('/delivery-guys/:id', validate(schemas.idParam, 'params'), deleteDeliveryGuyAdmin);
 // Shop conversion requests - admin only
 router.get('/shop-conversion-requests', protect, requireRole(['admin']), getAllShopConversionRequests);
 router.get('/shop-conversion-requests/:id', protect, requireRole(['admin']), validate(schemas.idParam, 'params'), getShopConversionRequest);

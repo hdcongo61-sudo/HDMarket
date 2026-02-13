@@ -24,7 +24,11 @@ import {
   Calendar,
   DollarSign,
   ArrowLeft,
-  Sparkles
+  Sparkles,
+  Users,
+  UserPlus,
+  UserMinus,
+  Loader2
 } from 'lucide-react';
 import api from '../services/api';
 import categoryGroups from '../data/categories';
@@ -51,6 +55,30 @@ const SORT_OPTIONS = [
   { value: 'discount', label: 'Meilleure remise' }
 ];
 
+const ACTION_LABELS = {
+  created: 'Création',
+  updated: 'Mise à jour',
+  deleted: 'Suppression',
+  disabled: 'Désactivation',
+  enabled: 'Réactivation',
+  certified: 'Certification',
+  uncertified: 'Certification retirée',
+  boosted: 'Boost activé',
+  unboosted: 'Boost retiré'
+};
+
+const ACTION_STYLES = {
+  created: 'bg-emerald-50 text-emerald-700',
+  updated: 'bg-indigo-50 text-indigo-700',
+  deleted: 'bg-red-50 text-red-700',
+  disabled: 'bg-amber-50 text-amber-700',
+  enabled: 'bg-green-50 text-green-700',
+  certified: 'bg-indigo-50 text-indigo-700',
+  uncertified: 'bg-gray-100 text-gray-600',
+  boosted: 'bg-purple-50 text-purple-700',
+  unboosted: 'bg-gray-100 text-gray-600'
+};
+
 const PER_PAGE = 20;
 
 const formatCurrency = (value) =>
@@ -64,6 +92,57 @@ const formatDate = (value) =>
         year: 'numeric'
       })
     : '—';
+
+const formatDateTime = (value) =>
+  value
+    ? new Date(value).toLocaleString('fr-FR', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    : '—';
+
+const buildHistoryDetails = (details = {}) => {
+  const lines = [];
+  if (Array.isArray(details.updatedFields) && details.updatedFields.length) {
+    lines.push(`Champs modifiés: ${details.updatedFields.join(', ')}`);
+  }
+  if (details.previousStatus && details.restoredStatus) {
+    lines.push(`Statut: ${details.previousStatus} -> ${details.restoredStatus}`);
+  } else if (details.previousStatus && details.status) {
+    lines.push(`Statut: ${details.previousStatus} -> ${details.status}`);
+  } else if (details.status) {
+    lines.push(`Statut: ${details.status}`);
+  }
+  if (typeof details.certified === 'boolean') {
+    lines.push(`Certification: ${details.certified ? 'Oui' : 'Non'}`);
+  }
+  if (details.price !== undefined && details.price !== null) {
+    lines.push(`Prix: ${formatCurrency(details.price)}`);
+  }
+  if (details.discount !== undefined && details.discount !== null) {
+    lines.push(`Remise: ${details.discount}%`);
+  }
+  if (details.title) {
+    lines.push(`Titre: ${details.title}`);
+  }
+  if (details.boostStartDate || details.boostEndDate) {
+    lines.push(
+      `Période boost: ${details.boostStartDate ? formatDate(details.boostStartDate) : '—'} au ${
+        details.boostEndDate ? formatDate(details.boostEndDate) : '—'
+      }`
+    );
+  }
+  if (details.boostedByName) {
+    lines.push(`Boosté par: ${details.boostedByName}`);
+  }
+  if (details.disabledByAdmin !== undefined) {
+    lines.push(`Désactivation admin: ${details.disabledByAdmin ? 'Oui' : 'Non'}`);
+  }
+  return lines;
+};
 
 const StatCard = ({ title, value, helper, icon: Icon, highlight, trend }) => {
   const iconColors = highlight
@@ -118,6 +197,7 @@ const categoryOptions = categoryGroups.flatMap((group) =>
 export default function AdminProducts() {
   const { user } = useContext(AuthContext);
   const isAdminUser = user?.role === 'admin';
+  const canManageProducts = user?.role === 'admin' || user?.role === 'manager' || user?.canManageProducts;
   const [products, setProducts] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -137,6 +217,16 @@ export default function AdminProducts() {
   const [actionMessage, setActionMessage] = useState('');
   const [actionError, setActionError] = useState('');
   const [actionBusyId, setActionBusyId] = useState('');
+  const [historyItems, setHistoryItems] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const [managers, setManagers] = useState([]);
+  const [loadingManagers, setLoadingManagers] = useState(false);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [searchingUsers, setSearchingUsers] = useState(false);
+  const [foundUsers, setFoundUsers] = useState([]);
+  const [managerMessage, setManagerMessage] = useState('');
+  const [managerBusyId, setManagerBusyId] = useState('');
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -171,6 +261,33 @@ export default function AdminProducts() {
     return () => clearTimeout(handler);
   }, [fetchProducts]);
 
+  const loadHistory = useCallback(async (identifier) => {
+    if (!identifier) return;
+    setHistoryLoading(true);
+    setHistoryError('');
+    try {
+      const { data } = await api.get(`/admin/products/${identifier}/history`);
+      setHistoryItems(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Erreur chargement historique produit', err);
+      setHistoryError(err?.response?.data?.message || "Impossible de charger l'historique.");
+      setHistoryItems([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!selectedProduct) {
+      setHistoryItems([]);
+      setHistoryError('');
+      setHistoryLoading(false);
+      return;
+    }
+    const identifier = selectedProduct._id || selectedProduct.slug;
+    loadHistory(identifier);
+  }, [loadHistory, selectedProduct]);
+
   const resetFilters = () => {
     setStatusFilter('');
     setCategoryFilter('');
@@ -181,7 +298,7 @@ export default function AdminProducts() {
   };
 
   const handleCertificationToggle = async () => {
-    if (!selectedProduct || detailBusy) return;
+    if (!selectedProduct || detailBusy || !canManageProducts) return;
     setDetailMessage('');
     setDetailError('');
     setDetailBusy(true);
@@ -255,7 +372,7 @@ export default function AdminProducts() {
 
   const handleDisableProduct = useCallback(
     async (product) => {
-      if (!product?._id) return;
+      if (!product?._id || !canManageProducts) return;
       setActionBusyId(product._id);
       setActionMessage('');
       setActionError('');
@@ -273,12 +390,12 @@ export default function AdminProducts() {
         setActionBusyId('');
       }
     },
-    [applyStatusUpdate]
+    [applyStatusUpdate, canManageProducts]
   );
 
   const handleEnableProduct = useCallback(
     async (product) => {
-      if (!product?._id) return;
+      if (!product?._id || !canManageProducts) return;
       setActionBusyId(product._id);
       setActionMessage('');
       setActionError('');
@@ -296,7 +413,7 @@ export default function AdminProducts() {
         setActionBusyId('');
       }
     },
-    [applyStatusUpdate]
+    [applyStatusUpdate, canManageProducts]
   );
 
   useEffect(() => {
@@ -307,6 +424,72 @@ export default function AdminProducts() {
     }, 4000);
     return () => clearTimeout(timer);
   }, [actionMessage, actionError]);
+
+  useEffect(() => {
+    if (!managerMessage) return;
+    const timer = setTimeout(() => setManagerMessage(''), 3000);
+    return () => clearTimeout(timer);
+  }, [managerMessage]);
+
+  const managerIds = useMemo(
+    () => new Set(managers.map((manager) => String(manager.id || manager._id))),
+    [managers]
+  );
+
+  const loadManagers = useCallback(async () => {
+    if (!isAdminUser) return;
+    setLoadingManagers(true);
+    try {
+      const { data } = await api.get('/admin/product-managers');
+      setManagers(Array.isArray(data?.managers) ? data.managers : []);
+    } catch (err) {
+      console.error('Load product managers error:', err);
+      setManagers([]);
+    } finally {
+      setLoadingManagers(false);
+    }
+  }, [isAdminUser]);
+
+  useEffect(() => {
+    loadManagers();
+  }, [loadManagers]);
+
+  const handleSearchUsers = async () => {
+    if (!userSearchQuery.trim()) return;
+    setSearchingUsers(true);
+    try {
+      const { data } = await api.get(
+        `/admin/users?search=${encodeURIComponent(userSearchQuery.trim())}&limit=10`
+      );
+      const users = Array.isArray(data) ? data.filter((u) => u.role !== 'admin') : [];
+      setFoundUsers(users);
+    } catch (err) {
+      console.error('Search users error:', err);
+      setFoundUsers([]);
+    } finally {
+      setSearchingUsers(false);
+    }
+  };
+
+  const handleToggleManager = async (userId) => {
+    if (!userId || typeof userId !== 'string') return;
+    if (!/^[0-9a-fA-F]{24}$/.test(userId)) {
+      setManagerMessage('Identifiant utilisateur invalide.');
+      return;
+    }
+    setManagerBusyId(userId);
+    try {
+      const { data } = await api.patch(`/admin/product-managers/${userId}/toggle`);
+      setManagerMessage(data?.message || 'Statut mis à jour.');
+      await loadManagers();
+      setFoundUsers([]);
+      setUserSearchQuery('');
+    } catch (err) {
+      setManagerMessage(err.response?.data?.message || 'Erreur lors de la mise à jour.');
+    } finally {
+      setManagerBusyId('');
+    }
+  };
 
   const statusCards = useMemo(() => {
     if (!stats) return [];
@@ -386,6 +569,133 @@ export default function AdminProducts() {
             icon={AlertCircle}
           />
         </section>
+
+        {isAdminUser && (
+          <section className="rounded-2xl border border-indigo-100 bg-white p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                <Users size={18} />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                  Accès gestion des produits
+                </h2>
+                <p className="text-xs text-gray-500">
+                  Autorisez un utilisateur à gérer et certifier les produits.
+                </p>
+              </div>
+            </div>
+
+            {managerMessage && (
+              <div className="flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm text-indigo-800">
+                <AlertCircle size={16} />
+                {managerMessage}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <input
+                type="text"
+                placeholder="Rechercher un utilisateur (nom, email, téléphone)..."
+                value={userSearchQuery}
+                onChange={(e) => setUserSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
+                className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+              <button
+                type="button"
+                onClick={handleSearchUsers}
+                disabled={searchingUsers || !userSearchQuery.trim()}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+              >
+                <Search size={14} />
+                Rechercher
+              </button>
+            </div>
+
+            {foundUsers.length > 0 && (
+              <div className="space-y-2">
+                {foundUsers.map((userItem) => {
+                  const id = userItem._id || userItem.id;
+                  const isManagerUser = managerIds.has(String(id));
+                  const isBusy = managerBusyId === String(id);
+                  return (
+                    <div
+                      key={id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{userItem.name}</p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {userItem.email} · {userItem.phone}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleManager(String(id))}
+                        disabled={isBusy}
+                        className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-70 ${
+                          isManagerUser
+                            ? 'bg-red-600 text-white hover:bg-red-700'
+                            : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                        }`}
+                      >
+                        {isBusy ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : isManagerUser ? (
+                          <UserMinus size={14} />
+                        ) : (
+                          <UserPlus size={14} />
+                        )}
+                        {isBusy ? 'Traitement...' : isManagerUser ? 'Retirer' : 'Ajouter'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-xs font-semibold text-gray-500 mb-2">
+                Gestionnaires actuels ({managers.length})
+              </p>
+              {loadingManagers ? (
+                <p className="text-sm text-gray-500">Chargement…</p>
+              ) : managers.length === 0 ? (
+                <p className="text-sm text-gray-500">Aucun gestionnaire pour le moment.</p>
+              ) : (
+                <div className="space-y-2">
+                  {managers.map((manager) => (
+                    <div
+                      key={manager.id || manager._id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white p-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{manager.name}</p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {manager.email} · {manager.phone}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleManager(String(manager.id || manager._id))}
+                        disabled={managerBusyId === String(manager.id || manager._id)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-70"
+                      >
+                        {managerBusyId === String(manager.id || manager._id) ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <UserMinus size={14} />
+                        )}
+                        {managerBusyId === String(manager.id || manager._id) ? 'Traitement...' : 'Retirer'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         <section className="rounded-2xl border border-gray-200/60 bg-gradient-to-br from-white to-indigo-50/20 p-6 shadow-sm">
           <div className="flex flex-col gap-4">
@@ -571,24 +881,28 @@ export default function AdminProducts() {
                           Détails
                           <ChevronRight className="w-3 h-3" />
                         </button>
-                        {product.status !== 'disabled' ? (
-                          <button
-                            type="button"
-                            onClick={() => handleDisableProduct(product)}
-                            disabled={actionBusyId === product._id}
-                            className="inline-flex items-center gap-2 rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
-                          >
-                            Désactiver
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleEnableProduct(product)}
-                            disabled={actionBusyId === product._id}
-                            className="inline-flex items-center gap-2 rounded-full border border-green-200 px-3 py-1 text-xs font-semibold text-green-700 hover:bg-green-50 disabled:opacity-60"
-                          >
-                            Activer
-                          </button>
+                        {canManageProducts && (
+                          <>
+                            {product.status !== 'disabled' ? (
+                              <button
+                                type="button"
+                                onClick={() => handleDisableProduct(product)}
+                                disabled={actionBusyId === product._id}
+                                className="inline-flex items-center gap-2 rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
+                              >
+                                Désactiver
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleEnableProduct(product)}
+                                disabled={actionBusyId === product._id}
+                                className="inline-flex items-center gap-2 rounded-full border border-green-200 px-3 py-1 text-xs font-semibold text-green-700 hover:bg-green-50 disabled:opacity-60"
+                              >
+                                Activer
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
@@ -743,24 +1057,28 @@ export default function AdminProducts() {
                   )}
                 </div>
                 <div className="border-t border-gray-100 pt-3 space-y-2">
-                  {selectedProduct.status !== 'disabled' ? (
-                    <button
-                      type="button"
-                      onClick={() => handleDisableProduct(selectedProduct)}
-                      disabled={actionBusyId === selectedProduct._id || detailBusy}
-                      className="w-full rounded-full border border-red-200 px-4 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
-                    >
-                      Désactiver l&apos;annonce
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleEnableProduct(selectedProduct)}
-                      disabled={actionBusyId === selectedProduct._id || detailBusy}
-                      className="w-full rounded-full border border-green-200 px-4 py-2 text-xs font-semibold text-green-700 hover:bg-green-50 disabled:opacity-60"
-                    >
-                      Activer l&apos;annonce
-                    </button>
+                  {canManageProducts && (
+                    <>
+                      {selectedProduct.status !== 'disabled' ? (
+                        <button
+                          type="button"
+                          onClick={() => handleDisableProduct(selectedProduct)}
+                          disabled={actionBusyId === selectedProduct._id || detailBusy}
+                          className="w-full rounded-full border border-red-200 px-4 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
+                        >
+                          Désactiver l&apos;annonce
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleEnableProduct(selectedProduct)}
+                          disabled={actionBusyId === selectedProduct._id || detailBusy}
+                          className="w-full rounded-full border border-green-200 px-4 py-2 text-xs font-semibold text-green-700 hover:bg-green-50 disabled:opacity-60"
+                        >
+                          Activer l&apos;annonce
+                        </button>
+                      )}
+                    </>
                   )}
                   {(actionMessage || actionError) && (
                     <p className={`text-xs ${actionError ? 'text-red-600' : 'text-green-600'}`}>
@@ -768,7 +1086,7 @@ export default function AdminProducts() {
                     </p>
                   )}
                 </div>
-                {isAdminUser && (
+                {canManageProducts && (
                   <div className="space-y-2">
                     <button
                       type="button"
@@ -793,6 +1111,62 @@ export default function AdminProducts() {
                     <p>Opérateur: {selectedProduct.payment.operator}</p>
                   </div>
                 )}
+                <div className="border-t border-gray-100 pt-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Historique
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => loadHistory(selectedProduct._id || selectedProduct.slug)}
+                      className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-500"
+                    >
+                      Actualiser
+                    </button>
+                  </div>
+                  {historyLoading ? (
+                    <p className="text-xs text-gray-500">Chargement...</p>
+                  ) : historyError ? (
+                    <p className="text-xs text-red-600">{historyError}</p>
+                  ) : historyItems.length === 0 ? (
+                    <p className="text-xs text-gray-500">Aucune action enregistrée.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {historyItems.map((entry) => {
+                        const detailsLines = buildHistoryDetails(entry.details);
+                        const actionLabel = ACTION_LABELS[entry.action] || entry.action || 'Action';
+                        const badgeStyle = ACTION_STYLES[entry.action] || 'bg-gray-100 text-gray-600';
+                        const actorName =
+                          entry.performedBy?.name || entry.performedBy?.email || 'Système';
+                        return (
+                          <div key={entry.id} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeStyle}`}>
+                                {actionLabel}
+                              </span>
+                              <span className="text-[11px] text-gray-400">
+                                {formatDateTime(entry.createdAt)}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-700 mt-1">
+                              Par {actorName}
+                              {entry.performedBy?.role ? ` · ${entry.performedBy.role}` : ''}
+                            </p>
+                            {detailsLines.length > 0 && (
+                              <div className="mt-1 space-y-0.5">
+                                {detailsLines.map((line, index) => (
+                                  <p key={`${entry.id}-detail-${index}`} className="text-[11px] text-gray-500">
+                                    {line}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

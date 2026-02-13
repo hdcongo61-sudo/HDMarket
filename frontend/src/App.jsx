@@ -292,7 +292,7 @@ function AppContent() {
           <Route
             path="/admin"
             element={
-              <ProtectedRoute allowAccess={(u) => u?.role === 'admin' || u?.role === 'manager' || u?.canManageComplaints === true}>
+              <ProtectedRoute allowAccess={(u) => u?.role === 'admin' || u?.role === 'manager' || u?.canManageComplaints === true || u?.canManageDelivery === true || u?.canManageProducts === true}>
                 <AdminLayout />
               </ProtectedRoute>
             }
@@ -310,7 +310,14 @@ function AppContent() {
               }
             />
             <Route path="users/:id/stats" element={<AdminUserStats />} />
-            <Route path="products" element={<AdminProducts />} />
+            <Route
+              path="products"
+              element={
+                <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.role === 'manager' || user?.canManageProducts === true}>
+                  <AdminProducts />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="product-boosts"
               element={

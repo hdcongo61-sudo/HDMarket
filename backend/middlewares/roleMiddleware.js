@@ -48,3 +48,33 @@ export const requireComplaintAccess = (req, res, next) => {
   }
   return res.status(403).json({ message: 'Forbidden' });
 };
+
+export const requireHelpCenterAccess = (req, res, next) => {
+  if (!req.user) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+  if (req.user.role === 'admin' || req.user.canManageHelpCenter === true) {
+    return next();
+  }
+  return res.status(403).json({ message: 'Forbidden' });
+};
+
+export const requireProductAccess = (req, res, next) => {
+  if (!req.user) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+  if (req.user.role === 'admin' || req.user.role === 'manager' || req.user.canManageProducts === true) {
+    return next();
+  }
+  return res.status(403).json({ message: 'Forbidden' });
+};
+
+export const requireDeliveryAccess = (req, res, next) => {
+  if (!req.user) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+  if (req.user.role === 'admin' || req.user.role === 'manager' || req.user.canManageDelivery === true) {
+    return next();
+  }
+  return res.status(403).json({ message: 'Forbidden' });
+};

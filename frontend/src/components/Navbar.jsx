@@ -123,6 +123,8 @@ export default function Navbar() {
   const isAdmin = user?.role === "admin";
   const isManager = user?.role === "manager";
   const canAccessBackOffice = isAdmin || isManager;
+  const canManageDelivery = Boolean(user?.canManageDelivery);
+  const canManageProducts = Boolean(user?.canManageProducts);
   const canVerifyPayments = Boolean(user?.canVerifyPayments);
   const adminLinkLabel = isManager ? "Gestion" : "Admin";
 
@@ -2880,7 +2882,16 @@ export default function Navbar() {
                           </span>
                         )}
                       </Link>
-                      {canAccessBackOffice && (
+                      {(canAccessBackOffice || canManageProducts) && (
+                        <Link
+                          to="/admin/products"
+                          className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                        >
+                          <Package size={16} />
+                          <span className="text-sm font-semibold">Produits</span>
+                        </Link>
+                      )}
+                      {(canAccessBackOffice || canManageDelivery) && (
                         <Link
                           to="/admin/delivery-guys"
                           className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -3609,7 +3620,17 @@ export default function Navbar() {
                       Rapports
                     </NavLink>
                   )}
-                  {canAccessBackOffice && (
+                  {(canAccessBackOffice || canManageProducts) && (
+                    <NavLink
+                      to="/admin/products"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <Package size={20} />
+                      Produits
+                    </NavLink>
+                  )}
+                  {(canAccessBackOffice || canManageDelivery) && (
                     <NavLink
                       to="/admin/delivery-guys"
                       onClick={() => setIsMenuOpen(false)}

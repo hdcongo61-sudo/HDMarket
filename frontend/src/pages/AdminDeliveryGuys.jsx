@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import api from '../services/api';
-import { Plus, Save, Edit3, Trash2, Phone, Truck, Search } from 'lucide-react';
+import { Plus, Save, Edit3, Trash2, Phone, Truck, Search, Users, UserPlus, UserMinus, AlertCircle, Loader2 } from 'lucide-react';
+import AuthContext from '../context/AuthContext';
 
 export default function AdminDeliveryGuys() {
+  const { user } = useContext(AuthContext);
+  const isAdmin = user?.role === 'admin';
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -13,6 +16,13 @@ export default function AdminDeliveryGuys() {
   const [searchValue, setSearchValue] = useState('');
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
+  const [managers, setManagers] = useState([]);
+  const [loadingManagers, setLoadingManagers] = useState(false);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [searchingUsers, setSearchingUsers] = useState(false);
+  const [foundUsers, setFoundUsers] = useState([]);
+  const [managerMessage, setManagerMessage] = useState('');
+  const [managerBusyId, setManagerBusyId] = useState('');
 
   const summary = items.reduce(
     (acc, item) => {
@@ -68,6 +78,32 @@ export default function AdminDeliveryGuys() {
   useEffect(() => {
     setPage(1);
   }, [searchValue]);
+
+  useEffect(() => {
+    if (!managerMessage) return;
+    const timer = setTimeout(() => setManagerMessage(''), 3000);
+    return () => clearTimeout(timer);
+  }, [managerMessage]);
+
+  const managerIds = useMemo(() => new Set(managers.map((m) => String(m.id || m._id))), [managers]);
+
+  const loadManagers = useCallback(async () => {
+    if (!isAdmin) return;
+    setLoadingManagers(true);
+    try {
+      const { data } = await api.get('/admin/delivery-managers');
+      setManagers(Array.isArray(data?.managers) ? data.managers : []);
+    } catch (err) {
+      console.error('Load delivery managers error:', err);
+      setManagers([]);
+    } finally {
+      setLoadingManagers(false);
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    loadManagers();
+  }, [loadManagers]);
 
   const resetForm = () => {
     setFormState({ name: '', phone: '', active: true });
@@ -128,6 +164,43 @@ export default function AdminDeliveryGuys() {
     }
   };
 
+  const handleSearchUsers = async () => {
+    if (!userSearchQuery.trim()) return;
+    setSearchingUsers(true);
+    try {
+      const { data } = await api.get(
+        `/admin/users?search=${encodeURIComponent(userSearchQuery.trim())}&limit=10`
+      );
+      const users = Array.isArray(data) ? data.filter((u) => u.role !== 'admin') : [];
+      setFoundUsers(users);
+    } catch (err) {
+      console.error('Search users error:', err);
+      setFoundUsers([]);
+    } finally {
+      setSearchingUsers(false);
+    }
+  };
+
+  const handleToggleManager = async (userId) => {
+    if (!userId || typeof userId !== 'string') return;
+    if (!/^[0-9a-fA-F]{24}$/.test(userId)) {
+      setManagerMessage('Identifiant utilisateur invalide.');
+      return;
+    }
+    setManagerBusyId(userId);
+    try {
+      const { data } = await api.patch(`/admin/delivery-managers/${userId}/toggle`);
+      setManagerMessage(data?.message || 'Statut mis à jour.');
+      await loadManagers();
+      setFoundUsers([]);
+      setUserSearchQuery('');
+    } catch (err) {
+      setManagerMessage(err.response?.data?.message || 'Erreur lors de la mise à jour.');
+    } finally {
+      setManagerBusyId('');
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-6">
       <div className="flex items-center gap-3">
@@ -168,6 +241,133 @@ export default function AdminDeliveryGuys() {
           <p className="text-xs text-amber-700">{summary.delivered} livrée(s)</p>
         </div>
       </section>
+
+      {isAdmin && (
+        <section className="rounded-2xl border border-amber-100 bg-white p-5 shadow-sm space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+              <Users size={18} />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                Accès gestion des livreurs
+              </h2>
+              <p className="text-xs text-gray-500">
+                Autorisez un utilisateur à gérer la page des livreurs.
+              </p>
+            </div>
+          </div>
+
+          {managerMessage && (
+            <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <AlertCircle size={16} />
+              {managerMessage}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              type="text"
+              placeholder="Rechercher un utilisateur (nom, email, téléphone)..."
+              value={userSearchQuery}
+              onChange={(e) => setUserSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
+              className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+            />
+            <button
+              type="button"
+              onClick={handleSearchUsers}
+              disabled={searchingUsers || !userSearchQuery.trim()}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
+            >
+              <Search size={14} />
+              Rechercher
+            </button>
+          </div>
+
+          {foundUsers.length > 0 && (
+            <div className="space-y-2">
+              {foundUsers.map((userItem) => {
+                const id = userItem._id || userItem.id;
+                const isManagerUser = managerIds.has(String(id));
+                const isBusy = managerBusyId === String(id);
+                return (
+                  <div
+                    key={id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{userItem.name}</p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {userItem.email} · {userItem.phone}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleManager(String(id))}
+                      disabled={isBusy}
+                      className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-70 ${
+                        isManagerUser
+                          ? 'bg-red-600 text-white hover:bg-red-700'
+                          : 'bg-amber-600 text-white hover:bg-amber-700'
+                      }`}
+                    >
+                      {isBusy ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : isManagerUser ? (
+                        <UserMinus size={14} />
+                      ) : (
+                        <UserPlus size={14} />
+                      )}
+                      {isBusy ? 'Traitement...' : isManagerUser ? 'Retirer' : 'Ajouter'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="border-t border-gray-100 pt-4">
+            <p className="text-xs font-semibold text-gray-500 mb-2">
+              Gestionnaires actuels ({managers.length})
+            </p>
+            {loadingManagers ? (
+              <p className="text-sm text-gray-500">Chargement…</p>
+            ) : managers.length === 0 ? (
+              <p className="text-sm text-gray-500">Aucun gestionnaire pour le moment.</p>
+            ) : (
+              <div className="space-y-2">
+                {managers.map((manager) => (
+                  <div
+                    key={manager.id || manager._id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white p-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{manager.name}</p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {manager.email} · {manager.phone}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleManager(String(manager.id || manager._id))}
+                      disabled={managerBusyId === String(manager.id || manager._id)}
+                      className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-70"
+                    >
+                      {managerBusyId === String(manager.id || manager._id) ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <UserMinus size={14} />
+                      )}
+                      {managerBusyId === String(manager.id || manager._id) ? 'Traitement...' : 'Retirer'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">

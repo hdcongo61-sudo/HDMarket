@@ -11,7 +11,9 @@ export const protect = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select('role isBlocked blockedReason canReadFeedback canVerifyPayments canManageBoosts canManageComplaints');
+    const user = await User.findById(decoded.id).select(
+      'role isBlocked blockedReason canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageHelpCenter'
+    );
     if (!user) {
       return res.status(401).json({ message: 'Not authorized' });
     }
@@ -29,7 +31,10 @@ export const protect = async (req, res, next) => {
       canReadFeedback: user.canReadFeedback,
       canVerifyPayments: user.canVerifyPayments,
       canManageBoosts: user.canManageBoosts,
-      canManageComplaints: user.canManageComplaints
+      canManageComplaints: user.canManageComplaints,
+      canManageProducts: user.canManageProducts,
+      canManageDelivery: user.canManageDelivery,
+      canManageHelpCenter: user.canManageHelpCenter
     };
     if (req.query?.token) {
       delete req.query.token;

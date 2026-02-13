@@ -5,6 +5,7 @@ import Comment from '../models/commentModel.js';
 import Rating from '../models/ratingModel.js';
 import User from '../models/userModel.js';
 import ProhibitedWord from '../models/prohibitedWordModel.js';
+import ProductAuditLog from '../models/productAuditLogModel.js';
 import { createNotification } from '../utils/notificationService.js';
 import { invalidateProductCache } from '../utils/cache.js';
 import {
@@ -25,6 +26,20 @@ const ensureProductSlug = async (productDoc) => {
   if (productDoc.slug) return productDoc;
   await ensureDocumentSlug({ document: productDoc, sourceValue: productDoc.title });
   return productDoc;
+};
+
+const logProductAction = async ({ productId, action, performedBy, details = {} }) => {
+  try {
+    if (!productId || !performedBy || !action) return;
+    await ProductAuditLog.create({
+      product: productId,
+      action,
+      performedBy,
+      details
+    });
+  } catch (err) {
+    console.error('Product audit log error:', err);
+  }
 };
 
 const isVideoFile = (mimetype) => typeof mimetype === 'string' && mimetype.startsWith('video/');
@@ -276,6 +291,18 @@ export const createProduct = asyncHandler(async (req, res) => {
     status: 'pending',
     city: ownerCity,
     country: ownerCountry
+  });
+
+  await logProductAction({
+    productId: product._id,
+    action: 'created',
+    performedBy: req.user.id,
+    details: {
+      title: product.title,
+      status: product.status,
+      price: product.price,
+      discount: product.discount
+    }
   });
 
   // Invalidate product cache after creation
@@ -919,12 +946,43 @@ export const listAdminProducts = asyncHandler(async (req, res) => {
   });
 });
 
+export const getProductHistory = asyncHandler(async (req, res) => {
+  const query = buildIdentifierQuery(req.params.id);
+  const product = await Product.findOne(query).select('_id');
+  if (!product) {
+    return res.status(404).json({ message: 'Produit introuvable.' });
+  }
+
+  const logs = await ProductAuditLog.find({ product: product._id })
+    .sort({ createdAt: -1 })
+    .populate('performedBy', 'name email role')
+    .lean();
+
+  res.json(
+    logs.map((log) => ({
+      id: log._id.toString(),
+      action: log.action,
+      performedBy: log.performedBy
+        ? {
+            id: log.performedBy._id.toString(),
+            name: log.performedBy.name,
+            email: log.performedBy.email,
+            role: log.performedBy.role
+          }
+        : null,
+      details: log.details || {},
+      createdAt: log.createdAt
+    }))
+  );
+});
+
 export const getProductById = asyncHandler(async (req, res) => {
   const query = buildIdentifierQuery(req.params.id);
   const product = await Product.findOne(query);
   await ensureProductSlug(product);
   if (!product) return res.status(404).json({ message: 'Not found' });
-  const isModerator = ['admin', 'manager'].includes(req.user.role);
+  const isModerator =
+    ['admin', 'manager'].includes(req.user.role) || req.user.canManageProducts === true;
 
   if (product.status === 'disabled' && product.user.toString() !== req.user.id && !isModerator) {
     return res.status(403).json({ message: 'Forbidden' });
@@ -939,6 +997,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
   if (!product) return res.status(404).json({ message: 'Not found' });
   if (product.user.toString() !== req.user.id && req.user.role !== 'admin')
     return res.status(403).json({ message: 'Forbidden' });
+  const updatedFields = Object.keys(req.body || {});
 
   const seller =
     (await User.findById(req.user.id).select('shopVerified accountType restrictions')) || null;
@@ -1106,6 +1165,15 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
   await product.save();
 
+  await logProductAction({
+    productId: product._id,
+    action: 'updated',
+    performedBy: req.user.id,
+    details: {
+      updatedFields
+    }
+  });
+
   if (promotionApplied && product.discount > 0) {
     await createNotification({
       userId: product.user,
@@ -1156,6 +1224,14 @@ export const deleteProduct = asyncHandler(async (req, res) => {
   if (!product) return res.status(404).json({ message: 'Not found' });
   if (product.user.toString() !== req.user.id && req.user.role !== 'admin')
     return res.status(403).json({ message: 'Forbidden' });
+
+  await logProductAction({
+    productId: product._id,
+    action: 'deleted',
+    performedBy: req.user.id,
+    details: { title: product.title }
+  });
+
   await product.deleteOne();
   
   // Invalidate product cache after deletion
@@ -1169,10 +1245,12 @@ export const disableProduct = asyncHandler(async (req, res) => {
   const product = await Product.findOne(query);
   await ensureProductSlug(product);
   if (!product) return res.status(404).json({ message: 'Not found' });
-  const isModerator = ['admin', 'manager'].includes(req.user.role);
+  const isModerator =
+    ['admin', 'manager'].includes(req.user.role) || req.user.canManageProducts === true;
   if (product.user.toString() !== req.user.id && !isModerator)
     return res.status(403).json({ message: 'Forbidden' });
 
+  const previousStatus = product.status;
   if (product.status !== 'disabled') {
     product.lastStatusBeforeDisable = product.status;
   }
@@ -1180,6 +1258,16 @@ export const disableProduct = asyncHandler(async (req, res) => {
   product.disabledByAdmin = isModerator;
   product.disabledBySuspension = false;
   await product.save();
+
+  await logProductAction({
+    productId: product._id,
+    action: 'disabled',
+    performedBy: req.user.id,
+    details: {
+      previousStatus,
+      disabledByAdmin: Boolean(isModerator)
+    }
+  });
   
   // Invalidate product cache after disable
   invalidateProductCache();
@@ -1192,7 +1280,8 @@ export const enableProduct = asyncHandler(async (req, res) => {
   const product = await Product.findOne(query).populate('payment', 'status');
   await ensureProductSlug(product);
   if (!product) return res.status(404).json({ message: 'Not found' });
-  const isModerator = ['admin', 'manager'].includes(req.user.role);
+  const isModerator =
+    ['admin', 'manager'].includes(req.user.role) || req.user.canManageProducts === true;
   if (product.user.toString() !== req.user.id && !isModerator)
     return res.status(403).json({ message: 'Forbidden' });
 
@@ -1218,11 +1307,22 @@ export const enableProduct = asyncHandler(async (req, res) => {
     restoredStatus = 'approved';
   }
 
+  const previousStatus = product.status;
   product.status = restoredStatus;
   product.lastStatusBeforeDisable = null;
   product.disabledByAdmin = false;
   product.disabledBySuspension = false;
   await product.save();
+
+  await logProductAction({
+    productId: product._id,
+    action: 'enabled',
+    performedBy: req.user.id,
+    details: {
+      previousStatus,
+      restoredStatus
+    }
+  });
   
   // Invalidate product cache after enable
   invalidateProductCache();
@@ -1270,6 +1370,15 @@ export const bulkEnableProducts = asyncHandler(async (req, res) => {
     product.disabledByAdmin = false;
     product.disabledBySuspension = false;
     await product.save();
+
+    await logProductAction({
+      productId: product._id,
+      action: 'enabled',
+      performedBy: req.user.id,
+      details: {
+        restoredStatus
+      }
+    });
   }
 
   await invalidateProductCache();
@@ -1301,6 +1410,7 @@ export const bulkDisableProducts = asyncHandler(async (req, res) => {
   
   // Save previous status and disable
   for (const product of products) {
+    const previousStatus = product.status;
     if (product.status !== 'disabled') {
       product.lastStatusBeforeDisable = product.status;
     }
@@ -1308,6 +1418,16 @@ export const bulkDisableProducts = asyncHandler(async (req, res) => {
     product.disabledByAdmin = false;
     product.disabledBySuspension = false;
     await product.save();
+
+    await logProductAction({
+      productId: product._id,
+      action: 'disabled',
+      performedBy: req.user.id,
+      details: {
+        previousStatus,
+        disabledByAdmin: false
+      }
+    });
   }
 
   await invalidateProductCache();
@@ -1336,6 +1456,17 @@ export const bulkDeleteProducts = asyncHandler(async (req, res) => {
   }
 
   const productIdsToDelete = products.map((p) => p._id);
+
+  await Promise.all(
+    products.map((product) =>
+      logProductAction({
+        productId: product._id,
+        action: 'deleted',
+        performedBy: req.user.id,
+        details: { title: product.title }
+      })
+    )
+  );
 
   // Delete related comments and ratings
   await Promise.all([
@@ -1531,6 +1662,17 @@ export const toggleProductBoost = asyncHandler(async (req, res) => {
   }
   
   await product.save();
+
+  await logProductAction({
+    productId: product._id,
+    action: product.boosted ? 'boosted' : 'unboosted',
+    performedBy: req.user.id,
+    details: {
+      boostStartDate: product.boostStartDate,
+      boostEndDate: product.boostEndDate,
+      boostedByName: product.boostedByName || null
+    }
+  });
   
   // Send notification to product owner when product is boosted (not when unboosted)
   if (product.boosted && !wasBoosted && product.user) {
@@ -1630,8 +1772,12 @@ export const getBoostStatistics = asyncHandler(async (req, res) => {
 });
 
 export const certifyProduct = asyncHandler(async (req, res) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'Seuls les administrateurs peuvent certifier les produits.' });
+  const canCertify =
+    req.user.role === 'admin' ||
+    req.user.role === 'manager' ||
+    req.user.canManageProducts === true;
+  if (!canCertify) {
+    return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à certifier les produits.' });
   }
   const { id } = req.params;
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -1643,6 +1789,7 @@ export const certifyProduct = asyncHandler(async (req, res) => {
   }
 
   const shouldCertify = Boolean(req.body.certified);
+  const previousCertified = Boolean(product.certified);
   product.certified = shouldCertify;
   product.certifiedBy = shouldCertify ? req.user.id : null;
   product.certifiedAt = shouldCertify ? new Date() : null;
@@ -1654,6 +1801,16 @@ export const certifyProduct = asyncHandler(async (req, res) => {
     productId: product._id,
     type: 'product_certified',
     metadata: {
+      certified: shouldCertify
+    }
+  });
+
+  await logProductAction({
+    productId: product._id,
+    action: shouldCertify ? 'certified' : 'uncertified',
+    performedBy: req.user.id,
+    details: {
+      previousCertified,
       certified: shouldCertify
     }
   });

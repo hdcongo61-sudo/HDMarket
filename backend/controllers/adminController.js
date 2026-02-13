@@ -46,6 +46,13 @@ const monthKey = (year, month) => `${year}-${String(month).padStart(2, '0')}`;
       followersCount: Number(user.followersCount || 0),
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+      canReadFeedback: Boolean(user.canReadFeedback),
+      canVerifyPayments: Boolean(user.canVerifyPayments),
+      canManageBoosts: Boolean(user.canManageBoosts),
+      canManageComplaints: Boolean(user.canManageComplaints),
+      canManageProducts: Boolean(user.canManageProducts),
+      canManageDelivery: Boolean(user.canManageDelivery),
+      canManageHelpCenter: Boolean(user.canManageHelpCenter),
       isBlocked: Boolean(user.isBlocked),
       blockedAt: user.blockedAt || null,
       blockedReason: user.blockedReason || '',
@@ -870,7 +877,7 @@ export const listUsers = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(safeLimit)
     .select(
-      'name email phone role accountType shopName shopAddress shopLogo shopVerified shopVerifiedBy shopVerifiedAt createdAt updatedAt isBlocked blockedAt blockedReason followersCount restrictions'
+      'name email phone role accountType shopName shopAddress shopLogo shopVerified shopVerifiedBy shopVerifiedAt createdAt updatedAt isBlocked blockedAt blockedReason followersCount restrictions canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageHelpCenter'
     )
     .populate('shopVerifiedBy', 'name email');
 
@@ -1388,6 +1395,147 @@ export const toggleComplaintManager = asyncHandler(async (req, res) => {
       name: user.name,
       email: user.email,
       canManageComplaints: user.canManageComplaints
+    }
+  });
+});
+
+export const listProductManagers = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const managers = await User.find({ canManageProducts: true })
+    .select('_id name email phone canManageProducts')
+    .sort({ name: 1 })
+    .lean();
+  res.json({
+    managers: managers.map((m) => ({
+      id: m._id.toString(),
+      name: m.name,
+      email: m.email,
+      phone: m.phone,
+      canManageProducts: Boolean(m.canManageProducts)
+    }))
+  });
+});
+
+export const toggleProductManager = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { userId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
+  }
+  const user = await User.findById(userId);
+  if (!user) {
+    return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  }
+  if (user.role === 'admin') {
+    return res.status(400).json({ message: 'Impossible de modifier les permissions d\'un administrateur.' });
+  }
+  user.canManageProducts = !user.canManageProducts;
+  await user.save();
+  res.json({
+    message: user.canManageProducts
+      ? 'Utilisateur ajouté comme gestionnaire des produits.'
+      : 'Permission gestionnaire produits retirée.',
+    user: {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      canManageProducts: user.canManageProducts
+    }
+  });
+});
+
+export const listDeliveryManagers = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const managers = await User.find({ canManageDelivery: true })
+    .select('_id name email phone canManageDelivery')
+    .sort({ name: 1 })
+    .lean();
+  res.json({
+    managers: managers.map((m) => ({
+      id: m._id.toString(),
+      name: m.name,
+      email: m.email,
+      phone: m.phone,
+      canManageDelivery: Boolean(m.canManageDelivery)
+    }))
+  });
+});
+
+export const toggleDeliveryManager = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { userId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
+  }
+  const user = await User.findById(userId);
+  if (!user) {
+    return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  }
+  if (user.role === 'admin') {
+    return res.status(400).json({ message: 'Impossible de modifier les permissions d\'un administrateur.' });
+  }
+  user.canManageDelivery = !user.canManageDelivery;
+  await user.save();
+  res.json({
+    message: user.canManageDelivery
+      ? 'Utilisateur ajouté comme responsable des livreurs.'
+      : 'Permission responsable livreurs retirée.',
+    user: {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      canManageDelivery: user.canManageDelivery
+    }
+  });
+});
+
+export const listHelpCenterEditors = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const editors = await User.find({ canManageHelpCenter: true })
+    .select('_id name email phone canManageHelpCenter')
+    .sort({ name: 1 })
+    .lean();
+
+  res.json({
+    editors: editors.map((editor) => ({
+      id: editor._id.toString(),
+      name: editor.name,
+      email: editor.email,
+      phone: editor.phone,
+      canManageHelpCenter: Boolean(editor.canManageHelpCenter)
+    }))
+  });
+});
+
+export const toggleHelpCenterEditor = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { userId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
+  }
+  const user = await User.findById(userId);
+  if (!user) {
+    return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  }
+  if (user.role === 'admin') {
+    return res.status(400).json({ message: 'Impossible de modifier les permissions d\'un administrateur.' });
+  }
+
+  user.canManageHelpCenter = !user.canManageHelpCenter;
+  await user.save();
+
+  res.json({
+    message: user.canManageHelpCenter
+      ? 'Utilisateur ajouté comme éditeur de la page aide.'
+      : 'Permission d\'édition de la page aide retirée.',
+    user: {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      canManageHelpCenter: user.canManageHelpCenter
     }
   });
 });

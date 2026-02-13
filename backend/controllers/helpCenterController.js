@@ -36,10 +36,10 @@ export const getHelpCenter = asyncHandler(async (req, res) => {
 });
 
 export const updateHelpCenter = asyncHandler(async (req, res) => {
-  if (req.user?.role !== 'admin') {
+  if (req.user?.role !== 'admin' && req.user?.canManageHelpCenter !== true) {
     return res
       .status(403)
-      .json({ message: 'Seuls les administrateurs peuvent modifier ces informations.' });
+      .json({ message: 'Vous n\'avez pas les droits pour modifier ces informations.' });
   }
 
   const { conditions = [], companyName } = req.body || {};

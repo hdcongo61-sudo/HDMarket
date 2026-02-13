@@ -83,6 +83,9 @@ const sanitizeUser = (user) => ({
   canVerifyPayments: Boolean(user.canVerifyPayments),
   canManageBoosts: Boolean(user.canManageBoosts),
   canManageComplaints: Boolean(user.canManageComplaints),
+  canManageProducts: Boolean(user.canManageProducts),
+  canManageDelivery: Boolean(user.canManageDelivery),
+  canManageHelpCenter: Boolean(user.canManageHelpCenter),
   createdAt: user.createdAt,
   updatedAt: user.updatedAt
 });
