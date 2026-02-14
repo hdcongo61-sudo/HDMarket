@@ -397,7 +397,7 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
                     <img
                       src={imageSrc}
                       alt={`${p.title} - Image ${index + 1}`}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                       style={{
                         opacity: 1,
                         visibility: 'visible',
@@ -478,7 +478,7 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
             <img
               src={imageError ? "https://via.placeholder.com/400x400?text=HDMarket" : productImages[0]}
               alt={p.title}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
               onLoad={() => setImageLoaded(true)}
               onError={() => setImageError(true)}
               loading="eager"

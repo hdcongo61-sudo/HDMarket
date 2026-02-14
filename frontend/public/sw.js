@@ -1,11 +1,12 @@
 /**
- * Service Worker for PWA offline caching
+ * Service Worker for PWA offline caching + Firebase web push
  * Caches API responses and static assets for offline access
  */
 
 const CACHE_NAME = 'hdmarket-v2';
 const API_CACHE_NAME = 'hdmarket-api-v2';
 const STATIC_CACHE_NAME = 'hdmarket-static-v2';
+const FIREBASE_SDK_VERSION = '9.23.0';
 
 // Assets to cache on install
 const STATIC_ASSETS = [
@@ -28,6 +29,62 @@ const CACHEABLE_ENDPOINTS = [
 
 // Search history cache name
 const SEARCH_HISTORY_CACHE = 'hdmarket-search-history-v1';
+const DEFAULT_NOTIFICATION_ICON = '/icons/icon-192.svg';
+const DEFAULT_NOTIFICATION_BADGE = '/icons/icon-192.svg';
+
+let firebaseConfig = null;
+let firebaseMessaging = null;
+let firebaseInitialized = false;
+let firebaseScriptsLoaded = false;
+
+const loadFirebaseScripts = () => {
+  if (firebaseScriptsLoaded) return;
+  importScripts(
+    `https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-app-compat.js`,
+    `https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-messaging-compat.js`
+  );
+  firebaseScriptsLoaded = true;
+};
+
+const initFirebaseMessaging = (config) => {
+  if (!config || !config.apiKey || !config.messagingSenderId) return;
+  try {
+    loadFirebaseScripts();
+    if (!self.firebase) return;
+    if (!self.firebase.apps?.length) {
+      self.firebase.initializeApp(config);
+    }
+    firebaseMessaging = self.firebase.messaging();
+    if (!firebaseInitialized && firebaseMessaging?.onBackgroundMessage) {
+      firebaseMessaging.onBackgroundMessage((payload) => {
+        const notification = payload?.notification || {};
+        const data = payload?.data || {};
+        const title = notification.title || data.title || 'HDMarket';
+        const body = notification.body || data.body || '';
+        const icon = notification.icon || data.icon || DEFAULT_NOTIFICATION_ICON;
+        const image = notification.image || data.image;
+        const url = data.url || data.link || data.deeplink || data.path || '/';
+
+        const options = {
+          body,
+          icon,
+          badge: DEFAULT_NOTIFICATION_BADGE,
+          data: { url },
+        };
+        if (image) options.image = image;
+        self.registration.showNotification(title, options);
+      });
+      firebaseInitialized = true;
+    }
+  } catch (err) {
+    console.warn('[HDMarket] Firebase SW init failed', err);
+  }
+};
+
+const clearAllCaches = async () => {
+  const cacheNames = await caches.keys();
+  await Promise.all(cacheNames.map((name) => caches.delete(name)));
+};
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
@@ -57,6 +114,39 @@ self.addEventListener('activate', (event) => {
     })
   );
   return self.clients.claim();
+});
+
+// Listen for messages (e.g. Firebase config, cache management)
+self.addEventListener('message', (event) => {
+  const { type, payload } = event.data || {};
+  if (type === 'SET_FIREBASE_CONFIG') {
+    firebaseConfig = payload || null;
+    initFirebaseMessaging(firebaseConfig);
+  }
+  if (type === 'CLEAR_CACHE') {
+    event.waitUntil(clearAllCaches());
+  }
+});
+
+// Notification click handler (open deep link)
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification?.data?.url;
+  if (!url) return;
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url === url && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(url);
+      }
+      return null;
+    })
+  );
 });
 
 // Fetch event - serve from cache, fallback to network

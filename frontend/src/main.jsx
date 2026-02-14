@@ -23,7 +23,9 @@ root.render(
   </React.StrictMode>
 );
 
-// Register service worker for PWA (offline support)
-if (import.meta.env.PROD) {
+// Register service worker for PWA (offline support + web push)
+const enableServiceWorker =
+  import.meta.env.PROD || String(import.meta.env.VITE_ENABLE_SW) === 'true';
+if (enableServiceWorker) {
   registerServiceWorker();
 }
