@@ -26,6 +26,14 @@ import {
   deleteDraftOrder,
   createInquiryOrder
 } from '../controllers/orderController.js';
+import {
+  checkoutInstallmentOrder,
+  getInstallmentEligibility,
+  sellerConfirmInstallmentSale,
+  sellerInstallmentAnalytics,
+  sellerValidateInstallmentPayment,
+  uploadInstallmentPaymentProof
+} from '../controllers/installmentController.js';
 import { checkOrderReviewReminderStatus } from '../controllers/reviewReminderController.js';
 import {
   getOrderMessages,
@@ -62,6 +70,31 @@ adminRouter.post('/:id/reminder', validate(schemas.idParam, 'params'), adminSend
 router.use('/admin', adminRouter);
 
 router.post('/checkout', validate(schemas.orderCheckout), userCheckoutOrder);
+router.post(
+  '/installment/checkout',
+  validate(schemas.installmentCheckout),
+  checkoutInstallmentOrder
+);
+router.get('/installment/eligibility', getInstallmentEligibility);
+router.post(
+  '/:id/installment/payments/:scheduleIndex/proof',
+  validate(schemas.installmentScheduleParam, 'params'),
+  validate(schemas.installmentPaymentProofSubmit),
+  uploadInstallmentPaymentProof
+);
+router.patch(
+  '/seller/:id/installment/confirm-sale',
+  validate(schemas.idParam, 'params'),
+  validate(schemas.installmentSaleConfirmation),
+  sellerConfirmInstallmentSale
+);
+router.patch(
+  '/seller/:id/installment/payments/:scheduleIndex/validate',
+  validate(schemas.installmentScheduleParam, 'params'),
+  validate(schemas.installmentPaymentValidation),
+  sellerValidateInstallmentPayment
+);
+router.get('/seller/installment/analytics', sellerInstallmentAnalytics);
 router.post('/inquiry', validate(schemas.orderInquiry), createInquiryOrder);
 router.post('/draft', saveDraftOrder);
 router.get('/draft', getDraftOrders);

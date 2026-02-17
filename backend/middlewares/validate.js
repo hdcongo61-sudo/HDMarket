@@ -64,6 +64,14 @@ export const schemas = {
     category: Joi.string().min(2).max(60).required(),
     condition: Joi.string().valid('new', 'used').default('used'),
     discount: Joi.number().min(0).max(99.99).default(0),
+    installmentEnabled: Joi.boolean().truthy('true').falsy('false').optional(),
+    installmentMinAmount: Joi.number().min(0).optional(),
+    installmentDuration: Joi.number().integer().min(1).optional(),
+    installmentStartDate: Joi.date().iso().optional().allow('', null),
+    installmentEndDate: Joi.date().iso().optional().allow('', null),
+    installmentLatePenaltyRate: Joi.number().min(0).max(100).optional(),
+    installmentMaxMissedPayments: Joi.number().integer().min(1).max(12).optional(),
+    installmentRequireGuarantor: Joi.boolean().truthy('true').falsy('false').optional()
   }),
   productUpdate: Joi.object({
     title: Joi.string().min(2).max(120),
@@ -71,6 +79,14 @@ export const schemas = {
     category: Joi.string().min(2).max(60),
     condition: Joi.string().valid('new', 'used'),
     discount: Joi.number().min(0).max(99.99),
+    installmentEnabled: Joi.boolean().truthy('true').falsy('false'),
+    installmentMinAmount: Joi.number().min(0),
+    installmentDuration: Joi.number().integer().min(1),
+    installmentStartDate: Joi.date().iso().allow('', null),
+    installmentEndDate: Joi.date().iso().allow('', null),
+    installmentLatePenaltyRate: Joi.number().min(0).max(100),
+    installmentMaxMissedPayments: Joi.number().integer().min(1).max(12),
+    installmentRequireGuarantor: Joi.boolean().truthy('true').falsy('false'),
     removeImages: Joi.array().items(Joi.string().max(500)).max(3).single(),
     removeVideo: Joi.boolean().truthy('true').falsy('false'),
     removePdf: Joi.boolean().truthy('true').falsy('false')
@@ -125,18 +141,104 @@ export const schemas = {
   }),
   paymentCreate: Joi.object({
     productId: Joi.string().hex().length(24).required(),
-    payerName: Joi.string().min(2).max(120).required(),
+    promoCode: Joi.string().trim().uppercase().max(40).allow('', null),
+    payerName: Joi.string().min(2).max(120).allow('', null),
     transactionNumber: Joi.string()
       .pattern(/^\d{10}$/)
-      .required()
+      .allow('', null)
       .messages({ 'string.pattern.base': 'Le numéro de transaction doit contenir exactement 10 chiffres.' }),
-    amount: Joi.number().min(0).required(),
-    operator: Joi.string().valid('MTN', 'Airtel', 'Orange', 'Moov', 'Other').required(),
+    amount: Joi.number().min(0).default(0),
+    operator: Joi.string().valid('MTN', 'Airtel', 'Orange', 'Moov', 'Other').allow('', null),
   }),
+  promoCodeValidate: Joi.object({
+    productId: Joi.string().hex().length(24).required(),
+    code: Joi.string().trim().uppercase().min(3).max(40).required()
+  }),
+  promoCodeCreate: Joi.object({
+    code: Joi.string().trim().uppercase().min(3).max(40).optional().allow('', null),
+    autoGenerate: Joi.boolean().default(false),
+    codePrefix: Joi.string().trim().uppercase().max(8).allow('', null),
+    codeLength: Joi.number().integer().min(4).max(16).default(8),
+    discountType: Joi.string().valid('percentage', 'full_waiver').required(),
+    discountValue: Joi.number().min(0).max(100).required(),
+    usageLimit: Joi.number().integer().min(1).required(),
+    startDate: Joi.date().iso().required(),
+    endDate: Joi.date().iso().allow('', null),
+    isActive: Joi.boolean().default(true),
+    referralTag: Joi.string().trim().max(80).allow('', null),
+    isFlashPromo: Joi.boolean().default(false),
+    flashDurationHours: Joi.number().integer().min(1).max(720).allow(null)
+  }),
+  promoCodeUpdate: Joi.object({
+    code: Joi.string().trim().uppercase().min(3).max(40),
+    discountType: Joi.string().valid('percentage', 'full_waiver'),
+    discountValue: Joi.number().min(0).max(100),
+    usageLimit: Joi.number().integer().min(1),
+    startDate: Joi.date().iso(),
+    endDate: Joi.date().iso().allow('', null),
+    isActive: Joi.boolean(),
+    referralTag: Joi.string().trim().max(80).allow('', null),
+    isFlashPromo: Joi.boolean(),
+    flashDurationHours: Joi.number().integer().min(1).max(720).allow(null)
+  }).min(1),
+  promoCodeToggle: Joi.object({
+    isActive: Joi.boolean().required()
+  }),
+  promoCodeGenerate: Joi.object({
+    prefix: Joi.string().trim().uppercase().max(8).allow('', null),
+    length: Joi.number().integer().min(4).max(16).default(8)
+  }),
+  promoCommissionPreview: Joi.object({
+    code: Joi.string().trim().uppercase().max(40).allow('', null),
+    productPrice: Joi.number().min(0).required()
+  }),
+  marketplacePromoCreate: Joi.object({
+    code: Joi.string().trim().uppercase().min(3).max(40).required(),
+    appliesTo: Joi.string().valid('boutique', 'product').required(),
+    productId: Joi.string().hex().length(24).allow('', null),
+    discountType: Joi.string().valid('percentage', 'fixed').required(),
+    discountValue: Joi.number().positive().required(),
+    usageLimit: Joi.number().integer().min(1).required(),
+    startDate: Joi.date().iso().required(),
+    endDate: Joi.date().iso().required(),
+    isActive: Joi.boolean().default(true)
+  }),
+  marketplacePromoUpdate: Joi.object({
+    code: Joi.string().trim().uppercase().min(3).max(40),
+    appliesTo: Joi.string().valid('boutique', 'product'),
+    productId: Joi.string().hex().length(24).allow('', null),
+    discountType: Joi.string().valid('percentage', 'fixed'),
+    discountValue: Joi.number().positive(),
+    usageLimit: Joi.number().integer().min(1),
+    startDate: Joi.date().iso(),
+    endDate: Joi.date().iso(),
+    isActive: Joi.boolean()
+  }).min(1),
+  marketplacePromoToggle: Joi.object({
+    isActive: Joi.boolean().required()
+  }),
+  marketplacePromoPreview: Joi.object({
+    code: Joi.string().trim().uppercase().min(3).max(40).required(),
+    productId: Joi.string().hex().length(24),
+    quantity: Joi.number().integer().min(1).default(1),
+    items: Joi.array()
+      .items(
+        Joi.object({
+          productId: Joi.string().hex().length(24).required(),
+          quantity: Joi.number().integer().min(1).default(1)
+        })
+      )
+      .min(1)
+  })
+    .or('productId', 'items')
+    .required(),
   publicQuery: Joi.object({
     q: Joi.string().allow(''),
     category: Joi.string().allow(''),
     city: Joi.string().valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'),
+    userCity: Joi.string().valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'),
+    locationPriority: Joi.boolean().truthy('true').falsy('false'),
+    nearMe: Joi.boolean().truthy('true').falsy('false'),
     certified: Joi.boolean().truthy('true').falsy('false'),
     minPrice: Joi.number().min(0),
     maxPrice: Joi.number().min(0),
@@ -144,11 +246,16 @@ export const schemas = {
       .valid('new', 'newest', 'price_asc', 'price_desc', 'discount', 'popular')
       .default('new'),
     shopVerified: Joi.string().valid('true', 'false').allow(''),
+    installmentOnly: Joi.boolean().truthy('true').falsy('false'),
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(50).default(12),
   }),
   idParam: Joi.object({
     id: Joi.string().hex().length(24).required()
+  }),
+  installmentScheduleParam: Joi.object({
+    id: Joi.string().hex().length(24).required(),
+    scheduleIndex: Joi.number().integer().min(0).required()
   }),
   restrictionParam: Joi.object({
     id: Joi.string().hex().length(24).required(),
@@ -217,7 +324,8 @@ export const schemas = {
               transactionCode: Joi.string()
                 .pattern(/^\d{10}$/)
                 .required()
-                .messages({ 'string.pattern.base': 'Le code de transaction doit contenir exactement 10 chiffres.' })
+                .messages({ 'string.pattern.base': 'Le code de transaction doit contenir exactement 10 chiffres.' }),
+              promoCode: Joi.string().trim().uppercase().min(3).max(40).allow('', null)
             })
           )
           .min(1)
@@ -228,12 +336,62 @@ export const schemas = {
         transactionCode: Joi.string()
           .pattern(/^\d{10}$/)
           .required()
-          .messages({ 'string.pattern.base': 'Le code de transaction doit contenir exactement 10 chiffres.' })
+          .messages({ 'string.pattern.base': 'Le code de transaction doit contenir exactement 10 chiffres.' }),
+        promoCode: Joi.string().trim().uppercase().min(3).max(40).allow('', null)
       })
     )
     .required(),
+  installmentCheckout: Joi.object({
+    productId: Joi.string().hex().length(24).required(),
+    quantity: Joi.number().integer().min(1).default(1),
+    firstPaymentAmount: Joi.number().positive().required(),
+    payerName: Joi.string().min(2).max(120).required(),
+    transactionCode: Joi.string()
+      .pattern(/^\d{10}$/)
+      .required()
+      .messages({ 'string.pattern.base': 'Le code de transaction doit contenir exactement 10 chiffres.' }),
+    guarantor: Joi.alternatives()
+      .try(
+        Joi.object({
+          fullName: Joi.string().max(120).allow('', null),
+          phone: Joi.string().max(30).allow('', null),
+          relation: Joi.string().max(120).allow('', null),
+          nationalId: Joi.string().max(120).allow('', null),
+          address: Joi.string().max(250).allow('', null)
+        }),
+        Joi.string().max(2000)
+      )
+      .optional()
+  }),
+  installmentPaymentProofSubmit: Joi.object({
+    payerName: Joi.string().min(2).max(120).required(),
+    transactionCode: Joi.string()
+      .pattern(/^\d{10}$/)
+      .required()
+      .messages({ 'string.pattern.base': 'Le code de transaction doit contenir exactement 10 chiffres.' }),
+    amount: Joi.number().positive().required()
+  }),
+  installmentSaleConfirmation: Joi.object({
+    approve: Joi.boolean().required()
+  }),
+  installmentPaymentValidation: Joi.object({
+    approve: Joi.boolean().required(),
+    note: Joi.string().max(500).allow('', null)
+  }),
   orderStatusUpdate: Joi.object({
-    status: Joi.string().valid('pending', 'confirmed', 'delivering', 'delivered', 'cancelled').required()
+    status: Joi.string()
+      .valid(
+        'pending',
+        'pending_installment',
+        'installment_active',
+        'overdue_installment',
+        'confirmed',
+        'delivering',
+        'delivered',
+        'completed',
+        'cancelled'
+      )
+      .required()
   }),
   orderAddressUpdate: Joi.object({
     deliveryAddress: Joi.string().min(4).max(300).required(),
@@ -268,7 +426,19 @@ export const schemas = {
     }).unknown(true).allow(null).optional()
   }).optional(),
   sellerOrderStatusUpdate: Joi.object({
-    status: Joi.string().valid('pending', 'confirmed', 'delivering', 'delivered', 'cancelled').required()
+    status: Joi.string()
+      .valid(
+        'pending',
+        'pending_installment',
+        'installment_active',
+        'overdue_installment',
+        'confirmed',
+        'delivering',
+        'delivered',
+        'completed',
+        'cancelled'
+      )
+      .required()
   }),
   sellerCancelOrder: Joi.object({
     reason: Joi.string().trim().min(5).max(500).required().messages({
@@ -278,7 +448,17 @@ export const schemas = {
     })
   }),
   orderUpdate: Joi.object({
-    status: Joi.string().valid('pending', 'confirmed', 'delivering', 'delivered', 'cancelled'),
+    status: Joi.string().valid(
+      'pending',
+      'pending_installment',
+      'installment_active',
+      'overdue_installment',
+      'confirmed',
+      'delivering',
+      'delivered',
+      'completed',
+      'cancelled'
+    ),
     deliveryAddress: Joi.string().min(4).max(300),
     deliveryCity: Joi.string().valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'),
     trackingNote: Joi.string().max(500).allow('', null),
@@ -336,6 +516,14 @@ export const schemas = {
     order_reminder: Joi.boolean(),
     order_delivering: Joi.boolean(),
     order_delivered: Joi.boolean(),
+    installment_due_reminder: Joi.boolean(),
+    installment_overdue_warning: Joi.boolean(),
+    installment_payment_submitted: Joi.boolean(),
+    installment_payment_validated: Joi.boolean(),
+    installment_sale_confirmation_required: Joi.boolean(),
+    installment_sale_confirmed: Joi.boolean(),
+    installment_completed: Joi.boolean(),
+    installment_product_suspended: Joi.boolean(),
     review_reminder: Joi.boolean(),
     order_address_updated: Joi.boolean(),
     order_message: Joi.boolean(),

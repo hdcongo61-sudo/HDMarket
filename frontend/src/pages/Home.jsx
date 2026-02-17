@@ -9,7 +9,7 @@ import { Navigation, Pagination, Autoplay } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
-import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User } from "lucide-react";
+import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame } from "lucide-react";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
 import { buildProductPath, buildShopPath } from "../utils/links";
 import AuthContext from "../context/AuthContext";
@@ -27,6 +27,8 @@ export default function Home() {
   const [certifiedProducts, setCertifiedProducts] = useState([]);
   const [category, setCategory] = useState("");
   const [sort, setSort] = useState("new");
+  const [installmentOnlyFilter, setInstallmentOnlyFilter] = useState(false);
+  const [nearMeOnlyFilter, setNearMeOnlyFilter] = useState(false);
   const [page, setPage] = useState(1);
   const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
@@ -44,6 +46,7 @@ export default function Home() {
     topDiscounts: [],
     newProducts: [],
     usedProducts: [],
+    installmentProducts: [],
     cityHighlights: {}
   });
   const [highlightLoading, setHighlightLoading] = useState(false);
@@ -54,6 +57,11 @@ export default function Home() {
   const [totalProducts, setTotalProducts] = useState(0);
   const [verifiedShops, setVerifiedShops] = useState([]);
   const [verifiedLoading, setVerifiedLoading] = useState(false);
+  const [promoShops, setPromoShops] = useState([]);
+  const [promoShopsLoading, setPromoShopsLoading] = useState(false);
+  const [flashDeals, setFlashDeals] = useState([]);
+  const [flashDealsLoading, setFlashDealsLoading] = useState(false);
+  const [flashNow, setFlashNow] = useState(() => Date.now());
   const [heroBanner, setHeroBanner] = useState('');
   const [promoBanner, setPromoBanner] = useState('');
   const [promoBannerMobile, setPromoBannerMobile] = useState('');
@@ -64,12 +72,33 @@ export default function Home() {
   const [appLogoMobile, setAppLogoMobile] = useState('');
   const [splashShown, setSplashShown] = useState(false);
   const [topProductsTab, setTopProductsTab] = useState('favorites');
+  const [installmentProducts, setInstallmentProducts] = useState([]);
+  const [installmentLoading, setInstallmentLoading] = useState(false);
+  const [shouldLoadInstallment, setShouldLoadInstallment] = useState(false);
+  const installmentSectionRef = useRef(null);
 const cityList = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
 const externalLinkProps = useDesktopExternalLink();
+const hasUserCity = useMemo(
+  () => Boolean(user?.city && cityList.includes(user.city)),
+  [user?.city]
+);
 const formatCurrency = (value) =>
   `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
 const formatCount = (value) =>
   Number(value || 0).toLocaleString('fr-FR');
+const formatCountdown = (endDate, nowMs = Date.now()) => {
+  const endMs = new Date(endDate || '').getTime();
+  if (!Number.isFinite(endMs) || endMs <= nowMs) return 'Expiré';
+  const totalSeconds = Math.floor((endMs - nowMs) / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (days > 0) return `${days}j ${hours.toString().padStart(2, '0')}h`;
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds
+    .toString()
+    .padStart(2, '0')}`;
+};
   const defaultPromoBanner = '/promo-default.svg';
   const buildHomeProductLink = useCallback(
     (product) => {
@@ -95,19 +124,20 @@ const formatCount = (value) =>
   }, [parsePromoDate, promoBanner, promoBannerEndAt, promoBannerStartAt, promoNow]);
   const showMobileSplash = isMobileView && !splashShown && loading && page === 1;
 
-  // === PARAMÈTRES DE RECHERCHE ===
-  const params = useMemo(() => {
-    const p = { page, limit: 12, sort };
-    if (category) p.category = category;
-    return p;
-  }, [category, page, sort]);
-
   // === CHARGEMENT DES PRODUITS ===
   const loadProducts = useCallback(async () => {
     setLoading(true);
     try {
       const requestParams = { page, limit: 12, sort };
       if (category) requestParams.category = category;
+      if (installmentOnlyFilter) requestParams.installmentOnly = true;
+      if (hasUserCity) {
+        requestParams.userCity = user.city;
+        requestParams.locationPriority = true;
+      }
+      if (nearMeOnlyFilter && hasUserCity) {
+        requestParams.nearMe = true;
+      }
       const { data } = await api.get("/products/public", { params: requestParams });
       const fetchedItems = Array.isArray(data) ? data : data.items || [];
       const pages = Array.isArray(data) ? 1 : data.pagination?.pages || 1;
@@ -122,13 +152,25 @@ const formatCount = (value) =>
     } finally {
       setLoading(false);
     }
-  }, [page, sort, category, isMobileView]);
+  }, [page, sort, category, installmentOnlyFilter, hasUserCity, nearMeOnlyFilter, isMobileView, user?.city]);
+
+  const loadInstallmentProducts = useCallback(async () => {
+    setInstallmentLoading(true);
+    try {
+      const { data } = await api.get('/products/public/installments', {
+        params: { page: 1, limit: 8 }
+      });
+      setInstallmentProducts(Array.isArray(data?.items) ? data.items : []);
+    } catch (error) {
+      console.error('Erreur chargement produits tranche:', error);
+      setInstallmentProducts([]);
+    } finally {
+      setInstallmentLoading(false);
+    }
+  }, []);
 
   const loadCertifiedProducts = useCallback(async () => {
     try {
-      console.debug('loading certified products', {
-        params: { certified: true, sort: 'recent', limit: 8, page: 1 }
-      });
       const { data } = await api.get("/products/public", {
         params: {
           certified: true,
@@ -236,6 +278,7 @@ const formatCount = (value) =>
           topDiscounts: Array.isArray(data?.topDiscounts) ? data.topDiscounts : [],
           newProducts: Array.isArray(data?.newProducts) ? data.newProducts : [],
           usedProducts: Array.isArray(data?.usedProducts) ? data.usedProducts : [],
+          installmentProducts: Array.isArray(data?.installmentProducts) ? data.installmentProducts : [],
           cityHighlights:
             data?.cityHighlights && typeof data.cityHighlights === 'object'
               ? data.cityHighlights
@@ -261,6 +304,25 @@ const formatCount = (value) =>
       setVerifiedShops([]);
     } finally {
       setVerifiedLoading(false);
+    }
+  };
+
+  const loadPromoHomeData = async () => {
+    setPromoShopsLoading(true);
+    setFlashDealsLoading(true);
+    try {
+      const { data } = await api.get('/marketplace-promo-codes/public/home', {
+        params: { shopLimit: 8, flashLimit: 8 }
+      });
+      setPromoShops(Array.isArray(data?.promoShops) ? data.promoShops : []);
+      setFlashDeals(Array.isArray(data?.flashDeals) ? data.flashDeals : []);
+    } catch (error) {
+      console.error('Erreur chargement promos homepage:', error);
+      setPromoShops([]);
+      setFlashDeals([]);
+    } finally {
+      setPromoShopsLoading(false);
+      setFlashDealsLoading(false);
     }
   };
 
@@ -334,11 +396,17 @@ const loadDiscountProducts = async () => {
   useEffect(() => {
     initialPageRef.current = 1;
     setPage(1);
-  }, [sort, category]);
+  }, [sort, category, installmentOnlyFilter, nearMeOnlyFilter]);
 
   useEffect(() => {
     loadProducts();
-  }, [page, sort, category, isMobileView]);
+  }, [page, sort, category, installmentOnlyFilter, isMobileView, loadProducts]);
+
+  useEffect(() => {
+    if (!hasUserCity && nearMeOnlyFilter) {
+      setNearMeOnlyFilter(false);
+    }
+  }, [hasUserCity, nearMeOnlyFilter]);
 
   useEffect(() => {
     setSearchParams(
@@ -391,6 +459,29 @@ const loadDiscountProducts = async () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [isMobileView, loading, page, totalPages]);
 
+  useEffect(() => {
+    if (!installmentSectionRef.current) return undefined;
+    if (shouldLoadInstallment) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry?.isIntersecting) {
+          setShouldLoadInstallment(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '180px' }
+    );
+    observer.observe(installmentSectionRef.current);
+    return () => observer.disconnect();
+  }, [shouldLoadInstallment]);
+
+  useEffect(() => {
+    if (!shouldLoadInstallment) return;
+    loadInstallmentProducts();
+  }, [shouldLoadInstallment, loadInstallmentProducts]);
+
   const loadTopSales = async () => {
     setTopSalesLoading(true);
     try {
@@ -411,9 +502,18 @@ const loadDiscountProducts = async () => {
     loadHighlights();
     loadDiscountProducts();
     loadVerifiedShops();
+    loadPromoHomeData();
     loadCertifiedProducts();
     loadTopSales();
   }, []);
+
+  useEffect(() => {
+    if (!flashDeals.length) return undefined;
+    const timer = setInterval(() => {
+      setFlashNow(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [flashDeals.length]);
 
   const cityHighlights = highlights.cityHighlights || {};
 
@@ -470,10 +570,11 @@ const loadDiscountProducts = async () => {
 
   // === MOBILE COMPACT FEED LAYOUT (Proposal A) ===
   const renderMobileHome = () => {
-    const allDeals = [
+    const fallbackDeals = [
       ...highlights.topDeals.slice(0, 4),
       ...discountProducts.filter(p => !highlights.topDeals.some(d => d._id === p._id)).slice(0, 4)
     ].slice(0, 8);
+    const displayFlashDeals = (flashDeals.length ? flashDeals : fallbackDeals).slice(0, 8);
 
     const scrollStyle = { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' };
 
@@ -526,7 +627,7 @@ const loadDiscountProducts = async () => {
         })()}
 
         {/* Flash Deals Horizontal Strip */}
-        {!highlightLoading && allDeals.length > 0 && (
+        {!(highlightLoading && flashDealsLoading) && displayFlashDeals.length > 0 && (
           <section>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -540,7 +641,7 @@ const loadDiscountProducts = async () => {
               </Link>
             </div>
             <div className="flex gap-2.5 overflow-x-auto pb-2 hide-scrollbar" style={scrollStyle}>
-              {allDeals.map((product, idx) => (
+              {displayFlashDeals.map((product, idx) => (
                 <Link
                   key={`flash-${product._id}-${idx}`}
                   to={buildHomeProductLink(product)}
@@ -549,6 +650,11 @@ const loadDiscountProducts = async () => {
                 >
                   <div className="relative aspect-square bg-gray-100">
                     <img src={product.images?.[0] || '/api/placeholder/200/200'} alt={product.title} className="w-full h-full object-cover" loading="lazy" />
+                    {product.flashPromo?.endDate && (
+                      <span className="absolute bottom-1.5 left-1.5 bg-black/75 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md">
+                        {formatCountdown(product.flashPromo.endDate, flashNow)}
+                      </span>
+                    )}
                     {product.discount > 0 && (
                       <span className="absolute top-1.5 left-1.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow">
                         -{product.discount}%
@@ -557,17 +663,61 @@ const loadDiscountProducts = async () => {
                   </div>
                   <div className="p-2">
                     <p className="text-xs font-bold text-gray-900 truncate">
-                      {Number(product.price || 0).toLocaleString()} F
+                      {Number(product.promoPrice ?? product.price ?? 0).toLocaleString()} F
                     </p>
                     {product.priceBeforeDiscount > product.price && (
                       <p className="text-[10px] text-gray-400 line-through">
                         {Number(product.priceBeforeDiscount).toLocaleString()} F
                       </p>
                     )}
+                    {Number(product.promoSavedAmount || 0) > 0 && (
+                      <p className="text-[10px] text-emerald-600 font-semibold">
+                        Éco: {Number(product.promoSavedAmount).toLocaleString()} F
+                      </p>
+                    )}
                   </div>
                 </Link>
               ))}
             </div>
+          </section>
+        )}
+
+        {/* Boutiques en promo cette semaine */}
+        {(!promoShopsLoading || promoShops.length > 0) && (
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-rose-500 rounded-lg flex items-center justify-center">
+                  <Flame className="w-3.5 h-3.5 text-white" />
+                </div>
+                <h2 className="text-sm font-bold text-gray-900">Boutiques en promo cette semaine</h2>
+              </div>
+            </div>
+            {promoShops.length > 0 ? (
+              <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar" style={scrollStyle}>
+                {promoShops.slice(0, 8).map((shop) => (
+                  <Link
+                    key={`promo-shop-mobile-${shop._id}`}
+                    to={buildShopPath(shop)}
+                    className="flex-shrink-0 flex items-center gap-2.5 px-3 py-2.5 bg-white rounded-xl border border-gray-100 shadow-sm min-w-[180px]"
+                  >
+                    <img
+                      src={shop.shopLogo || '/api/placeholder/40/40'}
+                      alt={shop.shopName}
+                      className="w-9 h-9 rounded-lg object-cover border border-gray-100"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-gray-900 truncate">{shop.shopName}</p>
+                      <p className="text-[10px] text-rose-600 font-semibold">
+                        {shop.activePromoCountNow || shop.promoCountThisWeek} promo(s)
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500">Aucune boutique en promo cette semaine.</p>
+            )}
           </section>
         )}
 
@@ -769,6 +919,61 @@ const loadDiscountProducts = async () => {
           ))}
         </div>
 
+        <label className="flex items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700">
+          <input
+            type="checkbox"
+            checked={installmentOnlyFilter}
+            onChange={(e) => {
+              setInstallmentOnlyFilter(e.target.checked);
+              setPage(1);
+            }}
+            className="h-4 w-4 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
+          />
+          Afficher uniquement les produits en tranche
+        </label>
+        {hasUserCity && (
+          <label className="flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700">
+            <input
+              type="checkbox"
+              checked={nearMeOnlyFilter}
+              onChange={(e) => {
+                setNearMeOnlyFilter(e.target.checked);
+                setPage(1);
+              }}
+              className="h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+            />
+            Voir uniquement dans ma ville
+          </label>
+        )}
+
+        <section ref={installmentSectionRef}>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-bold text-gray-900">
+              Produits disponibles en paiement par tranche
+            </h2>
+            <Link to="/products?installmentOnly=true" className="text-xs font-semibold text-indigo-600">
+              Voir tout
+            </Link>
+          </div>
+          {installmentLoading && !installmentProducts.length ? (
+            <div className="grid grid-cols-2 gap-2">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={`installment-skeleton-${index}`} className="h-48 animate-pulse rounded-xl bg-gray-200" />
+              ))}
+            </div>
+          ) : (installmentProducts.length || highlights.installmentProducts?.length) > 0 ? (
+            <div className="grid grid-cols-2 gap-2">
+              {(installmentProducts.length ? installmentProducts : highlights.installmentProducts)
+                .slice(0, 4)
+                .map((product) => (
+                  <ProductCard key={`installment-mobile-${product._id}`} p={product} productLink={buildHomeProductLink(product)} />
+                ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500">Aucun produit en tranche disponible actuellement.</p>
+          )}
+        </section>
+
         {/* All Products Grid */}
         <section>
           <div className="flex items-center justify-between mb-3">
@@ -781,6 +986,12 @@ const loadDiscountProducts = async () => {
                 <p className="text-xs text-gray-500 font-medium">
                   <span className="tabular-nums font-semibold text-indigo-600">{formatCount(totalProducts)}</span> annonces
                 </p>
+                {hasUserCity && (
+                  <p className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                    <MapPin className="h-3 w-3" />
+                    Produits près de vous
+                  </p>
+                )}
               </div>
             </div>
             <Link
@@ -894,10 +1105,11 @@ const loadDiscountProducts = async () => {
 
   // === DESKTOP WIDE MULTI-ZONE LAYOUT (Proposal A) ===
   const renderDesktopHome = () => {
-    const allDeals = [
+    const fallbackDeals = [
       ...highlights.topDeals.slice(0, 4),
       ...discountProducts.filter(p => !highlights.topDeals.some(d => d._id === p._id)).slice(0, 4)
     ].slice(0, 4);
+    const displayFlashDeals = (flashDeals.length ? flashDeals : fallbackDeals).slice(0, 4);
 
     const topProductsTabData = {
       favorites: { items: highlights.favorites, icon: Heart, label: 'Top Favoris', link: '/top-favorites', iconColor: 'text-pink-600', bgColor: 'bg-pink-600' },
@@ -1009,15 +1221,15 @@ const loadDiscountProducts = async () => {
                 Voir tout <ChevronRight className="w-3 h-3 ml-0.5" />
               </Link>
             </div>
-            {highlightLoading ? (
+            {highlightLoading && flashDealsLoading ? (
               <div className="grid grid-cols-2 gap-3 flex-1">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="animate-pulse bg-gray-100 rounded-xl aspect-square" />
                 ))}
               </div>
-            ) : allDeals.length > 0 ? (
+            ) : displayFlashDeals.length > 0 ? (
               <div className="grid grid-cols-2 gap-3 flex-1">
-                {allDeals.map((product, idx) => (
+                {displayFlashDeals.map((product, idx) => (
                   <Link
                     key={`deal-panel-${product._id}-${idx}`}
                     to={buildHomeProductLink(product)}
@@ -1026,14 +1238,24 @@ const loadDiscountProducts = async () => {
                   >
                     <div className="relative aspect-square bg-gray-100">
                       <img src={product.images?.[0] || '/api/placeholder/200/200'} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
+                      {product.flashPromo?.endDate && (
+                        <span className="absolute bottom-1.5 left-1.5 bg-black/75 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md">
+                          {formatCountdown(product.flashPromo.endDate, flashNow)}
+                        </span>
+                      )}
                       {product.discount > 0 && (
                         <span className="absolute top-1.5 left-1.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow">-{product.discount}%</span>
                       )}
                     </div>
                     <div className="p-2">
-                      <p className="text-sm font-bold text-gray-900">{Number(product.price || 0).toLocaleString()} F</p>
+                      <p className="text-sm font-bold text-gray-900">{Number(product.promoPrice ?? product.price ?? 0).toLocaleString()} F</p>
                       {product.priceBeforeDiscount > product.price && (
                         <p className="text-[10px] text-gray-400 line-through">{Number(product.priceBeforeDiscount).toLocaleString()} F</p>
+                      )}
+                      {Number(product.promoSavedAmount || 0) > 0 && (
+                        <p className="text-[10px] text-emerald-600 font-semibold">
+                          Éco: {Number(product.promoSavedAmount).toLocaleString()} F
+                        </p>
                       )}
                     </div>
                   </Link>
@@ -1214,6 +1436,83 @@ const loadDiscountProducts = async () => {
           </section>
         </div>
 
+        <section className="bg-white rounded-2xl border border-rose-100 shadow-sm p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-rose-500 rounded-lg flex items-center justify-center">
+                <Flame className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-gray-900">Boutiques en promo cette semaine</h2>
+                <p className="text-xs text-gray-500">Offres actives et remises en cours</p>
+              </div>
+            </div>
+          </div>
+          {promoShopsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={`promo-shop-skeleton-${index}`} className="h-24 animate-pulse rounded-xl bg-gray-100" />
+              ))}
+            </div>
+          ) : promoShops.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              {promoShops.slice(0, 8).map((shop) => (
+                <Link
+                  key={`promo-shop-desktop-${shop._id}`}
+                  to={buildShopPath(shop)}
+                  className="rounded-xl border border-rose-100 bg-rose-50/50 px-3 py-3 hover:bg-rose-50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={shop.shopLogo || '/api/placeholder/48/48'}
+                      alt={shop.shopName}
+                      className="w-11 h-11 rounded-lg object-cover border border-rose-100"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{shop.shopName}</p>
+                      <p className="text-xs text-rose-700 font-semibold">
+                        {shop.activePromoCountNow || shop.promoCountThisWeek} promo(s) actives
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">Aucune boutique en promo cette semaine.</p>
+          )}
+        </section>
+
+        <section ref={installmentSectionRef} className="bg-white rounded-2xl border border-indigo-100 shadow-sm p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-bold text-gray-900">
+              Produits disponibles en paiement par tranche
+            </h2>
+            <Link to="/products?installmentOnly=true" className="text-xs font-semibold text-indigo-600">
+              Voir tout
+            </Link>
+          </div>
+          {installmentLoading && !installmentProducts.length ? (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={`installment-desktop-skeleton-${index}`} className="h-56 animate-pulse rounded-xl bg-gray-200" />
+              ))}
+            </div>
+          ) : (installmentProducts.length || highlights.installmentProducts?.length) > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              {(installmentProducts.length ? installmentProducts : highlights.installmentProducts)
+                .slice(0, 4)
+                .map((product) => (
+                  <ProductCard key={`installment-desktop-${product._id}`} p={product} productLink={buildHomeProductLink(product)} />
+                ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">
+              Aucun produit en tranche disponible actuellement.
+            </p>
+          )}
+        </section>
+
         {/* Découvrir plus: quick-links to dedicated pages */}
         <section className="hidden lg:block">
           <div className="flex items-center gap-2 mb-3">
@@ -1275,11 +1574,45 @@ const loadDiscountProducts = async () => {
         <section>
           {/* Inline filter bar */}
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-            <h2 className="text-xl font-bold text-gray-900">
-              Tous les produits
-              <span className="text-sm font-normal text-gray-500 ml-2">({formatCount(totalProducts)})</span>
-            </h2>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">
+                Tous les produits
+                <span className="text-sm font-normal text-gray-500 ml-2">({formatCount(totalProducts)})</span>
+              </h2>
+              {hasUserCity && (
+                <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                  <MapPin className="h-3.5 w-3.5" />
+                  Produits près de vous
+                </p>
+              )}
+            </div>
             <div className="flex items-center gap-2 flex-wrap">
+              <label className="inline-flex items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700">
+                <input
+                  type="checkbox"
+                  checked={installmentOnlyFilter}
+                  onChange={(e) => {
+                    setInstallmentOnlyFilter(e.target.checked);
+                    setPage(1);
+                  }}
+                  className="h-4 w-4 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                Afficher uniquement les produits en tranche
+              </label>
+              {hasUserCity && (
+                <label className="inline-flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700">
+                  <input
+                    type="checkbox"
+                    checked={nearMeOnlyFilter}
+                    onChange={(e) => {
+                      setNearMeOnlyFilter(e.target.checked);
+                      setPage(1);
+                    }}
+                    className="h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  Voir uniquement dans ma ville
+                </label>
+              )}
               {/* Sort dropdown */}
               <select
                 value={sort}

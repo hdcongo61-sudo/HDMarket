@@ -4,7 +4,7 @@ import storage from '../utils/storage.js';
 import indexedDB, { STORES } from '../utils/indexedDB.js';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5001/api',
+  baseURL: import.meta.env.VITE_API_URL || `http://localhost:5001/api`,
   withCredentials: true,
 });
 
@@ -16,6 +16,8 @@ const CACHE_STORAGE_KEY = 'hdmarket:cache-keys'; // Track all cache keys for cle
 // Endpoints that should be cached with their TTL (in ms)
 const CACHE_CONFIG = {
   '/products/public': 3 * 60 * 1000, // 3 minutes
+  '/products/public/installments': 3 * 60 * 1000, // 3 minutes
+  '/marketplace-promo-codes/public/home': 3 * 60 * 1000, // 3 minutes
   '/shops': 5 * 60 * 1000, // 5 minutes (includes /shops/verified page data)
   '/shops/verified': 5 * 60 * 1000, // 5 minutes – verified shops page
   '/settings': 10 * 60 * 1000, // 10 minutes

@@ -4,35 +4,123 @@ import Product from '../models/productModel.js';
 import User from '../models/userModel.js';
 import { createNotification } from '../utils/notificationService.js';
 import { invalidateProductCache } from '../utils/cache.js';
+import { calculateCommissionBreakdown, normalizePromoCode } from '../utils/promoCodeUtils.js';
+import { consumePromoCodeForSeller, previewPromoForSeller } from '../utils/promoCodeService.js';
 
 const isCloseTo = (a, b, tolerance = 0.01) => Math.abs(a - b) <= tolerance;
 
 export const createPayment = asyncHandler(async (req, res) => {
-  const { productId, payerName, transactionNumber, amount, operator } = req.body;
-  if (!productId || !payerName || !transactionNumber || !amount || !operator)
-    return res.status(400).json({ message: 'Missing fields' });
+  const { productId, payerName, transactionNumber, amount, operator, promoCode } = req.body;
+  if (!productId) return res.status(400).json({ message: 'Missing productId' });
 
   const product = await Product.findById(productId);
   if (!product) return res.status(404).json({ message: 'Product not found' });
   if (product.user.toString() !== req.user.id && req.user.role !== 'admin')
     return res.status(403).json({ message: 'Forbidden' });
 
-  // Vérifier 3%
-  const expected = +(product.price * 0.03).toFixed(2);
-  const received = +(+amount).toFixed(2);
-  if (!(isCloseTo(received, expected, 0.02) || received >= expected)) {
-    return res.status(400).json({ message: `Amount must be ~3% of price (${expected}).` });
+  const existingPayment = await Payment.findOne({
+    product: product._id,
+    status: { $in: ['waiting', 'verified'] }
+  })
+    .select('_id status')
+    .lean();
+  if (existingPayment) {
+    return res
+      .status(409)
+      .json({ message: 'Un paiement existe déjà pour ce produit et attend une validation.' });
   }
 
-  const payment = await Payment.create({
+  const sellerId = req.user.id;
+  const normalizedPromo = normalizePromoCode(promoCode);
+
+  let promoPreview = null;
+  if (normalizedPromo) {
+    promoPreview = await previewPromoForSeller({
+      code: normalizedPromo,
+      sellerId,
+      productPrice: product.price
+    });
+    if (!promoPreview.valid) {
+      return res.status(400).json({
+        message: promoPreview.message,
+        reason: promoPreview.reason
+      });
+    }
+  }
+
+  let commission = promoPreview?.commission || calculateCommissionBreakdown({ productPrice: product.price });
+  let received = +(+(amount || 0)).toFixed(2);
+
+  const normalizedTransaction = String(transactionNumber || '').replace(/\D/g, '');
+  const hasCommissionDue = Number(commission.dueAmount || 0) > 0;
+
+  if (hasCommissionDue) {
+    if (!payerName || !operator || normalizedTransaction.length !== 10) {
+      return res.status(400).json({
+        message:
+          'Les informations de paiement sont requises (nom, opérateur, numéro de transaction 10 chiffres).'
+      });
+    }
+
+    if (!(isCloseTo(received, commission.dueAmount, 0.02) || received >= commission.dueAmount)) {
+      return res.status(400).json({
+        message: `Amount must be ~commission due (${commission.dueAmount}).`
+      });
+    }
+  } else {
+    received = 0;
+  }
+
+  const paymentPayload = {
     user: req.user.id,
     product: product._id,
-    payerName,
-    transactionNumber,
+    payerName: hasCommissionDue ? payerName : 'PROMO_WAIVER',
+    transactionNumber: hasCommissionDue ? normalizedTransaction : '0000000000',
     amount: received,
-    operator,
+    commissionBaseAmount: Number(commission.baseAmount || 0),
+    commissionDiscountAmount: Number(commission.discountAmount || 0),
+    commissionDueAmount: Number(commission.dueAmount || 0),
+    waivedByPromo: Boolean(commission.isWaived && normalizedPromo),
+    promoCodeValue: normalizedPromo || '',
+    promoDiscountType: promoPreview?.promo?.discountType || null,
+    promoDiscountValue: Number(promoPreview?.promo?.discountValue || 0),
+    operator: hasCommissionDue ? operator : 'Other',
     status: 'waiting'
-  });
+  };
+
+  let payment = await Payment.create(paymentPayload);
+
+  if (normalizedPromo) {
+    try {
+      const consumed = await consumePromoCodeForSeller({
+        code: normalizedPromo,
+        sellerId,
+        product,
+        paymentId: payment._id,
+        ipAddress: req.ip || null,
+        userAgent: req.headers['user-agent'] || null
+      });
+
+      if (consumed?.promo) {
+        commission = consumed.commission;
+        payment.promoCode = consumed.promo._id;
+        payment.promoCodeValue = consumed.promo.code;
+        payment.promoDiscountType = consumed.promo.discountType;
+        payment.promoDiscountValue = Number(consumed.promo.discountValue || 0);
+        payment.waivedByPromo = Boolean(consumed.commission?.isWaived);
+        payment.commissionBaseAmount = Number(consumed.commission?.baseAmount || 0);
+        payment.commissionDiscountAmount = Number(consumed.commission?.discountAmount || 0);
+        payment.commissionDueAmount = Number(consumed.commission?.dueAmount || 0);
+        await payment.save();
+      }
+    } catch (error) {
+      await Payment.deleteOne({ _id: payment._id });
+      return res.status(error.status || 400).json({
+        message: error.message || 'Code promo invalide ou expiré.',
+        reason: error.code || 'promo_invalid'
+      });
+    }
+  }
 
   product.payment = payment._id;
   product.status = 'pending';
@@ -52,8 +140,12 @@ export const createPayment = asyncHandler(async (req, res) => {
         productId: product._id,
         productTitle: product.title || '',
         amount: received,
-        operator,
-        payerName,
+        commissionBaseAmount: Number(commission.baseAmount || 0),
+        commissionDiscountAmount: Number(commission.discountAmount || 0),
+        commissionDueAmount: Number(commission.dueAmount || 0),
+        promoCode: payment.promoCodeValue || '',
+        operator: payment.operator,
+        payerName: payment.payerName,
         waitingCount
       };
 
@@ -82,10 +174,9 @@ export const createPayment = asyncHandler(async (req, res) => {
 });
 
 export const getMyPayments = asyncHandler(async (req, res) => {
-  const payments = await Payment.find({ user: req.user.id }).populate(
-    'product',
-    'title price status images slug'
-  );
+  const payments = await Payment.find({ user: req.user.id })
+    .populate('product', 'title price status images slug')
+    .populate('promoCode', 'code discountType discountValue');
   res.json(payments);
 });
 
@@ -124,6 +215,7 @@ export const listPaymentsAdmin = asyncHandler(async (req, res) => {
   const payments = await Payment.find(query)
     .populate('user', 'name email')
     .populate('product', 'title price status images slug')
+    .populate('promoCode', 'code discountType discountValue usageLimit usedCount')
     .populate('validatedBy', 'name email');
   res.json(payments);
 });

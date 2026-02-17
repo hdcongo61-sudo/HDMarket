@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Star, Users, Bell, Settings, Check, X, Trash2, Filter, ChevronDown, Clock, MessageSquare, Heart, Package, ShoppingBag, AlertCircle, CheckCircle2, XCircle, Tag, Store, CreditCard, Truck, Timer, BellRing, Archive, Sparkles, ChevronRight } from 'lucide-react';
+import { Star, Users, Bell, Settings, Check, X, Trash2, Filter, ChevronDown, Clock, MessageSquare, Heart, Package, ShoppingBag, AlertCircle, CheckCircle2, XCircle, Tag, Store, CreditCard, Truck, Timer, BellRing, Archive, Sparkles, ChevronRight, ClipboardList } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import useUserNotifications, { triggerNotificationsRefresh } from '../hooks/useUserNotifications';
 import useIsMobile from '../hooks/useIsMobile';
@@ -23,6 +23,14 @@ const DEFAULT_NOTIFICATION_PREFERENCES = {
   order_reminder: true,
   order_delivering: true,
   order_delivered: true,
+  installment_due_reminder: true,
+  installment_overdue_warning: true,
+  installment_payment_submitted: true,
+  installment_payment_validated: true,
+  installment_sale_confirmation_required: true,
+  installment_sale_confirmed: true,
+  installment_completed: true,
+  installment_product_suspended: true,
   order_cancelled: true,
   feedback_read: true,
   complaint_created: true,
@@ -32,6 +40,30 @@ const DEFAULT_NOTIFICATION_PREFERENCES = {
   account_restriction_lifted: true,
   shop_conversion_approved: true,
   shop_conversion_rejected: true
+};
+
+const SELLER_ORDER_NOTIFICATION_TYPES = new Set([
+  'order_received',
+  'order_reminder',
+  'installment_sale_confirmation_required',
+  'installment_payment_submitted',
+  'order_address_updated',
+  'installment_product_suspended'
+]);
+
+const buildOrderNotificationPath = (alert, user) => {
+  const orderId = String(alert?.metadata?.orderId || '').trim();
+  if (!orderId) return '';
+
+  if (user?.role === 'admin' || user?.role === 'manager') {
+    return `/admin/orders?orderId=${encodeURIComponent(orderId)}`;
+  }
+
+  if (SELLER_ORDER_NOTIFICATION_TYPES.has(alert?.type)) {
+    return `/seller/orders/detail/${orderId}`;
+  }
+
+  return `/orders/detail/${orderId}`;
 };
 
 const formatDateTime = (value) => {
@@ -136,6 +168,14 @@ const NotificationPreferences = ({ preferences, onUpdate }) => {
                 { key: 'order_received', label: 'Nouvelles commandes', icon: Package },
                 { key: 'order_reminder', label: 'Relances commandes', icon: Timer },
                 { key: 'order_delivered', label: 'Commandes livrées', icon: CheckCircle2 },
+                { key: 'installment_due_reminder', label: 'Rappels échéances tranche', icon: Timer },
+                { key: 'installment_overdue_warning', label: 'Alertes tranche en retard', icon: AlertCircle },
+                { key: 'installment_payment_submitted', label: 'Preuves tranche soumises', icon: CreditCard },
+                { key: 'installment_payment_validated', label: 'Tranches validées', icon: CheckCircle2 },
+                { key: 'installment_sale_confirmation_required', label: 'Vente tranche à confirmer', icon: ClipboardList },
+                { key: 'installment_sale_confirmed', label: 'Vente tranche confirmée', icon: CheckCircle2 },
+                { key: 'installment_completed', label: 'Paiements tranche terminés', icon: Sparkles },
+                { key: 'installment_product_suspended', label: 'Tranche suspendue produit', icon: XCircle },
                 { key: 'order_cancelled', label: 'Commandes annulées', icon: XCircle },
                 { key: 'feedback_read', label: 'Avis lus', icon: Check },
                 { key: 'complaint_created', label: 'Nouvelles réclamations', icon: AlertCircle },
@@ -288,6 +328,46 @@ export default function Notifications() {
       badgeClass: 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800',
       icon: <CheckCircle2 className="w-4 h-4" />
     },
+    installment_due_reminder: {
+      label: 'Échéance tranche',
+      badgeClass: 'bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800',
+      icon: <Timer className="w-4 h-4" />
+    },
+    installment_overdue_warning: {
+      label: 'Tranche en retard',
+      badgeClass: 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800',
+      icon: <AlertCircle className="w-4 h-4" />
+    },
+    installment_payment_submitted: {
+      label: 'Preuve soumise',
+      badgeClass: 'bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800',
+      icon: <CreditCard className="w-4 h-4" />
+    },
+    installment_payment_validated: {
+      label: 'Tranche validée',
+      badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800',
+      icon: <CheckCircle2 className="w-4 h-4" />
+    },
+    installment_sale_confirmation_required: {
+      label: 'Confirmation de vente',
+      badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800',
+      icon: <ClipboardList className="w-4 h-4" />
+    },
+    installment_sale_confirmed: {
+      label: 'Vente confirmée',
+      badgeClass: 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800',
+      icon: <CheckCircle2 className="w-4 h-4" />
+    },
+    installment_completed: {
+      label: 'Tranches terminées',
+      badgeClass: 'bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800',
+      icon: <Sparkles className="w-4 h-4" />
+    },
+    installment_product_suspended: {
+      label: 'Tranche suspendue',
+      badgeClass: 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800',
+      icon: <XCircle className="w-4 h-4" />
+    },
     order_cancelled: {
       label: 'Commande annulée',
       badgeClass: 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800',
@@ -356,6 +436,8 @@ export default function Notifications() {
 
   const renderAlert = (alert, isUnread, isGrouped = false) => {
     const productStatus = alert.product?.status;
+    const orderPath = buildOrderNotificationPath(alert, user);
+    const orderCode = alert?.metadata?.orderId ? String(alert.metadata.orderId).slice(-6) : '';
     const config = typeConfig[alert.type] || {
       label: 'Notification',
       badgeClass: 'bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600',
@@ -507,18 +589,6 @@ export default function Notifications() {
                 </div>
               )}
 
-              {alert.type === 'order_delivered' && alert.metadata?.orderId && (
-                <div className="mt-4 pt-4 border-t-2 border-gray-200 dark:border-gray-700">
-                  <Link
-                    to={`/orders/delivered?orderId=${alert.metadata.orderId}`}
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-emerald-700 dark:text-emerald-400 bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-900/20 dark:to-emerald-900/10 hover:from-emerald-100 hover:to-emerald-100 dark:hover:from-emerald-900/30 dark:hover:to-emerald-900/20 transition-all duration-200 border-2 border-emerald-200 dark:border-emerald-800 active:scale-95"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span className="truncate">Voir commande livrée</span>
-                  </Link>
-                </div>
-              )}
-
               {alert.type === 'order_cancelled' && (
                 <div className="mt-4 space-y-3">
                   {alert.metadata?.reason && (
@@ -530,17 +600,20 @@ export default function Notifications() {
                       <p className="text-sm text-red-700 dark:text-red-300 italic leading-relaxed">"{alert.metadata.reason}"</p>
                     </div>
                   )}
-                  {alert.metadata?.orderId && (
-                    <div className="pt-4 border-t-2 border-gray-200 dark:border-gray-700">
-                      <Link
-                        to={`/orders?status=cancelled&orderId=${alert.metadata.orderId}`}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-red-700 dark:text-red-400 bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-900/10 hover:from-red-100 hover:to-red-100 dark:hover:from-red-900/30 dark:hover:to-red-900/20 transition-all duration-200 border-2 border-red-200 dark:border-red-800 active:scale-95"
-                      >
-                        <XCircle className="w-4 h-4" />
-                        Voir commande annulée
-                      </Link>
-                    </div>
-                  )}
+                </div>
+              )}
+
+              {orderPath && (
+                <div className="mt-4 pt-4 border-t-2 border-gray-200 dark:border-gray-700">
+                  <Link
+                    to={orderPath}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-indigo-700 dark:text-indigo-400 bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/20 dark:to-indigo-900/10 hover:from-indigo-100 hover:to-indigo-100 dark:hover:from-indigo-900/30 dark:hover:to-indigo-900/20 transition-all duration-200 border-2 border-indigo-200 dark:border-indigo-800 active:scale-95"
+                  >
+                    <ClipboardList className="w-4 h-4" />
+                    <span className="truncate">
+                      Voir la commande{orderCode ? ` #${orderCode}` : ''}
+                    </span>
+                  </Link>
                 </div>
               )}
 
@@ -675,6 +748,14 @@ export default function Notifications() {
     { key: 'order_received', label: 'Nouvelles commandes', count: alerts.filter(a => a.type === 'order_received').length, icon: Package },
     { key: 'order_reminder', label: 'Relances', count: alerts.filter(a => a.type === 'order_reminder').length, icon: Timer },
     { key: 'order_delivered', label: 'Livrées', count: alerts.filter(a => a.type === 'order_delivered').length, icon: CheckCircle2 },
+    { key: 'installment_due_reminder', label: 'Échéances tranche', count: alerts.filter(a => a.type === 'installment_due_reminder').length, icon: Timer },
+    { key: 'installment_overdue_warning', label: 'Retards tranche', count: alerts.filter(a => a.type === 'installment_overdue_warning').length, icon: AlertCircle },
+    { key: 'installment_payment_submitted', label: 'Preuves tranche', count: alerts.filter(a => a.type === 'installment_payment_submitted').length, icon: CreditCard },
+    { key: 'installment_payment_validated', label: 'Tranches validées', count: alerts.filter(a => a.type === 'installment_payment_validated').length, icon: CheckCircle2 },
+    { key: 'installment_sale_confirmation_required', label: 'Ventes à confirmer', count: alerts.filter(a => a.type === 'installment_sale_confirmation_required').length, icon: ClipboardList },
+    { key: 'installment_sale_confirmed', label: 'Ventes confirmées', count: alerts.filter(a => a.type === 'installment_sale_confirmed').length, icon: CheckCircle2 },
+    { key: 'installment_completed', label: 'Paiements terminés', count: alerts.filter(a => a.type === 'installment_completed').length, icon: Sparkles },
+    { key: 'installment_product_suspended', label: 'Tranche suspendue', count: alerts.filter(a => a.type === 'installment_product_suspended').length, icon: XCircle },
     { key: 'order_cancelled', label: 'Annulées', count: alerts.filter(a => a.type === 'order_cancelled').length, icon: XCircle },
     { key: 'feedback_read', label: 'Avis lus', count: alerts.filter(a => a.type === 'feedback_read').length, icon: Check },
     { key: 'complaint_created', label: 'Réclamations', count: alerts.filter(a => a.type === 'complaint_created').length, icon: AlertCircle },

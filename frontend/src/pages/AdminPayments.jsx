@@ -527,9 +527,13 @@ export default function AdminPayments() {
                     </p>
                     <p>Email : {payment.user?.email || '—'}</p>
                     <p>Opérateur : {payment.operator || '—'}</p>
+                    {payment.promoCodeValue ? (
+                      <p className="text-emerald-700">Code promo : {payment.promoCodeValue}</p>
+                    ) : null}
                     <p className="font-semibold text-gray-900">
                       Montant reçu : {formatCurrency(payment.amount)}
                     </p>
+                    <p>Commission due : {formatCurrency(payment.commissionDueAmount ?? payment.amount)}</p>
                     {payment.status === 'verified' && payment.validatedBy ? (
                       <p className="text-xs text-green-600">
                         Validé par {payment.validatedBy.name}
@@ -667,9 +671,17 @@ export default function AdminPayments() {
                       <td className="p-2 border align-top">
                         <p className="font-medium text-gray-900">{payment.payerName || '—'}</p>
                         <p className="text-xs text-gray-500">{payment.user?.email}</p>
+                        {payment.promoCodeValue ? (
+                          <p className="text-xs text-emerald-700 font-semibold">{payment.promoCodeValue}</p>
+                        ) : null}
                       </td>
                       <td className="p-2 border align-top">{payment.operator || '—'}</td>
-                      <td className="p-2 border align-top">{formatCurrency(payment.amount)}</td>
+                      <td className="p-2 border align-top">
+                        <p className="font-medium">{formatCurrency(payment.amount)}</p>
+                        <p className="text-xs text-gray-500">
+                          Due: {formatCurrency(payment.commissionDueAmount ?? payment.amount)}
+                        </p>
+                      </td>
                       <td className="p-2 border align-top">
                         {payment.status === 'verified' && payment.validatedBy ? (
                           <div>

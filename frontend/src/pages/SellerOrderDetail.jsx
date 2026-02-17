@@ -31,33 +31,74 @@ import { useToast } from '../context/ToastContext';
 
 const STATUS_LABELS = {
   pending: 'En attente',
+  pending_installment: 'Validation de vente en attente',
+  installment_active: 'Paiement par tranche actif',
+  overdue_installment: 'Tranche en retard',
   confirmed: 'Commande confirmée',
   delivering: 'En cours de livraison',
   delivered: 'Commande terminée',
+  completed: 'Paiement terminé',
   cancelled: 'Commande annulée'
 };
 
 const STATUS_STYLES = {
   pending: { header: 'bg-gray-600', card: 'bg-gray-50 border-gray-200 text-gray-700' },
+  pending_installment: { header: 'bg-violet-600', card: 'bg-violet-50 border-violet-200 text-violet-800' },
+  installment_active: { header: 'bg-indigo-600', card: 'bg-indigo-50 border-indigo-200 text-indigo-800' },
+  overdue_installment: { header: 'bg-rose-600', card: 'bg-rose-50 border-rose-200 text-rose-800' },
   confirmed: { header: 'bg-amber-600', card: 'bg-amber-50 border-amber-200 text-amber-800' },
   delivering: { header: 'bg-blue-600', card: 'bg-blue-50 border-blue-200 text-blue-800' },
   delivered: { header: 'bg-emerald-600', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
+  completed: { header: 'bg-emerald-700', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
   cancelled: { header: 'bg-red-600', card: 'bg-red-50 border-red-200 text-red-800' }
 };
 
 const STATUS_ICONS = {
   pending: Clock,
+  pending_installment: Clock,
+  installment_active: CreditCard,
+  overdue_installment: AlertCircle,
   confirmed: Package,
   delivering: Truck,
   delivered: CheckCircle,
+  completed: CheckCircle,
   cancelled: X
 };
 
-const ORDER_FLOW = [
+const INSTALLMENT_SALE_STATUS_LABELS = {
+  confirmed: 'Confirmée',
+  delivering: 'En cours de livraison',
+  delivered: 'Livrée',
+  cancelled: 'Annulée'
+};
+
+const getInstallmentSaleStatusClassName = (status) => {
+  switch (status) {
+    case 'delivered':
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    case 'delivering':
+      return 'bg-blue-50 text-blue-700 border-blue-200';
+    case 'cancelled':
+      return 'bg-red-50 text-red-700 border-red-200';
+    case 'confirmed':
+    default:
+      return 'bg-amber-50 text-amber-700 border-amber-200';
+  }
+};
+
+const CLASSIC_ORDER_FLOW = [
   { id: 'pending', label: 'Commande en attente', description: 'En attente de confirmation.', icon: Clock, color: 'gray' },
   { id: 'confirmed', label: 'Commande confirmée', description: 'Prête pour la préparation.', icon: Package, color: 'amber' },
   { id: 'delivering', label: 'En cours de livraison', description: 'Colis pris en charge.', icon: Truck, color: 'blue' },
   { id: 'delivered', label: 'Commande terminée', description: 'Livrée avec succès.', icon: CheckCircle, color: 'emerald' },
+  { id: 'cancelled', label: 'Commande annulée', description: 'Cette commande a été annulée.', icon: X, color: 'red' }
+];
+
+const INSTALLMENT_ORDER_FLOW = [
+  { id: 'pending_installment', label: 'Validation de vente', description: 'Confirmez la preuve de vente du client.', icon: Clock, color: 'violet' },
+  { id: 'installment_active', label: 'Plan actif', description: 'Les tranches sont en cours de validation.', icon: CreditCard, color: 'indigo' },
+  { id: 'overdue_installment', label: 'Retard', description: 'Une ou plusieurs tranches sont en retard.', icon: AlertCircle, color: 'rose' },
+  { id: 'completed', label: 'Paiement terminé', description: 'Toutes les tranches sont validées.', icon: CheckCircle, color: 'emerald' },
   { id: 'cancelled', label: 'Commande annulée', description: 'Cette commande a été annulée.', icon: X, color: 'red' }
 ];
 
@@ -74,10 +115,52 @@ const formatOrderTimestamp = (value) =>
 
 const formatCurrency = (value) => `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
 
-const OrderProgress = ({ status }) => {
-  const currentIndexRaw = ORDER_FLOW.findIndex((step) => step.id === status);
+const getScheduleStatusLabel = (status) => {
+  switch (status) {
+    case 'paid':
+      return 'Payé';
+    case 'proof_uploaded':
+      return 'Preuve reçue';
+    case 'overdue':
+      return 'En retard';
+    case 'waived':
+      return 'Annulé';
+    case 'pending':
+    default:
+      return 'En attente';
+  }
+};
+
+const getScheduleStatusClassName = (status) => {
+  switch (status) {
+    case 'paid':
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    case 'proof_uploaded':
+      return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+    case 'overdue':
+      return 'bg-rose-50 text-rose-700 border-rose-200';
+    case 'waived':
+      return 'bg-gray-100 text-gray-700 border-gray-200';
+    case 'pending':
+    default:
+      return 'bg-amber-50 text-amber-700 border-amber-200';
+  }
+};
+
+const OrderProgress = ({ status, paymentType }) => {
+  const flow = paymentType === 'installment' ? INSTALLMENT_ORDER_FLOW : CLASSIC_ORDER_FLOW;
+  const currentIndexRaw = flow.findIndex((step) => step.id === status);
   const currentIndex = currentIndexRaw >= 0 ? currentIndexRaw : 0;
-  const colorClasses = { gray: 'bg-gray-600', amber: 'bg-amber-600', blue: 'bg-blue-600', emerald: 'bg-emerald-600', red: 'bg-red-600' };
+  const colorClasses = {
+    gray: 'bg-gray-600',
+    amber: 'bg-amber-600',
+    blue: 'bg-blue-600',
+    emerald: 'bg-emerald-600',
+    red: 'bg-red-600',
+    violet: 'bg-violet-600',
+    indigo: 'bg-indigo-600',
+    rose: 'bg-rose-600'
+  };
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-5">
       <div className="flex items-center gap-2 mb-4">
@@ -88,10 +171,10 @@ const OrderProgress = ({ status }) => {
       </div>
       <div className="relative">
         <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200">
-          <div className="absolute top-0 left-0 w-full bg-indigo-600 transition-all duration-500" style={{ height: `${(currentIndex / (ORDER_FLOW.length - 1)) * 100}%` }} />
+          <div className="absolute top-0 left-0 w-full bg-indigo-600 transition-all duration-500" style={{ height: `${(currentIndex / (flow.length - 1)) * 100}%` }} />
         </div>
         <div className="space-y-6 relative">
-          {ORDER_FLOW.filter((s) => s.id !== 'cancelled').map((step, index) => {
+          {flow.filter((s) => s.id !== 'cancelled').map((step, index) => {
             const Icon = step.icon;
             const reached = currentIndex >= index;
             return (
@@ -126,6 +209,8 @@ export default function SellerOrderDetail() {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [saleConfirmationLoading, setSaleConfirmationLoading] = useState(false);
+  const [paymentValidationLoadingIndex, setPaymentValidationLoadingIndex] = useState(-1);
 
   const loadOrder = useCallback(async () => {
     if (!orderId) return;
@@ -164,6 +249,53 @@ export default function SellerOrderDetail() {
       showToast(message, { variant: 'error' });
     } finally {
       setStatusUpdatingId('');
+    }
+  };
+
+  const handleConfirmInstallmentSale = async (approve) => {
+    if (!order) return;
+    setSaleConfirmationLoading(true);
+    try {
+      const { data } = await api.patch(`/orders/seller/${order._id}/installment/confirm-sale`, {
+        approve
+      });
+      if (data?._id) {
+        setOrder(data);
+      } else {
+        await loadOrder();
+      }
+      showToast(
+        approve
+          ? 'Preuve de vente confirmée. Le plan de tranches est activé.'
+          : 'Commande tranche refusée et annulée.',
+        { variant: 'success' }
+      );
+    } catch (err) {
+      const message = err.response?.data?.message || 'Impossible de traiter la preuve de vente.';
+      showToast(message, { variant: 'error' });
+    } finally {
+      setSaleConfirmationLoading(false);
+    }
+  };
+
+  const handleValidateInstallmentPayment = async (scheduleIndex, approve) => {
+    if (!order) return;
+    setPaymentValidationLoadingIndex(scheduleIndex);
+    try {
+      const { data } = await api.patch(
+        `/orders/seller/${order._id}/installment/payments/${scheduleIndex}/validate`,
+        { approve }
+      );
+      setOrder(data);
+      showToast(
+        approve ? 'Tranche validée.' : 'Tranche rejetée. Le client doit renvoyer une preuve.',
+        { variant: 'success' }
+      );
+    } catch (err) {
+      const message = err.response?.data?.message || 'Impossible de valider cette tranche.';
+      showToast(message, { variant: 'error' });
+    } finally {
+      setPaymentValidationLoadingIndex(-1);
     }
   };
 
@@ -208,9 +340,33 @@ export default function SellerOrderDetail() {
   const totalAmount = Number(order.totalAmount ?? computedTotal);
   const paidAmount = Number(order.paidAmount || 0);
   const remainingAmount = Number(order.remainingAmount ?? Math.max(0, totalAmount - paidAmount));
-  const showPayment = Boolean(paidAmount || order.paymentTransactionCode || order.paymentName);
+  const isInstallmentOrder = order.paymentType === 'installment';
+  const installmentPlan = isInstallmentOrder ? order.installmentPlan || {} : null;
+  const installmentSchedule = Array.isArray(installmentPlan?.schedule) ? installmentPlan.schedule : [];
+  const installmentTotal = Number(installmentPlan?.totalAmount ?? totalAmount);
+  const installmentPaid = Number(installmentPlan?.amountPaid ?? paidAmount);
+  const installmentRemaining = Number(
+    installmentPlan?.remainingAmount ?? Math.max(0, installmentTotal - installmentPaid)
+  );
+  const installmentProgressPercent =
+    installmentTotal > 0 ? Math.min(100, Math.round((installmentPaid / installmentTotal) * 100)) : 0;
+  const saleConfirmationConfirmed = Boolean(installmentPlan?.saleConfirmationConfirmedAt);
+  const installmentSaleStatus =
+    isInstallmentOrder && order.status === 'completed'
+      ? order.installmentSaleStatus || 'confirmed'
+      : order.installmentSaleStatus || '';
+  const showPayment = Boolean(
+    isInstallmentOrder ||
+      paidAmount ||
+      order.paymentTransactionCode ||
+      order.paymentName
+  );
   const StatusIcon = STATUS_ICONS[order.status] || Clock;
   const statusStyle = STATUS_STYLES[order.status] || STATUS_STYLES.pending;
+  const canManageInstallmentSaleStatus =
+    isInstallmentOrder &&
+    order.status === 'completed' &&
+    !['delivered', 'cancelled'].includes(installmentSaleStatus);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -231,7 +387,9 @@ export default function SellerOrderDetail() {
                   <h3 className="text-lg font-bold">#{order._id.slice(-6)}</h3>
                 </div>
               </div>
-              <span className="px-3 py-1.5 rounded-lg bg-white/20 text-xs font-bold uppercase">{STATUS_LABELS[order.status]}</span>
+              <span className="px-3 py-1.5 rounded-lg bg-white/20 text-xs font-bold uppercase">
+                {STATUS_LABELS[order.status] || order.status}
+              </span>
             </div>
           </div>
 
@@ -324,19 +482,70 @@ export default function SellerOrderDetail() {
               <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 space-y-3">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Total commande</span>
-                  <span className="text-lg font-bold text-gray-900">{formatCurrency(totalAmount)}</span>
+                  <span className="text-lg font-bold text-gray-900">
+                    {formatCurrency(isInstallmentOrder ? installmentTotal : totalAmount)}
+                  </span>
                 </div>
                 {showPayment && (
                   <>
                     <div className="flex justify-between pt-2 border-t border-gray-200">
-                      <span className="text-sm text-gray-600">Acompte versé</span>
-                      <span className="text-sm font-semibold text-emerald-700">{formatCurrency(paidAmount)}</span>
+                      <span className="text-sm text-gray-600">
+                        {isInstallmentOrder ? 'Montant validé' : 'Acompte versé'}
+                      </span>
+                      <span className="text-sm font-semibold text-emerald-700">
+                        {formatCurrency(isInstallmentOrder ? installmentPaid : paidAmount)}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Reste à payer</span>
-                      <span className="text-sm font-semibold text-amber-700">{formatCurrency(remainingAmount)}</span>
+                      <span className="text-sm font-semibold text-amber-700">
+                        {formatCurrency(isInstallmentOrder ? installmentRemaining : remainingAmount)}
+                      </span>
                     </div>
-                    {(order.paymentName || order.paymentTransactionCode) && (
+                    {isInstallmentOrder && (
+                      <>
+                        <div>
+                          <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
+                            <div
+                              className="h-full bg-indigo-600 transition-all duration-300"
+                              style={{ width: `${installmentProgressPercent}%` }}
+                            />
+                          </div>
+                          <p className="mt-1 text-xs text-gray-600">
+                            Progression client: {installmentProgressPercent}%
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-600">
+                          <p>
+                            Prochaine échéance:{' '}
+                            <span className="font-semibold text-gray-900">
+                              {installmentPlan?.nextDueDate
+                                ? formatOrderTimestamp(installmentPlan.nextDueDate)
+                                : 'Aucune'}
+                            </span>
+                          </p>
+                          <p>
+                            Risque client:{' '}
+                            <span className="font-semibold text-gray-900">
+                              {installmentPlan?.riskLevel || 'N/A'} ({Math.round(installmentPlan?.eligibilityScore || 0)}/100)
+                            </span>
+                          </p>
+                        </div>
+                        {order.status === 'completed' && (
+                          <div className="pt-2 border-t border-gray-200">
+                            <p className="text-xs text-gray-600 mb-1">Statut de vente</p>
+                            <span
+                              className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${getInstallmentSaleStatusClassName(
+                                installmentSaleStatus
+                              )}`}
+                            >
+                              {INSTALLMENT_SALE_STATUS_LABELS[installmentSaleStatus] || 'Confirmée'}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {!isInstallmentOrder && (order.paymentName || order.paymentTransactionCode) && (
                       <div className="pt-2 border-t border-gray-200 text-xs text-gray-500">
                         {order.paymentName && <p>Payeur: {order.paymentName}</p>}
                         {order.paymentTransactionCode && <p>Transaction: {order.paymentTransactionCode}</p>}
@@ -346,6 +555,129 @@ export default function SellerOrderDetail() {
                 )}
               </div>
             </div>
+
+            {isInstallmentOrder && (
+              <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4 space-y-3">
+                <h4 className="text-sm font-bold text-gray-900 uppercase flex items-center gap-2">
+                  <Receipt className="w-4 h-4 text-indigo-600" /> Preuve de vente
+                </h4>
+                <p className="text-sm text-gray-700">
+                  Statut:{' '}
+                  <span className="font-semibold">
+                    {saleConfirmationConfirmed ? 'Confirmée' : 'En attente de votre confirmation'}
+                  </span>
+                </p>
+                {installmentPlan?.guarantor?.required && (
+                  <div className="rounded-lg border border-indigo-200 bg-white p-3 text-xs text-gray-700 space-y-1">
+                    <p className="font-semibold text-gray-900">Garant requis</p>
+                    <p>Nom: {installmentPlan?.guarantor?.fullName || 'N/A'}</p>
+                    <p>Téléphone: {installmentPlan?.guarantor?.phone || 'N/A'}</p>
+                    <p>Relation: {installmentPlan?.guarantor?.relation || 'N/A'}</p>
+                    <p>Adresse: {installmentPlan?.guarantor?.address || 'N/A'}</p>
+                  </div>
+                )}
+                {!saleConfirmationConfirmed && order.status === 'pending_installment' && (
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleConfirmInstallmentSale(true)}
+                      disabled={saleConfirmationLoading}
+                      className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      {saleConfirmationLoading ? 'Traitement...' : 'Confirmer la vente'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleConfirmInstallmentSale(false)}
+                      disabled={saleConfirmationLoading}
+                      className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                    >
+                      <X className="w-4 h-4" />
+                      Refuser la vente
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {isInstallmentOrder && (
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-4">
+                <h4 className="text-sm font-bold text-gray-900 uppercase flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-gray-500" /> Échéancier, preuves et validations
+                </h4>
+                {!installmentSchedule.length ? (
+                  <p className="text-sm text-gray-500">Aucune tranche définie.</p>
+                ) : (
+                  installmentSchedule.map((entry, index) => {
+                    const canValidate =
+                      saleConfirmationConfirmed &&
+                      entry?.status === 'proof_uploaded';
+                    return (
+                      <div key={`${order._id}-installment-${index}`} className="rounded-xl border border-gray-200 p-3 space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-gray-900">
+                            Tranche {index + 1} • {formatCurrency(entry?.amount || 0)}
+                          </p>
+                          <span className={`inline-flex items-center rounded-full border px-2 py-1 text-xs font-semibold ${getScheduleStatusClassName(entry?.status)}`}>
+                            {getScheduleStatusLabel(entry?.status)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600">
+                          Échéance: {entry?.dueDate ? formatOrderTimestamp(entry.dueDate) : 'Non définie'}
+                        </p>
+                        {entry?.transactionProof?.transactionCode ? (
+                          <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-2 text-xs text-indigo-900 space-y-1">
+                            <p>
+                              Expéditeur:{' '}
+                              <span className="font-semibold">{entry?.transactionProof?.senderName || 'N/A'}</span>
+                            </p>
+                            <p>
+                              ID transaction:{' '}
+                              <span className="font-semibold">{entry?.transactionProof?.transactionCode || 'N/A'}</span>
+                            </p>
+                            <p>
+                              Montant déclaré:{' '}
+                              <span className="font-semibold">{formatCurrency(entry?.transactionProof?.amount || entry?.amount || 0)}</span>
+                            </p>
+                            {entry?.transactionProof?.submittedAt && (
+                              <p>
+                                Soumis le:{' '}
+                                <span className="font-semibold">{formatOrderTimestamp(entry.transactionProof.submittedAt)}</span>
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-gray-500">Aucune preuve transactionnelle déposée.</p>
+                        )}
+                        {canValidate && (
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleValidateInstallmentPayment(index, true)}
+                              disabled={paymentValidationLoadingIndex === index}
+                              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              {paymentValidationLoadingIndex === index ? 'Validation...' : 'Valider'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleValidateInstallmentPayment(index, false)}
+                              disabled={paymentValidationLoadingIndex === index}
+                              className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                            >
+                              <X className="w-4 h-4" />
+                              Rejeter
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
 
             {order.cancellationWindow?.isActive && order.status !== 'cancelled' && (
               <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-4 space-y-3">
@@ -367,7 +699,65 @@ export default function SellerOrderDetail() {
               <OrderChat order={order} buttonText="Contacter l'acheteur" unreadCount={unreadCount} />
             </div>
 
-            {order.status !== 'cancelled' && order.status !== 'delivered' && (
+            {canManageInstallmentSaleStatus && (
+              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-gray-500" />
+                  <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                    Mettre à jour le statut de vente
+                  </h4>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleStatusUpdate('confirmed')}
+                    disabled={
+                      installmentSaleStatus !== 'confirmed' ||
+                      statusUpdatingId === order._id
+                    }
+                    className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                  >
+                    <Package size={12} /> Confirmée
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleStatusUpdate('delivering')}
+                    disabled={
+                      installmentSaleStatus !== 'confirmed' ||
+                      statusUpdatingId === order._id
+                    }
+                    className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+                  >
+                    <Truck size={12} /> En livraison
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleStatusUpdate('delivered')}
+                    disabled={
+                      installmentSaleStatus !== 'delivering' ||
+                      statusUpdatingId === order._id
+                    }
+                    className="inline-flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-100 disabled:opacity-50"
+                  >
+                    <CheckCircle size={12} /> Livrée
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleStatusUpdate('cancelled')}
+                    disabled={
+                      ['delivered', 'cancelled'].includes(installmentSaleStatus) ||
+                      statusUpdatingId === order._id
+                    }
+                    className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                  >
+                    <X size={12} /> Annuler
+                  </button>
+                </div>
+                {statusUpdateError.id === order._id && <p className="text-xs text-red-600">{statusUpdateError.message}</p>}
+              </div>
+            )}
+
+            {!isInstallmentOrder && order.status !== 'cancelled' && order.status !== 'delivered' && (
               <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-gray-500" />
@@ -411,7 +801,9 @@ export default function SellerOrderDetail() {
               </div>
             )}
 
-            {order.status !== 'cancelled' && <OrderProgress status={order.status} />}
+            {order.status !== 'cancelled' && (
+              <OrderProgress status={order.status} paymentType={order.paymentType} />
+            )}
 
             <div className="flex flex-wrap gap-4 pt-4 border-t border-gray-100 text-xs text-gray-500">
               <span className="flex items-center gap-1.5"><Calendar className="w-3 h-3" /> Créée: {formatOrderTimestamp(order.createdAt)}</span>

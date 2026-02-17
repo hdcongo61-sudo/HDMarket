@@ -17,7 +17,8 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
-  AlertCircle
+  AlertCircle,
+  Ticket
 } from 'lucide-react';
 
 const navItems = [
@@ -29,6 +30,7 @@ const navItems = [
   { to: '/admin/delivery-guys', label: 'Livreurs', icon: Truck, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.canManageDelivery },
   { to: '/admin/complaints', label: 'Réclamations', icon: AlertCircle, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.canManageComplaints },
   { to: '/admin/chat-templates', label: 'Chat templates', icon: MessageSquare, show: (u) => u?.role === 'admin' },
+  { to: '/admin/promo-codes', label: 'Codes promo', icon: Ticket, show: (u) => u?.role === 'admin' },
   { to: '/admin/settings', label: 'Paramètres app', icon: SlidersHorizontal, show: (u) => u?.role === 'admin' },
   { to: '/admin/feedback', label: 'Avis amélioration', icon: MessageSquare, show: (u) => u?.role === 'admin' || u?.canReadFeedback },
   { to: '/admin/payment-verification', label: 'Vérifier paiements', icon: CheckCircle, show: (u) => u?.role === 'admin' || u?.canVerifyPayments },
@@ -45,14 +47,14 @@ export default function AdminLayout() {
   const visibleItems = navItems.filter((item) => item.show(user));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/20 flex">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/20 flex lg:h-[calc(100vh-5rem)] lg:min-h-0 lg:overflow-hidden">
       {/* Desktop sidebar */}
       <aside
-        className={`hidden lg:flex flex-col border-r border-gray-200/80 bg-white/90 backdrop-blur-sm shrink-0 transition-[width] duration-200 ${
+        className={`hidden lg:flex lg:h-full flex-col border-r border-gray-200/80 bg-white/90 backdrop-blur-sm shrink-0 transition-[width] duration-200 ${
           sidebarCollapsed ? 'w-[72px]' : 'w-64'
         }`}
       >
-        <div className="sticky top-0 flex flex-col h-[calc(100vh-5rem)] pt-6 pb-4">
+        <div className="flex flex-col h-full pt-6 pb-4">
           <div className={`flex items-center px-3 ${sidebarCollapsed ? 'justify-center' : 'justify-between'} mb-4`}>
             {!sidebarCollapsed && (
               <div className="flex items-center gap-2 min-w-0">
@@ -73,7 +75,7 @@ export default function AdminLayout() {
               {sidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
             </button>
           </div>
-          <nav className="flex-1 overflow-y-auto px-2 space-y-0.5">
+          <nav className="flex-1 overflow-y-auto overscroll-contain px-2 space-y-0.5">
             {visibleItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -99,7 +101,7 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 min-w-0">
+      <main className="flex-1 min-w-0 lg:h-full lg:overflow-y-auto">
         <Outlet />
       </main>
     </div>

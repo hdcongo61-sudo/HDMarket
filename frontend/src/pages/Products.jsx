@@ -21,6 +21,7 @@ const [searchParams, setSearchParams] = useSearchParams();
 const categoryParam = (searchParams.get('category') || '').trim();
 const sortParam = searchParams.get('sort') || '';
 const shopVerifiedParam = searchParams.get('shopVerified') === 'true';
+const installmentOnlyParam = searchParams.get('installmentOnly') === 'true';
 const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -29,6 +30,7 @@ const [items, setItems] = useState([]);
     return s === 'newest' ? 'new' : s;
   });
   const [shopVerified, setShopVerified] = useState(shopVerifiedParam);
+  const [installmentOnly, setInstallmentOnly] = useState(installmentOnlyParam);
 const pageParam = Number(searchParams.get('page'));
 const initialPageRef = useRef(Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1);
 const [page, setPage] = useState(initialPageRef.current);
@@ -48,7 +50,8 @@ const [isMobileView, setIsMobileView] = useState(() =>
     const s = sortParam || 'new';
     setSort(s === 'newest' ? 'new' : s);
     setShopVerified(shopVerifiedParam);
-  }, [sortParam, shopVerifiedParam]);
+    setInstallmentOnly(installmentOnlyParam);
+  }, [sortParam, shopVerifiedParam, installmentOnlyParam]);
 
   // Initialize search from URL parameter
   const searchParam = searchParams.get('search') || '';
@@ -71,6 +74,7 @@ const fetchProducts = useCallback(async () => {
       if (searchTerm) params.q = searchTerm;
       if (categoryFilter) params.category = categoryFilter;
       if (shopVerified) params.shopVerified = 'true';
+      if (installmentOnly) params.installmentOnly = 'true';
       const { data } = await api.get('/products/public', { params });
       const fetchedItems = Array.isArray(data) ? data : data?.items || [];
       const paginationMeta = Array.isArray(data) ? { pages: 1 } : data?.pagination || {};
@@ -81,14 +85,14 @@ const fetchProducts = useCallback(async () => {
     } finally {
       setLoading(false);
     }
-  }, [page, sort, searchTerm, categoryFilter, shopVerified]);
+  }, [page, sort, searchTerm, categoryFilter, shopVerified, installmentOnly]);
 
   useEffect(() => {
     initialPageRef.current = 1;
     setPage(1);
     setItems([]);
     setTotalPages(1);
-  }, [sort, searchTerm, categoryFilter, shopVerified]);
+  }, [sort, searchTerm, categoryFilter, shopVerified, installmentOnly]);
 
   useEffect(() => {
     if (!isMobileView) return;
@@ -205,6 +209,26 @@ const paginationButtons = useMemo(() => {
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
+  const handleInstallmentFilterChange = useCallback(
+    (enabled) => {
+      setInstallmentOnly(enabled);
+      setSearchParams(
+        (prev) => {
+          const params = new URLSearchParams(prev);
+          if (enabled) {
+            params.set('installmentOnly', 'true');
+          } else {
+            params.delete('installmentOnly');
+          }
+          params.delete('page');
+          return params;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6">
@@ -275,8 +299,27 @@ const paginationButtons = useMemo(() => {
                 <span aria-hidden="true">×</span>
               </button>
             )}
+            {installmentOnly && (
+              <button
+                type="button"
+                onClick={() => handleInstallmentFilterChange(false)}
+                className="inline-flex items-center gap-2 rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-200 transition-colors"
+              >
+                Paiement par tranche
+                <span aria-hidden="true">×</span>
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2">
+            <label className="inline-flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+              <input
+                type="checkbox"
+                checked={installmentOnly}
+                onChange={(event) => handleInstallmentFilterChange(event.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              Tranche uniquement
+            </label>
             <label htmlFor="sort-options" className="text-xs sm:text-sm text-gray-600">
               Trier par
             </label>

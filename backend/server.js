@@ -25,12 +25,15 @@ import orderRoutes from './routes/orderRoutes.js';
 import supportRoutes from './routes/supportRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
+import marketplacePromoCodeRoutes from './routes/marketplacePromoCodeRoutes.js';
 
 import User from './models/userModel.js';
 import ChatMessage from './models/chatMessageModel.js';
+import { createNotification } from './utils/notificationService.js';
 import { setChatSocket } from './sockets/chatSocket.js';
 import { requestTracker, getDailyRequestStats } from './middlewares/requestTracker.js';
 import { sendReviewReminders } from './utils/reviewReminder.js';
+import { processInstallmentReminders } from './utils/installmentReminder.js';
 
 connectDB();
 
@@ -140,6 +143,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/marketplace-promo-codes', marketplacePromoCodeRoutes);
 
 // Global error handler
 // eslint-disable-next-line no-unused-vars
@@ -246,16 +250,55 @@ io.on('connection', (socket) => {
 const port = process.env.PORT || 5010;
 httpServer.listen(port, () => {
   console.log(`Server running on port ${port}`);
+  const schedulerNotificationsEnabled = process.env.SCHEDULER_NOTIFICATIONS_ENABLED === 'true';
+
+  const notifyBackoffice = async ({ title, message, metadata = {} }) => {
+    if (!schedulerNotificationsEnabled) return;
+    try {
+      const recipients = await User.find({ role: { $in: ['admin', 'manager'] } })
+        .select('_id')
+        .lean();
+      if (!recipients.length) return;
+
+      await Promise.all(
+        recipients.map((recipient) =>
+          createNotification({
+            userId: recipient._id,
+            actorId: recipient._id,
+            type: 'admin_broadcast',
+            metadata: {
+              title,
+              message,
+              source: 'scheduler',
+              ...metadata
+            },
+            allowSelf: true
+          })
+        )
+      );
+    } catch (error) {
+      console.error('Failed to send scheduler notification', error);
+    }
+  };
   
   // Schedule review reminder checks every hour
   // Check for delivered orders that are 1+ hour old and send review reminders
   const REVIEW_REMINDER_INTERVAL = 60 * 60 * 1000; // 1 hour
+  const INSTALLMENT_REMINDER_INTERVAL = 60 * 60 * 1000; // 1 hour
   
   const runReviewReminders = async () => {
     try {
       const result = await sendReviewReminders();
       if (result.sent > 0) {
-        console.log(`Review reminders: ${result.sent} sent, ${result.processed} processed`);
+        await notifyBackoffice({
+          title: 'Review reminders exécutés',
+          message: `Rappels avis envoyés: ${result.sent}. Commandes traitées: ${result.processed}.`,
+          metadata: {
+            scheduler: 'review_reminder',
+            sent: result.sent,
+            processed: result.processed
+          }
+        });
       }
     } catch (error) {
       console.error('Error running review reminders:', error);
@@ -267,6 +310,48 @@ httpServer.listen(port, () => {
   
   // Then run every hour
   setInterval(runReviewReminders, REVIEW_REMINDER_INTERVAL);
-  
-  console.log('Review reminder scheduler started (runs every hour)');
+
+  notifyBackoffice({
+    title: 'Scheduler démarré',
+    message: 'Review reminder scheduler started (runs every hour).',
+    metadata: {
+      scheduler: 'review_reminder',
+      intervalMinutes: 60
+    }
+  });
+
+  const runInstallmentReminders = async () => {
+    try {
+      const result = await processInstallmentReminders();
+      if (
+        result.remindersSent > 0 ||
+        result.overdueWarningsSent > 0 ||
+        result.suspendedProducts > 0
+      ) {
+        await notifyBackoffice({
+          title: 'Installment scheduler exécuté',
+          message: `Rappels envoyés: ${result.remindersSent}, retards: ${result.overdueWarningsSent}, produits suspendus: ${result.suspendedProducts}.`,
+          metadata: {
+            scheduler: 'installment',
+            remindersSent: result.remindersSent,
+            overdueWarningsSent: result.overdueWarningsSent,
+            suspendedProducts: result.suspendedProducts
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error running installment scheduler:', error);
+    }
+  };
+
+  setTimeout(runInstallmentReminders, 7 * 60 * 1000);
+  setInterval(runInstallmentReminders, INSTALLMENT_REMINDER_INTERVAL);
+  notifyBackoffice({
+    title: 'Scheduler démarré',
+    message: 'Installment scheduler started (runs every hour).',
+    metadata: {
+      scheduler: 'installment',
+      intervalMinutes: 60
+    }
+  });
 });

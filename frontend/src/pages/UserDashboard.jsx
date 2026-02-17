@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Package,
@@ -33,13 +33,16 @@ import {
   ArrowUp,
   ArrowDown,
   BarChart3,
+  Award,
   Grid3x3,
   List,
   Zap,
-  Sparkles
+  Sparkles,
+  Tag
 } from 'lucide-react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
+import AuthContext from '../context/AuthContext';
 import PaymentForm from '../components/PaymentForm';
 import ProductForm from '../components/ProductForm';
 import ProductAnalytics from '../components/ProductAnalytics';
@@ -93,10 +96,24 @@ const formatDate = (value) => {
   });
 };
 
+const buildDefaultPromoForm = () => ({
+  code: '',
+  appliesTo: 'boutique',
+  productId: '',
+  discountType: 'percentage',
+  discountValue: '',
+  usageLimit: '10',
+  startDate: '',
+  endDate: '',
+  isActive: true
+});
+
 export default function UserDashboard() {
+  const { user } = useContext(AuthContext);
   const { showToast } = useToast();
   const externalLinkProps = useDesktopExternalLink();
   const isMobile = useIsMobile(768);
+  const isShopUser = user?.accountType === 'shop';
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -119,32 +136,148 @@ export default function UserDashboard() {
   const [dateTo, setDateTo] = useState('');
   const [selectedStatuses, setSelectedStatuses] = useState([]);
   const [boostedFilter, setBoostedFilter] = useState('all'); // 'all', 'boosted', 'non-boosted'
+  const [installmentFilter, setInstallmentFilter] = useState('all'); // 'all', 'enabled', 'disabled'
   const [sortBy, setSortBy] = useState('date-desc'); // 'date-desc', 'date-asc', 'price-desc', 'price-asc', 'title-asc', 'title-desc', 'status-asc'
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [savedFilters, setSavedFilters] = useState([]);
   const [filterName, setFilterName] = useState('');
   const [analyticsProduct, setAnalyticsProduct] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
+  const [promoAnalytics, setPromoAnalytics] = useState(null);
+  const [promoAnalyticsLoading, setPromoAnalyticsLoading] = useState(false);
+  const [promoCodes, setPromoCodes] = useState([]);
+  const [promoCodesLoading, setPromoCodesLoading] = useState(false);
+  const [promoCodeStatusFilter, setPromoCodeStatusFilter] = useState('active');
+  const [promoForm, setPromoForm] = useState(buildDefaultPromoForm);
+  const [promoSubmitting, setPromoSubmitting] = useState(false);
+
+  const loadPromoCodes = async (status = promoCodeStatusFilter) => {
+    if (!isShopUser) {
+      setPromoCodes([]);
+      return;
+    }
+    setPromoCodesLoading(true);
+    try {
+      const { data } = await api.get('/marketplace-promo-codes/my', {
+        params: { page: 1, limit: 20, status }
+      });
+      setPromoCodes(Array.isArray(data?.items) ? data.items : []);
+    } catch (e) {
+      const statusCode = e?.response?.status;
+      if (statusCode !== 403) {
+        showToast(e.response?.data?.message || 'Impossible de charger les codes promo.', { variant: 'error' });
+      }
+      setPromoCodes([]);
+    } finally {
+      setPromoCodesLoading(false);
+    }
+  };
+
+  const handleCreatePromoCode = async (event) => {
+    event.preventDefault();
+    if (!isShopUser) return;
+    const startDate = promoForm.startDate ? new Date(promoForm.startDate) : null;
+    const endDate = promoForm.endDate ? new Date(promoForm.endDate) : null;
+    if (!startDate || Number.isNaN(startDate.getTime()) || !endDate || Number.isNaN(endDate.getTime())) {
+      showToast('Veuillez renseigner les dates de début et fin.', { variant: 'error' });
+      return;
+    }
+    if (endDate <= startDate) {
+      showToast('La date de fin doit être postérieure à la date de début.', { variant: 'error' });
+      return;
+    }
+    if (promoForm.appliesTo === 'product' && !promoForm.productId) {
+      showToast('Veuillez sélectionner un produit pour un code produit.', { variant: 'error' });
+      return;
+    }
+
+    setPromoSubmitting(true);
+    try {
+      await api.post('/marketplace-promo-codes/my', {
+        code: promoForm.code.trim().toUpperCase(),
+        appliesTo: promoForm.appliesTo,
+        productId: promoForm.appliesTo === 'product' ? promoForm.productId : null,
+        discountType: promoForm.discountType,
+        discountValue: Number(promoForm.discountValue || 0),
+        usageLimit: Number(promoForm.usageLimit || 1),
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        isActive: Boolean(promoForm.isActive)
+      });
+      showToast('Code promo créé avec succès.', { variant: 'success' });
+      setPromoForm(buildDefaultPromoForm());
+      await Promise.all([loadPromoCodes(promoCodeStatusFilter), load()]);
+    } catch (e) {
+      showToast(e.response?.data?.message || 'Impossible de créer le code promo.', { variant: 'error' });
+    } finally {
+      setPromoSubmitting(false);
+    }
+  };
+
+  const handleTogglePromoCode = async (promoItem) => {
+    if (!promoItem?.id) return;
+    try {
+      await api.patch(`/marketplace-promo-codes/my/${promoItem.id}/toggle`, {
+        isActive: !promoItem.isActive
+      });
+      showToast(!promoItem.isActive ? 'Code promo activé.' : 'Code promo désactivé.', { variant: 'success' });
+      await Promise.all([loadPromoCodes(promoCodeStatusFilter), load()]);
+    } catch (e) {
+      showToast(e.response?.data?.message || 'Impossible de modifier ce code promo.', { variant: 'error' });
+    }
+  };
 
   const load = async () => {
     setLoading(true);
     setError('');
+    if (isShopUser) {
+      setPromoAnalyticsLoading(true);
+    }
     try {
-      const { data } = await api.get('/products');
-      setItems(Array.isArray(data) ? data : []);
+      const requests = [api.get('/products')];
+      if (isShopUser) {
+        requests.push(api.get('/marketplace-promo-codes/my/analytics'));
+      }
+      const [productsResult, promoResult] = await Promise.allSettled(requests);
+
+      if (productsResult.status === 'fulfilled') {
+        const data = productsResult.value?.data;
+        setItems(Array.isArray(data) ? data : []);
+      } else {
+        const productError = productsResult.reason;
+        throw productError;
+      }
+
+      if (isShopUser) {
+        if (promoResult?.status === 'fulfilled') {
+          setPromoAnalytics(promoResult.value?.data || null);
+        } else {
+          setPromoAnalytics(null);
+        }
+      } else {
+        setPromoAnalytics(null);
+      }
       setCurrentPage(1);
     } catch (e) {
       setError(e.response?.data?.message || e.message || 'Impossible de charger vos annonces.');
       showToast(e.response?.data?.message || e.message || 'Erreur de chargement', { variant: 'error' });
     } finally {
       setLoading(false);
+      if (isShopUser) {
+        setPromoAnalyticsLoading(false);
+      }
     }
   };
 
   useEffect(() => {
     load();
     loadSavedFilters();
-  }, []);
+  }, [isShopUser]);
+
+  useEffect(() => {
+    if (!isShopUser) return;
+    loadPromoCodes(promoCodeStatusFilter);
+  }, [isShopUser, promoCodeStatusFilter]);
 
   // Load saved filters from localStorage
   const loadSavedFilters = async () => {
@@ -175,6 +308,8 @@ export default function UserDashboard() {
       dateFrom,
       dateTo,
       selectedStatuses,
+      boostedFilter,
+      installmentFilter,
       sortBy,
       createdAt: new Date().toISOString()
     };
@@ -202,6 +337,7 @@ export default function UserDashboard() {
     setDateTo(filter.dateTo || '');
     setSelectedStatuses(filter.selectedStatuses || []);
     setBoostedFilter(filter.boostedFilter || 'all');
+    setInstallmentFilter(filter.installmentFilter || 'all');
     setSortBy(filter.sortBy || 'date-desc');
     if (filter.selectedStatuses && filter.selectedStatuses.length > 0) {
       setStatusFilter('custom');
@@ -234,6 +370,8 @@ export default function UserDashboard() {
     setDateFrom('');
     setDateTo('');
     setSelectedStatuses([]);
+    setBoostedFilter('all');
+    setInstallmentFilter('all');
     setSortBy('date-desc');
     setStatusFilter('all');
     showToast('Filtres réinitialisés', { variant: 'success' });
@@ -286,6 +424,13 @@ export default function UserDashboard() {
       if (item.category) cats.add(item.category);
     });
     return Array.from(cats).sort();
+  }, [items]);
+
+  const promoEligibleProducts = useMemo(() => {
+    return items
+      .filter((item) => item?.status === 'approved')
+      .map((item) => ({ id: item._id || item.id, title: item.title || 'Produit' }))
+      .filter((item) => Boolean(item.id));
   }, [items]);
 
   // Calculate top performers based on combined metrics
@@ -373,6 +518,13 @@ export default function UserDashboard() {
       filtered = filtered.filter((p) => p.boosted !== true);
     }
 
+    // Filter by installment availability
+    if (installmentFilter === 'enabled') {
+      filtered = filtered.filter((p) => p.installmentEnabled === true);
+    } else if (installmentFilter === 'disabled') {
+      filtered = filtered.filter((p) => p.installmentEnabled !== true);
+    }
+
     // Sort items
     filtered.sort((a, b) => {
       switch (sortBy) {
@@ -398,7 +550,20 @@ export default function UserDashboard() {
     });
 
     return filtered;
-  }, [items, searchQuery, selectedCategories, priceMin, priceMax, dateFrom, dateTo, selectedStatuses, statusFilter, sortBy]);
+  }, [
+    items,
+    searchQuery,
+    selectedCategories,
+    priceMin,
+    priceMax,
+    dateFrom,
+    dateTo,
+    selectedStatuses,
+    statusFilter,
+    boostedFilter,
+    installmentFilter,
+    sortBy
+  ]);
 
   // Pagination
   const totalPages = filteredItems.length ? Math.ceil(filteredItems.length / ITEMS_PER_PAGE) : 1;
@@ -419,7 +584,19 @@ export default function UserDashboard() {
   useEffect(() => {
     setCurrentPage(1);
     setSelectedProducts(new Set()); // Clear selection when filter changes
-  }, [statusFilter, searchQuery, selectedCategories, priceMin, priceMax, dateFrom, dateTo, selectedStatuses, boostedFilter, sortBy]);
+  }, [
+    statusFilter,
+    searchQuery,
+    selectedCategories,
+    priceMin,
+    priceMax,
+    dateFrom,
+    dateTo,
+    selectedStatuses,
+    boostedFilter,
+    installmentFilter,
+    sortBy
+  ]);
 
   // Clear selection when mode changes
   useEffect(() => {
@@ -702,7 +879,7 @@ export default function UserDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 pb-12">
         {/* Statistics Cards */}
         {!loading && stats.total > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 rounded-xl bg-indigo-600">
@@ -742,6 +919,255 @@ export default function UserDashboard() {
               </div>
               <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Valeur totale</p>
               <p className="text-xs text-gray-500 mt-1">Valeur de vos annonces</p>
+            </div>
+          </div>
+        )}
+
+        {!loading && (promoAnalyticsLoading || promoAnalytics) && (
+          <div className="space-y-4 mb-8">
+            {promoAnalytics?.gamification?.isMostGenerousOfMonth ? (
+              <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center">
+                    <Award className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900">Badge vendeur</p>
+                    <p className="text-base font-bold text-amber-800">Boutique la plus généreuse du mois</p>
+                  </div>
+                </div>
+              </div>
+            ) : promoAnalytics?.gamification?.rank ? (
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
+                <p className="text-sm font-semibold text-indigo-900">Classement promo du mois</p>
+                <p className="text-sm text-indigo-700">
+                  Position #{promoAnalytics.gamification.rank} sur {promoAnalytics.gamification.totalParticipants || 0} boutiques.
+                </p>
+              </div>
+            ) : null}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 rounded-xl bg-indigo-600">
+                    <DollarSign className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-2xl font-bold text-gray-900">
+                    {formatCurrency(promoAnalytics?.metrics?.promoRevenueTotal || 0)}
+                  </span>
+                </div>
+                <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Revenus via promo</p>
+                <p className="text-xs text-gray-500 mt-1">Chiffre d’affaires des commandes promo</p>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 rounded-xl bg-emerald-600">
+                    <Sparkles className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-2xl font-bold text-gray-900">
+                    {Number(promoAnalytics?.metrics?.clientsAcquiredViaPromo || 0).toLocaleString('fr-FR')}
+                  </span>
+                </div>
+                <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Clients acquis</p>
+                <p className="text-xs text-gray-500 mt-1">Première commande obtenue via promo</p>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 rounded-xl bg-rose-600">
+                    <TrendingUp className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-2xl font-bold text-gray-900">
+                    {Number(promoAnalytics?.metrics?.conversionRate || 0).toLocaleString('fr-FR')}%
+                  </span>
+                </div>
+                <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Taux conversion</p>
+                <p className="text-xs text-gray-500 mt-1">Part des commandes avec code promo</p>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 rounded-xl bg-amber-600">
+                    <BarChart3 className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-2xl font-bold text-gray-900">
+                    {Number(promoAnalytics?.metrics?.promoOrders || 0).toLocaleString('fr-FR')}
+                  </span>
+                </div>
+                <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Commandes promo</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Sur {Number(promoAnalytics?.metrics?.totalOrders || 0).toLocaleString('fr-FR')} commandes
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!loading && isShopUser && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8 space-y-5">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Gestion des codes promo</h3>
+                <p className="text-sm text-gray-500">
+                  Créez des promos pour toute la boutique ou pour un produit spécifique.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <label htmlFor="promo-status-filter" className="text-xs font-semibold text-gray-500">
+                  Filtre
+                </label>
+                <select
+                  id="promo-status-filter"
+                  value={promoCodeStatusFilter}
+                  onChange={(e) => setPromoCodeStatusFilter(e.target.value)}
+                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                >
+                  <option value="active">Actifs</option>
+                  <option value="all">Tous</option>
+                  <option value="inactive">Inactifs</option>
+                  <option value="expired">Expirés</option>
+                  <option value="upcoming">À venir</option>
+                </select>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreatePromoCode} className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <input
+                  type="text"
+                  value={promoForm.code}
+                  onChange={(e) => setPromoForm((prev) => ({ ...prev, code: e.target.value.toUpperCase() }))}
+                  placeholder="Code (ex: FIRST10)"
+                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                  required
+                />
+                <select
+                  value={promoForm.appliesTo}
+                  onChange={(e) => setPromoForm((prev) => ({ ...prev, appliesTo: e.target.value, productId: '' }))}
+                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                >
+                  <option value="boutique">Toute la boutique</option>
+                  <option value="product">Produit spécifique</option>
+                </select>
+                <select
+                  value={promoForm.discountType}
+                  onChange={(e) => setPromoForm((prev) => ({ ...prev, discountType: e.target.value }))}
+                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                >
+                  <option value="percentage">Pourcentage</option>
+                  <option value="fixed">Montant fixe (FCFA)</option>
+                </select>
+                <input
+                  type="number"
+                  min="1"
+                  value={promoForm.discountValue}
+                  onChange={(e) => setPromoForm((prev) => ({ ...prev, discountValue: e.target.value }))}
+                  placeholder={promoForm.discountType === 'percentage' ? 'Ex: 20 (%)' : 'Ex: 5000 FCFA'}
+                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                  required
+                />
+                <input
+                  type="number"
+                  min="1"
+                  value={promoForm.usageLimit}
+                  onChange={(e) => setPromoForm((prev) => ({ ...prev, usageLimit: e.target.value }))}
+                  placeholder="Limite d'utilisation"
+                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                  required
+                />
+                <input
+                  type="date"
+                  value={promoForm.startDate}
+                  onChange={(e) => setPromoForm((prev) => ({ ...prev, startDate: e.target.value }))}
+                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                  required
+                />
+                <input
+                  type="date"
+                  value={promoForm.endDate}
+                  onChange={(e) => setPromoForm((prev) => ({ ...prev, endDate: e.target.value }))}
+                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                  required
+                />
+                {promoForm.appliesTo === 'product' ? (
+                  <select
+                    value={promoForm.productId}
+                    onChange={(e) => setPromoForm((prev) => ({ ...prev, productId: e.target.value }))}
+                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                    required
+                  >
+                    <option value="">Sélectionner un produit</option>
+                    {promoEligibleProducts.map((product) => (
+                      <option key={product.id} value={product.id}>
+                        {product.title}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600">
+                    <Tag className="w-4 h-4 text-indigo-600" />
+                    Promo appliquée à tous vos produits
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={promoForm.isActive}
+                    onChange={(e) => setPromoForm((prev) => ({ ...prev, isActive: e.target.checked }))}
+                    className="rounded border-gray-300"
+                  />
+                  Activer immédiatement
+                </label>
+                <button
+                  type="submit"
+                  disabled={promoSubmitting}
+                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+                >
+                  {promoSubmitting ? 'Création...' : 'Créer le code promo'}
+                </button>
+              </div>
+            </form>
+
+            <div className="space-y-2">
+              {promoCodesLoading ? (
+                <p className="text-sm text-gray-500">Chargement des codes promo...</p>
+              ) : promoCodes.length === 0 ? (
+                <p className="text-sm text-gray-500">Aucun code promo pour ce filtre.</p>
+              ) : (
+                promoCodes.map((promo) => (
+                  <div key={promo.id} className="rounded-xl border border-gray-200 px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-gray-900 truncate">{promo.code}</p>
+                      <p className="text-xs text-gray-500">
+                        {promo.appliesTo === 'boutique' ? 'Boutique' : 'Produit'} ·
+                        {' '}
+                        {promo.discountType === 'percentage'
+                          ? `${Number(promo.discountValue || 0).toLocaleString('fr-FR')}%`
+                          : `${formatCurrency(promo.discountValue || 0)}`}
+                        {' · '}
+                        Utilisation: {promo.usedCount} / {promo.usageLimit}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {formatDate(promo.startDate)} → {formatDate(promo.endDate)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleTogglePromoCode(promo)}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                        promo.isActive
+                          ? 'bg-red-50 text-red-700 border border-red-200'
+                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      }`}
+                    >
+                      {promo.isActive ? 'Désactiver' : 'Activer'}
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
@@ -791,7 +1217,15 @@ export default function UserDashboard() {
                     <ChevronDown className="w-4 h-4" />
                   )}
                 </button>
-                {(searchQuery || selectedCategories.length > 0 || priceMin || priceMax || dateFrom || dateTo || selectedStatuses.length > 0 || boostedFilter !== 'all') && (
+                {(searchQuery ||
+                  selectedCategories.length > 0 ||
+                  priceMin ||
+                  priceMax ||
+                  dateFrom ||
+                  dateTo ||
+                  selectedStatuses.length > 0 ||
+                  boostedFilter !== 'all' ||
+                  installmentFilter !== 'all') && (
                   <button
                     type="button"
                     onClick={clearAllFilters}
@@ -979,6 +1413,36 @@ export default function UserDashboard() {
                           </button>
                         );
                       })}
+                  </div>
+                </div>
+
+                {/* Installment Filter */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    Paiement par tranche
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { key: 'all', label: 'Tous les produits' },
+                      { key: 'enabled', label: 'Tranche activée' },
+                      { key: 'disabled', label: 'Sans tranche' }
+                    ].map((option) => {
+                      const isSelected = installmentFilter === option.key;
+                      return (
+                        <button
+                          key={option.key}
+                          type="button"
+                          onClick={() => setInstallmentFilter(option.key)}
+                          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                            isSelected
+                              ? 'bg-indigo-600 text-white shadow-lg'
+                              : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 

@@ -11,8 +11,25 @@ import { isTwilioMessagingConfigured, sendSms } from '../utils/twilioMessaging.j
 import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
 import { calculateProductSalesCount } from '../utils/salesCalculator.js';
 import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
+import { getInstallmentProgress } from '../utils/installmentUtils.js';
+import {
+  consumeMarketplacePromoForOrder,
+  rollbackConsumedMarketplacePromo
+} from '../utils/marketplacePromoCodeService.js';
 
-const ORDER_STATUS = ['pending', 'confirmed', 'delivering', 'delivered', 'cancelled'];
+const ORDER_STATUS = [
+  'pending',
+  'pending_installment',
+  'installment_active',
+  'overdue_installment',
+  'confirmed',
+  'delivering',
+  'delivered',
+  'completed',
+  'cancelled'
+];
+
+const INSTALLMENT_SALE_STATUS_FILTERS = new Set(['confirmed', 'delivering', 'delivered', 'cancelled']);
 
 const formatSmsAmount = (value) =>
   Number(value || 0).toLocaleString('fr-FR', {
@@ -197,6 +214,8 @@ const getCancellationWindowRemaining = (order) => {
 const buildOrderResponse = (order) => {
   if (!order) return null;
   const obj = order.toObject ? order.toObject() : order;
+  const installmentProgress =
+    obj.paymentType === 'installment' ? getInstallmentProgress(obj.installmentPlan || {}) : null;
   return {
     ...obj,
     items: Array.isArray(obj.items)
@@ -241,7 +260,8 @@ const buildOrderResponse = (order) => {
       remainingMs: getCancellationWindowRemaining(obj),
       deadline: obj.createdAt ? new Date(new Date(obj.createdAt).getTime() + 30 * 60 * 1000).toISOString() : null,
       skippedAt: obj.cancellationWindowSkippedAt || null
-    }
+    },
+    installmentProgress
   };
 };
 
@@ -350,7 +370,7 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
 });
 
 export const userCheckoutOrder = asyncHandler(async (req, res) => {
-  const { payerName, transactionCode, payments } = req.body;
+  const { payerName, transactionCode, payments, promoCode } = req.body;
   const userId = req.user?.id || req.user?._id;
 
   const customer = await User.findById(userId).select('name email phone address city restrictions');
@@ -446,13 +466,15 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
       }
       paymentsBySeller.set(String(payment.sellerId), {
         payerName: payment?.payerName?.trim() || '',
-        transactionCode: payment?.transactionCode?.trim() || ''
+        transactionCode: payment?.transactionCode?.trim() || '',
+        promoCode: payment?.promoCode?.trim() || ''
       });
     }
   }
 
   const fallbackPayer = payerName?.trim() || '';
   const fallbackTransaction = transactionCode?.trim() || '';
+  const fallbackPromoCode = promoCode?.trim() || '';
   const usePaymentList = paymentsBySeller.size > 0;
 
   if (!usePaymentList && itemsBySeller.size > 1) {
@@ -480,96 +502,145 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
   // Delete existing draft orders for this user when confirming
   await Order.deleteMany({ customer: userId, isDraft: true });
 
-  // Generate unique delivery codes for each order
-  const orderPayloads = await Promise.all(
-    Array.from(itemsBySeller.entries()).map(async ([sellerId, sellerItems]) => {
-      const totalAmount = sellerItems.reduce(
-        (sum, item) => sum + Number(item.snapshot?.price || 0) * Number(item.quantity || 1),
-        0
-      );
-      const paidAmount = Math.round(totalAmount * 0.25);
-      const remainingAmount = Math.max(0, totalAmount - paidAmount);
-      const paymentInfo = usePaymentList
-        ? paymentsBySeller.get(sellerId)
-        : { payerName: fallbackPayer, transactionCode: fallbackTransaction };
+  const consumedPromos = [];
+  let orderPayloads = [];
+  let createdOrders = [];
+  let populated = [];
 
-      const deliveryCode = await generateDeliveryCode();
+  try {
+    // Generate unique delivery codes for each order
+    orderPayloads = await Promise.all(
+      Array.from(itemsBySeller.entries()).map(async ([sellerId, sellerItems]) => {
+        let totalAmount = sellerItems.reduce(
+          (sum, item) => sum + Number(item.snapshot?.price || 0) * Number(item.quantity || 1),
+          0
+        );
+        const paymentInfo = usePaymentList
+          ? paymentsBySeller.get(sellerId)
+          : {
+              payerName: fallbackPayer,
+              transactionCode: fallbackTransaction,
+              promoCode: fallbackPromoCode
+            };
+        const promoCodeValue = paymentInfo?.promoCode?.trim() || '';
+        let appliedPromoCode = null;
 
-      return {
-        sellerId,
-        items: sellerItems,
-        customer: customer._id,
-        createdBy: userId,
-        deliveryAddress: customer.address,
-        deliveryCity: customer.city,
-        trackingNote: '',
-        totalAmount,
-        paidAmount,
-        remainingAmount,
-        paymentName: paymentInfo.payerName,
-        paymentTransactionCode: paymentInfo.transactionCode,
-        deliveryCode
-      };
-    })
-  );
-
-  const createdOrders = await Order.create(
-    orderPayloads.map(({ sellerId, ...payload }) => payload)
-  );
-
-  await Cart.updateOne({ user: userId }, { $set: { items: [] } });
-
-  const populated = await baseOrderQuery().find({
-    _id: { $in: createdOrders.map((order) => order._id) }
-  });
-  await ensureOrderProductSlugs(populated);
-
-  await Promise.all(
-    createdOrders.map((order, index) => {
-      const { sellerId, items } = orderPayloads[index];
-      const itemCount = items.reduce((sum, item) => sum + Number(item.quantity || 1), 0);
-      const totalAmount = Number(order.totalAmount || 0);
-      const productId = items[0]?.product || null;
-      return createNotification({
-        userId: sellerId,
-        actorId: userId,
-        productId,
-        type: 'order_received',
-        metadata: {
-          orderId: order._id,
-          itemCount,
-          totalAmount
+        if (promoCodeValue) {
+          const promoResult = await consumeMarketplacePromoForOrder({
+            code: promoCodeValue,
+            boutiqueId: sellerId,
+            clientId: userId,
+            items: sellerItems
+          });
+          if (promoResult?.applied) {
+            consumedPromos.push({ promoId: promoResult.promo?._id, clientId: userId });
+            totalAmount = Number(promoResult.pricing?.finalAmount || totalAmount);
+            appliedPromoCode = {
+              code: promoResult.promo.code,
+              boutiqueId: promoResult.promo.boutiqueId,
+              appliesTo: promoResult.promo.appliesTo,
+              productId: promoResult.promo.productId || null,
+              discountType: promoResult.promo.discountType,
+              discountValue: Number(promoResult.promo.discountValue || 0),
+              discountAmount: Number(promoResult.pricing?.discountAmount || 0)
+            };
+          }
         }
-      });
-    })
-  );
 
-  await Promise.all(
-    createdOrders.map((order) =>
-      createNotification({
-        userId: customer._id,
-        actorId: userId,
-        type: 'order_created',
-        metadata: {
-          orderId: order._id,
-          deliveryCity: order.deliveryCity,
-          deliveryAddress: order.deliveryAddress,
-          status: 'pending'
-        },
-        allowSelf: true
-      })
-    )
-  );
+        totalAmount = Number(totalAmount.toFixed(2));
+        const paidAmount = Math.round(totalAmount * 0.25);
+        const remainingAmount = Math.max(0, totalAmount - paidAmount);
+        const deliveryCode = await generateDeliveryCode();
 
-  await Promise.all(
-    createdOrders.map((order) =>
-      sendOrderSms({
-        phone: customer.phone,
-        message: buildOrderPendingMessage(order),
-        context: `order_created:${order._id}`
+        return {
+          sellerId,
+          items: sellerItems,
+          customer: customer._id,
+          createdBy: userId,
+          deliveryAddress: customer.address,
+          deliveryCity: customer.city,
+          trackingNote: '',
+          totalAmount,
+          paidAmount,
+          remainingAmount,
+          paymentName: paymentInfo.payerName,
+          paymentTransactionCode: paymentInfo.transactionCode,
+          deliveryCode,
+          appliedPromoCode
+        };
       })
-    )
-  );
+    );
+
+    createdOrders = await Order.create(
+      orderPayloads.map(({ sellerId, ...payload }) => payload)
+    );
+
+    await Cart.updateOne({ user: userId }, { $set: { items: [] } });
+
+    populated = await baseOrderQuery().find({
+      _id: { $in: createdOrders.map((order) => order._id) }
+    });
+    await ensureOrderProductSlugs(populated);
+
+    await Promise.all(
+      createdOrders.map((order, index) => {
+        const { sellerId, items } = orderPayloads[index];
+        const itemCount = items.reduce((sum, item) => sum + Number(item.quantity || 1), 0);
+        const totalAmount = Number(order.totalAmount || 0);
+        const productId = items[0]?.product || null;
+        return createNotification({
+          userId: sellerId,
+          actorId: userId,
+          productId,
+          type: 'order_received',
+          metadata: {
+            orderId: order._id,
+            itemCount,
+            totalAmount
+          }
+        });
+      })
+    );
+
+    await Promise.all(
+      createdOrders.map((order) =>
+        createNotification({
+          userId: customer._id,
+          actorId: userId,
+          type: 'order_created',
+          metadata: {
+            orderId: order._id,
+            deliveryCity: order.deliveryCity,
+            deliveryAddress: order.deliveryAddress,
+            status: 'pending'
+          },
+          allowSelf: true
+        })
+      )
+    );
+
+    await Promise.all(
+      createdOrders.map((order) =>
+        sendOrderSms({
+          phone: customer.phone,
+          message: buildOrderPendingMessage(order),
+          context: `order_created:${order._id}`
+        })
+      )
+    );
+  } catch (error) {
+    if (consumedPromos.length) {
+      await Promise.all(
+        consumedPromos.map((entry) =>
+          rollbackConsumedMarketplacePromo({ promoId: entry.promoId, clientId: entry.clientId })
+        )
+      );
+    }
+    if (error?.status) {
+      return res.status(error.status).json({ message: error.message, reason: error.reason || undefined });
+    }
+    throw error;
+  }
 
   const responseOrders = populated.map(buildOrderResponse);
   if (responseOrders.length === 1) {
@@ -1024,7 +1095,19 @@ export const userListOrders = asyncHandler(async (req, res) => {
 
   const filter = userId ? { customer: userId, isDraft: false } : { customer: null, isDraft: false };
   if (status && ORDER_STATUS.includes(status)) {
-    filter.status = status;
+    if (INSTALLMENT_SALE_STATUS_FILTERS.has(status)) {
+      filter.$and = [
+        ...(Array.isArray(filter.$and) ? filter.$and : []),
+        {
+          $or: [
+            { status },
+            { paymentType: 'installment', status: 'completed', installmentSaleStatus: status }
+          ]
+        }
+      ];
+    } else {
+      filter.status = status;
+    }
   }
 
   // Add search functionality for product names
@@ -1163,7 +1246,8 @@ export const saveDraftOrder = asyncHandler(async (req, res) => {
   const draftPayments = normalizedPayments.map((payment) => ({
     sellerId: payment?.sellerId || null,
     payerName: payment?.payerName?.trim() || '',
-    transactionCode: payment?.transactionCode?.trim() || ''
+    transactionCode: payment?.transactionCode?.trim() || '',
+    promoCode: payment?.promoCode?.trim()?.toUpperCase() || ''
   }));
 
   // Delete existing draft orders for this user
@@ -1334,8 +1418,14 @@ export const userUpdateOrderStatus = asyncHandler(async (req, res) => {
   }
 
   const { status } = req.body;
+  const previousStatus = order.status;
   if (!ORDER_STATUS.includes(status)) {
     return res.status(400).json({ message: 'Statut invalide.' });
+  }
+  if (status !== 'cancelled') {
+    return res.status(400).json({
+      message: "Le client ne peut modifier que le statut d'annulation."
+    });
   }
 
   // Prevent cancelling already delivered orders
@@ -1522,7 +1612,19 @@ export const sellerListOrders = asyncHandler(async (req, res) => {
 
   const filter = { 'items.snapshot.shopId': userId, isDraft: false };
   if (status && ORDER_STATUS.includes(status)) {
-    filter.status = status;
+    if (INSTALLMENT_SALE_STATUS_FILTERS.has(status)) {
+      filter.$and = [
+        ...(Array.isArray(filter.$and) ? filter.$and : []),
+        {
+          $or: [
+            { status },
+            { paymentType: 'installment', status: 'completed', installmentSaleStatus: status }
+          ]
+        }
+      ];
+    } else {
+      filter.status = status;
+    }
   }
 
   const pageNumber = Math.max(1, Number(page) || 1);
@@ -1593,6 +1695,7 @@ export const sellerGetOrder = asyncHandler(async (req, res) => {
 export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user?.id || req.user?._id;
+  const { status } = req.body;
 
   if (!ensureObjectId(id)) {
     return res.status(400).json({ message: 'Commande inconnue.' });
@@ -1601,6 +1704,137 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   const order = await Order.findOne({ _id: id, 'items.snapshot.shopId': userId });
   if (!order) {
     return res.status(404).json({ message: 'Commande introuvable.' });
+  }
+
+  if (order.paymentType === 'installment') {
+    if (order.status !== 'completed') {
+      return res.status(400).json({
+        message:
+          'Le statut de vente de la commande tranche peut être mis à jour uniquement après paiement complet des tranches.'
+      });
+    }
+
+    const sellerAllowedInstallmentSaleStatuses = ['confirmed', 'delivering', 'delivered', 'cancelled'];
+    if (!sellerAllowedInstallmentSaleStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Statut de vente invalide pour une commande tranche complétée.' });
+    }
+
+    const previousSaleStatus = order.installmentSaleStatus || 'confirmed';
+    order.installmentSaleStatus = previousSaleStatus;
+
+    if (status === 'delivering' && previousSaleStatus !== 'confirmed') {
+      return res.status(400).json({
+        message: 'La vente doit être confirmée avant de passer en livraison.'
+      });
+    }
+    if (status === 'delivered' && previousSaleStatus !== 'delivering') {
+      return res.status(400).json({
+        message: 'La commande doit être en cours de livraison avant d’être marquée livrée.'
+      });
+    }
+    if (status === 'cancelled' && previousSaleStatus === 'delivered') {
+      return res.status(400).json({ message: 'Impossible d\'annuler une commande déjà livrée.' });
+    }
+
+    const notifyConfirmed = status === 'confirmed' && previousSaleStatus !== 'confirmed';
+    const notifyDelivering = status === 'delivering' && previousSaleStatus !== 'delivering';
+    const notifyDelivered = status === 'delivered' && previousSaleStatus !== 'delivered';
+    const notifyCancelled = status === 'cancelled' && previousSaleStatus !== 'cancelled';
+
+    if (status !== previousSaleStatus) {
+      order.installmentSaleStatus = status;
+      if (status === 'delivering' && !order.shippedAt) {
+        order.shippedAt = new Date();
+      }
+      if (status === 'delivered' && !order.deliveredAt) {
+        order.deliveredAt = new Date();
+      }
+      if (status === 'cancelled' && !order.cancelledAt) {
+        order.cancelledAt = new Date();
+        order.cancelledBy = userId;
+      }
+    }
+
+    await order.save();
+    const populatedInstallment = await baseOrderQuery().findById(order._id);
+    await ensureOrderProductSlugs([populatedInstallment]);
+
+    if (notifyConfirmed) {
+      await createNotification({
+        userId: order.customer,
+        actorId: userId,
+        type: 'order_created',
+        metadata: {
+          orderId: order._id,
+          deliveryAddress: order.deliveryAddress,
+          deliveryCity: order.deliveryCity,
+          status: 'confirmed',
+          paymentType: 'installment'
+        },
+        allowSelf: true
+      });
+    }
+
+    if (notifyDelivering && isTwilioMessagingConfigured()) {
+      const customer = await User.findById(order.customer).select('phone');
+      await sendOrderSms({
+        phone: customer?.phone,
+        message: buildOrderDeliveringMessage(order),
+        context: `order_delivering:${order._id}`
+      });
+    }
+
+    if (notifyDelivering) {
+      await createNotification({
+        userId: order.customer,
+        actorId: userId,
+        type: 'order_delivering',
+        metadata: {
+          orderId: order._id,
+          deliveryAddress: order.deliveryAddress,
+          deliveryCity: order.deliveryCity,
+          status: 'delivering',
+          paymentType: 'installment'
+        },
+        allowSelf: true
+      });
+    }
+
+    if (notifyDelivered) {
+      await createNotification({
+        userId: order.customer,
+        actorId: userId,
+        type: 'order_delivered',
+        metadata: {
+          orderId: order._id,
+          deliveryAddress: order.deliveryAddress,
+          deliveryCity: order.deliveryCity,
+          status: 'delivered',
+          deliveredAt: order.deliveredAt,
+          paymentType: 'installment'
+        },
+        allowSelf: true
+      });
+    }
+
+    if (notifyCancelled) {
+      await createNotification({
+        userId: order.customer,
+        actorId: userId,
+        type: 'order_cancelled',
+        metadata: {
+          orderId: order._id,
+          deliveryAddress: order.deliveryAddress,
+          deliveryCity: order.deliveryCity,
+          status: 'cancelled',
+          cancelledBy: 'seller',
+          paymentType: 'installment'
+        },
+        allowSelf: true
+      });
+    }
+
+    return res.json(buildOrderResponse(populatedInstallment));
   }
 
   // Prevent seller from changing order status within 30 minutes of creation
@@ -1615,12 +1849,12 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
     });
   }
 
-  const { status } = req.body;
   const previousStatus = order.status;
   let notifyPending = false;
   let notifyConfirmed = false;
   let notifyDelivering = false;
-  if (!ORDER_STATUS.includes(status)) {
+  const sellerAllowedStatuses = ['pending', 'confirmed', 'delivering', 'delivered', 'cancelled'];
+  if (!sellerAllowedStatuses.includes(status)) {
     return res.status(400).json({ message: 'Statut invalide.' });
   }
 

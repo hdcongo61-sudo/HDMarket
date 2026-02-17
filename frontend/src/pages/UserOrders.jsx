@@ -51,34 +51,57 @@ import useIsMobile from '../hooks/useIsMobile';
 
 const STATUS_LABELS = {
   pending: 'En attente',
+  pending_installment: 'Validation vente',
+  installment_active: 'Tranche active',
+  overdue_installment: 'Tranche en retard',
   confirmed: 'Commande confirmée',
   delivering: 'En cours de livraison',
   delivered: 'Commande terminée',
+  completed: 'Paiement terminé',
   cancelled: 'Commande annulée'
 };
 
 const STATUS_STYLES = {
   pending: { header: 'bg-gray-600', card: 'bg-gray-50 border-gray-200 text-gray-700' },
+  pending_installment: { header: 'bg-violet-600', card: 'bg-violet-50 border-violet-200 text-violet-800' },
+  installment_active: { header: 'bg-indigo-600', card: 'bg-indigo-50 border-indigo-200 text-indigo-800' },
+  overdue_installment: { header: 'bg-rose-600', card: 'bg-rose-50 border-rose-200 text-rose-800' },
   confirmed: { header: 'bg-amber-600', card: 'bg-amber-50 border-amber-200 text-amber-800' },
   delivering: { header: 'bg-blue-600', card: 'bg-blue-50 border-blue-200 text-blue-800' },
   delivered: { header: 'bg-emerald-600', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
+  completed: { header: 'bg-emerald-700', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
   cancelled: { header: 'bg-red-600', card: 'bg-red-50 border-red-200 text-red-800' }
 };
 
 const STATUS_ICONS = {
   pending: Clock,
+  pending_installment: Clock,
+  installment_active: CreditCard,
+  overdue_installment: AlertCircle,
   confirmed: Package,
   delivering: Truck,
   delivered: CheckCircle,
+  completed: CheckCircle,
   cancelled: X
+};
+
+const INSTALLMENT_SALE_STATUS_LABELS = {
+  confirmed: 'Confirmée',
+  delivering: 'En cours de livraison',
+  delivered: 'Livrée',
+  cancelled: 'Annulée'
 };
 
 const STATUS_TABS = [
   { key: 'all', label: 'Toutes', icon: ClipboardList, count: null },
   { key: 'pending', label: 'En attente', icon: Clock, count: null },
+  { key: 'pending_installment', label: 'Vente à confirmer', icon: Receipt, count: null },
+  { key: 'installment_active', label: 'Tranches actives', icon: CreditCard, count: null },
+  { key: 'overdue_installment', label: 'Tranches en retard', icon: AlertCircle, count: null },
   { key: 'confirmed', label: 'Confirmées', icon: Package, count: null },
   { key: 'delivering', label: 'En livraison', icon: Truck, count: null },
   { key: 'delivered', label: 'Livrées', icon: CheckCircle, count: null },
+  { key: 'completed', label: 'Paiement terminé', icon: CheckCircle, count: null },
   { key: 'cancelled', label: 'Annulées', icon: X, count: null }
 ];
 
@@ -134,6 +157,14 @@ const formatOrderTimestamp = (value) =>
     : null;
 
 const formatCurrency = (value) => `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
+
+const getEffectiveOrderStatus = (order) => {
+  if (!order) return 'pending';
+  if (order.paymentType === 'installment' && order.status === 'completed') {
+    return order.installmentSaleStatus || 'confirmed';
+  }
+  return order.status || 'pending';
+};
 
 const OrderProgress = ({ status }) => {
   const currentIndexRaw = ORDER_FLOW.findIndex((step) => step.id === status);
@@ -216,10 +247,11 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
   const itemCount = orderItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
   const computedTotal = orderItems.reduce((sum, item) => sum + Number(item.snapshot?.price || 0) * Number(item.quantity || 1), 0);
   const totalAmount = Number(order.totalAmount ?? computedTotal);
+  const effectiveStatus = getEffectiveOrderStatus(order);
 
   // Progress percentage based on status
   const progressMap = { pending: 25, confirmed: 50, delivering: 75, delivered: 100, cancelled: 0 };
-  const progress = progressMap[order.status] || 0;
+  const progress = progressMap[effectiveStatus] || 0;
 
   // Status colors
   const statusColors = {
@@ -229,7 +261,7 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
     delivered: { bg: 'bg-emerald-500', light: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
     cancelled: { bg: 'bg-red-500', light: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' }
   };
-  const colors = statusColors[order.status] || statusColors.pending;
+  const colors = statusColors[effectiveStatus] || statusColors.pending;
 
   // Timeline steps with timestamps
   const timelineSteps = [
@@ -239,8 +271,8 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
     { id: 'delivered', label: 'Livrée', icon: CheckCircle, time: order.deliveredAt }
   ];
 
-  const statusIndex = ['pending', 'confirmed', 'delivering', 'delivered'].indexOf(order.status);
-  const isCancelled = order.status === 'cancelled';
+  const statusIndex = ['pending', 'confirmed', 'delivering', 'delivered'].indexOf(effectiveStatus);
+  const isCancelled = effectiveStatus === 'cancelled';
 
   const formatTime = (date) => {
     if (!date) return null;
@@ -302,7 +334,7 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
               <div className={`w-2 h-2 rounded-full ${colors.bg} animate-pulse`} />
             )}
             <span className={`font-semibold ${colors.text}`}>
-              {STATUS_LABELS[order.status]}
+              {STATUS_LABELS[effectiveStatus] || effectiveStatus}
             </span>
           </div>
           {order.deliveryGuy && (
@@ -329,7 +361,7 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
       </div>
 
       {/* Delivery Code - Prominent display */}
-      {order.deliveryCode && order.status !== 'cancelled' && (
+      {order.deliveryCode && effectiveStatus !== 'cancelled' && (
         <div className="mx-4 mt-3 p-4 rounded-2xl bg-indigo-50 border-2 border-indigo-200">
           <div className="flex items-center justify-between">
             <div>
@@ -416,7 +448,7 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
       )}
 
       {/* Cancellation Window Actions */}
-      {order.cancellationWindow?.isActive && order.status !== 'cancelled' && (
+      {order.cancellationWindow?.isActive && effectiveStatus !== 'cancelled' && (
         <div className="px-4 pb-4 space-y-3">
           <CancellationTimer
             deadline={order.cancellationWindow.deadline}
@@ -513,7 +545,7 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
           unreadCount={orderUnreadCounts[order._id] || 0}
         />
 
-        {order.status === 'delivered' && orderItems.length > 0 && (
+        {effectiveStatus === 'delivered' && orderItems.length > 0 && (
           <button
             type="button"
             onClick={() => onReorder(order)}
@@ -538,12 +570,23 @@ const OrderSummaryCard = ({ order }) => {
   const orderItems = order.items?.length ? order.items : order.productSnapshot ? [{ snapshot: order.productSnapshot, quantity: 1, product: order.product }] : [];
   const computedTotal = orderItems.reduce((s, i) => s + Number(i.snapshot?.price || 0) * Number(i.quantity || 1), 0);
   const totalAmount = Number(order.totalAmount ?? computedTotal);
+  const isInstallmentOrder = order.paymentType === 'installment';
+  const installmentPlan = isInstallmentOrder ? order.installmentPlan || {} : null;
+  const installmentTotal = Number(installmentPlan?.totalAmount ?? totalAmount);
+  const installmentPaid = Number(installmentPlan?.amountPaid || 0);
+  const installmentSaleStatus =
+    isInstallmentOrder && order.status === 'completed'
+      ? order.installmentSaleStatus || 'confirmed'
+      : order.installmentSaleStatus || '';
+  const effectiveStatus = getEffectiveOrderStatus(order);
+  const installmentProgress =
+    installmentTotal > 0 ? Math.min(100, Math.round((installmentPaid / installmentTotal) * 100)) : 0;
   const firstItem = orderItems[0];
   const shopName = firstItem?.snapshot?.shopName || 'Boutique';
   const productTitle = firstItem?.snapshot?.title || 'Produit';
   const itemCount = orderItems.length;
-  const StatusIcon = STATUS_ICONS[order.status] || Clock;
-  const statusStyle = STATUS_STYLES[order.status] || STATUS_STYLES.pending;
+  const StatusIcon = STATUS_ICONS[effectiveStatus] || Clock;
+  const statusStyle = STATUS_STYLES[effectiveStatus] || STATUS_STYLES.pending;
 
   return (
     <Link
@@ -559,7 +602,7 @@ const OrderSummaryCard = ({ order }) => {
         </div>
         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border flex-shrink-0 ${statusStyle.card}`}>
           <StatusIcon className="w-3.5 h-3.5" />
-          {STATUS_LABELS[order.status]}
+          {STATUS_LABELS[effectiveStatus] || effectiveStatus}
         </span>
       </div>
       {/* Product summary */}
@@ -579,13 +622,40 @@ const OrderSummaryCard = ({ order }) => {
             <span className="text-gray-400">×</span>
             <span>{firstItem?.quantity ?? 1}</span>
           </div>
+          {isInstallmentOrder && (
+            <div className="mt-2 space-y-1">
+              <p className="text-xs font-semibold text-indigo-700">
+                Progression tranche: {installmentProgress}%
+              </p>
+              <div className="h-1.5 rounded-full bg-indigo-100 overflow-hidden">
+                <div
+                  className="h-full bg-indigo-600"
+                  style={{ width: `${installmentProgress}%` }}
+                />
+              </div>
+              {installmentPlan?.nextDueDate && (
+                <p className="text-[11px] text-gray-500">
+                  Prochaine échéance: {new Date(installmentPlan.nextDueDate).toLocaleDateString('fr-FR')}
+                </p>
+              )}
+              {order.status === 'completed' && (
+                <p className="text-[11px] text-gray-500">
+                  Statut vente: {INSTALLMENT_SALE_STATUS_LABELS[installmentSaleStatus] || 'Confirmée'}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
       {/* Footer: total + CTA */}
       <div className="px-4 pb-4 flex items-center justify-between gap-3">
-        <span className="text-xs text-gray-500">Montant payé</span>
+        <span className="text-xs text-gray-500">
+          {isInstallmentOrder ? 'Montant validé' : 'Montant payé'}
+        </span>
         <div className="flex items-center gap-2">
-          <span className="font-bold text-gray-900">{formatCurrency(totalAmount)}</span>
+          <span className="font-bold text-gray-900">
+            {formatCurrency(isInstallmentOrder ? installmentPaid : totalAmount)}
+          </span>
           <span className="text-indigo-600 font-medium text-sm flex items-center gap-0.5">Voir le détail <ChevronRight className="w-4 h-4" /></span>
         </div>
       </div>
@@ -744,7 +814,7 @@ export default function UserOrders() {
     const isLeftSwipe = distance > minSwipeDistance;
     const isRightSwipe = distance < -minSwipeDistance;
 
-    if (isLeftSwipe && order.cancellationWindow?.isActive && order.status !== 'cancelled') {
+    if (isLeftSwipe && order.cancellationWindow?.isActive && getEffectiveOrderStatus(order) !== 'cancelled') {
       // Show cancel confirmation
       if (confirm('Annuler cette commande ?')) {
         handleCancelOrder(order._id);
@@ -779,7 +849,7 @@ export default function UserOrders() {
           return sum + Number(order.totalAmount ?? computed);
         }, 0);
         const byStatus = allOrders.reduce((acc, order) => {
-          const status = order.status || 'pending';
+          const status = getEffectiveOrderStatus(order);
           acc[status] = (acc[status] || 0) + 1;
           return acc;
         }, {});
@@ -1650,8 +1720,9 @@ export default function UserOrders() {
                       0
                     );
                     const totalAmount = Number(order.totalAmount ?? computedTotal);
-                    const StatusIcon = STATUS_ICONS[order.status] || Clock;
-                    const statusStyle = STATUS_STYLES[order.status] || STATUS_STYLES.pending;
+                    const effectiveStatus = getEffectiveOrderStatus(order);
+                    const StatusIcon = STATUS_ICONS[effectiveStatus] || Clock;
+                    const statusStyle = STATUS_STYLES[effectiveStatus] || STATUS_STYLES.pending;
                     const firstItem = orderItems[0];
                     const shopName = firstItem?.snapshot?.shopName || 'N/A';
                     const productTitle = firstItem?.snapshot?.title || 'Produit';
@@ -1719,7 +1790,7 @@ export default function UserOrders() {
                           <span className="md:hidden text-xs font-medium text-gray-500">Statut:</span>
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${statusStyle.card}`}>
                             <StatusIcon className="w-3.5 h-3.5" />
-                            {STATUS_LABELS[order.status]}
+                            {STATUS_LABELS[effectiveStatus] || effectiveStatus}
                           </span>
                         </div>
                       </Link>

@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Package,
@@ -144,10 +144,15 @@ const MetricCard = ({ title, value, subtitle, icon: Icon, color = "indigo" }) =>
 export default function UserStats() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [stats, setStats] = useState(DEFAULT_STATS);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [lastFetchAt, setLastFetchAt] = useState('');
+  const [lastFetchError, setLastFetchError] = useState('');
+  const [lastFetchStatus, setLastFetchStatus] = useState('');
+  const [lastFetchMs, setLastFetchMs] = useState('');
   const [searchHistory, setSearchHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [showFollowedModal, setShowFollowedModal] = useState(false);
@@ -161,12 +166,26 @@ export default function UserStats() {
   const [soldError, setSoldError] = useState('');
   const userShopLink = user?.accountType === 'shop' ? buildShopPath(user) : null;
   const isMountedRef = useRef(true);
+  const debugEnabled =
+    searchParams.get('debug') === '1' ||
+    (typeof window !== 'undefined' && window.localStorage?.getItem('hdmarket_debug_stats') === '1');
 
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!debugEnabled) return;
+    console.log('[UserStats] debug enabled');
+    console.log('[UserStats] user snapshot:', {
+      id: user?._id || user?.id,
+      role: user?.role,
+      token: Boolean(user?.token),
+      accountType: user?.accountType
+    });
+  }, [debugEnabled, user?._id, user?.id, user?.role, user?.token, user?.accountType]);
 
   const fetchStats = useCallback(async ({ showLoading = false } = {}) => {
     if (!user) return;
@@ -177,8 +196,21 @@ export default function UserStats() {
       setRefreshing(true);
     }
 
+    const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    setLastFetchAt(new Date().toISOString());
+    setLastFetchStatus('pending');
+    setLastFetchError('');
+    setLastFetchMs('—');
     try {
-      const { data } = await api.get('/users/profile/stats');
+      if (debugEnabled) {
+        console.log('[UserStats] fetching /users/profile/stats', {
+          apiBase: import.meta.env.VITE_API_URL || 'http://localhost:5001/api'
+        });
+      }
+      const { data, status } = await api.get('/users/profile/stats', {
+        timeout: 10000,
+        skipCache: true
+      });
       if (!isMountedRef.current) return;
       setStats((prev) => ({
         ...DEFAULT_STATS,
@@ -215,10 +247,31 @@ export default function UserStats() {
           }
         }
       }));
+      setLastFetchAt(new Date().toISOString());
+      setLastFetchError('');
+      setLastFetchStatus(String(status || '200'));
+      const elapsed = Math.round(
+        (typeof performance !== 'undefined' ? performance.now() : Date.now()) - startedAt
+      );
+      setLastFetchMs(`${elapsed}ms`);
     } catch (err) {
       if (!isMountedRef.current) return;
+      const msg = err.response?.data?.message || err.message || 'Impossible de charger les statistiques.';
+      const status = err?.response?.status ? String(err.response.status) : 'network';
       if (showLoading) {
-        setError(err.response?.data?.message || err.message || 'Impossible de charger les statistiques.');
+        setError(msg);
+      }
+      setLastFetchError(msg);
+      setLastFetchStatus(status);
+      const elapsed = Math.round(
+        (typeof performance !== 'undefined' ? performance.now() : Date.now()) - startedAt
+      );
+      setLastFetchMs(`${elapsed}ms`);
+      if (debugEnabled) {
+        console.error('[UserStats] fetch error', {
+          status: err?.response?.status,
+          message: msg
+        });
       }
     } finally {
       if (!isMountedRef.current) return;
@@ -439,9 +492,30 @@ export default function UserStats() {
     );
   }
 
+  const DebugPanel = () => {
+    if (!debugEnabled) return null;
+    return (
+      <div className="max-w-7xl mx-auto px-4 pt-6">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 space-y-1">
+          <p className="font-semibold">Debug /my/stats</p>
+          <p>userId: {user?._id || user?.id || '—'}</p>
+          <p>role: {user?.role || '—'} · accountType: {user?.accountType || '—'}</p>
+          <p>token: {user?.token ? 'present' : 'missing'}</p>
+          <p>api: {import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}</p>
+          <p>lastFetchAt: {lastFetchAt || '—'}</p>
+          <p>lastFetchStatus: {lastFetchStatus || '—'}</p>
+          <p>lastFetchMs: {lastFetchMs || '—'}</p>
+          <p>lastFetchError: {lastFetchError || '—'}</p>
+          <p>tip: add `?debug=1` to URL or set `localStorage.hdmarket_debug_stats=1`</p>
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
+        <DebugPanel />
         <div className="max-w-7xl mx-auto px-4 py-12">
           <div className="space-y-8">
             {/* Header skeleton */}
@@ -464,6 +538,7 @@ export default function UserStats() {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-16">
+        <DebugPanel />
         <div className="max-w-md w-full bg-white rounded-2xl border border-red-200 shadow-xl p-8 text-center">
           <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
             <X className="w-8 h-8 text-red-600" />
@@ -483,6 +558,7 @@ export default function UserStats() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <DebugPanel />
       {/* Header Section */}
       <div className="bg-indigo-600 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

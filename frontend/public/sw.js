@@ -7,6 +7,10 @@ const CACHE_NAME = 'hdmarket-v2';
 const API_CACHE_NAME = 'hdmarket-api-v2';
 const STATIC_CACHE_NAME = 'hdmarket-static-v2';
 const FIREBASE_SDK_VERSION = '9.23.0';
+const DEFAULT_FIREBASE_SDK_BASES = [
+  `https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}`,
+  '/firebase'
+];
 
 // Assets to cache on install
 const STATIC_ASSETS = [
@@ -31,25 +35,55 @@ const CACHEABLE_ENDPOINTS = [
 const SEARCH_HISTORY_CACHE = 'hdmarket-search-history-v1';
 const DEFAULT_NOTIFICATION_ICON = '/icons/icon-192.svg';
 const DEFAULT_NOTIFICATION_BADGE = '/icons/icon-192.svg';
+const DEV_HOSTS = new Set(['localhost', '127.0.0.1']);
+const DEV_BYPASS_PATHS = [
+  /^\/@vite\//,
+  /^\/@react-refresh/,
+  /^\/src\//,
+  /^\/node_modules\//,
+  /^\/@id\//,
+  /^\/@fs\//,
+  /^\/__vite_ping/
+];
 
 let firebaseConfig = null;
 let firebaseMessaging = null;
 let firebaseInitialized = false;
 let firebaseScriptsLoaded = false;
+let firebaseSdkBaseUrl = null;
 
-const loadFirebaseScripts = () => {
-  if (firebaseScriptsLoaded) return;
-  importScripts(
-    `https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-app-compat.js`,
-    `https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-messaging-compat.js`
-  );
-  firebaseScriptsLoaded = true;
+const loadFirebaseScripts = (sdkBaseUrl) => {
+  if (firebaseScriptsLoaded) return true;
+  const bases = [];
+  if (sdkBaseUrl && typeof sdkBaseUrl === 'string') {
+    bases.push(sdkBaseUrl.replace(/\/+$/, ''));
+  }
+  DEFAULT_FIREBASE_SDK_BASES.forEach((base) => bases.push(base.replace(/\/+$/, '')));
+
+  let lastError = null;
+  for (const base of bases) {
+    try {
+      importScripts(
+        `${base}/firebase-app-compat.js`,
+        `${base}/firebase-messaging-compat.js`
+      );
+      firebaseScriptsLoaded = true;
+      return true;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  if (lastError) {
+    console.warn('[HDMarket] Firebase SW importScripts failed', lastError);
+  }
+  return false;
 };
 
-const initFirebaseMessaging = (config) => {
+const initFirebaseMessaging = (config, sdkBaseUrl) => {
   if (!config || !config.apiKey || !config.messagingSenderId) return;
   try {
-    loadFirebaseScripts();
+    if (!loadFirebaseScripts(sdkBaseUrl)) return;
     if (!self.firebase) return;
     if (!self.firebase.apps?.length) {
       self.firebase.initializeApp(config);
@@ -113,6 +147,10 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
+  if (DEV_HOSTS.has(self.location.hostname)) {
+    event.waitUntil(clearAllCaches());
+    event.waitUntil(self.registration.unregister());
+  }
   return self.clients.claim();
 });
 
@@ -120,8 +158,10 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('message', (event) => {
   const { type, payload } = event.data || {};
   if (type === 'SET_FIREBASE_CONFIG') {
-    firebaseConfig = payload || null;
-    initFirebaseMessaging(firebaseConfig);
+    const nextConfig = payload?.config || payload || null;
+    firebaseSdkBaseUrl = payload?.sdkBaseUrl || null;
+    firebaseConfig = nextConfig;
+    initFirebaseMessaging(firebaseConfig, firebaseSdkBaseUrl);
   }
   if (type === 'CLEAR_CACHE') {
     event.waitUntil(clearAllCaches());
@@ -153,9 +193,19 @@ self.addEventListener('notificationclick', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
+  const isDevHost = DEV_HOSTS.has(self.location.hostname);
 
   // Skip non-GET requests
   if (request.method !== 'GET') {
+    return;
+  }
+
+  // In dev, bypass SW caching entirely to avoid HMR & blank screen issues
+  if (isDevHost) {
+    return;
+  }
+
+  if (isDevHost && DEV_BYPASS_PATHS.some((pattern) => pattern.test(url.pathname))) {
     return;
   }
 
@@ -252,6 +302,11 @@ async function handleApiRequest(request) {
  */
 async function handleStaticRequest(request) {
   const isNavigation = request.mode === 'navigate';
+  const url = new URL(request.url);
+  const isDevHost = DEV_HOSTS.has(self.location.hostname);
+  if (isDevHost && DEV_BYPASS_PATHS.some((pattern) => pattern.test(url.pathname))) {
+    return fetch(request);
+  }
 
   if (isNavigation) {
     const staticCache = await caches.open(STATIC_CACHE_NAME);

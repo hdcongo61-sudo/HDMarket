@@ -3670,6 +3670,14 @@ export default function Navbar() {
                             Chat templates
                           </NavLink>
                           <NavLink
+                            to="/admin/promo-codes"
+                            onClick={() => setIsMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
+                          >
+                            <Tag size={20} />
+                            Codes promo
+                          </NavLink>
+                          <NavLink
                             to="/admin/settings"
                             onClick={() => setIsMenuOpen(false)}
                             className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"

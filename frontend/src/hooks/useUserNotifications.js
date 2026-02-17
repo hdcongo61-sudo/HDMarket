@@ -17,6 +17,14 @@ const DEFAULT_PREFERENCES = Object.freeze({
   order_reminder: true,
   order_delivering: true,
   order_delivered: true,
+  installment_due_reminder: true,
+  installment_overdue_warning: true,
+  installment_payment_submitted: true,
+  installment_payment_validated: true,
+  installment_sale_confirmation_required: true,
+  installment_sale_confirmed: true,
+  installment_completed: true,
+  installment_product_suspended: true,
   feedback_read: true,
   complaint_created: true,
   improvement_feedback_created: true,
@@ -63,7 +71,7 @@ export default function useUserNotifications(enabled, options = {}) {
     }
     setLoading(true);
     try {
-      const { data } = await api.get('/users/notifications');
+      const { data } = await api.get('/users/notifications', { skipCache: true });
       const unread =
         typeof data?.unreadCount === 'number'
           ? data.unreadCount

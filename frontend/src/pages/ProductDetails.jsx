@@ -376,7 +376,78 @@ export default function ProductDetails() {
       roots.push(commentWithReplies);
     });
 
+    // Sort newest comments first
+    const sortByDateDesc = (a, b) =>
+      new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    const sortByDateAsc = (a, b) =>
+      new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+
+    roots.sort(sortByDateDesc);
+    roots.forEach((root) => {
+      if (Array.isArray(root.replies)) {
+        root.replies.sort(sortByDateAsc);
+      }
+    });
+
     return roots;
+  };
+
+  const insertCommentIntoState = (newComment) => {
+    if (!newComment || !newComment._id) return;
+    const parentId =
+      (typeof newComment.parent === 'string' && newComment.parent) ||
+      newComment.parent?._id ||
+      null;
+
+    setComments((prev) => {
+      if (!Array.isArray(prev)) return prev;
+      if (parentId) {
+        return prev.map((comment) => {
+          if (String(comment._id) !== String(parentId)) return comment;
+          const replies = Array.isArray(comment.replies) ? comment.replies : [];
+          if (replies.some((reply) => String(reply._id) === String(newComment._id))) {
+            return comment;
+          }
+          return {
+            ...comment,
+            replies: [...replies, newComment]
+          };
+        });
+      }
+      if (prev.some((comment) => String(comment._id) === String(newComment._id))) {
+        return prev;
+      }
+      return [newComment, ...prev];
+    });
+  };
+
+  const incrementCommentCount = () => {
+    setProduct((prev) =>
+      prev ? { ...prev, commentCount: Number(prev.commentCount || 0) + 1 } : prev
+    );
+  };
+
+  const updateRatingStats = (nextRating, previousRating) => {
+    setProduct((prev) => {
+      if (!prev) return prev;
+      const prevCount = Number(prev.ratingCount || 0);
+      const prevAvg = Number(prev.ratingAverage || 0);
+      let nextCount = prevCount;
+      let nextAvg = prevAvg;
+
+      if (previousRating && prevCount > 0) {
+        nextAvg = (prevAvg * prevCount - previousRating + nextRating) / prevCount;
+      } else {
+        nextCount = prevCount + 1;
+        nextAvg = (prevAvg * prevCount + nextRating) / nextCount;
+      }
+
+      return {
+        ...prev,
+        ratingAverage: Number(nextAvg.toFixed(2)),
+        ratingCount: nextCount
+      };
+    });
   };
 
   // ⭐ CHARGEMENT DE LA NOTE UTILISATEUR
@@ -443,11 +514,8 @@ export default function ProductDetails() {
       const response = await api.post(`/products/${slug}/comments`, commentData);
 
       setNewComment("");
-      await loadComments(product?.slug || product?._id);
-
-      // Reload product to update commentCount
-      const { data: updatedProduct } = await api.get(`/products/public/${slug}`, { skipCache: true });
-      setProduct(updatedProduct);
+      insertCommentIntoState(response?.data);
+      incrementCommentCount();
       
     } catch (error) {
       if (error.response?.status === 401) {
@@ -512,11 +580,8 @@ export default function ProductDetails() {
 
       setReplyText("");
       setReplyingTo(null);
-      await loadComments(product?.slug || product?._id);
-
-      // Reload product to update commentCount
-      const { data: updatedProduct } = await api.get(`/products/public/${slug}`, { skipCache: true });
-      setProduct(updatedProduct);
+      insertCommentIntoState(response?.data);
+      incrementCommentCount();
       
     } catch (error) {
       if (error.response?.status === 401) {
@@ -540,6 +605,7 @@ export default function ProductDetails() {
       return;
     }
 
+    const previousRating = userRating || 0;
     setSubmittingRating(true);
     try {
       await api.put(`/products/${slug}/rating`, {
@@ -548,10 +614,8 @@ export default function ProductDetails() {
       });
 
       setUserRating(newRating);
-
-      // Recharger le produit pour mettre à jour les notes moyennes
-      const { data } = await api.get(`/products/public/${slug}`, { skipCache: true });
-      setProduct(data);
+      setRating(newRating);
+      updateRatingStats(newRating, previousRating);
       
     } catch (error) {
       if (error.response?.status === 401) {
@@ -657,6 +721,30 @@ export default function ProductDetails() {
   const originalPrice = hasDiscount ? product?.priceBeforeDiscount : product?.price;
   const finalPrice = product?.price || 0;
   const discountPercentage = product?.discount || 0;
+  const installmentOffer = useMemo(() => {
+    if (!product?.installmentEnabled) {
+      return { available: false, minAmount: 0, duration: 0, endDate: null };
+    }
+    const startDate = product.installmentStartDate ? new Date(product.installmentStartDate) : null;
+    const endDate = product.installmentEndDate ? new Date(product.installmentEndDate) : null;
+    if (!startDate || Number.isNaN(startDate.getTime()) || !endDate || Number.isNaN(endDate.getTime())) {
+      return { available: false, minAmount: 0, duration: 0, endDate: null };
+    }
+    const now = new Date();
+    const available = now >= startDate && now <= endDate;
+    return {
+      available,
+      minAmount: Number(product.installmentMinAmount || 0),
+      duration: Number(product.installmentDuration || 0),
+      endDate
+    };
+  }, [
+    product?.installmentEnabled,
+    product?.installmentStartDate,
+    product?.installmentEndDate,
+    product?.installmentMinAmount,
+    product?.installmentDuration
+  ]);
 
   const ratingAverage = Number(product?.ratingAverage || 0).toFixed(1);
   const ratingCount = product?.ratingCount || 0;
@@ -961,6 +1049,18 @@ export default function ProductDetails() {
           </span>
         )}
       </div>
+      {installmentOffer.available && (
+        <div className="px-4 pb-2">
+          <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5">
+            <p className="text-xs font-black text-indigo-700">
+              Achetez maintenant en plusieurs tranches et payez plus facilement.
+            </p>
+            <p className="text-[11px] text-indigo-700 mt-0.5">
+              Premier paiement min: {Number(installmentOffer.minAmount || 0).toLocaleString()} FCFA · Durée: {installmentOffer.duration || 0} jours
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* 3. Title */}
       <div className="px-4 pb-1">
@@ -1773,6 +1873,16 @@ export default function ProductDetails() {
                 <span className="text-4xl sm:text-5xl font-black text-gray-900">{Number(finalPrice).toLocaleString()} FCFA</span>
               )}
             </div>
+            {installmentOffer.available && (
+              <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50 px-4 py-3">
+                <p className="text-sm font-black text-indigo-700">
+                  Paiement par tranche disponible: profitez de ce produit dès aujourd’hui.
+                </p>
+                <p className="text-xs text-indigo-700 mt-1">
+                  Premier paiement min: {Number(installmentOffer.minAmount || 0).toLocaleString()} FCFA · Durée: {installmentOffer.duration || 0} jours
+                </p>
+              </div>
+            )}
 
             {product.confirmationNumber && (
               <p className="text-xs text-gray-500">
@@ -2555,7 +2665,15 @@ export default function ProductDetails() {
         )}
       </main>
 
-      {isMobileView && isReviewsModalOpen && (
+    </div>
+  );
+
+  // === MAIN RETURN: conditional mobile / desktop ===
+  return (
+    <>
+      {isMobileView ? renderMobileProductDetails() : renderDesktopProductDetails()}
+
+      {isReviewsModalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 px-4 py-6 sm:items-center"
           onClick={() => setIsReviewsModalOpen(false)}
@@ -2587,6 +2705,58 @@ export default function ProductDetails() {
               </div>
             </div>
             <div className="mt-4 space-y-4">
+              {user && !isOwnProduct && (
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Votre note :</span>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={`modal-rating-${star}`}
+                        type="button"
+                        onClick={() => handleSubmitRating(star)}
+                        disabled={submittingRating}
+                        className="focus:outline-none disabled:opacity-50"
+                      >
+                        <Star
+                          size={18}
+                          className={star <= userRating ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}
+                        />
+                      </button>
+                    ))}
+                    {submittingRating && <span className="text-xs text-gray-500 ml-1">...</span>}
+                  </div>
+                  <form onSubmit={handleSubmitComment} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Laisser un commentaire..."
+                      className="flex-1 min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+                      disabled={submittingComment}
+                    />
+                    <button
+                      type="submit"
+                      disabled={submittingComment || !newComment.trim()}
+                      className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
+                    >
+                      {submittingComment ? '...' : 'Envoyer'}
+                    </button>
+                  </form>
+                  {commentError && (
+                    <p className="text-xs text-red-600">{commentError}</p>
+                  )}
+                </div>
+              )}
+              {!user && (
+                <p className="text-xs text-gray-500">
+                  <Link to="/login" className="text-indigo-600 font-semibold">Connectez-vous</Link> pour noter ou commenter.
+                </p>
+              )}
+              {user && isOwnProduct && (
+                <p className="text-xs text-gray-500">Vous ne pouvez pas noter votre propre produit.</p>
+              )}
+            </div>
+            <div className="mt-4 space-y-4">
               {comments.length === 0 ? (
                 <p className="text-xs text-gray-500">Aucun avis pour le moment.</p>
               ) : (
@@ -2612,14 +2782,6 @@ export default function ProductDetails() {
           </div>
         </div>
       )}
-
-    </div>
-  );
-
-  // === MAIN RETURN: conditional mobile / desktop ===
-  return (
-    <>
-      {isMobileView ? renderMobileProductDetails() : renderDesktopProductDetails()}
 
       {/* IMAGE MODAL (shared) */}
       {isImageModalOpen && (

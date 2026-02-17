@@ -32,7 +32,15 @@ export default function ProductForm(props) {
     category: '',
     condition: 'used',
     operator: 'MTN',
-    discount: ''
+    discount: '',
+    installmentEnabled: false,
+    installmentMinAmount: '',
+    installmentDuration: '',
+    installmentStartDate: '',
+    installmentEndDate: '',
+    installmentLatePenaltyRate: '',
+    installmentMaxMissedPayments: 3,
+    installmentRequireGuarantor: false
   });
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -41,6 +49,7 @@ export default function ProductForm(props) {
   const [removedImages, setRemovedImages] = useState([]);
   const [imageError, setImageError] = useState('');
   const { user } = useContext(AuthContext);
+  const isBoutiqueOwner = user?.accountType === 'shop';
   const canUploadVideo = Boolean(user?.shopVerified && user?.accountType === 'shop');
   const canUploadPdf = user?.accountType === 'shop';
   const [videoFile, setVideoFile] = useState(null);
@@ -49,6 +58,7 @@ export default function ProductForm(props) {
   const [videoError, setVideoError] = useState('');
   const [pdfFile, setPdfFile] = useState(null);
   const [pdfError, setPdfError] = useState('');
+  const [installmentError, setInstallmentError] = useState('');
   const [existingPdf, setExistingPdf] = useState(null);
   const [removePdf, setRemovePdf] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -723,6 +733,45 @@ export default function ProductForm(props) {
 
   const submit = async (e) => {
     e.preventDefault();
+    setInstallmentError('');
+
+    if (form.installmentEnabled) {
+      if (!isBoutiqueOwner) {
+        setInstallmentError('Seules les boutiques peuvent activer le paiement par tranche.');
+        return;
+      }
+      const minAmount = Number(form.installmentMinAmount || 0);
+      const duration = Number(form.installmentDuration || 0);
+      const startDate = form.installmentStartDate ? new Date(form.installmentStartDate) : null;
+      const endDate = form.installmentEndDate ? new Date(form.installmentEndDate) : null;
+      const priceValue = Number(form.price || 0);
+      if (!Number.isFinite(minAmount) || minAmount <= 0) {
+        setInstallmentError('Le minimum du premier paiement est requis.');
+        return;
+      }
+      if (Number.isFinite(priceValue) && priceValue > 0 && minAmount > priceValue) {
+        setInstallmentError('Le minimum du premier paiement ne peut pas dépasser le prix du produit.');
+        return;
+      }
+      if (!Number.isInteger(duration) || duration <= 0) {
+        setInstallmentError('La durée du paiement par tranche doit être exprimée en jours.');
+        return;
+      }
+      if (!startDate || Number.isNaN(startDate.getTime()) || !endDate || Number.isNaN(endDate.getTime())) {
+        setInstallmentError('Les dates de début et de fin sont requises.');
+        return;
+      }
+      if (endDate <= startDate) {
+        setInstallmentError('La date de fin doit être après la date de début.');
+        return;
+      }
+      const dateDuration = Math.round((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
+      if (dateDuration !== duration) {
+        setInstallmentError(`La durée doit correspondre à l'écart des dates (${dateDuration} jours).`);
+        return;
+      }
+    }
+
     setLoading(true);
     if (videoFile) {
       setIsUploadingVideo(true);
@@ -731,7 +780,13 @@ export default function ProductForm(props) {
     try {
       const data = new FormData();
       Object.entries(form).forEach(([k, v]) => {
-        if (k === 'discount' && (v === '' || v === null || v === undefined)) return;
+        if (
+          ['discount', 'installmentMinAmount', 'installmentDuration', 'installmentLatePenaltyRate'].includes(k) &&
+          (v === '' || v === null || v === undefined)
+        ) {
+          return;
+        }
+        if (['installmentStartDate', 'installmentEndDate'].includes(k) && !v) return;
         data.append(k, v);
       });
       files.slice(0, MAX_IMAGES).forEach((item) => {
@@ -778,7 +833,15 @@ export default function ProductForm(props) {
         category: '',
         condition: 'used',
         operator: 'MTN',
-        discount: ''
+        discount: '',
+        installmentEnabled: false,
+        installmentMinAmount: '',
+        installmentDuration: '',
+        installmentStartDate: '',
+        installmentEndDate: '',
+        installmentLatePenaltyRate: '',
+        installmentMaxMissedPayments: 3,
+        installmentRequireGuarantor: false
       });
       setFiles([]);
       setImagePreviews([]);
@@ -846,7 +909,33 @@ export default function ProductForm(props) {
       discount:
         typeof initialValues.discount === 'number' || typeof initialValues.discount === 'string'
           ? initialValues.discount
-          : ''
+          : '',
+      installmentEnabled: Boolean(initialValues.installmentEnabled),
+      installmentMinAmount:
+        initialValues.installmentMinAmount !== undefined && initialValues.installmentMinAmount !== null
+          ? initialValues.installmentMinAmount
+          : '',
+      installmentDuration:
+        initialValues.installmentDuration !== undefined && initialValues.installmentDuration !== null
+          ? initialValues.installmentDuration
+          : '',
+      installmentStartDate: initialValues.installmentStartDate
+        ? new Date(initialValues.installmentStartDate).toISOString().slice(0, 10)
+        : '',
+      installmentEndDate: initialValues.installmentEndDate
+        ? new Date(initialValues.installmentEndDate).toISOString().slice(0, 10)
+        : '',
+      installmentLatePenaltyRate:
+        initialValues.installmentLatePenaltyRate !== undefined &&
+        initialValues.installmentLatePenaltyRate !== null
+          ? initialValues.installmentLatePenaltyRate
+          : '',
+      installmentMaxMissedPayments:
+        initialValues.installmentMaxMissedPayments !== undefined &&
+        initialValues.installmentMaxMissedPayments !== null
+          ? initialValues.installmentMaxMissedPayments
+          : 3,
+      installmentRequireGuarantor: Boolean(initialValues.installmentRequireGuarantor)
     });
     setExistingImages(Array.isArray(initialValues.images) ? initialValues.images : []);
     setExistingPdf(initialValues.pdf || null);
@@ -1071,6 +1160,138 @@ export default function ProductForm(props) {
               </div>
             </div>
 
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Paiement par tranche</p>
+                <p className="text-xs text-gray-500">
+                  Activez cette option pour proposer un échéancier de paiement sur ce produit.
+                </p>
+              </div>
+              <label className="inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={Boolean(form.installmentEnabled)}
+                  disabled={!isBoutiqueOwner}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, installmentEnabled: e.target.checked }))
+                  }
+                />
+                <div className="relative w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:bg-indigo-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full" />
+              </label>
+            </div>
+
+            {!isBoutiqueOwner && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Cette option est réservée aux comptes convertis en boutique.
+              </p>
+            )}
+
+            {form.installmentEnabled && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Premier paiement minimum (FCFA)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={form.installmentMinAmount}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, installmentMinAmount: e.target.value }))
+                    }
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Ex: 30000"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Durée (jours)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={form.installmentDuration}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, installmentDuration: e.target.value }))
+                    }
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Ex: 30"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Date de début</label>
+                  <input
+                    type="date"
+                    value={form.installmentStartDate}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, installmentStartDate: e.target.value }))
+                    }
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Date de fin</label>
+                  <input
+                    type="date"
+                    value={form.installmentEndDate}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, installmentEndDate: e.target.value }))
+                    }
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Pénalité retard (%)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={form.installmentLatePenaltyRate}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, installmentLatePenaltyRate: e.target.value }))
+                    }
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Ex: 5"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Impayés max avant suspension
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="12"
+                    value={form.installmentMaxMissedPayments}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, installmentMaxMissedPayments: e.target.value }))
+                    }
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                </div>
+                <label className="md:col-span-2 flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(form.installmentRequireGuarantor)}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, installmentRequireGuarantor: e.target.checked }))
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  Exiger les informations d’un garant
+                </label>
+              </div>
+            )}
+
+            {installmentError && (
+              <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {installmentError}
+              </p>
+            )}
           </div>
                 </div>
           )}
@@ -1511,7 +1732,7 @@ export default function ProductForm(props) {
                 <div className="space-y-2">
                   <h3 className="font-semibold text-amber-800 text-sm">Commission de publication</h3>
                   <p className="text-amber-700 text-sm">
-                    Pour valider votre annonce, envoyez <span className="font-bold">{calculateCommission().toLocaleString()} FCFA</span> (3% du prix).
+                    Pour valider votre annonce, envoyez <span className="font-bold">{calculateCommission().toLocaleString()} FCFA</span> (3% du prix). Vous pouvez aussi utiliser un code promo dans la section paiement de <span className="font-semibold">/my</span>.
                   </p>
                   <div className="flex items-center space-x-2 text-xs text-amber-600">
                     <CheckCircle2 className="w-4 h-4" />

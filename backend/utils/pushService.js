@@ -209,6 +209,51 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       body = `Votre commande ${orderId} a été livrée.`;
       break;
     }
+    case 'installment_due_reminder': {
+      title = 'Rappel échéance';
+      body = `Votre prochaine tranche pour la commande ${orderId} arrive à échéance dans 3 jours.`;
+      break;
+    }
+    case 'installment_overdue_warning': {
+      title = 'Paiement en retard';
+      body = `La commande ${orderId} contient une tranche en retard. Merci de régulariser rapidement.`;
+      break;
+    }
+    case 'installment_payment_submitted': {
+      const amountValue = Number(metadata.amount || 0);
+      const amountText =
+        Number.isFinite(amountValue) && amountValue > 0
+          ? ` (${amountValue.toLocaleString('fr-FR')} FCFA)`
+          : '';
+      title = 'Preuve de tranche reçue';
+      body = `${actorName} a soumis une preuve de paiement${amountText} pour la commande ${orderId}.`;
+      break;
+    }
+    case 'installment_payment_validated': {
+      title = 'Tranche validée';
+      body = `${actorName} a validé votre paiement de tranche pour la commande ${orderId}.`;
+      break;
+    }
+    case 'installment_sale_confirmation_required': {
+      title = 'Confirmation de vente requise';
+      body = `${actorName} a lancé une commande en tranche ${orderId}. Vérifiez la preuve de vente.`;
+      break;
+    }
+    case 'installment_sale_confirmed': {
+      title = 'Vente confirmée';
+      body = `Votre commande en tranche ${orderId} est confirmée. L’échéancier est actif.`;
+      break;
+    }
+    case 'installment_completed': {
+      title = 'Paiement terminé';
+      body = `Toutes les tranches de la commande ${orderId} sont réglées.`;
+      break;
+    }
+    case 'installment_product_suspended': {
+      title = 'Tranches suspendues';
+      body = metadata.message || 'Le paiement par tranche du produit a été suspendu.';
+      break;
+    }
     case 'review_reminder': {
       const productCount = metadata.productCount || 1;
       const productText = productCount === 1 ? 'produit' : 'produits';
@@ -343,9 +388,22 @@ export const sendPushNotification = async ({
   const notificationType = notification.type || '';
   if (notificationType === 'order_message') {
     url = '/orders/messages';
-  } else if (notificationType.startsWith('order_')) {
+  } else if (notificationType.startsWith('order_') || notificationType.startsWith('installment_')) {
     const status = notification.metadata?.status || '';
-    if (status && ['pending', 'confirmed', 'delivering', 'delivered', 'cancelled'].includes(status)) {
+    if (
+      status &&
+      [
+        'pending',
+        'pending_installment',
+        'installment_active',
+        'overdue_installment',
+        'confirmed',
+        'delivering',
+        'delivered',
+        'completed',
+        'cancelled'
+      ].includes(status)
+    ) {
       url = `/orders/${status}`;
     } else {
       url = '/orders';

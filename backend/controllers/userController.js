@@ -42,6 +42,14 @@ const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   order_reminder: true,
   order_delivering: true,
   order_delivered: true,
+  installment_due_reminder: true,
+  installment_overdue_warning: true,
+  installment_payment_submitted: true,
+  installment_payment_validated: true,
+  installment_sale_confirmation_required: true,
+  installment_sale_confirmed: true,
+  installment_completed: true,
+  installment_product_suspended: true,
   feedback_read: true,
   account_restriction: true,
   account_restriction_lifted: true
@@ -119,7 +127,17 @@ const collectUserStats = async (userId) => {
 
   await ensureModelSlugsForItems({ Model: Product, items: products, sourceValueKey: 'title' });
 
-  const orderStatusKeys = ['pending', 'confirmed', 'delivering', 'delivered', 'cancelled'];
+  const orderStatusKeys = [
+    'pending',
+    'pending_installment',
+    'installment_active',
+    'overdue_installment',
+    'confirmed',
+    'delivering',
+    'delivered',
+    'completed',
+    'cancelled'
+  ];
   const userObjectId = new mongoose.Types.ObjectId(userId);
 
   const [buyerAgg, sellerAgg] = await Promise.all([
@@ -1170,6 +1188,54 @@ export const getNotifications = asyncHandler(async (req, res) => {
           ? ` le ${deliveredAtDate.toLocaleDateString('fr-FR')}`
           : '';
         message = `${actorName} a marqué la commande ${orderId} comme livrée${address}${city}${deliveredAt}. Merci pour votre confiance.`;
+        break;
+      }
+      case 'installment_due_reminder': {
+        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
+        const dueDate = metadata.dueDate
+          ? ` le ${new Date(metadata.dueDate).toLocaleDateString('fr-FR')}`
+          : '';
+        message = `Rappel: votre prochaine tranche pour la commande ${orderId} arrive à échéance${dueDate}.`;
+        break;
+      }
+      case 'installment_overdue_warning': {
+        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
+        message = `Alerte: la commande ${orderId} comporte une tranche en retard. Régularisez rapidement pour éviter les pénalités.`;
+        break;
+      }
+      case 'installment_payment_submitted': {
+        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
+        const amount = Number(metadata.amount || 0);
+        const amountLabel = amount > 0 ? ` (${amount.toLocaleString('fr-FR')} FCFA)` : '';
+        message = `${actorName} a soumis une preuve de paiement de tranche${amountLabel} pour la commande ${orderId}.`;
+        break;
+      }
+      case 'installment_payment_validated': {
+        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
+        const amount = Number(metadata.amount || 0);
+        const amountLabel = amount > 0 ? ` de ${amount.toLocaleString('fr-FR')} FCFA` : '';
+        const penalty = Number(metadata.penalty || 0);
+        const penaltyText = penalty > 0 ? ` (pénalité: ${penalty.toLocaleString('fr-FR')} FCFA)` : '';
+        message = `${actorName} a validé votre tranche${amountLabel} pour la commande ${orderId}${penaltyText}.`;
+        break;
+      }
+      case 'installment_sale_confirmation_required': {
+        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
+        message = `${actorName} a soumis une demande de paiement par tranche pour la commande ${orderId}. Vérifiez la preuve de vente pour l'activer.`;
+        break;
+      }
+      case 'installment_sale_confirmed': {
+        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
+        message = `${actorName} a confirmé votre preuve de vente pour la commande ${orderId}. Votre échéancier est maintenant actif.`;
+        break;
+      }
+      case 'installment_completed': {
+        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
+        message = `Paiement terminé: toutes les tranches de la commande ${orderId} sont réglées. Vous pouvez générer la facture.`;
+        break;
+      }
+      case 'installment_product_suspended': {
+        message = metadata.message || 'Le paiement par tranche de votre produit a été suspendu après plusieurs impayés.';
         break;
       }
       case 'review_reminder': {

@@ -4,7 +4,14 @@ import AuthContext from '../context/AuthContext';
 
 export default function ProtectedRoute({ children, role, roles, allowAccess }) {
   const location = useLocation();
-  const { user } = useContext(AuthContext);
+  const { user, loading } = useContext(AuthContext);
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-sm font-semibold text-gray-500">Chargement...</div>
+      </div>
+    );
+  }
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
 
   // If custom allowAccess function is provided, use it

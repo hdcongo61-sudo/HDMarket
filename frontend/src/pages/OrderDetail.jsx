@@ -35,33 +35,60 @@ import AuthContext from '../context/AuthContext';
 
 const STATUS_LABELS = {
   pending: 'En attente',
+  pending_installment: 'Validation de vente en attente',
+  installment_active: 'Paiement par tranche actif',
+  overdue_installment: 'Tranche en retard',
   confirmed: 'Commande confirmée',
   delivering: 'En cours de livraison',
   delivered: 'Commande terminée',
+  completed: 'Paiement terminé',
   cancelled: 'Commande annulée'
 };
 
 const STATUS_STYLES = {
   pending: { header: 'bg-gray-600', card: 'bg-gray-50 border-gray-200 text-gray-700' },
+  pending_installment: { header: 'bg-violet-600', card: 'bg-violet-50 border-violet-200 text-violet-800' },
+  installment_active: { header: 'bg-indigo-600', card: 'bg-indigo-50 border-indigo-200 text-indigo-800' },
+  overdue_installment: { header: 'bg-rose-600', card: 'bg-rose-50 border-rose-200 text-rose-800' },
   confirmed: { header: 'bg-amber-600', card: 'bg-amber-50 border-amber-200 text-amber-800' },
   delivering: { header: 'bg-blue-600', card: 'bg-blue-50 border-blue-200 text-blue-800' },
   delivered: { header: 'bg-emerald-600', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
+  completed: { header: 'bg-emerald-700', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
   cancelled: { header: 'bg-red-600', card: 'bg-red-50 border-red-200 text-red-800' }
 };
 
 const STATUS_ICONS = {
   pending: Clock,
+  pending_installment: Clock,
+  installment_active: CreditCard,
+  overdue_installment: AlertCircle,
   confirmed: Package,
   delivering: Truck,
   delivered: CheckCircle,
+  completed: CheckCircle,
   cancelled: X
 };
 
-const ORDER_FLOW = [
+const INSTALLMENT_SALE_STATUS_LABELS = {
+  confirmed: 'Confirmée',
+  delivering: 'En cours de livraison',
+  delivered: 'Livrée',
+  cancelled: 'Annulée'
+};
+
+const CLASSIC_ORDER_FLOW = [
   { id: 'pending', label: 'Commande en attente', description: 'Votre commande est enregistrée.', icon: Clock, color: 'gray' },
   { id: 'confirmed', label: 'Commande confirmée', description: 'Validation et préparation.', icon: Package, color: 'amber' },
   { id: 'delivering', label: 'En cours de livraison', description: 'Le colis est en route.', icon: Truck, color: 'blue' },
   { id: 'delivered', label: 'Commande terminée', description: 'Livrée avec succès.', icon: CheckCircle, color: 'emerald' },
+  { id: 'cancelled', label: 'Commande annulée', description: 'Cette commande a été annulée.', icon: X, color: 'red' }
+];
+
+const INSTALLMENT_ORDER_FLOW = [
+  { id: 'pending_installment', label: 'Validation de vente', description: 'Le vendeur doit confirmer la preuve de vente.', icon: Clock, color: 'violet' },
+  { id: 'installment_active', label: 'Plan actif', description: 'Les tranches sont en cours de paiement.', icon: CreditCard, color: 'indigo' },
+  { id: 'overdue_installment', label: 'En retard', description: 'Au moins une tranche est en retard.', icon: AlertCircle, color: 'rose' },
+  { id: 'completed', label: 'Paiement terminé', description: 'Toutes les tranches ont été validées.', icon: CheckCircle, color: 'emerald' },
   { id: 'cancelled', label: 'Commande annulée', description: 'Cette commande a été annulée.', icon: X, color: 'red' }
 ];
 
@@ -78,10 +105,59 @@ const formatOrderTimestamp = (value) =>
 
 const formatCurrency = (value) => `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
 
-const OrderProgress = ({ status }) => {
-  const currentIndexRaw = ORDER_FLOW.findIndex((step) => step.id === status);
+const getEffectiveOrderStatus = (order) => {
+  if (!order) return 'pending';
+  if (order.paymentType === 'installment' && order.status === 'completed') {
+    return order.installmentSaleStatus || 'confirmed';
+  }
+  return order.status || 'pending';
+};
+
+const getScheduleStatusLabel = (status) => {
+  switch (status) {
+    case 'paid':
+      return 'Payé';
+    case 'proof_uploaded':
+      return 'Preuve envoyée';
+    case 'overdue':
+      return 'En retard';
+    case 'waived':
+      return 'Annulé';
+    case 'pending':
+    default:
+      return 'À payer';
+  }
+};
+
+const getScheduleStatusClassName = (status) => {
+  switch (status) {
+    case 'paid':
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    case 'proof_uploaded':
+      return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+    case 'overdue':
+      return 'bg-rose-50 text-rose-700 border-rose-200';
+    case 'waived':
+      return 'bg-gray-100 text-gray-700 border-gray-200';
+    case 'pending':
+    default:
+      return 'bg-amber-50 text-amber-700 border-amber-200';
+  }
+};
+
+const OrderProgress = ({ status, paymentType }) => {
+  const flow = paymentType === 'installment' ? INSTALLMENT_ORDER_FLOW : CLASSIC_ORDER_FLOW;
+  const currentIndexRaw = flow.findIndex((step) => step.id === status);
   const currentIndex = currentIndexRaw >= 0 ? currentIndexRaw : 0;
-  const colorClasses = { gray: 'bg-gray-600', amber: 'bg-amber-600', blue: 'bg-blue-600', emerald: 'bg-emerald-600' };
+  const colorClasses = {
+    gray: 'bg-gray-600',
+    amber: 'bg-amber-600',
+    blue: 'bg-blue-600',
+    emerald: 'bg-emerald-600',
+    violet: 'bg-violet-600',
+    indigo: 'bg-indigo-600',
+    rose: 'bg-rose-600'
+  };
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-5">
       <div className="flex items-center gap-2 mb-4">
@@ -94,11 +170,11 @@ const OrderProgress = ({ status }) => {
         <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200">
           <div
             className="absolute top-0 left-0 w-full bg-indigo-600 transition-all duration-500"
-            style={{ height: `${(currentIndex / (ORDER_FLOW.length - 1)) * 100}%` }}
+            style={{ height: `${(currentIndex / (flow.length - 1)) * 100}%` }}
           />
         </div>
         <div className="space-y-6 relative">
-          {ORDER_FLOW.filter((s) => s.id !== 'cancelled').map((step, index) => {
+          {flow.filter((s) => s.id !== 'cancelled').map((step, index) => {
             const Icon = step.icon;
             const reached = currentIndex >= index;
             const isCurrent = currentIndex === index;
@@ -138,6 +214,8 @@ export default function OrderDetail() {
   const [skipLoadingId, setSkipLoadingId] = useState(null);
   const [reordering, setReordering] = useState(false);
   const [editAddressModalOpen, setEditAddressModalOpen] = useState(false);
+  const [installmentProofForms, setInstallmentProofForms] = useState({});
+  const [installmentUploadIndex, setInstallmentUploadIndex] = useState(-1);
   const [suggestionsProducts, setSuggestionsProducts] = useState([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const isMobile = useIsMobile();
@@ -231,6 +309,65 @@ export default function OrderDetail() {
     }
   };
 
+  const handleInstallmentProofFieldChange = (index, field, value) => {
+    setInstallmentProofForms((prev) => ({
+      ...prev,
+      [index]: {
+        ...(prev[index] || {}),
+        [field]:
+          field === 'transactionCode'
+            ? String(value || '').replace(/\D/g, '').slice(0, 10)
+            : value
+      }
+    }));
+  };
+
+  const handleInstallmentProofUpload = async (index, entry) => {
+    if (!order) return;
+    const currentProof = installmentProofForms[index] || {
+      payerName: entry?.transactionProof?.senderName || user?.name || '',
+      transactionCode: entry?.transactionProof?.transactionCode || ''
+    };
+    const cleanPayerName = String(currentProof.payerName || '').trim();
+    const cleanTransactionCode = String(currentProof.transactionCode || '').replace(/\D/g, '');
+    const amount = Number(entry?.amount || 0);
+
+    if (!cleanPayerName) {
+      alert('Le nom de l’expéditeur est requis.');
+      return;
+    }
+    if (cleanTransactionCode.length !== 10) {
+      alert('L’ID de transaction doit contenir exactement 10 chiffres.');
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      alert('Montant de tranche invalide.');
+      return;
+    }
+    setInstallmentUploadIndex(index);
+    try {
+      const { data } = await api.post(
+        `/orders/${order._id}/installment/payments/${index}/proof`,
+        {
+          payerName: cleanPayerName,
+          transactionCode: cleanTransactionCode,
+          amount
+        }
+      );
+      setOrder(data);
+      setInstallmentProofForms((prev) => {
+        const next = { ...prev };
+        delete next[index];
+        return next;
+      });
+      alert('Preuve transactionnelle transmise au vendeur. En attente de validation.');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Impossible de transmettre la preuve.');
+    } finally {
+      setInstallmentUploadIndex(-1);
+    }
+  };
+
   const handleReorder = async () => {
     if (!order?.items?.length) return;
     setReordering(true);
@@ -320,11 +457,43 @@ export default function OrderDetail() {
   const totalAmount = Number(order.totalAmount ?? computedTotal);
   const paidAmount = Number(order.paidAmount || 0);
   const remainingAmount = Number(order.remainingAmount ?? Math.max(0, totalAmount - paidAmount));
-  const showPayment = Boolean(paidAmount || order.paymentTransactionCode || order.paymentName);
+  const isInstallmentOrder = order.paymentType === 'installment';
+  const installmentPlan = isInstallmentOrder ? order.installmentPlan || {} : null;
+  const installmentSchedule = Array.isArray(installmentPlan?.schedule) ? installmentPlan.schedule : [];
+  const installmentCurrentIndex = installmentSchedule.findIndex(
+    (entry) => !['paid', 'waived'].includes(entry?.status)
+  );
+  const visibleInstallmentEntries =
+    installmentCurrentIndex === -1
+      ? installmentSchedule.map((entry, index) => ({ entry, index }))
+      : installmentSchedule
+          .slice(0, installmentCurrentIndex + 1)
+          .map((entry, index) => ({ entry, index }));
+  const installmentTotal = Number(installmentPlan?.totalAmount ?? totalAmount);
+  const installmentPaid = Number(installmentPlan?.amountPaid ?? paidAmount);
+  const installmentRemaining = Number(
+    installmentPlan?.remainingAmount ?? Math.max(0, installmentTotal - installmentPaid)
+  );
+  const installmentProgressPercent =
+    installmentTotal > 0 ? Math.min(100, Math.round((installmentPaid / installmentTotal) * 100)) : 0;
+  const saleConfirmationConfirmed = Boolean(installmentPlan?.saleConfirmationConfirmedAt);
+  const installmentSaleStatus =
+    isInstallmentOrder && order.status === 'completed'
+      ? order.installmentSaleStatus || 'confirmed'
+      : order.installmentSaleStatus || '';
+  const effectiveOrderStatus = getEffectiveOrderStatus(order);
+  const progressPaymentType =
+    isInstallmentOrder && order.status === 'completed' ? 'full' : order.paymentType;
+  const showPayment = Boolean(
+    isInstallmentOrder ||
+      paidAmount ||
+      order.paymentTransactionCode ||
+      order.paymentName
+  );
   const createdBySelf = order.createdBy?._id && order.customer?._id ? order.createdBy._id === order.customer._id : false;
   const createdByLabel = createdBySelf ? 'Vous' : order.createdBy?.name || order.createdBy?.email || 'Admin HDMarket';
-  const StatusIcon = STATUS_ICONS[order.status] || Clock;
-  const statusStyle = STATUS_STYLES[order.status] || STATUS_STYLES.pending;
+  const StatusIcon = STATUS_ICONS[effectiveOrderStatus] || Clock;
+  const statusStyle = STATUS_STYLES[effectiveOrderStatus] || STATUS_STYLES.pending;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -349,7 +518,9 @@ export default function OrderDetail() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className="px-3 py-1.5 rounded-lg bg-white/20 text-xs font-bold uppercase">{STATUS_LABELS[order.status]}</span>
+                <span className="px-3 py-1.5 rounded-lg bg-white/20 text-xs font-bold uppercase">
+                  {STATUS_LABELS[effectiveOrderStatus] || effectiveOrderStatus}
+                </span>
                 <button type="button" onClick={() => openOrderPdf(order)} className="p-2 rounded-lg bg-white/20 hover:bg-white/30" title="Télécharger le bon de commande">
                   <Download className="w-4 h-4" />
                 </button>
@@ -358,7 +529,7 @@ export default function OrderDetail() {
           </div>
 
           <div className="p-6 space-y-6">
-            {order.cancellationWindow?.isActive && order.status !== 'cancelled' && (
+            {order.cancellationWindow?.isActive && effectiveOrderStatus !== 'cancelled' && (
               <div className="space-y-3">
                 <CancellationTimer
                   deadline={order.cancellationWindow.deadline}
@@ -431,7 +602,9 @@ export default function OrderDetail() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-sm font-bold text-gray-900 uppercase flex items-center gap-2"><MapPin className="w-4 h-4 text-gray-500" /> Adresse de livraison</h4>
-                  {(order.status === 'pending' || order.status === 'confirmed') && (
+                  {(order.status === 'pending' ||
+                    order.status === 'confirmed' ||
+                    order.status === 'pending_installment') && (
                     <button type="button" onClick={() => setEditAddressModalOpen(true)} className="px-4 py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-semibold hover:bg-indigo-100">
                       Modifier
                     </button>
@@ -463,19 +636,68 @@ export default function OrderDetail() {
               <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 space-y-3">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Total commande</span>
-                  <span className="text-lg font-bold text-gray-900">{formatCurrency(totalAmount)}</span>
+                  <span className="text-lg font-bold text-gray-900">
+                    {formatCurrency(isInstallmentOrder ? installmentTotal : totalAmount)}
+                  </span>
                 </div>
                 {showPayment && (
                   <>
                     <div className="flex justify-between pt-2 border-t border-gray-200">
-                      <span className="text-sm text-gray-600">Acompte versé</span>
-                      <span className="text-sm font-semibold text-emerald-700">{formatCurrency(paidAmount)}</span>
+                      <span className="text-sm text-gray-600">
+                        {isInstallmentOrder ? 'Montant validé' : 'Acompte versé'}
+                      </span>
+                      <span className="text-sm font-semibold text-emerald-700">
+                        {formatCurrency(isInstallmentOrder ? installmentPaid : paidAmount)}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Reste à payer</span>
-                      <span className="text-sm font-semibold text-amber-700">{formatCurrency(remainingAmount)}</span>
+                      <span className="text-sm font-semibold text-amber-700">
+                        {formatCurrency(isInstallmentOrder ? installmentRemaining : remainingAmount)}
+                      </span>
                     </div>
-                    {(order.paymentName || order.paymentTransactionCode) && (
+                    {isInstallmentOrder && (
+                      <>
+                        <div>
+                          <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
+                            <div
+                              className="h-full bg-indigo-600 transition-all duration-300"
+                              style={{ width: `${installmentProgressPercent}%` }}
+                            />
+                          </div>
+                          <p className="mt-1 text-xs text-gray-600">
+                            Progression: {installmentProgressPercent}%
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-600">
+                          <p>
+                            Prochaine échéance:{' '}
+                            <span className="font-semibold text-gray-900">
+                              {installmentPlan?.nextDueDate
+                                ? formatOrderTimestamp(installmentPlan.nextDueDate)
+                                : 'Aucune'}
+                            </span>
+                          </p>
+                          <p>
+                            Pénalités cumulées:{' '}
+                            <span className="font-semibold text-gray-900">
+                              {formatCurrency(installmentPlan?.totalPenaltyAccrued || 0)}
+                            </span>
+                          </p>
+                        </div>
+                        {order.status === 'completed' && (
+                          <div className="pt-2 border-t border-gray-200 text-xs text-gray-600">
+                            <p>
+                              Statut de vente:{' '}
+                              <span className="font-semibold text-gray-900">
+                                {INSTALLMENT_SALE_STATUS_LABELS[installmentSaleStatus] || 'Confirmée'}
+                              </span>
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {!isInstallmentOrder && (order.paymentName || order.paymentTransactionCode) && (
                       <div className="pt-2 border-t border-gray-200 text-xs text-gray-500">
                         {order.paymentName && <p>Payeur: {order.paymentName}</p>}
                         {order.paymentTransactionCode && <p>Transaction: {order.paymentTransactionCode}</p>}
@@ -486,6 +708,172 @@ export default function OrderDetail() {
               </div>
             </div>
 
+            {isInstallmentOrder && (
+              <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4 space-y-3">
+                <h4 className="text-sm font-bold text-gray-900 uppercase flex items-center gap-2">
+                  <Receipt className="w-4 h-4 text-indigo-600" /> Validation de vente
+                </h4>
+                <p className="text-sm text-gray-700">
+                  Statut:{' '}
+                  <span className="font-semibold">
+                    {saleConfirmationConfirmed ? 'Confirmée par le vendeur' : 'En attente de confirmation vendeur'}
+                  </span>
+                </p>
+                {installmentPlan?.guarantor?.required && (
+                  <p className="text-xs text-gray-600">
+                    Garant enregistré: {installmentPlan?.guarantor?.fullName || 'N/A'} (
+                    {installmentPlan?.guarantor?.phone || 'N/A'})
+                  </p>
+                )}
+              </div>
+            )}
+
+            {isInstallmentOrder && (
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-4">
+                <h4 className="text-sm font-bold text-gray-900 uppercase flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-gray-500" /> Échéancier et preuves transactionnelles
+                </h4>
+                {!visibleInstallmentEntries.length ? (
+                  <p className="text-sm text-gray-500">Aucune tranche disponible.</p>
+                ) : (
+                  visibleInstallmentEntries.map(({ entry, index }) => {
+                    const isCurrentInstallment = installmentCurrentIndex === index;
+                    const canUploadProof =
+                      saleConfirmationConfirmed &&
+                      isCurrentInstallment &&
+                      ['pending', 'overdue'].includes(entry?.status);
+                    const transactionProof = entry?.transactionProof || {};
+                    const hasTransactionProof = Boolean(transactionProof?.transactionCode);
+                    const proofDraftState = installmentProofForms[index] || {};
+                    const proofDraft = {
+                      payerName:
+                        proofDraftState?.payerName ??
+                        transactionProof?.senderName ??
+                        user?.name ??
+                        '',
+                      transactionCode:
+                        proofDraftState?.transactionCode ??
+                        transactionProof?.transactionCode ??
+                        ''
+                    };
+                    return (
+                      <div key={`${order._id}-installment-${index}`} className="rounded-xl border border-gray-200 p-3 space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-gray-900">
+                            Tranche {index + 1} • {formatCurrency(entry?.amount || 0)}
+                          </p>
+                          <span className={`inline-flex items-center rounded-full border px-2 py-1 text-xs font-semibold ${getScheduleStatusClassName(entry?.status)}`}>
+                            {getScheduleStatusLabel(entry?.status)}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          Échéance: {entry?.dueDate ? formatOrderTimestamp(entry.dueDate) : 'Non définie'}
+                        </div>
+                        {hasTransactionProof && (
+                          <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-2 text-xs text-indigo-900 space-y-1">
+                            <p>
+                              Expéditeur: <span className="font-semibold">{transactionProof.senderName || 'N/A'}</span>
+                            </p>
+                            <p>
+                              ID transaction:{' '}
+                              <span className="font-semibold">{transactionProof.transactionCode || 'N/A'}</span>
+                            </p>
+                            <p>
+                              Montant:{' '}
+                              <span className="font-semibold">{formatCurrency(transactionProof.amount || entry?.amount || 0)}</span>
+                            </p>
+                            {transactionProof?.submittedAt && (
+                              <p>
+                                Soumis le:{' '}
+                                <span className="font-semibold">{formatOrderTimestamp(transactionProof.submittedAt)}</span>
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        {!saleConfirmationConfirmed && (
+                          <p className="text-xs text-amber-700">
+                            La vente doit être confirmée par le vendeur avant l’envoi des preuves transactionnelles.
+                          </p>
+                        )}
+                        {canUploadProof && (
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-[11px] font-bold uppercase text-gray-700 mb-1">
+                                Nom de l’expéditeur
+                              </label>
+                              <input
+                                type="text"
+                                value={String(proofDraft.payerName ?? '')}
+                                onChange={(event) =>
+                                  handleInstallmentProofFieldChange(index, 'payerName', event.target.value)
+                                }
+                                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs"
+                                placeholder="Nom affiché dans le transfert"
+                              />
+                            </div>
+                            <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-3 overflow-hidden">
+                              <p className="text-xs font-bold uppercase text-blue-800 mb-2">
+                                Exemple: où trouver l'ID dans le SMS
+                              </p>
+                              <img
+                                src="/images/transaction-id-sms-example-checkout.png"
+                                alt="Exemple de SMS Mobile Money montrant l'ID de la transaction"
+                                className="w-full max-w-sm mx-auto rounded-lg border border-gray-200 bg-white shadow-sm object-contain"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-bold uppercase text-gray-700 mb-1">
+                                ID transaction (10 chiffres)
+                              </label>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={10}
+                                value={String(proofDraft.transactionCode ?? '')}
+                                onChange={(event) =>
+                                  handleInstallmentProofFieldChange(index, 'transactionCode', event.target.value)
+                                }
+                                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs"
+                                placeholder="Ex: 7232173826"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-bold uppercase text-gray-700 mb-1">
+                                Montant de la tranche
+                              </label>
+                              <input
+                                type="text"
+                                value={formatCurrency(entry?.amount || 0)}
+                                readOnly
+                                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleInstallmentProofUpload(index, entry)}
+                              disabled={
+                                installmentUploadIndex === index ||
+                                !String(proofDraft.payerName || '').trim() ||
+                                String(proofDraft.transactionCode || '').replace(/\D/g, '').length !== 10
+                              }
+                              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+                            >
+                              {installmentUploadIndex === index ? 'Envoi...' : 'Envoyer la preuve transactionnelle'}
+                            </button>
+                          </div>
+                        )}
+                        {entry?.status === 'proof_uploaded' && (
+                          <p className="text-xs text-indigo-700">
+                            Votre preuve est transmise. En attente de validation vendeur.
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+
             <div>
               <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-gray-500" /> Gestionnaire</h4>
               <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/50">
@@ -494,7 +882,7 @@ export default function OrderDetail() {
               </div>
             </div>
 
-            {order.status === 'cancelled' && (
+            {effectiveOrderStatus === 'cancelled' && (
               <div className="rounded-2xl border-2 border-red-200 bg-red-50 p-4 space-y-2">
                 <div className="flex items-center gap-2">
                   <AlertCircle className="w-5 h-5 text-red-600" />
@@ -505,11 +893,13 @@ export default function OrderDetail() {
               </div>
             )}
 
-            {order.status !== 'cancelled' && <OrderProgress status={order.status} />}
+            {effectiveOrderStatus !== 'cancelled' && (
+              <OrderProgress status={effectiveOrderStatus} paymentType={progressPaymentType} />
+            )}
 
             <div className="space-y-3">
               <OrderChat order={order} buttonText="Contacter le vendeur" unreadCount={unreadCount} />
-              {order.status === 'delivered' && order.items?.length > 0 && (
+              {effectiveOrderStatus === 'delivered' && order.items?.length > 0 && (
                 <button type="button" onClick={handleReorder} disabled={reordering} className="w-full px-6 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 flex items-center justify-center gap-2 disabled:opacity-50">
                   {reordering ? <Clock className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
                   <span>{reordering ? 'Ajout au panier...' : 'Commander à nouveau'}</span>

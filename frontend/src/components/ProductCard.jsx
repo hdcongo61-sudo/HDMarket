@@ -213,6 +213,15 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
 
   // === CALCULS ET DÉRIVATIONS ===
   const hasDiscount = typeof p.discount === 'number' && p.discount > 0;
+  const installmentAvailable = useMemo(() => {
+    if (p?.installmentAvailable) return true;
+    if (!p?.installmentEnabled) return false;
+    const start = p?.installmentStartDate ? new Date(p.installmentStartDate) : null;
+    const end = p?.installmentEndDate ? new Date(p.installmentEndDate) : null;
+    if (!start || Number.isNaN(start.getTime()) || !end || Number.isNaN(end.getTime())) return false;
+    const now = new Date();
+    return now >= start && now <= end;
+  }, [p]);
   const price = Number(p.price).toLocaleString();
   const originalPrice = hasDiscount && p.priceBeforeDiscount
     ? Number(p.priceBeforeDiscount).toLocaleString()
@@ -514,6 +523,12 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
               Certifié
             </div>
           )}
+          {installmentAvailable && (
+            <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-indigo-600 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
+              <Clock className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
+              Paiement en tranche
+            </div>
+          )}
         </div>
 
         {/* ❤️ BOUTON FAVORI */}
@@ -616,6 +631,12 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
             </div>
           )}
         </div>
+
+        {installmentAvailable && (
+          <div className="inline-flex w-fit items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[9px] font-semibold text-indigo-700">
+            Paiement en plusieurs fois disponible
+          </div>
+        )}
 
         {/* Badges de fonctionnalités */}
         {p.certified && (

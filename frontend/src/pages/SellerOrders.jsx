@@ -36,34 +36,57 @@ import OrderChat from '../components/OrderChat';
 
 const STATUS_LABELS = {
   pending: 'En attente',
+  pending_installment: 'Validation vente',
+  installment_active: 'Tranche active',
+  overdue_installment: 'Retard tranche',
   confirmed: 'Commande confirmée',
   delivering: 'En cours de livraison',
   delivered: 'Commande terminée',
+  completed: 'Paiement terminé',
   cancelled: 'Commande annulée'
 };
 
 const STATUS_STYLES = {
   pending: { header: 'bg-gray-600', card: 'bg-gray-50 border-gray-200 text-gray-700' },
+  pending_installment: { header: 'bg-violet-600', card: 'bg-violet-50 border-violet-200 text-violet-800' },
+  installment_active: { header: 'bg-indigo-600', card: 'bg-indigo-50 border-indigo-200 text-indigo-800' },
+  overdue_installment: { header: 'bg-rose-600', card: 'bg-rose-50 border-rose-200 text-rose-800' },
   confirmed: { header: 'bg-amber-600', card: 'bg-amber-50 border-amber-200 text-amber-800' },
   delivering: { header: 'bg-blue-600', card: 'bg-blue-50 border-blue-200 text-blue-800' },
   delivered: { header: 'bg-emerald-600', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
+  completed: { header: 'bg-emerald-700', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
   cancelled: { header: 'bg-red-600', card: 'bg-red-50 border-red-200 text-red-800' }
 };
 
 const STATUS_ICONS = {
   pending: Clock,
+  pending_installment: Clock,
+  installment_active: CreditCard,
+  overdue_installment: AlertCircle,
   confirmed: Package,
   delivering: Truck,
   delivered: CheckCircle,
+  completed: CheckCircle,
   cancelled: X
+};
+
+const INSTALLMENT_SALE_STATUS_LABELS = {
+  confirmed: 'Confirmée',
+  delivering: 'En cours de livraison',
+  delivered: 'Livrée',
+  cancelled: 'Annulée'
 };
 
 const STATUS_TABS = [
   { key: 'all', label: 'Toutes', icon: ClipboardList, count: null },
   { key: 'pending', label: 'En attente', icon: Clock, count: null },
+  { key: 'pending_installment', label: 'Vente à confirmer', icon: Receipt, count: null },
+  { key: 'installment_active', label: 'Tranches actives', icon: CreditCard, count: null },
+  { key: 'overdue_installment', label: 'Tranches en retard', icon: AlertCircle, count: null },
   { key: 'confirmed', label: 'Confirmées', icon: Package, count: null },
   { key: 'delivering', label: 'En livraison', icon: Truck, count: null },
   { key: 'delivered', label: 'Livrées', icon: CheckCircle, count: null },
+  { key: 'completed', label: 'Paiement terminé', icon: CheckCircle, count: null },
   { key: 'cancelled', label: 'Annulées', icon: X, count: null }
 ];
 
@@ -196,6 +219,16 @@ const SellerOrderSummaryCard = ({ order }) => {
   const orderItems = Array.isArray(order.items) ? order.items : [];
   const computedTotal = orderItems.reduce((s, i) => s + Number(i.snapshot?.price || 0) * Number(i.quantity || 1), 0);
   const totalAmount = Number(order.totalAmount ?? computedTotal);
+  const isInstallmentOrder = order.paymentType === 'installment';
+  const installmentPlan = isInstallmentOrder ? order.installmentPlan || {} : null;
+  const installmentTotal = Number(installmentPlan?.totalAmount ?? totalAmount);
+  const installmentPaid = Number(installmentPlan?.amountPaid || 0);
+  const installmentSaleStatus =
+    isInstallmentOrder && order.status === 'completed'
+      ? order.installmentSaleStatus || 'confirmed'
+      : order.installmentSaleStatus || '';
+  const installmentProgress =
+    installmentTotal > 0 ? Math.min(100, Math.round((installmentPaid / installmentTotal) * 100)) : 0;
   const firstItem = orderItems[0];
   const productTitle = firstItem?.snapshot?.title || 'Produit';
   const itemCount = orderItems.length;
@@ -235,6 +268,24 @@ const SellerOrderSummaryCard = ({ order }) => {
             <span className="text-gray-400">×</span>
             <span>{firstItem?.quantity ?? 1}</span>
           </div>
+          {isInstallmentOrder && (
+            <div className="mt-2 space-y-1">
+              <p className="text-xs font-semibold text-indigo-700">
+                Tranche: {installmentProgress}% validé
+              </p>
+              <div className="h-1.5 rounded-full bg-indigo-100 overflow-hidden">
+                <div
+                  className="h-full bg-indigo-600"
+                  style={{ width: `${installmentProgress}%` }}
+                />
+              </div>
+              {order.status === 'completed' && (
+                <p className="text-[11px] text-gray-500">
+                  Statut vente: {INSTALLMENT_SALE_STATUS_LABELS[installmentSaleStatus] || 'Confirmée'}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
       <div className="px-4 pb-4 flex items-center justify-between gap-3">
@@ -631,6 +682,15 @@ export default function SellerOrders() {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [stats, setStats] = useState({ total: 0, totalAmount: 0, byStatus: {} });
   const [statsLoading, setStatsLoading] = useState(false);
+  const [installmentAnalytics, setInstallmentAnalytics] = useState({
+    totalInstallmentSales: 0,
+    revenueInProgress: 0,
+    collectedAmount: 0,
+    riskExposure: 0,
+    overdueOrders: 0,
+    completedOrders: 0
+  });
+  const [installmentAnalyticsLoading, setInstallmentAnalyticsLoading] = useState(false);
   const [orderUnreadCounts, setOrderUnreadCounts] = useState({});
   const { status: statusParam } = useParams();
 
@@ -682,6 +742,33 @@ export default function SellerOrders() {
     };
     loadStats();
     return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadInstallmentAnalytics = async () => {
+      setInstallmentAnalyticsLoading(true);
+      try {
+        const { data } = await api.get('/orders/seller/installment/analytics');
+        if (!active) return;
+        setInstallmentAnalytics({
+          totalInstallmentSales: Number(data?.totalInstallmentSales || 0),
+          revenueInProgress: Number(data?.revenueInProgress || 0),
+          collectedAmount: Number(data?.collectedAmount || 0),
+          riskExposure: Number(data?.riskExposure || 0),
+          overdueOrders: Number(data?.overdueOrders || 0),
+          completedOrders: Number(data?.completedOrders || 0)
+        });
+      } catch (err) {
+        console.error('Error loading installment analytics:', err);
+      } finally {
+        if (active) setInstallmentAnalyticsLoading(false);
+      }
+    };
+    loadInstallmentAnalytics();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const loadUnreadCounts = async (orderIds) => {
@@ -964,6 +1051,51 @@ export default function SellerOrders() {
               </div>
               <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">En attente</p>
               <p className="text-xs text-gray-500 mt-1">Commandes en cours de traitement</p>
+            </div>
+          </div>
+        )}
+
+        {!installmentAnalyticsLoading && installmentAnalytics.totalInstallmentSales > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="bg-white rounded-2xl border border-indigo-100 shadow-sm p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 rounded-xl bg-indigo-600">
+                  <CreditCard className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-2xl font-bold text-gray-900">
+                  {installmentAnalytics.totalInstallmentSales}
+                </span>
+              </div>
+              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Ventes en tranche</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Terminées: {installmentAnalytics.completedOrders} • Retard: {installmentAnalytics.overdueOrders}
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl border border-amber-100 shadow-sm p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 rounded-xl bg-amber-600">
+                  <DollarSign className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-2xl font-bold text-gray-900">
+                  {formatCurrency(installmentAnalytics.revenueInProgress)}
+                </span>
+              </div>
+              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Revenus en cours</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Déjà collecté: {formatCurrency(installmentAnalytics.collectedAmount)}
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl border border-rose-100 shadow-sm p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 rounded-xl bg-rose-600">
+                  <AlertCircle className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-2xl font-bold text-gray-900">
+                  {formatCurrency(installmentAnalytics.riskExposure)}
+                </span>
+              </div>
+              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Exposition au risque</p>
+              <p className="text-xs text-gray-500 mt-1">Montant des commandes à risque.</p>
             </div>
           </div>
         )}

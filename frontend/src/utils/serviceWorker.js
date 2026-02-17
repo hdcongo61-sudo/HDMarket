@@ -20,6 +20,7 @@ export const registerServiceWorker = async () => {
         appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
         measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || ''
       };
+      const firebaseSdkBaseUrl = import.meta.env.VITE_FIREBASE_SW_SDK_BASE_URL || '';
 
       const postFirebaseConfig = async () => {
         if (!firebaseConfig.apiKey || !firebaseConfig.messagingSenderId) return;
@@ -27,7 +28,13 @@ export const registerServiceWorker = async () => {
           const readyReg = await navigator.serviceWorker.ready;
           const target = readyReg.active || registration.active;
           if (target) {
-            target.postMessage({ type: 'SET_FIREBASE_CONFIG', payload: firebaseConfig });
+            target.postMessage({
+              type: 'SET_FIREBASE_CONFIG',
+              payload: {
+                config: firebaseConfig,
+                sdkBaseUrl: firebaseSdkBaseUrl
+              }
+            });
           }
         } catch (err) {
           console.warn('[HDMarket] Failed to send Firebase config to SW', err);

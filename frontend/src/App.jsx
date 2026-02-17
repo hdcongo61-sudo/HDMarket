@@ -59,6 +59,7 @@ import PaymentVerification from './pages/PaymentVerification';
 import AdminReports from './pages/AdminReports';
 import AdminAppSettings from './pages/AdminAppSettings';
 import AdminComplaints from './pages/AdminComplaints';
+import AdminPromoCodes from './pages/AdminPromoCodes';
 import AdminLayout from './components/AdminLayout';
 import CertifiedProducts from './pages/CertifiedProducts';
 import Suggestions from './pages/Suggestions';
@@ -379,6 +380,14 @@ function AppContent() {
               element={
                 <ProtectedRoute roles={['admin']}>
                   <AdminUsers />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="promo-codes"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <AdminPromoCodes />
                 </ProtectedRoute>
               }
             />

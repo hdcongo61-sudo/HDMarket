@@ -16,10 +16,18 @@ import {
 import { buildIdentifierQuery } from '../utils/idResolver.js';
 import { ensureDocumentSlug, ensureModelSlugsForItems } from '../utils/slugUtils.js';
 import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
+import {
+  isProductInstallmentActive,
+  validateInstallmentConfig
+} from '../utils/installmentUtils.js';
 
 const MAX_PRODUCT_IMAGES = 3;
 const SHOP_SELECT_FIELDS =
   'name phone accountType shopName shopAddress shopLogo city country shopVerified isBlocked slug';
+const SUPPORTED_CITIES = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
+
+const isTruthyQueryValue = (value) =>
+  value === true || value === 'true' || value === 1 || value === '1';
 
 const ensureProductSlug = async (productDoc) => {
   if (!productDoc) return null;
@@ -148,7 +156,22 @@ const applyBlockedUsersToFilter = (baseFilter = {}, blockedSet) => {
 };
 
 export const createProduct = asyncHandler(async (req, res) => {
-  const { title, description, price, category, discount, condition } = req.body;
+  const {
+    title,
+    description,
+    price,
+    category,
+    discount,
+    condition,
+    installmentEnabled,
+    installmentMinAmount,
+    installmentDuration,
+    installmentStartDate,
+    installmentEndDate,
+    installmentLatePenaltyRate,
+    installmentMaxMissedPayments,
+    installmentRequireGuarantor
+  } = req.body;
   if (!title || !description || !price || !category)
     return res.status(400).json({ message: 'Missing fields' });
 
@@ -190,6 +213,22 @@ export const createProduct = asyncHandler(async (req, res) => {
   const ownerCountry = seller.country || 'République du Congo';
   const isShop = seller.accountType === 'shop';
   const isVerifiedShop = isShop && Boolean(seller.shopVerified);
+
+  const installmentConfig = validateInstallmentConfig({
+    installmentEnabled,
+    installmentMinAmount,
+    installmentDuration,
+    installmentStartDate,
+    installmentEndDate,
+    installmentLatePenaltyRate,
+    installmentMaxMissedPayments,
+    installmentRequireGuarantor,
+    price: finalPrice,
+    isShop
+  });
+  if (!installmentConfig.valid) {
+    return res.status(400).json({ message: installmentConfig.message });
+  }
 
   const imageFiles = getUploadedFiles(req.files, 'images');
   const videoFiles = getUploadedFiles(req.files, 'video');
@@ -290,7 +329,8 @@ export const createProduct = asyncHandler(async (req, res) => {
     user: req.user.id,
     status: 'pending',
     city: ownerCity,
-    country: ownerCountry
+    country: ownerCountry,
+    ...installmentConfig.normalized
   });
 
   await logProductAction({
@@ -318,10 +358,14 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     minPrice,
     maxPrice,
     city: cityParam,
+    userCity: userCityParam,
+    locationPriority,
+    nearMe,
     certified,
     condition: conditionParam,
     shopVerified,
     hasDiscount,
+    installmentOnly,
     minRating,
     minFavorites,
     minSales,
@@ -334,6 +378,10 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   const sort = sortParam === 'newest' ? 'new' : sortParam;
 
   const filter = { status: 'approved' };
+  const normalizedUserCity = typeof userCityParam === 'string' ? userCityParam.trim() : '';
+  const userCity = SUPPORTED_CITIES.includes(normalizedUserCity) ? normalizedUserCity : null;
+  const nearMeEnabled = isTruthyQueryValue(nearMe);
+  const locationPriorityEnabled = isTruthyQueryValue(locationPriority);
   
   // Certified filter
   if (certified === 'true') {
@@ -396,9 +444,12 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   // City filter
   if (cityParam) {
     const normalizedCity = cityParam.trim();
-    if (['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'].includes(normalizedCity)) {
+    if (SUPPORTED_CITIES.includes(normalizedCity)) {
       filter.city = normalizedCity;
     }
+  }
+  if (nearMeEnabled && userCity) {
+    filter.city = userCity;
   }
 
   // Condition filter (new/used)
@@ -419,6 +470,13 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   // Discount filter
   if (hasDiscount === 'true') {
     filter.discount = { $gt: 0 };
+  }
+
+  if (installmentOnly === true || installmentOnly === 'true') {
+    const now = new Date();
+    filter.installmentEnabled = true;
+    filter.installmentStartDate = { $lte: now };
+    filter.installmentEndDate = { $gte: now };
   }
 
   // Favorites count filter
@@ -456,67 +514,144 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
 
   const blockedSellerIds = await getBlockedSellerIdsSet();
   const activeFilter = applyBlockedUsersToFilter(filter, blockedSellerIds);
+  const shouldApplyLocationPriority = locationPriorityEnabled && Boolean(userCity);
   const baseSort = { boosted: -1, boostScore: -1 };
   
   // If filtering by shopVerified, we need to filter after populate
   const needsPostFilter = shopVerified === 'true' || minRating !== undefined;
-  
-  const [itemsRaw, totalBeforeFilter] = await Promise.all([
-    Product.find(activeFilter)
-      .sort({ ...baseSort, ...(sortOptions[sort] || sortOptions.new) })
-      .skip(skip)
-      .limit(needsPostFilter ? pageSize * 2 : pageSize) // Fetch more if we need to filter
-      .lean(),
-    Product.countDocuments(activeFilter)
-  ]);
-  
-  // Post-process to ensure currently boosted products (within date range) appear first
-  // This ensures products outside their boost date range don't appear before non-boosted products
-  const now = new Date();
-  const nowTime = now.getTime();
-  itemsRaw.sort((a, b) => {
-    // Check if products are currently boosted (within date range)
-    const aIsCurrentlyBoosted = a.boosted && (
-      (!a.boostStartDate || new Date(a.boostStartDate).getTime() <= nowTime) &&
-      (!a.boostEndDate || new Date(a.boostEndDate).getTime() >= nowTime)
-    );
-    const bIsCurrentlyBoosted = b.boosted && (
-      (!b.boostStartDate || new Date(b.boostStartDate).getTime() <= nowTime) &&
-      (!b.boostEndDate || new Date(b.boostEndDate).getTime() >= nowTime)
-    );
-    
-    // Currently boosted products should always appear first
-    if (aIsCurrentlyBoosted && !bIsCurrentlyBoosted) return -1;
-    if (!aIsCurrentlyBoosted && bIsCurrentlyBoosted) return 1;
-    
-    // If both are currently boosted, sort by boostScore (higher first)
-    if (aIsCurrentlyBoosted && bIsCurrentlyBoosted) {
-      const scoreDiff = (b.boostScore || 0) - (a.boostScore || 0);
-      if (scoreDiff !== 0) return scoreDiff;
-    }
-    
-    // For non-boosted or expired boosts, maintain the original sort order
-    // by comparing the sort fields
-    if (sort === 'price_asc') {
-      return (a.price || 0) - (b.price || 0);
-    }
-    if (sort === 'price_desc') {
-      return (b.price || 0) - (a.price || 0);
-    }
-    if (sort === 'popular') {
-      const aScore = (a.salesCount || 0) * 2 + (a.favoritesCount || 0);
-      const bScore = (b.salesCount || 0) * 2 + (b.favoritesCount || 0);
-      if (bScore !== aScore) return bScore - aScore;
+  const prefetchLimit = needsPostFilter ? pageSize * 2 : pageSize;
+  let itemsRaw = [];
+  let totalBeforeFilter = 0;
+
+  if (shouldApplyLocationPriority) {
+    const now = new Date();
+    const locationSortBy =
+      sort === 'price_asc'
+        ? { price: 1, validationDate: -1, createdAt: -1 }
+        : sort === 'price_desc'
+        ? { price: -1, validationDate: -1, createdAt: -1 }
+        : sort === 'discount'
+        ? { discount: -1, validationDate: -1, createdAt: -1 }
+        : sort === 'popular'
+        ? { salesCount: -1, favoritesCount: -1, validationDate: -1, createdAt: -1 }
+        : { validationDate: -1, createdAt: -1 };
+
+    const [aggregated] = await Product.aggregate([
+      { $match: activeFilter },
+      {
+        $addFields: {
+          isCurrentlyBoosted: {
+            $and: [
+              { $eq: ['$boosted', true] },
+              {
+                $or: [{ $eq: ['$boostStartDate', null] }, { $lte: ['$boostStartDate', now] }]
+              },
+              {
+                $or: [{ $eq: ['$boostEndDate', null] }, { $gt: ['$boostEndDate', now] }]
+              }
+            ]
+          }
+        }
+      },
+      {
+        $addFields: {
+          locationPriorityRank: {
+            $switch: {
+              branches: [
+                {
+                  case: {
+                    $and: [{ $eq: ['$city', userCity] }, { $eq: ['$isCurrentlyBoosted', true] }]
+                  },
+                  then: 0
+                },
+                {
+                  case: { $eq: ['$city', userCity] },
+                  then: 1
+                },
+                {
+                  case: { $eq: ['$isCurrentlyBoosted', true] },
+                  then: 2
+                }
+              ],
+              default: 3
+            }
+          }
+        }
+      },
+      {
+        $sort: {
+          locationPriorityRank: 1,
+          ...locationSortBy
+        }
+      },
+      {
+        $facet: {
+          items: [{ $skip: skip }, { $limit: prefetchLimit }],
+          totalCount: [{ $count: 'total' }]
+        }
+      }
+    ]);
+
+    itemsRaw = Array.isArray(aggregated?.items) ? aggregated.items : [];
+    totalBeforeFilter = Number(aggregated?.totalCount?.[0]?.total || 0);
+  } else {
+    [itemsRaw, totalBeforeFilter] = await Promise.all([
+      Product.find(activeFilter)
+        .sort({ ...baseSort, ...(sortOptions[sort] || sortOptions.new) })
+        .skip(skip)
+        .limit(prefetchLimit)
+        .lean(),
+      Product.countDocuments(activeFilter)
+    ]);
+
+    // Post-process to ensure currently boosted products (within date range) appear first
+    // This ensures products outside their boost date range don't appear before non-boosted products
+    const now = new Date();
+    const nowTime = now.getTime();
+    itemsRaw.sort((a, b) => {
+      // Check if products are currently boosted (within date range)
+      const aIsCurrentlyBoosted = a.boosted && (
+        (!a.boostStartDate || new Date(a.boostStartDate).getTime() <= nowTime) &&
+        (!a.boostEndDate || new Date(a.boostEndDate).getTime() >= nowTime)
+      );
+      const bIsCurrentlyBoosted = b.boosted && (
+        (!b.boostStartDate || new Date(b.boostStartDate).getTime() <= nowTime) &&
+        (!b.boostEndDate || new Date(b.boostEndDate).getTime() >= nowTime)
+      );
+
+      // Currently boosted products should always appear first
+      if (aIsCurrentlyBoosted && !bIsCurrentlyBoosted) return -1;
+      if (!aIsCurrentlyBoosted && bIsCurrentlyBoosted) return 1;
+
+      // If both are currently boosted, sort by boostScore (higher first)
+      if (aIsCurrentlyBoosted && bIsCurrentlyBoosted) {
+        const scoreDiff = (b.boostScore || 0) - (a.boostScore || 0);
+        if (scoreDiff !== 0) return scoreDiff;
+      }
+
+      // For non-boosted or expired boosts, maintain the original sort order
+      // by comparing the sort fields
+      if (sort === 'price_asc') {
+        return (a.price || 0) - (b.price || 0);
+      }
+      if (sort === 'price_desc') {
+        return (b.price || 0) - (a.price || 0);
+      }
+      if (sort === 'popular') {
+        const aScore = (a.salesCount || 0) * 2 + (a.favoritesCount || 0);
+        const bScore = (b.salesCount || 0) * 2 + (b.favoritesCount || 0);
+        if (bScore !== aScore) return bScore - aScore;
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      }
+      if (sort === 'discount') {
+        const discountDiff = (b.discount || 0) - (a.discount || 0);
+        if (discountDiff !== 0) return discountDiff;
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      }
+      // Default: newest first
       return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-    }
-    if (sort === 'discount') {
-      const discountDiff = (b.discount || 0) - (a.discount || 0);
-      if (discountDiff !== 0) return discountDiff;
-      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-    }
-    // Default: newest first
-    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-  });
+    });
+  }
 
   await Product.populate(itemsRaw, { path: 'user', select: SHOP_SELECT_FIELDS });
   await ensureModelSlugsForItems({ Model: Product, items: itemsRaw, sourceValueKey: 'title' });
@@ -552,14 +687,22 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   }
 
   let items = filteredItems.map((item) => {
+    const safeItem = { ...item };
+    delete safeItem.locationPriorityRank;
     const commentCount = commentMap.get(String(item._id)) || 0;
     const rating = ratingMap.get(String(item._id)) || { average: 0, count: 0 };
+    const installmentAvailable = isProductInstallmentActive(safeItem);
+    const isCurrentlyBoosted =
+      typeof safeItem.isCurrentlyBoosted === 'boolean'
+        ? safeItem.isCurrentlyBoosted
+        : isProductCurrentlyBoosted(safeItem);
     return {
-      ...item,
+      ...safeItem,
       commentCount,
       ratingAverage: rating.average,
       ratingCount: rating.count,
-      isCurrentlyBoosted: isProductCurrentlyBoosted(item)
+      isCurrentlyBoosted,
+      installmentAvailable
     };
   });
 
@@ -579,7 +722,7 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   // For post-filtered results, we can't know exact total without full scan
   // Use a reasonable estimate based on current results
   let total = totalBeforeFilter;
-  if ((shopVerified === 'true' || minRating !== undefined) && page === 1) {
+  if ((shopVerified === 'true' || minRating !== undefined) && pageNumber === 1) {
     // On first page, if we have fewer results than page size, that's likely close to total
     if (items.length < pageSize) {
       total = items.length;
@@ -670,6 +813,7 @@ export const getTopSales = asyncHandler(async (req, res) => {
 export const getPublicHighlights = asyncHandler(async (req, res) => {
   const limitParam = Number(req.query?.limit);
   const limit = Math.max(1, Math.min(Number.isFinite(limitParam) ? limitParam : 6, 60));
+  const now = new Date();
 
   const baseFilter = { status: 'approved' };
   const blockedSellerIds = await getBlockedSellerIdsSet();
@@ -695,6 +839,15 @@ export const getPublicHighlights = asyncHandler(async (req, res) => {
     .lean();
 
   const usedRaw = await Product.find({ ...activeBaseFilter, condition: 'used' })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
+  const installmentRaw = await Product.find({
+    ...activeBaseFilter,
+    installmentEnabled: true,
+    installmentStartDate: { $lte: now },
+    installmentEndDate: { $gte: now }
+  })
     .sort({ createdAt: -1 })
     .limit(limit)
     .lean();
@@ -743,6 +896,7 @@ export const getPublicHighlights = asyncHandler(async (req, res) => {
   discountRaw.forEach(pushUnique);
   newRaw.forEach(pushUnique);
   usedRaw.forEach(pushUnique);
+  installmentRaw.forEach(pushUnique);
   cityProductsRaw.forEach(pushUnique);
   const combinedDocs = Array.from(combinedMap.values());
   await Product.populate(combinedDocs, { path: 'user', select: SHOP_SELECT_FIELDS });
@@ -792,6 +946,7 @@ export const getPublicHighlights = asyncHandler(async (req, res) => {
   const topDiscounts = discountRaw.map(serialize).slice(0, limit);
   const newProducts = newRaw.map(serialize).slice(0, limit);
   const usedProducts = usedRaw.map(serialize).slice(0, limit);
+  const installmentProducts = installmentRaw.map(serialize).slice(0, limit);
   const cityHighlights = Object.fromEntries(cityList.map((city) => [city, []]));
   const cityLimit = Math.min(limit, 12);
 
@@ -801,7 +956,89 @@ export const getPublicHighlights = asyncHandler(async (req, res) => {
     cityHighlights[city].push(serialize(doc));
   });
 
-  res.json({ favorites, topRated, topDeals, topDiscounts, newProducts, usedProducts, cityHighlights });
+  res.json({
+    favorites,
+    topRated,
+    topDeals,
+    topDiscounts,
+    newProducts,
+    usedProducts,
+    installmentProducts,
+    cityHighlights
+  });
+});
+
+export const getPublicInstallmentProducts = asyncHandler(async (req, res) => {
+  const page = Math.max(1, Number(req.query?.page) || 1);
+  const limit = Math.max(1, Math.min(24, Number(req.query?.limit) || 8));
+  const skip = (page - 1) * limit;
+  const now = new Date();
+
+  const blockedSellerIds = await getBlockedSellerIdsSet();
+  const baseFilter = applyBlockedUsersToFilter(
+    {
+      status: 'approved',
+      installmentEnabled: true,
+      installmentStartDate: { $lte: now },
+      installmentEndDate: { $gte: now }
+    },
+    blockedSellerIds
+  );
+
+  const [itemsRaw, total] = await Promise.all([
+    Product.find(baseFilter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Product.countDocuments(baseFilter)
+  ]);
+
+  await Product.populate(itemsRaw, { path: 'user', select: SHOP_SELECT_FIELDS });
+  await ensureModelSlugsForItems({ Model: Product, items: itemsRaw, sourceValueKey: 'title' });
+
+  const productIds = itemsRaw.map((item) => item._id);
+  const [commentStats, ratingStats] = productIds.length
+    ? await Promise.all([
+        Comment.aggregate([
+          { $match: { product: { $in: productIds } } },
+          { $group: { _id: '$product', count: { $sum: 1 } } }
+        ]),
+        Rating.aggregate([
+          { $match: { product: { $in: productIds } } },
+          { $group: { _id: '$product', average: { $avg: '$value' }, count: { $sum: 1 } } }
+        ])
+      ])
+    : [[], []];
+
+  const commentMap = new Map(commentStats.map((stat) => [String(stat._id), stat.count]));
+  const ratingMap = new Map(
+    ratingStats.map((stat) => [
+      String(stat._id),
+      { average: Number(stat.average?.toFixed(2) ?? 0), count: stat.count }
+    ])
+  );
+
+  const items = itemsRaw.map((item) => {
+    const rating = ratingMap.get(String(item._id)) || { average: 0, count: 0 };
+    return {
+      ...item,
+      commentCount: commentMap.get(String(item._id)) || 0,
+      ratingAverage: rating.average,
+      ratingCount: rating.count,
+      installmentAvailable: true
+    };
+  });
+
+  res.json({
+    items,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.max(1, Math.ceil(total / limit))
+    }
+  });
 });
 
 export const getPublicProductById = asyncHandler(async (req, res) => {
@@ -834,6 +1071,7 @@ export const getPublicProductById = asyncHandler(async (req, res) => {
   product.commentCount = commentCount;
   product.ratingAverage = rating.average;
   product.ratingCount = rating.count;
+  product.installmentAvailable = isProductInstallmentActive(productDoc);
 
   res.json(product);
 });
@@ -1020,7 +1258,21 @@ export const updateProduct = asyncHandler(async (req, res) => {
   }
 
   const previousDiscount = Number(product.discount || 0);
-  const { title, description, category, discount, condition } = req.body;
+  const {
+    title,
+    description,
+    category,
+    discount,
+    condition,
+    installmentEnabled,
+    installmentMinAmount,
+    installmentDuration,
+    installmentStartDate,
+    installmentEndDate,
+    installmentLatePenaltyRate,
+    installmentMaxMissedPayments,
+    installmentRequireGuarantor
+  } = req.body;
   if (title) product.title = title;
   if (description) product.description = description;
   if (category) product.category = category;
@@ -1050,6 +1302,54 @@ export const updateProduct = asyncHandler(async (req, res) => {
     const normalized = condition.toString().toLowerCase();
     if (normalized === 'new' || normalized === 'used') {
       product.condition = normalized;
+    }
+  }
+
+  const hasInstallmentPayload = [
+    installmentEnabled,
+    installmentMinAmount,
+    installmentDuration,
+    installmentStartDate,
+    installmentEndDate,
+    installmentLatePenaltyRate,
+    installmentMaxMissedPayments,
+    installmentRequireGuarantor
+  ].some((value) => value !== undefined);
+
+  if (hasInstallmentPayload) {
+    const targetEnabled =
+      installmentEnabled !== undefined ? installmentEnabled : product.installmentEnabled;
+    const installmentConfig = validateInstallmentConfig({
+      installmentEnabled: targetEnabled,
+      installmentMinAmount:
+        installmentMinAmount !== undefined ? installmentMinAmount : product.installmentMinAmount,
+      installmentDuration:
+        installmentDuration !== undefined ? installmentDuration : product.installmentDuration,
+      installmentStartDate:
+        installmentStartDate !== undefined ? installmentStartDate : product.installmentStartDate,
+      installmentEndDate:
+        installmentEndDate !== undefined ? installmentEndDate : product.installmentEndDate,
+      installmentLatePenaltyRate:
+        installmentLatePenaltyRate !== undefined
+          ? installmentLatePenaltyRate
+          : product.installmentLatePenaltyRate,
+      installmentMaxMissedPayments:
+        installmentMaxMissedPayments !== undefined
+          ? installmentMaxMissedPayments
+          : product.installmentMaxMissedPayments,
+      installmentRequireGuarantor:
+        installmentRequireGuarantor !== undefined
+          ? installmentRequireGuarantor
+          : product.installmentRequireGuarantor,
+      price: product.price,
+      isShop
+    });
+    if (!installmentConfig.valid) {
+      return res.status(400).json({ message: installmentConfig.message });
+    }
+    Object.assign(product, installmentConfig.normalized);
+    if (installmentConfig.normalized.installmentEnabled) {
+      product.installmentSuspendedAt = null;
     }
   }
 

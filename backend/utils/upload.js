@@ -29,12 +29,19 @@ const PDF_EXTENSION_SET = new Set(PDF_EXTENSIONS);
 const IMAGE_MIME_SET = new Set(IMAGE_MIMES);
 const VIDEO_MIME_SET = new Set(VIDEO_MIMES);
 const PDF_MIME_SET = new Set(PDF_MIMES);
+const PROOF_FIELD_SET = new Set(['saleConfirmationProof', 'firstPaymentProof', 'proofOfPayment']);
 
 const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   const extension = path.extname(file.originalname || '').toLowerCase();
   const mimetype = file.mimetype || '';
+  if (PROOF_FIELD_SET.has(file.fieldname)) {
+    const isImage = IMAGE_EXTENSION_SET.has(extension) && IMAGE_MIME_SET.has(mimetype);
+    const isPdf = PDF_EXTENSION_SET.has(extension) && PDF_MIME_SET.has(mimetype);
+    if (isImage || isPdf) return cb(null, true);
+    return cb(new Error('La preuve doit être une image (jpg/png/webp) ou un PDF valide.'));
+  }
   if (file.fieldname === 'pdf') {
     const isPdf = PDF_EXTENSION_SET.has(extension) && PDF_MIME_SET.has(mimetype);
     if (isPdf) return cb(null, true);

@@ -7,6 +7,7 @@ import { cacheMiddleware } from '../utils/cache.js';
 import {
   createProduct,
   getPublicProducts,
+  getPublicInstallmentProducts,
   getPublicHighlights,
   getPublicProductById,
   getMyProducts,
@@ -35,6 +36,7 @@ const router = express.Router();
 
 // Public (validation query) - with caching
 router.get('/public/highlights', cacheMiddleware({ ttl: 300000 }), getPublicHighlights);
+router.get('/public/installments', cacheMiddleware({ ttl: 300000 }), getPublicInstallmentProducts);
 router.get('/public/top-sales', cacheMiddleware({ ttl: 300000 }), getTopSales);
 router.get('/public', cacheMiddleware({ ttl: 180000 }), validate(schemas.publicQuery, 'query'), getPublicProducts);
 router.get('/public/:id/comments', cacheMiddleware({ ttl: 120000 }), getCommentsForProduct);

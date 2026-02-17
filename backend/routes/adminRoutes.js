@@ -105,6 +105,16 @@ import {
   updateNetwork,
   deleteNetwork
 } from '../controllers/networkSettingController.js';
+import {
+  createPromoCode,
+  listPromoCodesAdmin,
+  updatePromoCode,
+  togglePromoCodeStatus,
+  getPromoCodeAnalytics,
+  getPromoCodeUsageHistory,
+  generatePromoCodeSample,
+  previewPromoCommission
+} from '../controllers/promoCodeController.js';
 
 const router = express.Router();
 
@@ -135,6 +145,48 @@ router.patch(
   requireRole(['admin']),
   validate(Joi.object({ userId: Joi.string().hex().length(24).required() }), 'params'),
   togglePaymentVerifier
+);
+
+// Promo codes - admin only
+router.get('/promo-codes', protect, requireRole(['admin']), listPromoCodesAdmin);
+router.get('/promo-codes/analytics', protect, requireRole(['admin']), getPromoCodeAnalytics);
+router.get('/promo-codes/usage', protect, requireRole(['admin']), getPromoCodeUsageHistory);
+router.post(
+  '/promo-codes',
+  protect,
+  requireRole(['admin']),
+  validate(schemas.promoCodeCreate),
+  createPromoCode
+);
+router.post(
+  '/promo-codes/generate',
+  protect,
+  requireRole(['admin']),
+  validate(schemas.promoCodeGenerate),
+  generatePromoCodeSample
+);
+router.post(
+  '/promo-codes/preview',
+  protect,
+  requireRole(['admin']),
+  validate(schemas.promoCommissionPreview),
+  previewPromoCommission
+);
+router.patch(
+  '/promo-codes/:id',
+  protect,
+  requireRole(['admin']),
+  validate(schemas.idParam, 'params'),
+  validate(schemas.promoCodeUpdate),
+  updatePromoCode
+);
+router.patch(
+  '/promo-codes/:id/toggle',
+  protect,
+  requireRole(['admin']),
+  validate(schemas.idParam, 'params'),
+  validate(schemas.promoCodeToggle),
+  togglePromoCodeStatus
 );
 
 // Reports - admin only

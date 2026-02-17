@@ -230,6 +230,14 @@ export default function PaymentVerification() {
                               {payment.transactionNumber}
                             </span>
                           </div>
+                          {payment.promoCodeValue && (
+                            <div>
+                              <span className="text-gray-500 dark:text-gray-400">Code promo:</span>{' '}
+                              <span className="font-semibold text-emerald-700 dark:text-emerald-300">
+                                {payment.promoCodeValue}
+                              </span>
+                            </div>
+                          )}
                           <div>
                             <span className="text-gray-500 dark:text-gray-400">Opérateur:</span>{' '}
                             <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${operatorColors[payment.operator] || operatorColors.Other}`}>
@@ -243,6 +251,13 @@ export default function PaymentVerification() {
                             <span className="text-gray-500 dark:text-gray-400">Montant payé:</span>{' '}
                             <span className="font-bold text-indigo-600 dark:text-indigo-400">
                               {formatCurrency(payment.amount)}
+                            </span>
+                          </div>
+                          <span className="text-gray-300 dark:text-gray-600">·</span>
+                          <div>
+                            <span className="text-gray-500 dark:text-gray-400">Commission due:</span>{' '}
+                            <span className="font-semibold text-gray-900 dark:text-white">
+                              {formatCurrency(payment.commissionDueAmount ?? payment.amount)}
                             </span>
                           </div>
                           <span className="text-gray-300 dark:text-gray-600">·</span>

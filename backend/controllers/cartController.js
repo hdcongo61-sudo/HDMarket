@@ -5,7 +5,7 @@ import Product from '../models/productModel.js';
 import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
 
 const productSelectFields =
-  'title price discount priceBeforeDiscount images status category user city country whatsappClicks slug';
+  'title price discount priceBeforeDiscount images status category user city country whatsappClicks slug installmentEnabled installmentMinAmount installmentDuration installmentStartDate installmentEndDate installmentRequireGuarantor';
 
 const getItemProductId = (item) => {
   if (!item) return null;
@@ -95,6 +95,12 @@ const formatCart = (cart) => {
           city: product.city,
           country: product.country,
           whatsappClicks: product.whatsappClicks ?? 0,
+          installmentEnabled: Boolean(product.installmentEnabled),
+          installmentMinAmount: Number(product.installmentMinAmount || 0),
+          installmentDuration: Number(product.installmentDuration || 0),
+          installmentStartDate: product.installmentStartDate || null,
+          installmentEndDate: product.installmentEndDate || null,
+          installmentRequireGuarantor: Boolean(product.installmentRequireGuarantor),
           user: seller,
           contactPhone: seller?.phone || null
         },
