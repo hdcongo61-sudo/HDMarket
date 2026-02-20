@@ -44,12 +44,23 @@ import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import CancellationTimer from '../components/CancellationTimer';
 import EditAddressModal from '../components/EditAddressModal';
 import OrderChat from '../components/OrderChat';
+import GlassHeader from '../components/orders/GlassHeader';
+import StatusBadge from '../components/orders/StatusBadge';
+import { OrderListSkeleton } from '../components/orders/OrderSkeletons';
 import CartContext from '../context/CartContext';
 import AuthContext from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import useIsMobile from '../hooks/useIsMobile';
+import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 const STATUS_LABELS = {
+  pending_payment: 'Paiement en attente',
+  paid: 'Payée',
+  ready_for_delivery: 'Prête à livrer',
+  out_for_delivery: 'En cours de livraison',
+  delivery_proof_submitted: 'Preuve soumise',
+  confirmed_by_client: 'Confirmée client',
   pending: 'En attente',
   pending_installment: 'Validation vente',
   installment_active: 'Tranche active',
@@ -74,6 +85,12 @@ const STATUS_STYLES = {
 };
 
 const STATUS_ICONS = {
+  pending_payment: Clock,
+  paid: CreditCard,
+  ready_for_delivery: Package,
+  out_for_delivery: Truck,
+  delivery_proof_submitted: ClipboardList,
+  confirmed_by_client: CheckCircle,
   pending: Clock,
   pending_installment: Clock,
   installment_active: CreditCard,
@@ -94,6 +111,12 @@ const INSTALLMENT_SALE_STATUS_LABELS = {
 
 const STATUS_TABS = [
   { key: 'all', label: 'Toutes', icon: ClipboardList, count: null },
+  { key: 'pending_payment', label: 'Paiement', icon: Clock, count: null },
+  { key: 'paid', label: 'Payées', icon: CreditCard, count: null },
+  { key: 'ready_for_delivery', label: 'Prêtes à livrer', icon: Package, count: null },
+  { key: 'out_for_delivery', label: 'En livraison', icon: Truck, count: null },
+  { key: 'delivery_proof_submitted', label: 'Preuve soumise', icon: ClipboardList, count: null },
+  { key: 'confirmed_by_client', label: 'Confirmées client', icon: CheckCircle, count: null },
   { key: 'pending', label: 'En attente', icon: Clock, count: null },
   { key: 'pending_installment', label: 'Vente à confirmer', icon: Receipt, count: null },
   { key: 'installment_active', label: 'Tranches actives', icon: CreditCard, count: null },
@@ -156,17 +179,26 @@ const formatOrderTimestamp = (value) =>
       })
     : null;
 
-const formatCurrency = (value) => `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
+const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
 const getEffectiveOrderStatus = (order) => {
   if (!order) return 'pending';
   if (order.paymentType === 'installment' && order.status === 'completed') {
     return order.installmentSaleStatus || 'confirmed';
   }
-  return order.status || 'pending';
+  const map = {
+    pending_payment: 'pending',
+    paid: 'confirmed',
+    ready_for_delivery: 'confirmed',
+    out_for_delivery: 'delivering',
+    delivery_proof_submitted: 'delivered',
+    confirmed_by_client: 'delivered'
+  };
+  return map[order.status] || order.status || 'pending';
 };
 
 const OrderProgress = ({ status }) => {
+  const { t } = useAppSettings();
   const currentIndexRaw = ORDER_FLOW.findIndex((step) => step.id === status);
   const currentIndex = currentIndexRaw >= 0 ? currentIndexRaw : 0;
 
@@ -176,7 +208,7 @@ const OrderProgress = ({ status }) => {
         <div className="p-2 rounded-lg bg-indigo-600">
           <TrendingUp className="w-4 h-4 text-white" />
         </div>
-        <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Suivi de commande</h3>
+        <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">{t('orders.tracking', 'Suivi de commande')}</h3>
       </div>
       <div className="relative">
         {/* Progress Line */}
@@ -242,6 +274,7 @@ const OrderProgress = ({ status }) => {
 
 // Mobile Order Tracking Card - App-style tracking UI
 const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancelOrder, onSkipWindow, onReorder, skipLoadingId, reordering, orderUnreadCounts }) => {
+  const { t } = useAppSettings();
   const externalLinkProps = useDesktopExternalLink();
   const orderItems = order.items?.length ? order.items : order.productSnapshot ? [{ snapshot: order.productSnapshot, quantity: 1, product: order.product }] : [];
   const itemCount = orderItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
@@ -309,7 +342,7 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
               </div>
             </div>
             <div>
-              <p className="text-xs text-gray-500 font-medium">Commande</p>
+              <p className="text-xs text-gray-500 font-medium">{t('orders.order', 'Commande')}</p>
               <h3 className="text-lg font-bold text-gray-900">#{order._id.slice(-6)}</h3>
               <p className="text-xs text-gray-500">{itemCount} article{itemCount > 1 ? 's' : ''} • {formatCurrency(totalAmount)}</p>
             </div>
@@ -365,7 +398,7 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
         <div className="mx-4 mt-3 p-4 rounded-2xl bg-indigo-50 border-2 border-indigo-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-indigo-600 uppercase tracking-wide">Code de livraison</p>
+              <p className="text-xs font-medium text-indigo-600 uppercase tracking-wide">{t('orders.deliveryCode', 'Code de livraison')}</p>
               <p className="text-3xl font-black text-indigo-900 tracking-widest font-mono mt-1">
                 {order.deliveryCode}
               </p>
@@ -380,7 +413,7 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
         <div className="px-5 py-4">
           <div className="flex items-center gap-2 mb-4">
             <Clock className="w-4 h-4 text-gray-400" />
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Suivi</span>
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{t('orders.tracking', 'Suivi')}</span>
           </div>
           <div className="relative">
             {/* Timeline Line */}
@@ -433,7 +466,7 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
               <AlertCircle className="w-5 h-5 text-red-600" />
             </div>
             <div>
-              <p className="font-semibold text-red-800">Commande annulée</p>
+              <p className="font-semibold text-red-800">{t('orders.cancelledOrder', 'Commande annulée')}</p>
               {order.cancellationReason && (
                 <p className="text-sm text-red-600 mt-1">{order.cancellationReason}</p>
               )}
@@ -520,7 +553,7 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4 text-gray-500" />
-              <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Livraison</span>
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{t('orders.delivery', 'Livraison')}</span>
             </div>
             {(order.status === 'pending' || order.status === 'confirmed') && (
               <button
@@ -567,6 +600,7 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
 
 // Compact order summary card - links to order detail page (reference-style layout)
 const OrderSummaryCard = ({ order }) => {
+  const { t } = useAppSettings();
   const orderItems = order.items?.length ? order.items : order.productSnapshot ? [{ snapshot: order.productSnapshot, quantity: 1, product: order.product }] : [];
   const computedTotal = orderItems.reduce((s, i) => s + Number(i.snapshot?.price || 0) * Number(i.quantity || 1), 0);
   const totalAmount = Number(order.totalAmount ?? computedTotal);
@@ -582,16 +616,14 @@ const OrderSummaryCard = ({ order }) => {
   const installmentProgress =
     installmentTotal > 0 ? Math.min(100, Math.round((installmentPaid / installmentTotal) * 100)) : 0;
   const firstItem = orderItems[0];
-  const shopName = firstItem?.snapshot?.shopName || 'Boutique';
-  const productTitle = firstItem?.snapshot?.title || 'Produit';
+  const shopName = firstItem?.snapshot?.shopName || t('orders.shop', 'Boutique');
+  const productTitle = firstItem?.snapshot?.title || t('orders.product', 'Produit');
   const itemCount = orderItems.length;
-  const StatusIcon = STATUS_ICONS[effectiveStatus] || Clock;
-  const statusStyle = STATUS_STYLES[effectiveStatus] || STATUS_STYLES.pending;
 
   return (
     <Link
       to={`/orders/detail/${order._id}`}
-      className="block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden"
+      className="group block rounded-2xl border border-neutral-200 bg-white transition hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-900/80 overflow-hidden"
     >
       {/* Seller + Status header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/50">
@@ -600,10 +632,7 @@ const OrderSummaryCard = ({ order }) => {
           <span className="font-semibold text-gray-900 truncate">{shopName}</span>
           <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
         </div>
-        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border flex-shrink-0 ${statusStyle.card}`}>
-          <StatusIcon className="w-3.5 h-3.5" />
-          {STATUS_LABELS[effectiveStatus] || effectiveStatus}
-        </span>
+        <StatusBadge status={effectiveStatus} />
       </div>
       {/* Product summary */}
       <div className="p-4 flex gap-3">
@@ -625,7 +654,7 @@ const OrderSummaryCard = ({ order }) => {
           {isInstallmentOrder && (
             <div className="mt-2 space-y-1">
               <p className="text-xs font-semibold text-indigo-700">
-                Progression tranche: {installmentProgress}%
+                {t('orders.installmentProgress', 'Progression tranche')}: {installmentProgress}%
               </p>
               <div className="h-1.5 rounded-full bg-indigo-100 overflow-hidden">
                 <div
@@ -635,12 +664,12 @@ const OrderSummaryCard = ({ order }) => {
               </div>
               {installmentPlan?.nextDueDate && (
                 <p className="text-[11px] text-gray-500">
-                  Prochaine échéance: {new Date(installmentPlan.nextDueDate).toLocaleDateString('fr-FR')}
+                  {t('orders.nextDueDate', 'Prochaine échéance')}: {new Date(installmentPlan.nextDueDate).toLocaleDateString('fr-FR')}
                 </p>
               )}
               {order.status === 'completed' && (
                 <p className="text-[11px] text-gray-500">
-                  Statut vente: {INSTALLMENT_SALE_STATUS_LABELS[installmentSaleStatus] || 'Confirmée'}
+                  {t('orders.saleStatus', 'Statut vente')}: {INSTALLMENT_SALE_STATUS_LABELS[installmentSaleStatus] || t('orders.confirmedFeminine', 'Confirmée')}
                 </p>
               )}
             </div>
@@ -649,14 +678,12 @@ const OrderSummaryCard = ({ order }) => {
       </div>
       {/* Footer: total + CTA */}
       <div className="px-4 pb-4 flex items-center justify-between gap-3">
-        <span className="text-xs text-gray-500">
-          {isInstallmentOrder ? 'Montant validé' : 'Montant payé'}
-        </span>
+        <StatusBadge paymentType={isInstallmentOrder ? 'installment' : 'full'} compact />
         <div className="flex items-center gap-2">
           <span className="font-bold text-gray-900">
             {formatCurrency(isInstallmentOrder ? installmentPaid : totalAmount)}
           </span>
-          <span className="text-indigo-600 font-medium text-sm flex items-center gap-0.5">Voir le détail <ChevronRight className="w-4 h-4" /></span>
+          <span className="text-indigo-600 font-medium text-sm flex items-center gap-0.5">{t('orders.viewDetail', 'Voir le détail')} <ChevronRight className="w-4 h-4" /></span>
         </div>
       </div>
     </Link>
@@ -666,6 +693,7 @@ const OrderSummaryCard = ({ order }) => {
 export default function UserOrders() {
   const externalLinkProps = useDesktopExternalLink();
   const { user } = useContext(AuthContext);
+  const { t } = useAppSettings();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -1152,8 +1180,8 @@ export default function UserOrders() {
             <td>${index + 1}</td>
             <td>
               <div class="title">${title}</div>
-              ${shopName ? `<div class="meta">Boutique: ${shopName}</div>` : ''}
-              ${confirmation ? `<div class="meta">Code: ${confirmation}</div>` : ''}
+              ${shopName ? `<div class="meta">${t('orders.shop', 'Boutique')}: ${shopName}</div>` : ''}
+              ${confirmation ? `<div class="meta">${t('orders.deliveryCode', 'Code')}: ${confirmation}</div>` : ''}
             </td>
             <td class="right">x${qty}</td>
             <td class="right">${price}</td>
@@ -1171,7 +1199,7 @@ export default function UserOrders() {
       <html lang="fr">
         <head>
           <meta charset="utf-8" />
-          <title>Bon de commande ${orderShort}</title>
+          <title>${t('orders.purchaseOrder', 'Bon de commande')} ${orderShort}</title>
           <style>
             :root { color-scheme: light; }
             * { box-sizing: border-box; }
@@ -1196,12 +1224,12 @@ export default function UserOrders() {
             <div class="brand">
               <img src="${logoUrl}" alt="HDMarket" class="logo" />
               <div>
-                <div class="title">Bon de commande</div>
+                <div class="title">${t('orders.purchaseOrder', 'Bon de commande')}</div>
                 <div class="badge">HDMarket</div>
               </div>
             </div>
             <div class="right">
-              <div class="badge">Commande #${orderShort}</div>
+              <div class="badge">${t('orders.order', 'Commande')} #${orderShort}</div>
               <div>${escapeHtml(new Date(order.createdAt).toLocaleDateString('fr-FR'))}</div>
             </div>
           </div>
@@ -1209,16 +1237,16 @@ export default function UserOrders() {
             <thead>
               <tr>
                 <th>#</th>
-                <th>Article</th>
-                <th class="right">Qté</th>
-                <th class="right">Prix</th>
-                <th class="right">Total</th>
+                <th>${t('orders.article', 'Article')}</th>
+                <th class="right">${t('orders.qty', 'Qté')}</th>
+                <th class="right">${t('orders.price', 'Prix')}</th>
+                <th class="right">${t('orders.total', 'Total')}</th>
               </tr>
             </thead>
             <tbody>
               ${rowsHtml}
               <tr class="total-row">
-                <td colspan="4" class="right">Total commande</td>
+                <td colspan="4" class="right">${t('orders.orderTotal', 'Total commande')}</td>
                 <td class="right">${formatCurrency(orderTotal)}</td>
               </tr>
             </tbody>
@@ -1243,21 +1271,10 @@ export default function UserOrders() {
 
   if (loading && orders.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 py-12">
-          <div className="space-y-8">
-            <div className="h-8 bg-gray-200 rounded-xl w-64 animate-pulse"></div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-32 bg-white rounded-2xl border border-gray-100 animate-pulse"></div>
-              ))}
-            </div>
-            <div className="space-y-4">
-              {[1, 2].map((i) => (
-                <div key={i} className="h-64 bg-white rounded-2xl border border-gray-100 animate-pulse"></div>
-              ))}
-            </div>
-          </div>
+      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
+        <GlassHeader title={t('orders.title', 'Mes commandes')} subtitle={t('common.loading', 'Chargement...')} backTo="/" />
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <OrderListSkeleton items={5} />
         </div>
       </div>
     );
@@ -1265,7 +1282,7 @@ export default function UserOrders() {
 
   return (
     <div
-      className="min-h-screen bg-gray-50"
+      className="min-h-screen bg-neutral-50 dark:bg-neutral-950"
       ref={containerRef}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -1282,7 +1299,7 @@ export default function UserOrders() {
             style={{ transform: `rotate(${pullDistance * 2}deg)` }}
           />
           <span className="ml-2 text-sm font-medium">
-            {pullDistance > 80 ? 'Relâchez pour actualiser' : 'Tirez pour actualiser'}
+            {pullDistance > 80 ? t('orders.pullRelease', 'Relâchez pour actualiser') : t('orders.pullDown', 'Tirez pour actualiser')}
           </span>
         </div>
       )}
@@ -1291,7 +1308,7 @@ export default function UserOrders() {
       {isRefreshing && (
         <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center bg-indigo-600 text-white py-3">
           <RefreshCw className="w-5 h-5 animate-spin" />
-          <span className="ml-2 text-sm font-medium">Actualisation...</span>
+          <span className="ml-2 text-sm font-medium">{t('orders.refreshing', 'Actualisation...')}</span>
         </div>
       )}
 
@@ -1299,51 +1316,28 @@ export default function UserOrders() {
       {!isOnline && (
         <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 bg-amber-500 text-white py-2 px-4">
           <WifiOff className="w-4 h-4" />
-          <span className="text-sm font-medium">Mode hors ligne - Données en cache</span>
+          <span className="text-sm font-medium">{t('orders.offlineMode', 'Mode hors ligne - Données en cache')}</span>
         </div>
       )}
 
-      {/* Header Section - Compact on mobile */}
-      <div className={`bg-indigo-600 text-white ${!isOnline ? 'mt-10' : ''}`}>
-        <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${isMobile ? 'py-6 safe-area-top' : 'py-12'}`}>
-          <div className="flex flex-col gap-4 sm:gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1 sm:space-y-2">
-              <div className="flex items-center gap-3">
-                <div className={`rounded-xl bg-white/20 backdrop-blur-sm ${isMobile ? 'p-2' : 'p-3'}`}>
-                  <ClipboardList className={isMobile ? 'w-5 h-5' : 'w-6 h-6'} />
-                </div>
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-white/80 uppercase tracking-wide">Mes commandes</p>
-                  <h1 className={isMobile ? 'text-xl font-bold' : 'text-3xl font-bold'}>Suivi de vos commandes</h1>
-                </div>
-              </div>
-              {!isMobile && (
-                <p className="text-white/90 text-sm max-w-2xl">
-                  Consultez l'état de vos commandes, suivez les livraisons et accédez à tous les détails de vos achats.
-                </p>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Link
-                to="/"
-                className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-2.5 min-h-[44px] text-sm font-semibold text-white hover:bg-white/20 transition-all active:scale-[0.98]"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Accueil
-              </Link>
-              <Link
-                to="/my/stats"
-                className="inline-flex items-center gap-2 rounded-xl bg-white text-indigo-600 px-4 py-2.5 min-h-[44px] text-sm font-semibold hover:bg-white/90 transition-all shadow-lg active:scale-[0.98]"
-              >
-                <TrendingUp className="w-4 h-4" />
-                Statistiques
-              </Link>
-            </div>
-          </div>
-        </div>
+      <div className={!isOnline ? 'mt-10' : ''}>
+        <GlassHeader
+          title={t('orders.title', 'Mes commandes')}
+          subtitle={t('orders.subtitle', 'Suivi livraison et paiement')}
+          backTo="/"
+          right={
+            <Link
+              to="/stats"
+              className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+            >
+              <TrendingUp className="h-3.5 w-3.5" />
+              {t('orders.stats', 'Stats')}
+            </Link>
+          }
+        />
       </div>
 
-      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${isMobile ? '-mt-4 pb-6' : '-mt-8 pb-12'} pb-[env(safe-area-inset-bottom)]`}>
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${isMobile ? 'py-4 pb-6' : 'py-6 pb-12'} pb-[env(safe-area-inset-bottom)]`}>
         {/* Statistics Cards - Same layout as /seller/orders (readable on mobile) */}
         {!statsLoading && stats.total > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 sm:mb-8">
@@ -1354,8 +1348,8 @@ export default function UserOrders() {
                 </div>
                 <span className="text-2xl font-bold text-gray-900">{stats.total}</span>
               </div>
-              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Total commandes</p>
-              <p className="text-xs text-gray-500 mt-1">Toutes vos commandes</p>
+              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{t('orders.totalOrders', 'Total commandes')}</p>
+              <p className="text-xs text-gray-500 mt-1">{t('orders.allYourOrders', 'Toutes vos commandes')}</p>
             </div>
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
@@ -1364,8 +1358,8 @@ export default function UserOrders() {
                 </div>
                 <span className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalAmount)}</span>
               </div>
-              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Total dépensé</p>
-              <p className="text-xs text-gray-500 mt-1">Montant total de vos achats</p>
+              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{t('orders.totalSpent', 'Total dépensé')}</p>
+              <p className="text-xs text-gray-500 mt-1">{t('orders.totalSpentHelp', 'Montant total de vos achats')}</p>
             </div>
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
@@ -1374,8 +1368,8 @@ export default function UserOrders() {
                 </div>
                 <span className="text-2xl font-bold text-gray-900">{stats.byStatus.pending || 0}</span>
               </div>
-              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">En attente</p>
-              <p className="text-xs text-gray-500 mt-1">Commandes en cours de traitement</p>
+              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{t('orders.pending', 'En attente')}</p>
+              <p className="text-xs text-gray-500 mt-1">{t('orders.pendingHelp', 'Commandes en cours de traitement')}</p>
             </div>
           </div>
         )}
@@ -1388,11 +1382,11 @@ export default function UserOrders() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Rechercher par produit, boutique, adresse..."
+                placeholder={t('orders.searchPlaceholder', 'Rechercher par produit, boutique, adresse...')}
                 value={searchDraft}
                 onChange={(e) => setSearchDraft(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border-2 border-gray-200 bg-white text-sm font-medium text-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
-                title="Rechercher par nom de produit, nom de boutique, adresse de livraison ou code de livraison"
+                title={t('orders.searchTitle', 'Rechercher par nom de produit, nom de boutique, adresse de livraison ou code de livraison')}
               />
               {searchDraft && (
                 <button
@@ -1415,7 +1409,7 @@ export default function UserOrders() {
               } ${isMobile ? 'flex-1' : ''}`}
             >
               <Filter className="w-4 h-4" />
-              <span>Filtres</span>
+              <span>{t('orders.filters', 'Filtres')}</span>
               {hasActiveFilters && (
                 <span className="px-1.5 py-0.5 rounded-full text-xs font-bold bg-white/20">
                   {[filters.dateFrom || filters.dateTo, filters.amountMin || filters.amountMax, filters.shopName].filter(Boolean).length}
@@ -1435,10 +1429,10 @@ export default function UserOrders() {
                     ? 'bg-white text-indigo-600 shadow-sm'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
-                title="Vue carte"
+                title={t('orders.cardView', 'Vue carte')}
               >
                 <LayoutGrid className="w-4 h-4" />
-                <span className="hidden sm:inline">Carte</span>
+                <span className="hidden sm:inline">{t('orders.card', 'Carte')}</span>
               </button>
               <button
                 type="button"
@@ -1448,10 +1442,10 @@ export default function UserOrders() {
                     ? 'bg-white text-indigo-600 shadow-sm'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
-                title="Vue liste"
+                title={t('orders.listView', 'Vue liste')}
               >
                 <List className="w-4 h-4" />
-                <span className="hidden sm:inline">Liste</span>
+                <span className="hidden sm:inline">{t('orders.list', 'Liste')}</span>
               </button>
             </div>
             )}
@@ -1466,7 +1460,7 @@ export default function UserOrders() {
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wide">
                     <Calendar className="w-3.5 h-3.5" />
-                    Période
+                    {t('orders.period', 'Période')}
                   </label>
                   <div className="flex flex-col gap-2">
                     <div className="relative">
@@ -1475,9 +1469,9 @@ export default function UserOrders() {
                         value={filters.dateFrom}
                         onChange={(e) => setFilters((prev) => ({ ...prev, dateFrom: e.target.value }))}
                         className="w-full px-3 py-2 rounded-lg border-2 border-gray-200 text-sm text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                        placeholder="Du"
+                        placeholder={t('orders.from', 'Du')}
                       />
-                      <span className="absolute -top-2 left-2 px-1 bg-white text-[10px] text-gray-500">Du</span>
+                      <span className="absolute -top-2 left-2 px-1 bg-white text-[10px] text-gray-500">{t('orders.from', 'Du')}</span>
                     </div>
                     <div className="relative">
                       <input
@@ -1485,9 +1479,9 @@ export default function UserOrders() {
                         value={filters.dateTo}
                         onChange={(e) => setFilters((prev) => ({ ...prev, dateTo: e.target.value }))}
                         className="w-full px-3 py-2 rounded-lg border-2 border-gray-200 text-sm text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                        placeholder="Au"
+                        placeholder={t('orders.to', 'Au')}
                       />
-                      <span className="absolute -top-2 left-2 px-1 bg-white text-[10px] text-gray-500">Au</span>
+                      <span className="absolute -top-2 left-2 px-1 bg-white text-[10px] text-gray-500">{t('orders.to', 'Au')}</span>
                     </div>
                   </div>
                 </div>
@@ -1496,7 +1490,7 @@ export default function UserOrders() {
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wide">
                     <DollarSign className="w-3.5 h-3.5" />
-                    Montant (FCFA)
+                    {t('orders.amount', 'Montant')}
                   </label>
                   <div className="flex flex-col gap-2">
                     <div className="relative">
@@ -1505,10 +1499,10 @@ export default function UserOrders() {
                         value={filters.amountMin}
                         onChange={(e) => setFilters((prev) => ({ ...prev, amountMin: e.target.value }))}
                         className="w-full px-3 py-2 rounded-lg border-2 border-gray-200 text-sm text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                        placeholder="Minimum"
+                        placeholder={t('orders.minimum', 'Minimum')}
                         min="0"
                       />
-                      <span className="absolute -top-2 left-2 px-1 bg-white text-[10px] text-gray-500">Min</span>
+                      <span className="absolute -top-2 left-2 px-1 bg-white text-[10px] text-gray-500">{t('orders.min', 'Min')}</span>
                     </div>
                     <div className="relative">
                       <input
@@ -1516,10 +1510,10 @@ export default function UserOrders() {
                         value={filters.amountMax}
                         onChange={(e) => setFilters((prev) => ({ ...prev, amountMax: e.target.value }))}
                         className="w-full px-3 py-2 rounded-lg border-2 border-gray-200 text-sm text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                        placeholder="Maximum"
+                        placeholder={t('orders.maximum', 'Maximum')}
                         min="0"
                       />
-                      <span className="absolute -top-2 left-2 px-1 bg-white text-[10px] text-gray-500">Max</span>
+                      <span className="absolute -top-2 left-2 px-1 bg-white text-[10px] text-gray-500">{t('orders.max', 'Max')}</span>
                     </div>
                   </div>
                 </div>
@@ -1528,14 +1522,14 @@ export default function UserOrders() {
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wide">
                     <Store className="w-3.5 h-3.5" />
-                    Vendeur/Boutique
+                    {t('orders.shopSeller', 'Vendeur/Boutique')}
                   </label>
                   <select
                     value={filters.shopName}
                     onChange={(e) => setFilters((prev) => ({ ...prev, shopName: e.target.value }))}
                     className="w-full px-3 py-2 rounded-lg border-2 border-gray-200 text-sm text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white"
                   >
-                    <option value="">Toutes les boutiques</option>
+                    <option value="">{t('orders.allShops', 'Toutes les boutiques')}</option>
                     {availableShops.map((shop) => (
                       <option key={shop} value={shop}>{shop}</option>
                     ))}
@@ -1544,7 +1538,7 @@ export default function UserOrders() {
 
                 {/* Reset Filters Button */}
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-transparent">Actions</label>
+                  <label className="text-xs font-bold text-transparent">{t('orders.actions', 'Actions')}</label>
                   <button
                     type="button"
                     onClick={resetFilters}
@@ -1552,7 +1546,7 @@ export default function UserOrders() {
                     className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg border-2 border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
                     <RotateCcw className="w-4 h-4" />
-                    Réinitialiser
+                    {t('orders.reset', 'Réinitialiser')}
                   </button>
                 </div>
               </div>
@@ -1560,15 +1554,15 @@ export default function UserOrders() {
               {/* Active Filters Summary */}
               {hasActiveFilters && (
                 <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
-                  <span className="text-xs font-semibold text-gray-500">Filtres actifs:</span>
+                  <span className="text-xs font-semibold text-gray-500">{t('orders.activeFilters', 'Filtres actifs:')}</span>
                   {(filters.dateFrom || filters.dateTo) && (
                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-50 border border-indigo-200 text-xs font-medium text-indigo-700">
                       <Calendar className="w-3 h-3" />
                       {filters.dateFrom && filters.dateTo
                         ? `${new Date(filters.dateFrom).toLocaleDateString('fr-FR')} - ${new Date(filters.dateTo).toLocaleDateString('fr-FR')}`
                         : filters.dateFrom
-                        ? `Depuis ${new Date(filters.dateFrom).toLocaleDateString('fr-FR')}`
-                        : `Jusqu'au ${new Date(filters.dateTo).toLocaleDateString('fr-FR')}`}
+                        ? `${t('orders.since', 'Depuis')} ${new Date(filters.dateFrom).toLocaleDateString('fr-FR')}`
+                        : `${t('orders.until', "Jusqu'au")} ${new Date(filters.dateTo).toLocaleDateString('fr-FR')}`}
                       <button
                         type="button"
                         onClick={() => setFilters((prev) => ({ ...prev, dateFrom: '', dateTo: '' }))}
@@ -1582,10 +1576,10 @@ export default function UserOrders() {
                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-xs font-medium text-emerald-700">
                       <DollarSign className="w-3 h-3" />
                       {filters.amountMin && filters.amountMax
-                        ? `${Number(filters.amountMin).toLocaleString('fr-FR')} - ${Number(filters.amountMax).toLocaleString('fr-FR')} FCFA`
+                        ? `${formatCurrency(filters.amountMin)} - ${formatCurrency(filters.amountMax)}`
                         : filters.amountMin
-                        ? `Min ${Number(filters.amountMin).toLocaleString('fr-FR')} FCFA`
-                        : `Max ${Number(filters.amountMax).toLocaleString('fr-FR')} FCFA`}
+                        ? `${t('orders.min', 'Min')} ${formatCurrency(filters.amountMin)}`
+                        : `${t('orders.max', 'Max')} ${formatCurrency(filters.amountMax)}`}
                       <button
                         type="button"
                         onClick={() => setFilters((prev) => ({ ...prev, amountMin: '', amountMax: '' }))}
@@ -1654,7 +1648,7 @@ export default function UserOrders() {
             <div className="flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
               <div>
-                <h3 className="text-sm font-bold text-red-800 mb-1">Erreur de chargement</h3>
+                <h3 className="text-sm font-bold text-red-800 mb-1">{t('orders.loadErrorTitle', 'Erreur de chargement')}</h3>
                 <p className="text-sm text-red-600">{error}</p>
               </div>
             </div>
@@ -1669,7 +1663,7 @@ export default function UserOrders() {
               )}
             </div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">
-              {hasActiveFilters ? 'Aucun résultat' : 'Aucune commande'}
+              {hasActiveFilters ? t('orders.noResults', 'Aucun résultat') : t('orders.noOrders', 'Aucune commande')}
             </h3>
             <p className="text-sm text-gray-500 mb-6">{emptyMessage}</p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -1680,7 +1674,7 @@ export default function UserOrders() {
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 min-h-[48px] rounded-xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition-all active:scale-[0.98]"
                 >
                   <RotateCcw className="w-4 h-4" />
-                  Réinitialiser les filtres
+                  {t('orders.resetFilters', 'Réinitialiser les filtres')}
                 </button>
               )}
               <Link
@@ -1688,7 +1682,7 @@ export default function UserOrders() {
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 min-h-[48px] rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
               >
                 <Sparkles className="w-4 h-4" />
-                Découvrir nos produits
+                {t('orders.discoverProducts', 'Découvrir nos produits')}
               </Link>
             </div>
           </div>
@@ -1699,12 +1693,12 @@ export default function UserOrders() {
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 {/* List Header */}
                 <div className="hidden md:grid md:grid-cols-12 gap-4 px-6 py-3 bg-gray-50 border-b border-gray-100 text-xs font-bold text-gray-500 uppercase tracking-wide">
-                  <div className="col-span-1">N°</div>
-                  <div className="col-span-3">Produit(s)</div>
-                  <div className="col-span-2">Boutique</div>
-                  <div className="col-span-2">Date</div>
-                  <div className="col-span-2">Montant</div>
-                  <div className="col-span-2">Statut</div>
+                  <div className="col-span-1">{t('orders.numberShort', 'N°')}</div>
+                  <div className="col-span-3">{t('orders.products', 'Produit(s)')}</div>
+                  <div className="col-span-2">{t('orders.shop', 'Boutique')}</div>
+                  <div className="col-span-2">{t('orders.date', 'Date')}</div>
+                  <div className="col-span-2">{t('orders.amount', 'Montant')}</div>
+                  <div className="col-span-2">{t('orders.status', 'Statut')}</div>
                 </div>
                 <div className="divide-y divide-gray-100">
                   {filteredOrders.map((order) => {
@@ -1721,11 +1715,9 @@ export default function UserOrders() {
                     );
                     const totalAmount = Number(order.totalAmount ?? computedTotal);
                     const effectiveStatus = getEffectiveOrderStatus(order);
-                    const StatusIcon = STATUS_ICONS[effectiveStatus] || Clock;
-                    const statusStyle = STATUS_STYLES[effectiveStatus] || STATUS_STYLES.pending;
                     const firstItem = orderItems[0];
                     const shopName = firstItem?.snapshot?.shopName || 'N/A';
-                    const productTitle = firstItem?.snapshot?.title || 'Produit';
+                    const productTitle = firstItem?.snapshot?.title || t('orders.product', 'Produit');
                     const itemCount = orderItems.length;
 
                     return (
@@ -1736,7 +1728,7 @@ export default function UserOrders() {
                       >
                         {/* Order Number */}
                         <div className="col-span-1 flex items-center gap-2 md:block">
-                          <span className="md:hidden text-xs font-medium text-gray-500">N°:</span>
+                          <span className="md:hidden text-xs font-medium text-gray-500">{t('orders.numberShort', 'N°')}:</span>
                           <span className="font-bold text-gray-900 text-sm">#{order._id.slice(-6)}</span>
                         </div>
 
@@ -1763,7 +1755,7 @@ export default function UserOrders() {
 
                         {/* Shop */}
                         <div className="col-span-2 flex items-center gap-2 md:block">
-                          <span className="md:hidden text-xs font-medium text-gray-500">Boutique:</span>
+                          <span className="md:hidden text-xs font-medium text-gray-500">{t('orders.shop', 'Boutique')}:</span>
                           <div className="flex items-center gap-1 text-sm text-gray-600">
                             <Store className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                             <span className="truncate">{shopName}</span>
@@ -1772,7 +1764,7 @@ export default function UserOrders() {
 
                         {/* Date */}
                         <div className="col-span-2 flex items-center gap-2 md:block">
-                          <span className="md:hidden text-xs font-medium text-gray-500">Date:</span>
+                          <span className="md:hidden text-xs font-medium text-gray-500">{t('orders.date', 'Date')}:</span>
                           <div className="flex items-center gap-1 text-sm text-gray-600">
                             <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                             <span>{new Date(order.createdAt).toLocaleDateString('fr-FR')}</span>
@@ -1781,17 +1773,14 @@ export default function UserOrders() {
 
                         {/* Amount */}
                         <div className="col-span-2 flex items-center gap-2 md:block">
-                          <span className="md:hidden text-xs font-medium text-gray-500">Montant:</span>
+                          <span className="md:hidden text-xs font-medium text-gray-500">{t('orders.amount', 'Montant')}:</span>
                           <span className="font-bold text-gray-900 text-sm">{formatCurrency(totalAmount)}</span>
                         </div>
 
                         {/* Status */}
                         <div className="col-span-2 flex items-center gap-2">
-                          <span className="md:hidden text-xs font-medium text-gray-500">Statut:</span>
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${statusStyle.card}`}>
-                            <StatusIcon className="w-3.5 h-3.5" />
-                            {STATUS_LABELS[effectiveStatus] || effectiveStatus}
-                          </span>
+                          <span className="md:hidden text-xs font-medium text-gray-500">{t('orders.status', 'Statut')}:</span>
+                          <StatusBadge status={effectiveStatus} />
                         </div>
                       </Link>
                     );
@@ -1813,9 +1802,9 @@ export default function UserOrders() {
             {meta.totalPages > 1 && (
               <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-between bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <p className="text-sm text-gray-600">
-                  Page <span className="font-bold text-gray-900">{page}</span> sur{' '}
+                  {t('orders.page', 'Page')} <span className="font-bold text-gray-900">{page}</span> {t('orders.of', 'sur')}{' '}
                   <span className="font-bold text-gray-900">{meta.totalPages}</span> —{' '}
-                  <span className="font-bold text-gray-900">{meta.total}</span> commande{meta.total > 1 ? 's' : ''}
+                  <span className="font-bold text-gray-900">{meta.total}</span> {t('orders.orderCount', `commande${meta.total > 1 ? 's' : ''}`)}
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -1824,7 +1813,7 @@ export default function UserOrders() {
                     disabled={page <= 1}
                     className="px-5 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
-                    Précédent
+                    {t('orders.previous', 'Précédent')}
                   </button>
                   <button
                     type="button"
@@ -1832,7 +1821,7 @@ export default function UserOrders() {
                     disabled={page >= meta.totalPages}
                     className="px-5 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
-                    Suivant
+                    {t('orders.next', 'Suivant')}
                   </button>
                 </div>
               </div>

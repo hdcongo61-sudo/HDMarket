@@ -1,0 +1,61 @@
+:root {
+  --v2-bg: #f6f6f4;
+  --v2-surface: #ffffff;
+  --v2-surface-soft: #f1f2ef;
+  --v2-line: #e6e8e3;
+  --v2-text: #101211;
+  --v2-text-soft: #616860;
+  --v2-accent: #0a84ff;
+  --v2-success: #25a35a;
+  --v2-warning: #cf8600;
+  --v2-danger: #dc3f46;
+  --v2-radius-lg: 16px;
+  --v2-radius-xl: 22px;
+}
+
+.dark {
+  --v2-bg: #0d0f10;
+  --v2-surface: #161a1b;
+  --v2-surface-soft: #1d2224;
+  --v2-line: #2a3032;
+  --v2-text: #f3f7f5;
+  --v2-text-soft: #a0a9a3;
+  --v2-accent: #5aa9ff;
+  --v2-success: #33c56d;
+  --v2-warning: #f4ad2b;
+  --v2-danger: #ff6a73;
+}
+
+.v2-page {
+  background: var(--v2-bg);
+  color: var(--v2-text);
+}
+
+.v2-surface {
+  background: var(--v2-surface);
+  border: 1px solid var(--v2-line);
+  border-radius: var(--v2-radius-lg);
+}
+
+.v2-text-soft {
+  color: var(--v2-text-soft);
+}
+
+.v2-divider {
+  border-color: var(--v2-line);
+}
+
+.v2-accent {
+  color: var(--v2-accent);
+}
+
+.v2-safe-transition {
+  transition-duration: 250ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v2-safe-transition {
+    transition: none !important;
+  }
+}

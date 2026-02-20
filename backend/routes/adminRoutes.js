@@ -1,5 +1,6 @@
 import express from 'express';
 import Joi from 'joi';
+import rateLimit from 'express-rate-limit';
 import { protect } from '../middlewares/authMiddleware.js';
 import { requireRole, requireFeedbackAccess, requirePaymentVerification, requireBoostManagement, requireComplaintAccess, requireDeliveryAccess, requireProductAccess } from '../middlewares/roleMiddleware.js';
 import { validate, schemas } from '../middlewares/validate.js';
@@ -115,8 +116,59 @@ import {
   generatePromoCodeSample,
   previewPromoCommission
 } from '../controllers/promoCodeController.js';
+import {
+  createSeasonalPricingAdmin,
+  getBoostRevenueDashboardAdmin,
+  listBoostPricingAdmin,
+  listBoostRequestsAdmin,
+  listSeasonalPricingAdmin,
+  updateBoostPricingAdmin,
+  updateBoostRequestStatusAdmin,
+  updateSeasonalPricingAdmin,
+  upsertBoostPricingAdmin
+} from '../controllers/boostController.js';
+import {
+  createCategoryAdmin,
+  exportCategoriesAdmin,
+  getAdminCategoryTree,
+  getCategoryAuditAdmin,
+  importCategoriesAdmin,
+  reassignCategoryProductsAdmin,
+  reorderCategoriesAdmin,
+  restoreCategoryAdmin,
+  softDeleteCategoryAdmin,
+  updateCategoryAdmin
+} from '../controllers/categoryController.js';
+import { validateCategory } from '../middlewares/categoryValidation.js';
+import {
+  getAdminSettings,
+  updateAdminSetting,
+  listAdminCurrencies,
+  createAdminCurrency,
+  updateAdminCurrency,
+  getAdminLanguages,
+  patchAdminLanguages,
+  listAdminCities,
+  createAdminCity,
+  updateAdminCity
+} from '../controllers/settingsController.js';
 
 const router = express.Router();
+const categoriesImportRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Trop de tentatives d’import. Réessayez dans 1 minute.' }
+});
+
+const categoriesExportRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Trop de téléchargements d’export. Réessayez dans 1 minute.' }
+});
 
 // Feedback routes - accessible by admin OR users with canReadFeedback permission
 router.get('/feedback', protect, requireFeedbackAccess, listImprovementFeedbackAdmin);
@@ -228,6 +280,105 @@ router.patch(
   validate(Joi.object({ userId: Joi.string().hex().length(24).required() }), 'params'),
   toggleBoostManager
 );
+router.get('/boost-pricing', protect, requireRole(['admin']), listBoostPricingAdmin);
+router.post(
+  '/boost-pricing',
+  protect,
+  requireRole(['admin']),
+  validate(schemas.adminBoostPricingUpsert),
+  upsertBoostPricingAdmin
+);
+router.patch(
+  '/boost-pricing/:id',
+  protect,
+  requireRole(['admin']),
+  validate(schemas.idParam, 'params'),
+  validate(schemas.adminBoostPricingUpdate),
+  updateBoostPricingAdmin
+);
+router.get('/seasonal-pricing', protect, requireRole(['admin']), listSeasonalPricingAdmin);
+router.post(
+  '/seasonal-pricing',
+  protect,
+  requireRole(['admin']),
+  validate(schemas.adminSeasonalPricingCreate),
+  createSeasonalPricingAdmin
+);
+router.patch(
+  '/seasonal-pricing/:id',
+  protect,
+  requireRole(['admin']),
+  validate(schemas.idParam, 'params'),
+  validate(schemas.adminSeasonalPricingUpdate),
+  updateSeasonalPricingAdmin
+);
+router.get(
+  '/boost-requests',
+  protect,
+  requireBoostManagement,
+  validate(schemas.adminBoostRequestListQuery, 'query'),
+  listBoostRequestsAdmin
+);
+router.patch(
+  '/boost-requests/:id/status',
+  protect,
+  requireBoostManagement,
+  validate(schemas.idParam, 'params'),
+  validate(schemas.adminBoostRequestStatusUpdate),
+  updateBoostRequestStatusAdmin
+);
+router.get('/boosts/revenue-dashboard', protect, requireRole(['admin']), getBoostRevenueDashboardAdmin);
+
+// Settings management - admin only
+router.get('/settings', protect, requireRole(['admin']), getAdminSettings);
+router.patch(
+  '/settings/:key',
+  protect,
+  requireRole(['admin']),
+  validate(schemas.adminSettingKeyParam, 'params'),
+  validate(schemas.adminSettingUpdate),
+  updateAdminSetting
+);
+router.get('/currencies', protect, requireRole(['admin']), listAdminCurrencies);
+router.post(
+  '/currencies',
+  protect,
+  requireRole(['admin']),
+  validate(schemas.adminCurrencyCreate),
+  createAdminCurrency
+);
+router.patch(
+  '/currencies/:code',
+  protect,
+  requireRole(['admin']),
+  validate(schemas.adminCurrencyCodeParam, 'params'),
+  validate(schemas.adminCurrencyUpdate),
+  updateAdminCurrency
+);
+router.get('/languages', protect, requireRole(['admin']), getAdminLanguages);
+router.patch(
+  '/languages',
+  protect,
+  requireRole(['admin']),
+  validate(schemas.adminLanguagesUpdate),
+  patchAdminLanguages
+);
+router.get('/cities', protect, requireRole(['admin']), listAdminCities);
+router.post(
+  '/cities',
+  protect,
+  requireRole(['admin']),
+  validate(schemas.adminCityCreate),
+  createAdminCity
+);
+router.patch(
+  '/cities/:id',
+  protect,
+  requireRole(['admin']),
+  validate(schemas.idParam, 'params'),
+  validate(schemas.adminCityUpdate),
+  updateAdminCity
+);
 
 // Complaint access - admin, manager, or canManageComplaints
 router.get('/complaints', protect, requireComplaintAccess, listComplaintsAdmin);
@@ -335,6 +486,84 @@ router.delete(
   requireDeliveryAccess,
   validate(schemas.idParam, 'params'),
   deleteDeliveryGuyAdmin
+);
+
+// Categories management - admin only
+router.get(
+  '/categories/tree',
+  protect,
+  requireRole(['admin']),
+  validateCategory.treeQuery,
+  getAdminCategoryTree
+);
+router.post(
+  '/categories',
+  protect,
+  requireRole(['admin']),
+  validateCategory.create,
+  createCategoryAdmin
+);
+router.patch(
+  '/categories/:id',
+  protect,
+  requireRole(['admin']),
+  validateCategory.idParam,
+  validateCategory.update,
+  updateCategoryAdmin
+);
+router.post(
+  '/categories/:id/soft-delete',
+  protect,
+  requireRole(['admin']),
+  validateCategory.idParam,
+  validateCategory.softDelete,
+  softDeleteCategoryAdmin
+);
+router.post(
+  '/categories/:id/restore',
+  protect,
+  requireRole(['admin']),
+  validateCategory.idParam,
+  validateCategory.restore,
+  restoreCategoryAdmin
+);
+router.post(
+  '/categories/reorder',
+  protect,
+  requireRole(['admin']),
+  validateCategory.reorder,
+  reorderCategoriesAdmin
+);
+router.post(
+  '/categories/reassign-products',
+  protect,
+  requireRole(['admin']),
+  validateCategory.reassignProducts,
+  reassignCategoryProductsAdmin
+);
+router.get(
+  '/categories/export',
+  protect,
+  requireRole(['admin']),
+  categoriesExportRateLimit,
+  validateCategory.exportQuery,
+  exportCategoriesAdmin
+);
+router.post(
+  '/categories/import',
+  protect,
+  requireRole(['admin']),
+  categoriesImportRateLimit,
+  validateCategory.importQuery,
+  validateCategory.importBody,
+  importCategoriesAdmin
+);
+router.get(
+  '/categories/audit',
+  protect,
+  requireRole(['admin']),
+  validateCategory.auditQuery,
+  getCategoryAuditAdmin
 );
 
 // All other admin routes - require admin or manager role

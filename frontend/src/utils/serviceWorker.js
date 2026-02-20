@@ -2,7 +2,16 @@
  * Service Worker registration utility
  */
 
+const isLocalHost = () => {
+  if (typeof window === 'undefined') return false;
+  return ['localhost', '127.0.0.1'].includes(window.location.hostname);
+};
+
 export const registerServiceWorker = async () => {
+  if (isLocalHost()) {
+    await unregisterServiceWorker();
+    return null;
+  }
   if ('serviceWorker' in navigator) {
     try {
       const registration = await navigator.serviceWorker.register('/sw.js', {
@@ -69,8 +78,12 @@ export const registerServiceWorker = async () => {
 export const unregisterServiceWorker = async () => {
   if ('serviceWorker' in navigator) {
     try {
-      const registration = await navigator.serviceWorker.ready;
-      await registration.unregister();
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((registration) => registration.unregister()));
+      if (typeof window !== 'undefined' && window.caches) {
+        const keys = await window.caches.keys();
+        await Promise.all(keys.map((key) => window.caches.delete(key)));
+      }
       console.log('Service Worker unregistered');
     } catch (error) {
       console.error('Service Worker unregistration failed:', error);

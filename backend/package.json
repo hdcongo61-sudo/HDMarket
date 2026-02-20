@@ -7,7 +7,9 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "seed:admin": "node ./seed/seedAdmin.js",
-    "normalize:phones": "node ./scripts/normalizePhones.js"
+    "seed:settings": "node ./seed/seedSettings.js",
+    "normalize:phones": "node ./scripts/normalizePhones.js",
+    "migrate:categories": "node ./scripts/migrateCategories.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

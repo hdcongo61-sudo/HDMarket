@@ -1,5 +1,6 @@
 import asyncHandler from 'express-async-handler';
 import Product from '../models/productModel.js';
+import Category from '../models/categoryModel.js';
 import User from '../models/userModel.js';
 import Rating from '../models/ratingModel.js';
 import SearchAnalytics from '../models/searchAnalyticsModel.js';
@@ -43,10 +44,7 @@ export const globalSearch = asyncHandler(async (req, res) => {
 
   // Apply city filter
   if (cityFilter && cityFilter.trim()) {
-    const normalizedCity = cityFilter.trim();
-    if (['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'].includes(normalizedCity)) {
-      baseProductFilter.city = normalizedCity;
-    }
+    baseProductFilter.city = cityFilter.trim();
   }
 
   // Apply condition filter
@@ -253,9 +251,31 @@ export const globalSearch = asyncHandler(async (req, res) => {
 
 // Get available categories for filter dropdown
 export const getSearchCategories = asyncHandler(async (req, res) => {
-  const categories = await Product.distinct('category', { status: 'approved' });
-  const sortedCategories = categories.filter(Boolean).sort();
-  res.json(sortedCategories);
+  const activeNodes = await Category.find({
+    isDeleted: false,
+    isActive: true,
+    level: { $in: [0, 1] }
+  })
+    .select('slug level')
+    .sort({ level: 1, order: 1, name: 1 })
+    .lean();
+
+  if (activeNodes.length) {
+    const slugs = activeNodes
+      .filter((node) => node.level === 1)
+      .map((node) => node.slug)
+      .filter(Boolean);
+    const fallbackRoots = activeNodes
+      .filter((node) => node.level === 0)
+      .map((node) => node.slug)
+      .filter(Boolean);
+    const categories = slugs.length ? slugs : fallbackRoots;
+    return res.json(Array.from(new Set(categories)).sort());
+  }
+
+  const legacyCategories = await Product.distinct('category', { status: 'approved' });
+  const sortedLegacyCategories = legacyCategories.filter(Boolean).sort();
+  return res.json(sortedLegacyCategories);
 });
 
 /** Quick filters for search/nav (e.g. Nouveaux produits, Meilleures offres, Boutiques vérifiées, Tendances) */

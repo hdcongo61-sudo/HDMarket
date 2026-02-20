@@ -4,10 +4,10 @@ import { ArrowLeft } from 'lucide-react';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
-
-const cityOptions = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
+import { useAppSettings } from '../context/AppSettingsContext';
 
 export default function CityProducts() {
+  const { cities } = useAppSettings();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState([]);
@@ -16,10 +16,26 @@ export default function CityProducts() {
   const [cityHighlights, setCityHighlights] = useState({});
   const cacheRef = useRef(new Map());
   const externalLinkProps = useDesktopExternalLink();
-  const [selectedCity, setSelectedCity] = useState(() => {
-    const initial = searchParams.get('city');
-    return cityOptions.includes(initial) ? initial : cityOptions[0];
-  });
+  const cityOptions = useMemo(
+    () =>
+      Array.isArray(cities) && cities.length
+        ? cities.map((item) => item.name).filter(Boolean)
+        : ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'],
+    [cities]
+  );
+  const [selectedCity, setSelectedCity] = useState(() => searchParams.get('city') || '');
+
+  useEffect(() => {
+    if (!cityOptions.length) return;
+    if (!selectedCity || !cityOptions.includes(selectedCity)) {
+      const queryCity = searchParams.get('city');
+      if (queryCity && cityOptions.includes(queryCity)) {
+        setSelectedCity(queryCity);
+      } else {
+        setSelectedCity(cityOptions[0]);
+      }
+    }
+  }, [cityOptions, searchParams, selectedCity]);
 
   useEffect(() => {
     const controller = new AbortController();

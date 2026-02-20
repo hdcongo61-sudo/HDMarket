@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
+import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 
 const PAGE_SIZE = 12;
 
@@ -498,7 +499,7 @@ export default function AdminProductBoosts() {
       ? `${product.description.slice(0, 100)}...`
       : 'Aucune description disponible.';
     const priceValue = Number(product.price);
-    const priceLabel = Number.isFinite(priceValue) ? priceValue.toLocaleString('fr-FR') : '-';
+    const priceLabel = Number.isFinite(priceValue) ? formatPriceWithStoredSettings(priceValue) : '-';
     const createdDate = product.createdAt
       ? new Date(product.createdAt).toLocaleDateString('fr-FR')
       : '-';
@@ -531,7 +532,7 @@ export default function AdminProductBoosts() {
             </div>
             <div className="text-right flex-shrink-0">
               <p className="text-lg font-black text-indigo-600 dark:text-indigo-400">
-                {priceLabel} FCFA
+                {priceLabel}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">{createdDate}</p>
             </div>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../services/api';
+import { useAppSettings } from '../context/AppSettingsContext';
 import {
   Store,
   Upload,
@@ -32,6 +33,7 @@ export default function ShopConversionRequest() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { app, formatPrice } = useAppSettings();
   const { networks, loading: networksLoading } = useNetworks();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -44,9 +46,6 @@ export default function ShopConversionRequest() {
     [networks]
   );
   
-  // Get first active network as default operator
-  const defaultOperator = activeNetworks.length > 0 ? activeNetworks[0].name : 'MTN';
-
   const [form, setForm] = useState({
     shopName: '',
     shopAddress: '',
@@ -56,6 +55,16 @@ export default function ShopConversionRequest() {
     paymentAmount: '50000',
     operator: ''
   });
+  const requiredAmount = useMemo(() => {
+    const value = Number(app?.shopConversionAmount);
+    if (!Number.isFinite(value) || value <= 0) return 50000;
+    return value;
+  }, [app?.shopConversionAmount]);
+  const requiredAmountLabel = formatPrice(requiredAmount);
+
+  useEffect(() => {
+    setForm((prev) => ({ ...prev, paymentAmount: String(requiredAmount) }));
+  }, [requiredAmount]);
 
   // Update operator when networks load
   useEffect(() => {
@@ -172,8 +181,8 @@ export default function ShopConversionRequest() {
       setError('Le numéro de transaction doit contenir exactement 10 chiffres.');
       return;
     }
-    if (Number(form.paymentAmount) !== 50000) {
-      setError('Le montant du paiement doit être de 50.000 FCFA.');
+    if (Number(form.paymentAmount) !== requiredAmount) {
+      setError(`Le montant du paiement doit être de ${requiredAmountLabel}.`);
       return;
     }
     if (!paymentProofFile) {
@@ -211,7 +220,7 @@ export default function ShopConversionRequest() {
         shopDescription: '',
         transactionName: '',
         transactionNumber: '',
-        paymentAmount: '50000',
+        paymentAmount: String(requiredAmount),
         operator: activeNetworks.length > 0 ? activeNetworks[0].name : 'MTN'
       });
       setShopLogoFile(null);
@@ -431,10 +440,10 @@ export default function ShopConversionRequest() {
                 </h3>
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
                   <p className="text-sm font-semibold text-blue-900 mb-1">
-                    Montant requis: <span className="text-lg">50.000 FCFA</span>
+                    Montant requis: <span className="text-lg">{requiredAmountLabel}</span>
                   </p>
                   <p className="text-xs text-blue-700">
-                    Veuillez effectuer un paiement de 50.000 FCFA et fournir les informations de
+                    Veuillez effectuer un paiement de {requiredAmountLabel} et fournir les informations de
                     transaction ci-dessous.
                   </p>
                 </div>

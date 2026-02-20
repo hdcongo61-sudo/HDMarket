@@ -22,6 +22,7 @@ import {
   bulkDeleteProducts,
   registerWhatsappClick,
   getTopSales,
+  getTopSalesTodayByCity,
   getProductAnalytics
 } from '../controllers/productController.js';
 import { addComment, getCommentsForProduct } from '../controllers/commentController.js';
@@ -38,6 +39,7 @@ const router = express.Router();
 router.get('/public/highlights', cacheMiddleware({ ttl: 300000 }), getPublicHighlights);
 router.get('/public/installments', cacheMiddleware({ ttl: 300000 }), getPublicInstallmentProducts);
 router.get('/public/top-sales', cacheMiddleware({ ttl: 300000 }), getTopSales);
+router.get('/public/top-sales/today', cacheMiddleware({ ttl: 120000 }), getTopSalesTodayByCity);
 router.get('/public', cacheMiddleware({ ttl: 180000 }), validate(schemas.publicQuery, 'query'), getPublicProducts);
 router.get('/public/:id/comments', cacheMiddleware({ ttl: 120000 }), getCommentsForProduct);
 router.get('/public/:id/ratings', cacheMiddleware({ ttl: 120000 }), getRatingSummary);

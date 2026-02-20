@@ -5,6 +5,7 @@ import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, 
 import categoryGroups from '../data/categories';
 import ProductCard from './ProductCard';
 import useIsMobile from '../hooks/useIsMobile';
+import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 
 const MAX_IMAGES = 3;
 const MAX_VIDEO_SIZE_MB = 20;
@@ -1064,7 +1065,7 @@ export default function ProductForm(props) {
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
                 <DollarSign className="w-4 h-4 text-indigo-500" />
-                <span>Prix (FCFA) *</span>
+                <span>Prix *</span>
               </label>
               <input
                 type="number"
@@ -1194,7 +1195,7 @@ export default function ProductForm(props) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">
-                    Premier paiement minimum (FCFA)
+                    Premier paiement minimum
                   </label>
                   <input
                     type="number"
@@ -1732,7 +1733,7 @@ export default function ProductForm(props) {
                 <div className="space-y-2">
                   <h3 className="font-semibold text-amber-800 text-sm">Commission de publication</h3>
                   <p className="text-amber-700 text-sm">
-                    Pour valider votre annonce, envoyez <span className="font-bold">{calculateCommission().toLocaleString()} FCFA</span> (3% du prix). Vous pouvez aussi utiliser un code promo dans la section paiement de <span className="font-semibold">/my</span>.
+                    Pour valider votre annonce, envoyez <span className="font-bold">{formatPriceWithStoredSettings(calculateCommission())}</span> (3% du prix). Vous pouvez aussi utiliser un code promo dans la section paiement de <span className="font-semibold">/my</span>.
                   </p>
                   <div className="flex items-center space-x-2 text-xs text-amber-600">
                     <CheckCircle2 className="w-4 h-4" />

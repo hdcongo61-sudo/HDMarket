@@ -1,5 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import {
   LineChart,
   Line,
@@ -49,7 +50,7 @@ import {
 } from 'lucide-react';
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('fr-FR');
-const formatCurrency = (value) => `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
+const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 const formatDate = (value) =>
   value
     ? new Date(value).toLocaleDateString('fr-FR', {
@@ -1582,8 +1583,8 @@ export default function AdminDashboard() {
                           borderRadius: '8px'
                         }}
                         formatter={(value, name) => {
-                          if (name === 'Revenus (FCFA)') {
-                            return `${Number(value).toLocaleString('fr-FR')} FCFA`;
+                          if (name === 'Revenus') {
+                            return formatCurrency(value);
                           }
                           return value;
                         }}
@@ -1604,7 +1605,7 @@ export default function AdminDashboard() {
                         dataKey="revenue"
                         stroke="#10b981"
                         strokeWidth={2}
-                        name="Revenus (FCFA)"
+                        name="Revenus"
                         dot={{ r: 4 }}
                       />
                     </LineChart>

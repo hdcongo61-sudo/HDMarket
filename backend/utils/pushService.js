@@ -205,8 +205,13 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       break;
     }
     case 'order_delivered': {
-      title = 'Commande livrée';
-      body = `Votre commande ${orderId} a été livrée.`;
+      if (metadata.deliveryProofSubmitted) {
+        title = 'Preuve de livraison reçue';
+        body = `Le vendeur a soumis la preuve pour la commande ${orderId}. Confirmez la livraison.`;
+      } else {
+        title = 'Commande livrée';
+        body = `Votre commande ${orderId} a été livrée.`;
+      }
       break;
     }
     case 'installment_due_reminder': {
@@ -273,8 +278,14 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
     }
     case 'order_cancelled': {
       const reason = metadata.reason ? ` Raison: ${metadata.reason}` : '';
+      const refundAmount = Number(metadata.refundAmount || 0);
+      const refundText = metadata.refundRequested
+        ? refundAmount > 0
+          ? ` Remboursement demandé: ${refundAmount.toLocaleString('fr-FR')} FCFA.`
+          : ' Remboursement demandé.'
+        : '';
       title = 'Commande annulée';
-      body = `Votre commande ${orderId} a été annulée par le vendeur.${reason}`;
+      body = `Votre commande ${orderId} a été annulée par le vendeur.${reason}${refundText}`;
       break;
     }
     case 'complaint_resolved': {
@@ -287,6 +298,31 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       const subjectLabel = metadata.subject ? ` : ${metadata.subject}` : '';
       title = 'Nouvelle réclamation';
       body = `${actorName} a déposé une réclamation${subjectLabel}`;
+      break;
+    }
+    case 'dispute_created': {
+      title = 'Nouveau litige';
+      body = `${actorName} a ouvert un litige pour la commande ${orderId}.`;
+      break;
+    }
+    case 'dispute_seller_responded': {
+      title = 'Réponse du vendeur';
+      body = `${actorName} a répondu au litige de la commande ${orderId}.`;
+      break;
+    }
+    case 'dispute_deadline_near': {
+      title = 'Rappel litige';
+      body = `Répondez au litige de la commande ${orderId} avant l’échéance.`;
+      break;
+    }
+    case 'dispute_under_review': {
+      title = 'Litige en revue';
+      body = `Le litige de la commande ${orderId} est en cours d’arbitrage admin.`;
+      break;
+    }
+    case 'dispute_resolved': {
+      title = 'Litige résolu';
+      body = `${actorName} a clôturé le litige de la commande ${orderId}.`;
       break;
     }
     case 'feedback_read': {

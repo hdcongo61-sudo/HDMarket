@@ -12,6 +12,7 @@ import { setPendingAction } from '../utils/pendingAction';
 import VerifiedBadge from './VerifiedBadge';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import useIsMobile from '../hooks/useIsMobile';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 /**
  * 🎨 PRODUCT CARD PREMIUM HDMarket
@@ -23,6 +24,7 @@ import useIsMobile from '../hooks/useIsMobile';
 
 export default function ProductCard({ p, hideMobileDiscountBadge = false, productLink, onProductClick }) {
   const { user } = useContext(AuthContext);
+  const { formatPrice } = useAppSettings();
   const { addItem, cart } = useContext(CartContext);
   const navigate = useNavigate();
   const location = useLocation();
@@ -222,9 +224,9 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
     const now = new Date();
     return now >= start && now <= end;
   }, [p]);
-  const price = Number(p.price).toLocaleString();
+  const discountedPrice = formatPrice(hasDiscount ? p.priceAfterDiscount || p.price : p.price);
   const originalPrice = hasDiscount && p.priceBeforeDiscount
-    ? Number(p.priceBeforeDiscount).toLocaleString()
+    ? formatPrice(p.priceBeforeDiscount)
     : null;
   
   const ratingAverage = Number(p.ratingAverage || 0).toFixed(1);
@@ -255,6 +257,16 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
 
   const ownerId = p?.user?._id || p?.user;
   const isOwner = Boolean(user && ownerId && String(ownerId) === user.id);
+
+  useEffect(() => {
+    if (!p?.activeBoostRequestId) return;
+    api.post('/boosts/track/impressions', { requestIds: [p.activeBoostRequestId] }).catch(() => {});
+  }, [p?._id, p?.activeBoostRequestId]);
+
+  const trackBoostClick = useCallback(() => {
+    if (!p?.activeBoostRequestId) return;
+    api.post(`/boosts/requests/${p.activeBoostRequestId}/click`).catch(() => {});
+  }, [p?.activeBoostRequestId]);
   
   const conditionLabel = p?.condition === 'new' ? 'Neuf' : 'Occasion';
   const conditionColor = p?.condition === 'new' 
@@ -365,7 +377,10 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
       <Link
         to={resolvedProductLink}
         {...externalLinkProps}
-        onClick={() => handleProductClick?.(p)}
+        onClick={() => {
+          trackBoostClick();
+          handleProductClick?.(p);
+        }}
         className={`relative aspect-square bg-gray-100 overflow-hidden ${hasMultipleImages ? 'touch-pan-y' : ''}`}
         {...(hasMultipleImages && {
           onTouchStart: handleTouchStart,
@@ -587,16 +602,9 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
 
         {/* Prix avec réduction */}
         <div className="flex items-baseline gap-1.5 sm:gap-2 flex-wrap">
-          <div className="flex items-baseline gap-0.5 sm:gap-1">
-            <span className="text-[10px] sm:text-xs text-gray-500">FCFA</span>
-            <span className="text-base sm:text-lg font-black text-red-600">
-              {hasDiscount ? Number(p.priceAfterDiscount || p.price).toLocaleString() : Number(p.price).toLocaleString()}
-            </span>
-          </div>
+          <span className="text-base sm:text-lg font-black text-red-600">{discountedPrice}</span>
           {originalPrice && (
-            <span className="text-[10px] sm:text-xs text-gray-400 line-through">
-              {originalPrice} FCFA
-            </span>
+            <span className="text-[10px] sm:text-xs text-gray-400 line-through">{originalPrice}</span>
           )}
           {hasDiscount && (
             <span className="text-[9px] sm:text-[10px] font-bold text-red-500 bg-red-50 px-1 sm:px-1.5 py-0.5 rounded">

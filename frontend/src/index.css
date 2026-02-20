@@ -273,3 +273,13 @@ body.menu-open .verified-shops-header {
   color: var(--color-apple-label-secondary);
   margin-top: 4px;
 }
+
+/* Help editor placeholder */
+.help-rich-editor:empty:before {
+  content: attr(data-placeholder);
+  color: rgb(115 115 115);
+  pointer-events: none;
+}
+.dark .help-rich-editor:empty:before {
+  color: rgb(163 163 163);
+}

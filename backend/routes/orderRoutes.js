@@ -19,6 +19,9 @@ import {
   userSkipCancellationWindow,
   sellerListOrders,
   sellerGetOrder,
+  sellerSubmitDeliveryProof,
+  clientConfirmDelivery,
+  getOrderDeliveryLogs,
   sellerUpdateOrderStatus,
   sellerCancelOrder,
   saveDraftOrder,
@@ -50,6 +53,7 @@ import {
   updateOrderMessage
 } from '../controllers/orderMessageController.js';
 import { chatUpload } from '../utils/chatUpload.js';
+import { deliveryProofUpload } from '../utils/deliveryProofUpload.js';
 
 const router = express.Router();
 
@@ -102,6 +106,20 @@ router.delete('/draft/:id', validate(schemas.idParam, 'params'), deleteDraftOrde
 router.get('/seller', sellerListOrders);
 router.get('/detail/:id', validate(schemas.idParam, 'params'), getUserOrder);
 router.get('/seller/detail/:id', validate(schemas.idParam, 'params'), sellerGetOrder);
+router.post(
+  '/seller/:id/delivery-proof',
+  validate(schemas.idParam, 'params'),
+  deliveryProofUpload.array('deliveryProofImages', 5),
+  validate(schemas.deliveryProofSubmit),
+  sellerSubmitDeliveryProof
+);
+router.post(
+  '/:id/confirm-delivery',
+  validate(schemas.idParam, 'params'),
+  validate(schemas.deliveryConfirm),
+  clientConfirmDelivery
+);
+router.get('/:id/delivery-logs', validate(schemas.idParam, 'params'), getOrderDeliveryLogs);
 router.patch(
   '/:id/status',
   validate(schemas.idParam, 'params'),

@@ -5,6 +5,7 @@ import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { ArrowLeft, Edit, Tag, FileText, Package, DollarSign, Save, Image, AlertCircle } from 'lucide-react';
 import categoryGroups, { getCategoryMeta } from '../data/categories';
+import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 
 export default function EditProduct() {
   const { slug } = useParams();
@@ -26,11 +27,11 @@ export default function EditProduct() {
 
   const priceDisplay = useMemo(() => {
     if (!product) return { current: '', before: '' };
-    const current = Number(product.price).toLocaleString();
+    const current = formatPriceWithStoredSettings(product.price);
     const before = product.priceBeforeDiscount
-      ? Number(product.priceBeforeDiscount).toLocaleString()
+      ? formatPriceWithStoredSettings(product.priceBeforeDiscount)
       : product.discount > 0
-      ? Number((product.price / (1 - product.discount / 100)).toFixed(0)).toLocaleString()
+      ? formatPriceWithStoredSettings(Number((product.price / (1 - product.discount / 100)).toFixed(0)))
       : '';
     return { current, before };
   }, [product]);
@@ -295,9 +296,9 @@ export default function EditProduct() {
                     <span className="text-sm font-medium text-indigo-900">Prix actuel</span>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-2xl font-bold text-indigo-600">{priceDisplay.current} FCFA</p>
+                    <p className="text-2xl font-bold text-indigo-600">{priceDisplay.current}</p>
                     {priceDisplay.before && (
-                      <p className="text-sm text-gray-500 line-through">{priceDisplay.before} FCFA</p>
+                      <p className="text-sm text-gray-500 line-through">{priceDisplay.before}</p>
                     )}
                   </div>
                   <p className="text-xs text-indigo-700">
@@ -326,7 +327,7 @@ export default function EditProduct() {
                 </p>
                 {form.discount > 0 && (
                   <div className="text-xs text-green-600 font-medium">
-                    Nouveau prix: {Math.round(product.price * (1 - form.discount / 100)).toLocaleString()} FCFA
+                    Nouveau prix: {formatPriceWithStoredSettings(Math.round(product.price * (1 - form.discount / 100)))}
                   </div>
                 )}
               </div>

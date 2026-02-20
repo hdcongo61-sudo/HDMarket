@@ -3,6 +3,7 @@ import ShopConversionRequest from '../models/shopConversionRequestModel.js';
 import User from '../models/userModel.js';
 import { uploadToCloudinary } from '../utils/cloudinaryUploader.js';
 import { createNotification } from '../utils/notificationService.js';
+import { getSettingValue, SETTING_KEYS } from '../utils/settingsResolver.js';
 
 /**
  * Create a shop conversion request (for particulier users only)
@@ -58,10 +59,15 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Veuillez sélectionner un opérateur (MTN ou Airtel).' });
   }
 
-  // Validate payment amount (should be 50000)
+  const configuredAmount = Number(await getSettingValue(SETTING_KEYS.SHOP_CONVERSION_AMOUNT, 50000));
+  const requiredAmount = Number.isFinite(configuredAmount) && configuredAmount > 0 ? configuredAmount : 50000;
+
+  // Validate payment amount based on admin setting
   const amount = Number(paymentAmount) || 0;
-  if (amount !== 50000) {
-    return res.status(400).json({ message: 'Le montant du paiement doit être de 50.000 FCFA.' });
+  if (amount !== requiredAmount) {
+    return res.status(400).json({
+      message: `Le montant du paiement doit être de ${requiredAmount.toLocaleString('fr-FR')} FCFA.`
+    });
   }
 
   // Handle logo upload

@@ -5,9 +5,10 @@ import AuthContext from '../context/AuthContext';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import useIsMobile from '../hooks/useIsMobile';
 import { buildProductPath } from '../utils/links';
+import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('fr-FR');
-const formatCurrency = (value) => `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
+const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 const formatDateTime = (value) =>
   value
     ? new Date(value).toLocaleDateString('fr-FR', {

@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { FileText, Download, Calendar, TrendingUp, Users, Package, DollarSign, MessageSquare, AlertCircle, Store } from 'lucide-react';
 import api from '../services/api';
+import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 
 const PERIOD_OPTIONS = [
   { value: 'today', label: 'Aujourd\'hui' },
@@ -9,6 +10,8 @@ const PERIOD_OPTIONS = [
   { value: 'year', label: 'Cette année' },
   { value: 'custom', label: 'Période personnalisée' }
 ];
+
+const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
 export default function AdminReports() {
   const [period, setPeriod] = useState('month');
@@ -108,8 +111,8 @@ export default function AdminReports() {
         body: [
           ['Total commandes', report.orders.total.toLocaleString()],
           ['Nouvelles commandes', report.orders.new.toLocaleString()],
-          ['Valeur totale', `${report.orders.totalValue.toLocaleString()} FCFA`],
-          ['Valeur moyenne', `${Math.round(report.orders.averageValue).toLocaleString()} FCFA`]
+          ['Valeur totale', formatCurrency(report.orders.totalValue)],
+          ['Valeur moyenne', formatCurrency(Math.round(report.orders.averageValue))]
         ],
         theme: 'grid',
         headStyles: { fillColor: [79, 70, 229] },
@@ -163,8 +166,8 @@ export default function AdminReports() {
         body: [
           ['Total paiements', report.payments.total.toLocaleString()],
           ['Nouveaux paiements', report.payments.new.toLocaleString()],
-          ['Montant total', `${report.payments.totalValue.toLocaleString()} FCFA`],
-          ['Montant moyen', `${Math.round(report.payments.averageValue).toLocaleString()} FCFA`],
+          ['Montant total', formatCurrency(report.payments.totalValue)],
+          ['Montant moyen', formatCurrency(Math.round(report.payments.averageValue))],
           ['Taux de vérification', `${report.payments.verificationRate}%`]
         ],
         theme: 'grid',
@@ -227,7 +230,7 @@ export default function AdminReports() {
             .sort((a, b) => b[1] - a[1])
             .slice(0, 8)
             .forEach(([category, avgPrice]) => {
-              contentBody.push([category, `${Math.round(avgPrice).toLocaleString()} FCFA`]);
+              contentBody.push([category, formatCurrency(Math.round(avgPrice))]);
             });
         }
 
@@ -294,8 +297,8 @@ export default function AdminReports() {
       summarySheet.addRow({ category: 'COMMANDES', metric: '', value: '' });
       summarySheet.addRow({ category: '', metric: 'Total commandes', value: report.orders.total });
       summarySheet.addRow({ category: '', metric: 'Nouvelles commandes', value: report.orders.new });
-      summarySheet.addRow({ category: '', metric: 'Valeur totale (FCFA)', value: report.orders.totalValue });
-      summarySheet.addRow({ category: '', metric: 'Valeur moyenne (FCFA)', value: Math.round(report.orders.averageValue) });
+      summarySheet.addRow({ category: '', metric: 'Valeur totale', value: formatCurrency(report.orders.totalValue) });
+      summarySheet.addRow({ category: '', metric: 'Valeur moyenne', value: formatCurrency(Math.round(report.orders.averageValue)) });
       summarySheet.addRow({});
 
       // Products
@@ -311,8 +314,8 @@ export default function AdminReports() {
       summarySheet.addRow({ category: 'PAIEMENTS', metric: '', value: '' });
       summarySheet.addRow({ category: '', metric: 'Total paiements', value: report.payments.total });
       summarySheet.addRow({ category: '', metric: 'Nouveaux paiements', value: report.payments.new });
-      summarySheet.addRow({ category: '', metric: 'Montant total (FCFA)', value: report.payments.totalValue });
-      summarySheet.addRow({ category: '', metric: 'Montant moyen (FCFA)', value: Math.round(report.payments.averageValue) });
+      summarySheet.addRow({ category: '', metric: 'Montant total', value: formatCurrency(report.payments.totalValue) });
+      summarySheet.addRow({ category: '', metric: 'Montant moyen', value: formatCurrency(Math.round(report.payments.averageValue)) });
       summarySheet.addRow({ category: '', metric: 'Taux de vérification (%)', value: report.payments.verificationRate });
       summarySheet.addRow({});
 
@@ -514,7 +517,7 @@ export default function AdminReports() {
               <StatCard
                 icon={DollarSign}
                 title="Paiements"
-                value={`${Math.round(report.payments.totalValue).toLocaleString()} FCFA`}
+                value={formatCurrency(Math.round(report.payments.totalValue))}
                 change={report.payments.new}
                 color="green"
               />
@@ -554,8 +557,8 @@ export default function AdminReports() {
               <ReportSection title="Commandes" icon={TrendingUp}>
                 <ReportRow label="Total" value={report.orders.total.toLocaleString()} />
                 <ReportRow label="Nouvelles" value={report.orders.new.toLocaleString()} highlight />
-                <ReportRow label="Valeur totale" value={`${Math.round(report.orders.totalValue).toLocaleString()} FCFA`} />
-                <ReportRow label="Valeur moyenne" value={`${Math.round(report.orders.averageValue).toLocaleString()} FCFA`} />
+                <ReportRow label="Valeur totale" value={formatCurrency(Math.round(report.orders.totalValue))} />
+                <ReportRow label="Valeur moyenne" value={formatCurrency(Math.round(report.orders.averageValue))} />
                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                   <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Par statut</h4>
                   {Object.entries(report.orders.byStatus).map(([status, count]) => (
@@ -589,8 +592,8 @@ export default function AdminReports() {
               <ReportSection title="Paiements" icon={DollarSign}>
                 <ReportRow label="Total" value={report.payments.total.toLocaleString()} />
                 <ReportRow label="Nouveaux" value={report.payments.new.toLocaleString()} highlight />
-                <ReportRow label="Montant total" value={`${Math.round(report.payments.totalValue).toLocaleString()} FCFA`} />
-                <ReportRow label="Montant moyen" value={`${Math.round(report.payments.averageValue).toLocaleString()} FCFA`} />
+                <ReportRow label="Montant total" value={formatCurrency(Math.round(report.payments.totalValue))} />
+                <ReportRow label="Montant moyen" value={formatCurrency(Math.round(report.payments.averageValue))} />
                 <ReportRow label="Taux de vérification" value={`${report.payments.verificationRate}%`} />
                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                   <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Par opérateur</h4>
@@ -642,8 +645,8 @@ export default function AdminReports() {
                 <ReportRow label="Taux d'approbation" value={`${report.metrics.approvalRate}%`} />
                 <ReportRow label="Taux de vérification" value={`${report.metrics.verificationRate}%`} />
                 <ReportRow label="Taux de conversion boutique" value={`${report.metrics.shopConversionRate}%`} />
-                <ReportRow label="Valeur moyenne commande" value={`${Math.round(report.metrics.averageOrderValue).toLocaleString()} FCFA`} />
-                <ReportRow label="Valeur moyenne paiement" value={`${Math.round(report.metrics.averagePaymentValue).toLocaleString()} FCFA`} />
+                <ReportRow label="Valeur moyenne commande" value={formatCurrency(Math.round(report.metrics.averageOrderValue))} />
+                <ReportRow label="Valeur moyenne paiement" value={formatCurrency(Math.round(report.metrics.averagePaymentValue))} />
               </ReportSection>
             </div>
 
@@ -701,7 +704,7 @@ export default function AdminReports() {
                         <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Commandes</h4>
                         <div className="space-y-1 max-h-32 overflow-y-auto">
                           {report.growth.seasonalTrends.orders.slice(-6).map((trend, i) => (
-                            <ReportRow key={i} label={trend.period} value={`${trend.count} (${Math.round(trend.totalValue).toLocaleString()} FCFA)`} small />
+                            <ReportRow key={i} label={trend.period} value={`${trend.count} (${formatCurrency(Math.round(trend.totalValue))})`} small />
                           ))}
                         </div>
                       </div>
@@ -725,7 +728,7 @@ export default function AdminReports() {
                         .sort((a, b) => b[1] - a[1])
                         .slice(0, 8)
                         .map(([category, avgPrice]) => (
-                          <ReportRow key={category} label={category} value={`${Math.round(avgPrice).toLocaleString()} FCFA`} small />
+                          <ReportRow key={category} label={category} value={formatCurrency(Math.round(avgPrice))} small />
                         ))}
                     </div>
                   )}

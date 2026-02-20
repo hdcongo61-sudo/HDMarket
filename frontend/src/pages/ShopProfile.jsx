@@ -33,6 +33,7 @@ import VerifiedBadge from '../components/VerifiedBadge';
 import { buildProductPath } from '../utils/links';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import useIsMobile from '../hooks/useIsMobile';
+import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 
 const DAY_LABELS = {
   monday: 'Lundi',
@@ -53,9 +54,7 @@ const formatCount = (value) => {
 };
 
 const formatCurrency = (value) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return '0 FCFA';
-  return `${numberFormatter.format(parsed)} FCFA`;
+  return formatPriceWithStoredSettings(value);
 };
 
 const formatDate = (value) => {

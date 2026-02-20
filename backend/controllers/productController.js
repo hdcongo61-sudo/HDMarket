@@ -1,9 +1,12 @@
 import asyncHandler from 'express-async-handler';
 import mongoose from 'mongoose';
 import Product from '../models/productModel.js';
+import Category from '../models/categoryModel.js';
 import Comment from '../models/commentModel.js';
 import Rating from '../models/ratingModel.js';
 import User from '../models/userModel.js';
+import Order from '../models/orderModel.js';
+import City from '../models/cityModel.js';
 import ProhibitedWord from '../models/prohibitedWordModel.js';
 import ProductAuditLog from '../models/productAuditLogModel.js';
 import { createNotification } from '../utils/notificationService.js';
@@ -20,14 +23,197 @@ import {
   isProductInstallmentActive,
   validateInstallmentConfig
 } from '../utils/installmentUtils.js';
+import { getBoostPriorityMaps } from '../utils/boostService.js';
 
 const MAX_PRODUCT_IMAGES = 3;
 const SHOP_SELECT_FIELDS =
   'name phone accountType shopName shopAddress shopLogo city country shopVerified isBlocked slug';
-const SUPPORTED_CITIES = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
+const CATEGORY_SELECT_FIELDS = '_id name slug parentId level isDeleted isActive';
 
 const isTruthyQueryValue = (value) =>
   value === true || value === 'true' || value === 1 || value === '1';
+
+const normalizeCategoryText = (value = '') => String(value || '').trim();
+
+const getActiveCityNames = async () => {
+  const docs = await City.find({ isActive: true }).select('name').sort({ name: 1 }).lean();
+  return docs.map((item) => String(item.name || '').trim()).filter(Boolean);
+};
+
+const resolveCategorySelection = async ({
+  category,
+  categoryId,
+  subcategoryId,
+  fallbackCategoryName = '',
+  fallbackSubcategoryName = ''
+}) => {
+  const normalizedCategory = normalizeCategoryText(category);
+  const normalizedCategoryId = mongoose.isValidObjectId(categoryId) ? categoryId : null;
+  const normalizedSubcategoryId = mongoose.isValidObjectId(subcategoryId) ? subcategoryId : null;
+
+  if (normalizedSubcategoryId) {
+    const subcategory = await Category.findById(normalizedSubcategoryId)
+      .select(CATEGORY_SELECT_FIELDS)
+      .lean();
+    if (!subcategory || subcategory.isDeleted || !subcategory.isActive || subcategory.level !== 1) {
+      return { valid: false, message: 'Sous-catégorie invalide ou inactive.' };
+    }
+    const parent = await Category.findById(subcategory.parentId)
+      .select(CATEGORY_SELECT_FIELDS)
+      .lean();
+    if (!parent || parent.isDeleted || !parent.isActive || parent.level !== 0) {
+      return { valid: false, message: 'Catégorie parent invalide ou inactive.' };
+    }
+    return {
+      valid: true,
+      categoryId: parent._id,
+      subcategoryId: subcategory._id,
+      category: subcategory.slug || normalizedCategory || subcategory.name,
+      legacyCategoryName: fallbackCategoryName || parent.name || '',
+      legacySubcategoryName: fallbackSubcategoryName || subcategory.name || ''
+    };
+  }
+
+  if (normalizedCategoryId) {
+    const categoryNode = await Category.findById(normalizedCategoryId)
+      .select(CATEGORY_SELECT_FIELDS)
+      .lean();
+    if (!categoryNode || categoryNode.isDeleted || !categoryNode.isActive) {
+      return { valid: false, message: 'Catégorie invalide ou inactive.' };
+    }
+
+    if (categoryNode.level === 1) {
+      const parent = await Category.findById(categoryNode.parentId)
+        .select(CATEGORY_SELECT_FIELDS)
+        .lean();
+      if (!parent || parent.isDeleted || !parent.isActive || parent.level !== 0) {
+        return { valid: false, message: 'Catégorie parent invalide ou inactive.' };
+      }
+      return {
+        valid: true,
+        categoryId: parent._id,
+        subcategoryId: categoryNode._id,
+        category: categoryNode.slug || normalizedCategory || categoryNode.name,
+        legacyCategoryName: fallbackCategoryName || parent.name || '',
+        legacySubcategoryName: fallbackSubcategoryName || categoryNode.name || ''
+      };
+    }
+
+    return {
+      valid: true,
+      categoryId: categoryNode._id,
+      subcategoryId: null,
+      category: categoryNode.slug || normalizedCategory || categoryNode.name,
+      legacyCategoryName: fallbackCategoryName || categoryNode.name || '',
+      legacySubcategoryName: fallbackSubcategoryName || ''
+    };
+  }
+
+  if (!normalizedCategory) {
+    return {
+      valid: true,
+      categoryId: null,
+      subcategoryId: null,
+      category: '',
+      legacyCategoryName: fallbackCategoryName || '',
+      legacySubcategoryName: fallbackSubcategoryName || ''
+    };
+  }
+
+  const matcher = new RegExp(`^${normalizedCategory.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+  const matchedSubcategory = await Category.findOne({
+    level: 1,
+    isDeleted: false,
+    isActive: true,
+    $or: [{ slug: matcher }, { name: matcher }]
+  })
+    .select(CATEGORY_SELECT_FIELDS)
+    .lean();
+
+  if (matchedSubcategory) {
+    const parent = await Category.findById(matchedSubcategory.parentId)
+      .select(CATEGORY_SELECT_FIELDS)
+      .lean();
+    if (parent && !parent.isDeleted && parent.isActive) {
+      return {
+        valid: true,
+        categoryId: parent._id,
+        subcategoryId: matchedSubcategory._id,
+        category: matchedSubcategory.slug || normalizedCategory,
+        legacyCategoryName: fallbackCategoryName || parent.name || '',
+        legacySubcategoryName: fallbackSubcategoryName || matchedSubcategory.name || ''
+      };
+    }
+  }
+
+  const matchedCategory = await Category.findOne({
+    level: 0,
+    isDeleted: false,
+    isActive: true,
+    $or: [{ slug: matcher }, { name: matcher }]
+  })
+    .select(CATEGORY_SELECT_FIELDS)
+    .lean();
+
+  if (matchedCategory) {
+    return {
+      valid: true,
+      categoryId: matchedCategory._id,
+      subcategoryId: null,
+      category: matchedCategory.slug || normalizedCategory,
+      legacyCategoryName: fallbackCategoryName || matchedCategory.name || normalizedCategory,
+      legacySubcategoryName: fallbackSubcategoryName || ''
+    };
+  }
+
+  return {
+    valid: true,
+    categoryId: null,
+    subcategoryId: null,
+    category: normalizedCategory,
+    legacyCategoryName: fallbackCategoryName || normalizedCategory,
+    legacySubcategoryName: fallbackSubcategoryName || ''
+  };
+};
+
+const withCategoryCompatibility = (input) => {
+  if (!input) return input;
+  const base = typeof input.toObject === 'function' ? input.toObject() : { ...input };
+  const categoryName = normalizeCategoryText(base.legacyCategoryName || base.category || '');
+  const subcategoryName = normalizeCategoryText(base.legacySubcategoryName || '');
+  const isLegacyCategory = !base.categoryId && !base.subcategoryId;
+  return {
+    ...base,
+    categoryName,
+    subcategoryName,
+    isLegacyCategory
+  };
+};
+
+const getTodayRange = () => {
+  const now = new Date();
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(now);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+};
+
+const isWithinDateRange = (startDate, endDate, now = new Date()) => {
+  const nowTime = now.getTime();
+  const startTime = startDate ? new Date(startDate).getTime() : null;
+  const endTime = endDate ? new Date(endDate).getTime() : null;
+  if (startTime && Number.isFinite(startTime) && startTime > nowTime) return false;
+  if (endTime && Number.isFinite(endTime) && endTime < nowTime) return false;
+  return true;
+};
+
+const getLegacyBoostPriority = (item, now = new Date()) => {
+  if (item?.boosted && isWithinDateRange(item?.boostStartDate, item?.boostEndDate, now)) return 1;
+  const shop = item?.user;
+  if (shop?.shopBoosted && isWithinDateRange(shop?.shopBoostStartDate, shop?.shopBoostEndDate, now)) return 2;
+  return 4;
+};
 
 const ensureProductSlug = async (productDoc) => {
   if (!productDoc) return null;
@@ -161,6 +347,8 @@ export const createProduct = asyncHandler(async (req, res) => {
     description,
     price,
     category,
+    categoryId,
+    subcategoryId,
     discount,
     condition,
     installmentEnabled,
@@ -172,7 +360,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     installmentMaxMissedPayments,
     installmentRequireGuarantor
   } = req.body;
-  if (!title || !description || !price || !category)
+  if (!title || !description || !price)
     return res.status(400).json({ message: 'Missing fields' });
 
   const prohibitedMatches = await detectProhibitedWords(title, description);
@@ -228,6 +416,18 @@ export const createProduct = asyncHandler(async (req, res) => {
   });
   if (!installmentConfig.valid) {
     return res.status(400).json({ message: installmentConfig.message });
+  }
+
+  const categorySelection = await resolveCategorySelection({
+    category,
+    categoryId,
+    subcategoryId
+  });
+  if (!categorySelection.valid) {
+    return res.status(400).json({ message: categorySelection.message });
+  }
+  if (!categorySelection.category || (!categorySelection.categoryId && !categorySelection.subcategoryId)) {
+    return res.status(400).json({ message: 'Catégorie invalide.' });
   }
 
   const imageFiles = getUploadedFiles(req.files, 'images');
@@ -319,7 +519,11 @@ export const createProduct = asyncHandler(async (req, res) => {
     title,
     description,
     price: finalPrice,
-    category,
+    category: categorySelection.category,
+    categoryId: categorySelection.categoryId,
+    subcategoryId: categorySelection.subcategoryId,
+    legacyCategoryName: categorySelection.legacyCategoryName,
+    legacySubcategoryName: categorySelection.legacySubcategoryName,
     discount: discountValue,
     condition: safeCondition,
     priceBeforeDiscount,
@@ -348,7 +552,7 @@ export const createProduct = asyncHandler(async (req, res) => {
   // Invalidate product cache after creation
   invalidateProductCache();
 
-  res.status(201).json(product);
+  res.status(201).json(withCategoryCompatibility(product));
 });
 
 export const getPublicProducts = asyncHandler(async (req, res) => {
@@ -379,7 +583,7 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
 
   const filter = { status: 'approved' };
   const normalizedUserCity = typeof userCityParam === 'string' ? userCityParam.trim() : '';
-  const userCity = SUPPORTED_CITIES.includes(normalizedUserCity) ? normalizedUserCity : null;
+  const userCity = normalizedUserCity || null;
   const nearMeEnabled = isTruthyQueryValue(nearMe);
   const locationPriorityEnabled = isTruthyQueryValue(locationPriority);
   
@@ -444,7 +648,7 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   // City filter
   if (cityParam) {
     const normalizedCity = cityParam.trim();
-    if (SUPPORTED_CITIES.includes(normalizedCity)) {
+    if (normalizedCity) {
       filter.city = normalizedCity;
     }
   }
@@ -686,9 +890,64 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     filteredItems = itemsRaw.filter((item) => item.user?.shopVerified === true);
   }
 
+  // Dynamic boost ranking priority:
+  // 1) LOCAL_PRODUCT_BOOST (city match)
+  // 2) PRODUCT_BOOST
+  // 3) SHOP_BOOST
+  // 4) HOMEPAGE_FEATURED
+  // 5) Normal products
+  const boostProductIds = filteredItems.map((item) => item?._id).filter(Boolean);
+  const boostSellerIds = filteredItems
+    .map((item) => item?.user?._id || item?.user)
+    .filter(Boolean);
+  const { productBoostMap, shopBoostMap } = await getBoostPriorityMaps({
+    productIds: boostProductIds,
+    sellerIds: boostSellerIds,
+    userCity
+  });
+  const boostMetaByProductId = new Map();
+  const nowForBoost = new Date();
+
+  filteredItems = filteredItems
+    .map((item, originalIndex) => {
+      const productKey = String(item?._id || '');
+      const sellerKey = String(item?.user?._id || item?.user || '');
+      const productBoost = productBoostMap.get(productKey) || null;
+      const shopBoost = shopBoostMap.get(sellerKey) || null;
+      const legacyPriority = getLegacyBoostPriority(item, nowForBoost);
+      const externalPriority = Math.min(
+        productBoost?.priority ?? 99,
+        shopBoost?.priority ?? 99
+      );
+      const priority = Math.min(externalPriority, legacyPriority, 4);
+      const boostType = productBoost?.boostType || (shopBoost ? 'SHOP_BOOST' : null);
+      const requestId = productBoost?.requestId || shopBoost?.requestId || null;
+      boostMetaByProductId.set(productKey, {
+        priority,
+        boostType,
+        requestId
+      });
+      return {
+        item,
+        priority,
+        originalIndex
+      };
+    })
+    .sort((a, b) => {
+      if (a.priority !== b.priority) return a.priority - b.priority;
+      if (a.priority <= 3) {
+        const aScore = Number(a.item?.boostScore || a.item?.user?.shopBoostScore || 0);
+        const bScore = Number(b.item?.boostScore || b.item?.user?.shopBoostScore || 0);
+        if (bScore !== aScore) return bScore - aScore;
+      }
+      return a.originalIndex - b.originalIndex;
+    })
+    .map((entry) => entry.item);
+
   let items = filteredItems.map((item) => {
     const safeItem = { ...item };
     delete safeItem.locationPriorityRank;
+    const compatibleItem = withCategoryCompatibility(safeItem);
     const commentCount = commentMap.get(String(item._id)) || 0;
     const rating = ratingMap.get(String(item._id)) || { average: 0, count: 0 };
     const installmentAvailable = isProductInstallmentActive(safeItem);
@@ -696,13 +955,21 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
       typeof safeItem.isCurrentlyBoosted === 'boolean'
         ? safeItem.isCurrentlyBoosted
         : isProductCurrentlyBoosted(safeItem);
+    const boostMeta = boostMetaByProductId.get(String(item._id)) || {
+      priority: 4,
+      boostType: null,
+      requestId: null
+    };
     return {
-      ...safeItem,
+      ...compatibleItem,
       commentCount,
       ratingAverage: rating.average,
       ratingCount: rating.count,
       isCurrentlyBoosted,
-      installmentAvailable
+      installmentAvailable,
+      boostPriority: boostMeta.priority,
+      activeBoostType: boostMeta.boostType,
+      activeBoostRequestId: boostMeta.requestId
     };
   });
 
@@ -732,7 +999,7 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   const totalPages = Math.max(1, Math.ceil(total / pageSize) || 1);
 
   res.json({
-    items,
+    items: items.map((item) => withCategoryCompatibility(item)),
     pagination: {
       page: pageNumber,
       limit: pageSize,
@@ -790,7 +1057,7 @@ export const getTopSales = asyncHandler(async (req, res) => {
     const commentCount = commentMap.get(String(item._id)) || 0;
     const rating = ratingMap.get(String(item._id)) || { average: 0, count: 0 };
     return {
-      ...item,
+      ...withCategoryCompatibility(item),
       commentCount,
       ratingAverage: rating.average,
       ratingCount: rating.count
@@ -807,6 +1074,145 @@ export const getTopSales = asyncHandler(async (req, res) => {
       total,
       pages: totalPages
     }
+  });
+});
+
+export const getTopSalesTodayByCity = asyncHandler(async (req, res) => {
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 12));
+  const skip = (page - 1) * limit;
+  const rawCity = typeof req.query.city === 'string' ? req.query.city.trim() : '';
+  const city = rawCity || null;
+
+  if (!city) {
+    return res.json({
+      items: [],
+      pagination: { page, limit, total: 0, pages: 1 },
+      city: null
+    });
+  }
+
+  const { start, end } = getTodayRange();
+  const [salesAgg] = await Order.aggregate([
+    {
+      $match: {
+        isDraft: { $ne: true },
+        isInquiry: { $ne: true },
+        status: { $ne: 'cancelled' },
+        deliveryCity: city,
+        createdAt: { $gte: start, $lte: end }
+      }
+    },
+    { $unwind: '$items' },
+    {
+      $group: {
+        _id: '$items.product',
+        totalSoldToday: { $sum: { $ifNull: ['$items.quantity', 1] } },
+        orderCountToday: { $sum: 1 }
+      }
+    },
+    { $sort: { totalSoldToday: -1, orderCountToday: -1, _id: 1 } },
+    {
+      $facet: {
+        items: [{ $skip: skip }, { $limit: limit }],
+        totalCount: [{ $count: 'total' }]
+      }
+    }
+  ]);
+
+  const rankedRows = Array.isArray(salesAgg?.items) ? salesAgg.items : [];
+  const total = Number(salesAgg?.totalCount?.[0]?.total || 0);
+
+  if (!rankedRows.length) {
+    return res.json({
+      items: [],
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.max(1, Math.ceil(total / limit) || 1)
+      },
+      city,
+      date: start.toISOString()
+    });
+  }
+
+  const productIds = rankedRows
+    .map((row) => row?._id)
+    .filter((id) => mongoose.isValidObjectId(id))
+    .map((id) => new mongoose.Types.ObjectId(id));
+
+  const blockedSellerIds = await getBlockedSellerIdsSet();
+  const productFilter = applyBlockedUsersToFilter(
+    {
+      _id: { $in: productIds },
+      status: 'approved'
+    },
+    blockedSellerIds
+  );
+
+  const itemsRaw = await Product.find(productFilter).lean();
+  await Product.populate(itemsRaw, { path: 'user', select: SHOP_SELECT_FIELDS });
+  await ensureModelSlugsForItems({ Model: Product, items: itemsRaw, sourceValueKey: 'title' });
+
+  const filteredProductIds = itemsRaw.map((item) => item._id);
+  const [commentStats, ratingStats] = filteredProductIds.length
+    ? await Promise.all([
+        Comment.aggregate([
+          { $match: { product: { $in: filteredProductIds } } },
+          { $group: { _id: '$product', count: { $sum: 1 } } }
+        ]),
+        Rating.aggregate([
+          { $match: { product: { $in: filteredProductIds } } },
+          { $group: { _id: '$product', average: { $avg: '$value' }, count: { $sum: 1 } } }
+        ])
+      ])
+    : [[], []];
+
+  const commentMap = new Map(commentStats.map((stat) => [String(stat._id), stat.count]));
+  const ratingMap = new Map(
+    ratingStats.map((stat) => [
+      String(stat._id),
+      { average: Number(stat.average?.toFixed(2) ?? 0), count: stat.count }
+    ])
+  );
+  const rawById = new Map(itemsRaw.map((item) => [String(item._id), item]));
+  const salesById = new Map(
+    rankedRows.map((row) => [
+      String(row._id),
+      {
+        totalSoldToday: Number(row.totalSoldToday || 0),
+        orderCountToday: Number(row.orderCountToday || 0)
+      }
+    ])
+  );
+
+  const items = rankedRows
+    .map((row) => rawById.get(String(row._id)))
+    .filter(Boolean)
+    .map((item) => {
+      const rating = ratingMap.get(String(item._id)) || { average: 0, count: 0 };
+      const sales = salesById.get(String(item._id)) || { totalSoldToday: 0, orderCountToday: 0 };
+      return {
+        ...withCategoryCompatibility(item),
+        commentCount: commentMap.get(String(item._id)) || 0,
+        ratingAverage: rating.average,
+        ratingCount: rating.count,
+        totalSoldToday: sales.totalSoldToday,
+        orderCountToday: sales.orderCountToday
+      };
+    });
+
+  res.json({
+    items,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.max(1, Math.ceil(total / limit) || 1)
+    },
+    city,
+    date: start.toISOString()
   });
 });
 
@@ -859,7 +1265,7 @@ export const getPublicHighlights = asyncHandler(async (req, res) => {
     { $limit: limit * 5 }
   ]);
 
-  const cityList = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
+  const cityList = await getActiveCityNames();
   const cityProductsRaw = await Product.find({ ...activeBaseFilter, city: { $in: cityList } })
     .sort({ createdAt: -1 })
     .limit(limit * cityList.length)
@@ -929,8 +1335,9 @@ export const getPublicHighlights = asyncHandler(async (req, res) => {
   const serialize = (doc) => {
     const idStr = String(doc._id);
     const rating = ratingMap.get(idStr) || { average: 0, count: 0 };
+    const compatible = withCategoryCompatibility(doc);
     return {
-      ...doc,
+      ...compatible,
       commentCount: commentMap.get(idStr) || 0,
       ratingAverage: rating.average,
       ratingCount: rating.count
@@ -1022,7 +1429,7 @@ export const getPublicInstallmentProducts = asyncHandler(async (req, res) => {
   const items = itemsRaw.map((item) => {
     const rating = ratingMap.get(String(item._id)) || { average: 0, count: 0 };
     return {
-      ...item,
+      ...withCategoryCompatibility(item),
       commentCount: commentMap.get(String(item._id)) || 0,
       ratingAverage: rating.average,
       ratingCount: rating.count,
@@ -1067,7 +1474,7 @@ export const getPublicProductById = asyncHandler(async (req, res) => {
     ? { average: Number(ratingData[0].average?.toFixed(2) ?? 0), count: ratingData[0].count }
     : { average: 0, count: 0 };
 
-  const product = productDoc.toObject();
+  const product = withCategoryCompatibility(productDoc);
   product.commentCount = commentCount;
   product.ratingAverage = rating.average;
   product.ratingCount = rating.count;
@@ -1083,7 +1490,7 @@ export const getMyProducts = asyncHandler(async (req, res) => {
   if (products.length) {
     await Promise.all(products.map((product) => ensureProductSlug(product)));
   }
-  res.json(products);
+  res.json(products.map((item) => withCategoryCompatibility(item)));
 });
 
 export const getAllProductsAdmin = asyncHandler(async (req, res) => {
@@ -1095,7 +1502,7 @@ export const getAllProductsAdmin = asyncHandler(async (req, res) => {
   if (products.length) {
     await Promise.all(products.map((product) => ensureProductSlug(product)));
   }
-  res.json(products);
+  res.json(products.map((item) => withCategoryCompatibility(item)));
 });
 
 export const listAdminProducts = asyncHandler(async (req, res) => {
@@ -1225,7 +1632,7 @@ export const getProductById = asyncHandler(async (req, res) => {
   if (product.status === 'disabled' && product.user.toString() !== req.user.id && !isModerator) {
     return res.status(403).json({ message: 'Forbidden' });
   }
-  res.json(product);
+  res.json(withCategoryCompatibility(product));
 });
 
 export const updateProduct = asyncHandler(async (req, res) => {
@@ -1262,6 +1669,8 @@ export const updateProduct = asyncHandler(async (req, res) => {
     title,
     description,
     category,
+    categoryId,
+    subcategoryId,
     discount,
     condition,
     installmentEnabled,
@@ -1275,7 +1684,26 @@ export const updateProduct = asyncHandler(async (req, res) => {
   } = req.body;
   if (title) product.title = title;
   if (description) product.description = description;
-  if (category) product.category = category;
+
+  const categoryPayloadProvided =
+    category !== undefined || categoryId !== undefined || subcategoryId !== undefined;
+  if (categoryPayloadProvided) {
+    const categorySelection = await resolveCategorySelection({
+      category: category !== undefined ? category : product.category,
+      categoryId: categoryId !== undefined ? categoryId : product.categoryId,
+      subcategoryId: subcategoryId !== undefined ? subcategoryId : product.subcategoryId,
+      fallbackCategoryName: normalizeCategoryText(product.legacyCategoryName || product.category || ''),
+      fallbackSubcategoryName: normalizeCategoryText(product.legacySubcategoryName || '')
+    });
+    if (!categorySelection.valid || !categorySelection.category) {
+      return res.status(400).json({ message: categorySelection.message || 'Catégorie invalide.' });
+    }
+    product.category = categorySelection.category;
+    product.categoryId = categorySelection.categoryId;
+    product.subcategoryId = categorySelection.subcategoryId;
+    product.legacyCategoryName = categorySelection.legacyCategoryName;
+    product.legacySubcategoryName = categorySelection.legacySubcategoryName;
+  }
 
   let promotionApplied = false;
   if (discount !== undefined) {
@@ -1514,7 +1942,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
   // Invalidate product cache after update
   invalidateProductCache();
 
-  res.json(product);
+  res.json(withCategoryCompatibility(product));
 });
 
 export const deleteProduct = asyncHandler(async (req, res) => {

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Heart, MessageCircle } from 'lucide-react';
 import api from '../services/api';
 import { buildProductPath, buildShopPath } from '../utils/links';
+import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 
 const numberFormatter = new Intl.NumberFormat('fr-FR');
 const formatNumber = (value) => {
@@ -10,7 +11,7 @@ const formatNumber = (value) => {
   if (!Number.isFinite(parsed)) return '0';
   return numberFormatter.format(parsed);
 };
-const formatCurrency = (value) => `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
+const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
 const SummaryCard = ({ label, value, helper }) => (
   <div className="rounded-2xl border border-gray-100 bg-white px-4 py-5 shadow-sm">

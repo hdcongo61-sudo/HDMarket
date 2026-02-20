@@ -19,6 +19,10 @@ const productSchema = new mongoose.Schema(
     video: { type: String },
     pdf: { type: String },
     category: { type: String, required: true },
+    categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', default: null, index: true },
+    subcategoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', default: null, index: true },
+    legacyCategoryName: { type: String, default: '' },
+    legacySubcategoryName: { type: String, default: '' },
     condition: { type: String, enum: ['new', 'used'], default: 'new' },
     lastStatusBeforeDisable: {
       type: String,
@@ -29,11 +33,7 @@ const productSchema = new mongoose.Schema(
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     payment: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment' },
     country: { type: String, default: 'République du Congo' },
-    city: {
-      type: String,
-      enum: ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'],
-      default: 'Brazzaville'
-    },
+    city: { type: String, default: 'Brazzaville', trim: true },
     validationDate: { type: Date, default: null, index: true },
     whatsappClicks: { type: Number, default: 0, min: 0 },
     favoritesCount: { type: Number, default: 0, min: 0 },
@@ -66,9 +66,12 @@ const productSchema = new mongoose.Schema(
 // Indexes for search & sorting
 productSchema.index({ title: 'text', description: 'text' });
 productSchema.index({ status: 1, category: 1, price: 1, createdAt: -1 });
+productSchema.index({ status: 1, categoryId: 1, subcategoryId: 1, createdAt: -1 });
 productSchema.index({ salesCount: -1, status: 1 });
 productSchema.index({ installmentEnabled: 1, installmentStartDate: 1, installmentEndDate: 1, status: 1 });
 productSchema.index({ status: 1, city: 1, boosted: -1, validationDate: -1, createdAt: -1 });
+productSchema.index({ user: 1, createdAt: -1 });
+productSchema.index({ user: 1, _id: 1 });
 
 productSchema.add({
   slug: { type: String, unique: true, index: true, lowercase: true, trim: true }

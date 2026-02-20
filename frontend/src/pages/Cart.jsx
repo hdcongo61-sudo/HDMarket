@@ -6,6 +6,7 @@ import { buildWhatsappLink } from '../utils/whatsapp';
 import api from '../services/api';
 import { buildProductPath } from '../utils/links';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
+import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 
 const TrashIcon = ({ className }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -29,11 +30,7 @@ const ShoppingBagIcon = ({ className }) => (
   </svg>
 );
 
-const formatPrice = (value) =>
-  Number(value || 0).toLocaleString(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  });
+const formatPrice = (value) => formatPriceWithStoredSettings(value);
 
 export default function Cart() {
   const navigate = useNavigate();
@@ -370,15 +367,15 @@ export default function Cart() {
                           {/* Price Display Enhanced - Much Smaller on Mobile */}
                           <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap">
                             <span className="text-sm sm:text-2xl lg:text-3xl font-black text-blue-600">
-                              {formatPrice(product.price)} FCFA
+                              {formatPrice(product.price)}
                             </span>
                             {discount > 0 && (
                               <>
                                 <span className="text-xs sm:text-lg text-gray-400 line-through font-bold">
-                                  {formatPrice(originalPrice)} FCFA
+                                  {formatPrice(originalPrice)}
                                 </span>
                                 <span className="text-[9px] sm:text-xs bg-gradient-to-r from-green-500 to-emerald-600 text-white px-1.5 py-0.5 sm:px-3 sm:py-1.5 rounded-full font-black shadow-sm">
-                                  Éco: {formatPrice((originalPrice - product.price) * quantity)} FCFA
+                                  Éco: {formatPrice((originalPrice - product.price) * quantity)}
                                 </span>
                               </>
                             )}
@@ -422,7 +419,7 @@ export default function Cart() {
                           <div className="text-right bg-blue-50 px-2 py-1 sm:px-4 sm:py-2 rounded-lg sm:rounded-2xl border border-blue-100">
                             <span className="text-[9px] sm:text-xs text-gray-600 font-medium block mb-0.5 sm:mb-1">Sous-total</span>
                             <div className="text-sm sm:text-xl lg:text-2xl font-black text-blue-600">
-                              {formatPrice(lineTotal)} FCFA
+                              {formatPrice(lineTotal)}
                             </div>
                           </div>
                         </div>
@@ -478,14 +475,14 @@ export default function Cart() {
                 {/* Items Count Enhanced */}
                 <div className="flex justify-between items-center py-3 px-4 bg-gray-50 rounded-2xl">
                   <span className="text-gray-700 font-semibold">Articles ({totals.quantity})</span>
-                  <span className="font-black text-gray-900 text-lg">{formatPrice(totals.subtotal)} FCFA</span>
+                  <span className="font-black text-gray-900 text-lg">{formatPrice(totals.subtotal)}</span>
                 </div>
 
                 {/* Savings Enhanced */}
                 {totalSavings > 0 && (
                   <div className="flex justify-between items-center py-3 px-4 bg-green-50 rounded-2xl border border-green-200">
                     <span className="text-green-700 font-semibold">Économies</span>
-                    <span className="font-black text-green-600 text-lg">-{formatPrice(totalSavings)} FCFA</span>
+                    <span className="font-black text-green-600 text-lg">-{formatPrice(totalSavings)}</span>
                   </div>
                 )}
 
@@ -499,7 +496,7 @@ export default function Cart() {
                 <div className="border-t-2 border-gray-200 pt-5">
                   <div className="flex justify-between items-center">
                     <span className="text-xl font-black text-gray-900">Total</span>
-                    <span className="text-3xl font-black text-blue-600">{formatPrice(totals.subtotal)} FCFA</span>
+                    <span className="text-3xl font-black text-blue-600">{formatPrice(totals.subtotal)}</span>
                   </div>
                 </div>
 

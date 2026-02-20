@@ -15,10 +15,24 @@ export const getAllNetworks = asyncHandler(async (req, res) => {
  * Get active network settings only
  */
 export const getActiveNetworks = asyncHandler(async (req, res) => {
-  const networks = await NetworkSetting.find({ isActive: true })
-    .sort({ order: 1, createdAt: 1 })
-    .lean();
-  res.json(networks);
+  try {
+    const networks = await NetworkSetting.find({ isActive: true })
+      .sort({ order: 1, createdAt: 1 })
+      .lean();
+    if (networks.length) {
+      return res.json(networks);
+    }
+    return res.json([
+      { name: 'MTN', phoneNumber: '069822930', isActive: true, order: 0 },
+      { name: 'Airtel', phoneNumber: '050237023', isActive: true, order: 1 }
+    ]);
+  } catch (error) {
+    console.error('getActiveNetworks fallback used:', error?.message || error);
+    return res.json([
+      { name: 'MTN', phoneNumber: '069822930', isActive: true, order: 0 },
+      { name: 'Airtel', phoneNumber: '050237023', isActive: true, order: 1 }
+    ]);
+  }
 });
 
 /**

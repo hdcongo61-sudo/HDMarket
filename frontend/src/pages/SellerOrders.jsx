@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   ClipboardList,
@@ -23,7 +23,8 @@ import {
   Receipt,
   ShieldCheck,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  RefreshCw
 } from 'lucide-react';
 import useIsMobile from '../hooks/useIsMobile';
 import api from '../services/api';
@@ -33,8 +34,20 @@ import { buildProductPath } from '../utils/links';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import CancellationTimer from '../components/CancellationTimer';
 import OrderChat from '../components/OrderChat';
+import GlassHeader from '../components/orders/GlassHeader';
+import StatusBadge from '../components/orders/StatusBadge';
+import { OrderListSkeleton } from '../components/orders/OrderSkeletons';
+import usePullToRefresh from '../hooks/usePullToRefresh';
+import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 const STATUS_LABELS = {
+  pending_payment: 'Paiement en attente',
+  paid: 'Payée',
+  ready_for_delivery: 'Prête à livrer',
+  out_for_delivery: 'En cours de livraison',
+  delivery_proof_submitted: 'Preuve soumise',
+  confirmed_by_client: 'Confirmée client',
   pending: 'En attente',
   pending_installment: 'Validation vente',
   installment_active: 'Tranche active',
@@ -59,6 +72,12 @@ const STATUS_STYLES = {
 };
 
 const STATUS_ICONS = {
+  pending_payment: Clock,
+  paid: CreditCard,
+  ready_for_delivery: Package,
+  out_for_delivery: Truck,
+  delivery_proof_submitted: ClipboardList,
+  confirmed_by_client: CheckCircle,
   pending: Clock,
   pending_installment: Clock,
   installment_active: CreditCard,
@@ -79,6 +98,12 @@ const INSTALLMENT_SALE_STATUS_LABELS = {
 
 const STATUS_TABS = [
   { key: 'all', label: 'Toutes', icon: ClipboardList, count: null },
+  { key: 'pending_payment', label: 'Paiement', icon: Clock, count: null },
+  { key: 'paid', label: 'Payées', icon: CreditCard, count: null },
+  { key: 'ready_for_delivery', label: 'Prêtes à livrer', icon: Package, count: null },
+  { key: 'out_for_delivery', label: 'En livraison', icon: Truck, count: null },
+  { key: 'delivery_proof_submitted', label: 'Preuve soumise', icon: ClipboardList, count: null },
+  { key: 'confirmed_by_client', label: 'Confirmées client', icon: CheckCircle, count: null },
   { key: 'pending', label: 'En attente', icon: Clock, count: null },
   { key: 'pending_installment', label: 'Vente à confirmer', icon: Receipt, count: null },
   { key: 'installment_active', label: 'Tranches actives', icon: CreditCard, count: null },
@@ -141,9 +166,10 @@ const formatOrderTimestamp = (value) =>
       })
     : null;
 
-const formatCurrency = (value) => `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
+const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
 const OrderProgress = ({ status }) => {
+  const { t } = useAppSettings();
   const currentIndexRaw = ORDER_FLOW.findIndex((step) => step.id === status);
   const currentIndex = currentIndexRaw >= 0 ? currentIndexRaw : 0;
 
@@ -153,7 +179,7 @@ const OrderProgress = ({ status }) => {
         <div className="p-2 rounded-lg bg-indigo-600">
           <TrendingUp className="w-4 h-4 text-white" />
         </div>
-        <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Suivi de commande</h3>
+        <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">{t('orders.tracking', 'Suivi de commande')}</h3>
       </div>
       <div className="relative">
         {/* Progress Line */}
@@ -216,6 +242,7 @@ const OrderProgress = ({ status }) => {
 
 // Compact order summary card - links to seller order detail page
 const SellerOrderSummaryCard = ({ order }) => {
+  const { t } = useAppSettings();
   const orderItems = Array.isArray(order.items) ? order.items : [];
   const computedTotal = orderItems.reduce((s, i) => s + Number(i.snapshot?.price || 0) * Number(i.quantity || 1), 0);
   const totalAmount = Number(order.totalAmount ?? computedTotal);
@@ -230,16 +257,14 @@ const SellerOrderSummaryCard = ({ order }) => {
   const installmentProgress =
     installmentTotal > 0 ? Math.min(100, Math.round((installmentPaid / installmentTotal) * 100)) : 0;
   const firstItem = orderItems[0];
-  const productTitle = firstItem?.snapshot?.title || 'Produit';
+  const productTitle = firstItem?.snapshot?.title || t('orders.product', 'Produit');
   const itemCount = orderItems.length;
-  const customerName = order.customer?.name || 'Client';
-  const StatusIcon = STATUS_ICONS[order.status] || Clock;
-  const statusStyle = STATUS_STYLES[order.status] || STATUS_STYLES.pending;
+  const customerName = order.customer?.name || t('orders.customer', 'Client');
 
   return (
     <Link
       to={`/seller/orders/detail/${order._id}`}
-      className="block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden"
+      className="group block rounded-2xl border border-neutral-200 bg-white transition hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-900/80 overflow-hidden"
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/50">
         <div className="flex items-center gap-1.5 min-w-0">
@@ -247,10 +272,7 @@ const SellerOrderSummaryCard = ({ order }) => {
           <span className="font-semibold text-gray-900 truncate">{customerName}</span>
           <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
         </div>
-        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border flex-shrink-0 ${statusStyle.card}`}>
-          <StatusIcon className="w-3.5 h-3.5" />
-          {STATUS_LABELS[order.status]}
-        </span>
+        <StatusBadge status={order.status} />
       </div>
       <div className="p-4 flex gap-3">
         {firstItem?.snapshot?.image ? (
@@ -271,7 +293,7 @@ const SellerOrderSummaryCard = ({ order }) => {
           {isInstallmentOrder && (
             <div className="mt-2 space-y-1">
               <p className="text-xs font-semibold text-indigo-700">
-                Tranche: {installmentProgress}% validé
+                {t('orders.installment', 'Tranche')}: {installmentProgress}% {t('orders.validated', 'validé')}
               </p>
               <div className="h-1.5 rounded-full bg-indigo-100 overflow-hidden">
                 <div
@@ -281,7 +303,7 @@ const SellerOrderSummaryCard = ({ order }) => {
               </div>
               {order.status === 'completed' && (
                 <p className="text-[11px] text-gray-500">
-                  Statut vente: {INSTALLMENT_SALE_STATUS_LABELS[installmentSaleStatus] || 'Confirmée'}
+                  {t('orders.saleStatus', 'Statut vente')}: {INSTALLMENT_SALE_STATUS_LABELS[installmentSaleStatus] || t('orders.confirmedFeminine', 'Confirmée')}
                 </p>
               )}
             </div>
@@ -289,10 +311,10 @@ const SellerOrderSummaryCard = ({ order }) => {
         </div>
       </div>
       <div className="px-4 pb-4 flex items-center justify-between gap-3">
-        <span className="text-xs text-gray-500">Total</span>
+        <StatusBadge paymentType={isInstallmentOrder ? 'installment' : 'full'} compact />
         <div className="flex items-center gap-2">
           <span className="font-bold text-gray-900">{formatCurrency(totalAmount)}</span>
-          <span className="text-indigo-600 font-medium text-sm flex items-center gap-0.5">Voir le détail <ChevronRight className="w-4 h-4" /></span>
+          <span className="text-indigo-600 font-medium text-sm flex items-center gap-0.5">{t('orders.viewDetail', 'Voir le détail')} <ChevronRight className="w-4 h-4" /></span>
         </div>
       </div>
     </Link>
@@ -309,6 +331,7 @@ const SellerMobileOrderCard = ({
   orderUnreadCounts,
   externalLinkProps
 }) => {
+  const { t } = useAppSettings();
   const orderItems = Array.isArray(order.items) ? order.items : [];
   const itemCount = orderItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
   const computedTotal = orderItems.reduce((sum, item) => sum + Number(item.snapshot?.price || 0) * Number(item.quantity || 1), 0);
@@ -377,7 +400,7 @@ const SellerMobileOrderCard = ({
               </div>
             </div>
             <div>
-              <p className="text-xs text-gray-500 font-medium">Commande</p>
+              <p className="text-xs text-gray-500 font-medium">{t('orders.order', 'Commande')}</p>
               <h3 className="text-lg font-bold text-gray-900">#{order._id.slice(-6)}</h3>
               <p className="text-xs text-gray-500">{itemCount} article{itemCount > 1 ? 's' : ''} • {formatCurrency(totalAmount)}</p>
             </div>
@@ -426,7 +449,7 @@ const SellerMobileOrderCard = ({
         <div className="mx-4 mt-3 p-4 rounded-2xl bg-indigo-50 border-2 border-indigo-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-indigo-600 uppercase tracking-wide">Code de livraison</p>
+              <p className="text-xs font-medium text-indigo-600 uppercase tracking-wide">{t('orders.deliveryCode', 'Code de livraison')}</p>
               <p className="text-3xl font-black text-indigo-900 tracking-widest font-mono mt-1">
                 {order.deliveryCode}
               </p>
@@ -440,9 +463,9 @@ const SellerMobileOrderCard = ({
       <div className="mx-4 mt-3 p-4 rounded-2xl bg-gray-50">
         <div className="flex items-center gap-2 mb-2">
           <User className="w-4 h-4 text-gray-500" />
-          <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Client</span>
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{t('orders.customer', 'Client')}</span>
         </div>
-        <p className="text-sm font-semibold text-gray-900">{order.customer?.name || 'Client'}</p>
+        <p className="text-sm font-semibold text-gray-900">{order.customer?.name || t('orders.customer', 'Client')}</p>
         {order.customer?.phone && (
           <a href={`tel:${order.customer.phone}`} className="flex items-center gap-1 text-xs text-indigo-600 mt-1">
             <Phone className="w-3 h-3" />
@@ -463,7 +486,7 @@ const SellerMobileOrderCard = ({
         <div className="px-5 py-4">
           <div className="flex items-center gap-2 mb-4">
             <Clock className="w-4 h-4 text-gray-400" />
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Suivi</span>
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{t('orders.tracking', 'Suivi')}</span>
           </div>
           <div className="relative">
             {/* Timeline Line */}
@@ -516,7 +539,7 @@ const SellerMobileOrderCard = ({
               <AlertCircle className="w-5 h-5 text-red-600" />
             </div>
             <div>
-              <p className="font-semibold text-red-800">Commande annulée</p>
+              <p className="font-semibold text-red-800">{t('orders.cancelledOrder', 'Commande annulée')}</p>
               {order.cancellationReason && (
                 <p className="text-sm text-red-600 mt-1">{order.cancellationReason}</p>
               )}
@@ -539,7 +562,7 @@ const SellerMobileOrderCard = ({
             isActive={order.cancellationWindow.isActive}
           />
           <p className="text-xs text-amber-700 mt-2">
-            ⏱️ Délai d'annulation client actif. Modifications temporairement désactivées.
+            ⏱️ {t('orders.cancelWindowActive', "Délai d'annulation client actif. Modifications temporairement désactivées.")}
           </p>
         </div>
       )}
@@ -550,7 +573,7 @@ const SellerMobileOrderCard = ({
           <summary className="flex items-center justify-between cursor-pointer list-none py-3 px-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
             <div className="flex items-center gap-3">
               <Package className="w-4 h-4 text-gray-500" />
-              <span className="text-sm font-semibold text-gray-700">Articles ({itemCount})</span>
+              <span className="text-sm font-semibold text-gray-700">{t('orders.articles', 'Articles')} ({itemCount})</span>
             </div>
             <ChevronDown className="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" />
           </summary>
@@ -560,7 +583,7 @@ const SellerMobileOrderCard = ({
                 {item.snapshot?.image || item.product?.images?.[0] ? (
                   <img
                     src={item.snapshot?.image || item.product?.images?.[0]}
-                    alt={item.snapshot?.title || 'Produit'}
+                    alt={item.snapshot?.title || t('orders.product', 'Produit')}
                     className="w-12 h-12 rounded-lg object-cover"
                   />
                 ) : (
@@ -569,8 +592,8 @@ const SellerMobileOrderCard = ({
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{item.snapshot?.title || 'Produit'}</p>
-                  <p className="text-xs text-gray-500">Qté: {item.quantity || 1} • {formatCurrency(item.snapshot?.price || 0)}</p>
+                  <p className="text-sm font-medium text-gray-900 truncate">{item.snapshot?.title || t('orders.product', 'Produit')}</p>
+                  <p className="text-xs text-gray-500">{t('orders.qty', 'Qté')}: {item.quantity || 1} • {formatCurrency(item.snapshot?.price || 0)}</p>
                 </div>
               </div>
             ))}
@@ -584,17 +607,17 @@ const SellerMobileOrderCard = ({
       {/* Payment Summary */}
       <div className="mx-4 mb-4 p-4 rounded-xl bg-gray-50">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-gray-600">Total</span>
+              <span className="text-sm text-gray-600">{t('orders.total', 'Total')}</span>
           <span className="text-lg font-bold text-gray-900">{formatCurrency(totalAmount)}</span>
         </div>
         {paidAmount > 0 && (
           <>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500">Acompte versé</span>
+              <span className="text-gray-500">{t('orders.depositPaid', 'Acompte versé')}</span>
               <span className="font-medium text-emerald-600">{formatCurrency(paidAmount)}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500">Reste à payer</span>
+              <span className="text-gray-500">{t('orders.remaining', 'Reste à payer')}</span>
               <span className="font-medium text-amber-600">{formatCurrency(remainingAmount)}</span>
             </div>
           </>
@@ -606,7 +629,7 @@ const SellerMobileOrderCard = ({
         <div className="px-4 pb-4">
           <div className="flex items-center gap-2 mb-3">
             <ShieldCheck className="w-4 h-4 text-gray-400" />
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Actions</span>
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{t('orders.actions', 'Actions')}</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -616,7 +639,7 @@ const SellerMobileOrderCard = ({
               className="flex items-center justify-center gap-2 py-3 rounded-xl bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
               <Package className="w-4 h-4" />
-              Confirmer
+              {t('orders.confirm', 'Confirmer')}
             </button>
             <button
               type="button"
@@ -625,7 +648,7 @@ const SellerMobileOrderCard = ({
               className="flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
               <Truck className="w-4 h-4" />
-              Expédier
+              {t('orders.ship', 'Expédier')}
             </button>
             <button
               type="button"
@@ -634,7 +657,7 @@ const SellerMobileOrderCard = ({
               className="flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500 text-white font-semibold text-sm hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
               <CheckCircle className="w-4 h-4" />
-              Livrée
+              {t('orders.delivered', 'Livrée')}
             </button>
             <button
               type="button"
@@ -643,7 +666,7 @@ const SellerMobileOrderCard = ({
               className="flex items-center justify-center gap-2 py-3 rounded-xl bg-red-500 text-white font-semibold text-sm hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
               <X className="w-4 h-4" />
-              Annuler
+              {t('common.cancel', 'Annuler')}
             </button>
           </div>
           {statusUpdateError.id === order._id && (
@@ -656,7 +679,7 @@ const SellerMobileOrderCard = ({
       <div className="px-4 pb-4">
         <OrderChat
           order={order}
-          buttonText="Contacter l'acheteur"
+          buttonText={t('orders.contactBuyer', "Contacter l'acheteur")}
           unreadCount={orderUnreadCounts[order._id] || 0}
         />
       </div>
@@ -666,6 +689,7 @@ const SellerMobileOrderCard = ({
 
 export default function SellerOrders() {
   const { user } = useContext(AuthContext);
+  const { t } = useAppSettings();
   const { showToast } = useToast();
   const externalLinkProps = useDesktopExternalLink();
   const isMobile = useIsMobile(768);
@@ -680,6 +704,7 @@ export default function SellerOrders() {
   const [cancelOrderId, setCancelOrderId] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
   const [stats, setStats] = useState({ total: 0, totalAmount: 0, byStatus: {} });
   const [statsLoading, setStatsLoading] = useState(false);
   const [installmentAnalytics, setInstallmentAnalytics] = useState({
@@ -698,6 +723,14 @@ export default function SellerOrders() {
     if (!statusParam) return 'all';
     return Object.keys(STATUS_LABELS).includes(statusParam) ? statusParam : 'all';
   }, [statusParam]);
+
+  const refreshOrders = useCallback(async () => {
+    setReloadToken((value) => value + 1);
+  }, []);
+
+  const { pullDistance, refreshing, bind } = usePullToRefresh(refreshOrders, {
+    enabled: isMobile
+  });
 
   useEffect(() => {
     setPage(1);
@@ -845,7 +878,7 @@ export default function SellerOrders() {
       }
     };
     loadOrders();
-  }, [activeStatus, page, user?._id]);
+  }, [activeStatus, page, user?._id, reloadToken]);
 
   const handleStatusUpdate = async (orderId, nextStatus) => {
     setStatusUpdatingId(orderId);
@@ -932,10 +965,10 @@ export default function SellerOrders() {
           cancelled: (s.byStatus.cancelled || 0) + 1
         }
       }));
-      showToast('Commande annulée avec succès. Le client a été notifié.', { variant: 'success' });
+      showToast(t('orders.cancelSuccess', 'Commande annulée avec succès. Le client a été notifié.'), { variant: 'success' });
       closeCancelModal();
     } catch (err) {
-      const message = err.response?.data?.message || err.response?.data?.details?.[0] || 'Impossible d\'annuler la commande.';
+      const message = err.response?.data?.message || err.response?.data?.details?.[0] || t('orders.cancelError', "Impossible d'annuler la commande.");
       showToast(message, { variant: 'error' });
     } finally {
       setCancelLoading(false);
@@ -944,81 +977,60 @@ export default function SellerOrders() {
 
   const emptyMessage =
     activeStatus === 'all'
-      ? 'Aucune commande client pour le moment.'
-      : `Aucune commande ${STATUS_LABELS[activeStatus].toLowerCase()} pour le moment.`;
+      ? t('orders.noCustomerOrdersYet', 'Aucune commande client pour le moment.')
+      : t('orders.noOrdersWithStatusYet', `Aucune commande ${STATUS_LABELS[activeStatus].toLowerCase()} pour le moment.`);
 
   if (loading && orders.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 py-12">
-          <div className="space-y-8">
-            <div className="h-8 bg-gray-200 rounded-xl w-64 animate-pulse"></div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-32 bg-white rounded-2xl border border-gray-100 animate-pulse"></div>
-              ))}
-            </div>
-            <div className="space-y-4">
-              {[1, 2].map((i) => (
-                <div key={i} className="h-64 bg-white rounded-2xl border border-gray-100 animate-pulse"></div>
-              ))}
-            </div>
-          </div>
+      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
+        <GlassHeader title={t('orders.sellerTitle', 'Commandes vendeur')} subtitle={t('common.loading', 'Chargement...')} backTo="/" />
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <OrderListSkeleton items={5} />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header Section */}
-      <div className="bg-indigo-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
-                  <ClipboardList className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-white/80 uppercase tracking-wide">Commandes clients</p>
-                  <h1 className="text-3xl font-bold">Gestion des commandes</h1>
-                </div>
-              </div>
-              <p className="text-white/90 text-sm max-w-2xl">
-                Suivez les commandes passées sur vos produits, mettez à jour leur statut et gérez les livraisons.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Link
-                to="/"
-                className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition-all"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Accueil
-              </Link>
-              {(user?.role === 'admin' || user?.role === 'manager') && (
-                <Link
-                  to="/admin/orders"
-                  className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition-all"
-                >
-                  <ClipboardList className="w-4 h-4" />
-                  Toutes les commandes (admin)
-                </Link>
-              )}
-              <Link
-                to="/my/stats"
-                className="inline-flex items-center gap-2 rounded-xl bg-white text-indigo-600 px-4 py-2.5 text-sm font-semibold hover:bg-white/90 transition-all shadow-lg"
-              >
-                <TrendingUp className="w-4 h-4" />
-                Statistiques
-              </Link>
-            </div>
-          </div>
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950" {...bind}>
+      {(pullDistance > 0 || refreshing) && (
+        <div className="fixed left-0 right-0 top-0 z-50 flex items-center justify-center gap-2 bg-indigo-600 py-2 text-white">
+          <RefreshCw
+            className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`}
+            style={refreshing ? undefined : { transform: `rotate(${pullDistance * 2}deg)` }}
+          />
+          <span className="text-xs font-medium">
+            {refreshing ? t('orders.refreshing', 'Actualisation...') : t('orders.pullDown', 'Tirez pour actualiser')}
+          </span>
         </div>
-      </div>
+      )}
+      <GlassHeader
+        title={t('orders.sellerTitle', 'Commandes vendeur')}
+        subtitle={t('orders.sellerSubtitle', 'Suivi, livraison et validation')}
+        backTo="/"
+        right={
+          <Link
+            to="/stats"
+            className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+          >
+            <TrendingUp className="h-3.5 w-3.5" />
+            {t('orders.stats', 'Stats')}
+          </Link>
+        }
+      />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 pb-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {(user?.role === 'admin' || user?.role === 'manager') && (
+          <div className="mb-4">
+            <Link
+              to="/admin/orders"
+              className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+            >
+              <ClipboardList className="h-3.5 w-3.5" />
+              {t('orders.allAdminOrders', 'Toutes les commandes (admin)')}
+            </Link>
+          </div>
+        )}
         {/* Statistics Cards */}
         {!statsLoading && stats.total > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -1029,8 +1041,8 @@ export default function SellerOrders() {
                 </div>
                 <span className="text-2xl font-bold text-gray-900">{stats.total}</span>
               </div>
-              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Total commandes</p>
-              <p className="text-xs text-gray-500 mt-1">Toutes les commandes clients</p>
+              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{t('orders.totalOrders', 'Total commandes')}</p>
+              <p className="text-xs text-gray-500 mt-1">{t('orders.allCustomerOrders', 'Toutes les commandes clients')}</p>
             </div>
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
@@ -1039,8 +1051,8 @@ export default function SellerOrders() {
                 </div>
                 <span className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalAmount)}</span>
               </div>
-              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Chiffre d'affaires</p>
-              <p className="text-xs text-gray-500 mt-1">Montant total des commandes</p>
+              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{t('orders.revenue', "Chiffre d'affaires")}</p>
+              <p className="text-xs text-gray-500 mt-1">{t('orders.totalOrderAmount', 'Montant total des commandes')}</p>
             </div>
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
@@ -1049,8 +1061,8 @@ export default function SellerOrders() {
                 </div>
                 <span className="text-2xl font-bold text-gray-900">{stats.byStatus.pending || 0}</span>
               </div>
-              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">En attente</p>
-              <p className="text-xs text-gray-500 mt-1">Commandes en cours de traitement</p>
+              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{t('orders.pending', 'En attente')}</p>
+              <p className="text-xs text-gray-500 mt-1">{t('orders.pendingHelp', 'Commandes en cours de traitement')}</p>
             </div>
           </div>
         )}
@@ -1066,7 +1078,7 @@ export default function SellerOrders() {
                   {installmentAnalytics.totalInstallmentSales}
                 </span>
               </div>
-              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Ventes en tranche</p>
+              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{t('orders.installmentSales', 'Ventes en tranche')}</p>
               <p className="text-xs text-gray-500 mt-1">
                 Terminées: {installmentAnalytics.completedOrders} • Retard: {installmentAnalytics.overdueOrders}
               </p>
@@ -1080,7 +1092,7 @@ export default function SellerOrders() {
                   {formatCurrency(installmentAnalytics.revenueInProgress)}
                 </span>
               </div>
-              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Revenus en cours</p>
+              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{t('orders.revenueInProgress', 'Revenus en cours')}</p>
               <p className="text-xs text-gray-500 mt-1">
                 Déjà collecté: {formatCurrency(installmentAnalytics.collectedAmount)}
               </p>
@@ -1094,8 +1106,8 @@ export default function SellerOrders() {
                   {formatCurrency(installmentAnalytics.riskExposure)}
                 </span>
               </div>
-              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Exposition au risque</p>
-              <p className="text-xs text-gray-500 mt-1">Montant des commandes à risque.</p>
+              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{t('orders.riskExposure', 'Exposition au risque')}</p>
+              <p className="text-xs text-gray-500 mt-1">{t('orders.riskExposureHelp', 'Montant des commandes à risque.')}</p>
             </div>
           </div>
         )}
@@ -1142,7 +1154,7 @@ export default function SellerOrders() {
             <div className="flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
               <div>
-                <h3 className="text-sm font-bold text-red-800 mb-1">Erreur de chargement</h3>
+                <h3 className="text-sm font-bold text-red-800 mb-1">{t('orders.loadErrorTitle', 'Erreur de chargement')}</h3>
                 <p className="text-sm text-red-600">{error}</p>
               </div>
             </div>
@@ -1152,14 +1164,14 @@ export default function SellerOrders() {
             <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
               <ClipboardList className="w-10 h-10 text-gray-400" />
             </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Aucune commande</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">{t('orders.noOrders', 'Aucune commande')}</h3>
             <p className="text-sm text-gray-500 mb-6">{emptyMessage}</p>
             <Link
               to="/my"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all"
             >
               <Sparkles className="w-4 h-4" />
-              Gérer mes annonces
+              {t('orders.manageListings', 'Gérer mes annonces')}
             </Link>
           </div>
         ) : (
@@ -1187,15 +1199,15 @@ export default function SellerOrders() {
                         <AlertCircle className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-bold text-gray-900">Annuler la commande</h3>
-                        <p className="text-xs text-gray-500">Commande #{cancelOrderId?.slice(-6)}</p>
+                        <h3 className="text-lg font-bold text-gray-900">{t('orders.cancelOrderTitle', 'Annuler la commande')}</h3>
+                        <p className="text-xs text-gray-500">{t('orders.order', 'Commande')} #{cancelOrderId?.slice(-6)}</p>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={closeCancelModal}
                       className="h-9 w-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                      aria-label="Fermer"
+                      aria-label={t('common.cancel', 'Fermer')}
                     >
                       <X size={16} />
                     </button>
@@ -1203,20 +1215,20 @@ export default function SellerOrders() {
 
                   <div className="space-y-4">
                     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                      <p className="text-xs font-semibold text-amber-800 mb-1">⚠️ Attention</p>
+                      <p className="text-xs font-semibold text-amber-800 mb-1">⚠️ {t('orders.warning', 'Attention')}</p>
                       <p className="text-xs text-amber-700">
-                        Cette action est irréversible. Le client sera notifié de l'annulation.
+                        {t('orders.cancelOrderWarning', "Cette action est irréversible. Le client sera notifié de l'annulation.")}
                       </p>
                     </div>
 
                     <div>
                       <label className="block text-sm font-semibold text-gray-900 mb-2">
-                        Raison de l'annulation <span className="text-red-600">*</span>
+                        {t('orders.cancelReason', "Raison de l'annulation")} <span className="text-red-600">*</span>
                       </label>
                       <textarea
                         value={cancelReason}
                         onChange={(e) => setCancelReason(e.target.value)}
-                        placeholder="Expliquez la raison de l'annulation (minimum 5 caractères)..."
+                        placeholder={t('orders.cancelReasonPlaceholder', "Expliquez la raison de l'annulation (minimum 5 caractères)...")}
                         className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
                         rows={4}
                         required
@@ -1224,7 +1236,7 @@ export default function SellerOrders() {
                       />
                       {cancelReason.length > 0 && cancelReason.length < 5 && (
                         <p className="mt-1 text-xs text-red-600">
-                          La raison doit contenir au moins 5 caractères.
+                          {t('orders.cancelReasonMinLength', 'La raison doit contenir au moins 5 caractères.')}
                         </p>
                       )}
                     </div>
@@ -1236,7 +1248,7 @@ export default function SellerOrders() {
                         disabled={cancelLoading}
                         className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                       >
-                        Annuler
+                        {t('common.cancel', 'Annuler')}
                       </button>
                       <button
                         type="button"
@@ -1244,7 +1256,7 @@ export default function SellerOrders() {
                         disabled={cancelLoading || !cancelReason.trim() || cancelReason.trim().length < 5}
                         className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {cancelLoading ? 'Annulation...' : 'Confirmer l\'annulation'}
+                        {cancelLoading ? t('orders.cancelling', 'Annulation...') : t('orders.confirmCancellation', "Confirmer l'annulation")}
                       </button>
                     </div>
                   </div>

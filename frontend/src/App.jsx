@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import api from './services/api';
 import Navbar from './components/Navbar';
 import SplashScreen from './components/SplashScreen';
@@ -37,12 +37,15 @@ import Notifications from './pages/Notifications';
 import Favorites from './pages/Favorites';
 import ShopProfile from './pages/ShopProfile';
 import HelpCenter from './pages/HelpCenter';
+import UserSettings from './pages/UserSettings';
 import VerifiedShops from './pages/VerifiedShops';
 import UserStats from './pages/UserStats';
 import UserOrders from './pages/UserOrders';
 import OrderDetail from './pages/OrderDetail';
 import SellerOrders from './pages/SellerOrders';
 import SellerOrderDetail from './pages/SellerOrderDetail';
+import SellerDisputes from './pages/SellerDisputes';
+import SellerBoosts from './pages/SellerBoosts';
 import OrderCheckout from './pages/OrderCheckout';
 import DraftOrders from './pages/DraftOrders';
 import usePreventNewTabOnMobile from './hooks/usePreventNewTabOnMobile';
@@ -58,8 +61,11 @@ import AdminPaymentVerifiers from './pages/AdminPaymentVerifiers';
 import PaymentVerification from './pages/PaymentVerification';
 import AdminReports from './pages/AdminReports';
 import AdminAppSettings from './pages/AdminAppSettings';
+import AdminSystemSettings from './pages/AdminSystemSettings';
 import AdminComplaints from './pages/AdminComplaints';
 import AdminPromoCodes from './pages/AdminPromoCodes';
+import AdminBoostManagement from './pages/AdminBoostManagement';
+import SettingsCategoriesPage from './pages/SettingsCategoriesPage';
 import AdminLayout from './components/AdminLayout';
 import CertifiedProducts from './pages/CertifiedProducts';
 import Suggestions from './pages/Suggestions';
@@ -69,6 +75,7 @@ import PushNotificationsManager from './components/PushNotificationsManager';
 import AnalyticsTracker from './components/AnalyticsTracker';
 import ShopConversionRequest from './pages/ShopConversionRequest';
 import PendingActionHandler from './components/PendingActionHandler';
+import { useAppSettings } from './context/AppSettingsContext';
 
 function AppContent() {
   const { pathname } = useLocation();
@@ -141,6 +148,14 @@ function AppContent() {
           <Route path="/shop/:slug" element={<ShopProfile />} />
           <Route path="/shops/verified" element={<VerifiedShops />} />
           <Route path="/help" element={<HelpCenter />} />
+          <Route
+            path="/settings/categories"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <SettingsCategoriesPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/top-deals" element={<TopDeals />} />
           <Route path="/top-ranking" element={<TopRanking />} />
           <Route path="/top-favorites" element={<TopFavorites />} />
@@ -174,6 +189,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/preferences"
+            element={
+              <ProtectedRoute>
+                <UserSettings />
               </ProtectedRoute>
             }
           />
@@ -218,7 +241,31 @@ function AppContent() {
             }
           />
           <Route
+            path="/stats"
+            element={
+              <ProtectedRoute>
+                <UserStats />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/stats/*"
+            element={
+              <ProtectedRoute>
+                <UserStats />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/my/stats"
+            element={
+              <ProtectedRoute>
+                <Navigate to="/stats" replace />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seller/analytics"
             element={
               <ProtectedRoute>
                 <UserStats />
@@ -258,6 +305,14 @@ function AppContent() {
             }
           />
           <Route
+            path="/order/detail/:orderId"
+            element={
+              <ProtectedRoute>
+                <OrderDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/orders/messages"
             element={
               <ProtectedRoute>
@@ -274,7 +329,23 @@ function AppContent() {
             }
           />
           <Route
+            path="/order/:status?"
+            element={
+              <ProtectedRoute>
+                <UserOrders />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/seller/orders/detail/:orderId"
+            element={
+              <ProtectedRoute>
+                <SellerOrderDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seller/order/detail/:orderId"
             element={
               <ProtectedRoute>
                 <SellerOrderDetail />
@@ -289,11 +360,46 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/seller/order/:status?"
+            element={
+              <ProtectedRoute>
+                <SellerOrders />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seller/disputes"
+            element={
+              <ProtectedRoute>
+                <SellerDisputes />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seller/boosts"
+            element={
+              <ProtectedRoute>
+                <SellerBoosts />
+              </ProtectedRoute>
+            }
+          />
           {/* Admin: layout with sidebar on desktop, nested routes */}
           <Route
             path="/admin"
             element={
-              <ProtectedRoute allowAccess={(u) => u?.role === 'admin' || u?.role === 'manager' || u?.canManageComplaints === true || u?.canManageDelivery === true || u?.canManageProducts === true}>
+              <ProtectedRoute
+                allowAccess={(u) =>
+                  u?.role === 'admin' ||
+                  u?.role === 'manager' ||
+                  u?.canManageComplaints === true ||
+                  u?.canManageDelivery === true ||
+                  u?.canManageProducts === true ||
+                  u?.canManageBoosts === true ||
+                  u?.canReadFeedback === true ||
+                  u?.canVerifyPayments === true
+                }
+              >
                 <AdminLayout />
               </ProtectedRoute>
             }
@@ -324,6 +430,14 @@ function AppContent() {
               element={
                 <ProtectedRoute allowAccess={(user) => user.role === 'admin' || user.canManageBoosts === true}>
                   <AdminProductBoosts />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="boost-management"
+              element={
+                <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.canManageBoosts === true}>
+                  <AdminBoostManagement />
                 </ProtectedRoute>
               }
             />
@@ -376,6 +490,22 @@ function AppContent() {
               }
             />
             <Route
+              path="system-settings"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <AdminSystemSettings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="settings/categories"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <SettingsCategoriesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="users"
               element={
                 <ProtectedRoute roles={['admin']}>
@@ -404,9 +534,10 @@ function AppContent() {
 
 export default function App() {
   usePreventNewTabOnMobile();
+  const { language } = useAppSettings();
   return (
     <BrowserRouter>
-      <AppContent />
+      <AppContent key={`lang-${language || 'fr'}`} />
     </BrowserRouter>
   );
 }

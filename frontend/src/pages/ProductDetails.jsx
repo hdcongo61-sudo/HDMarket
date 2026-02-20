@@ -36,6 +36,7 @@ import { buildWhatsappLink } from "../utils/whatsapp";
 import { buildProductShareUrl, buildProductPath, buildShopPath } from "../utils/links";
 import { recordProductView } from "../utils/recentViews";
 import { setPendingAction } from "../utils/pendingAction";
+import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import VerifiedBadge from "../components/VerifiedBadge";
 import OrderChat from "../components/OrderChat";
 import ReportModal from "../components/ReportModal";
@@ -786,7 +787,7 @@ export default function ProductDetails() {
       try {
         await navigator.share({
           title: product?.title || 'Produit HDMarket',
-          text: `${product?.title} - ${Number(product?.price || 0).toLocaleString()} FCFA`,
+          text: `${product?.title} - ${formatPriceWithStoredSettings(product?.price || 0)}`,
           url: shareLink,
         });
       } catch (_) {
@@ -1034,10 +1035,10 @@ export default function ProductDetails() {
         {hasDiscount ? (
           <div className="flex items-baseline gap-2 flex-wrap">
             <span className="text-2xl font-black text-gray-900">
-              {Number(finalPrice).toLocaleString()} FCFA
+              {formatPriceWithStoredSettings(finalPrice)}
             </span>
             <span className="text-sm text-gray-400 line-through font-bold">
-              {Number(originalPrice).toLocaleString()} FCFA
+              {formatPriceWithStoredSettings(originalPrice)}
             </span>
             <span className="bg-red-500 text-white px-2 py-0.5 rounded-full text-xs font-black">
               -{discountPercentage}%
@@ -1045,7 +1046,7 @@ export default function ProductDetails() {
           </div>
         ) : (
           <span className="text-2xl font-black text-gray-900">
-            {Number(finalPrice).toLocaleString()} FCFA
+            {formatPriceWithStoredSettings(finalPrice)}
           </span>
         )}
       </div>
@@ -1056,7 +1057,7 @@ export default function ProductDetails() {
               Achetez maintenant en plusieurs tranches et payez plus facilement.
             </p>
             <p className="text-[11px] text-indigo-700 mt-0.5">
-              Premier paiement min: {Number(installmentOffer.minAmount || 0).toLocaleString()} FCFA · Durée: {installmentOffer.duration || 0} jours
+              Premier paiement min: {formatPriceWithStoredSettings(installmentOffer.minAmount || 0)} · Durée: {installmentOffer.duration || 0} jours
             </p>
           </div>
         </div>
@@ -1397,7 +1398,7 @@ export default function ProductDetails() {
                 </div>
                 <div className="p-2">
                   <p className="text-xs font-bold text-gray-900 line-clamp-2 mb-1">{rp.title}</p>
-                  <p className="text-xs font-black text-indigo-600">{Number(rp.price).toLocaleString()} FCFA</p>
+                  <p className="text-xs font-black text-indigo-600">{formatPriceWithStoredSettings(rp.price)}</p>
                 </div>
               </Link>
             ))}
@@ -1555,7 +1556,7 @@ export default function ProductDetails() {
           <div className="px-4 py-3 flex items-center gap-2">
             <div className="flex-1 min-w-0">
               <span className="text-lg font-black text-gray-900 block truncate">
-                {Number(finalPrice).toLocaleString()} FCFA
+                {formatPriceWithStoredSettings(finalPrice)}
               </span>
             </div>
             <button onClick={handleAddToCart} disabled={addingToCart || inCart}
@@ -1860,17 +1861,17 @@ export default function ProductDetails() {
               {hasDiscount ? (
                 <>
                   <div className="flex flex-wrap items-baseline gap-3">
-                    <span className="text-4xl sm:text-5xl font-black text-gray-900">{Number(finalPrice).toLocaleString()} FCFA</span>
-                    <span className="text-xl sm:text-2xl text-gray-400 line-through font-bold">{Number(originalPrice).toLocaleString()} FCFA</span>
+                    <span className="text-4xl sm:text-5xl font-black text-gray-900">{formatPriceWithStoredSettings(finalPrice)}</span>
+                    <span className="text-xl sm:text-2xl text-gray-400 line-through font-bold">{formatPriceWithStoredSettings(originalPrice)}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-2 rounded-xl text-sm font-black shadow-lg">
-                      Économisez {Number(originalPrice - finalPrice).toLocaleString()} FCFA
+                      Économisez {formatPriceWithStoredSettings(originalPrice - finalPrice)}
                     </span>
                   </div>
                 </>
               ) : (
-                <span className="text-4xl sm:text-5xl font-black text-gray-900">{Number(finalPrice).toLocaleString()} FCFA</span>
+                <span className="text-4xl sm:text-5xl font-black text-gray-900">{formatPriceWithStoredSettings(finalPrice)}</span>
               )}
             </div>
             {installmentOffer.available && (
@@ -1879,7 +1880,7 @@ export default function ProductDetails() {
                   Paiement par tranche disponible: profitez de ce produit dès aujourd’hui.
                 </p>
                 <p className="text-xs text-indigo-700 mt-1">
-                  Premier paiement min: {Number(installmentOffer.minAmount || 0).toLocaleString()} FCFA · Durée: {installmentOffer.duration || 0} jours
+                  Premier paiement min: {formatPriceWithStoredSettings(installmentOffer.minAmount || 0)} · Durée: {installmentOffer.duration || 0} jours
                 </p>
               </div>
             )}
@@ -2567,7 +2568,7 @@ export default function ProductDetails() {
                       {relatedProduct.title}
                     </p>
                     <p className="text-sm font-black text-indigo-600">
-                      {Number(relatedProduct.price).toLocaleString()} FCFA
+                      {formatPriceWithStoredSettings(relatedProduct.price)}
                     </p>
                   </div>
                 </Link>
@@ -2655,7 +2656,7 @@ export default function ProductDetails() {
                       {relatedProduct.title}
                     </h3>
                     <p className="text-lg font-black text-indigo-600">
-                      {Number(relatedProduct.price).toLocaleString()} FCFA
+                      {formatPriceWithStoredSettings(relatedProduct.price)}
                     </p>
                   </div>
                 </Link>
@@ -3087,7 +3088,7 @@ function RelatedProducts({ relatedProducts, product }) {
                 {relatedProduct.title}
               </h3>
               <p className="text-lg font-black text-indigo-600">
-                {Number(relatedProduct.price).toLocaleString()} FCFA
+                {formatPriceWithStoredSettings(relatedProduct.price)}
               </p>
             </div>
           </Link>

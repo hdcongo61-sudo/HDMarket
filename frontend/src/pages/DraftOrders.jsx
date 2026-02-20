@@ -14,12 +14,9 @@ import {
   Package
 } from 'lucide-react';
 import { buildProductPath } from '../utils/links';
+import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 
-const formatCurrency = (value) =>
-  Number(value || 0).toLocaleString('fr-FR', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  });
+const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
 export default function DraftOrders() {
   const { user } = useContext(AuthContext);
@@ -202,7 +199,7 @@ export default function DraftOrders() {
                               </Link>
                               <p className="text-xs text-gray-600 font-medium mb-1">Quantité: x{item.quantity}</p>
                               <p className="text-sm font-black text-blue-600">
-                                {formatCurrency((item.snapshot?.price || item.product?.price || 0) * (item.quantity || 1))} FCFA
+                                {formatCurrency((item.snapshot?.price || item.product?.price || 0) * (item.quantity || 1))}
                               </p>
                             </div>
                           </div>
@@ -239,19 +236,19 @@ export default function DraftOrders() {
                       <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-xl">
                         <span className="text-gray-700 font-semibold">Total commande</span>
                         <span className="font-black text-gray-900 text-lg">
-                          {formatCurrency(draft.totalAmount)} FCFA
+                          {formatCurrency(draft.totalAmount)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center py-2 px-3 bg-blue-50 rounded-xl border border-blue-200">
                         <span className="text-blue-700 font-semibold">Acompte (25%)</span>
                         <span className="font-black text-blue-600 text-lg">
-                          {formatCurrency(depositAmount)} FCFA
+                          {formatCurrency(depositAmount)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-xl">
                         <span className="text-gray-700 font-semibold">Reste à payer</span>
                         <span className="font-black text-gray-900 text-lg">
-                          {formatCurrency(remainingAmount)} FCFA
+                          {formatCurrency(remainingAmount)}
                         </span>
                       </div>
                     </div>

@@ -31,9 +31,7 @@ export const schemas = {
     role: Joi.string().valid('user', 'admin', 'manager').optional(),
     accountType: Joi.string().valid('person').default('person'),
     address: Joi.string().min(4).max(200).required(),
-    city: Joi.string()
-      .valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo')
-      .required(),
+    city: Joi.string().trim().min(2).max(80).required(),
     gender: Joi.string().valid('homme', 'femme').required(),
     country: Joi.string().valid('République du Congo').optional()
   }),
@@ -61,7 +59,9 @@ export const schemas = {
     title: Joi.string().min(2).max(120).required(),
     description: Joi.string().min(5).max(5000).required(),
     price: Joi.number().min(0).required(),
-    category: Joi.string().min(2).max(60).required(),
+    category: Joi.string().min(2).max(60),
+    categoryId: Joi.string().hex().length(24).allow('', null),
+    subcategoryId: Joi.string().hex().length(24).allow('', null),
     condition: Joi.string().valid('new', 'used').default('used'),
     discount: Joi.number().min(0).max(99.99).default(0),
     installmentEnabled: Joi.boolean().truthy('true').falsy('false').optional(),
@@ -72,11 +72,13 @@ export const schemas = {
     installmentLatePenaltyRate: Joi.number().min(0).max(100).optional(),
     installmentMaxMissedPayments: Joi.number().integer().min(1).max(12).optional(),
     installmentRequireGuarantor: Joi.boolean().truthy('true').falsy('false').optional()
-  }),
+  }).or('category', 'categoryId', 'subcategoryId'),
   productUpdate: Joi.object({
     title: Joi.string().min(2).max(120),
     description: Joi.string().min(5).max(5000),
     category: Joi.string().min(2).max(60),
+    categoryId: Joi.string().hex().length(24).allow('', null),
+    subcategoryId: Joi.string().hex().length(24).allow('', null),
     condition: Joi.string().valid('new', 'used'),
     discount: Joi.number().min(0).max(99.99),
     installmentEnabled: Joi.boolean().truthy('true').falsy('false'),
@@ -122,7 +124,7 @@ export const schemas = {
     shopDescription: Joi.string().min(10).max(1000),
     shopHours: Joi.string().allow('', null),
     address: Joi.string().min(4).max(200),
-    city: Joi.string().valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'),
+    city: Joi.string().trim().min(2).max(80),
     gender: Joi.string().valid('homme', 'femme')
   }).min(0),
   favoriteModify: Joi.object({
@@ -134,6 +136,19 @@ export const schemas = {
   complaintCreate: Joi.object({
     subject: Joi.string().max(150).allow('', null),
     message: Joi.string().min(5).max(1500).required()
+  }),
+  disputeCreate: Joi.object({
+    orderId: Joi.string().hex().length(24).required(),
+    reason: Joi.string().valid('wrong_item', 'damaged_item', 'not_received', 'other').required(),
+    description: Joi.string().min(10).max(2000).required()
+  }),
+  disputeSellerResponse: Joi.object({
+    sellerResponse: Joi.string().max(2000).allow('', null)
+  }),
+  disputeAdminDecision: Joi.object({
+    resolutionType: Joi.string().valid('refund_full', 'refund_partial', 'compensation', 'reject').required(),
+    favor: Joi.string().valid('client', 'seller').allow('', null),
+    adminDecision: Joi.string().min(5).max(2000).required()
   }),
   feedbackCreate: Joi.object({
     subject: Joi.string().min(3).max(150).required(),
@@ -232,11 +247,101 @@ export const schemas = {
   })
     .or('productId', 'items')
     .required(),
+  boostPricingPreview: Joi.object({
+    boostType: Joi.string()
+      .valid('PRODUCT_BOOST', 'LOCAL_PRODUCT_BOOST', 'SHOP_BOOST', 'HOMEPAGE_FEATURED')
+      .required(),
+    duration: Joi.number().integer().min(1).max(365).default(1),
+    city: Joi.string().trim().min(2).max(80).allow('', null),
+    productIds: Joi.alternatives().try(
+      Joi.array().items(Joi.string().hex().length(24)).max(100),
+      Joi.string().allow('', null)
+    )
+  }),
+  boostRequestCreate: Joi.object({
+    boostType: Joi.string()
+      .valid('PRODUCT_BOOST', 'LOCAL_PRODUCT_BOOST', 'SHOP_BOOST', 'HOMEPAGE_FEATURED')
+      .required(),
+    productIds: Joi.alternatives().try(
+      Joi.array().items(Joi.string().hex().length(24)).max(100),
+      Joi.string().allow('', null)
+    ),
+    city: Joi.string().trim().min(2).max(80).allow('', null),
+    duration: Joi.number().integer().min(1).max(365).default(1),
+    paymentOperator: Joi.string().trim().min(2).max(40).required(),
+    paymentSenderName: Joi.string().trim().min(2).max(120).required(),
+    paymentTransactionId: Joi.string()
+      .pattern(/^\d{10}$/)
+      .required()
+      .messages({ 'string.pattern.base': 'L’ID de transaction doit contenir exactement 10 chiffres.' })
+  }),
+  boostRequestListQuery: Joi.object({
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(20),
+    status: Joi.string().valid('PENDING', 'APPROVED', 'REJECTED', 'ACTIVE', 'EXPIRED').allow('', null)
+  }),
+  boostTrackImpressions: Joi.object({
+    requestIds: Joi.array().items(Joi.string().hex().length(24)).min(1).max(100).required()
+  }),
+  adminBoostPricingUpsert: Joi.object({
+    type: Joi.string()
+      .valid('PRODUCT_BOOST', 'LOCAL_PRODUCT_BOOST', 'SHOP_BOOST', 'HOMEPAGE_FEATURED')
+      .required(),
+    city: Joi.string().trim().min(2).max(80).allow('', null),
+    basePrice: Joi.number().min(0).required(),
+    priceType: Joi.string().valid('per_day', 'per_week', 'fixed').required(),
+    multiplier: Joi.number().positive().default(1),
+    isActive: Joi.boolean().default(true)
+  }),
+  adminBoostPricingUpdate: Joi.object({
+    type: Joi.string().valid('PRODUCT_BOOST', 'LOCAL_PRODUCT_BOOST', 'SHOP_BOOST', 'HOMEPAGE_FEATURED'),
+    city: Joi.string().trim().min(2).max(80).allow('', null),
+    basePrice: Joi.number().min(0),
+    priceType: Joi.string().valid('per_day', 'per_week', 'fixed'),
+    multiplier: Joi.number().positive(),
+    isActive: Joi.boolean()
+  }).min(1),
+  adminSeasonalPricingCreate: Joi.object({
+    name: Joi.string().trim().min(2).max(120).required(),
+    startDate: Joi.date().iso().required(),
+    endDate: Joi.date().iso().required(),
+    multiplier: Joi.number().positive().required(),
+    isActive: Joi.boolean().default(true),
+    appliesTo: Joi.array()
+      .items(Joi.string().valid('PRODUCT_BOOST', 'LOCAL_PRODUCT_BOOST', 'SHOP_BOOST', 'HOMEPAGE_FEATURED'))
+      .default([])
+  }),
+  adminSeasonalPricingUpdate: Joi.object({
+    name: Joi.string().trim().min(2).max(120),
+    startDate: Joi.date().iso(),
+    endDate: Joi.date().iso(),
+    multiplier: Joi.number().positive(),
+    isActive: Joi.boolean(),
+    appliesTo: Joi.array().items(
+      Joi.string().valid('PRODUCT_BOOST', 'LOCAL_PRODUCT_BOOST', 'SHOP_BOOST', 'HOMEPAGE_FEATURED')
+    )
+  }).min(1),
+  adminBoostRequestListQuery: Joi.object({
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(20),
+    status: Joi.string().valid('PENDING', 'APPROVED', 'REJECTED', 'ACTIVE', 'EXPIRED').allow('', null),
+    boostType: Joi.string()
+      .valid('PRODUCT_BOOST', 'LOCAL_PRODUCT_BOOST', 'SHOP_BOOST', 'HOMEPAGE_FEATURED')
+      .allow('', null),
+    city: Joi.string().trim().min(2).max(80).allow('', null),
+    sellerId: Joi.string().hex().length(24).allow('', null)
+  }),
+  adminBoostRequestStatusUpdate: Joi.object({
+    status: Joi.string().valid('APPROVED', 'ACTIVE', 'REJECTED', 'EXPIRED').required(),
+    startDate: Joi.date().iso().allow('', null),
+    endDate: Joi.date().iso().allow('', null),
+    rejectionReason: Joi.string().max(500).allow('', null)
+  }),
   publicQuery: Joi.object({
     q: Joi.string().allow(''),
     category: Joi.string().allow(''),
-    city: Joi.string().valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'),
-    userCity: Joi.string().valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'),
+    city: Joi.string().trim().min(2).max(80),
+    userCity: Joi.string().trim().min(2).max(80),
     locationPriority: Joi.boolean().truthy('true').falsy('false'),
     nearMe: Joi.boolean().truthy('true').falsy('false'),
     certified: Joi.boolean().truthy('true').falsy('false'),
@@ -249,6 +354,11 @@ export const schemas = {
     installmentOnly: Joi.boolean().truthy('true').falsy('false'),
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(50).default(12),
+  }),
+  sellerAnalyticsQuery: Joi.object({
+    dateFrom: Joi.date().iso().allow('', null),
+    dateTo: Joi.date().iso().allow('', null),
+    timezone: Joi.string().trim().max(64).allow('', null)
   }),
   idParam: Joi.object({
     id: Joi.string().hex().length(24).required()
@@ -307,7 +417,7 @@ export const schemas = {
       .required(),
     customerId: Joi.string().hex().length(24).required(),
     deliveryAddress: Joi.string().min(4).max(300).required(),
-    deliveryCity: Joi.string().valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo').required(),
+    deliveryCity: Joi.string().trim().min(2).max(80).required(),
     trackingNote: Joi.string().max(500).allow('', null)
   }),
   orderInquiry: Joi.object({
@@ -378,13 +488,35 @@ export const schemas = {
     approve: Joi.boolean().required(),
     note: Joi.string().max(500).allow('', null)
   }),
+  deliveryProofSubmit: Joi.object({
+    clientSignatureImage: Joi.string().max(2000000).required(),
+    deliveryNote: Joi.string().max(1000).allow('', null),
+    location: Joi.object({
+      latitude: Joi.number().min(-90).max(90).allow(null),
+      longitude: Joi.number().min(-180).max(180).allow(null),
+      accuracy: Joi.number().min(0).allow(null)
+    }).allow(null),
+    locationLatitude: Joi.number().min(-90).max(90).allow(null),
+    locationLongitude: Joi.number().min(-180).max(180).allow(null),
+    locationAccuracy: Joi.number().min(0).allow(null)
+  }),
+  deliveryConfirm: Joi.object({
+    confirm: Joi.boolean().default(true)
+  }),
   orderStatusUpdate: Joi.object({
     status: Joi.string()
       .valid(
+        'pending_payment',
+        'paid',
+        'ready_for_delivery',
+        'out_for_delivery',
+        'delivery_proof_submitted',
+        'confirmed_by_client',
         'pending',
         'pending_installment',
         'installment_active',
         'overdue_installment',
+        'dispute_opened',
         'confirmed',
         'delivering',
         'delivered',
@@ -395,7 +527,7 @@ export const schemas = {
   }),
   orderAddressUpdate: Joi.object({
     deliveryAddress: Joi.string().min(4).max(300).required(),
-    deliveryCity: Joi.string().valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo').required()
+    deliveryCity: Joi.string().trim().min(2).max(80).required()
   }),
   orderMessageUpdate: Joi.object({
     text: Joi.string().trim().min(0).max(1000).required().messages({
@@ -428,10 +560,17 @@ export const schemas = {
   sellerOrderStatusUpdate: Joi.object({
     status: Joi.string()
       .valid(
+        'pending_payment',
+        'paid',
+        'ready_for_delivery',
+        'out_for_delivery',
+        'delivery_proof_submitted',
+        'confirmed_by_client',
         'pending',
         'pending_installment',
         'installment_active',
         'overdue_installment',
+        'dispute_opened',
         'confirmed',
         'delivering',
         'delivered',
@@ -445,14 +584,22 @@ export const schemas = {
       'string.empty': 'La raison de l\'annulation est requise.',
       'string.min': 'La raison de l\'annulation doit contenir au moins 5 caractères.',
       'any.required': 'La raison de l\'annulation est requise.'
-    })
+    }),
+    issueRefund: Joi.boolean().default(false)
   }),
   orderUpdate: Joi.object({
     status: Joi.string().valid(
+      'pending_payment',
+      'paid',
+      'ready_for_delivery',
+      'out_for_delivery',
+      'delivery_proof_submitted',
+      'confirmed_by_client',
       'pending',
       'pending_installment',
       'installment_active',
       'overdue_installment',
+      'dispute_opened',
       'confirmed',
       'delivering',
       'delivered',
@@ -460,7 +607,7 @@ export const schemas = {
       'cancelled'
     ),
     deliveryAddress: Joi.string().min(4).max(300),
-    deliveryCity: Joi.string().valid('Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'),
+    deliveryCity: Joi.string().trim().min(2).max(80),
     trackingNote: Joi.string().max(500).allow('', null),
     deliveryGuyId: Joi.string().hex().length(24).allow('', null),
     cancellationReason: Joi.string().max(500).allow('', null)
@@ -508,8 +655,10 @@ export const schemas = {
     rating: Joi.boolean(),
     product_approval: Joi.boolean(),
     product_rejection: Joi.boolean(),
+    product_boosted: Joi.boolean(),
     promotional: Joi.boolean(),
     shop_review: Joi.boolean(),
+    shop_follow: Joi.boolean(),
     payment_pending: Joi.boolean(),
     order_created: Joi.boolean(),
     order_received: Joi.boolean(),
@@ -528,9 +677,111 @@ export const schemas = {
     order_address_updated: Joi.boolean(),
     order_message: Joi.boolean(),
     order_cancelled: Joi.boolean(),
+    dispute_created: Joi.boolean(),
+    dispute_seller_responded: Joi.boolean(),
+    dispute_deadline_near: Joi.boolean(),
+    dispute_under_review: Joi.boolean(),
+    dispute_resolved: Joi.boolean(),
+    complaint_created: Joi.boolean(),
+    improvement_feedback_created: Joi.boolean(),
+    admin_broadcast: Joi.boolean(),
     feedback_read: Joi.boolean(),
     account_restriction: Joi.boolean(),
-    account_restriction_lifted: Joi.boolean()
+    account_restriction_lifted: Joi.boolean(),
+    shop_conversion_approved: Joi.boolean(),
+    shop_conversion_rejected: Joi.boolean()
+  }).min(1),
+  userPreferencesUpdate: Joi.object({
+    preferredLanguage: Joi.string().trim().min(2).max(10),
+    preferredCurrency: Joi.string().trim().uppercase().min(2).max(8),
+    preferredCity: Joi.string().trim().min(2).max(80).allow('', null),
+    theme: Joi.string().valid('light', 'dark', 'system')
+  }).min(1),
+  adminSettingKeyParam: Joi.object({
+    key: Joi.string()
+      .valid(
+        'commissionRate',
+        'boostEnabled',
+        'installmentMinPercent',
+        'installmentMaxDuration',
+        'shopConversionAmount',
+        'analyticsViewWeight',
+        'analyticsConversionWeight',
+        'analyticsRevenueWeight',
+        'analyticsRefundPenalty',
+        'disputeWindowHours',
+        'deliveryOTPExpirationMinutes',
+        'maxDisputesPerMonth',
+        'maxUploadImages'
+      )
+      .required()
+  }),
+  adminSettingUpdate: Joi.object({
+    value: Joi.alternatives()
+      .try(Joi.number(), Joi.boolean(), Joi.string(), Joi.array(), Joi.object())
+      .required(),
+    description: Joi.string().max(300).allow('', null)
+  }),
+  adminCurrencyCodeParam: Joi.object({
+    code: Joi.string().trim().uppercase().min(2).max(8).required()
+  }),
+  adminCurrencyCreate: Joi.object({
+    code: Joi.string().trim().uppercase().min(2).max(8).required(),
+    symbol: Joi.string().trim().min(1).max(8).required(),
+    name: Joi.string().trim().min(2).max(80).required(),
+    decimals: Joi.number().integer().min(0).max(8).default(0),
+    isDefault: Joi.boolean().default(false),
+    isActive: Joi.boolean().default(true),
+    exchangeRateToDefault: Joi.number().positive().default(1),
+    formatting: Joi.object({
+      symbolPosition: Joi.string().valid('prefix', 'suffix').default('suffix'),
+      thousandSeparator: Joi.string().max(2).default(' '),
+      decimalSeparator: Joi.string().max(2).default(',')
+    }).default(() => ({
+      symbolPosition: 'suffix',
+      thousandSeparator: ' ',
+      decimalSeparator: ','
+    }))
+  }),
+  adminCurrencyUpdate: Joi.object({
+    symbol: Joi.string().trim().min(1).max(8),
+    name: Joi.string().trim().min(2).max(80),
+    decimals: Joi.number().integer().min(0).max(8),
+    isDefault: Joi.boolean(),
+    isActive: Joi.boolean(),
+    exchangeRateToDefault: Joi.number().positive(),
+    formatting: Joi.object({
+      symbolPosition: Joi.string().valid('prefix', 'suffix'),
+      thousandSeparator: Joi.string().max(2),
+      decimalSeparator: Joi.string().max(2)
+    })
+  }).min(1),
+  adminLanguagesUpdate: Joi.object({
+    languages: Joi.array()
+      .items(
+        Joi.object({
+          code: Joi.string().trim().lowercase().min(2).max(10).required(),
+          name: Joi.string().trim().min(2).max(80).required(),
+          isActive: Joi.boolean().default(true)
+        })
+      )
+      .min(1)
+      .required(),
+    defaultLanguage: Joi.string().trim().lowercase().min(2).max(10).allow('', null)
+  }),
+  adminCityCreate: Joi.object({
+    name: Joi.string().trim().min(2).max(80).required(),
+    isActive: Joi.boolean().default(true),
+    isDefault: Joi.boolean().default(false),
+    deliveryAvailable: Joi.boolean().default(true),
+    boostMultiplier: Joi.number().positive().default(1)
+  }),
+  adminCityUpdate: Joi.object({
+    name: Joi.string().trim().min(2).max(80),
+    isActive: Joi.boolean(),
+    isDefault: Joi.boolean(),
+    deliveryAvailable: Joi.boolean(),
+    boostMultiplier: Joi.number().positive()
   }).min(1),
   pushTokenRegister: Joi.object({
     token: Joi.string().trim().required(),

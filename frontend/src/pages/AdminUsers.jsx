@@ -5,6 +5,7 @@ import { buildShopPath } from '../utils/links';
 import api from '../services/api';
 import useIsMobile from '../hooks/useIsMobile';
 import VerifiedBadge from '../components/VerifiedBadge';
+import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 
 const RESTRICTION_TYPES = [
   { key: 'canComment', label: 'Commentaires', icon: MessageSquareOff, color: 'orange', shopOnly: false },
@@ -30,6 +31,8 @@ const formatNumber = (value) => {
   if (!Number.isFinite(parsed)) return '0';
   return parsed.toLocaleString('fr-FR');
 };
+
+const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
 const formatDate = (value) => {
   if (!value) return '—';
@@ -1515,7 +1518,7 @@ export default function AdminUsers() {
                             )}
                             <div className="text-xs">
                               <p className="font-medium text-gray-800 line-clamp-1">{item.product?.title || 'Produit'}</p>
-                              <p className="text-gray-500">x{item.quantity} · {formatNumber(item.price)} FCFA</p>
+                              <p className="text-gray-500">x{item.quantity} · {formatCurrency(item.price)}</p>
                             </div>
                           </div>
                         ))}
@@ -1618,7 +1621,7 @@ export default function AdminUsers() {
                       <div>
                         <label className="text-xs font-semibold text-gray-600">Montant</label>
                         <p className="text-sm text-gray-900 mt-1 font-semibold">
-                          {Number(conversionModal.request.paymentAmount || 50000).toLocaleString('fr-FR')} FCFA
+                          {formatCurrency(conversionModal.request.paymentAmount || 50000)}
                         </p>
                       </div>
                       <div>

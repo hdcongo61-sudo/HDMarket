@@ -25,10 +25,23 @@ const DEFAULT_PREFERENCES = Object.freeze({
   installment_sale_confirmed: true,
   installment_completed: true,
   installment_product_suspended: true,
+  review_reminder: true,
+  order_address_updated: true,
+  order_message: true,
+  order_cancelled: true,
+  dispute_created: true,
+  dispute_seller_responded: true,
+  dispute_deadline_near: true,
+  dispute_under_review: true,
+  dispute_resolved: true,
   feedback_read: true,
   complaint_created: true,
   improvement_feedback_created: true,
-  admin_broadcast: true
+  admin_broadcast: true,
+  account_restriction: true,
+  account_restriction_lifted: true,
+  shop_conversion_approved: true,
+  shop_conversion_rejected: true
 });
 
 const buildDefaultPreferences = () => ({ ...DEFAULT_PREFERENCES });

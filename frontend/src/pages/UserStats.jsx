@@ -1,5 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import axios from 'axios';
+import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import {
   ArrowLeft,
   Package,
@@ -23,11 +25,18 @@ import {
   Target,
   Zap,
   MapPin,
-  RefreshCw
+  RefreshCw,
+  FileDown,
+  Loader2
 } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import api from '../services/api';
 import { buildProductPath, buildShopPath } from '../utils/links';
+import SellerAnalyticsKpiCards from '../components/analytics/SellerAnalyticsKpiCards';
+import RevenueByCityChart from '../components/analytics/RevenueByCityChart';
+import TopProductsAnalyticsTable from '../components/analytics/TopProductsAnalyticsTable';
+import SmartSuggestionsPanel from '../components/analytics/SmartSuggestionsPanel';
+import PeriodComparisonIndicator from '../components/analytics/PeriodComparisonIndicator';
 
 const numberFormatter = new Intl.NumberFormat('fr-FR');
 const formatNumber = (value) => {
@@ -35,8 +44,7 @@ const formatNumber = (value) => {
   if (!Number.isFinite(parsed) || parsed < 0) return '0';
   return numberFormatter.format(parsed);
 };
-const formatCurrency = (value) =>
-  `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
+const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 const formatRelativeTime = (value) => {
   if (!value) return '';
   const date = new Date(value);
@@ -52,6 +60,15 @@ const formatRelativeTime = (value) => {
   if (diffDays === 1) return 'Hier';
   if (diffDays < 7) return `Il y a ${diffDays} j`;
   return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: diffDays > 365 ? 'numeric' : undefined });
+};
+
+const formatInputDate = (date) => {
+  const value = new Date(date);
+  if (Number.isNaN(value.getTime())) return '';
+  const year = value.getFullYear();
+  const month = `${value.getMonth() + 1}`.padStart(2, '0');
+  const day = `${value.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 const DEFAULT_STATS = {
@@ -89,6 +106,64 @@ const DEFAULT_STATS = {
       }
     }
   }
+};
+
+const DEFAULT_SELLER_ANALYTICS = {
+  period: {
+    startDate: '',
+    endDate: '',
+    rangeDays: 0,
+    previousStartDate: '',
+    previousEndDate: ''
+  },
+  summary: {
+    revenue: 0,
+    orders: 0,
+    views: 0,
+    conversionRate: 0
+  },
+  revenueByCity: [],
+  boost: {
+    totalBoostSpend: 0,
+    impressions: 0,
+    clicks: 0,
+    ctr: 0,
+    boostedOrders: 0,
+    boostedRevenue: 0,
+    boostedViewToOrderConversion: 0,
+    clickToOrderConversion: 0,
+    byType: [],
+    byCity: []
+  },
+  promo: {
+    usageCount: 0,
+    totalDiscountAmount: 0,
+    netRevenueAfterDiscount: 0,
+    codes: []
+  },
+  installment: {
+    totalInstallmentOrders: 0,
+    amountPaidSoFar: 0,
+    remainingAmount: 0,
+    overdueCount: 0
+  },
+  topProducts: [],
+  scoring: {
+    weights: {
+      viewWeight: 0,
+      conversionWeight: 0,
+      revenueWeight: 0,
+      refundPenalty: 0
+    },
+    formula: ''
+  },
+  suggestions: [],
+  comparison: {
+    revenue: { current: 0, previous: 0, deltaPercent: 0 },
+    conversionRate: { current: 0, previous: 0, deltaPercent: 0 },
+    orders: { current: 0, previous: 0, deltaPercent: 0 }
+  },
+  generatedAt: ''
 };
 
 const StatCard = ({ icon: Icon, label, value, subtitle, gradient, iconBg, trend }) => (
@@ -164,13 +239,46 @@ export default function UserStats() {
   const [soldProducts, setSoldProducts] = useState([]);
   const [soldLoading, setSoldLoading] = useState(false);
   const [soldError, setSoldError] = useState('');
+  const [sellerAnalytics, setSellerAnalytics] = useState(DEFAULT_SELLER_ANALYTICS);
+  const [sellerAnalyticsLoading, setSellerAnalyticsLoading] = useState(false);
+  const [sellerAnalyticsRefreshing, setSellerAnalyticsRefreshing] = useState(false);
+  const [sellerAnalyticsError, setSellerAnalyticsError] = useState('');
+  const [downloadingSellerReport, setDownloadingSellerReport] = useState(false);
+  const [analyticsRange, setAnalyticsRange] = useState(() => {
+    const today = new Date();
+    const start = new Date(today.getTime() - 29 * 24 * 60 * 60 * 1000);
+    return {
+      dateFrom: formatInputDate(start),
+      dateTo: formatInputDate(today)
+    };
+  });
   const userShopLink = user?.accountType === 'shop' ? buildShopPath(user) : null;
   const isMountedRef = useRef(true);
+  const statsRequestInFlightRef = useRef(false);
+  const isSellerAnalyticsEnabled = Boolean(
+    user && (user.accountType === 'shop' || ['boutique_owner', 'vendeur'].includes(String(user.role || '').toLowerCase()))
+  );
   const debugEnabled =
     searchParams.get('debug') === '1' ||
     (typeof window !== 'undefined' && window.localStorage?.getItem('hdmarket_debug_stats') === '1');
+  const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+  const directGet = useCallback(
+    (url, config = {}) =>
+      axios.get(`${apiBaseUrl}${url}`, {
+        withCredentials: true,
+        ...config,
+        headers: {
+          ...(config.headers || {}),
+          ...(user?.token ? { Authorization: `Bearer ${user.token}` } : {})
+        }
+      }),
+    [apiBaseUrl, user?.token]
+  );
 
   useEffect(() => {
+    // In React StrictMode (dev), effects are mounted/cleaned/mounted again.
+    // Always reset to true on effect run so async guards don't stay false forever.
+    isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
     };
@@ -188,7 +296,9 @@ export default function UserStats() {
   }, [debugEnabled, user?._id, user?.id, user?.role, user?.token, user?.accountType]);
 
   const fetchStats = useCallback(async ({ showLoading = false } = {}) => {
-    if (!user) return;
+    if (!user?.id && !user?._id) return;
+    if (statsRequestInFlightRef.current) return;
+    statsRequestInFlightRef.current = true;
     if (showLoading) {
       setLoading(true);
       setError('');
@@ -207,10 +317,18 @@ export default function UserStats() {
           apiBase: import.meta.env.VITE_API_URL || 'http://localhost:5001/api'
         });
       }
-      const { data, status } = await api.get('/users/profile/stats', {
+      const requestPromise = directGet('/users/profile/stats', {
         timeout: 10000,
-        skipCache: true
+        params: {}
       });
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          const timeoutError = new Error('Timeout stats request');
+          timeoutError.code = 'CLIENT_TIMEOUT';
+          reject(timeoutError);
+        }, 6000);
+      });
+      const { data, status } = await Promise.race([requestPromise, timeoutPromise]);
       if (!isMountedRef.current) return;
       setStats((prev) => ({
         ...DEFAULT_STATS,
@@ -256,8 +374,15 @@ export default function UserStats() {
       setLastFetchMs(`${elapsed}ms`);
     } catch (err) {
       if (!isMountedRef.current) return;
-      const msg = err.response?.data?.message || err.message || 'Impossible de charger les statistiques.';
-      const status = err?.response?.status ? String(err.response.status) : 'network';
+      const isClientTimeout = err?.code === 'CLIENT_TIMEOUT';
+      const msg = isClientTimeout
+        ? 'La requête des statistiques a expiré (timeout client).'
+        : err.response?.data?.message || err.message || 'Impossible de charger les statistiques.';
+      const status = isClientTimeout
+        ? 'timeout'
+        : err?.response?.status
+          ? String(err.response.status)
+          : 'network';
       if (showLoading) {
         setError(msg);
       }
@@ -274,6 +399,7 @@ export default function UserStats() {
         });
       }
     } finally {
+      statsRequestInFlightRef.current = false;
       if (!isMountedRef.current) return;
       if (showLoading) {
         setLoading(false);
@@ -281,15 +407,103 @@ export default function UserStats() {
         setRefreshing(false);
       }
     }
-  }, [user]);
+  }, [debugEnabled, directGet, user?.id, user?._id]);
 
   useEffect(() => {
     fetchStats({ showLoading: true });
   }, [fetchStats]);
 
+  const fetchSellerAnalytics = useCallback(
+    async ({ showLoading = false } = {}) => {
+      if (!isSellerAnalyticsEnabled) {
+        setSellerAnalytics(DEFAULT_SELLER_ANALYTICS);
+        setSellerAnalyticsError('');
+        return;
+      }
+
+      if (showLoading) {
+        setSellerAnalyticsLoading(true);
+      } else {
+        setSellerAnalyticsRefreshing(true);
+      }
+      setSellerAnalyticsError('');
+
+      try {
+        const { data } = await directGet('/users/profile/seller-analytics', {
+          params: {
+            dateFrom: analyticsRange.dateFrom || undefined,
+            dateTo: analyticsRange.dateTo || undefined
+          },
+          timeout: 20000
+        });
+        if (!isMountedRef.current) return;
+        setSellerAnalytics({
+          ...DEFAULT_SELLER_ANALYTICS,
+          ...(data || {}),
+          summary: { ...DEFAULT_SELLER_ANALYTICS.summary, ...(data?.summary || {}) },
+          boost: { ...DEFAULT_SELLER_ANALYTICS.boost, ...(data?.boost || {}) },
+          promo: { ...DEFAULT_SELLER_ANALYTICS.promo, ...(data?.promo || {}) },
+          installment: { ...DEFAULT_SELLER_ANALYTICS.installment, ...(data?.installment || {}) },
+          comparison: {
+            ...DEFAULT_SELLER_ANALYTICS.comparison,
+            ...(data?.comparison || {})
+          }
+        });
+      } catch (err) {
+        if (!isMountedRef.current) return;
+        setSellerAnalyticsError(
+          err.response?.data?.message || 'Impossible de charger les analytics vendeur.'
+        );
+      } finally {
+        if (!isMountedRef.current) return;
+        if (showLoading) {
+          setSellerAnalyticsLoading(false);
+        } else {
+          setSellerAnalyticsRefreshing(false);
+        }
+      }
+    },
+    [analyticsRange.dateFrom, analyticsRange.dateTo, directGet, isSellerAnalyticsEnabled]
+  );
+
+  useEffect(() => {
+    fetchSellerAnalytics({ showLoading: true });
+  }, [fetchSellerAnalytics]);
+
   const handleRefresh = () => {
-    if (refreshing) return;
+    if (refreshing || sellerAnalyticsRefreshing) return;
     fetchStats();
+    fetchSellerAnalytics();
+  };
+
+  const handleDownloadSellerReport = async () => {
+    if (!isSellerAnalyticsEnabled) return;
+    setDownloadingSellerReport(true);
+    try {
+      const response = await directGet('/users/profile/seller-analytics/report', {
+        params: {
+          dateFrom: analyticsRange.dateFrom || undefined,
+          dateTo: analyticsRange.dateTo || undefined
+        },
+        responseType: 'blob',
+        timeout: 30000
+      });
+      const disposition = response.headers?.['content-disposition'] || '';
+      const nameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+      const fileName = nameMatch?.[1] || 'hdmarket-seller-analytics.pdf';
+      const blobUrl = URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      setSellerAnalyticsError(err.response?.data?.message || 'Téléchargement du rapport impossible.');
+    } finally {
+      setDownloadingSellerReport(false);
+    }
   };
 
   useEffect(() => {
@@ -497,7 +711,7 @@ export default function UserStats() {
     return (
       <div className="max-w-7xl mx-auto px-4 pt-6">
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 space-y-1">
-          <p className="font-semibold">Debug /my/stats</p>
+          <p className="font-semibold">Debug /stats</p>
           <p>userId: {user?._id || user?.id || '—'}</p>
           <p>role: {user?.role || '—'} · accountType: {user?.accountType || '—'}</p>
           <p>token: {user?.token ? 'present' : 'missing'}</p>
@@ -651,6 +865,155 @@ export default function UserStats() {
             iconBg="bg-emerald-600"
           />
         </div>
+
+        {isSellerAnalyticsEnabled && (
+          <section className="mb-8 space-y-5">
+            <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Analytics vendeur avancée</h2>
+                  <p className="text-sm text-gray-500">
+                    Revenus, conversions, boost, promo, tranches et recommandations.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-end gap-2">
+                  <label className="text-xs text-gray-600">
+                    Du
+                    <input
+                      type="date"
+                      value={analyticsRange.dateFrom}
+                      onChange={(event) =>
+                        setAnalyticsRange((prev) => ({ ...prev, dateFrom: event.target.value }))
+                      }
+                      className="mt-1 block rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <label className="text-xs text-gray-600">
+                    Au
+                    <input
+                      type="date"
+                      value={analyticsRange.dateTo}
+                      onChange={(event) =>
+                        setAnalyticsRange((prev) => ({ ...prev, dateTo: event.target.value }))
+                      }
+                      className="mt-1 block rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => fetchSellerAnalytics({ showLoading: true })}
+                    disabled={sellerAnalyticsLoading || sellerAnalyticsRefreshing}
+                    className="inline-flex h-10 items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-60"
+                  >
+                    {sellerAnalyticsRefreshing || sellerAnalyticsLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                    Mettre à jour
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadSellerReport}
+                    disabled={downloadingSellerReport}
+                    className="inline-flex h-10 items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-60"
+                  >
+                    {downloadingSellerReport ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FileDown className="h-4 w-4" />
+                    )}
+                    Télécharger PDF
+                  </button>
+                </div>
+              </div>
+              {sellerAnalyticsError ? (
+                <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                  {sellerAnalyticsError}
+                </p>
+              ) : null}
+            </div>
+
+            {sellerAnalyticsLoading ? (
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div className="h-40 animate-pulse rounded-2xl border border-gray-100 bg-white" />
+                <div className="h-40 animate-pulse rounded-2xl border border-gray-100 bg-white" />
+                <div className="h-64 animate-pulse rounded-2xl border border-gray-100 bg-white lg:col-span-2" />
+              </div>
+            ) : (
+              <>
+                <SellerAnalyticsKpiCards
+                  summary={sellerAnalytics.summary}
+                  installment={sellerAnalytics.installment}
+                  formatCurrency={formatCurrency}
+                  formatNumber={formatNumber}
+                />
+
+                <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+                  <div className="space-y-5 xl:col-span-2">
+                    <RevenueByCityChart
+                      data={sellerAnalytics.revenueByCity}
+                      formatCurrency={formatCurrency}
+                      formatNumber={formatNumber}
+                    />
+                    <TopProductsAnalyticsTable
+                      products={sellerAnalytics.topProducts}
+                      formatCurrency={formatCurrency}
+                    />
+                  </div>
+                  <div className="space-y-5">
+                    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                      <h3 className="mb-4 text-sm font-semibold text-gray-900">Boost performance</h3>
+                      <div className="space-y-2 text-sm text-gray-700">
+                        <p>
+                          Dépense: <span className="font-semibold">{formatCurrency(sellerAnalytics.boost.totalBoostSpend)}</span>
+                        </p>
+                        <p>
+                          Impressions: <span className="font-semibold">{formatNumber(sellerAnalytics.boost.impressions)}</span>
+                        </p>
+                        <p>
+                          Clics: <span className="font-semibold">{formatNumber(sellerAnalytics.boost.clicks)}</span>
+                        </p>
+                        <p>
+                          CTR: <span className="font-semibold">{Number(sellerAnalytics.boost.ctr || 0).toFixed(2)}%</span>
+                        </p>
+                        <p>
+                          Click-to-order:{' '}
+                          <span className="font-semibold">
+                            {Number(sellerAnalytics.boost.clickToOrderConversion || 0).toFixed(2)}%
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                      <h3 className="mb-4 text-sm font-semibold text-gray-900">Promo impact</h3>
+                      <div className="space-y-2 text-sm text-gray-700">
+                        <p>
+                          Usages: <span className="font-semibold">{formatNumber(sellerAnalytics.promo.usageCount)}</span>
+                        </p>
+                        <p>
+                          Remises: <span className="font-semibold">{formatCurrency(sellerAnalytics.promo.totalDiscountAmount)}</span>
+                        </p>
+                        <p>
+                          Revenu net: <span className="font-semibold">{formatCurrency(sellerAnalytics.promo.netRevenueAfterDiscount)}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <PeriodComparisonIndicator
+                      comparison={sellerAnalytics.comparison}
+                      formatCurrency={formatCurrency}
+                      formatNumber={formatNumber}
+                    />
+                  </div>
+                </div>
+
+                <SmartSuggestionsPanel suggestions={sellerAnalytics.suggestions} />
+              </>
+            )}
+          </section>
+        )}
 
         {/* Orders & Sales Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">

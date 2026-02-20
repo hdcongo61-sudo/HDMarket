@@ -1,12 +1,17 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 
+const FALLBACK_NETWORKS = [
+  { _id: 'fallback-network-mtn', name: 'MTN', phoneNumber: '069822930', isActive: true, order: 0 },
+  { _id: 'fallback-network-airtel', name: 'Airtel', phoneNumber: '050237023', isActive: true, order: 1 }
+];
+
 /**
  * Hook to fetch and use network phone numbers
  * @returns {Object} { networks, loading, error, refresh }
  */
 export function useNetworks() {
-  const [networks, setNetworks] = useState([]);
+  const [networks, setNetworks] = useState(FALLBACK_NETWORKS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -16,11 +21,11 @@ export function useNetworks() {
       setError(null);
       const res = await api.get('/settings/networks', { skipCache: true });
       const list = Array.isArray(res.data) ? res.data : Array.isArray(res.data?.data) ? res.data.data : [];
-      setNetworks(list);
+      setNetworks(list.length ? list : FALLBACK_NETWORKS);
     } catch (err) {
       console.error('Failed to fetch networks:', err);
       setError(err.response?.data?.message || 'Erreur lors du chargement des réseaux.');
-      setNetworks([]);
+      setNetworks(FALLBACK_NETWORKS);
     } finally {
       setLoading(false);
     }

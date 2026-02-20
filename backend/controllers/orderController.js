@@ -1,6 +1,7 @@
 import asyncHandler from 'express-async-handler';
 import mongoose from 'mongoose';
 import Order from '../models/orderModel.js';
+import DeliveryLog from '../models/deliveryLogModel.js';
 import OrderMessage from '../models/orderMessageModel.js';
 import Product from '../models/productModel.js';
 import User from '../models/userModel.js';
@@ -18,10 +19,17 @@ import {
 } from '../utils/marketplacePromoCodeService.js';
 
 const ORDER_STATUS = [
+  'pending_payment',
+  'paid',
+  'ready_for_delivery',
+  'out_for_delivery',
+  'delivery_proof_submitted',
+  'confirmed_by_client',
   'pending',
   'pending_installment',
   'installment_active',
   'overdue_installment',
+  'dispute_opened',
   'confirmed',
   'delivering',
   'delivered',
@@ -30,6 +38,10 @@ const ORDER_STATUS = [
 ];
 
 const INSTALLMENT_SALE_STATUS_FILTERS = new Set(['confirmed', 'delivering', 'delivered', 'cancelled']);
+const DELIVERY_PROOF_RESUBMISSION_LIMIT = Math.max(
+  1,
+  Number(process.env.DELIVERY_PROOF_RESUBMISSION_LIMIT || 3)
+);
 
 const formatSmsAmount = (value) =>
   Number(value || 0).toLocaleString('fr-FR', {
@@ -141,6 +153,44 @@ const ensureOrderProductSlugs = async (orders = []) => {
 
 const ensureObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
+const getRequestIp = (req) =>
+  (req.headers['x-forwarded-for'] || req.ip || '')
+    .toString()
+    .split(',')[0]
+    .trim();
+
+const normalizeDeliveryProofFiles = (files = []) =>
+  (Array.isArray(files) ? files : []).slice(0, 5).map((file) => ({
+    url: `uploads/delivery-proofs/${file.filename}`,
+    path: `uploads/delivery-proofs/${file.filename}`,
+    originalName: file.originalname || '',
+    mimeType: file.mimetype || '',
+    size: Number(file.size || 0),
+    uploadedAt: new Date()
+  }));
+
+const hasValidDeliveryEvidence = (order) =>
+  Array.isArray(order?.deliveryProofImages) &&
+  order.deliveryProofImages.length > 0 &&
+  Boolean(String(order?.clientSignatureImage || '').trim()) &&
+  Boolean(order?.deliveryDate);
+
+const extractDeliveryLocation = (body = {}) => {
+  const location = body?.location || {};
+  const latitude = Number(location.latitude ?? body.locationLatitude);
+  const longitude = Number(location.longitude ?? body.locationLongitude);
+  const accuracy = Number(location.accuracy ?? body.locationAccuracy);
+  const hasLat = Number.isFinite(latitude);
+  const hasLng = Number.isFinite(longitude);
+  const hasAccuracy = Number.isFinite(accuracy);
+  if (!hasLat && !hasLng && !hasAccuracy) return null;
+  return {
+    latitude: hasLat ? latitude : null,
+    longitude: hasLng ? longitude : null,
+    accuracy: hasAccuracy ? accuracy : null
+  };
+};
+
 const generateDeliveryCode = async () => {
   let code;
   let isUnique = false;
@@ -186,7 +236,17 @@ const filterOrderItemsForSeller = (order, sellerId) => {
 // Check if order is within 30-minute cancellation window (returns false if buyer has skipped it)
 const isWithinCancellationWindow = (order) => {
   if (!order || !order.createdAt) return false;
-  if (order.status === 'cancelled' || order.status === 'delivered') return false;
+  if (
+    [
+      'cancelled',
+      'delivery_proof_submitted',
+      'delivered',
+      'confirmed_by_client',
+      'completed'
+    ].includes(order.status)
+  ) {
+    return false;
+  }
   if (order.cancellationWindowSkippedAt) return false; // Buyer confirmed they won't cancel
 
   const createdAt = new Date(order.createdAt);
@@ -200,7 +260,17 @@ const isWithinCancellationWindow = (order) => {
 // Get remaining cancellation time in milliseconds
 const getCancellationWindowRemaining = (order) => {
   if (!order || !order.createdAt) return 0;
-  if (order.status === 'cancelled' || order.status === 'delivered') return 0;
+  if (
+    [
+      'cancelled',
+      'delivery_proof_submitted',
+      'delivered',
+      'confirmed_by_client',
+      'completed'
+    ].includes(order.status)
+  ) {
+    return 0;
+  }
   if (order.cancellationWindowSkippedAt) return 0;
 
   const createdAt = new Date(order.createdAt);
@@ -252,7 +322,20 @@ const buildOrderResponse = (order) => {
     cancelledAt: obj.cancelledAt || null,
     cancellationReason: obj.cancellationReason || '',
     cancelledBy: obj.cancelledBy || null,
+    refundStatus: obj.refundStatus || 'none',
+    refundAmount: Number(obj.refundAmount || 0),
+    refundRequestedBy: obj.refundRequestedBy || null,
+    refundRequestedAt: obj.refundRequestedAt || null,
     deliveryCode: obj.deliveryCode || null,
+    deliveryProofImages: Array.isArray(obj.deliveryProofImages) ? obj.deliveryProofImages : [],
+    clientSignatureImage: obj.clientSignatureImage || '',
+    deliveryNote: obj.deliveryNote || '',
+    deliveryDate: obj.deliveryDate || null,
+    deliverySubmittedBy: obj.deliverySubmittedBy || null,
+    deliverySubmittedAt: obj.deliverySubmittedAt || null,
+    clientDeliveryConfirmedAt: obj.clientDeliveryConfirmedAt || null,
+    deliveryStatus: obj.deliveryStatus || 'not_submitted',
+    deliveryProofAttemptCount: Number(obj.deliveryProofAttemptCount || 0),
     isDraft: obj.isDraft || false,
     draftPayments: Array.isArray(obj.draftPayments) ? obj.draftPayments : [],
     cancellationWindow: {
@@ -732,22 +815,31 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: 'Statut invalide.' });
     }
     // Prevent cancelling already delivered orders
-    if (status === 'cancelled' && order.status === 'delivered') {
+    if (
+      status === 'cancelled' &&
+      ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed'].includes(order.status)
+    ) {
       return res.status(400).json({ message: 'Impossible d\'annuler une commande déjà livrée.' });
+    }
+    if (status === 'delivered' && !hasValidDeliveryEvidence(order)) {
+      return res.status(400).json({
+        message:
+          'Impossible de marquer livrée sans preuve complète (photo + signature + date de livraison).'
+      });
     }
     if (order.status !== status) {
       order.status = status;
       notifyPending = status === 'pending';
       notifyConfirmed = status === 'confirmed';
-      notifyDelivering = status === 'delivering';
+      notifyDelivering = status === 'delivering' || status === 'out_for_delivery';
       notifyDelivered = status === 'delivered';
       notifyCancelled = status === 'cancelled';
     }
-    if (status === 'delivering' && !order.shippedAt) {
+    if ((status === 'delivering' || status === 'out_for_delivery') && !order.shippedAt) {
       order.shippedAt = new Date();
     }
     if (status === 'delivered' && !order.deliveredAt) {
-      order.deliveredAt = new Date();
+      order.deliveredAt = order.deliveryDate || new Date();
       notifyDelivered = true;
       deliveredTimestampAdded = true;
     }
@@ -925,7 +1017,7 @@ export const adminSendOrderReminder = asyncHandler(async (req, res) => {
   if (!order) {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
-  if (order.status === 'delivered') {
+  if (['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed'].includes(order.status)) {
     return res.status(400).json({ message: 'Commande déjà livrée.' });
   }
 
@@ -1429,7 +1521,10 @@ export const userUpdateOrderStatus = asyncHandler(async (req, res) => {
   }
 
   // Prevent cancelling already delivered orders
-  if (status === 'cancelled' && order.status === 'delivered') {
+  if (
+    status === 'cancelled' &&
+    ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed'].includes(order.status)
+  ) {
     return res.status(400).json({ message: 'Impossible d\'annuler une commande déjà livrée.' });
   }
 
@@ -1508,7 +1603,11 @@ export const userUpdateOrderAddress = asyncHandler(async (req, res) => {
   }
 
   // Only allow address modification before shipping
-  if (order.status === 'delivering' || order.status === 'delivered') {
+  if (
+    ['delivering', 'out_for_delivery', 'delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed'].includes(
+      order.status
+    )
+  ) {
     return res.status(400).json({ 
       message: 'Impossible de modifier l\'adresse de livraison. La commande est déjà en cours de livraison ou livrée.',
       code: 'ORDER_ALREADY_SHIPPED'
@@ -1585,7 +1684,11 @@ export const userSkipCancellationWindow = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à modifier cette commande.' });
   }
 
-  if (order.status === 'cancelled' || order.status === 'delivered') {
+  if (
+    ['cancelled', 'delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed'].includes(
+      order.status
+    )
+  ) {
     return res.status(400).json({ message: 'Cette commande ne peut plus être modifiée.' });
   }
 
@@ -1692,6 +1795,247 @@ export const sellerGetOrder = asyncHandler(async (req, res) => {
   res.json(response);
 });
 
+export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user?.id || req.user?._id;
+  if (!ensureObjectId(id)) {
+    return res.status(400).json({ message: 'Commande inconnue.' });
+  }
+
+  const order = await Order.findOne({ _id: id, 'items.snapshot.shopId': userId, isDraft: false });
+  if (!order) {
+    return res.status(404).json({ message: 'Commande introuvable.' });
+  }
+  if (order.status === 'cancelled') {
+    return res.status(400).json({ message: 'Impossible de soumettre une preuve pour une commande annulée.' });
+  }
+  if (order.paymentType === 'installment' && order.status !== 'completed') {
+    return res.status(400).json({
+      message: 'La preuve de livraison est disponible après la complétion du paiement en tranches.'
+    });
+  }
+  if (
+    order.paymentType !== 'installment' &&
+    ![
+      'paid',
+      'confirmed',
+      'ready_for_delivery',
+      'delivering',
+      'out_for_delivery',
+      'delivery_proof_submitted'
+    ].includes(order.status)
+  ) {
+    return res.status(400).json({
+      message: 'La commande doit être prête/en cours de livraison avant la preuve de livraison.'
+    });
+  }
+  if (order.deliveryStatus === 'verified') {
+    return res.status(409).json({ message: 'La livraison est déjà confirmée par le client.' });
+  }
+  if (order.deliveryProofAttemptCount >= DELIVERY_PROOF_RESUBMISSION_LIMIT) {
+    return res.status(429).json({
+      message: `Limite atteinte: ${DELIVERY_PROOF_RESUBMISSION_LIMIT} soumissions de preuve maximum.`,
+      code: 'DELIVERY_PROOF_LIMIT'
+    });
+  }
+
+  const signatureImage = String(req.body?.clientSignatureImage || '').trim();
+  if (!signatureImage || !signatureImage.startsWith('data:image/')) {
+    return res.status(400).json({ message: 'Signature client invalide ou manquante.' });
+  }
+  if (signatureImage.length > 2_000_000) {
+    return res.status(400).json({ message: 'Signature trop volumineuse.' });
+  }
+
+  const proofImages = normalizeDeliveryProofFiles(req.files);
+  if (!proofImages.length) {
+    return res.status(400).json({ message: 'Ajoutez au moins une photo de livraison.' });
+  }
+
+  const now = new Date();
+  const location = extractDeliveryLocation(req.body);
+  const noteValue = String(req.body?.deliveryNote || '').trim();
+
+  order.deliveryProofImages = proofImages;
+  order.clientSignatureImage = signatureImage;
+  order.deliveryNote = noteValue.slice(0, 1000);
+  order.deliveryDate = now;
+  order.deliverySubmittedBy = userId;
+  order.deliverySubmittedAt = now;
+  order.deliveryStatus = 'submitted';
+  order.deliveryProofAttemptCount = Number(order.deliveryProofAttemptCount || 0) + 1;
+  order.status = 'delivery_proof_submitted';
+  if (!order.shippedAt) {
+    order.shippedAt = now;
+  }
+  if (!order.deliveredAt) {
+    order.deliveredAt = now;
+  }
+  await order.save();
+
+  const baseLog = {
+    orderId: order._id,
+    sellerId: userId,
+    timestamp: now,
+    ipAddress: getRequestIp(req),
+    location: location || undefined
+  };
+  await Promise.all([
+    DeliveryLog.create({
+      ...baseLog,
+      actionType: 'PROOF_UPLOADED',
+      metadata: {
+        proofCount: proofImages.length,
+        attempt: order.deliveryProofAttemptCount
+      }
+    }),
+    DeliveryLog.create({
+      ...baseLog,
+      actionType: 'SIGNATURE_CAPTURED',
+      metadata: { hasSignature: true }
+    })
+  ]);
+
+  await createNotification({
+    userId: order.customer,
+    actorId: userId,
+    type: 'order_delivered',
+    metadata: {
+      orderId: order._id,
+      deliveryAddress: order.deliveryAddress,
+      deliveryCity: order.deliveryCity,
+      status: 'delivery_proof_submitted',
+      deliveredAt: order.deliveredAt,
+      deliveryProofSubmitted: true
+    },
+    allowSelf: true
+  });
+
+  const populated = await baseOrderQuery().findById(order._id);
+  await ensureOrderProductSlugs([populated]);
+  res.json({
+    message: 'Preuve de livraison soumise. En attente de confirmation client.',
+    order: buildOrderResponse(populated)
+  });
+});
+
+export const clientConfirmDelivery = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user?.id || req.user?._id;
+  if (!ensureObjectId(id)) {
+    return res.status(400).json({ message: 'Commande inconnue.' });
+  }
+
+  const order = await Order.findOne({ _id: id, customer: userId, isDraft: false });
+  if (!order) {
+    return res.status(404).json({ message: 'Commande introuvable.' });
+  }
+  if (order.status === 'cancelled') {
+    return res.status(400).json({ message: 'Commande annulée.' });
+  }
+  if (order.status === 'dispute_opened') {
+    return res.status(400).json({ message: 'Commande en litige, confirmation impossible.' });
+  }
+  if (req.body?.confirm === false) {
+    return res.status(400).json({
+      message: 'Confirmation refusée. Veuillez ouvrir un litige depuis la page réclamations.'
+    });
+  }
+  if (!hasValidDeliveryEvidence(order)) {
+    return res.status(400).json({
+      message: 'Preuves de livraison incomplètes: photo, signature et date sont requises.'
+    });
+  }
+
+  const now = new Date();
+  if (order.deliveryStatus !== 'verified') {
+    order.deliveryStatus = 'verified';
+    order.clientDeliveryConfirmedAt = now;
+  }
+  if (!order.deliveredAt) {
+    order.deliveredAt = order.deliveryDate || now;
+  }
+
+  // Keep intermediate transition in audit logs, while final status remains completed.
+  const previousStatus = order.status;
+  order.status = 'confirmed_by_client';
+  await order.save();
+  order.status = 'completed';
+  await order.save();
+
+  await DeliveryLog.create({
+    orderId: order._id,
+    sellerId:
+      order.deliverySubmittedBy ||
+      (Array.isArray(order.items) ? order.items.find((item) => item?.snapshot?.shopId)?.snapshot?.shopId : null) ||
+      order.createdBy,
+    timestamp: now,
+    ipAddress: getRequestIp(req),
+    actionType: 'CONFIRMED',
+    metadata: {
+      previousStatus,
+      transitionedTo: ['confirmed_by_client', 'completed'],
+      confirmedByClientId: userId
+    }
+  });
+
+  const sellerIds = new Set();
+  (order.items || []).forEach((item) => {
+    if (item?.snapshot?.shopId) sellerIds.add(String(item.snapshot.shopId));
+  });
+  await Promise.all(
+    Array.from(sellerIds).map((sellerId) =>
+      createNotification({
+        userId: sellerId,
+        actorId: userId,
+        type: 'order_created',
+        metadata: {
+          orderId: order._id,
+          status: 'confirmed',
+          deliveryStatus: 'verified',
+          deliveryAddress: order.deliveryAddress,
+          deliveryCity: order.deliveryCity
+        }
+      })
+    )
+  );
+
+  const populated = await baseOrderQuery().findById(order._id);
+  await ensureOrderProductSlugs([populated]);
+  res.json({
+    message: 'Livraison confirmée. La commande est terminée.',
+    order: buildOrderResponse(populated)
+  });
+});
+
+export const getOrderDeliveryLogs = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user?.id || req.user?._id;
+  if (!ensureObjectId(id)) {
+    return res.status(400).json({ message: 'Commande inconnue.' });
+  }
+
+  const order = await Order.findById(id).select('_id customer items');
+  if (!order) {
+    return res.status(404).json({ message: 'Commande introuvable.' });
+  }
+
+  const isAdmin = req.user?.role === 'admin' || req.user?.role === 'manager';
+  const isCustomer = String(order.customer) === String(userId);
+  const isSeller = Array.isArray(order.items)
+    ? order.items.some((item) => String(item?.snapshot?.shopId || '') === String(userId))
+    : false;
+  if (!isAdmin && !isCustomer && !isSeller) {
+    return res.status(403).json({ message: 'Accès refusé.' });
+  }
+
+  const logs = await DeliveryLog.find({ orderId: order._id })
+    .sort({ createdAt: -1 })
+    .limit(100)
+    .lean();
+  res.json({ items: logs });
+});
+
 export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user?.id || req.user?._id;
@@ -1732,6 +2076,11 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
         message: 'La commande doit être en cours de livraison avant d’être marquée livrée.'
       });
     }
+    if (status === 'delivered' && !hasValidDeliveryEvidence(order)) {
+      return res.status(400).json({
+        message: 'Preuve de livraison obligatoire avant le statut livré.'
+      });
+    }
     if (status === 'cancelled' && previousSaleStatus === 'delivered') {
       return res.status(400).json({ message: 'Impossible d\'annuler une commande déjà livrée.' });
     }
@@ -1747,7 +2096,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
         order.shippedAt = new Date();
       }
       if (status === 'delivered' && !order.deliveredAt) {
-        order.deliveredAt = new Date();
+        order.deliveredAt = order.deliveryDate || new Date();
       }
       if (status === 'cancelled' && !order.cancelledAt) {
         order.cancelledAt = new Date();
@@ -1853,26 +2202,50 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   let notifyPending = false;
   let notifyConfirmed = false;
   let notifyDelivering = false;
-  const sellerAllowedStatuses = ['pending', 'confirmed', 'delivering', 'delivered', 'cancelled'];
+  const sellerAllowedStatuses = [
+    'pending',
+    'pending_payment',
+    'paid',
+    'confirmed',
+    'ready_for_delivery',
+    'delivering',
+    'out_for_delivery',
+    'delivered',
+    'cancelled'
+  ];
   if (!sellerAllowedStatuses.includes(status)) {
     return res.status(400).json({ message: 'Statut invalide.' });
   }
 
+  if (status === 'delivery_proof_submitted' || status === 'confirmed_by_client') {
+    return res.status(400).json({
+      message: 'Utilisez le workflow de preuve de livraison pour ce statut.'
+    });
+  }
+
   // Prevent cancelling already delivered orders
-  if (status === 'cancelled' && order.status === 'delivered') {
+  if (
+    status === 'cancelled' &&
+    ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed'].includes(order.status)
+  ) {
     return res.status(400).json({ message: 'Impossible d\'annuler une commande déjà livrée.' });
+  }
+  if (status === 'delivered' && !hasValidDeliveryEvidence(order)) {
+    return res.status(400).json({
+      message: 'Preuve de livraison obligatoire: photo(s) + signature client.'
+    });
   }
 
   if (order.status !== status) {
     order.status = status;
-    notifyPending = status === 'pending';
+    notifyPending = status === 'pending' || status === 'pending_payment';
     notifyConfirmed = status === 'confirmed';
-    notifyDelivering = status === 'delivering';
-    if (status === 'delivering' && !order.shippedAt) {
+    notifyDelivering = status === 'delivering' || status === 'out_for_delivery';
+    if ((status === 'delivering' || status === 'out_for_delivery') && !order.shippedAt) {
       order.shippedAt = new Date();
     }
     if (status === 'delivered' && !order.deliveredAt) {
-      order.deliveredAt = new Date();
+      order.deliveredAt = order.deliveryDate || new Date();
     }
     if (status === 'cancelled' && !order.cancelledAt) {
       order.cancelledAt = new Date();
@@ -2001,7 +2374,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
 export const sellerCancelOrder = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user?.id || req.user?._id;
-  const { reason } = req.body;
+  const { reason, issueRefund = false } = req.body;
 
   if (!ensureObjectId(id)) {
     return res.status(400).json({ message: 'Commande inconnue.' });
@@ -2013,7 +2386,7 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
   }
 
   // Prevent cancelling already delivered or cancelled orders
-  if (order.status === 'delivered') {
+  if (['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed'].includes(order.status)) {
     return res.status(400).json({ message: 'Impossible d\'annuler une commande déjà livrée.' });
   }
   if (order.status === 'cancelled') {
@@ -2025,11 +2398,18 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'La raison de l\'annulation est requise (minimum 5 caractères).' });
   }
 
-  const previousStatus = order.status;
   order.status = 'cancelled';
   order.cancelledAt = new Date();
   order.cancelledBy = userId;
   order.cancellationReason = reason.trim();
+  const paidAmount = Number(order.paidAmount || 0);
+  const refundAmount = issueRefund ? paidAmount : 0;
+  if (issueRefund) {
+    order.refundStatus = refundAmount > 0 ? 'pending' : 'none';
+    order.refundAmount = refundAmount;
+    order.refundRequestedBy = userId;
+    order.refundRequestedAt = new Date();
+  }
 
   await order.save();
   const populated = await baseOrderQuery().findById(order._id);
@@ -2059,10 +2439,35 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
       deliveryCity: order.deliveryCity,
       status: 'cancelled',
       cancelledBy: 'seller',
-      reason: order.cancellationReason
+      reason: order.cancellationReason,
+      refundRequested: Boolean(issueRefund),
+      refundAmount
     },
     allowSelf: true
   });
+
+  if (issueRefund && refundAmount > 0) {
+    const adminRecipients = await User.find({
+      $or: [{ role: 'admin' }, { role: 'manager' }, { canVerifyPayments: true }]
+    })
+      .select('_id')
+      .lean();
+    await Promise.all(
+      adminRecipients.map((recipient) =>
+        createNotification({
+          userId: recipient._id,
+          actorId: userId,
+          type: 'admin_broadcast',
+          metadata: {
+            message: `Remboursement demandé pour la commande #${String(order._id).slice(-6)}: ${formatCurrency(refundAmount)}.`,
+            orderId: order._id,
+            refundRequested: true,
+            refundAmount
+          }
+        })
+      )
+    );
+  }
 
   // Send SMS if configured
   if (isTwilioMessagingConfigured()) {
@@ -2071,8 +2476,12 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
       const itemsSummary = buildSmsItemsSummary(order.items);
       const total = formatSmsAmount(order.totalAmount);
       const reasonText = order.cancellationReason ? ` Raison: ${order.cancellationReason}` : '';
+      const refundText =
+        issueRefund && refundAmount > 0
+          ? ` Remboursement demandé: ${formatSmsAmount(refundAmount)} FCFA.`
+          : '';
       const orderId = order._id ? String(order._id).slice(-6) : '';
-      const message = `HDMarket : Votre commande ${orderId} a été annulée par le vendeur.${reasonText} ${itemsSummary ? `| ${itemsSummary}` : ''} | Total: ${total} FCFA`;
+      const message = `HDMarket : Votre commande ${orderId} a été annulée par le vendeur.${reasonText}${refundText} ${itemsSummary ? `| ${itemsSummary}` : ''} | Total: ${total} FCFA`;
       await sendOrderSms({
         phone: customer.phone,
         message,

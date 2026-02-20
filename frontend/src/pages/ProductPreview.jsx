@@ -5,6 +5,7 @@ import api from '../services/api';
 import { buildProductPath } from '../utils/links';
 import useIsMobile from '../hooks/useIsMobile';
 import { recordProductView } from '../utils/recentViews';
+import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 
 const pickRandomItem = (items = []) => {
   if (!items.length) return null;
@@ -57,7 +58,7 @@ const buildFallbackPicks = (product, limit = 6) => {
     .map((image) => ({ image, product }));
 };
 
-const formatCurrency = (value) => `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
+const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 const formatCount = (value) => Number(value || 0).toLocaleString('fr-FR');
 
 export default function ProductPreview() {

@@ -89,6 +89,18 @@ const installmentPlanSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const deliveryProofImageSchema = new mongoose.Schema(
+  {
+    url: { type: String, trim: true, default: '' },
+    path: { type: String, trim: true, default: '' },
+    originalName: { type: String, trim: true, default: '' },
+    mimeType: { type: String, trim: true, default: '' },
+    size: { type: Number, default: 0, min: 0 },
+    uploadedAt: { type: Date, default: null }
+  },
+  { _id: false }
+);
+
 const orderSchema = new mongoose.Schema(
   {
     items: {
@@ -105,10 +117,17 @@ const orderSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: [
+        'pending_payment',
+        'paid',
+        'ready_for_delivery',
+        'out_for_delivery',
+        'delivery_proof_submitted',
+        'confirmed_by_client',
         'pending',
         'pending_installment',
         'installment_active',
         'overdue_installment',
+        'dispute_opened',
         'confirmed',
         'delivering',
         'delivered',
@@ -128,11 +147,7 @@ const orderSchema = new mongoose.Schema(
       default: ''
     },
     deliveryAddress: { type: String, required: true, trim: true },
-    deliveryCity: {
-      type: String,
-      enum: ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'],
-      default: 'Brazzaville'
-    },
+    deliveryCity: { type: String, default: 'Brazzaville', trim: true },
     trackingNote: { type: String, default: '' },
     totalAmount: { type: Number, default: 0 },
     paidAmount: { type: Number, default: 0 },
@@ -150,9 +165,31 @@ const orderSchema = new mongoose.Schema(
     paymentTransactionCode: { type: String, trim: true, default: '' },
     shippedAt: { type: Date },
     deliveredAt: { type: Date },
+    deliveryDate: { type: Date },
+    deliveryProofImages: { type: [deliveryProofImageSchema], default: [] },
+    clientSignatureImage: { type: String, trim: true, default: '' },
+    deliveryNote: { type: String, trim: true, default: '' },
+    deliverySubmittedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    deliverySubmittedAt: { type: Date, default: null },
+    clientDeliveryConfirmedAt: { type: Date, default: null },
+    deliveryVerificationCodeHash: { type: String, trim: true, default: '' },
+    deliveryStatus: {
+      type: String,
+      enum: ['not_submitted', 'submitted', 'verified'],
+      default: 'not_submitted'
+    },
+    deliveryProofAttemptCount: { type: Number, default: 0, min: 0 },
     cancelledAt: { type: Date },
     cancellationReason: { type: String, trim: true, default: '' },
     cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    refundStatus: {
+      type: String,
+      enum: ['none', 'pending', 'processed', 'rejected'],
+      default: 'none'
+    },
+    refundAmount: { type: Number, default: 0, min: 0 },
+    refundRequestedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    refundRequestedAt: { type: Date, default: null },
     deliveryCode: { type: String, unique: true, sparse: true, trim: true },
     isDraft: { type: Boolean, default: false },
     isInquiry: { type: Boolean, default: false },
@@ -177,6 +214,9 @@ orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ customer: 1, createdAt: -1 });
 orderSchema.index({ customer: 1, isDraft: 1, createdAt: -1 });
 orderSchema.index({ paymentType: 1, status: 1, createdAt: -1 });
+orderSchema.index({ 'items.snapshot.shopId': 1, createdAt: -1, status: 1 });
+orderSchema.index({ 'items.product': 1, createdAt: -1, status: 1 });
 orderSchema.index({ 'installmentPlan.nextDueDate': 1, status: 1 });
+orderSchema.index({ deliveryStatus: 1, updatedAt: -1 });
 
 export default mongoose.model('Order', orderSchema);

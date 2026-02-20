@@ -30,10 +30,22 @@ import useIsMobile from '../hooks/useIsMobile';
 import CancellationTimer from '../components/CancellationTimer';
 import EditAddressModal from '../components/EditAddressModal';
 import OrderChat from '../components/OrderChat';
+import GlassHeader from '../components/orders/GlassHeader';
+import StatusBadge from '../components/orders/StatusBadge';
+import AnimatedOrderTimeline from '../components/orders/AnimatedOrderTimeline';
+import InstallmentReminder from '../components/orders/InstallmentReminder';
+import { OrderDetailSkeleton } from '../components/orders/OrderSkeletons';
 import CartContext from '../context/CartContext';
 import AuthContext from '../context/AuthContext';
+import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 
 const STATUS_LABELS = {
+  pending_payment: 'Paiement en attente',
+  paid: 'Payée',
+  ready_for_delivery: 'Prête à livrer',
+  out_for_delivery: 'En cours de livraison',
+  delivery_proof_submitted: 'Preuve de livraison soumise',
+  confirmed_by_client: 'Confirmée par vous',
   pending: 'En attente',
   pending_installment: 'Validation de vente en attente',
   installment_active: 'Paiement par tranche actif',
@@ -46,6 +58,12 @@ const STATUS_LABELS = {
 };
 
 const STATUS_STYLES = {
+  pending_payment: { header: 'bg-gray-600', card: 'bg-gray-50 border-gray-200 text-gray-700' },
+  paid: { header: 'bg-emerald-600', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
+  ready_for_delivery: { header: 'bg-amber-600', card: 'bg-amber-50 border-amber-200 text-amber-800' },
+  out_for_delivery: { header: 'bg-blue-600', card: 'bg-blue-50 border-blue-200 text-blue-800' },
+  delivery_proof_submitted: { header: 'bg-cyan-600', card: 'bg-cyan-50 border-cyan-200 text-cyan-800' },
+  confirmed_by_client: { header: 'bg-emerald-700', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
   pending: { header: 'bg-gray-600', card: 'bg-gray-50 border-gray-200 text-gray-700' },
   pending_installment: { header: 'bg-violet-600', card: 'bg-violet-50 border-violet-200 text-violet-800' },
   installment_active: { header: 'bg-indigo-600', card: 'bg-indigo-50 border-indigo-200 text-indigo-800' },
@@ -58,6 +76,12 @@ const STATUS_STYLES = {
 };
 
 const STATUS_ICONS = {
+  pending_payment: Clock,
+  paid: CreditCard,
+  ready_for_delivery: Package,
+  out_for_delivery: Truck,
+  delivery_proof_submitted: Receipt,
+  confirmed_by_client: CheckCircle,
   pending: Clock,
   pending_installment: Clock,
   installment_active: CreditCard,
@@ -77,10 +101,14 @@ const INSTALLMENT_SALE_STATUS_LABELS = {
 };
 
 const CLASSIC_ORDER_FLOW = [
-  { id: 'pending', label: 'Commande en attente', description: 'Votre commande est enregistrée.', icon: Clock, color: 'gray' },
-  { id: 'confirmed', label: 'Commande confirmée', description: 'Validation et préparation.', icon: Package, color: 'amber' },
-  { id: 'delivering', label: 'En cours de livraison', description: 'Le colis est en route.', icon: Truck, color: 'blue' },
-  { id: 'delivered', label: 'Commande terminée', description: 'Livrée avec succès.', icon: CheckCircle, color: 'emerald' },
+  { id: 'pending_payment', label: 'Paiement en attente', description: 'Votre commande est enregistrée.', icon: Clock, color: 'gray' },
+  { id: 'paid', label: 'Payée', description: 'Le paiement est confirmé.', icon: CreditCard, color: 'emerald' },
+  { id: 'ready_for_delivery', label: 'Prête à livrer', description: 'Préparation terminée.', icon: Package, color: 'amber' },
+  { id: 'out_for_delivery', label: 'En cours de livraison', description: 'Le colis est en route.', icon: Truck, color: 'blue' },
+  { id: 'delivered', label: 'Livrée', description: 'Livraison signalée.', icon: CheckCircle, color: 'emerald' },
+  { id: 'delivery_proof_submitted', label: 'Preuve soumise', description: 'Le vendeur a soumis les preuves de livraison.', icon: Receipt, color: 'blue' },
+  { id: 'confirmed_by_client', label: 'Confirmée par vous', description: 'Vous avez confirmé la réception.', icon: CheckCircle, color: 'emerald' },
+  { id: 'completed', label: 'Commande terminée', description: 'Livraison clôturée.', icon: CheckCircle, color: 'emerald' },
   { id: 'cancelled', label: 'Commande annulée', description: 'Cette commande a été annulée.', icon: X, color: 'red' }
 ];
 
@@ -103,14 +131,20 @@ const formatOrderTimestamp = (value) =>
       })
     : null;
 
-const formatCurrency = (value) => `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
+const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
 const getEffectiveOrderStatus = (order) => {
   if (!order) return 'pending';
   if (order.paymentType === 'installment' && order.status === 'completed') {
     return order.installmentSaleStatus || 'confirmed';
   }
-  return order.status || 'pending';
+  const map = {
+    pending: 'pending_payment',
+    confirmed: 'ready_for_delivery',
+    delivering: 'out_for_delivery',
+    delivered: order.deliveryStatus === 'submitted' ? 'delivery_proof_submitted' : 'delivered'
+  };
+  return map[order.status] || order.status || 'pending_payment';
 };
 
 const getScheduleStatusLabel = (status) => {
@@ -216,9 +250,17 @@ export default function OrderDetail() {
   const [editAddressModalOpen, setEditAddressModalOpen] = useState(false);
   const [installmentProofForms, setInstallmentProofForms] = useState({});
   const [installmentUploadIndex, setInstallmentUploadIndex] = useState(-1);
+  const [confirmDeliveryLoading, setConfirmDeliveryLoading] = useState(false);
   const [suggestionsProducts, setSuggestionsProducts] = useState([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const isMobile = useIsMobile();
+  const normalizeFileUrl = useCallback((url) => {
+    if (!url) return '';
+    if (/^https?:\/\//i.test(url)) return url;
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+    const host = apiBase.replace(/\/api\/?$/, '');
+    return `${host}/${String(url).replace(/^\/+/, '')}`;
+  }, []);
 
   const loadOrder = useCallback(async () => {
     if (!orderId) return;
@@ -368,6 +410,20 @@ export default function OrderDetail() {
     }
   };
 
+  const handleConfirmDelivery = async () => {
+    if (!order || confirmDeliveryLoading) return;
+    setConfirmDeliveryLoading(true);
+    try {
+      const { data } = await api.post(`/orders/${order._id}/confirm-delivery`, { confirm: true });
+      setOrder(data?.order || data);
+      alert('Livraison confirmée. La commande est terminée.');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Impossible de confirmer la livraison.');
+    } finally {
+      setConfirmDeliveryLoading(false);
+    }
+  };
+
   const handleReorder = async () => {
     if (!order?.items?.length) return;
     setReordering(true);
@@ -435,8 +491,9 @@ export default function OrderDetail() {
 
   if (loading && !order) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-pulse text-gray-400">Chargement...</div>
+      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
+        <GlassHeader title="Commande" subtitle="Chargement..." backTo="/orders" />
+        <OrderDetailSkeleton />
       </div>
     );
   }
@@ -496,14 +553,14 @@ export default function OrderDetail() {
   const statusStyle = STATUS_STYLES[effectiveOrderStatus] || STATUS_STYLES.pending;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
+      <GlassHeader
+        title={`Commande #${order._id.slice(-6)}`}
+        subtitle="Détail client"
+        backTo="/orders"
+        right={<StatusBadge status={effectiveOrderStatus} compact />}
+      />
       <div className="max-w-3xl mx-auto px-4 py-6">
-        <Link
-          to="/orders"
-          className="inline-flex items-center gap-2 text-indigo-600 font-medium mb-4 hover:text-indigo-700"
-        >
-          <ArrowLeft className="w-4 h-4" /> Retour aux commandes
-        </Link>
 
         <div className="bg-white rounded-2xl border-2 border-gray-100 shadow-sm overflow-hidden">
           <div className={`${statusStyle.header} text-white px-6 py-4`}>
@@ -602,9 +659,14 @@ export default function OrderDetail() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-sm font-bold text-gray-900 uppercase flex items-center gap-2"><MapPin className="w-4 h-4 text-gray-500" /> Adresse de livraison</h4>
-                  {(order.status === 'pending' ||
-                    order.status === 'confirmed' ||
-                    order.status === 'pending_installment') && (
+                  {[
+                    'pending',
+                    'pending_payment',
+                    'paid',
+                    'confirmed',
+                    'ready_for_delivery',
+                    'pending_installment'
+                  ].includes(order.status) && (
                     <button type="button" onClick={() => setEditAddressModalOpen(true)} className="px-4 py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-semibold hover:bg-indigo-100">
                       Modifier
                     </button>
@@ -628,6 +690,77 @@ export default function OrderDetail() {
               <div>
                 <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2"><Info className="w-4 h-4 text-gray-500" /> Note de suivi</h4>
                 <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/50"><p className="text-sm text-gray-700">{order.trackingNote}</p></div>
+              </div>
+            )}
+
+            {(order.deliveryStatus === 'submitted' ||
+              order.deliveryStatus === 'verified' ||
+              order.status === 'delivery_proof_submitted') && (
+              <div className="rounded-2xl border border-cyan-200 bg-cyan-50/50 p-4 space-y-3">
+                <h4 className="text-sm font-bold text-gray-900 uppercase flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-cyan-700" /> Preuve de livraison
+                </h4>
+                <p className="text-sm text-gray-700">
+                  Statut:{' '}
+                  <span className="font-semibold">
+                    {order.deliveryStatus === 'verified'
+                      ? 'Livraison confirmée'
+                      : 'Soumise par le vendeur (en attente de votre confirmation)'}
+                  </span>
+                </p>
+                {order.deliveryDate && (
+                  <p className="text-xs text-gray-500">
+                    Date de livraison: {formatOrderTimestamp(order.deliveryDate)}
+                  </p>
+                )}
+                {order.deliveryNote && (
+                  <p className="text-sm text-gray-700">
+                    Note vendeur: <span className="font-medium">{order.deliveryNote}</span>
+                  </p>
+                )}
+                {(order.deliveryProofImages || []).length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {(order.deliveryProofImages || []).map((proof, index) => (
+                      <a
+                        key={`proof-image-${index}`}
+                        href={normalizeFileUrl(proof?.url || proof?.path || '')}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-lg border border-cyan-200 bg-white px-2 py-1 text-xs font-semibold text-cyan-700"
+                      >
+                        Voir photo {index + 1}
+                      </a>
+                    ))}
+                  </div>
+                )}
+                {order.clientSignatureImage && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-700 mb-1">Signature client</p>
+                    <img
+                      src={order.clientSignatureImage}
+                      alt="Signature client"
+                      className="h-24 w-full max-w-md rounded-lg border border-gray-200 bg-white object-contain"
+                    />
+                  </div>
+                )}
+                {order.deliveryStatus !== 'verified' && (
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={handleConfirmDelivery}
+                      disabled={confirmDeliveryLoading}
+                      className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                    >
+                      {confirmDeliveryLoading ? 'Confirmation...' : 'Confirmer la livraison'}
+                    </button>
+                    <Link
+                      to={`/reclamations?orderId=${order._id}`}
+                      className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                    >
+                      Ouvrir un litige
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
 
@@ -707,6 +840,18 @@ export default function OrderDetail() {
                 )}
               </div>
             </div>
+
+            {isInstallmentOrder && (
+              <InstallmentReminder
+                plan={{
+                  ...installmentPlan,
+                  totalAmount: installmentTotal,
+                  amountPaid: installmentPaid,
+                  remainingAmount: installmentRemaining
+                }}
+                formatCurrency={formatCurrency}
+              />
+            )}
 
             {isInstallmentOrder && (
               <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4 space-y-3">
@@ -894,12 +1039,16 @@ export default function OrderDetail() {
             )}
 
             {effectiveOrderStatus !== 'cancelled' && (
-              <OrderProgress status={effectiveOrderStatus} paymentType={progressPaymentType} />
+              <AnimatedOrderTimeline
+                status={effectiveOrderStatus}
+                paymentType={progressPaymentType}
+              />
             )}
 
             <div className="space-y-3">
               <OrderChat order={order} buttonText="Contacter le vendeur" unreadCount={unreadCount} />
-              {effectiveOrderStatus === 'delivered' && order.items?.length > 0 && (
+              {['delivered', 'completed', 'confirmed_by_client'].includes(effectiveOrderStatus) &&
+                order.items?.length > 0 && (
                 <button type="button" onClick={handleReorder} disabled={reordering} className="w-full px-6 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 flex items-center justify-center gap-2 disabled:opacity-50">
                   {reordering ? <Clock className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
                   <span>{reordering ? 'Ajout au panier...' : 'Commander à nouveau'}</span>

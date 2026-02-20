@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import {
   LineChart,
   Line,
@@ -37,6 +38,7 @@ import {
 import VerifiedBadge from '../components/VerifiedBadge';
 import { buildShopPath } from '../utils/links';
 import useIsMobile from '../hooks/useIsMobile';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 const STATS_PERIOD_OPTIONS = [
   { value: '7', label: '7j' },
@@ -199,7 +201,7 @@ const formatNumber = (value) => {
   return numberFormatter.format(parsed);
 };
 
-const formatCurrency = (value) => `${formatNumber(value)} FCFA`;
+const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
 const SHOP_HOUR_DAY_DEFINITIONS = [
   { key: 'monday', label: 'Lundi' },
@@ -259,6 +261,7 @@ const hydrateShopHoursFromUser = (value) => {
 
 export default function Profile() {
   const { user, updateUser } = useContext(AuthContext);
+  const { cities } = useAppSettings();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
@@ -337,6 +340,13 @@ export default function Profile() {
     { label: 'Vues', value: stats.performance?.views || 0 },
     { label: 'WhatsApp', value: stats.performance?.clicks || 0 }
   ];
+  const cityOptions = useMemo(
+    () =>
+      Array.isArray(cities) && cities.length
+        ? cities.map((item) => item.name).filter(Boolean)
+        : ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'],
+    [cities]
+  );
 
   useEffect(
     () => () => {
@@ -547,7 +557,7 @@ export default function Profile() {
       showToast?.('Aucune commande à exporter.', { variant: 'warning' });
       return;
     }
-    const headers = ['N°', 'Date', 'Statut', 'Montant (FCFA)', 'Adresse', 'Ville', 'Produits'];
+    const headers = ['N°', 'Date', 'Statut', 'Montant', 'Adresse', 'Ville', 'Produits'];
     const rows = list.map((o, i) => {
       const amt = o.totalAmount ?? (o.items || []).reduce((s, it) => s + Number(it.snapshot?.price || 0) * Number(it.quantity || 1), 0);
       const items = o.items || (o.productSnapshot ? [{ snapshot: o.productSnapshot, quantity: 1 }] : []);
@@ -581,7 +591,7 @@ export default function Profile() {
       doc.text(`Export du ${new Date().toLocaleDateString('fr-FR')}`, 14, 28);
       const tableData = list.map((o) => {
         const amt = o.totalAmount ?? (o.items || []).reduce((s, it) => s + Number(it.snapshot?.price || 0) * Number(it.quantity || 1), 0);
-        return [String(o._id).slice(-6), new Date(o.createdAt).toLocaleDateString('fr-FR'), ORDER_STATUS_LABELS[o.status] || o.status, `${Number(amt).toLocaleString()} FCFA`, o.deliveryCity || ''];
+        return [String(o._id).slice(-6), new Date(o.createdAt).toLocaleDateString('fr-FR'), ORDER_STATUS_LABELS[o.status] || o.status, formatCurrency(amt), o.deliveryCity || ''];
       });
       autoTable(doc, {
         startY: 34,
@@ -1034,7 +1044,7 @@ export default function Profile() {
                       required
                     >
                       <option value="">Choisissez votre ville</option>
-                      {['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'].map((city) => (
+                      {cityOptions.map((city) => (
                         <option key={city} value={city}>
                           {city}
                         </option>
@@ -1871,7 +1881,7 @@ export default function Profile() {
                                     <div className="flex items-center gap-2">
                                       <span className="font-medium text-gray-900">{item.snapshot?.title || 'Produit'}</span>
                                       <span className="text-xs text-gray-500">
-                                        x{item.quantity} · {Number(item.snapshot?.price || 0).toLocaleString()} FCFA
+                                        x{item.quantity} · {Number(item.snapshot?.price || 0).toLocaleString()}
                                       </span>
                                     </div>
                                   </div>
@@ -2059,11 +2069,11 @@ export default function Profile() {
                   <input type="date" value={ordersDateTo} onChange={(e) => setOrdersDateTo(e.target.value)} className="px-3 py-2 rounded-lg border border-gray-200 text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Montant min (FCFA)</label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Montant min</label>
                   <input type="number" placeholder="0" value={ordersAmountMin} onChange={(e) => setOrdersAmountMin(e.target.value)} min={0} className="px-3 py-2 rounded-lg border border-gray-200 text-sm w-32" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Montant max (FCFA)</label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Montant max</label>
                   <input type="number" placeholder="—" value={ordersAmountMax} onChange={(e) => setOrdersAmountMax(e.target.value)} min={0} className="px-3 py-2 rounded-lg border border-gray-200 text-sm w-32" />
                 </div>
                 <button type="button" onClick={() => { setOrdersDateFrom(''); setOrdersDateTo(''); setOrdersAmountMin(''); setOrdersAmountMax(''); }} className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-200">
@@ -2088,13 +2098,12 @@ export default function Profile() {
                 <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100">
                   <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">Total montant</p>
                   <p className="text-lg font-bold text-emerald-900">
-                    {formatNumber(
+                    {formatCurrency(
                       filteredOrders.reduce((s, o) => {
                         const amt = o.totalAmount ?? (o.items || []).reduce((sum, i) => sum + Number(i.snapshot?.price || 0) * Number(i.quantity || 1), 0);
                         return s + amt;
                       }, 0)
-                    )}{' '}
-                    FCFA
+                    )}
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
@@ -2147,7 +2156,7 @@ export default function Profile() {
                                         {item.snapshot?.title || 'Produit'}
                                       </span>
                                       <span className="text-xs text-gray-500">
-                                        x{item.quantity} · {Number(item.snapshot?.price || 0).toLocaleString()} FCFA
+                                        x{item.quantity} · {formatCurrency(item.snapshot?.price || 0)}
                                       </span>
                                     </div>
                                     {item.snapshot?.confirmationNumber && (
@@ -2274,12 +2283,12 @@ export default function Profile() {
                         {(selectedOrderDetail.items || (selectedOrderDetail.productSnapshot ? [{ snapshot: selectedOrderDetail.productSnapshot, quantity: 1 }] : [])).map((item, idx) => (
                           <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
                             <span className="font-medium text-gray-900">{item.snapshot?.title || 'Produit'}</span>
-                            <span className="text-sm text-gray-600">x{item.quantity} · {Number(item.snapshot?.price || 0).toLocaleString()} FCFA</span>
+                            <span className="text-sm text-gray-600">x{item.quantity} · {formatCurrency(item.snapshot?.price || 0)}</span>
                           </div>
                         ))}
                       </div>
                       <p className="mt-2 text-sm font-semibold text-gray-900">
-                        Total : {Number(selectedOrderDetail.totalAmount ?? 0).toLocaleString()} FCFA
+                        Total : {formatCurrency(selectedOrderDetail.totalAmount ?? 0)}
                       </p>
                     </div>
                     <div>

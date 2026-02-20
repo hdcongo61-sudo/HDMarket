@@ -26,8 +26,7 @@ import { allCategoryOptions } from '../data/categories';
 import categoryGroups from '../data/categories';
 import { recordProductView } from '../utils/recentViews';
 import { useToast } from '../context/ToastContext';
-
-const CITIES = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
+import { useAppSettings } from '../context/AppSettingsContext';
 const CONDITIONS = [
   { value: 'new', label: 'Neuf' },
   { value: 'used', label: 'Occasion' }
@@ -43,6 +42,7 @@ const PAGE_SIZE = 12;
 
 export default function AdvancedSearch() {
   const { showToast } = useToast();
+  const { cities } = useAppSettings();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -75,6 +75,13 @@ export default function AdvancedSearch() {
   const [error, setError] = useState('');
   const [totalPages, setTotalPages] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
+  const cityOptions = useMemo(
+    () =>
+      Array.isArray(cities) && cities.length
+        ? cities.map((item) => item.name).filter(Boolean)
+        : ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'],
+    [cities]
+  );
 
   // Build query params from filters
   const buildQueryParams = useCallback(() => {
@@ -297,7 +304,7 @@ export default function AdvancedSearch() {
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Min (FCFA)
+                        Min
                       </label>
                       <input
                         type="number"
@@ -312,7 +319,7 @@ export default function AdvancedSearch() {
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Max (FCFA)
+                        Max
                       </label>
                       <input
                         type="number"
@@ -505,7 +512,7 @@ export default function AdvancedSearch() {
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   >
                     <option value="">Toutes les villes</option>
-                    {CITIES.map((cityName) => (
+                    {cityOptions.map((cityName) => (
                       <option key={cityName} value={cityName}>
                         {cityName}
                       </option>

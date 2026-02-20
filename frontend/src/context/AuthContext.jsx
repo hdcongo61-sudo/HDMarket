@@ -27,7 +27,14 @@ const readPersistedUser = async () => {
       canReadFeedback: Boolean(parsed.canReadFeedback),
       canVerifyPayments: Boolean(parsed.canVerifyPayments),
       canManageBoosts: Boolean(parsed.canManageBoosts),
-      canManageComplaints: Boolean(parsed.canManageComplaints)
+      canManageComplaints: Boolean(parsed.canManageComplaints),
+      canManageProducts: Boolean(parsed.canManageProducts),
+      canManageDelivery: Boolean(parsed.canManageDelivery),
+      canManageHelpCenter: Boolean(parsed.canManageHelpCenter),
+      preferredLanguage: parsed.preferredLanguage || 'fr',
+      preferredCurrency: parsed.preferredCurrency || 'XAF',
+      preferredCity: parsed.preferredCity || parsed.city || '',
+      theme: ['light', 'dark', 'system'].includes(parsed.theme) ? parsed.theme : 'system'
     };
     return { id: payload.id, role: payload.role, token, ...normalized };
   } catch {
@@ -79,9 +86,16 @@ export const AuthProvider = ({ children }) => {
       canVerifyPayments: Boolean(data.canVerifyPayments),
       canManageBoosts: Boolean(data.canManageBoosts),
       canManageComplaints: Boolean(data.canManageComplaints),
+      canManageProducts: Boolean(data.canManageProducts),
+      canManageDelivery: Boolean(data.canManageDelivery),
+      canManageHelpCenter: Boolean(data.canManageHelpCenter),
       country: data.country || 'République du Congo',
       address: data.address || '',
       city: data.city || '',
+      preferredLanguage: data.preferredLanguage || 'fr',
+      preferredCurrency: data.preferredCurrency || 'XAF',
+      preferredCity: data.preferredCity || data.city || '',
+      theme: ['light', 'dark', 'system'].includes(data.theme) ? data.theme : 'system',
       gender: data.gender || ''
     };
     await persistUser(userData);

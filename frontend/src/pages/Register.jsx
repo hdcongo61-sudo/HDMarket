@@ -3,9 +3,11 @@ import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useNavigate, Navigate, useLocation, Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 export default function Register() {
   const { user, login } = useContext(AuthContext);
+  const { cities } = useAppSettings();
   const nav = useNavigate();
   const location = useLocation();
   const from = location.state?.from || '/';
@@ -28,7 +30,9 @@ export default function Register() {
   const [codeMessage, setCodeMessage] = useState('');
   const [codeError, setCodeError] = useState('');
   const [formError, setFormError] = useState('');
-  const cities = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
+  const cityOptions = (Array.isArray(cities) && cities.length
+    ? cities.map((item) => item.name).filter(Boolean)
+    : ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo']);
   const genderOptions = [
     { value: 'homme', label: 'Homme' },
     { value: 'femme', label: 'Femme' }
@@ -232,7 +236,7 @@ export default function Register() {
                   required
                 >
                   <option value="">Ville *</option>
-                  {cities.map((city) => (
+                  {cityOptions.map((city) => (
                     <option key={city} value={city}>
                       {city}
                     </option>

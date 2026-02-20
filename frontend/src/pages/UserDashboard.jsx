@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import {
   Package,
   Plus,
@@ -83,7 +84,7 @@ const STATUS_MESSAGES = {
   disabled: "Annonce désactivée. Elle n'est plus visible par les acheteurs."
 };
 
-const formatCurrency = (value) => `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
+const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
 const formatDate = (value) => {
   if (!value) return '';
@@ -718,7 +719,7 @@ export default function UserDashboard() {
     }
 
     const selectedItems = items.filter((p) => selectedProducts.has(p._id));
-    const csvHeaders = ['Titre', 'Prix (FCFA)', 'Catégorie', 'Statut', 'Date de création'];
+    const csvHeaders = ['Titre', 'Prix', 'Catégorie', 'Statut', 'Date de création'];
     const csvRows = selectedItems.map((product) => [
       product.title || '',
       product.price || 0,
@@ -772,7 +773,7 @@ export default function UserDashboard() {
             <thead>
               <tr>
                 <th>Titre</th>
-                <th>Prix (FCFA)</th>
+                <th>Prix</th>
                 <th>Catégorie</th>
                 <th>Statut</th>
                 <th>Date de création</th>
@@ -860,6 +861,13 @@ export default function UserDashboard() {
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 Actualiser
               </button>
+              <Link
+                to="/seller/boosts"
+                className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition-all"
+              >
+                <Sparkles className="w-4 h-4" />
+                Demandes boost
+              </Link>
               <button
                 type="button"
                 onClick={() => {
@@ -1056,14 +1064,14 @@ export default function UserDashboard() {
                   className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
                 >
                   <option value="percentage">Pourcentage</option>
-                  <option value="fixed">Montant fixe (FCFA)</option>
+                  <option value="fixed">Montant fixe</option>
                 </select>
                 <input
                   type="number"
                   min="1"
                   value={promoForm.discountValue}
                   onChange={(e) => setPromoForm((prev) => ({ ...prev, discountValue: e.target.value }))}
-                  placeholder={promoForm.discountType === 'percentage' ? 'Ex: 20 (%)' : 'Ex: 5000 FCFA'}
+                  placeholder={promoForm.discountType === 'percentage' ? 'Ex: 20 (%)' : 'Ex: 5000'}
                   className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
                   required
                 />
@@ -1325,7 +1333,7 @@ export default function UserDashboard() {
                 {/* Price Range */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Plage de prix (FCFA)
+                    Plage de prix
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>

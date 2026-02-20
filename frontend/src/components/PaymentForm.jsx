@@ -13,6 +13,7 @@ import {
   Ticket
 } from 'lucide-react';
 import { useNetworks, getNetworkPhoneByName, getFirstNetworkPhone } from '../hooks/useNetworks';
+import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 
 const defaultOperatorPhones = {
   MTN: '069822930',
@@ -33,6 +34,8 @@ const statusColor = (status) => {
   if (status === 'invalid') return 'text-red-700 bg-red-50 border-red-200';
   return 'text-gray-600 bg-gray-50 border-gray-200';
 };
+
+const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
 export default function PaymentForm({ product, onSubmitted }) {
   const expected = useMemo(() => Math.round(product.price * 0.03 * 100) / 100, [product.price]);
@@ -250,7 +253,7 @@ export default function PaymentForm({ product, onSubmitted }) {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Prix du produit:</span>
-                <span className="font-medium text-gray-900">{Number(product.price).toLocaleString()} FCFA</span>
+                <span className="font-medium text-gray-900">{formatCurrency(product.price)}</span>
               </div>
               {product.payment?.promoCodeValue && (
                 <div className="flex justify-between">
@@ -268,15 +271,15 @@ export default function PaymentForm({ product, onSubmitted }) {
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-gray-500">Commission (base 3%):</span>
-                <span className="font-medium text-gray-900">{paidCommissionBase.toLocaleString()} FCFA</span>
+                <span className="font-medium text-gray-900">{formatCurrency(paidCommissionBase)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Réduction promo:</span>
-                <span className="font-medium text-emerald-700">-{paidCommissionDiscount.toLocaleString()} FCFA</span>
+                <span className="font-medium text-emerald-700">-{formatCurrency(paidCommissionDiscount)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Commission à payer:</span>
-                <span className="font-semibold text-indigo-700">{paidCommissionDue.toLocaleString()} FCFA</span>
+                <span className="font-semibold text-indigo-700">{formatCurrency(paidCommissionDue)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Statut actuel:</span>
@@ -317,22 +320,22 @@ export default function PaymentForm({ product, onSubmitted }) {
               <p className="text-indigo-700 text-xs">Base 3% du prix du produit</p>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold text-indigo-600">{commissionDue.toLocaleString()} FCFA</div>
-              <div className="text-indigo-500 text-xs">sur {Number(product.price).toLocaleString()} FCFA</div>
+              <div className="text-2xl font-bold text-indigo-600">{formatCurrency(commissionDue)}</div>
+              <div className="text-indigo-500 text-xs">sur {formatCurrency(product.price)}</div>
             </div>
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
             <div className="rounded-xl border border-indigo-200 bg-white/70 px-3 py-2">
               <p className="text-indigo-500">Base</p>
-              <p className="font-semibold text-indigo-800">{Number(commission.baseAmount || 0).toLocaleString()} FCFA</p>
+              <p className="font-semibold text-indigo-800">{formatCurrency(commission.baseAmount || 0)}</p>
             </div>
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
               <p className="text-emerald-600">Réduction</p>
-              <p className="font-semibold text-emerald-700">-{Number(commission.discountAmount || 0).toLocaleString()} FCFA</p>
+              <p className="font-semibold text-emerald-700">-{formatCurrency(commission.discountAmount || 0)}</p>
             </div>
             <div className="rounded-xl border border-indigo-200 bg-white/70 px-3 py-2">
               <p className="text-indigo-500">À payer</p>
-              <p className="font-semibold text-indigo-800">{commissionDue.toLocaleString()} FCFA</p>
+              <p className="font-semibold text-indigo-800">{formatCurrency(commissionDue)}</p>
             </div>
           </div>
         </div>
@@ -375,7 +378,7 @@ export default function PaymentForm({ product, onSubmitted }) {
               {hasCommissionDue ? (
                 <p className="text-amber-700 text-sm">
                   Effectuez un transfert mobile de{' '}
-                  <span className="font-bold">{commissionDue.toLocaleString()} FCFA</span> et renseignez les
+                  <span className="font-bold">{formatCurrency(commissionDue)}</span> et renseignez les
                   détails de la transaction ci-dessous.
                 </p>
               ) : (
@@ -482,7 +485,7 @@ export default function PaymentForm({ product, onSubmitted }) {
               <div className="space-y-2">
                 <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
                   <DollarSign className="w-4 h-4 text-indigo-500" />
-                  <span>Montant payé (FCFA)</span>
+                  <span>Montant payé</span>
                 </label>
                 <input
                   type="number"

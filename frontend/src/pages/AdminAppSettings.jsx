@@ -541,13 +541,22 @@ export default function AdminAppSettings() {
               </p>
             </div>
           </div>
-          <Link
-            to="/admin"
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-700 transition-all"
-          >
-            <ArrowLeft size={16} />
-            Retour au tableau de bord
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to="/admin/settings/categories"
+              className="inline-flex items-center gap-2 rounded-xl border border-indigo-300 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 shadow-sm hover:bg-indigo-100 transition-all"
+            >
+              <Layout size={16} />
+              Gérer les catégories
+            </Link>
+            <Link
+              to="/admin"
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-700 transition-all"
+            >
+              <ArrowLeft size={16} />
+              Retour au tableau de bord
+            </Link>
+          </div>
         </header>
 
         <section className="space-y-8">

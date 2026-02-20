@@ -66,120 +66,125 @@ export const isShopCurrentlyBoosted = (shop) => {
 const SHOP_CITIES = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
 
 export const listShops = asyncHandler(async (req, res) => {
-  const filters = { accountType: 'shop' };
-  if (req.query?.verified === 'true') {
-    filters.shopVerified = true;
-  }
-  const cityParam = typeof req.query?.city === 'string' ? req.query.city.trim() : '';
-  if (cityParam && SHOP_CITIES.includes(cityParam)) {
-    filters.city = cityParam;
-  }
-  const includeImages = req.query?.withImages === 'true';
-  const imageLimit = Math.max(1, Math.min(Number(req.query?.imageLimit) || 6, 12));
-  const shops = await User.find(filters)
-    .select('shopName shopAddress shopLogo shopBanner name createdAt shopVerified followersCount shopBoosted shopBoostScore shopBoostStartDate shopBoostEndDate city')
-    .sort({ shopBoosted: -1, shopBoostScore: -1, followersCount: -1, shopName: 1, createdAt: -1 })
-    .lean();
+  try {
+    const filters = { accountType: 'shop' };
+    if (req.query?.verified === 'true') {
+      filters.shopVerified = true;
+    }
+    const cityParam = typeof req.query?.city === 'string' ? req.query.city.trim() : '';
+    if (cityParam && SHOP_CITIES.includes(cityParam)) {
+      filters.city = cityParam;
+    }
+    const includeImages = req.query?.withImages === 'true';
+    const imageLimit = Math.max(1, Math.min(Number(req.query?.imageLimit) || 6, 12));
+    const shops = await User.find(filters)
+      .select('shopName shopAddress shopLogo shopBanner name createdAt shopVerified followersCount shopBoosted shopBoostScore shopBoostStartDate shopBoostEndDate city')
+      .sort({ shopBoosted: -1, shopBoostScore: -1, followersCount: -1, shopName: 1, createdAt: -1 })
+      .lean();
 
-  if (!shops.length) {
+    if (!shops.length) {
+      return res.json([]);
+    }
+
+    const shopIds = shops.map((shop) => shop._id);
+    const productCounts = await Product.aggregate([
+      { $match: { user: { $in: shopIds }, status: 'approved' } },
+      { $group: { _id: '$user', count: { $sum: 1 } } }
+    ]);
+
+    const productCountMap = new Map(productCounts.map((entry) => [String(entry._id), entry.count]));
+
+    const viewsAgg = await ProductView.aggregate([
+      { $lookup: { from: 'products', localField: 'product', foreignField: '_id', as: 'prod' } },
+      { $unwind: '$prod' },
+      { $match: { 'prod.user': { $in: shopIds } } },
+      { $group: { _id: '$prod.user', totalViews: { $sum: '$viewsCount' } } }
+    ]);
+    const totalViewsMap = new Map(viewsAgg.map((entry) => [String(entry._id), Number(entry.totalViews || 0)]));
+
+    let ratingMap = new Map();
+
+    if (shopIds.length) {
+      const ratingSummaries = await ShopReview.aggregate([
+        { $match: { shop: { $in: shopIds } } },
+        { $group: { _id: '$shop', average: { $avg: '$rating' }, count: { $sum: 1 } } }
+      ]);
+
+      ratingMap = new Map(
+        ratingSummaries.map((summary) => [
+          String(summary._id),
+          {
+            average: Number(summary.average?.toFixed(2) || 0),
+            count: summary.count || 0
+          }
+        ])
+      );
+    }
+
+    let imageMap = new Map();
+    if (includeImages && shopIds.length) {
+      const imageAgg = await Product.aggregate([
+        {
+          $match: {
+            user: { $in: shopIds },
+            status: 'approved',
+            images: { $exists: true, $ne: [] }
+          }
+        },
+        { $project: { user: 1, images: 1 } },
+        { $unwind: '$images' },
+        { $group: { _id: '$user', images: { $addToSet: '$images' } } }
+      ]);
+      imageMap = new Map(
+        imageAgg.map((entry) => [String(entry._id), Array.isArray(entry.images) ? entry.images : []])
+      );
+    }
+
+    const pickRandomImages = (images, limit) => {
+      const pool = Array.isArray(images) ? images.filter(Boolean) : [];
+      if (pool.length <= limit) return pool;
+      const shuffled = [...pool];
+      for (let i = shuffled.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled.slice(0, limit);
+    };
+
+    const payload = shops.map((shop) => {
+      const id = String(shop._id);
+      const ratingStats = ratingMap.get(id) || { average: 0, count: 0 };
+      const sampleImages = includeImages ? pickRandomImages(imageMap.get(id) || [], imageLimit) : [];
+      const isCurrentlyBoosted = isShopCurrentlyBoosted(shop);
+      return {
+        _id: shop._id,
+        slug: shop.slug,
+        shopName: shop.shopName || shop.name,
+        shopAddress: shop.shopAddress || '',
+        shopLogo: shop.shopLogo || null,
+        shopBanner: shop.shopBanner || null,
+        shopVerified: Boolean(shop.shopVerified),
+        shopBoosted: Boolean(shop.shopBoosted),
+        shopBoostScore: Number(shop.shopBoostScore || 0),
+        shopBoostStartDate: shop.shopBoostStartDate || null,
+        shopBoostEndDate: shop.shopBoostEndDate || null,
+        isCurrentlyBoosted,
+        followersCount: Number(shop.followersCount || 0),
+        productCount: productCountMap.get(id) || 0,
+        totalViews: totalViewsMap.get(id) || 0,
+        ratingAverage: ratingStats.average,
+        ratingCount: ratingStats.count,
+        createdAt: shop.createdAt,
+        city: shop.city || '',
+        sampleImages
+      };
+    });
+
+    return res.json(payload);
+  } catch (error) {
+    console.error('listShops fallback used:', error?.message || error);
     return res.json([]);
   }
-
-  const shopIds = shops.map((shop) => shop._id);
-  const productCounts = await Product.aggregate([
-    { $match: { user: { $in: shopIds }, status: 'approved' } },
-    { $group: { _id: '$user', count: { $sum: 1 } } }
-  ]);
-
-  const productCountMap = new Map(productCounts.map((entry) => [String(entry._id), entry.count]));
-
-  const viewsAgg = await ProductView.aggregate([
-    { $lookup: { from: 'products', localField: 'product', foreignField: '_id', as: 'prod' } },
-    { $unwind: '$prod' },
-    { $match: { 'prod.user': { $in: shopIds } } },
-    { $group: { _id: '$prod.user', totalViews: { $sum: '$viewsCount' } } }
-  ]);
-  const totalViewsMap = new Map(viewsAgg.map((entry) => [String(entry._id), Number(entry.totalViews || 0)]));
-
-  let ratingMap = new Map();
-
-  if (shopIds.length) {
-    const ratingSummaries = await ShopReview.aggregate([
-      { $match: { shop: { $in: shopIds } } },
-      { $group: { _id: '$shop', average: { $avg: '$rating' }, count: { $sum: 1 } } }
-    ]);
-
-    ratingMap = new Map(
-      ratingSummaries.map((summary) => [
-        String(summary._id),
-        {
-          average: Number(summary.average?.toFixed(2) || 0),
-          count: summary.count || 0
-        }
-      ])
-    );
-  }
-
-  let imageMap = new Map();
-  if (includeImages && shopIds.length) {
-    const imageAgg = await Product.aggregate([
-      {
-        $match: {
-          user: { $in: shopIds },
-          status: 'approved',
-          images: { $exists: true, $ne: [] }
-        }
-      },
-      { $project: { user: 1, images: 1 } },
-      { $unwind: '$images' },
-      { $group: { _id: '$user', images: { $addToSet: '$images' } } }
-    ]);
-    imageMap = new Map(
-      imageAgg.map((entry) => [String(entry._id), Array.isArray(entry.images) ? entry.images : []])
-    );
-  }
-
-  const pickRandomImages = (images, limit) => {
-    const pool = Array.isArray(images) ? images.filter(Boolean) : [];
-    if (pool.length <= limit) return pool;
-    const shuffled = [...pool];
-    for (let i = shuffled.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled.slice(0, limit);
-  };
-
-  const payload = shops.map((shop) => {
-    const id = String(shop._id);
-    const ratingStats = ratingMap.get(id) || { average: 0, count: 0 };
-    const sampleImages = includeImages ? pickRandomImages(imageMap.get(id) || [], imageLimit) : [];
-    const isCurrentlyBoosted = isShopCurrentlyBoosted(shop);
-    return {
-      _id: shop._id,
-      slug: shop.slug,
-      shopName: shop.shopName || shop.name,
-      shopAddress: shop.shopAddress || '',
-      shopLogo: shop.shopLogo || null,
-      shopBanner: shop.shopBanner || null,
-      shopVerified: Boolean(shop.shopVerified),
-      shopBoosted: Boolean(shop.shopBoosted),
-      shopBoostScore: Number(shop.shopBoostScore || 0),
-      shopBoostStartDate: shop.shopBoostStartDate || null,
-      shopBoostEndDate: shop.shopBoostEndDate || null,
-      isCurrentlyBoosted,
-      followersCount: Number(shop.followersCount || 0),
-      productCount: productCountMap.get(id) || 0,
-      totalViews: totalViewsMap.get(id) || 0,
-      ratingAverage: ratingStats.average,
-      ratingCount: ratingStats.count,
-      createdAt: shop.createdAt,
-      city: shop.city || '',
-      sampleImages
-    };
-  });
-
-  res.json(payload);
 });
 
 export const getShopProfile = asyncHandler(async (req, res) => {

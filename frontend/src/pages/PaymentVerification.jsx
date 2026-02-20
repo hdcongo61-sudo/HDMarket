@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { CheckCircle, XCircle, Search, DollarSign, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 
-const formatCurrency = (value) => `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
+const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 const formatDateTime = (value) =>
   value
     ? new Date(value).toLocaleDateString('fr-FR', {

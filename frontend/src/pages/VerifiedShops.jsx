@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import api from '../services/api';
 import { buildShopPath, buildProductPath } from '../utils/links';
+import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import {
   Shield,
   Store,
@@ -261,7 +262,7 @@ export default function VerifiedShops() {
     return then.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   };
 
-  const formatCurrency = (value) => `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
+  const formatCurrency = (value) => formatPriceWithStoredSettings(value);
   const formatCount = (value) => Number(value || 0).toLocaleString('fr-FR');
 
   // Filter all shops for modal

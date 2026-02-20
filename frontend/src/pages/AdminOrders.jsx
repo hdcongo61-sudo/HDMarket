@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import { buildProductPath } from '../utils/links';
+import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { CheckCircle, Search, Package, User, MapPin, Truck, Clock, ClipboardList, Plus, RefreshCcw, ArrowLeft, X, AlertCircle, ShieldCheck, Download, FileSpreadsheet, Trash2 } from 'lucide-react';
 import OrderChat from '../components/OrderChat';
 import AuthContext from '../context/AuthContext';
@@ -97,7 +98,7 @@ export default function AdminOrders() {
     setAssignError('');
   }, []);
 
-  const formatCurrency = (value) => Number(value || 0).toLocaleString('fr-FR');
+  const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
   const escapeHtml = (value) =>
     String(value ?? '')
@@ -141,7 +142,7 @@ export default function AdminOrders() {
           const title = item.snapshot?.title || item.product?.title || 'Produit';
           const qty = Number(item.quantity || 1);
           const price = Number(item.snapshot?.price || item.product?.price || 0);
-          return `${title} (x${qty} - ${formatCurrency(price)} FCFA)`;
+          return `${title} (x${qty} - ${formatCurrency(price)})`;
         }).join('; ');
 
         return {
@@ -161,9 +162,9 @@ export default function AdminOrders() {
           'Ville': order.deliveryCity || '',
           'Articles': itemsList,
           'Nombre d\'articles': items.reduce((sum, item) => sum + Number(item.quantity || 1), 0),
-          'Total (FCFA)': formatCurrency(order.totalAmount || 0),
-          'Acompte (FCFA)': formatCurrency(order.paidAmount || 0),
-          'Reste à payer (FCFA)': formatCurrency(order.remainingAmount || 0),
+          'Total': formatCurrency(order.totalAmount || 0),
+          'Acompte': formatCurrency(order.paidAmount || 0),
+          'Reste à payer': formatCurrency(order.remainingAmount || 0),
           'Payeur': order.paymentName || '',
           'Code transaction': order.paymentTransactionCode || '',
           'Code livraison': order.deliveryCode || '',
@@ -275,8 +276,8 @@ export default function AdminOrders() {
               ${confirmation ? `<div class="meta">Code: ${confirmation}</div>` : ''}
             </td>
             <td class="right">x${qty}</td>
-            <td class="right">${price} FCFA</td>
-            <td class="right">${lineTotal} FCFA</td>
+            <td class="right">${price}</td>
+            <td class="right">${lineTotal}</td>
           </tr>
         `;
       })
@@ -371,8 +372,8 @@ export default function AdminOrders() {
             </div>
             <div class="meta-box">
               <h4>Paiement</h4>
-              <p>Acompte versé: ${formatCurrency(paidAmount)} FCFA</p>
-              <p>Reste à payer: ${formatCurrency(remainingAmount)} FCFA</p>
+              <p>Acompte versé: ${formatCurrency(paidAmount)}</p>
+              <p>Reste à payer: ${formatCurrency(remainingAmount)}</p>
               <p>Nom du payeur: ${paymentName}</p>
               <p>Transaction: ${paymentTransactionCode}</p>
             </div>
@@ -392,7 +393,7 @@ export default function AdminOrders() {
                 ${rowsHtml}
                 <tr class="total-row">
                   <td colspan="4" class="right">Total commande</td>
-                  <td class="right">${formatCurrency(orderTotal)} FCFA</td>
+                  <td class="right">${formatCurrency(orderTotal)}</td>
                 </tr>
               </tbody>
             </table>
@@ -982,7 +983,7 @@ export default function AdminOrders() {
                             <div>
                               <span className="font-semibold text-gray-900">{product.title}</span>
                               <span className="block text-xs text-gray-500">
-                                {Number(product.price || 0).toLocaleString()} FCFA •{' '}
+                                {formatCurrency(product.price || 0)} •{' '}
                                 {product.user?.shopName || product.user?.name || 'Boutique'}
                               </span>
                             </div>
@@ -1017,7 +1018,7 @@ export default function AdminOrders() {
                           <div className="flex-1">
                             <p className="font-medium text-gray-900">{product.title}</p>
                             <p className="text-xs text-gray-500">
-                              {Number(product.price || 0).toLocaleString()} FCFA
+                              {formatCurrency(product.price || 0)}
                             </p>
                           </div>
                           <input
@@ -1352,7 +1353,7 @@ export default function AdminOrders() {
                             <div className="flex items-center justify-between gap-2">
                               <span className="font-medium truncate">{item.snapshot?.title || 'Produit'}</span>
                               <span className="text-xs text-gray-500">
-                                x{item.quantity} · {Number(item.snapshot?.price || 0).toLocaleString()} FCFA
+                                x{item.quantity} · {formatCurrency(item.snapshot?.price || 0)}
                               </span>
                             </div>
                             {item.snapshot?.confirmationNumber && (
@@ -1391,13 +1392,13 @@ export default function AdminOrders() {
                       <p>
                         Acompte versé:{' '}
                         <span className="font-semibold text-slate-900">
-                          {formatCurrency(paidAmount)} FCFA
+                          {formatCurrency(paidAmount)}
                         </span>
                       </p>
                       <p>
                         Reste à payer:{' '}
                         <span className="font-semibold text-slate-900">
-                          {formatCurrency(remainingAmount)} FCFA
+                          {formatCurrency(remainingAmount)}
                         </span>
                       </p>
                       <p>Nom du payeur: {order.paymentName || 'Non renseigné'}</p>
@@ -1537,7 +1538,7 @@ export default function AdminOrders() {
                                 <div>
                                   <span className="font-semibold text-gray-900">{item.snapshot?.title || 'Produit'}</span>{' '}
                                   <span className="text-gray-500">
-                                    x{item.quantity} · {Number(item.snapshot?.price || 0).toLocaleString()} FCFA
+                                    x{item.quantity} · {formatCurrency(item.snapshot?.price || 0)}
                                   </span>
                                 </div>
                                 {item.snapshot?.confirmationNumber && (
@@ -1566,13 +1567,13 @@ export default function AdminOrders() {
                             <div>
                               Acompte versé:{' '}
                               <span className="font-semibold text-gray-700">
-                                {formatCurrency(paidAmount)} FCFA
+                                {formatCurrency(paidAmount)}
                               </span>
                             </div>
                             <div>
                               Reste à payer:{' '}
                               <span className="font-semibold text-gray-700">
-                                {formatCurrency(remainingAmount)} FCFA
+                                {formatCurrency(remainingAmount)}
                               </span>
                             </div>
                             <div>Nom du payeur: {order.paymentName || 'Non renseigné'}</div>

@@ -287,6 +287,43 @@ export const invalidateShopCache = (shopId = null) => {
   return invalidateCache('get:/api/shops');
 };
 
+// Invalidate cache for category tree endpoints
+export const invalidateCategoryCache = () => {
+  const keys = cache.keys();
+  let invalidated = 0;
+
+  keys.forEach((key) => {
+    if (
+      key.startsWith('get:/api/categories') ||
+      key.startsWith('get:/api/admin/categories')
+    ) {
+      cache.delete(key);
+      invalidated += 1;
+    }
+  });
+
+  return invalidated;
+};
+
+export const invalidateSettingsCache = () => {
+  const keys = cache.keys();
+  let invalidated = 0;
+
+  keys.forEach((key) => {
+    if (
+      key.startsWith('get:/api/settings') ||
+      key.startsWith('get:/api/currencies') ||
+      key.startsWith('get:/api/cities') ||
+      key.startsWith('get:/api/admin/settings')
+    ) {
+      cache.delete(key);
+      invalidated += 1;
+    }
+  });
+
+  return invalidated;
+};
+
 // Get cache stats
 export const getCacheStats = () => {
   return cache.getStats();

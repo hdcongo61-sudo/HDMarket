@@ -25,12 +25,24 @@ const CACHE_CONFIG = {
   '/categories': 30 * 60 * 1000, // 30 minutes
   '/cities': 30 * 60 * 1000, // 30 minutes
   '/users/notifications': 1 * 60 * 1000, // 1 minute
-  '/users/profile/stats': 2 * 60 * 1000, // 2 minutes
   '/admin/dashboard/stats': 1 * 60 * 1000, // 1 minute
 };
 
 const CACHE_ALLOW_PREFIXES = Object.keys(CACHE_CONFIG);
-const CACHE_EXCLUDE_PREFIXES = ['/users/auth', '/users/login', '/users/register', '/cart', '/orders/create', '/admin', '/payments', '/support', '/chat', '/settings/networks'];
+const CACHE_EXCLUDE_PREFIXES = [
+  '/users/auth',
+  '/users/login',
+  '/users/register',
+  '/users/profile/stats',
+  '/users/profile/seller-analytics',
+  '/cart',
+  '/orders/create',
+  '/admin',
+  '/payments',
+  '/support',
+  '/chat',
+  '/settings/networks'
+];
 
 // Enable caching for all platforms (not just native)
 const isCacheEnabled = () => typeof window !== 'undefined';

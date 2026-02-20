@@ -3,7 +3,6 @@ import { protect } from '../middlewares/authMiddleware.js';
 import { validate, schemas } from '../middlewares/validate.js';
 import { upload } from '../utils/upload.js';
 import { complaintUpload } from '../utils/complaintUpload.js';
-import { cacheMiddleware } from '../utils/cache.js';
 import {
   getProfile,
   getProfileStats,
@@ -43,13 +42,29 @@ import {
   createShopConversionRequest,
   getUserShopConversionRequests
 } from '../controllers/shopConversionController.js';
+import { updateUserPreferences } from '../controllers/settingsController.js';
+import {
+  downloadSellerAnalyticsPdf,
+  getSellerAnalytics
+} from '../controllers/sellerAnalyticsController.js';
 
 const router = express.Router();
 
 router.use(protect);
 
 router.get('/profile', getProfile);
-router.get('/profile/stats', cacheMiddleware({ ttl: 120000 }), getProfileStats);
+router.patch('/preferences', validate(schemas.userPreferencesUpdate), updateUserPreferences);
+router.get('/profile/stats', getProfileStats);
+router.get(
+  '/profile/seller-analytics',
+  validate(schemas.sellerAnalyticsQuery, 'query'),
+  getSellerAnalytics
+);
+router.get(
+  '/profile/seller-analytics/report',
+  validate(schemas.sellerAnalyticsQuery, 'query'),
+  downloadSellerAnalyticsPdf
+);
 router.put(
   '/profile',
   upload.fields([

@@ -1,53 +1,130 @@
-import React, { useCallback, useContext, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import AuthContext from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
-import api from '../services/api';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import {
   AlertTriangle,
   ArrowLeft,
-  CheckCircle,
+  CheckCircle2,
+  Clock3,
   FileText,
   MessageCircle,
   Paperclip,
+  ShieldAlert,
+  Upload,
   User
 } from 'lucide-react';
+import AuthContext from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import api from '../services/api';
 
-const formatDate = (value) =>
-  value
-    ? new Date(value).toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      })
-    : '';
+const DISPUTE_WINDOW_HOURS = Number(import.meta.env.VITE_DISPUTE_WINDOW_HOURS || 72);
+const MAX_DESCRIPTION = 2000;
+const MAX_FILES = 5;
+
+const REASON_OPTIONS = [
+  { value: 'wrong_item', label: 'Article incorrect' },
+  { value: 'damaged_item', label: 'Article endommagé' },
+  { value: 'not_received', label: 'Non reçu' },
+  { value: 'other', label: 'Autre' }
+];
 
 const STATUS_LABELS = {
-  pending: 'En attente',
-  in_review: 'En cours',
-  resolved: 'Résolue'
+  OPEN: 'Ouvert',
+  SELLER_RESPONDED: 'Réponse vendeur',
+  UNDER_REVIEW: 'En revue admin',
+  RESOLVED_CLIENT: 'Résolu client',
+  RESOLVED_SELLER: 'Résolu vendeur',
+  REJECTED: 'Rejeté'
 };
 
 const STATUS_STYLES = {
-  pending: 'bg-orange-100 text-orange-700',
-  in_review: 'bg-blue-100 text-blue-800',
-  resolved: 'bg-green-100 text-green-700'
+  OPEN: 'bg-amber-100 text-amber-800',
+  SELLER_RESPONDED: 'bg-indigo-100 text-indigo-800',
+  UNDER_REVIEW: 'bg-blue-100 text-blue-800',
+  RESOLVED_CLIENT: 'bg-emerald-100 text-emerald-800',
+  RESOLVED_SELLER: 'bg-green-100 text-green-800',
+  REJECTED: 'bg-rose-100 text-rose-800'
+};
+
+const RESOLUTION_LABELS = {
+  refund_full: 'Remboursement total',
+  refund_partial: 'Remboursement partiel',
+  compensation: 'Compensation',
+  reject: 'Rejet'
+};
+
+const formatDate = (value) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+const amount = (value) => formatPriceWithStoredSettings(value);
+
+const timelineLevel = (status) => {
+  if (status === 'OPEN') return 0;
+  if (status === 'SELLER_RESPONDED') return 1;
+  if (status === 'UNDER_REVIEW') return 2;
+  return 3;
+};
+
+const DisputeTimeline = ({ status }) => {
+  const level = timelineLevel(status);
+  const steps = ['Soumis', 'Réponse vendeur', 'Revue admin', 'Résolution'];
+
+  return (
+    <div className="mt-3">
+      <div className="flex items-center gap-2">
+        {steps.map((step, index) => {
+          const done = level >= index;
+          return (
+            <React.Fragment key={step}>
+              <div
+                className={`h-2.5 w-2.5 rounded-full ${done ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                title={step}
+              />
+              {index < steps.length - 1 && (
+                <div className={`h-0.5 flex-1 ${level > index ? 'bg-indigo-500' : 'bg-gray-200'}`} />
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+      <div className="mt-1 grid grid-cols-4 gap-2 text-[11px] text-gray-500">
+        {steps.map((step) => (
+          <span key={step} className="truncate">
+            {step}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
 };
 
 export default function MyComplaints() {
+  const location = useLocation();
   const { user } = useContext(AuthContext);
   const { showToast } = useToast();
-  const [complaints, setComplaints] = useState([]);
+  const [disputes, setDisputes] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [listError, setListError] = useState('');
-  const [subject, setSubject] = useState('');
-  const [message, setMessage] = useState('');
+
+  const [orderId, setOrderId] = useState('');
+  const [reason, setReason] = useState('wrong_item');
+  const [description, setDescription] = useState('');
   const [files, setFiles] = useState([]);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  const [submitSuccess, setSubmitSuccess] = useState('');
 
-  const filesBase = React.useMemo(() => {
+  const filesBase = useMemo(() => {
     const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
     return apiBase.replace(/\/api\/?$/, '');
   }, []);
@@ -62,80 +139,125 @@ export default function MyComplaints() {
     [filesBase]
   );
 
-  const loadComplaints = useCallback(async () => {
-    if (!user) {
-      setComplaints([]);
-      setListError('');
-      return;
-    }
+  const normalizeDispute = useCallback(
+    (item) => ({
+      ...item,
+      proofImages: (Array.isArray(item?.proofImages) ? item.proofImages : []).map((f) => ({
+        ...f,
+        url: normalizeUrl(f?.url || f?.path || '')
+      })),
+      sellerProofImages: (Array.isArray(item?.sellerProofImages) ? item.sellerProofImages : []).map((f) => ({
+        ...f,
+        url: normalizeUrl(f?.url || f?.path || '')
+      }))
+    }),
+    [normalizeUrl]
+  );
+
+  const loadDisputes = useCallback(async () => {
     setLoading(true);
     setListError('');
     try {
-      const { data } = await api.get('/users/complaints');
+      const { data } = await api.get('/disputes/me');
       const list = Array.isArray(data) ? data : [];
-      setComplaints(
-        list.map((c) => ({
-          ...c,
-          attachments: (Array.isArray(c.attachments) ? c.attachments : []).map((a) => ({
-            ...a,
-            url: normalizeUrl(a.path || a.url || '')
-          }))
-        }))
-      );
+      setDisputes(list.map(normalizeDispute));
     } catch (err) {
-      setListError(
-        err.response?.data?.message || err.message || 'Impossible de charger vos réclamations.'
-      );
+      setListError(err.response?.data?.message || err.message || 'Impossible de charger vos litiges.');
+      setDisputes([]);
     } finally {
       setLoading(false);
     }
-  }, [user, normalizeUrl]);
+  }, [normalizeDispute]);
+
+  const loadEligibleOrders = useCallback(async () => {
+    try {
+      const [proofSubmittedRes, deliveredRes, completedRes] = await Promise.allSettled([
+        api.get('/orders', { params: { status: 'delivery_proof_submitted', limit: 50, page: 1 } }),
+        api.get('/orders', { params: { status: 'delivered', limit: 50, page: 1 } }),
+        api.get('/orders', { params: { status: 'completed', limit: 50, page: 1 } })
+      ]);
+      const proofSubmitted =
+        proofSubmittedRes.status === 'fulfilled' && Array.isArray(proofSubmittedRes.value?.data?.items)
+          ? proofSubmittedRes.value.data.items
+          : [];
+      const delivered =
+        deliveredRes.status === 'fulfilled' && Array.isArray(deliveredRes.value?.data?.items)
+          ? deliveredRes.value.data.items
+          : [];
+      const completed =
+        completedRes.status === 'fulfilled' && Array.isArray(completedRes.value?.data?.items)
+          ? completedRes.value.data.items
+          : [];
+      const map = new Map();
+      [...proofSubmitted, ...delivered, ...completed].forEach((order) => {
+        if (order?._id) map.set(order._id, order);
+      });
+      setOrders(Array.from(map.values()));
+    } catch (err) {
+      setOrders([]);
+    }
+  }, []);
 
   useEffect(() => {
-    loadComplaints();
-  }, [loadComplaints]);
+    if (!user) return;
+    loadDisputes();
+    loadEligibleOrders();
+  }, [loadDisputes, loadEligibleOrders, user]);
 
-  const onFilesChange = (e) => {
-    const selected = Array.from(e.target.files || []);
+  useEffect(() => {
+    const params = new URLSearchParams(location.search || '');
+    const orderFromQuery = params.get('orderId');
+    if (orderFromQuery && !orderId) {
+      setOrderId(orderFromQuery);
+    }
+  }, [location.search, orderId]);
+
+  const onFilesChange = (event) => {
+    const selected = Array.from(event.target.files || []);
     if (!selected.length) return;
-    const remaining = Math.max(0, 2 - files.length);
-    const added = selected.slice(0, remaining);
-    setFiles((prev) => [...prev, ...added]);
-    e.target.value = '';
+    const remaining = Math.max(0, MAX_FILES - files.length);
+    const accepted = selected.slice(0, remaining);
+    setFiles((prev) => [...prev, ...accepted]);
+    event.target.value = '';
+    setSubmitError('');
   };
 
   const removeFile = (index) => {
     setFiles((prev) => prev.filter((_, i) => i !== index));
-    setSubmitError('');
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const submit = async (event) => {
+    event.preventDefault();
     setSubmitError('');
-    setSubmitSuccess('');
-    if (!message.trim()) {
-      setSubmitError('Veuillez détailler votre réclamation.');
+    if (!orderId) {
+      setSubmitError('Sélectionnez une commande livrée.');
       return;
     }
+    if (!description.trim() || description.trim().length < 10) {
+      setSubmitError('La description doit contenir au moins 10 caractères.');
+      return;
+    }
+
     setSubmitLoading(true);
     try {
       const payload = new FormData();
-      payload.append('subject', subject.trim());
-      payload.append('message', message.trim());
-      files.forEach((file) => payload.append('attachments', file));
-      await api.post('/users/complaints', payload, {
+      payload.append('orderId', orderId);
+      payload.append('reason', reason);
+      payload.append('description', description.trim());
+      files.forEach((file) => payload.append('proofImages', file));
+      await api.post('/disputes', payload, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      setSubmitSuccess('Votre réclamation a bien été envoyée.');
-      setSubject('');
-      setMessage('');
+      showToast('Litige créé avec succès.', { variant: 'success' });
+      setOrderId('');
+      setReason('wrong_item');
+      setDescription('');
       setFiles([]);
-      showToast('Réclamation envoyée', { variant: 'success' });
-      await loadComplaints();
+      await loadDisputes();
     } catch (err) {
-      const msg = err.response?.data?.message || err.message || 'Une erreur est survenue.';
-      setSubmitError(msg);
-      showToast(msg, { variant: 'error' });
+      const message = err.response?.data?.message || err.message || 'Impossible de créer le litige.';
+      setSubmitError(message);
+      showToast(message, { variant: 'error' });
     } finally {
       setSubmitLoading(false);
     }
@@ -149,10 +271,7 @@ export default function MyComplaints() {
             <User className="w-8 h-8 text-white" />
           </div>
           <p className="text-gray-500">Vous devez être connecté pour accéder à cette page.</p>
-          <Link
-            to="/login"
-            className="mt-4 inline-flex items-center gap-2 text-indigo-600 font-medium"
-          >
+          <Link to="/login" className="mt-4 inline-flex items-center gap-2 text-indigo-600 font-medium">
             <ArrowLeft size={16} />
             Retour à la connexion
           </Link>
@@ -163,182 +282,253 @@ export default function MyComplaints() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-3xl mx-auto px-4 py-6">
+      <div className="mx-auto max-w-4xl px-4 py-6 space-y-6">
         <Link
           to="/profile"
-          className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-indigo-600 mb-6"
+          className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-indigo-600"
         >
           <ArrowLeft size={18} />
           Retour au profil
         </Link>
 
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 mb-6">
-          <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 mb-4">
-            <div className="w-2 h-6 bg-rose-600 rounded-full" />
+        <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="rounded-xl bg-rose-100 p-2">
+              <ShieldAlert className="h-5 w-5 text-rose-600" />
+            </div>
             <div>
-              <h1 className="text-xl font-semibold text-gray-900">Réclamations</h1>
+              <h1 className="text-xl font-semibold text-gray-900">Gestion des litiges</h1>
               <p className="text-sm text-gray-500">
-                Signalez un problème ou partagez une capture d’écran : vous pouvez joindre deux fichiers.
+                Vous pouvez ouvrir un litige pour une commande livrée dans un délai de {DISPUTE_WINDOW_HOURS}h.
               </p>
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <FileText className="w-4 h-4 text-rose-500" />
-                Objet (facultatif)
-              </label>
-              <input
-                type="text"
-                className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-                placeholder="Ex : Annonce non conforme"
-                value={subject}
-                onChange={(e) => { setSubject(e.target.value); setSubmitError(''); }}
-                disabled={submitLoading}
-                maxLength={150}
-              />
+          <form onSubmit={submit} className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Commande concernée *</label>
+                <select
+                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm"
+                  value={orderId}
+                  onChange={(e) => {
+                    setOrderId(e.target.value);
+                    setSubmitError('');
+                  }}
+                  disabled={submitLoading}
+                  required
+                >
+                  <option value="">Sélectionnez une commande livrée</option>
+                  {orders.map((order) => (
+                    <option key={order._id} value={order._id}>
+                      #{String(order._id).slice(-6)} · {amount(order.totalAmount)} · {formatDate(order.deliveredAt || order.createdAt)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Motif *</label>
+                <select
+                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  disabled={submitLoading}
+                >
+                  {REASON_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
+
             <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <MessageCircle className="w-4 h-4 text-rose-500" />
-                Description *
+              <label className="flex items-center justify-between text-sm font-medium text-gray-700">
+                <span className="inline-flex items-center gap-2">
+                  <MessageCircle className="h-4 w-4 text-rose-500" />
+                  Description *
+                </span>
+                <span className="text-xs text-gray-500">
+                  {description.length}/{MAX_DESCRIPTION}
+                </span>
               </label>
               <textarea
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-rose-500 focus:border-transparent placeholder-gray-400"
-                rows={4}
-                value={message}
-                onChange={(e) => { setMessage(e.target.value); setSubmitError(''); }}
-                placeholder="Expliquez en détail votre problème."
-                disabled={submitLoading}
+                rows={5}
+                value={description}
+                onChange={(e) => {
+                  setDescription(e.target.value.slice(0, MAX_DESCRIPTION));
+                  setSubmitError('');
+                }}
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm"
+                placeholder="Décrivez précisément le problème (état, article reçu, preuves, etc.)."
+                maxLength={MAX_DESCRIPTION}
                 required
-                maxLength={1500}
               />
             </div>
+
             <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <Paperclip className="w-4 h-4 text-rose-500" />
-                Fichiers (max 2)
+              <label className="text-sm font-medium text-gray-700">
+                Preuves (images/PDF, max {MAX_FILES})
               </label>
-              <label className="flex items-center justify-between rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-xs font-semibold text-gray-600 hover:border-rose-300 hover:bg-rose-50 cursor-pointer">
-                <span>Ajouter un fichier</span>
-                <span className="text-[11px] text-gray-400">PNG, JPG, PDF</span>
+              <label className="flex cursor-pointer items-center justify-between rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600 hover:border-indigo-300 hover:bg-indigo-50">
+                <span className="inline-flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  Ajouter des preuves
+                </span>
+                <span className="text-xs text-gray-500">{files.length}/{MAX_FILES}</span>
                 <input
                   type="file"
+                  accept="image/*,.pdf"
                   multiple
-                  className="hidden"
                   onChange={onFilesChange}
-                  disabled={submitLoading}
+                  className="hidden"
+                  disabled={submitLoading || files.length >= MAX_FILES}
                 />
               </label>
-            </div>
-            {files.length > 0 && (
-              <div className="space-y-2">
-                {files.map((file, index) => (
-                  <div
-                    key={`${file.name}-${index}`}
-                    className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Paperclip className="w-4 h-4 text-gray-400" />
-                      <span className="truncate">{file.name}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeFile(index)}
-                      disabled={submitLoading}
-                      className="text-xs font-semibold text-red-600 hover:text-red-500"
+
+              {files.length > 0 && (
+                <div className="space-y-2">
+                  {files.map((file, index) => (
+                    <div
+                      key={`${file.name}-${index}`}
+                      className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs"
                     >
-                      Supprimer
-                    </button>
-                  </div>
-                ))}
-              </div>
+                      <span className="inline-flex items-center gap-2 truncate">
+                        <Paperclip className="h-3.5 w-3.5 text-gray-500" />
+                        <span className="truncate">{file.name}</span>
+                      </span>
+                      <button
+                        type="button"
+                        className="font-semibold text-rose-600"
+                        onClick={() => removeFile(index)}
+                        disabled={submitLoading}
+                      >
+                        Retirer
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {submitError && (
+              <p className="inline-flex items-center gap-2 text-sm text-red-600">
+                <AlertTriangle className="h-4 w-4" />
+                {submitError}
+              </p>
             )}
-            {(submitError || submitSuccess) && (
-              <div
-                className={`flex items-center gap-2 text-sm ${
-                  submitError ? 'text-red-600' : 'text-green-600'
-                }`}
-              >
-                {submitError ? <AlertTriangle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
-                <span>{submitError || submitSuccess}</span>
-              </div>
-            )}
+
             <div className="flex justify-end">
               <button
                 type="submit"
                 disabled={submitLoading}
-                className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
               >
                 {submitLoading ? (
-                  <span className="flex items-center gap-2">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  <>
+                    <Clock3 className="h-4 w-4 animate-spin" />
                     Envoi...
-                  </span>
+                  </>
                 ) : (
                   <>
-                    <AlertTriangle className="w-4 h-4" />
-                    Envoyer la réclamation
+                    <FileText className="h-4 w-4" />
+                    Ouvrir le litige
                   </>
                 )}
               </button>
             </div>
           </form>
-        </div>
+        </section>
 
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Vos réclamations</h2>
+        <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Historique des litiges</h2>
           {loading ? (
             <p className="text-sm text-gray-500">Chargement…</p>
           ) : listError ? (
             <p className="text-sm text-red-600">{listError}</p>
-          ) : complaints.length === 0 ? (
-            <p className="text-sm text-gray-500">Aucune réclamation pour le moment.</p>
+          ) : disputes.length === 0 ? (
+            <p className="text-sm text-gray-500">Aucun litige pour le moment.</p>
           ) : (
-            <ul className="space-y-3">
-              {complaints.map((complaint) => (
-                <li
-                  key={complaint._id}
-                  className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm"
-                >
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <ul className="space-y-4">
+              {disputes.map((dispute) => (
+                <li key={dispute._id} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="font-medium text-gray-900">{complaint.subject || 'Sans objet'}</p>
-                      <p className="text-[11px] text-gray-500">{formatDate(complaint.createdAt)}</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Commande #{String(dispute?.orderId?._id || dispute.orderId || '').slice(-6)}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Motif: {REASON_OPTIONS.find((r) => r.value === dispute.reason)?.label || dispute.reason}
+                      </p>
+                      <p className="text-xs text-gray-500">Ouvert le {formatDate(dispute.createdAt)}</p>
                     </div>
                     <span
-                      className={`rounded-full px-3 py-1 text-[11px] font-semibold shrink-0 ${
-                        STATUS_STYLES[complaint.status] || 'bg-gray-100 text-gray-600'
+                      className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                        STATUS_STYLES[dispute.status] || 'bg-gray-100 text-gray-700'
                       }`}
                     >
-                      {STATUS_LABELS[complaint.status] || complaint.status}
+                      {STATUS_LABELS[dispute.status] || dispute.status}
                     </span>
                   </div>
-                  <p className="mt-2 text-gray-600 whitespace-pre-line break-words">{complaint.message}</p>
-                  {complaint.attachments?.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {complaint.attachments
-                        .filter((a) => a.url)
-                        .map((a, idx) => (
-                          <a
-                            key={idx}
-                            href={a.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600 hover:border-rose-200"
-                          >
-                            <Paperclip className="w-3 h-3" />
-                            {a.originalName || a.filename || 'Pièce jointe'}
-                          </a>
-                        ))}
+
+                  <DisputeTimeline status={dispute.status} />
+
+                  <p className="mt-3 text-sm text-gray-700 whitespace-pre-line">{dispute.description}</p>
+                  <div className="mt-2 grid grid-cols-1 gap-1 text-xs text-gray-500 sm:grid-cols-2">
+                    <p>Total commande: {amount(dispute?.orderId?.totalAmount)}</p>
+                    <p>Ville livraison: {dispute?.orderId?.deliveryCity || '—'}</p>
+                    <p>Deadline réponse vendeur: {formatDate(dispute.sellerDeadline)}</p>
+                    <p>Fenêtre litige jusqu’au: {formatDate(dispute.disputeWindowEndsAt)}</p>
+                  </div>
+
+                  {dispute.proofImages?.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {dispute.proofImages.map((file, index) => (
+                        <a
+                          key={`${dispute._id}-proof-${index}`}
+                          href={file.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700"
+                        >
+                          <Paperclip className="h-3.5 w-3.5" />
+                          {file.originalName || file.filename || 'preuve'}
+                        </a>
+                      ))}
                     </div>
+                  )}
+
+                  {dispute.sellerResponse && (
+                    <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50 p-3">
+                      <p className="text-xs font-semibold text-indigo-700">Réponse vendeur</p>
+                      <p className="text-sm text-indigo-900 whitespace-pre-line">{dispute.sellerResponse}</p>
+                    </div>
+                  )}
+
+                  {dispute.adminDecision && (
+                    <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                      <p className="text-xs font-semibold text-emerald-700">Décision admin</p>
+                      <p className="text-sm text-emerald-900 whitespace-pre-line">{dispute.adminDecision}</p>
+                      {dispute.resolutionType && (
+                        <p className="mt-1 text-xs text-emerald-700">
+                          Type: {RESOLUTION_LABELS[dispute.resolutionType] || dispute.resolutionType}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {dispute.resolvedAt && (
+                    <p className="mt-2 inline-flex items-center gap-1 text-xs text-emerald-700">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Clôturé le {formatDate(dispute.resolvedAt)}
+                    </p>
                   )}
                 </li>
               ))}
             </ul>
           )}
-        </div>
+        </section>
       </div>
     </div>
   );

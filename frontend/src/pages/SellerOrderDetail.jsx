@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useContext } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api from '../services/api';
 import {
@@ -27,9 +27,23 @@ import { buildProductPath } from '../utils/links';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import CancellationTimer from '../components/CancellationTimer';
 import OrderChat from '../components/OrderChat';
+import DeliveryProofUpload from '../components/DeliveryProofUpload';
+import GlassHeader from '../components/orders/GlassHeader';
+import StatusBadge from '../components/orders/StatusBadge';
+import AnimatedOrderTimeline from '../components/orders/AnimatedOrderTimeline';
+import InstallmentReminder from '../components/orders/InstallmentReminder';
+import { OrderDetailSkeleton } from '../components/orders/OrderSkeletons';
 import { useToast } from '../context/ToastContext';
+import AuthContext from '../context/AuthContext';
+import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 
 const STATUS_LABELS = {
+  pending_payment: 'Paiement en attente',
+  paid: 'Payée',
+  ready_for_delivery: 'Prête à livrer',
+  out_for_delivery: 'En cours de livraison',
+  delivery_proof_submitted: 'Preuve soumise',
+  confirmed_by_client: 'Confirmée client',
   pending: 'En attente',
   pending_installment: 'Validation de vente en attente',
   installment_active: 'Paiement par tranche actif',
@@ -42,6 +56,12 @@ const STATUS_LABELS = {
 };
 
 const STATUS_STYLES = {
+  pending_payment: { header: 'bg-gray-600', card: 'bg-gray-50 border-gray-200 text-gray-700' },
+  paid: { header: 'bg-emerald-600', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
+  ready_for_delivery: { header: 'bg-amber-600', card: 'bg-amber-50 border-amber-200 text-amber-800' },
+  out_for_delivery: { header: 'bg-blue-600', card: 'bg-blue-50 border-blue-200 text-blue-800' },
+  delivery_proof_submitted: { header: 'bg-cyan-600', card: 'bg-cyan-50 border-cyan-200 text-cyan-800' },
+  confirmed_by_client: { header: 'bg-emerald-700', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
   pending: { header: 'bg-gray-600', card: 'bg-gray-50 border-gray-200 text-gray-700' },
   pending_installment: { header: 'bg-violet-600', card: 'bg-violet-50 border-violet-200 text-violet-800' },
   installment_active: { header: 'bg-indigo-600', card: 'bg-indigo-50 border-indigo-200 text-indigo-800' },
@@ -54,6 +74,12 @@ const STATUS_STYLES = {
 };
 
 const STATUS_ICONS = {
+  pending_payment: Clock,
+  paid: CreditCard,
+  ready_for_delivery: Package,
+  out_for_delivery: Truck,
+  delivery_proof_submitted: ClipboardList,
+  confirmed_by_client: CheckCircle,
   pending: Clock,
   pending_installment: Clock,
   installment_active: CreditCard,
@@ -87,10 +113,14 @@ const getInstallmentSaleStatusClassName = (status) => {
 };
 
 const CLASSIC_ORDER_FLOW = [
-  { id: 'pending', label: 'Commande en attente', description: 'En attente de confirmation.', icon: Clock, color: 'gray' },
-  { id: 'confirmed', label: 'Commande confirmée', description: 'Prête pour la préparation.', icon: Package, color: 'amber' },
-  { id: 'delivering', label: 'En cours de livraison', description: 'Colis pris en charge.', icon: Truck, color: 'blue' },
-  { id: 'delivered', label: 'Commande terminée', description: 'Livrée avec succès.', icon: CheckCircle, color: 'emerald' },
+  { id: 'pending_payment', label: 'Paiement en attente', description: 'En attente de confirmation du paiement.', icon: Clock, color: 'gray' },
+  { id: 'paid', label: 'Payée', description: 'Commande payée.', icon: CreditCard, color: 'emerald' },
+  { id: 'ready_for_delivery', label: 'Prête à livrer', description: 'Préparation terminée.', icon: Package, color: 'amber' },
+  { id: 'out_for_delivery', label: 'En cours de livraison', description: 'Colis pris en charge.', icon: Truck, color: 'blue' },
+  { id: 'delivered', label: 'Livrée', description: 'Livraison signalée.', icon: CheckCircle, color: 'emerald' },
+  { id: 'delivery_proof_submitted', label: 'Preuve soumise', description: 'En attente de confirmation client.', icon: ClipboardList, color: 'indigo' },
+  { id: 'confirmed_by_client', label: 'Confirmée client', description: 'Le client a confirmé la réception.', icon: CheckCircle, color: 'emerald' },
+  { id: 'completed', label: 'Commande terminée', description: 'Livraison clôturée.', icon: CheckCircle, color: 'emerald' },
   { id: 'cancelled', label: 'Commande annulée', description: 'Cette commande a été annulée.', icon: X, color: 'red' }
 ];
 
@@ -113,7 +143,7 @@ const formatOrderTimestamp = (value) =>
       })
     : null;
 
-const formatCurrency = (value) => `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
+const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
 const getScheduleStatusLabel = (status) => {
   switch (status) {
@@ -198,6 +228,7 @@ const OrderProgress = ({ status, paymentType }) => {
 export default function SellerOrderDetail() {
   const { orderId } = useParams();
   const { showToast } = useToast();
+  const { user } = useContext(AuthContext);
   const externalLinkProps = useDesktopExternalLink();
 
   const [order, setOrder] = useState(null);
@@ -208,9 +239,19 @@ export default function SellerOrderDetail() {
   const [statusUpdateError, setStatusUpdateError] = useState({ id: '', message: '' });
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+  const [cancelIssueRefund, setCancelIssueRefund] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [showDeliveryProofForm, setShowDeliveryProofForm] = useState(false);
   const [saleConfirmationLoading, setSaleConfirmationLoading] = useState(false);
   const [paymentValidationLoadingIndex, setPaymentValidationLoadingIndex] = useState(-1);
+
+  const normalizeFileUrl = useCallback((url) => {
+    if (!url) return '';
+    if (/^https?:\/\//i.test(url)) return url;
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+    const host = apiBase.replace(/\/api\/?$/, '');
+    return `${host}/${String(url).replace(/^\/+/, '')}`;
+  }, []);
 
   const loadOrder = useCallback(async () => {
     if (!orderId) return;
@@ -299,15 +340,30 @@ export default function SellerOrderDetail() {
     }
   };
 
+  const closeCancelModal = ({ force = false } = {}) => {
+    if (cancelLoading && !force) return;
+    setCancelModalOpen(false);
+    setCancelReason('');
+    setCancelIssueRefund(false);
+  };
+
   const handleCancelOrder = async () => {
     if (!order || !cancelReason.trim() || cancelReason.trim().length < 5) return;
     setCancelLoading(true);
     try {
-      const { data } = await api.post(`/orders/seller/${order._id}/cancel`, { reason: cancelReason.trim() });
+      const issueRefund = Boolean(cancelIssueRefund && Number(order.paidAmount || 0) > 0);
+      const { data } = await api.post(`/orders/seller/${order._id}/cancel`, {
+        reason: cancelReason.trim(),
+        issueRefund
+      });
       setOrder(data);
-      showToast('Commande annulée. Le client a été notifié.', { variant: 'success' });
-      setCancelModalOpen(false);
-      setCancelReason('');
+      showToast(
+        issueRefund
+          ? 'Commande annulée. Le client est notifié et le remboursement est demandé.'
+          : 'Commande annulée. Le client a été notifié.',
+        { variant: 'success' }
+      );
+      closeCancelModal({ force: true });
     } catch (err) {
       const message = err.response?.data?.message || err.response?.data?.details?.[0] || 'Impossible d\'annuler la commande.';
       showToast(message, { variant: 'error' });
@@ -316,10 +372,30 @@ export default function SellerOrderDetail() {
     }
   };
 
+  useEffect(() => {
+    if (!order) {
+      if (showDeliveryProofForm) setShowDeliveryProofForm(false);
+      return;
+    }
+    const isInstallmentOrder = order.paymentType === 'installment';
+    const installmentSaleStatus = order.installmentSaleStatus || '';
+    const canRequestDeliveryProof =
+      ((!isInstallmentOrder && ['delivering', 'out_for_delivery'].includes(order.status)) ||
+        (isInstallmentOrder &&
+          order.status === 'completed' &&
+          (installmentSaleStatus || 'confirmed') === 'delivering')) &&
+      !['submitted', 'verified'].includes(order.deliveryStatus);
+
+    if (!canRequestDeliveryProof && showDeliveryProofForm) {
+      setShowDeliveryProofForm(false);
+    }
+  }, [order, showDeliveryProofForm]);
+
   if (loading && !order) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-pulse text-gray-400">Chargement...</div>
+      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
+        <GlassHeader title="Commande" subtitle="Chargement..." backTo="/seller/orders" />
+        <OrderDetailSkeleton />
       </div>
     );
   }
@@ -367,13 +443,47 @@ export default function SellerOrderDetail() {
     isInstallmentOrder &&
     order.status === 'completed' &&
     !['delivered', 'cancelled'].includes(installmentSaleStatus);
+  const normalizedOrderStatusForTimeline = (() => {
+    const map = {
+      pending: 'pending_payment',
+      confirmed: 'ready_for_delivery',
+      delivering: 'out_for_delivery',
+      delivered: order.deliveryStatus === 'submitted' ? 'delivery_proof_submitted' : 'delivered'
+    };
+    return map[order.status] || order.status;
+  })();
+  const canRequestDeliveryProof =
+    ((!isInstallmentOrder && ['delivering', 'out_for_delivery'].includes(order.status)) ||
+      (isInstallmentOrder &&
+        order.status === 'completed' &&
+        (installmentSaleStatus || 'confirmed') === 'delivering')) &&
+    !['submitted', 'verified'].includes(order.deliveryStatus);
+  const canShowDeliveryProofForm = canRequestDeliveryProof && showDeliveryProofForm;
+  const sellerCity = String(user?.city || '').trim();
+  const buyerCity = String(order.customer?.city || order.deliveryCity || '').trim();
+  const cityMismatch =
+    Boolean(sellerCity && buyerCity) && sellerCity.toLowerCase() !== buyerCity.toLowerCase();
+  const cancellationBlockedByStatus = ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed'].includes(order.status);
+  const canCancelOrder = !cancellationBlockedByStatus && order.status !== 'cancelled' && !order.cancellationWindow?.isActive;
+  const openCancelModal = ({ prefillReason = '', defaultRefund = false } = {}) => {
+    setCancelModalOpen(true);
+    setCancelIssueRefund(Boolean(defaultRefund && Number(order?.paidAmount || 0) > 0));
+    if (prefillReason) {
+      setCancelReason((currentReason) =>
+        String(currentReason || '').trim() ? currentReason : prefillReason
+      );
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
+      <GlassHeader
+        title={`Commande #${order._id.slice(-6)}`}
+        subtitle="Détail vendeur"
+        backTo="/seller/orders"
+        right={<StatusBadge status={order.status} compact />}
+      />
       <div className="max-w-3xl mx-auto px-4 py-6">
-        <Link to="/seller/orders" className="inline-flex items-center gap-2 text-indigo-600 font-medium mb-4 hover:text-indigo-700">
-          <ArrowLeft className="w-4 h-4" /> Retour aux commandes
-        </Link>
 
         <div className="bg-white rounded-2xl border-2 border-gray-100 shadow-sm overflow-hidden">
           <div className={`${statusStyle.header} text-white px-6 py-4`}>
@@ -470,6 +580,37 @@ export default function SellerOrderDetail() {
               </div>
             </div>
 
+            {cityMismatch && (
+              <div className="rounded-2xl border-2 border-orange-200 bg-orange-50 p-4 space-y-3">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-orange-700 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-bold text-orange-900">Attention: villes différentes</p>
+                    <p className="text-xs text-orange-800 mt-1">
+                      Le vendeur est à <span className="font-semibold">{sellerCity}</span> et l'acheteur est à{' '}
+                      <span className="font-semibold">{buyerCity}</span>. Si la livraison est impossible, vous pouvez annuler la commande et demander un remboursement.
+                    </p>
+                  </div>
+                </div>
+                {canCancelOrder && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openCancelModal({
+                        defaultRefund: true,
+                        prefillReason:
+                          "Annulation pour contrainte de livraison: vendeur et acheteur dans des villes différentes."
+                      })
+                    }
+                    className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100"
+                  >
+                    <X className="w-4 h-4" />
+                    Annuler et demander remboursement
+                  </button>
+                )}
+              </div>
+            )}
+
             {order.trackingNote && (
               <div>
                 <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2"><Info className="w-4 h-4 text-gray-500" /> Note de suivi</h4>
@@ -557,6 +698,18 @@ export default function SellerOrderDetail() {
             </div>
 
             {isInstallmentOrder && (
+              <InstallmentReminder
+                plan={{
+                  ...installmentPlan,
+                  totalAmount: installmentTotal,
+                  amountPaid: installmentPaid,
+                  remainingAmount: installmentRemaining
+                }}
+                formatCurrency={formatCurrency}
+              />
+            )}
+
+            {isInstallmentOrder && (
               <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4 space-y-3">
                 <h4 className="text-sm font-bold text-gray-900 uppercase flex items-center gap-2">
                   <Receipt className="w-4 h-4 text-indigo-600" /> Preuve de vente
@@ -598,6 +751,51 @@ export default function SellerOrderDetail() {
                     </button>
                   </div>
                 )}
+              </div>
+            )}
+
+            {canRequestDeliveryProof && !showDeliveryProofForm && (
+              <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-4">
+                <p className="text-xs text-cyan-800">
+                  Cliquez sur <span className="font-semibold">Livrer</span> pour soumettre la preuve de livraison.
+                </p>
+              </div>
+            )}
+
+            {canShowDeliveryProofForm && (
+              <DeliveryProofUpload
+                orderId={order._id}
+                initialProofs={order.deliveryProofImages || []}
+                onSuccess={(updatedOrder) => {
+                  if (updatedOrder?._id) {
+                    setOrder(updatedOrder);
+                    setShowDeliveryProofForm(false);
+                    showToast('Preuve de livraison envoyée au client.', { variant: 'success' });
+                  } else {
+                    loadOrder();
+                  }
+                }}
+              />
+            )}
+
+            {!isInstallmentOrder && order.deliveryStatus === 'submitted' && (
+              <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-4 space-y-2">
+                <p className="text-sm font-semibold text-cyan-900">
+                  Preuve de livraison soumise. En attente de confirmation du client.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {(order.deliveryProofImages || []).map((proof, index) => (
+                    <a
+                      key={`seller-proof-${index}`}
+                      href={normalizeFileUrl(proof?.url || proof?.path || '')}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-lg border border-cyan-200 bg-white px-2 py-1 text-xs font-semibold text-cyan-700"
+                    >
+                      Preuve {index + 1}
+                    </a>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -732,14 +930,28 @@ export default function SellerOrderDetail() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleStatusUpdate('delivered')}
+                    onClick={() => {
+                      if (order.deliveryStatus === 'submitted') {
+                        handleStatusUpdate('delivered');
+                        return;
+                      }
+                      setShowDeliveryProofForm((prev) => !prev);
+                    }}
                     disabled={
                       installmentSaleStatus !== 'delivering' ||
                       statusUpdatingId === order._id
                     }
                     className="inline-flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-100 disabled:opacity-50"
                   >
-                    <CheckCircle size={12} /> Livrée
+                    {order.deliveryStatus === 'submitted' ? (
+                      <>
+                        <CheckCircle size={12} /> Livrée
+                      </>
+                    ) : (
+                      <>
+                        <ClipboardList size={12} /> {showDeliveryProofForm ? 'Masquer preuve' : 'Livrer'}
+                      </>
+                    )}
                   </button>
                   <button
                     type="button"
@@ -753,30 +965,80 @@ export default function SellerOrderDetail() {
                     <X size={12} /> Annuler
                   </button>
                 </div>
+                {installmentSaleStatus === 'delivering' && order.deliveryStatus !== 'submitted' && (
+                  <p className="text-xs text-amber-700">
+                    Cliquez sur "Livrer" pour soumettre la preuve de livraison.
+                  </p>
+                )}
                 {statusUpdateError.id === order._id && <p className="text-xs text-red-600">{statusUpdateError.message}</p>}
               </div>
             )}
 
-            {!isInstallmentOrder && order.status !== 'cancelled' && order.status !== 'delivered' && (
+            {!isInstallmentOrder &&
+              !['cancelled', 'delivery_proof_submitted', 'confirmed_by_client', 'completed', 'delivered'].includes(
+                order.status
+              ) && (
               <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-gray-500" />
                   <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Mettre à jour le statut</h4>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button type="button" onClick={() => handleStatusUpdate('confirmed')} disabled={order.status !== 'pending' || statusUpdatingId === order._id || order.cancellationWindow?.isActive} className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50">
+                  <button
+                    type="button"
+                    onClick={() => handleStatusUpdate('confirmed')}
+                    disabled={
+                      !['pending', 'pending_payment', 'paid'].includes(order.status) ||
+                      statusUpdatingId === order._id ||
+                      order.cancellationWindow?.isActive
+                    }
+                    className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                  >
                     <Package size={12} /> Confirmer
                   </button>
-                  <button type="button" onClick={() => handleStatusUpdate('delivering')} disabled={order.status !== 'confirmed' || statusUpdatingId === order._id || order.cancellationWindow?.isActive} className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50">
+                  <button
+                    type="button"
+                    onClick={() => handleStatusUpdate('delivering')}
+                    disabled={
+                      !['confirmed', 'ready_for_delivery'].includes(order.status) ||
+                      statusUpdatingId === order._id ||
+                      order.cancellationWindow?.isActive
+                    }
+                    className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+                  >
                     <Truck size={12} /> En livraison
                   </button>
-                  <button type="button" onClick={() => handleStatusUpdate('delivered')} disabled={order.status !== 'delivering' || statusUpdatingId === order._id || order.cancellationWindow?.isActive} className="inline-flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-100 disabled:opacity-50">
-                    <CheckCircle size={12} /> Marquer livrée
+                  <button
+                    type="button"
+                    onClick={() => setShowDeliveryProofForm((prev) => !prev)}
+                    disabled={
+                      !['delivering', 'out_for_delivery'].includes(order.status) ||
+                      ['submitted', 'verified'].includes(order.deliveryStatus) ||
+                      statusUpdatingId === order._id ||
+                      order.cancellationWindow?.isActive
+                    }
+                    className="inline-flex items-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-semibold text-cyan-700 hover:bg-cyan-100 disabled:opacity-50"
+                  >
+                    <ClipboardList size={12} /> {showDeliveryProofForm ? 'Masquer preuve' : 'Livrer'}
                   </button>
-                  <button type="button" onClick={() => setCancelModalOpen(true)} disabled={order.status === 'delivered' || statusUpdatingId === order._id || order.cancellationWindow?.isActive} className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50">
+                  <button
+                    type="button"
+                    onClick={() => openCancelModal({ defaultRefund: cityMismatch })}
+                    disabled={
+                      cancellationBlockedByStatus ||
+                      statusUpdatingId === order._id ||
+                      order.cancellationWindow?.isActive
+                    }
+                    className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                  >
                     <X size={12} /> Annuler
                   </button>
                 </div>
+                {['delivering', 'out_for_delivery', 'delivery_proof_submitted'].includes(order.status) && (
+                  <p className="text-xs text-cyan-700">
+                    Après "En livraison", cliquez sur "Livrer" pour déposer la preuve de livraison.
+                  </p>
+                )}
                 {statusUpdateError.id === order._id && <p className="text-xs text-red-600">{statusUpdateError.message}</p>}
               </div>
             )}
@@ -802,7 +1064,10 @@ export default function SellerOrderDetail() {
             )}
 
             {order.status !== 'cancelled' && (
-              <OrderProgress status={order.status} paymentType={order.paymentType} />
+              <AnimatedOrderTimeline
+                status={normalizedOrderStatusForTimeline}
+                paymentType={order.paymentType}
+              />
             )}
 
             <div className="flex flex-wrap gap-4 pt-4 border-t border-gray-100 text-xs text-gray-500">
@@ -816,7 +1081,10 @@ export default function SellerOrderDetail() {
 
       {cancelModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setCancelModalOpen(false)} />
+          <div
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+            onClick={closeCancelModal}
+          />
           <div className="relative w-full max-w-md rounded-3xl bg-white shadow-2xl border border-gray-100 p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -828,7 +1096,11 @@ export default function SellerOrderDetail() {
                   <p className="text-xs text-gray-500">Commande #{order._id?.slice(-6)}</p>
                 </div>
               </div>
-              <button type="button" onClick={() => setCancelModalOpen(false)} className="h-9 w-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700">
+              <button
+                type="button"
+                onClick={closeCancelModal}
+                className="h-9 w-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700"
+              >
                 <X size={16} />
               </button>
             </div>
@@ -849,8 +1121,30 @@ export default function SellerOrderDetail() {
                 />
                 {cancelReason.length > 0 && cancelReason.length < 5 && <p className="mt-1 text-xs text-red-600">Minimum 5 caractères.</p>}
               </div>
+              <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
+                <label className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    checked={cancelIssueRefund}
+                    disabled={Number(order?.paidAmount || 0) <= 0}
+                    onChange={(e) => setCancelIssueRefund(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
+                  />
+                  <span className="text-xs text-blue-900">
+                    Demander le remboursement de l'acheteur
+                    {Number(order?.paidAmount || 0) > 0 ? (
+                      <>
+                        {' '}
+                        (<span className="font-semibold">{formatCurrency(order?.paidAmount || 0)}</span>)
+                      </>
+                    ) : (
+                      ' (aucun paiement reçu)'
+                    )}
+                  </span>
+                </label>
+              </div>
               <div className="flex gap-3">
-                <button type="button" onClick={() => setCancelModalOpen(false)} disabled={cancelLoading} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                <button type="button" onClick={closeCancelModal} disabled={cancelLoading} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">
                   Annuler
                 </button>
                 <button type="button" onClick={handleCancelOrder} disabled={cancelLoading || !cancelReason.trim() || cancelReason.trim().length < 5} className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">

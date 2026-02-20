@@ -1,5 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import {
   Shield,
   Search,
@@ -81,8 +82,7 @@ const ACTION_STYLES = {
 
 const PER_PAGE = 20;
 
-const formatCurrency = (value) =>
-  `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
+const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
 const formatDate = (value) =>
   value

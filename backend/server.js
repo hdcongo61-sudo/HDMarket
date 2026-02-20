@@ -20,12 +20,18 @@ import cartRoutes from './routes/cartRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import shopRoutes from './routes/shopRoutes.js';
 import searchRoutes from './routes/searchRoutes.js';
+import categoryRoutes from './routes/categoryRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import supportRoutes from './routes/supportRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
+import cityRoutes from './routes/cityRoutes.js';
+import currencyRoutes from './routes/currencyRoutes.js';
+import userPreferenceRoutes from './routes/userPreferenceRoutes.js';
 import marketplacePromoCodeRoutes from './routes/marketplacePromoCodeRoutes.js';
+import disputeRoutes from './routes/disputeRoutes.js';
+import boostRoutes from './routes/boostRoutes.js';
 
 import User from './models/userModel.js';
 import ChatMessage from './models/chatMessageModel.js';
@@ -34,6 +40,8 @@ import { setChatSocket } from './sockets/chatSocket.js';
 import { requestTracker, getDailyRequestStats } from './middlewares/requestTracker.js';
 import { sendReviewReminders } from './utils/reviewReminder.js';
 import { processInstallmentReminders } from './utils/installmentReminder.js';
+import { expireBoostRequests } from './utils/boostService.js';
+import { ensureDefaultSettingsBootstrap } from './controllers/settingsController.js';
 
 connectDB();
 
@@ -138,12 +146,18 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/shops', shopRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/categories', categoryRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/cities', cityRoutes);
+app.use('/api/currencies', currencyRoutes);
+app.use('/api/user', userPreferenceRoutes);
 app.use('/api/marketplace-promo-codes', marketplacePromoCodeRoutes);
+app.use('/api/disputes', disputeRoutes);
+app.use('/api/boosts', boostRoutes);
 
 // Global error handler
 // eslint-disable-next-line no-unused-vars
@@ -250,6 +264,9 @@ io.on('connection', (socket) => {
 const port = process.env.PORT || 5010;
 httpServer.listen(port, () => {
   console.log(`Server running on port ${port}`);
+  ensureDefaultSettingsBootstrap().catch((error) => {
+    console.error('Settings bootstrap failed:', error);
+  });
   const schedulerNotificationsEnabled = process.env.SCHEDULER_NOTIFICATIONS_ENABLED === 'true';
 
   const notifyBackoffice = async ({ title, message, metadata = {} }) => {
@@ -285,6 +302,7 @@ httpServer.listen(port, () => {
   // Check for delivered orders that are 1+ hour old and send review reminders
   const REVIEW_REMINDER_INTERVAL = 60 * 60 * 1000; // 1 hour
   const INSTALLMENT_REMINDER_INTERVAL = 60 * 60 * 1000; // 1 hour
+  const BOOST_EXPIRATION_INTERVAL = 60 * 60 * 1000; // 1 hour
   
   const runReviewReminders = async () => {
     try {
@@ -354,4 +372,15 @@ httpServer.listen(port, () => {
       intervalMinutes: 60
     }
   });
+
+  const runBoostExpiration = async () => {
+    try {
+      await expireBoostRequests();
+    } catch (error) {
+      console.error('Error running boost expiration scheduler:', error);
+    }
+  };
+
+  setTimeout(runBoostExpiration, 10 * 60 * 1000);
+  setInterval(runBoostExpiration, BOOST_EXPIRATION_INTERVAL);
 });

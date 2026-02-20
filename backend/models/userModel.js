@@ -22,12 +22,12 @@ const userSchema = new mongoose.Schema(
     accountTypeChangedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     accountTypeChangedAt: { type: Date, default: null },
     country: { type: String, default: 'République du Congo' },
-    city: {
-      type: String,
-      enum: ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'],
-      default: 'Brazzaville'
-    },
+    city: { type: String, default: 'Brazzaville', trim: true },
     gender: { type: String, enum: ['homme', 'femme'], default: 'homme' },
+    preferredLanguage: { type: String, default: 'fr', trim: true },
+    preferredCurrency: { type: String, default: 'XAF', trim: true, uppercase: true },
+    preferredCity: { type: String, default: '', trim: true },
+    theme: { type: String, enum: ['light', 'dark', 'system'], default: 'system' },
     address: { type: String, trim: true, default: '' },
     shopName: { type: String },
     shopAddress: { type: String },
@@ -75,6 +75,7 @@ const userSchema = new mongoose.Schema(
       order_reminder: { type: Boolean, default: true },
       order_delivering: { type: Boolean, default: true },
       order_delivered: { type: Boolean, default: true },
+      order_cancelled: { type: Boolean, default: true },
       installment_due_reminder: { type: Boolean, default: true },
       installment_overdue_warning: { type: Boolean, default: true },
       installment_payment_submitted: { type: Boolean, default: true },
@@ -87,8 +88,18 @@ const userSchema = new mongoose.Schema(
       order_address_updated: { type: Boolean, default: true },
       order_message: { type: Boolean, default: true },
       feedback_read: { type: Boolean, default: true },
+      dispute_created: { type: Boolean, default: true },
+      dispute_seller_responded: { type: Boolean, default: true },
+      dispute_deadline_near: { type: Boolean, default: true },
+      dispute_under_review: { type: Boolean, default: true },
+      dispute_resolved: { type: Boolean, default: true },
+      complaint_created: { type: Boolean, default: true },
+      improvement_feedback_created: { type: Boolean, default: true },
+      admin_broadcast: { type: Boolean, default: true },
       account_restriction: { type: Boolean, default: true },
-      account_restriction_lifted: { type: Boolean, default: true }
+      account_restriction_lifted: { type: Boolean, default: true },
+      shop_conversion_approved: { type: Boolean, default: true },
+      shop_conversion_rejected: { type: Boolean, default: true }
     },
     notificationsReadAt: { type: Date },
     isBlocked: { type: Boolean, default: false },
@@ -143,6 +154,14 @@ const userSchema = new mongoose.Schema(
         restrictedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
         restrictedAt: { type: Date, default: null }
       }
+    },
+    reputationScore: { type: Number, default: 50, min: 0, max: 100 },
+    disputeStats: {
+      openedAsClient: { type: Number, default: 0, min: 0 },
+      wonAsClient: { type: Number, default: 0, min: 0 },
+      openedAgainstSeller: { type: Number, default: 0, min: 0 },
+      lostAsSeller: { type: Number, default: 0, min: 0 },
+      resolvedForSeller: { type: Number, default: 0, min: 0 }
     }
   },
   { timestamps: true }

@@ -36,12 +36,14 @@ const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   product_boosted: true,
   promotional: true,
   shop_review: true,
+  shop_follow: true,
   payment_pending: true,
   order_created: true,
   order_received: true,
   order_reminder: true,
   order_delivering: true,
   order_delivered: true,
+  order_cancelled: true,
   installment_due_reminder: true,
   installment_overdue_warning: true,
   installment_payment_submitted: true,
@@ -50,9 +52,22 @@ const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   installment_sale_confirmed: true,
   installment_completed: true,
   installment_product_suspended: true,
+  review_reminder: true,
+  order_address_updated: true,
+  order_message: true,
+  complaint_created: true,
+  dispute_created: true,
+  dispute_seller_responded: true,
+  dispute_deadline_near: true,
+  dispute_under_review: true,
+  dispute_resolved: true,
   feedback_read: true,
+  improvement_feedback_created: true,
+  admin_broadcast: true,
   account_restriction: true,
-  account_restriction_lifted: true
+  account_restriction_lifted: true,
+  shop_conversion_approved: true,
+  shop_conversion_rejected: true
 });
 
 const mergeNotificationPreferences = (prefs = {}) => {
@@ -75,6 +90,10 @@ const sanitizeUser = (user) => ({
   country: user.country,
   address: user.address,
   city: user.city,
+  preferredLanguage: user.preferredLanguage || 'fr',
+  preferredCurrency: user.preferredCurrency || 'XAF',
+  preferredCity: user.preferredCity || user.city || '',
+  theme: user.theme || 'system',
   gender: user.gender,
   shopName: user.shopName,
   shopAddress: user.shopAddress,
@@ -125,9 +144,18 @@ const collectUserStats = async (userId) => {
     throw err;
   }
 
-  await ensureModelSlugsForItems({ Model: Product, items: products, sourceValueKey: 'title' });
+  const isSellerAccount = userDoc.accountType === 'shop';
+
+  // Important: keep stats endpoint read-only and fast.
+  // Slug backfill can be handled by dedicated migration/background flows.
 
   const orderStatusKeys = [
+    'pending_payment',
+    'paid',
+    'ready_for_delivery',
+    'out_for_delivery',
+    'delivery_proof_submitted',
+    'confirmed_by_client',
     'pending',
     'pending_installment',
     'installment_active',
@@ -140,44 +168,48 @@ const collectUserStats = async (userId) => {
   ];
   const userObjectId = new mongoose.Types.ObjectId(userId);
 
-  const [buyerAgg, sellerAgg] = await Promise.all([
-    Order.aggregate([
-      { $match: { customer: userObjectId, isDraft: { $ne: true } } },
-      {
-        $project: {
-          status: 1,
-          totalAmount: { $ifNull: ['$totalAmount', 0] },
-          paidAmount: { $ifNull: ['$paidAmount', 0] },
-          remainingAmount: { $ifNull: ['$remainingAmount', 0] },
-          itemCount: { $sum: '$items.quantity' }
-        }
-      },
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 },
-          totalAmount: { $sum: '$totalAmount' },
-          paidAmount: { $sum: '$paidAmount' },
-          remainingAmount: { $sum: '$remainingAmount' },
-          items: { $sum: '$itemCount' }
-        }
+  const buyerAggPromise = Order.aggregate([
+    { $match: { customer: userObjectId, isDraft: { $ne: true } } },
+    {
+      $project: {
+        status: 1,
+        totalAmount: { $ifNull: ['$totalAmount', 0] },
+        paidAmount: { $ifNull: ['$paidAmount', 0] },
+        remainingAmount: { $ifNull: ['$remainingAmount', 0] },
+        itemCount: { $sum: '$items.quantity' }
       }
-    ]),
-    Order.aggregate([
-      { $match: { isDraft: { $ne: true } } },
-      { $unwind: '$items' },
-      { $match: { 'items.snapshot.shopId': userObjectId } },
-      {
-        $group: {
-          _id: '$status',
-          revenue: {
-            $sum: { $multiply: ['$items.snapshot.price', '$items.quantity'] }
-          },
-          orderIds: { $addToSet: '$_id' }
-        }
+    },
+    {
+      $group: {
+        _id: '$status',
+        count: { $sum: 1 },
+        totalAmount: { $sum: '$totalAmount' },
+        paidAmount: { $sum: '$paidAmount' },
+        remainingAmount: { $sum: '$remainingAmount' },
+        items: { $sum: '$itemCount' }
       }
-    ])
-  ]);
+    }
+  ]).option({ maxTimeMS: 10000 });
+
+  const sellerAggPromise = isSellerAccount
+    ? Order.aggregate([
+        // Match seller first (can use index) before unwind to avoid full collection scan.
+        { $match: { isDraft: { $ne: true }, 'items.snapshot.shopId': userObjectId } },
+        { $unwind: '$items' },
+        { $match: { 'items.snapshot.shopId': userObjectId } },
+        {
+          $group: {
+            _id: '$status',
+            revenue: {
+              $sum: { $multiply: ['$items.snapshot.price', '$items.quantity'] }
+            },
+            orderIds: { $addToSet: '$_id' }
+          }
+        }
+      ]).option({ maxTimeMS: 10000 })
+    : Promise.resolve([]);
+
+  const [buyerAgg, sellerAgg] = await Promise.all([buyerAggPromise, sellerAggPromise]);
 
   const purchaseByStatus = orderStatusKeys.reduce((acc, status) => {
     acc[status] = { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0, items: 0 };
@@ -820,8 +852,8 @@ export const updateProfile = asyncHandler(async (req, res) => {
     user.address = trimmed;
   }
 
-  if (city && ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'].includes(city)) {
-    user.city = city;
+  if (typeof city !== 'undefined' && String(city).trim()) {
+    user.city = String(city).trim();
   }
 
   if (gender && ['homme', 'femme'].includes(gender)) {
@@ -924,8 +956,8 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
   await user.save();
 
-  if (city && ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'].includes(city)) {
-    await Product.updateMany({ user: user._id }, { city, country: user.country });
+  if (typeof city !== 'undefined' && String(city).trim()) {
+    await Product.updateMany({ user: user._id }, { city: String(city).trim(), country: user.country });
   }
 
   res.json(sanitizeUser(user));
@@ -1106,6 +1138,35 @@ export const getNotifications = asyncHandler(async (req, res) => {
         message = `${actorName} a déposé une réclamation${subjectLabel}. Consultez la section Réclamations pour la traiter.`;
         break;
       }
+      case 'dispute_created': {
+        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
+        message = `${actorName} a ouvert un litige pour la commande ${orderId}.`;
+        break;
+      }
+      case 'dispute_seller_responded': {
+        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
+        message = `${actorName} a répondu au litige de la commande ${orderId}.`;
+        break;
+      }
+      case 'dispute_deadline_near': {
+        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
+        const deadline = metadata.sellerDeadline
+          ? ` avant le ${new Date(metadata.sellerDeadline).toLocaleString('fr-FR')}`
+          : '';
+        message = `Rappel: vous devez répondre au litige de la commande ${orderId}${deadline}.`;
+        break;
+      }
+      case 'dispute_under_review': {
+        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
+        message = `Le litige de la commande ${orderId} est passé en revue admin.`;
+        break;
+      }
+      case 'dispute_resolved': {
+        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
+        const resolutionType = metadata.resolutionType ? ` (${metadata.resolutionType})` : '';
+        message = `${actorName} a clôturé le litige de la commande ${orderId}${resolutionType}.`;
+        break;
+      }
       case 'improvement_feedback_created': {
         const subjectLabel = metadata.subject ? ` : ${metadata.subject}` : '';
         message = `${actorName} a déposé un avis d'amélioration${subjectLabel}. Consultez la section Avis pour le lire.`;
@@ -1187,7 +1248,11 @@ export const getNotifications = asyncHandler(async (req, res) => {
         const deliveredAt = deliveredAtDate && !Number.isNaN(deliveredAtDate.getTime())
           ? ` le ${deliveredAtDate.toLocaleDateString('fr-FR')}`
           : '';
-        message = `${actorName} a marqué la commande ${orderId} comme livrée${address}${city}${deliveredAt}. Merci pour votre confiance.`;
+        if (metadata.deliveryProofSubmitted) {
+          message = `${actorName} a soumis la preuve de livraison pour la commande ${orderId}${address}${city}${deliveredAt}. Veuillez confirmer ou ouvrir un litige.`;
+        } else {
+          message = `${actorName} a marqué la commande ${orderId} comme livrée${address}${city}${deliveredAt}. Merci pour votre confiance.`;
+        }
         break;
       }
       case 'installment_due_reminder': {
@@ -1254,6 +1319,18 @@ export const getNotifications = asyncHandler(async (req, res) => {
       case 'order_message': {
         const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
         message = `${actorName} vous a envoyé un message concernant la commande ${orderId}.`;
+        break;
+      }
+      case 'order_cancelled': {
+        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
+        const reason = metadata.reason ? ` Raison: ${metadata.reason}` : '';
+        const refundAmount = Number(metadata.refundAmount || 0);
+        const refundText = metadata.refundRequested
+          ? refundAmount > 0
+            ? ` Remboursement demandé: ${refundAmount.toLocaleString('fr-FR')} FCFA.`
+            : ' Remboursement demandé.'
+          : '';
+        message = `${actorName} a annulé la commande ${orderId}.${reason}${refundText}`;
         break;
       }
       default:

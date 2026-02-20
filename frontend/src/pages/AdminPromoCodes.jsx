@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import {
   Ticket,
   Plus,
@@ -12,7 +13,7 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 
-const formatCurrency = (value) => `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
+const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 const formatDateTime = (value) => {
   if (!value) return '—';
   const date = new Date(value);

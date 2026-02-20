@@ -1,21 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, AlertCircle } from 'lucide-react';
-
-const CITIES = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
+import { useAppSettings } from '../context/AppSettingsContext';
 
 export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
+  const { cities } = useAppSettings();
+  const cityOptions = Array.isArray(cities) && cities.length
+    ? cities.map((item) => item.name).filter(Boolean)
+    : ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
   const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [deliveryCity, setDeliveryCity] = useState('Brazzaville');
+  const [deliveryCity, setDeliveryCity] = useState(cityOptions[0] || 'Brazzaville');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (isOpen && order) {
       setDeliveryAddress(order.deliveryAddress || '');
-      setDeliveryCity(order.deliveryCity || 'Brazzaville');
+      setDeliveryCity(order.deliveryCity || cityOptions[0] || 'Brazzaville');
       setError('');
     }
-  }, [isOpen, order]);
+  }, [cityOptions, isOpen, order]);
 
   if (!isOpen) return null;
 
@@ -138,7 +141,7 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
                   required
                   className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                 >
-                  {CITIES.map((city) => (
+                  {cityOptions.map((city) => (
                     <option key={city} value={city}>
                       {city}
                     </option>

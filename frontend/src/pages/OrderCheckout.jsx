@@ -15,12 +15,9 @@ import {
   AlertCircle,
   Tag
 } from 'lucide-react';
+import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 
-const formatCurrency = (value) =>
-  Number(value || 0).toLocaleString('fr-FR', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  });
+const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
 export default function OrderCheckout() {
   const { cart, clearCart } = useContext(CartContext);
@@ -205,7 +202,7 @@ export default function OrderCheckout() {
       const paymentEntry = installmentSeller ? payments[installmentSeller.sellerId] || {} : {};
       const firstAmount = Number(installmentFirstPaymentAmount || 0);
       if (!Number.isFinite(firstAmount) || firstAmount < installmentMinAmount) {
-        setError(`Le premier paiement minimum est de ${formatCurrency(installmentMinAmount)} FCFA.`);
+        setError(`Le premier paiement minimum est de ${formatCurrency(installmentMinAmount)}.`);
         return;
       }
       if (firstAmount > Number(totals.subtotal || 0)) {
@@ -578,7 +575,7 @@ export default function OrderCheckout() {
                 </div>
                 <div className="text-right">
                   <span className="font-black text-blue-600 text-base sm:text-lg">
-                    {formatCurrency(lineTotal)} FCFA
+                    {formatCurrency(lineTotal)}
                   </span>
                 </div>
               </div>
@@ -588,14 +585,14 @@ export default function OrderCheckout() {
             <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-xl">
               <span className="text-gray-700 font-semibold">Total commande</span>
               <span className="font-black text-gray-900 text-lg">
-                {formatCurrency(paymentMode === 'full' ? checkoutSubtotal : totals.subtotal)} FCFA
+                {formatCurrency(paymentMode === 'full' ? checkoutSubtotal : totals.subtotal)}
               </span>
             </div>
             {paymentMode === 'full' && checkoutSavings > 0 && (
               <div className="flex justify-between items-center py-2 px-3 bg-emerald-50 rounded-xl border border-emerald-200">
                 <span className="text-emerald-700 font-semibold">Économie via promo</span>
                 <span className="font-black text-emerald-600 text-lg">
-                  -{formatCurrency(checkoutSavings)} FCFA
+                  -{formatCurrency(checkoutSavings)}
                 </span>
               </div>
             )}
@@ -604,13 +601,13 @@ export default function OrderCheckout() {
                 {paymentMode === 'installment' ? 'Premier paiement' : 'Acompte (25%)'}
               </span>
               <span className="font-black text-blue-600 text-lg">
-                {formatCurrency(summaryPaidAmount)} FCFA
+                {formatCurrency(summaryPaidAmount)}
               </span>
             </div>
             <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-xl">
               <span className="text-gray-700 font-semibold">Reste à payer</span>
               <span className="font-black text-gray-900 text-lg">
-                {formatCurrency(summaryRemainingAmount)} FCFA
+                {formatCurrency(summaryRemainingAmount)}
               </span>
             </div>
           </div>
@@ -696,7 +693,7 @@ export default function OrderCheckout() {
                     </div>
                     <div className="text-right bg-blue-100 px-3 py-2 rounded-xl border border-blue-200">
                       <p className="text-base sm:text-lg font-black text-blue-600">
-                        {formatCurrency(groupDeposit)} FCFA
+                        {formatCurrency(groupDeposit)}
                       </p>
                       <p className="text-xs text-gray-600 font-medium">
                         {paymentMode === 'installment' ? 'Premier paiement' : 'Acompte (25%)'}
@@ -794,8 +791,8 @@ export default function OrderCheckout() {
                             <p className="font-semibold">{promoState.message || 'Code prêt à être appliqué.'}</p>
                             {promoState.status === 'valid' && promoState.pricing && (
                               <p className="mt-1">
-                                Nouveau total vendeur: {formatCurrency(promoState.pricing.finalAmount)} FCFA
-                                {' · '}Économie: {formatCurrency(promoState.pricing.discountAmount)} FCFA
+                                Nouveau total vendeur: {formatCurrency(promoState.pricing.finalAmount)}
+                                {' · '}Économie: {formatCurrency(promoState.pricing.discountAmount)}
                               </p>
                             )}
                           </div>
@@ -807,7 +804,7 @@ export default function OrderCheckout() {
                       <div className="space-y-4 rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4">
                         <div>
                           <label className="block text-xs font-bold uppercase text-indigo-700 mb-2">
-                            Premier paiement fixe ({formatCurrency(installmentMinAmount)} FCFA)
+                            Premier paiement fixe ({formatCurrency(installmentMinAmount)})
                           </label>
                           <input
                             type="number"
@@ -819,7 +816,7 @@ export default function OrderCheckout() {
                             className="w-full rounded-2xl border border-indigo-200 px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                           />
                           <p className="mt-1 text-xs text-indigo-700">
-                            Reste estimé: {formatCurrency(installmentRemainingAmount)} FCFA
+                            Reste estimé: {formatCurrency(installmentRemainingAmount)}
                           </p>
                         </div>
 
@@ -871,14 +868,14 @@ export default function OrderCheckout() {
                     <div className="flex justify-between items-center">
                       <span className="text-gray-700 font-semibold">Sous-total vendeur</span>
                       <span className="font-black text-gray-900">
-                        {formatCurrency(groupEffectiveSubtotal)} FCFA
+                        {formatCurrency(groupEffectiveSubtotal)}
                       </span>
                     </div>
                     {paymentMode === 'full' && groupEffectiveSubtotal < Number(group.subtotal || 0) && (
                       <div className="flex justify-between items-center">
                         <span className="text-emerald-700 font-semibold">Économie promo</span>
                         <span className="font-black text-emerald-600">
-                          -{formatCurrency(Number(group.subtotal || 0) - groupEffectiveSubtotal)} FCFA
+                          -{formatCurrency(Number(group.subtotal || 0) - groupEffectiveSubtotal)}
                         </span>
                       </div>
                     )}
@@ -887,13 +884,13 @@ export default function OrderCheckout() {
                         {paymentMode === 'installment' ? 'Premier paiement' : 'Acompte (25%)'}
                       </span>
                       <span className="font-black text-blue-600">
-                        {formatCurrency(groupDeposit)} FCFA
+                        {formatCurrency(groupDeposit)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center pt-2 border-t border-blue-200">
                       <span className="text-gray-700 font-semibold">Reste à payer</span>
                       <span className="font-black text-gray-900">
-                        {formatCurrency(groupRemaining)} FCFA
+                        {formatCurrency(groupRemaining)}
                       </span>
                     </div>
                   </div>
@@ -903,10 +900,10 @@ export default function OrderCheckout() {
             <div className="rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 px-4 py-3 text-xs sm:text-sm text-amber-800 flex items-start gap-3">
               <CheckCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
               {paymentMode === 'installment'
-                ? `Merci de payer le premier montant de ${formatCurrency(summaryPaidAmount)} FCFA puis de suivre l’échéancier.`
+                ? `Merci de payer le premier montant de ${formatCurrency(summaryPaidAmount)} puis de suivre l’échéancier.`
                 : sellerGroups.length > 1
                 ? 'Merci de payer l’acompte indiqué pour chaque vendeur avant validation.'
-                : `Merci de payer exactement ${formatCurrency(depositAmount)} FCFA avant validation.`}
+                : `Merci de payer exactement ${formatCurrency(depositAmount)} avant validation.`}
             </div>
             {error && (
               <div className="rounded-2xl border-2 border-red-200 bg-red-50 px-4 py-3 flex items-start gap-3">
