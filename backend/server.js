@@ -113,7 +113,8 @@ const corsOptions = {
     'Authorization',
     'Cache-Control',
     'Pragma',
-    'Accept'
+    'Accept',
+    "x-skip-cache"
   ],
   optionsSuccessStatus: 200
 };
