@@ -24,6 +24,12 @@ import {
   validateInstallmentConfig
 } from '../utils/installmentUtils.js';
 import { getBoostPriorityMaps } from '../utils/boostService.js';
+import {
+  getWholesaleFirstTierUnitPrice,
+  getWholesaleMinTierQty,
+  normalizeWholesaleTiers,
+  validateWholesaleConfig
+} from '../utils/wholesaleUtils.js';
 
 const MAX_PRODUCT_IMAGES = 3;
 const SHOP_SELECT_FIELDS =
@@ -34,6 +40,15 @@ const isTruthyQueryValue = (value) =>
   value === true || value === 'true' || value === 1 || value === '1';
 
 const normalizeCategoryText = (value = '') => String(value || '').trim();
+const normalizeBoolean = (value, fallback = false) => {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
+  const text = String(value).trim().toLowerCase();
+  if (['true', '1', 'yes', 'on'].includes(text)) return true;
+  if (['false', '0', 'no', 'off'].includes(text)) return false;
+  return fallback;
+};
 
 const getActiveCityNames = async () => {
   const docs = await City.find({ isActive: true }).select('name').sort({ name: 1 }).lean();
@@ -182,11 +197,19 @@ const withCategoryCompatibility = (input) => {
   const categoryName = normalizeCategoryText(base.legacyCategoryName || base.category || '');
   const subcategoryName = normalizeCategoryText(base.legacySubcategoryName || '');
   const isLegacyCategory = !base.categoryId && !base.subcategoryId;
+  const wholesaleTiers = normalizeWholesaleTiers(base.wholesaleTiers);
+  const wholesaleEnabled = Boolean(base.wholesaleEnabled) && wholesaleTiers.length > 0;
   return {
     ...base,
     categoryName,
     subcategoryName,
-    isLegacyCategory
+    isLegacyCategory,
+    wholesaleEnabled,
+    wholesaleTiers,
+    wholesaleMinQty: wholesaleEnabled ? getWholesaleMinTierQty({ wholesaleTiers }) : null,
+    wholesaleFirstUnitPrice: wholesaleEnabled
+      ? getWholesaleFirstTierUnitPrice({ wholesaleTiers })
+      : null
   };
 };
 
@@ -293,6 +316,54 @@ const detectProhibitedWords = async (title = '', description = '') => {
   return Array.from(matches);
 };
 
+const resolveDeliveryConfig = ({
+  deliveryAvailable,
+  pickupAvailable,
+  deliveryFee,
+  deliveryFeeEnabled,
+  current = {}
+}) => {
+  const nextDeliveryAvailable = normalizeBoolean(
+    deliveryAvailable,
+    current.deliveryAvailable !== false
+  );
+  const nextPickupAvailable = normalizeBoolean(pickupAvailable, current.pickupAvailable !== false);
+
+  if (!nextDeliveryAvailable && !nextPickupAvailable) {
+    return { valid: false, message: 'Activez au moins un mode: retrait ou livraison.' };
+  }
+
+  const nextFeeEnabled = normalizeBoolean(
+    deliveryFeeEnabled,
+    current.deliveryFeeEnabled !== false
+  );
+  let nextFee = Number.isFinite(Number(deliveryFee)) ? Number(deliveryFee) : Number(current.deliveryFee || 0);
+  nextFee = Math.max(0, nextFee);
+
+  // Pickup-only products cannot carry delivery fees.
+  if (!nextDeliveryAvailable) {
+    return {
+      valid: true,
+      normalized: {
+        deliveryAvailable: false,
+        pickupAvailable: nextPickupAvailable,
+        deliveryFeeEnabled: false,
+        deliveryFee: 0
+      }
+    };
+  }
+
+  return {
+    valid: true,
+    normalized: {
+      deliveryAvailable: true,
+      pickupAvailable: nextPickupAvailable,
+      deliveryFeeEnabled: nextFeeEnabled,
+      deliveryFee: nextFeeEnabled ? nextFee : 0
+    }
+  };
+};
+
 const getBlockedSellerIdsSet = async () => {
   // Get users that are blocked OR have canBeViewed restriction
   const blockedUsers = await User.find({
@@ -358,7 +429,13 @@ export const createProduct = asyncHandler(async (req, res) => {
     installmentEndDate,
     installmentLatePenaltyRate,
     installmentMaxMissedPayments,
-    installmentRequireGuarantor
+    installmentRequireGuarantor,
+    wholesaleEnabled,
+    wholesaleTiers,
+    deliveryAvailable,
+    pickupAvailable,
+    deliveryFee,
+    deliveryFeeEnabled
   } = req.body;
   if (!title || !description || !price)
     return res.status(400).json({ message: 'Missing fields' });
@@ -416,6 +493,37 @@ export const createProduct = asyncHandler(async (req, res) => {
   });
   if (!installmentConfig.valid) {
     return res.status(400).json({ message: installmentConfig.message });
+  }
+  const hasWholesalePayload = wholesaleEnabled !== undefined || wholesaleTiers !== undefined;
+  const requestedWholesaleEnabled = normalizeBoolean(wholesaleEnabled, false);
+  const requestedWholesaleTiers = normalizeWholesaleTiers(wholesaleTiers);
+  if (
+    hasWholesalePayload &&
+    !isShop &&
+    (requestedWholesaleEnabled || requestedWholesaleTiers.length > 0)
+  ) {
+    return res.status(403).json({
+      message: 'Seules les boutiques peuvent activer la vente en gros.'
+    });
+  }
+  const wholesaleConfig = validateWholesaleConfig({
+    wholesaleEnabled: hasWholesalePayload ? requestedWholesaleEnabled : false,
+    wholesaleTiers: hasWholesalePayload ? requestedWholesaleTiers : [],
+    minQtyFloor: 2,
+    maxTiers: 10
+  });
+  if (!wholesaleConfig.valid) {
+    return res.status(400).json({ message: wholesaleConfig.message });
+  }
+  const deliveryConfig = resolveDeliveryConfig({
+    deliveryAvailable,
+    pickupAvailable,
+    deliveryFee,
+    deliveryFeeEnabled,
+    current: {}
+  });
+  if (!deliveryConfig.valid) {
+    return res.status(400).json({ message: deliveryConfig.message });
   }
 
   const categorySelection = await resolveCategorySelection({
@@ -534,7 +642,9 @@ export const createProduct = asyncHandler(async (req, res) => {
     status: 'pending',
     city: ownerCity,
     country: ownerCountry,
-    ...installmentConfig.normalized
+    ...installmentConfig.normalized,
+    ...wholesaleConfig.normalized,
+    ...deliveryConfig.normalized
   });
 
   await logProductAction({
@@ -570,6 +680,9 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     shopVerified,
     hasDiscount,
     installmentOnly,
+    wholesaleOnly,
+    pickupOnly,
+    freeDeliveryOnly,
     minRating,
     minFavorites,
     minSales,
@@ -683,6 +796,24 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     filter.installmentEndDate = { $gte: now };
   }
 
+  if (wholesaleOnly === true || wholesaleOnly === 'true') {
+    filter.wholesaleEnabled = true;
+    filter['wholesaleTiers.0'] = { $exists: true };
+  }
+
+  if (pickupOnly === true || pickupOnly === 'true') {
+    filter.deliveryAvailable = false;
+    filter.pickupAvailable = true;
+  }
+
+  if (freeDeliveryOnly === true || freeDeliveryOnly === 'true') {
+    filter.deliveryAvailable = true;
+    filter.$and = filter.$and || [];
+    filter.$and.push({
+      $or: [{ deliveryFeeEnabled: false }, { deliveryFee: { $lte: 0 } }]
+    });
+  }
+
   // Favorites count filter
   if (minFavorites !== undefined) {
     const minFav = Number(minFavorites);
@@ -722,7 +853,11 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   const baseSort = { boosted: -1, boostScore: -1 };
   
   // If filtering by shopVerified, we need to filter after populate
-  const needsPostFilter = shopVerified === 'true' || minRating !== undefined;
+  const needsPostFilter =
+    shopVerified === 'true' ||
+    minRating !== undefined ||
+    freeDeliveryOnly === true ||
+    freeDeliveryOnly === 'true';
   const prefetchLimit = needsPostFilter ? pageSize * 2 : pageSize;
   let itemsRaw = [];
   let totalBeforeFilter = 0;
@@ -889,6 +1024,15 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   if (shopVerified === 'true') {
     filteredItems = itemsRaw.filter((item) => item.user?.shopVerified === true);
   }
+  if (freeDeliveryOnly === true || freeDeliveryOnly === 'true') {
+    filteredItems = filteredItems.filter((item) => {
+      const shopFree = Boolean(item?.user?.freeDeliveryEnabled);
+      const productFree =
+        item?.deliveryAvailable !== false &&
+        (item?.deliveryFeeEnabled === false || Number(item?.deliveryFee || 0) <= 0);
+      return shopFree || productFree;
+    });
+  }
 
   // Dynamic boost ranking priority:
   // 1) LOCAL_PRODUCT_BOOST (city match)
@@ -989,7 +1133,7 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   // For post-filtered results, we can't know exact total without full scan
   // Use a reasonable estimate based on current results
   let total = totalBeforeFilter;
-  if ((shopVerified === 'true' || minRating !== undefined) && pageNumber === 1) {
+  if (needsPostFilter && pageNumber === 1) {
     // On first page, if we have fewer results than page size, that's likely close to total
     if (items.length < pageSize) {
       total = items.length;
@@ -1448,6 +1592,166 @@ export const getPublicInstallmentProducts = asyncHandler(async (req, res) => {
   });
 });
 
+export const getPublicWholesaleProducts = asyncHandler(async (req, res) => {
+  const page = Math.max(1, Number(req.query?.page) || 1);
+  const limit = Math.max(1, Math.min(24, Number(req.query?.limit) || 8));
+  const skip = (page - 1) * limit;
+  const cityParam = String(req.query?.city || '').trim();
+  const userCityParam = String(req.query?.userCity || '').trim();
+  const nearMe = req.query?.nearMe === true || req.query?.nearMe === 'true';
+  const q = String(req.query?.q || req.query?.search || '').trim();
+  const category = String(req.query?.category || '').trim();
+
+  const blockedSellerIds = await getBlockedSellerIdsSet();
+  const filter = {
+    status: 'approved',
+    wholesaleEnabled: true,
+    'wholesaleTiers.0': { $exists: true }
+  };
+
+  if (cityParam) {
+    filter.city = cityParam;
+  } else if (nearMe && userCityParam) {
+    filter.city = userCityParam;
+  }
+
+  if (q) {
+    const matcher = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    filter.$or = [{ title: matcher }, { description: matcher }];
+  }
+
+  if (category) {
+    filter.category = new RegExp(`^${category.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+  }
+
+  const baseFilter = applyBlockedUsersToFilter(filter, blockedSellerIds);
+
+  const [itemsRaw, total] = await Promise.all([
+    Product.find(baseFilter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Product.countDocuments(baseFilter)
+  ]);
+
+  await Product.populate(itemsRaw, { path: 'user', select: SHOP_SELECT_FIELDS });
+  await ensureModelSlugsForItems({ Model: Product, items: itemsRaw, sourceValueKey: 'title' });
+
+  const productIds = itemsRaw.map((item) => item._id);
+  const [commentStats, ratingStats] = productIds.length
+    ? await Promise.all([
+        Comment.aggregate([
+          { $match: { product: { $in: productIds } } },
+          { $group: { _id: '$product', count: { $sum: 1 } } }
+        ]),
+        Rating.aggregate([
+          { $match: { product: { $in: productIds } } },
+          { $group: { _id: '$product', average: { $avg: '$value' }, count: { $sum: 1 } } }
+        ])
+      ])
+    : [[], []];
+
+  const commentMap = new Map(commentStats.map((stat) => [String(stat._id), stat.count]));
+  const ratingMap = new Map(
+    ratingStats.map((stat) => [
+      String(stat._id),
+      { average: Number(stat.average?.toFixed(2) ?? 0), count: stat.count }
+    ])
+  );
+
+  const items = itemsRaw.map((item) => {
+    const rating = ratingMap.get(String(item._id)) || { average: 0, count: 0 };
+    return {
+      ...withCategoryCompatibility(item),
+      commentCount: commentMap.get(String(item._id)) || 0,
+      ratingAverage: rating.average,
+      ratingCount: rating.count,
+      wholesaleAvailable: Boolean(item?.wholesaleEnabled)
+    };
+  });
+
+  res.json({
+    items,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.max(1, Math.ceil(total / limit))
+    }
+  });
+});
+
+export const getPublicPickupOnlyProducts = asyncHandler(async (req, res) => {
+  const page = Math.max(1, Number(req.query?.page) || 1);
+  const limit = Math.max(1, Math.min(24, Number(req.query?.limit) || 8));
+  const skip = (page - 1) * limit;
+
+  const blockedSellerIds = await getBlockedSellerIdsSet();
+  const filter = applyBlockedUsersToFilter(
+    {
+      status: 'approved',
+      deliveryAvailable: false,
+      pickupAvailable: true
+    },
+    blockedSellerIds
+  );
+
+  const [itemsRaw, total] = await Promise.all([
+    Product.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Product.countDocuments(filter)
+  ]);
+
+  await Product.populate(itemsRaw, { path: 'user', select: SHOP_SELECT_FIELDS });
+  await ensureModelSlugsForItems({ Model: Product, items: itemsRaw, sourceValueKey: 'title' });
+
+  const productIds = itemsRaw.map((item) => item._id);
+  const [commentStats, ratingStats] = productIds.length
+    ? await Promise.all([
+        Comment.aggregate([
+          { $match: { product: { $in: productIds } } },
+          { $group: { _id: '$product', count: { $sum: 1 } } }
+        ]),
+        Rating.aggregate([
+          { $match: { product: { $in: productIds } } },
+          { $group: { _id: '$product', average: { $avg: '$value' }, count: { $sum: 1 } } }
+        ])
+      ])
+    : [[], []];
+
+  const commentMap = new Map(commentStats.map((stat) => [String(stat._id), stat.count]));
+  const ratingMap = new Map(
+    ratingStats.map((stat) => [
+      String(stat._id),
+      { average: Number(stat.average?.toFixed(2) ?? 0), count: stat.count }
+    ])
+  );
+
+  const items = itemsRaw.map((item) => {
+    const rating = ratingMap.get(String(item._id)) || { average: 0, count: 0 };
+    return {
+      ...withCategoryCompatibility(item),
+      commentCount: commentMap.get(String(item._id)) || 0,
+      ratingAverage: rating.average,
+      ratingCount: rating.count
+    };
+  });
+
+  res.json({
+    items,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.max(1, Math.ceil(total / limit))
+    }
+  });
+});
+
 export const getPublicProductById = asyncHandler(async (req, res) => {
   const query = buildIdentifierQuery(req.params.id);
   const productDoc = await Product.findOne(query)
@@ -1680,7 +1984,13 @@ export const updateProduct = asyncHandler(async (req, res) => {
     installmentEndDate,
     installmentLatePenaltyRate,
     installmentMaxMissedPayments,
-    installmentRequireGuarantor
+    installmentRequireGuarantor,
+    wholesaleEnabled,
+    wholesaleTiers,
+    deliveryAvailable,
+    pickupAvailable,
+    deliveryFee,
+    deliveryFeeEnabled
   } = req.body;
   if (title) product.title = title;
   if (description) product.description = description;
@@ -1779,6 +2089,55 @@ export const updateProduct = asyncHandler(async (req, res) => {
     if (installmentConfig.normalized.installmentEnabled) {
       product.installmentSuspendedAt = null;
     }
+  }
+
+  const hasWholesalePayload = [wholesaleEnabled, wholesaleTiers].some(
+    (value) => value !== undefined
+  );
+  if (hasWholesalePayload) {
+    const requestedEnabled = normalizeBoolean(
+      wholesaleEnabled !== undefined ? wholesaleEnabled : product.wholesaleEnabled,
+      Boolean(product.wholesaleEnabled)
+    );
+    const requestedTiers = normalizeWholesaleTiers(
+      wholesaleTiers !== undefined ? wholesaleTiers : product.wholesaleTiers
+    );
+    if (!isShop && (requestedEnabled || requestedTiers.length > 0)) {
+      return res.status(403).json({
+        message: 'Seules les boutiques peuvent activer ou modifier la vente en gros.'
+      });
+    }
+    const wholesaleConfig = validateWholesaleConfig({
+      wholesaleEnabled: requestedEnabled,
+      wholesaleTiers: requestedTiers,
+      minQtyFloor: 2,
+      maxTiers: 10
+    });
+    if (!wholesaleConfig.valid) {
+      return res.status(400).json({ message: wholesaleConfig.message });
+    }
+    Object.assign(product, wholesaleConfig.normalized);
+  }
+
+  const hasDeliveryPayload = [
+    deliveryAvailable,
+    pickupAvailable,
+    deliveryFee,
+    deliveryFeeEnabled
+  ].some((value) => value !== undefined);
+
+  if (hasDeliveryPayload) {
+    const deliveryConfig = resolveDeliveryConfig({
+      deliveryAvailable,
+      pickupAvailable,
+      deliveryFee,
+      deliveryFeeEnabled,
+      current: product
+    });
+    if (!deliveryConfig.valid) {
+      return res.status(400).json({ message: deliveryConfig.message });
+    }
+    Object.assign(product, deliveryConfig.normalized);
   }
 
   const removeImagesRaw = req.body?.removeImages;

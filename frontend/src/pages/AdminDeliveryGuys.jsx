@@ -204,7 +204,7 @@ export default function AdminDeliveryGuys() {
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-6">
       <div className="flex items-center gap-3">
-        <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-600">
+        <div className="w-12 h-12 rounded-2xl bg-neutral-100 flex items-center justify-center text-neutral-600">
           <Truck size={22} />
         </div>
         <div>
@@ -230,10 +230,10 @@ export default function AdminDeliveryGuys() {
           <p className="mt-2 text-2xl font-semibold text-emerald-800">{summary.active}</p>
           <p className="text-xs text-emerald-700">{summary.inactive} inactif(s)</p>
         </div>
-        <div className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4">
-          <p className="text-xs font-semibold uppercase text-indigo-500">Commandes assignées</p>
-          <p className="mt-2 text-2xl font-semibold text-indigo-800">{summary.assigned}</p>
-          <p className="text-xs text-indigo-700">Toutes périodes</p>
+        <div className="rounded-2xl border border-neutral-100 bg-neutral-50/40 p-4">
+          <p className="text-xs font-semibold uppercase text-neutral-500">Commandes assignées</p>
+          <p className="mt-2 text-2xl font-semibold text-neutral-800">{summary.assigned}</p>
+          <p className="text-xs text-neutral-700">Toutes périodes</p>
         </div>
         <div className="rounded-2xl border border-amber-100 bg-amber-50/40 p-4">
           <p className="text-xs font-semibold uppercase text-amber-500">En livraison</p>
@@ -380,13 +380,13 @@ export default function AdminDeliveryGuys() {
               type="text"
               value={formState.name}
               onChange={(e) => setFormState((prev) => ({ ...prev, name: e.target.value }))}
-              className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
               placeholder="Ex: Jean K."
             />
           </div>
           <div>
             <label className="text-xs font-semibold uppercase text-gray-500">Téléphone</label>
-            <div className="mt-1 flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-indigo-500">
+            <div className="mt-1 flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-neutral-500">
               <Phone size={14} className="text-gray-400" />
               <input
                 type="text"
@@ -403,14 +403,14 @@ export default function AdminDeliveryGuys() {
                 type="checkbox"
                 checked={formState.active}
                 onChange={(e) => setFormState((prev) => ({ ...prev, active: e.target.checked }))}
-                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                className="h-4 w-4 rounded border-gray-300 text-neutral-600 focus:ring-neutral-500"
               />
               Actif
             </label>
             <button
               type="submit"
               disabled={saving || !formState.name.trim()}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-neutral-600 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50"
             >
               {editingId ? <Save size={16} /> : <Plus size={16} />}
               {editingId ? 'Mettre à jour' : 'Ajouter'}
@@ -429,7 +429,7 @@ export default function AdminDeliveryGuys() {
                 type="search"
                 value={searchDraft}
                 onChange={(e) => setSearchDraft(e.target.value)}
-                className="w-56 rounded-xl border border-gray-200 py-2 pl-9 pr-3 text-xs focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-56 rounded-xl border border-gray-200 py-2 pl-9 pr-3 text-xs focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                 placeholder="Rechercher un livreur"
               />
             </div>
@@ -454,7 +454,7 @@ export default function AdminDeliveryGuys() {
                     <span className="rounded-full bg-gray-100 px-2 py-0.5">
                       Assignées: {deliveryGuy.stats?.totalAssigned || 0}
                     </span>
-                    <span className="rounded-full bg-blue-100/70 px-2 py-0.5 text-blue-700">
+                    <span className="rounded-full bg-neutral-100/70 px-2 py-0.5 text-neutral-700">
                       En cours: {deliveryGuy.stats?.delivering || 0}
                     </span>
                     <span className="rounded-full bg-emerald-100/70 px-2 py-0.5 text-emerald-700">

@@ -88,7 +88,7 @@ export default function MobileScrollToTopButton() {
       style={{
         bottom: `calc(env(safe-area-inset-bottom, 0px) + ${MOBILE_NAV_HEIGHT + SCROLL_BUTTON_GAP}px)`
       }}
-      className="fixed right-4 z-40 inline-flex h-12 w-12 items-center justify-center rounded-full bg-indigo-600/95 text-white shadow-xl shadow-indigo-500/40 transition hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+      className="fixed right-4 z-40 inline-flex h-12 w-12 items-center justify-center rounded-full bg-neutral-600/95 text-white shadow-xl shadow-neutral-500/40 transition hover:bg-neutral-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neutral-500"
     >
       <ArrowUp className="h-5 w-5" />
     </button>

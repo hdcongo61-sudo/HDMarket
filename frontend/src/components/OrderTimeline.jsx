@@ -48,7 +48,7 @@ export default function OrderTimeline({ status, steps = DEFAULT_STEPS }) {
                   {step.label}
                 </span>
                 {isCurrent && (
-                  <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+                  <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-neutral-700">
                     En cours
                   </span>
                 )}

@@ -87,7 +87,7 @@ export default function Login() {
                 <input type="checkbox" className="mr-2 rounded" />
                 <span>Se souvenir de moi</span>
               </label>
-              <Link to="/forgot-password" className="text-[#007AFF] hover:underline">
+              <Link to="/forgot-password" className="text-[#0A0A0A] hover:underline">
                 Mot de passe oublié ?
               </Link>
             </div>
@@ -104,7 +104,7 @@ export default function Login() {
           <div className="mt-4 pt-4 border-t border-[rgba(60,60,67,0.12)]">
             <Link
               to="/register"
-              className="block w-full py-3 min-h-[48px] flex items-center justify-center rounded-full font-semibold text-[17px] text-[#007AFF] border border-[#C7C7CC] dark:border-[#38383A] bg-white dark:bg-[#1C1C1E] hover:bg-[#F2F2F7] dark:hover:bg-[#2C2C2E] tap-feedback transition-all"
+              className="block w-full py-3 min-h-[48px] flex items-center justify-center rounded-full font-semibold text-[17px] text-[#0A0A0A] border border-[#C7C7CC] dark:border-[#38383A] bg-white dark:bg-[#1C1C1E] hover:bg-[#F2F2F7] dark:hover:bg-[#2C2C2E] tap-feedback transition-all"
             >
               Créer un compte
             </Link>
@@ -115,11 +115,11 @@ export default function Login() {
         <div className="mt-6 text-center">
           <p className="text-[13px] text-[#8E8E93]">
             En vous connectant, vous acceptez nos{' '}
-            <Link to="/help" className="text-[#007AFF] hover:underline">
+            <Link to="/help" className="text-[#0A0A0A] hover:underline">
               conditions d'utilisation
             </Link>{' '}
             et notre{' '}
-            <Link to="/privacy" className="text-[#007AFF] hover:underline">
+            <Link to="/privacy" className="text-[#0A0A0A] hover:underline">
               politique de confidentialité
             </Link>
           </p>

@@ -36,7 +36,7 @@ export default function BulkActionsToolbar({
             type="button"
             onClick={() => onBulkAction('softDelete')}
             disabled={loading || selectedCount === 0}
-            className="inline-flex items-center gap-2 rounded-xl border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
           >
             <Trash2 size={14} /> Supprimer
           </button>
@@ -44,7 +44,7 @@ export default function BulkActionsToolbar({
             type="button"
             onClick={() => onBulkAction('restore')}
             disabled={loading || selectedCount === 0}
-            className="inline-flex items-center gap-2 rounded-xl border border-indigo-300 px-3 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
           >
             <RotateCcw size={14} /> Restaurer
           </button>

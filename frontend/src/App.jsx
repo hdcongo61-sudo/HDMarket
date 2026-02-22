@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import api from './services/api';
 import Navbar from './components/Navbar';
 import SplashScreen from './components/SplashScreen';
@@ -39,6 +40,7 @@ import ShopProfile from './pages/ShopProfile';
 import HelpCenter from './pages/HelpCenter';
 import UserSettings from './pages/UserSettings';
 import VerifiedShops from './pages/VerifiedShops';
+import FreeDeliveryShops from './pages/FreeDeliveryShops';
 import UserStats from './pages/UserStats';
 import UserOrders from './pages/UserOrders';
 import OrderDetail from './pages/OrderDetail';
@@ -77,8 +79,23 @@ import ShopConversionRequest from './pages/ShopConversionRequest';
 import PendingActionHandler from './components/PendingActionHandler';
 import { useAppSettings } from './context/AppSettingsContext';
 
+function LegacyOrderRouteResolver() {
+  const { legacyValue = '' } = useParams();
+  const value = String(legacyValue).trim();
+  if (!value) return <Navigate to="/orders" replace />;
+
+  // Support old deep links: /order/:orderId
+  if (/^[a-f\d]{24}$/i.test(value)) {
+    return <Navigate to={`/orders/detail/${value}`} replace />;
+  }
+
+  // Keep legacy status links working: /order/:status -> /orders/:status
+  return <Navigate to={`/orders/${value.toLowerCase()}`} replace />;
+}
+
 function AppContent() {
-  const { pathname } = useLocation();
+  const location = useLocation();
+  const { pathname } = location;
   const [splashConfig, setSplashConfig] = useState(null);
   const [splashDismissed, setSplashDismissed] = useState(false);
   const [bootLoading, setBootLoading] = useState(true);
@@ -138,7 +155,15 @@ function AppContent() {
         className="pt-20 sm:pt-24 md:pt-32 pb-24 md:pb-0 main-content"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 5rem)' }}
       >
-        <Routes>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={pathname}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+          >
+        <Routes location={location}>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -147,6 +172,7 @@ function AppContent() {
           <Route path="/product-preview/:slug" element={<ProductPreview />} />
           <Route path="/shop/:slug" element={<ShopProfile />} />
           <Route path="/shops/verified" element={<VerifiedShops />} />
+          <Route path="/shops/free-delivery" element={<FreeDeliveryShops />} />
           <Route path="/help" element={<HelpCenter />} />
           <Route
             path="/settings/categories"
@@ -329,10 +355,19 @@ function AppContent() {
             }
           />
           <Route
-            path="/order/:status?"
+            path="/order"
             element={
               <ProtectedRoute>
                 <UserOrders />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/order/:legacyValue" element={<LegacyOrderRouteResolver />} />
+          <Route
+            path="/seller/dashboard"
+            element={
+              <ProtectedRoute>
+                <Navigate to="/my" replace />
               </ProtectedRoute>
             }
           />
@@ -396,6 +431,7 @@ function AppContent() {
                   u?.canManageDelivery === true ||
                   u?.canManageProducts === true ||
                   u?.canManageBoosts === true ||
+                  u?.canManageChatTemplates === true ||
                   u?.canReadFeedback === true ||
                   u?.canVerifyPayments === true
                 }
@@ -460,7 +496,7 @@ function AppContent() {
             <Route
               path="chat-templates"
               element={
-                <ProtectedRoute roles={['admin']}>
+                <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.canManageChatTemplates === true}>
                   <AdminChatTemplates />
                 </ProtectedRoute>
               }
@@ -521,9 +557,13 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
+            <Route path="*" element={<Navigate to="/admin" replace />} />
           </Route>
           <Route path="/certified-products" element={<CertifiedProducts />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+          </motion.div>
+        </AnimatePresence>
       </main>
       <Footer />
       <ChatBox />
@@ -535,8 +575,53 @@ function AppContent() {
 export default function App() {
   usePreventNewTabOnMobile();
   const { language } = useAppSettings();
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+    const fallbackLogo = '/favicon.svg';
+
+    const setHeadIcon = (href) => {
+      const iconHref = href || fallbackLogo;
+      const upsert = (rel) => {
+        let link = document.querySelector(`link[rel="${rel}"]`);
+        if (!link) {
+          link = document.createElement('link');
+          link.setAttribute('rel', rel);
+          document.head.appendChild(link);
+        }
+        link.setAttribute('href', iconHref);
+      };
+
+      upsert('icon');
+      upsert('shortcut icon');
+      upsert('apple-touch-icon');
+    };
+
+    const applyFromPayload = (payload) => {
+      const nextLogo = payload?.appLogoDesktop || payload?.appLogoMobile || '';
+      setHeadIcon(nextLogo || fallbackLogo);
+    };
+
+    const onAppLogoUpdated = (event) => {
+      applyFromPayload(event?.detail || {});
+    };
+
+    setHeadIcon(fallbackLogo);
+    window.addEventListener('hdmarket:app-logo-updated', onAppLogoUpdated);
+
+    api
+      .get('/settings/app-logo', { skipCache: true })
+      .then((res) => applyFromPayload(res?.data || {}))
+      .catch(() => setHeadIcon(fallbackLogo));
+
+    return () => {
+      window.removeEventListener('hdmarket:app-logo-updated', onAppLogoUpdated);
+    };
+  }, []);
+
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL || '/'}>
       <AppContent key={`lang-${language || 'fr'}`} />
     </BrowserRouter>
   );

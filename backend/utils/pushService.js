@@ -407,11 +407,11 @@ export const sendPushNotification = async ({
   if (!shouldSend) return null;
 
   // For order messages, only send push to mobile devices (ios/android)
-  const tokenFilter = { user: notification.user };
+  const tokenFilter = { user: notification.user, isActive: { $ne: false } };
   if (notification.type === 'order_message') {
     tokenFilter.platform = { $in: ['ios', 'android'] };
   }
-  const tokens = await PushToken.find(tokenFilter).select('token platform').lean();
+  const tokens = await PushToken.find(tokenFilter).select('_id token platform failureCount').lean();
   if (!tokens.length) return null;
 
   const { title, body } = buildPushPayload({ notification, actorName, productTitle, shopName });
@@ -495,7 +495,48 @@ export const sendPushNotification = async ({
     }
   });
   if (invalidTokens.length) {
-    await PushToken.deleteMany({ token: { $in: invalidTokens } });
+    await PushToken.updateMany(
+      { token: { $in: invalidTokens } },
+      {
+        $set: {
+          isActive: false,
+          lastFailureAt: new Date(),
+          lastFailureCode: 'invalid_registration_token'
+        },
+        $inc: { failureCount: 1 }
+      }
+    );
+  }
+
+  const failedTokenIds = [];
+  response.responses.forEach((res, idx) => {
+    if (!res.success && tokens[idx]?._id) failedTokenIds.push(tokens[idx]._id);
+  });
+  if (failedTokenIds.length) {
+    await PushToken.updateMany(
+      { _id: { $in: failedTokenIds } },
+      {
+        $set: { lastFailureAt: new Date() },
+        $inc: { failureCount: 1 }
+      }
+    );
+  }
+  const succeededTokenIds = [];
+  response.responses.forEach((res, idx) => {
+    if (res.success && tokens[idx]?._id) succeededTokenIds.push(tokens[idx]._id);
+  });
+  if (succeededTokenIds.length) {
+    await PushToken.updateMany(
+      { _id: { $in: succeededTokenIds } },
+      {
+        $set: {
+          isActive: true,
+          lastSeenAt: new Date(),
+          lastFailureAt: null,
+          lastFailureCode: ''
+        }
+      }
+    );
   }
 
   return response;

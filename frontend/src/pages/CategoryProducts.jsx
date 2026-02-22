@@ -155,7 +155,7 @@ export default function CategoryProducts() {
           key={i}
           onClick={() => setPage(i)}
           className={`flex h-10 w-10 items-center justify-center rounded-lg border text-sm transition-colors ${
-            page === i ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-200 hover:bg-gray-50'
+            page === i ? 'border-neutral-600 bg-neutral-600 text-white' : 'border-gray-200 hover:bg-gray-50'
           }`}
         >
           {i}
@@ -202,7 +202,7 @@ export default function CategoryProducts() {
                     <Link
                       key={option.value}
                       to={`/categories/${option.value}`}
-                      className="inline-flex items-center gap-1 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-colors"
+                      className="inline-flex items-center gap-1 rounded-full border border-neutral-100 bg-neutral-50 px-3 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-100 transition-colors"
                     >
                       {option.label}
                       <ChevronRight className="w-3 h-3" />
@@ -215,7 +215,7 @@ export default function CategoryProducts() {
           <div className="mt-6">
             <Link
               to="/"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-500"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-600 hover:text-neutral-500"
             >
               <ArrowLeft className="w-4 h-4" />
               Retour à l’accueil
@@ -230,7 +230,7 @@ export default function CategoryProducts() {
     <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-8 py-6 space-y-6 sm:py-8 sm:space-y-8 pb-24 md:pb-16">
       <header className="space-y-4">
         <nav className="flex items-center gap-1 text-xs text-gray-500">
-          <Link to="/" className="hover:text-indigo-600 font-medium">
+          <Link to="/" className="hover:text-neutral-600 font-medium">
             Accueil
           </Link>
           <ChevronRight className="w-3 h-3" />
@@ -262,7 +262,7 @@ export default function CategoryProducts() {
               id="category-sort"
               value={sort}
               onChange={(event) => setSort(event.target.value)}
-              className="flex-1 md:flex-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              className="flex-1 md:flex-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-200"
             >
               {SORT_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -283,8 +283,8 @@ export default function CategoryProducts() {
                   to={`/categories/${option.value}`}
                   className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                     isActive
-                      ? 'border-indigo-600 bg-indigo-600 text-white'
-                      : 'border-gray-200 bg-white text-gray-600 hover:border-indigo-200 hover:text-indigo-600'
+                      ? 'border-neutral-600 bg-neutral-600 text-white'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-neutral-200 hover:text-neutral-600'
                   }`}
                 >
                   {option.label}

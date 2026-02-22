@@ -18,7 +18,7 @@ export default function LanguageSwitcher({ className = '' }) {
         value={safeValue}
         disabled={loading || !languages?.length}
         onChange={(e) => setLanguage(e.target.value)}
-        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-sky-700 dark:focus:ring-sky-900/40"
+        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-neutral-300 focus:ring-2 focus:ring-neutral-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-neutral-700 dark:focus:ring-neutral-900/40"
       >
         {(languages || []).map((item) => (
           <option key={item.code} value={item.code}>

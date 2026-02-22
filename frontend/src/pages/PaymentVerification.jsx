@@ -20,7 +20,7 @@ const operatorColors = {
   MTN: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
   Airtel: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
   Orange: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
-  Moov: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+  Moov: 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900/30 dark:text-neutral-300',
   Other: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
 };
 
@@ -117,12 +117,12 @@ export default function PaymentVerification() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-indigo-50/30 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-neutral-50/30 dark:from-gray-900 dark:to-gray-800">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <header className="mb-8">
           <div className="flex items-center gap-3 mb-2">
-            <DollarSign className="w-8 h-8 text-indigo-600" />
-            <h1 className="text-3xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            <DollarSign className="w-8 h-8 text-neutral-600" />
+            <h1 className="text-3xl font-black bg-gradient-to-r from-neutral-600 to-neutral-600 bg-clip-text text-transparent">
               Vérification des paiements
             </h1>
             {payments.length > 0 && (
@@ -152,7 +152,7 @@ export default function PaymentVerification() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
               placeholder="Rechercher un produit..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -206,7 +206,7 @@ export default function PaymentVerification() {
                             <Link
                               to={`/product/${payment.product.slug}`}
                               target="_blank"
-                              className="text-gray-400 hover:text-indigo-600 transition-colors"
+                              className="text-gray-400 hover:text-neutral-600 transition-colors"
                               title="Voir le produit"
                             >
                               <ExternalLink size={16} />
@@ -250,7 +250,7 @@ export default function PaymentVerification() {
                         <div className="flex flex-wrap items-center gap-3 text-sm">
                           <div>
                             <span className="text-gray-500 dark:text-gray-400">Montant payé:</span>{' '}
-                            <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                            <span className="font-bold text-neutral-600 dark:text-neutral-400">
                               {formatCurrency(payment.amount)}
                             </span>
                           </div>

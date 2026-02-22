@@ -27,9 +27,9 @@ function ToolButton({ label, active = false, onClick, children, disabled = false
       onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+      className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-500 ${
         active
-          ? 'border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-200'
+          ? 'border-neutral-300 bg-neutral-50 text-neutral-700 dark:border-neutral-700 dark:bg-neutral-950/50 dark:text-neutral-200'
           : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'
       } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
     >
@@ -117,7 +117,7 @@ export default function Toolbar({
             type="button"
             onClick={onSubmit}
             disabled={submitting}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-indigo-600 px-3 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-neutral-600 px-3 text-sm font-semibold text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <SendHorizonal className="h-4 w-4" />
             {submitting ? 'Envoi...' : 'Envoyer'}
@@ -132,7 +132,7 @@ export default function Toolbar({
               type="checkbox"
               checked={paperMode}
               onChange={(event) => setPaperMode(event.target.checked)}
-              className="h-3.5 w-3.5 rounded border-neutral-300 text-indigo-600 focus:ring-indigo-500"
+              className="h-3.5 w-3.5 rounded border-neutral-300 text-neutral-600 focus:ring-neutral-500"
             />
             <Type className="h-3.5 w-3.5" />
             Mode document A4
@@ -143,7 +143,7 @@ export default function Toolbar({
               type="checkbox"
               checked={pasteWithFormatting}
               onChange={(event) => setPasteWithFormatting(event.target.checked)}
-              className="h-3.5 w-3.5 rounded border-neutral-300 text-indigo-600 focus:ring-indigo-500"
+              className="h-3.5 w-3.5 rounded border-neutral-300 text-neutral-600 focus:ring-neutral-500"
             />
             Coller avec formatage
           </label>

@@ -12,6 +12,10 @@ import AdminAuditLog from '../models/adminAuditLogModel.js';
 import { createNotification } from '../utils/notificationService.js';
 import { updateProductSalesCount } from '../utils/salesCalculator.js';
 import { getRestrictionTypes, formatRestriction, getRestrictionLabel } from '../utils/restrictionCheck.js';
+import {
+  getCacheStats as getCacheEngineStats,
+  getCacheSnapshotHistory
+} from '../utils/cache.js';
 
 const monthKey = (year, month) => `${year}-${String(month).padStart(2, '0')}`;
 
@@ -52,6 +56,7 @@ const monthKey = (year, month) => `${year}-${String(month).padStart(2, '0')}`;
       canManageComplaints: Boolean(user.canManageComplaints),
       canManageProducts: Boolean(user.canManageProducts),
       canManageDelivery: Boolean(user.canManageDelivery),
+      canManageChatTemplates: Boolean(user.canManageChatTemplates),
       canManageHelpCenter: Boolean(user.canManageHelpCenter),
       isBlocked: Boolean(user.isBlocked),
       blockedAt: user.blockedAt || null,
@@ -506,6 +511,56 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
   });
 });
 
+const readRedisInfoMetric = (info = '', key = '') => {
+  if (!info || !key) return '';
+  const lines = String(info)
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const prefix = `${key}:`;
+  const matched = lines.find((line) => line.startsWith(prefix));
+  return matched ? matched.slice(prefix.length).trim() : '';
+};
+
+export const getCacheStatsAdmin = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const historyLimit = Math.max(10, Math.min(Number(req.query?.samples || 30), 120));
+
+  const cacheStats = await getCacheEngineStats();
+  const localHits = Number(cacheStats?.localHits || 0);
+  const redisHits = Number(cacheStats?.redisHits || 0);
+  const misses = Number(cacheStats?.misses || 0);
+  const totalHits = localHits + redisHits;
+  const totalReads = totalHits + misses;
+  const hitRatio = totalReads > 0 ? Number(((totalHits / totalReads) * 100).toFixed(2)) : 0;
+
+  const redisInfoRaw = cacheStats?.redis?.memory || '';
+  const memoryUsedBytes = Number(readRedisInfoMetric(redisInfoRaw, 'used_memory') || 0);
+  const memoryUsedHuman = readRedisInfoMetric(redisInfoRaw, 'used_memory_human') || '';
+  const history = getCacheSnapshotHistory(historyLimit);
+
+  res.json({
+    generatedAt: new Date(),
+    hitRatio,
+    totalReads,
+    hits: totalHits,
+    misses,
+    localHits,
+    redisHits,
+    sets: Number(cacheStats?.sets || 0),
+    invalidations: Number(cacheStats?.invalidations || 0),
+    errors: Number(cacheStats?.errors || 0),
+    hotCacheSize: Number(cacheStats?.hotCacheSize || 0),
+    redis: {
+      ready: Boolean(cacheStats?.redis?.ready),
+      keyCount: Number(cacheStats?.redis?.keyCount || 0),
+      memoryUsedBytes: Number.isFinite(memoryUsedBytes) ? memoryUsedBytes : 0,
+      memoryUsedHuman
+    },
+    history
+  });
+});
+
 // Analytics endpoints for real-time dashboard
 export const getSalesTrends = asyncHandler(async (req, res) => {
   ensureAdminRole(req);
@@ -877,7 +932,7 @@ export const listUsers = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(safeLimit)
     .select(
-      'name email phone role accountType shopName shopAddress shopLogo shopVerified shopVerifiedBy shopVerifiedAt createdAt updatedAt isBlocked blockedAt blockedReason followersCount restrictions canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageHelpCenter'
+      'name email phone role accountType shopName shopAddress shopLogo shopVerified shopVerifiedBy shopVerifiedAt createdAt updatedAt isBlocked blockedAt blockedReason followersCount restrictions canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageHelpCenter canManageChatTemplates'
     )
     .populate('shopVerifiedBy', 'name email');
 
@@ -1487,6 +1542,85 @@ export const toggleDeliveryManager = asyncHandler(async (req, res) => {
       email: user.email,
       phone: user.phone,
       canManageDelivery: user.canManageDelivery
+    }
+  });
+});
+
+export const listChatTemplateManagers = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+
+  const { search = '', grantedOnly = 'false', limit = 50 } = req.query;
+  const query = { role: { $ne: 'admin' } };
+  if (String(grantedOnly) === 'true') {
+    query.canManageChatTemplates = true;
+  }
+
+  if (search && String(search).trim()) {
+    const safe = String(search).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(safe, 'i');
+    query.$or = [{ name: regex }, { email: regex }, { phone: regex }];
+  }
+
+  const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 100);
+  const users = await User.find(query)
+    .select('_id name email phone role canManageChatTemplates')
+    .sort({ canManageChatTemplates: -1, name: 1 })
+    .limit(safeLimit)
+    .lean();
+
+  res.json({
+    users: users.map((item) => ({
+      id: item._id.toString(),
+      name: item.name,
+      email: item.email,
+      phone: item.phone,
+      role: item.role,
+      canManageChatTemplates: Boolean(item.canManageChatTemplates)
+    }))
+  });
+});
+
+export const toggleChatTemplateManager = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { userId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  }
+  if (user.role === 'admin') {
+    return res.status(400).json({ message: "Impossible de modifier les permissions d'un administrateur." });
+  }
+
+  const wasGranted = Boolean(user.canManageChatTemplates);
+  user.canManageChatTemplates = !wasGranted;
+  await user.save();
+
+  await createAuditLog({
+    action: user.canManageChatTemplates ? 'chat_template_access_granted' : 'chat_template_access_revoked',
+    targetUser: user._id,
+    performedBy: req.user.id,
+    details: {
+      previousValue: wasGranted,
+      nextValue: Boolean(user.canManageChatTemplates),
+      permission: 'canManageChatTemplates'
+    },
+    ipAddress: req.ip
+  });
+
+  res.json({
+    message: user.canManageChatTemplates
+      ? 'Accès gestion templates chat accordé.'
+      : 'Accès gestion templates chat retiré.',
+    user: {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      canManageChatTemplates: Boolean(user.canManageChatTemplates)
     }
   });
 });

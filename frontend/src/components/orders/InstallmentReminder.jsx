@@ -55,7 +55,7 @@ export default function InstallmentReminder({
         tone: 'overdue',
         label: getCountdownLabel(diff),
         style:
-          'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-200 dark:border-rose-900'
+          'bg-neutral-50 text-neutral-700 border-neutral-200 dark:bg-neutral-950/30 dark:text-neutral-200 dark:border-neutral-900'
       };
     }
 
@@ -83,7 +83,7 @@ export default function InstallmentReminder({
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Wallet className="h-4 w-4 text-indigo-600 dark:text-indigo-300" />
+          <Wallet className="h-4 w-4 text-neutral-600 dark:text-neutral-300" />
           <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Rappel de tranche</p>
         </div>
         <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${urgency.style}`}>
@@ -106,7 +106,7 @@ export default function InstallmentReminder({
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
           <motion.div
-            className="h-full rounded-full bg-indigo-600 dark:bg-indigo-400"
+            className="h-full rounded-full bg-neutral-600 dark:bg-neutral-400"
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
             transition={{ duration: 0.35, ease: 'easeOut' }}

@@ -16,8 +16,18 @@ export default function AppLoader({ visible, logoSrc, label = 'HDMarket' }) {
     }
 
     let isMounted = true;
+    const onAppLogoUpdated = (event) => {
+      if (!isMounted) return;
+      const updatedLogo = event?.detail?.appLogoMobile || event?.detail?.appLogoDesktop || '';
+      if (updatedLogo) {
+        setLogo(updatedLogo);
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('hdmarket:app-logo-updated', onAppLogoUpdated);
+    }
     api
-      .get('/settings/app-logo')
+      .get('/settings/app-logo', { skipCache: true })
       .then((res) => {
         if (!isMounted) return;
         const nextLogo = res?.data?.appLogoMobile || res?.data?.appLogoDesktop || '';
@@ -30,6 +40,9 @@ export default function AppLoader({ visible, logoSrc, label = 'HDMarket' }) {
 
     return () => {
       isMounted = false;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('hdmarket:app-logo-updated', onAppLogoUpdated);
+      }
     };
   }, [logoSrc]);
 
@@ -45,8 +58,8 @@ export default function AppLoader({ visible, logoSrc, label = 'HDMarket' }) {
       aria-busy="true"
     >
       <div className="relative flex flex-col items-center">
-        <div className="absolute -inset-6 rounded-full border border-indigo-200/70 motion-safe:animate-ping motion-reduce:animate-none" />
-        <div className="absolute -inset-10 rounded-full border border-indigo-100/80 motion-safe:animate-pulse motion-reduce:animate-none" />
+        <div className="absolute -inset-6 rounded-full border border-neutral-200/70 motion-safe:animate-ping motion-reduce:animate-none" />
+        <div className="absolute -inset-10 rounded-full border border-neutral-100/80 motion-safe:animate-pulse motion-reduce:animate-none" />
         <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-white shadow-xl">
           {resolvedLogo ? (
             <img

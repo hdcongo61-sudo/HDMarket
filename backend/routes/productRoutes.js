@@ -8,6 +8,8 @@ import {
   createProduct,
   getPublicProducts,
   getPublicInstallmentProducts,
+  getPublicWholesaleProducts,
+  getPublicPickupOnlyProducts,
   getPublicHighlights,
   getPublicProductById,
   getMyProducts,
@@ -38,6 +40,9 @@ const router = express.Router();
 // Public (validation query) - with caching
 router.get('/public/highlights', cacheMiddleware({ ttl: 300000 }), getPublicHighlights);
 router.get('/public/installments', cacheMiddleware({ ttl: 300000 }), getPublicInstallmentProducts);
+router.get('/public/wholesale', cacheMiddleware({ ttl: 300000 }), getPublicWholesaleProducts);
+router.get('/wholesale', cacheMiddleware({ ttl: 300000 }), getPublicWholesaleProducts);
+router.get('/public/pickup-only', cacheMiddleware({ ttl: 300000 }), getPublicPickupOnlyProducts);
 router.get('/public/top-sales', cacheMiddleware({ ttl: 300000 }), getTopSales);
 router.get('/public/top-sales/today', cacheMiddleware({ ttl: 120000 }), getTopSalesTodayByCity);
 router.get('/public', cacheMiddleware({ ttl: 180000 }), validate(schemas.publicQuery, 'query'), getPublicProducts);

@@ -132,7 +132,7 @@ export default function CategoryEditor({
         <button
           type="button"
           onClick={handleCreateRoot}
-          className="mt-2 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+          className="mt-2 inline-flex items-center gap-2 rounded-xl bg-neutral-600 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-500"
         >
           <PlusCircle size={16} /> Ajouter
         </button>
@@ -195,7 +195,7 @@ export default function CategoryEditor({
                 type="checkbox"
                 checked={form.isActive}
                 onChange={(e) => setForm((prev) => ({ ...prev, isActive: e.target.checked }))}
-                className="h-4 w-4 rounded border-neutral-300 text-indigo-600"
+                className="h-4 w-4 rounded border-neutral-300 text-neutral-600"
               />
               Active dans storefront
             </label>
@@ -214,7 +214,7 @@ export default function CategoryEditor({
                 <button
                   type="button"
                   onClick={handleCreateChild}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-neutral-600 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-500"
                 >
                   <PlusCircle size={16} /> Ajouter
                 </button>
@@ -236,7 +236,7 @@ export default function CategoryEditor({
                 type="button"
                 onClick={() => onSoftDelete(selectedNode)}
                 disabled={saving}
-                className="inline-flex items-center gap-2 rounded-xl border border-rose-300 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900/30"
+                className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-60 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-900/30"
               >
                 <Trash2 size={16} /> Soft delete
               </button>

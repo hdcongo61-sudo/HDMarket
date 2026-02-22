@@ -21,79 +21,91 @@ const STATUS_CONFIG = {
   paid: {
     label: 'Payée',
     className:
-      'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-900',
+      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
     Icon: CreditCard
+  },
+  ready_for_pickup: {
+    label: 'Prête à récupérer',
+    className:
+      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
+    Icon: Package
+  },
+  picked_up_confirmed: {
+    label: 'Retrait confirmé',
+    className:
+      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
+    Icon: CheckCircle2
   },
   ready_for_delivery: {
     label: 'En préparation',
     className:
-      'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-900',
+      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
     Icon: Package
   },
   out_for_delivery: {
     label: 'En cours de livraison',
     className:
-      'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-200 dark:border-sky-900',
+      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
     Icon: Truck
   },
   delivery_proof_submitted: {
     label: 'Preuve livrée',
     className:
-      'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-200 dark:border-cyan-900',
+      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
     Icon: ClipboardCheck
   },
   confirmed_by_client: {
     label: 'Confirmée client',
     className:
-      'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-900',
+      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
     Icon: CheckCircle2
   },
   pending_installment: {
     label: 'Validation vente',
     className:
-      'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/40 dark:text-violet-200 dark:border-violet-900',
+      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
     Icon: Wallet
   },
   installment_active: {
     label: 'Tranche active',
     className:
-      'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-200 dark:border-indigo-900',
+      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
     Icon: CreditCard
   },
   overdue_installment: {
     label: 'Tranche en retard',
     className:
-      'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-200 dark:border-rose-900',
+      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
     Icon: AlertTriangle
   },
   confirmed: {
     label: 'Confirmée',
     className:
-      'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-900',
+      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
     Icon: Package
   },
   delivering: {
     label: 'En cours de livraison',
     className:
-      'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-200 dark:border-sky-900',
+      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
     Icon: Truck
   },
   delivered: {
     label: 'Livrée',
     className:
-      'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-900',
+      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
     Icon: CheckCircle2
   },
   completed: {
     label: 'Terminée',
     className:
-      'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-900',
+      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
     Icon: CheckCircle2
   },
   cancelled: {
     label: 'Annulée',
     className:
-      'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-200 dark:border-red-900',
+      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
     Icon: XCircle
   }
 };
@@ -107,7 +119,7 @@ const PAYMENT_BADGE = {
   installment: {
     label: 'Paiement par tranche',
     className:
-      'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-200 dark:border-indigo-900'
+      'bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-200 dark:border-neutral-700'
   }
 };
 
@@ -125,12 +137,20 @@ export default function StatusBadge({ status, paymentType, className = '', compa
 
   const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.pending_payment;
   const Icon = cfg.Icon;
+  const iconMotionClass =
+    status === 'pending_payment' || status === 'pending_installment'
+      ? 'status-pending-dot'
+      : status === 'out_for_delivery' || status === 'delivering'
+        ? 'status-delivery-icon'
+        : status === 'completed' || status === 'delivered' || status === 'picked_up_confirmed'
+          ? 'status-completed-icon'
+          : '';
 
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${cfg.className} ${className}`.trim()}
     >
-      {!compact && <Icon className="h-3.5 w-3.5" />}
+      {!compact && <Icon className={`h-3.5 w-3.5 ${iconMotionClass}`.trim()} />}
       {cfg.label}
     </span>
   );

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Globe2, Landmark, Languages, MapPin, Plus, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, CircleHelp, Globe2, Landmark, Languages, MapPin, Plus, Save, Trash2, Truck } from 'lucide-react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 
@@ -10,9 +10,27 @@ const FEE_FIELDS = [
   { key: 'installmentMinPercent', label: 'Tranche min (%)', type: 'number', step: 1 },
   { key: 'installmentMaxDuration', label: 'Duree max tranche (jours)', type: 'number', step: 1 },
   { key: 'shopConversionAmount', label: 'Montant devenir boutique', type: 'number', step: 1 },
-  { key: 'analyticsViewWeight', label: 'Poids score vues', type: 'number', step: 0.01 },
-  { key: 'analyticsConversionWeight', label: 'Poids score conversion', type: 'number', step: 0.01 },
-  { key: 'analyticsRevenueWeight', label: 'Poids score revenu', type: 'number', step: 0.001 },
+  {
+    key: 'analyticsViewWeight',
+    label: 'Importance des vues',
+    type: 'number',
+    step: 0.01,
+    help: 'Plus la valeur est elevee, plus le nombre de vues influence le score produit.'
+  },
+  {
+    key: 'analyticsConversionWeight',
+    label: 'Importance de la conversion',
+    type: 'number',
+    step: 0.01,
+    help: 'Poids du taux de conversion (commandes / vues) dans le score produit.'
+  },
+  {
+    key: 'analyticsRevenueWeight',
+    label: 'Importance du revenu',
+    type: 'number',
+    step: 0.001,
+    help: 'Poids du revenu genere par le produit dans le score final.'
+  },
   { key: 'analyticsRefundPenalty', label: 'Pénalité score litige', type: 'number', step: 0.1 },
   { key: 'disputeWindowHours', label: 'Fenetre litige (heures)', type: 'number', step: 1 },
   { key: 'deliveryOTPExpirationMinutes', label: 'Expiration OTP livraison (min)', type: 'number', step: 1 },
@@ -38,6 +56,15 @@ const emptyCityForm = {
   boostMultiplier: 1
 };
 
+const emptyCommuneForm = {
+  name: '',
+  cityId: '',
+  deliveryPolicy: 'DEFAULT_RULE',
+  fixedFee: 0,
+  isActive: true,
+  order: 0
+};
+
 const buildEmptyLanguage = () => ({
   code: '',
   name: '',
@@ -55,6 +82,16 @@ export default function AdminSystemSettings() {
   const [cities, setCities] = useState([]);
   const [cityForm, setCityForm] = useState(emptyCityForm);
   const [creatingCity, setCreatingCity] = useState(false);
+  const [communes, setCommunes] = useState([]);
+  const [communeForm, setCommuneForm] = useState(emptyCommuneForm);
+  const [creatingCommune, setCreatingCommune] = useState(false);
+  const [editingCommuneId, setEditingCommuneId] = useState('');
+  const [editingCommuneDraft, setEditingCommuneDraft] = useState({
+    cityId: '',
+    deliveryPolicy: 'DEFAULT_RULE',
+    fixedFee: 0
+  });
+  const [savingCommuneEdit, setSavingCommuneEdit] = useState(false);
   const [languages, setLanguages] = useState([]);
   const [defaultLanguage, setDefaultLanguage] = useState('fr');
   const [savingLanguages, setSavingLanguages] = useState(false);
@@ -67,7 +104,36 @@ export default function AdminSystemSettings() {
       const { data } = await api.get('/admin/settings');
       setFees(data?.feesAndRules || {});
       setCurrencies(Array.isArray(data?.currencies) ? data.currencies : []);
-      setCities(Array.isArray(data?.cities) ? data.cities : []);
+      const nextCities = Array.isArray(data?.cities) ? data.cities : [];
+      const cityNameById = new Map(
+        nextCities.map((city) => [String(city?._id || ''), city?.name || ''])
+      );
+      const cityIdByName = new Map(
+        nextCities.map((city) => [String(city?.name || '').trim().toLowerCase(), String(city?._id || '')])
+      );
+      const nextCommunesRaw = Array.isArray(data?.communes) ? data.communes : [];
+      const nextCommunes = nextCommunesRaw.map((commune) => {
+        const rawCity = commune?.cityId;
+        const rawCityAsString = typeof rawCity === 'string' ? rawCity.trim() : '';
+        const cityIdFromName = cityIdByName.get(rawCityAsString.toLowerCase()) || '';
+        const normalizedCityId = String(rawCity?._id || rawCity || cityIdFromName || '');
+        const normalizedCityName =
+          rawCity?.name ||
+          cityNameById.get(cityIdFromName) ||
+          cityNameById.get(rawCityAsString) ||
+          (cityIdFromName ? cityNameById.get(cityIdFromName) : '') ||
+          rawCityAsString ||
+          cityNameById.get(normalizedCityId) ||
+          commune?.cityName ||
+          '';
+        return {
+          ...commune,
+          cityId: normalizedCityId,
+          cityName: normalizedCityName
+        };
+      });
+      setCities(nextCities);
+      setCommunes(nextCommunes);
       const langs = Array.isArray(data?.languages?.languages) ? data.languages.languages : [];
       setLanguages(langs);
       setDefaultLanguage(data?.languages?.defaultLanguage || langs[0]?.code || 'fr');
@@ -187,6 +253,91 @@ export default function AdminSystemSettings() {
     }
   };
 
+  const createCommune = async (event) => {
+    event.preventDefault();
+    if (!communeForm.cityId) {
+      showToast('Selectionnez une ville pour la commune.', { variant: 'error' });
+      return;
+    }
+    if (communeForm.deliveryPolicy === 'FIXED_FEE' && Number(communeForm.fixedFee || 0) < 0) {
+      showToast('Le frais fixe doit etre superieur ou egal a 0.', { variant: 'error' });
+      return;
+    }
+    setCreatingCommune(true);
+    try {
+      await api.post('/admin/communes', {
+        ...communeForm,
+        fixedFee: Number(communeForm.fixedFee || 0),
+        order: Number(communeForm.order || 0)
+      });
+      showToast('Commune creee.', { variant: 'success' });
+      setCommuneForm((prev) => ({ ...emptyCommuneForm, cityId: prev.cityId || '' }));
+      await loadSettings();
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Erreur creation commune.', { variant: 'error' });
+    } finally {
+      setCreatingCommune(false);
+    }
+  };
+
+  const patchCommune = async (communeId, patch) => {
+    try {
+      await api.patch(`/admin/communes/${communeId}`, patch);
+      await loadSettings();
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Erreur mise a jour commune.', { variant: 'error' });
+    }
+  };
+
+  const startCommuneEdit = (commune) => {
+    setEditingCommuneId(String(commune?._id || ''));
+    setEditingCommuneDraft({
+      cityId: String(commune?.cityId || ''),
+      deliveryPolicy: String(commune?.deliveryPolicy || 'DEFAULT_RULE'),
+      fixedFee: Number(commune?.fixedFee || 0)
+    });
+  };
+
+  const cancelCommuneEdit = () => {
+    setEditingCommuneId('');
+    setEditingCommuneDraft({
+      cityId: '',
+      deliveryPolicy: 'DEFAULT_RULE',
+      fixedFee: 0
+    });
+    setSavingCommuneEdit(false);
+  };
+
+  const saveCommuneEdit = async () => {
+    if (!editingCommuneId) return;
+    const nextPolicy = String(editingCommuneDraft.deliveryPolicy || 'DEFAULT_RULE');
+    const nextFee = Number(editingCommuneDraft.fixedFee || 0);
+    const nextCityId = String(editingCommuneDraft.cityId || '').trim();
+    if (!nextCityId) {
+      showToast('Selectionnez une ville.', { variant: 'error' });
+      return;
+    }
+    if (nextPolicy === 'FIXED_FEE' && (!Number.isFinite(nextFee) || nextFee < 0)) {
+      showToast('Le frais fixe doit etre superieur ou egal a 0.', { variant: 'error' });
+      return;
+    }
+    setSavingCommuneEdit(true);
+    try {
+      await api.patch(`/admin/communes/${editingCommuneId}`, {
+        cityId: nextCityId,
+        deliveryPolicy: nextPolicy,
+        fixedFee: nextPolicy === 'FIXED_FEE' ? Math.max(0, nextFee) : 0
+      });
+      showToast('Commune mise a jour.', { variant: 'success' });
+      await loadSettings();
+      cancelCommuneEdit();
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Erreur mise a jour commune.', { variant: 'error' });
+    } finally {
+      setSavingCommuneEdit(false);
+    }
+  };
+
   const saveLanguages = async () => {
     const normalized = languages.map((item) => ({
       code: String(item.code || '').trim().toLowerCase(),
@@ -277,6 +428,12 @@ export default function AdminSystemSettings() {
     });
   };
 
+  useEffect(() => {
+    if (communeForm.cityId) return;
+    if (!cities.length) return;
+    setCommuneForm((prev) => ({ ...prev, cityId: String(cities[0]._id || '') }));
+  }, [cities, communeForm.cityId]);
+
   return (
     <div className="min-h-screen bg-gray-50/60 text-gray-900 dark:bg-neutral-950 dark:text-neutral-50">
       <header className="sticky top-0 z-20 border-b border-gray-200/70 bg-white/75 backdrop-blur-md dark:border-neutral-800 dark:bg-neutral-950/75">
@@ -307,7 +464,20 @@ export default function AdminSystemSettings() {
             <div className="space-y-3">
               {FEE_FIELDS.map((field) => (
                 <div key={field.key} className="flex items-center gap-2">
-                  <label className="w-1/2 text-xs text-gray-600 dark:text-neutral-300">{field.label}</label>
+                  <div className="w-1/2">
+                    <div className="inline-flex items-center gap-1.5">
+                      <span className="text-xs text-gray-600 dark:text-neutral-300">{field.label}</span>
+                      {field.help ? (
+                        <span
+                          title={field.help}
+                          className="inline-flex h-4 w-4 items-center justify-center rounded-full text-gray-400 hover:text-gray-600 dark:text-neutral-500 dark:hover:text-neutral-300"
+                          aria-label={field.help}
+                        >
+                          <CircleHelp size={12} />
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
                   {field.type === 'boolean' ? (
                     <select
                       value={fees[field.key] ? 'true' : 'false'}
@@ -335,7 +505,7 @@ export default function AdminSystemSettings() {
                     type="button"
                     onClick={() => saveFee(field.key)}
                     disabled={savingFeeKey === field.key}
-                    className="inline-flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2 py-1.5 text-xs font-medium text-sky-700 transition hover:bg-sky-100 disabled:opacity-60 dark:border-sky-800 dark:bg-sky-900/30 dark:text-sky-200"
+                    className="inline-flex items-center gap-1 rounded-lg border border-neutral-300 bg-neutral-50 px-2 py-1.5 text-xs font-medium text-neutral-700 transition hover:bg-neutral-100 disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900/30 dark:text-neutral-200"
                   >
                     <Save size={14} />
                     OK
@@ -355,7 +525,7 @@ export default function AdminSystemSettings() {
             <button
               type="button"
               onClick={addLanguage}
-              className="inline-flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 transition hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-900/30 dark:text-sky-200"
+              className="inline-flex items-center gap-1 rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-900/30 dark:text-neutral-200"
             >
               <Plus size={14} />
               Ajouter langue
@@ -412,7 +582,7 @@ export default function AdminSystemSettings() {
                 type="button"
                 disabled={savingLanguages}
                 onClick={saveLanguages}
-                className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:border-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-200"
+                className="rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-1.5 text-xs font-semibold text-neutral-700 dark:border-neutral-900 dark:bg-neutral-900/30 dark:text-neutral-200"
               >
                 Enregistrer
               </button>
@@ -480,7 +650,7 @@ export default function AdminSystemSettings() {
             <button
               type="submit"
               disabled={creatingCurrency}
-              className="rounded-lg border border-sky-300 bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-700 dark:border-sky-800 dark:bg-sky-900/30 dark:text-sky-200"
+              className="rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-1.5 text-sm font-medium text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900/30 dark:text-neutral-200"
             >
               Ajouter
             </button>
@@ -514,7 +684,7 @@ export default function AdminSystemSettings() {
                       type="button"
                       onClick={() => saveCurrencyRate(currency.code)}
                       disabled={savingCurrencyCode === currency.code}
-                      className="rounded-md border border-indigo-300 bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 disabled:opacity-60 dark:border-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200"
+                      className="rounded-md border border-neutral-300 bg-neutral-50 px-2 py-1 text-xs font-medium text-neutral-700 disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900/30 dark:text-neutral-200"
                     >
                       {savingCurrencyCode === currency.code ? 'Enregistrement...' : 'Enregistrer conversion'}
                     </button>
@@ -526,7 +696,7 @@ export default function AdminSystemSettings() {
                     onClick={() => patchCurrency(currency.code, { isDefault: true })}
                     className={`rounded-md px-2 py-1 text-xs font-medium ${
                       currency.isDefault
-                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200'
+                        ? 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-200'
                         : 'bg-gray-100 text-gray-700 dark:bg-neutral-800 dark:text-neutral-200'
                     }`}
                   >
@@ -537,7 +707,7 @@ export default function AdminSystemSettings() {
                     onClick={() => patchCurrency(currency.code, { isActive: !currency.isActive })}
                     className={`rounded-md px-2 py-1 text-xs font-medium ${
                       currency.isActive
-                        ? 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200'
+                        ? 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-200'
                         : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-200'
                     }`}
                   >
@@ -565,7 +735,7 @@ export default function AdminSystemSettings() {
             <button
               type="submit"
               disabled={creatingCity}
-              className="rounded-lg border border-sky-300 bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-700 dark:border-sky-800 dark:bg-sky-900/30 dark:text-sky-200"
+              className="rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-1.5 text-sm font-medium text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900/30 dark:text-neutral-200"
             >
               Ajouter
             </button>
@@ -589,7 +759,7 @@ export default function AdminSystemSettings() {
                     onClick={() => patchCity(item._id, { isDefault: true })}
                     className={`rounded-md px-2 py-1 text-xs font-medium ${
                       item.isDefault
-                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200'
+                        ? 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-200'
                         : 'bg-gray-100 text-gray-700 dark:bg-neutral-800 dark:text-neutral-200'
                     }`}
                   >
@@ -600,12 +770,194 @@ export default function AdminSystemSettings() {
                     onClick={() => patchCity(item._id, { isActive: !item.isActive })}
                     className={`rounded-md px-2 py-1 text-xs font-medium ${
                       item.isActive
-                        ? 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200'
+                        ? 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-200'
                         : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-200'
                     }`}
                   >
                     {item.isActive ? 'Actif' : 'Inactif'}
                   </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+          <div className="mb-4 flex items-center gap-2">
+            <Truck size={16} />
+            <h2 className="text-sm font-semibold">Communes et regles de livraison</h2>
+          </div>
+          <form onSubmit={createCommune} className="mb-4 grid gap-2 sm:grid-cols-2">
+            <input
+              value={communeForm.name}
+              onChange={(e) => setCommuneForm((prev) => ({ ...prev, name: e.target.value }))}
+              placeholder="Nom commune"
+              className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+              required
+            />
+            <select
+              value={communeForm.cityId}
+              onChange={(e) => setCommuneForm((prev) => ({ ...prev, cityId: e.target.value }))}
+              className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+              required
+            >
+              <option value="">Ville</option>
+              {cities.map((city) => (
+                <option key={city._id} value={city._id}>
+                  {city.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={communeForm.deliveryPolicy}
+              onChange={(e) =>
+                setCommuneForm((prev) => ({
+                  ...prev,
+                  deliveryPolicy: e.target.value
+                }))
+              }
+              className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+            >
+              <option value="DEFAULT_RULE">DEFAULT_RULE</option>
+              <option value="FREE">FREE</option>
+              <option value="FIXED_FEE">FIXED_FEE</option>
+            </select>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={communeForm.fixedFee}
+              onChange={(e) =>
+                setCommuneForm((prev) => ({
+                  ...prev,
+                  fixedFee: Number.isFinite(Number(e.target.value)) ? Number(e.target.value) : 0
+                }))
+              }
+              placeholder="Frais fixe"
+              className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+              disabled={communeForm.deliveryPolicy !== 'FIXED_FEE'}
+            />
+            <button
+              type="submit"
+              disabled={creatingCommune}
+              className="rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-1.5 text-sm font-medium text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900/30 dark:text-neutral-200"
+            >
+              Ajouter
+            </button>
+          </form>
+          <div className="space-y-2">
+            {communes.map((item) => (
+              <div
+                key={item._id}
+                className="flex flex-col gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm dark:border-neutral-700"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="font-medium">
+                      {item.name}
+                      <span className="ml-2 text-xs text-gray-500 dark:text-neutral-400">
+                        ({item.cityName || 'Ville inconnue'})
+                      </span>
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-neutral-400">
+                      Politique: {item.deliveryPolicy}
+                      {item.deliveryPolicy === 'FIXED_FEE'
+                        ? ` | Frais: ${Number(item.fixedFee || 0).toLocaleString('fr-FR')}`
+                        : ''}
+                    </p>
+                  </div>
+                  {editingCommuneId === String(item._id) ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        value={editingCommuneDraft.cityId}
+                        onChange={(e) =>
+                          setEditingCommuneDraft((prev) => ({
+                            ...prev,
+                            cityId: e.target.value
+                          }))
+                        }
+                        className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-950"
+                      >
+                        <option value="">Ville</option>
+                        {cities.map((city) => (
+                          <option key={city._id} value={city._id}>
+                            {city.name}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={editingCommuneDraft.deliveryPolicy}
+                        onChange={(e) =>
+                          setEditingCommuneDraft((prev) => ({
+                            ...prev,
+                            deliveryPolicy: e.target.value
+                          }))
+                        }
+                        className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-950"
+                      >
+                        <option value="DEFAULT_RULE">DEFAULT_RULE</option>
+                        <option value="FREE">FREE</option>
+                        <option value="FIXED_FEE">FIXED_FEE</option>
+                      </select>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={editingCommuneDraft.fixedFee}
+                        onChange={(e) =>
+                          setEditingCommuneDraft((prev) => ({
+                            ...prev,
+                            fixedFee: Number.isFinite(Number(e.target.value))
+                              ? Number(e.target.value)
+                              : 0
+                          }))
+                        }
+                        disabled={editingCommuneDraft.deliveryPolicy !== 'FIXED_FEE'}
+                        className="w-28 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs disabled:bg-gray-100 dark:border-neutral-700 dark:bg-neutral-950 dark:disabled:bg-neutral-900"
+                      />
+                      <button
+                        type="button"
+                        onClick={saveCommuneEdit}
+                        disabled={savingCommuneEdit}
+                        className="rounded-md bg-neutral-100 px-2 py-1 text-xs font-medium text-neutral-700 disabled:opacity-60 dark:bg-neutral-900/30 dark:text-neutral-200"
+                      >
+                        {savingCommuneEdit ? '...' : 'Enregistrer'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelCommuneEdit}
+                        disabled={savingCommuneEdit}
+                        className="rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 disabled:opacity-60 dark:bg-neutral-800 dark:text-neutral-200"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          patchCommune(item._id, {
+                            isActive: !item.isActive
+                          })
+                        }
+                        className={`rounded-md px-2 py-1 text-xs font-medium ${
+                          item.isActive
+                            ? 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-200'
+                            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-200'
+                        }`}
+                      >
+                        {item.isActive ? 'Actif' : 'Inactif'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => startCommuneEdit(item)}
+                        className="rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-neutral-800 dark:text-neutral-200"
+                      >
+                        Changer politique
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

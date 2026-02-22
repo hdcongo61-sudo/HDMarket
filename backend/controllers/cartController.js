@@ -3,9 +3,11 @@ import mongoose from 'mongoose';
 import Cart from '../models/cartModel.js';
 import Product from '../models/productModel.js';
 import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
+import { getWholesalePricing, normalizeWholesaleTiers } from '../utils/wholesaleUtils.js';
+import { invalidateUserCache } from '../utils/cache.js';
 
 const productSelectFields =
-  'title price discount priceBeforeDiscount images status category user city country whatsappClicks slug installmentEnabled installmentMinAmount installmentDuration installmentStartDate installmentEndDate installmentRequireGuarantor';
+  'title price discount priceBeforeDiscount images status category user city country whatsappClicks slug installmentEnabled installmentMinAmount installmentDuration installmentStartDate installmentEndDate installmentRequireGuarantor wholesaleEnabled wholesaleTiers deliveryAvailable pickupAvailable deliveryFee deliveryFeeEnabled';
 
 const getItemProductId = (item) => {
   if (!item) return null;
@@ -36,7 +38,7 @@ const populateCart = async (userId) => {
     select: productSelectFields,
     populate: {
       path: 'user',
-      select: 'name phone accountType shopName'
+      select: 'name phone accountType shopName freeDeliveryEnabled freeDeliveryNote'
     }
   });
   if (!cart) return null;
@@ -68,8 +70,9 @@ const formatCart = (cart) => {
     .filter((item) => item.product)
     .map((item) => {
       const product = item.product;
-      const unitPrice = Number(product.price || 0);
-      const lineTotal = Number((unitPrice * item.quantity).toFixed(2));
+      const pricing = getWholesalePricing(product, item.quantity);
+      const unitPrice = Number(pricing.unitPrice || 0);
+      const lineTotal = Number(pricing.lineTotal || 0);
       const seller =
         product.user && typeof product.user === 'object'
           ? {
@@ -77,7 +80,9 @@ const formatCart = (cart) => {
               name: product.user.name,
               phone: product.user.phone,
               accountType: product.user.accountType,
-              shopName: product.user.shopName
+              shopName: product.user.shopName,
+              freeDeliveryEnabled: Boolean(product.user.freeDeliveryEnabled),
+              freeDeliveryNote: product.user.freeDeliveryNote || ''
             }
           : null;
 
@@ -101,10 +106,23 @@ const formatCart = (cart) => {
           installmentStartDate: product.installmentStartDate || null,
           installmentEndDate: product.installmentEndDate || null,
           installmentRequireGuarantor: Boolean(product.installmentRequireGuarantor),
+          wholesaleEnabled: Boolean(product.wholesaleEnabled),
+          wholesaleTiers: normalizeWholesaleTiers(product.wholesaleTiers),
+          deliveryAvailable: product.deliveryAvailable !== false,
+          pickupAvailable: product.pickupAvailable !== false,
+          deliveryFee: Number(product.deliveryFee || 0),
+          deliveryFeeEnabled: product.deliveryFeeEnabled !== false,
           user: seller,
           contactPhone: seller?.phone || null
         },
         quantity: item.quantity,
+        unitPrice,
+        wholesale: {
+          applied: Boolean(pricing.tierApplied),
+          tier: pricing.tierApplied,
+          savingsAmount: Number(pricing.savingsAmount || 0),
+          savingsPercent: Number(pricing.savingsPercent || 0)
+        },
         lineTotal
       };
     });
@@ -153,6 +171,7 @@ export const addItem = asyncHandler(async (req, res) => {
     cart.items.push({ product: productId, quantity: qty });
   }
   await cart.save();
+  await invalidateUserCache(req.user.id, ['cart']);
   const populated = await populateCart(req.user.id);
   res.status(201).json(formatCart(populated));
 });
@@ -181,6 +200,7 @@ export const updateItem = asyncHandler(async (req, res) => {
   }
 
   await cart.save();
+  await invalidateUserCache(req.user.id, ['cart']);
   const populated = await populateCart(req.user.id);
   res.json(formatCart(populated));
 });
@@ -200,6 +220,7 @@ export const removeItem = asyncHandler(async (req, res) => {
   }
 
   await cart.save();
+  await invalidateUserCache(req.user.id, ['cart']);
   const populated = await populateCart(req.user.id);
   res.json(formatCart(populated));
 });
@@ -208,5 +229,6 @@ export const clearCart = asyncHandler(async (req, res) => {
   const cart = await ensureCart(req.user.id);
   cart.items = [];
   await cart.save();
+  await invalidateUserCache(req.user.id, ['cart']);
   res.json(formatCart(cart));
 });

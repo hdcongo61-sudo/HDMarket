@@ -108,7 +108,7 @@ const highlightText = (text, query) => {
   const parts = text.split(regex);
   return parts.map((part, index) =>
     regex.test(part) ? (
-      <mark key={index} className="bg-yellow-200 text-gray-900 rounded px-0.5">
+      <mark key={index} className="bg-neutral-200 text-gray-900 rounded px-0.5">
         {part}
       </mark>
     ) : (
@@ -136,6 +136,7 @@ export default function Navbar() {
   const canAccessBackOffice = isAdmin || isManager;
   const canManageDelivery = Boolean(user?.canManageDelivery);
   const canManageProducts = Boolean(user?.canManageProducts);
+  const canManageChatTemplates = Boolean(user?.canManageChatTemplates);
   const canVerifyPayments = Boolean(user?.canVerifyPayments);
   const adminLinkLabel = isManager ? t('nav.management', 'Gestion') : t('nav.admin', 'Admin');
 
@@ -1211,7 +1212,7 @@ export default function Navbar() {
               <Filter size={16} className="text-gray-600 dark:text-gray-400" />
               <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('nav.filters', 'Filtres')}</span>
               {hasActiveFilters && (
-                <span className="bg-[#007AFF] text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                <span className="bg-[#0A0A0A] text-white text-xs font-bold px-2 py-0.5 rounded-full">
                   {[
                     filters.category && 1,
                     filters.minPrice && 1,
@@ -1240,7 +1241,7 @@ export default function Navbar() {
             <select
               value={filters.category}
               onChange={(e) => handleFilterChange('category', e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#007AFF] focus:border-[#007AFF]"
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0A0A0A] focus:border-[#0A0A0A]"
             >
               <option value="">{t('nav.allCategories', 'Toutes les catégories')}</option>
               {categoriesLoading ? (
@@ -1266,7 +1267,7 @@ export default function Navbar() {
                 placeholder={t('nav.min', 'Min')}
                 value={filters.minPrice}
                 onChange={(e) => handleFilterChange('minPrice', e.target.value)}
-                className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#007AFF] focus:border-[#007AFF]"
+                className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0A0A0A] focus:border-[#0A0A0A]"
                 min="0"
               />
               <span className="text-gray-500">-</span>
@@ -1275,7 +1276,7 @@ export default function Navbar() {
                 placeholder={t('nav.max', 'Max')}
                 value={filters.maxPrice}
                 onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
-                className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#007AFF] focus:border-[#007AFF]"
+                className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0A0A0A] focus:border-[#0A0A0A]"
                 min="0"
               />
             </div>
@@ -1290,7 +1291,7 @@ export default function Navbar() {
             <select
               value={filters.city}
               onChange={(e) => handleFilterChange('city', e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#007AFF] focus:border-[#007AFF]"
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0A0A0A] focus:border-[#0A0A0A]"
             >
               <option value="">{t('nav.allCities', 'Toutes les villes')}</option>
               <option value="Brazzaville">Brazzaville</option>
@@ -1308,7 +1309,7 @@ export default function Navbar() {
             <select
               value={filters.condition}
               onChange={(e) => handleFilterChange('condition', e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#007AFF] focus:border-[#007AFF]"
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0A0A0A] focus:border-[#0A0A0A]"
             >
               <option value="">{t('nav.allConditions', 'Tous les états')}</option>
               <option value="new">{t('nav.newCondition', 'Neuf')}</option>
@@ -1323,7 +1324,7 @@ export default function Navbar() {
                 type="checkbox"
                 checked={filters.shopVerified}
                 onChange={(e) => handleFilterChange('shopVerified', e.target.checked)}
-                className="w-4 h-4 text-[#007AFF] border-gray-300 rounded focus:ring-[#007AFF]"
+                className="w-4 h-4 text-[#0A0A0A] border-gray-300 rounded focus:ring-[#0A0A0A]"
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">
                 {t('nav.verifiedShopsOnly', 'Boutiques vérifiées uniquement')}
@@ -1336,7 +1337,7 @@ export default function Navbar() {
             <button
               type="button"
               onClick={clearFilters}
-              className="w-full px-3 py-2 text-sm font-semibold text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 border border-red-300 dark:border-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              className="w-full px-3 py-2 text-sm font-semibold text-neutral-800 hover:text-red-700 dark:text-neutral-600 dark:hover:text-neutral-400 border border-neutral-300 dark:border-red-700 rounded-lg hover:bg-neutral-50 dark:hover:bg-red-900/20 transition-colors"
             >
               {t('nav.clearFilters', 'Effacer les filtres')}
             </button>
@@ -1373,18 +1374,18 @@ export default function Navbar() {
         {/* Recent Searches - Quick Access (Last 5) */}
         {user && hasRecentSearches && (
           <div className="border-b border-gray-100 dark:border-gray-700">
-            <div className="px-4 py-2.5 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20">
+            <div className="px-4 py-2.5 bg-gradient-to-r from-neutral-100 to-neutral-100 dark:from-neutral-900/20 dark:to-neutral-900/20">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Clock size={14} className="text-[#007AFF]" />
-                  <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide">
+                  <Clock size={14} className="text-[#0A0A0A]" />
+                  <span className="text-xs font-bold text-neutral-800 dark:text-neutral-300 uppercase tracking-wide">
                     {t('nav.recentSearches', 'Recherches récentes')}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={handleOpenHistoryPanel}
-                  className="text-[10px] font-semibold text-[#007AFF] hover:underline"
+                  className="text-[10px] font-semibold text-[#0A0A0A] hover:underline"
                 >
                   {t('nav.viewAll', 'Voir tout')}
                 </button>
@@ -1396,7 +1397,7 @@ export default function Navbar() {
                   key={entry._id}
                   type="button"
                   onClick={() => handleSuggestionClick(entry.query)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-sm text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-sm text-gray-700 dark:text-gray-300 hover:bg-neutral-100 dark:hover:bg-neutral-900/40 hover:text-neutral-800 dark:hover:text-neutral-300 transition-colors"
                 >
                   <Clock size={12} className="text-gray-400" />
                   <span className="truncate max-w-[120px]">{entry.query}</span>
@@ -1409,10 +1410,10 @@ export default function Navbar() {
         {/* Category Suggestions */}
         {topCategories.length > 0 && (
           <div className="border-b border-gray-100 dark:border-gray-700">
-            <div className="px-4 py-2.5 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20">
+            <div className="px-4 py-2.5 bg-gradient-to-r from-neutral-100 to-neutral-100 dark:from-neutral-900/20 dark:to-neutral-900/20">
               <div className="flex items-center gap-2">
-                <Tag size={14} className="text-[#007AFF]" />
-                <span className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
+                <Tag size={14} className="text-[#0A0A0A]" />
+                <span className="text-xs font-bold text-neutral-800 dark:text-neutral-300 uppercase tracking-wide">
                   {t('nav.categories', 'Catégories')}
                 </span>
               </div>
@@ -1426,10 +1427,10 @@ export default function Navbar() {
                     setShowResults(false);
                     navigate(`/products?category=${encodeURIComponent(category.title)}`);
                   }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-[#007AFF]/40 hover:bg-[rgba(0,122,255,0.08)] transition-all text-left group"
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-[#0A0A0A]/40 hover:bg-[rgba(10,10,10,0.06)] transition-all text-left group"
                 >
-                  <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/30 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/40 transition-colors">
-                    <Tag size={14} className="text-[#007AFF]" />
+                  <div className="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-900/40 group-hover:bg-neutral-200 dark:group-hover:bg-neutral-800/40 transition-colors">
+                    <Tag size={14} className="text-[#0A0A0A]" />
                   </div>
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
                     {category.title}
@@ -1443,18 +1444,18 @@ export default function Navbar() {
         {/* Shop Suggestions (Verified Shops) */}
         {topShops.length > 0 && (
           <div>
-            <div className="px-4 py-2.5 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20">
+            <div className="px-4 py-2.5 bg-gradient-to-r from-neutral-100 to-neutral-100 dark:from-neutral-900/20 dark:to-neutral-900/20">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Store size={14} className="text-purple-600 dark:text-purple-400" />
-                  <span className="text-xs font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wide">
+                  <Store size={14} className="text-neutral-800 dark:text-neutral-300" />
+                  <span className="text-xs font-bold text-neutral-800 dark:text-neutral-300 uppercase tracking-wide">
                     {t('nav.verifiedShops', 'Boutiques vérifiées')}
                   </span>
                 </div>
                 <Link
                   to="/shops/verified"
                   onClick={() => setShowResults(false)}
-                  className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 hover:underline"
+                  className="text-[10px] font-semibold text-neutral-800 dark:text-neutral-300 hover:underline"
                 >
                   {t('nav.viewAll', 'Voir tout')}
                 </Link>
@@ -1469,7 +1470,7 @@ export default function Navbar() {
                     setShowResults(false);
                     navigate(buildShopPath(shop));
                   }}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors text-left group"
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800/40 transition-colors text-left group"
                 >
                   <img
                     src={shop.shopLogo || '/api/placeholder/40/40'}
@@ -1488,7 +1489,7 @@ export default function Navbar() {
                       {shop.shopAddress || 'HDMarket'}
                     </p>
                   </div>
-                  <ChevronRight size={16} className="text-gray-300 dark:text-gray-600 group-hover:text-purple-500 transition-colors" />
+                  <ChevronRight size={16} className="text-gray-300 dark:text-gray-600 group-hover:text-neutral-500 transition-colors" />
                 </button>
               ))}
             </div>
@@ -1541,7 +1542,7 @@ export default function Navbar() {
 
         {/* Error State */}
         {!searching && searchError && (
-          <div className="px-4 py-3 flex items-center space-x-3 text-red-500 text-sm">
+          <div className="px-4 py-3 flex items-center space-x-3 text-neutral-700 text-sm">
             <AlertCircle size={16} />
             {searchError}
           </div>
@@ -1589,10 +1590,10 @@ export default function Navbar() {
                       </div>
                       <div className="text-gray-500 text-xs flex items-center gap-2 mt-1 flex-wrap">
                         {product.price && (
-                          <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+                          <span className="font-semibold text-neutral-900 dark:text-neutral-300">
                             {formatCurrency(product.price)}
                             {product.discount > 0 && (
-                              <span className="ml-1 text-green-600 dark:text-green-400">
+                              <span className="ml-1 text-neutral-800 dark:text-neutral-400">
                                 (-{product.discount}%)
                               </span>
                             )}
@@ -1600,7 +1601,7 @@ export default function Navbar() {
                         )}
                         {product.rating > 0 && (
                           <span className="flex items-center gap-1">
-                            <Star size={12} className="fill-yellow-400 text-yellow-400" />
+                            <Star size={12} className="fill-neutral-400 text-neutral-300" />
                             <span>{product.rating.toFixed(1)}</span>
                             {product.ratingCount > 0 && (
                               <span className="text-gray-400">({product.ratingCount})</span>
@@ -1610,7 +1611,7 @@ export default function Navbar() {
                         {product.condition && (
                           <span className={`px-1.5 py-0.5 rounded text-[10px] ${
                             product.condition === 'new' 
-                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                              ? 'bg-neutral-100 text-neutral-700 dark:bg-neutral-900/40 dark:text-neutral-400' 
                               : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
                           }`}>
                             {product.condition === 'new' ? t('nav.newCondition', 'Neuf') : t('nav.usedCondition', 'Occasion')}
@@ -1633,7 +1634,7 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={() => loadMoreResults('products')}
-                    className="w-full px-4 py-2 text-sm font-medium text-[#007AFF] hover:bg-[rgba(0,122,255,0.08)] border-t border-gray-200 dark:border-gray-700 transition-colors"
+                    className="w-full px-4 py-2 text-sm font-medium text-[#0A0A0A] hover:bg-[rgba(10,10,10,0.06)] border-t border-gray-200 dark:border-gray-700 transition-colors"
                   >
                     {t('nav.viewMoreProducts', 'Voir plus de produits')} ({allProducts.length - products.length} {t('nav.remaining', 'restant')}{allProducts.length - products.length > 1 ? 's' : ''})
                   </button>
@@ -1685,7 +1686,7 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={() => loadMoreResults('shops')}
-                    className="w-full px-4 py-2 text-sm font-medium text-[#007AFF] hover:bg-[rgba(0,122,255,0.08)] border-t border-gray-200 dark:border-gray-700 transition-colors"
+                    className="w-full px-4 py-2 text-sm font-medium text-[#0A0A0A] hover:bg-[rgba(10,10,10,0.06)] border-t border-gray-200 dark:border-gray-700 transition-colors"
                   >
                     {t('nav.viewMoreShops', 'Voir plus de boutiques')} ({allShops.length - shops.length} {t('nav.remaining', 'restant')}{allShops.length - shops.length > 1 ? 's' : ''})
                   </button>
@@ -1708,8 +1709,8 @@ export default function Navbar() {
                     onClick={() => handleCategorySelect(category)}
                     className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors"
                   >
-                    <div className="h-12 w-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
-                      <Tag size={20} className="text-blue-600 dark:text-blue-400" />
+                    <div className="h-12 w-12 rounded-lg bg-neutral-100 dark:bg-neutral-900/40 flex items-center justify-center flex-shrink-0">
+                      <Tag size={20} className="text-neutral-900 dark:text-neutral-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-gray-900 dark:text-white text-sm">
@@ -1725,7 +1726,7 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={() => loadMoreResults('categories')}
-                    className="w-full px-4 py-2 text-sm font-medium text-[#007AFF] hover:bg-[rgba(0,122,255,0.08)] border-t border-gray-200 dark:border-gray-700 transition-colors"
+                    className="w-full px-4 py-2 text-sm font-medium text-[#0A0A0A] hover:bg-[rgba(10,10,10,0.06)] border-t border-gray-200 dark:border-gray-700 transition-colors"
                   >
                     {t('nav.viewMoreCategories', 'Voir plus de catégories')} ({allCategories.length - categories.length} {t('nav.remaining', 'restant')}{allCategories.length - categories.length > 1 ? 's' : ''})
                   </button>
@@ -1735,7 +1736,7 @@ export default function Navbar() {
 
             {/* People Also Searched For */}
             {relatedSearches.length > 0 && (
-              <div className="border-t border-gray-100 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-900/50">
+              <div className="border-t border-gray-100 dark:border-gray-700 bg-gradient-to-r from-neutral-100 to-white dark:from-gray-800/50 dark:to-gray-900/50">
                 <div className="px-4 py-2.5">
                   <div className="flex items-center gap-2 mb-2">
                     <Users size={14} className="text-gray-500 dark:text-gray-400" />
@@ -1749,7 +1750,7 @@ export default function Navbar() {
                         key={idx}
                         type="button"
                         onClick={() => handleSuggestionClick(term)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-medium text-gray-700 dark:text-gray-300 hover:border-[#007AFF]/40 hover:text-[#007AFF] hover:bg-[rgba(0,122,255,0.08)] transition-all"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-medium text-gray-700 dark:text-gray-300 hover:border-[#0A0A0A]/40 hover:text-[#0A0A0A] hover:bg-[rgba(10,10,10,0.06)] transition-all"
                       >
                         <Search size={10} className="text-gray-400" />
                         {term}
@@ -1765,7 +1766,7 @@ export default function Navbar() {
               <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-center sticky bottom-0">
                 <Link
                   to={`/products?search=${encodeURIComponent(searchQuery.trim())}`}
-                  className="font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 inline-flex items-center gap-2"
+                  className="font-semibold text-neutral-900 dark:text-neutral-300 hover:text-neutral-500 dark:hover:text-neutral-300 inline-flex items-center gap-2"
                   onClick={() => {
                     setIsHistoryPanelOpen(false);
                     setShowResults(false);
@@ -1816,7 +1817,7 @@ export default function Navbar() {
               <Filter size={16} className="text-gray-600 dark:text-gray-400" />
               <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('nav.filters', 'Filtres')}</span>
               {hasActiveFilters && (
-                <span className="px-2 py-0.5 bg-[#007AFF] text-white text-xs font-bold rounded-full">
+                <span className="px-2 py-0.5 bg-[#0A0A0A] text-white text-xs font-bold rounded-full">
                   {Object.values(filters).filter(Boolean).length}
                 </span>
               )}
@@ -1836,7 +1837,7 @@ export default function Navbar() {
 
         {/* Error State */}
         {!searching && searchError && (
-          <div className="px-4 py-3 flex items-center space-x-3 text-red-500 text-sm">
+          <div className="px-4 py-3 flex items-center space-x-3 text-neutral-700 text-sm">
             <AlertCircle size={16} />
             {searchError}
           </div>
@@ -1884,10 +1885,10 @@ export default function Navbar() {
                         </p>
                         <div className="text-xs text-gray-500 flex items-center gap-2 mt-1 flex-wrap">
                           {product.price && (
-                            <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+                            <span className="font-semibold text-neutral-900 dark:text-neutral-300">
                               {formatCurrency(product.price)}
                               {product.discount > 0 && (
-                                <span className="ml-1 text-green-600 dark:text-green-400">
+                                <span className="ml-1 text-neutral-800 dark:text-neutral-400">
                                   (-{product.discount}%)
                                 </span>
                               )}
@@ -1895,7 +1896,7 @@ export default function Navbar() {
                           )}
                           {product.rating > 0 && (
                             <span className="flex items-center gap-1">
-                              <Star size={12} className="fill-yellow-400 text-yellow-400" />
+                              <Star size={12} className="fill-neutral-400 text-neutral-300" />
                               <span>{product.rating.toFixed(1)}</span>
                               {product.ratingCount > 0 && (
                                 <span className="text-gray-400">({product.ratingCount})</span>
@@ -1905,7 +1906,7 @@ export default function Navbar() {
                           {product.condition && (
                             <span className={`px-1.5 py-0.5 rounded text-[10px] ${
                               product.condition === 'new' 
-                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                                ? 'bg-neutral-100 text-neutral-700 dark:bg-neutral-900/40 dark:text-neutral-400' 
                                 : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
                             }`}>
                               {product.condition === 'new' ? t('nav.newCondition', 'Neuf') : t('nav.usedCondition', 'Occasion')}
@@ -1972,7 +1973,7 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={() => loadMoreResults('products')}
-                    className="w-full px-4 py-2 text-sm font-medium text-[#007AFF] hover:bg-[rgba(0,122,255,0.08)] border-t border-gray-200 dark:border-gray-700 transition-colors"
+                    className="w-full px-4 py-2 text-sm font-medium text-[#0A0A0A] hover:bg-[rgba(10,10,10,0.06)] border-t border-gray-200 dark:border-gray-700 transition-colors"
                   >
                     {t('nav.viewMore', 'Voir plus')} ({allProducts.length - products.length} {t('nav.remaining', 'restant')}{allProducts.length - products.length > 1 ? 's' : ''})
                   </button>
@@ -1995,8 +1996,8 @@ export default function Navbar() {
                     onClick={() => handleCategorySelect(category)}
                     className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0"
                   >
-                    <div className="w-14 h-14 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
-                      <Tag size={20} className="text-blue-600 dark:text-blue-400" />
+                    <div className="w-14 h-14 rounded-xl bg-neutral-100 dark:bg-neutral-900/40 flex items-center justify-center flex-shrink-0">
+                      <Tag size={20} className="text-neutral-900 dark:text-neutral-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900 dark:text-white text-sm">
@@ -2012,7 +2013,7 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={() => loadMoreResults('products')}
-                    className="w-full px-4 py-2 text-sm font-medium text-[#007AFF] hover:bg-[rgba(0,122,255,0.08)] border-t border-gray-200 dark:border-gray-700 transition-colors"
+                    className="w-full px-4 py-2 text-sm font-medium text-[#0A0A0A] hover:bg-[rgba(10,10,10,0.06)] border-t border-gray-200 dark:border-gray-700 transition-colors"
                   >
                     {t('nav.viewMore', 'Voir plus')} ({allProducts.length - products.length} {t('nav.remaining', 'restant')}{allProducts.length - products.length > 1 ? 's' : ''})
                   </button>
@@ -2022,7 +2023,7 @@ export default function Navbar() {
 
             {/* People Also Searched For - Mobile */}
             {relatedSearches.length > 0 && (
-              <div className="border-t border-gray-100 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-900/50">
+              <div className="border-t border-gray-100 dark:border-gray-700 bg-gradient-to-r from-neutral-100 to-white dark:from-gray-800/50 dark:to-gray-900/50">
                 <div className="px-4 py-2.5">
                   <div className="flex items-center gap-2 mb-2">
                     <Users size={14} className="text-gray-500 dark:text-gray-400" />
@@ -2036,7 +2037,7 @@ export default function Navbar() {
                         key={idx}
                         type="button"
                         onClick={() => handleSuggestionClick(term)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-medium text-gray-700 dark:text-gray-300 hover:border-[#007AFF]/40 hover:text-[#007AFF] hover:bg-[rgba(0,122,255,0.08)] transition-all"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-medium text-gray-700 dark:text-gray-300 hover:border-[#0A0A0A]/40 hover:text-[#0A0A0A] hover:bg-[rgba(10,10,10,0.06)] transition-all"
                       >
                         <Search size={10} className="text-gray-400" />
                         {term}
@@ -2052,7 +2053,7 @@ export default function Navbar() {
               <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-center sticky bottom-0">
                 <Link
                   to={`/products?search=${encodeURIComponent(searchQuery.trim())}`}
-                  className="font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 inline-flex items-center gap-2"
+                  className="font-semibold text-neutral-900 dark:text-neutral-300 hover:text-neutral-500 dark:hover:text-neutral-300 inline-flex items-center gap-2"
                   onClick={() => {
                     setIsHistoryPanelOpen(false);
                     setShowResults(false);
@@ -2078,17 +2079,17 @@ export default function Navbar() {
         ? t('nav.category', 'Catégorie')
         : t('nav.productCapitalized', 'Produit');
     const typeIcon = entry.metadata?.type === 'shop' ? (
-      <Store size={14} className="text-purple-500" />
+      <Store size={14} className="text-neutral-500" />
     ) : entry.metadata?.type === 'category' ? (
-      <Tag size={14} className="text-blue-500" />
+      <Tag size={14} className="text-neutral-500" />
     ) : (
-      <Package size={14} className="text-indigo-500" />
+      <Package size={14} className="text-neutral-500" />
     );
     const typeBgColor = entry.metadata?.type === 'shop'
-      ? 'bg-purple-100 dark:bg-purple-900/30'
+      ? 'bg-neutral-100 dark:bg-neutral-900/40'
       : entry.metadata?.type === 'category'
-        ? 'bg-blue-100 dark:bg-blue-900/30'
-        : 'bg-indigo-100 dark:bg-indigo-900/30';
+        ? 'bg-neutral-100 dark:bg-neutral-900/40'
+        : 'bg-neutral-100 dark:bg-neutral-900/40';
 
     return (
       <div
@@ -2104,14 +2105,14 @@ export default function Navbar() {
         }}
         className={`group flex items-center gap-3 p-2.5 rounded-xl bg-white dark:bg-gray-800 border transition-all duration-200 cursor-pointer ${
           entry.isPinned
-            ? 'border-amber-300 dark:border-amber-600/50 bg-amber-50/50 dark:bg-amber-900/10'
-            : 'border-gray-100 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-600'
-        } hover:shadow-md hover:shadow-indigo-100 dark:hover:shadow-indigo-900/20`}
+            ? 'border-neutral-300 dark:border-neutral-600/50 bg-neutral-50/50 dark:bg-neutral-900/10'
+            : 'border-gray-100 dark:border-gray-700 hover:border-neutral-300 dark:hover:border-neutral-600'
+        } hover:shadow-md hover:shadow-neutral-100 dark:hover:shadow-neutral-900/20`}
       >
         {/* Pin indicator */}
         {entry.isPinned && (
           <div className="flex-shrink-0">
-            <Pin size={14} className="text-amber-500 fill-amber-500" />
+            <Pin size={14} className="text-neutral-700 fill-neutral-700" />
           </div>
         )}
 
@@ -2122,16 +2123,16 @@ export default function Navbar() {
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm text-gray-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+          <p className="font-medium text-sm text-gray-900 dark:text-white truncate group-hover:text-neutral-900 dark:group-hover:text-neutral-300 transition-colors">
             {highlightText(entry.query, historySearchQuery)}
           </p>
           <div className="flex items-center gap-2 mt-0.5">
             <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium ${
               entry.metadata?.type === 'shop'
-                ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
+                ? 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-300'
                 : entry.metadata?.type === 'category'
-                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                  : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
+                  ? 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-300'
+                  : 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-300'
             }`}>
               {typeLabel}
             </span>
@@ -2151,8 +2152,8 @@ export default function Navbar() {
             }}
             className={`p-1.5 rounded-lg transition-colors ${
               entry.isPinned
-                ? 'text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30'
-                : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+                ? 'text-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-900/40'
+                : 'text-gray-400 hover:text-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-900/20'
             }`}
             title={entry.isPinned ? t('nav.unpin', 'Désépingler') : t('nav.pin', 'Épingler')}
           >
@@ -2164,7 +2165,7 @@ export default function Navbar() {
               event.stopPropagation();
               handleHistoryEntryNavigate(entry);
             }}
-            className="p-1.5 text-indigo-600 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+            className="p-1.5 text-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-900/40 rounded-lg transition-colors"
             title={t('nav.search', 'Rechercher')}
           >
             <Search size={14} />
@@ -2175,7 +2176,7 @@ export default function Navbar() {
               event.stopPropagation();
               handleDeleteHistoryEntry(entry._id);
             }}
-            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+            className="p-1.5 text-gray-400 hover:text-neutral-700 hover:bg-neutral-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
             title={t('nav.delete', 'Supprimer')}
           >
             <Trash2 size={14} />
@@ -2183,7 +2184,7 @@ export default function Navbar() {
         </div>
 
         {/* Arrow indicator */}
-        <ChevronRight size={14} className="text-gray-300 dark:text-gray-600 group-hover:text-indigo-400 transition-colors flex-shrink-0" />
+        <ChevronRight size={14} className="text-gray-300 dark:text-gray-600 group-hover:text-neutral-300 transition-colors flex-shrink-0" />
       </div>
     );
   };
@@ -2201,7 +2202,7 @@ export default function Navbar() {
     return (
       <div className="text-sm text-gray-900 dark:text-white">
         {/* Modern Gradient Header */}
-        <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 px-4 py-3 rounded-t-2xl">
+        <div className="bg-gradient-to-r from-neutral-600 via-neutral-600 to-neutral-600 px-4 py-3 rounded-t-2xl">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-sm">
@@ -2209,7 +2210,7 @@ export default function Navbar() {
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-white">{t('nav.history', 'Historique')}</h3>
-                <p className="text-[10px] text-indigo-100">
+                <p className="text-[10px] text-neutral-100">
                   {hasHistory ? `${searchHistory.length} ${t('nav.searchItem', 'recherche')}${searchHistory.length > 1 ? 's' : ''}` : t('nav.noSearchHistory', 'Aucune recherche')}
                 </p>
               </div>
@@ -2300,7 +2301,7 @@ export default function Navbar() {
                     <div>
                       <div className="flex items-center justify-between mb-2 px-1">
                         <div className="flex items-center gap-2">
-                          <Pin size={12} className="text-amber-500 fill-amber-500" />
+                          <Pin size={12} className="text-neutral-700 fill-neutral-700" />
                           <span className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
                             Épinglées ({groupedHistory.pinned.length})
                           </span>
@@ -2308,7 +2309,7 @@ export default function Navbar() {
                         <button
                           type="button"
                           onClick={() => handleClearHistory('all')}
-                          className="text-[10px] text-red-600 hover:text-red-700 dark:text-red-400"
+                          className="text-[10px] text-neutral-800 hover:text-red-700 dark:text-neutral-600"
                         >
                           Effacer
                         </button>
@@ -2329,7 +2330,7 @@ export default function Navbar() {
                         <button
                           type="button"
                           onClick={() => handleClearHistory('today')}
-                          className="text-[10px] text-red-600 hover:text-red-700 dark:text-red-400"
+                          className="text-[10px] text-neutral-800 hover:text-red-700 dark:text-neutral-600"
                         >
                           Effacer
                         </button>
@@ -2350,7 +2351,7 @@ export default function Navbar() {
                         <button
                           type="button"
                           onClick={() => handleClearHistory('yesterday')}
-                          className="text-[10px] text-red-600 hover:text-red-700 dark:text-red-400"
+                          className="text-[10px] text-neutral-800 hover:text-red-700 dark:text-neutral-600"
                         >
                           Effacer
                         </button>
@@ -2371,7 +2372,7 @@ export default function Navbar() {
                         <button
                           type="button"
                           onClick={() => handleClearHistory('week')}
-                          className="text-[10px] text-red-600 hover:text-red-700 dark:text-red-400"
+                          className="text-[10px] text-neutral-800 hover:text-red-700 dark:text-neutral-600"
                         >
                           Effacer
                         </button>
@@ -2392,7 +2393,7 @@ export default function Navbar() {
                         <button
                           type="button"
                           onClick={() => handleClearHistory('month')}
-                          className="text-[10px] text-red-600 hover:text-red-700 dark:text-red-400"
+                          className="text-[10px] text-neutral-800 hover:text-red-700 dark:text-neutral-600"
                         >
                           Effacer
                         </button>
@@ -2433,7 +2434,7 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={() => handleExportHistory('csv')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-neutral-900 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-900/20 rounded-lg transition-colors"
                 >
                   <Download size={12} />
                   {t('nav.exportCsv', 'Exporter CSV')}
@@ -2441,7 +2442,7 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={() => handleExportHistory('json')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-neutral-900 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-900/20 rounded-lg transition-colors"
                 >
                   <Download size={12} />
                   Exporter JSON
@@ -2450,7 +2451,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => handleClearHistory('all')}
-                className="px-3 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                className="px-3 py-1.5 text-xs font-semibold text-neutral-800 hover:text-red-700 dark:text-neutral-600 dark:hover:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
               >
                 Tout effacer
               </button>
@@ -2497,7 +2498,7 @@ export default function Navbar() {
     let cancelled = false;
     const loadAppLogos = async () => {
       try {
-        const { data } = await api.get("/settings/app-logo");
+        const { data } = await api.get("/settings/app-logo", { skipCache: true });
         if (cancelled) return;
         setAppLogos({
           desktop: data?.appLogoDesktop || "",
@@ -2509,10 +2510,26 @@ export default function Navbar() {
         }
       }
     };
+    const onAppLogoUpdated = (event) => {
+      if (cancelled) return;
+      const nextDesktop = event?.detail?.appLogoDesktop;
+      const nextMobile = event?.detail?.appLogoMobile;
+      if (!nextDesktop && !nextMobile) return;
+      setAppLogos((prev) => ({
+        desktop: nextDesktop || prev.desktop,
+        mobile: nextMobile || prev.mobile
+      }));
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('hdmarket:app-logo-updated', onAppLogoUpdated);
+    }
 
     loadAppLogos();
     return () => {
       cancelled = true;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('hdmarket:app-logo-updated', onAppLogoUpdated);
+      }
     };
   }, []);
 
@@ -2536,9 +2553,9 @@ export default function Navbar() {
             key={template.id}
             type="button"
             onClick={() => handleQuickFilterClick(template)}
-            className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl hover:from-indigo-100 hover:to-purple-100 dark:hover:from-indigo-900/30 dark:hover:to-purple-900/30 transition-all group"
+            className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-neutral-100 to-neutral-100 dark:from-neutral-900/20 dark:to-neutral-900/20 border border-neutral-200 dark:border-neutral-800 rounded-xl hover:from-neutral-100 hover:to-neutral-100 dark:hover:from-neutral-900/30 dark:hover:to-neutral-900/30 transition-all group"
           >
-            <Icon size={18} className="text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform" />
+            <Icon size={18} className="text-neutral-900 dark:text-neutral-300 group-hover:scale-110 transition-transform" />
             <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{template.label}</span>
           </button>
         );
@@ -2553,7 +2570,7 @@ export default function Navbar() {
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2 px-1">
           <div className="flex items-center gap-2">
-            <BookmarkCheck size={14} className="text-indigo-600 dark:text-indigo-400" />
+            <BookmarkCheck size={14} className="text-neutral-900 dark:text-neutral-300" />
             <span className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
               Recherches sauvegardées
             </span>
@@ -2563,7 +2580,7 @@ export default function Navbar() {
           {savedSearches.map((saved) => (
             <div
               key={saved.id}
-              className="group flex items-center gap-2 px-3 py-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors"
+              className="group flex items-center gap-2 px-3 py-2 bg-neutral-100 dark:bg-neutral-900/20 border border-neutral-200 dark:border-neutral-800 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-900/40 transition-colors"
             >
               <button
                 type="button"
@@ -2579,7 +2596,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => handleDeleteSavedSearch(saved.id)}
-                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-red-500 hover:text-red-700"
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-neutral-700 hover:text-red-700"
               >
                 <X size={12} />
               </button>
@@ -2626,7 +2643,7 @@ export default function Navbar() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t('nav.search', 'Rechercher')}
-                  className="w-full pl-10 pr-4 py-3 bg-gray-100 dark:bg-gray-800 border-0 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-gray-700 transition-all text-sm"
+                  className="w-full pl-10 pr-4 py-3 bg-gray-100 dark:bg-gray-800 border-0 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:bg-white dark:focus:bg-gray-700 transition-all text-sm"
                   onKeyDown={handleSearchKeyDown}
                   autoFocus
                 />
@@ -2647,7 +2664,7 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={() => handleSaveSearch(searchQuery, filters)}
-                  className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+                  className="p-2 text-neutral-900 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-900/20 rounded-lg transition-colors"
                   title={t('nav.saveSearch', 'Sauvegarder la recherche')}
                 >
                   <Save size={18} />
@@ -2700,7 +2717,7 @@ export default function Navbar() {
 
       {/* 🎯 NAVBAR PRINCIPALE - Proposal A: Two-Tier Layout */}
       <nav
-        className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 shadow-lg border-b border-gray-200/50 dark:border-gray-800/50"
+        className="fixed top-0 left-0 right-0 z-50 ui-glass-header shadow-sm"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         {/* Top Bar: Logo, Search, Actions */}
@@ -2725,11 +2742,11 @@ export default function Navbar() {
                 </>
               ) : (
                 <>
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md sm:shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-black rounded-xl flex items-center justify-center shadow-md sm:shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
                     <span className="text-white font-black text-sm sm:text-base">HD</span>
                   </div>
                   <div className="hidden sm:flex flex-col">
-                    <span className="text-xl font-black text-indigo-600">
+                    <span className="text-xl font-black text-gray-900 dark:text-white">
                       HDMarket
                     </span>
                     <span className="text-xs text-gray-500 dark:text-gray-400 -mt-1">{t('nav.marketplacePremium', 'Marketplace Premium')}</span>
@@ -2748,7 +2765,7 @@ export default function Navbar() {
                 >
                   <Bell className="text-gray-600 dark:text-gray-300" size={18} />
                   {commentAlerts > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-lg">
+                    <span className="absolute -top-0.5 -right-0.5 bg-neutral-900 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-lg">
                       {commentAlerts > 99 ? '99+' : commentAlerts}
                     </span>
                   )}
@@ -2766,7 +2783,7 @@ export default function Navbar() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t('nav.searchPlaceholderFull', 'Rechercher produits, boutiques, catégories...')}
-                  className="w-full pl-12 pr-20 py-3 bg-gray-100 dark:bg-gray-800 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-gray-700 transition-all duration-200 placeholder-gray-500 text-sm"
+                  className="w-full pl-12 pr-20 py-3 bg-gray-100 dark:bg-gray-800 border-0 rounded-2xl focus:ring-2 focus:ring-neutral-500 focus:bg-white dark:focus:bg-gray-700 transition-all duration-200 placeholder-gray-500 text-sm"
                   onFocus={() => { 
                     setShowResults(true); 
                     if (isMobileLayout) setIsSearchFullScreen(true);
@@ -2778,7 +2795,7 @@ export default function Navbar() {
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
                   <button 
                     onClick={handleOpenHistoryPanel} 
-                    className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 px-2 py-1 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                    className="text-xs font-semibold text-neutral-900 dark:text-neutral-300 hover:text-neutral-800 dark:hover:text-neutral-300 px-2 py-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-900/20 transition-colors"
                   >
                     {t('nav.history', 'Historique')}
                   </button>
@@ -2803,7 +2820,7 @@ export default function Navbar() {
                   >
                     <Bell size={18} />
                     {commentAlerts > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                      <span className="absolute -top-1 -right-1 bg-neutral-900 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                         {commentAlerts > 99 ? '99+' : commentAlerts}
                       </span>
                     )}
@@ -2815,7 +2832,7 @@ export default function Navbar() {
                   >
                     <MessageSquare size={18} />
                     {hasUnreadOrderMessages && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-pulse">
+                      <span className="absolute -top-1 -right-1 bg-neutral-900 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-pulse">
                         {unreadOrderMessagesBadge}
                       </span>
                     )}
@@ -2827,7 +2844,7 @@ export default function Navbar() {
                   >
                     <Heart size={18} />
                     {favoritesCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                      <span className="absolute -top-1 -right-1 bg-neutral-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                         {favoritesCount > 99 ? '99+' : favoritesCount}
                       </span>
                     )}
@@ -2839,7 +2856,7 @@ export default function Navbar() {
                   >
                     <ShoppingCart size={18} />
                     {cartCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-indigo-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                      <span className="absolute -top-1 -right-1 bg-black text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                         {cartCount > 99 ? '99+' : cartCount}
                       </span>
                     )}
@@ -2852,13 +2869,13 @@ export default function Navbar() {
                 <div className="flex items-center gap-2">
                   <NavLink
                     to="/login"
-                    className="px-3 py-2 rounded-full border border-[#007AFF] text-[#007AFF] font-medium hover:bg-[rgba(0,122,255,0.08)] tap-feedback transition-all duration-200"
+                    className="px-3 py-2 rounded-full border border-[#0A0A0A] text-[#0A0A0A] font-medium hover:bg-[rgba(10,10,10,0.06)] tap-feedback transition-all duration-200"
                   >
                     {t('nav.login', 'Connexion')}
                   </NavLink>
                   <NavLink
                     to="/register"
-                    className="px-3 py-2 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200"
+                    className="px-3 py-2 rounded-xl bg-black text-white font-medium hover:bg-neutral-700 shadow-lg hover:shadow-xl transition-all duration-200"
                   >
                     {t('nav.register', 'Inscription')}
                   </NavLink>
@@ -2866,7 +2883,7 @@ export default function Navbar() {
               ) : (
                 <div className="relative group">
                   <button className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200">
-                    <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center">
+                    <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center">
                       <span className="text-white font-semibold text-sm">
                         {user.name?.charAt(0)?.toUpperCase() || 'U'}
                       </span>
@@ -2915,7 +2932,7 @@ export default function Navbar() {
                         <ClipboardList size={16} />
                         <span>{t('nav.myOrders', 'Mes commandes')}</span>
                         {hasActiveOrders && (
-                          <span className="ml-auto bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                          <span className="ml-auto bg-black text-white text-xs font-bold px-2 py-0.5 rounded-full">
                             {activeOrdersBadge}
                           </span>
                         )}
@@ -2927,7 +2944,7 @@ export default function Navbar() {
                         <Package size={16} />
                         <span>{t('nav.customerOrders', 'Commandes clients')}</span>
                         {hasSellerOrders && (
-                          <span className="ml-auto bg-emerald-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                          <span className="ml-auto bg-neutral-900 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                             {sellerOrdersBadge}
                           </span>
                         )}
@@ -2950,7 +2967,7 @@ export default function Navbar() {
                           <span className="text-sm font-semibold">{t('nav.deliveryGuys', 'Livreurs')}</span>
                         </Link>
                       )}
-                      {user?.role === 'admin' && (
+                      {(user?.role === 'admin' || canManageChatTemplates) && (
                         <Link
                           to="/admin/chat-templates"
                           className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -2976,7 +2993,7 @@ export default function Navbar() {
                           <MessageSquare size={16} />
                           <span className="text-sm font-semibold">{t('nav.feedback', 'Avis amélioration')}</span>
                           {unreadFeedback > 0 && (
-                            <span className="ml-auto bg-emerald-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                            <span className="ml-auto bg-neutral-800 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                               {unreadFeedback > 99 ? '99+' : unreadFeedback}
                             </span>
                           )}
@@ -2990,7 +3007,7 @@ export default function Navbar() {
                           <CheckCircle size={16} />
                           <span className="text-sm font-semibold">{t('nav.verifyPayments', 'Vérifier paiements')}</span>
                           {waitingPayments > 0 && (
-                            <span className="ml-auto flex items-center justify-center min-w-[22px] h-6 px-2 bg-red-500 text-white text-xs font-bold rounded-full shadow-lg border-2 border-white dark:border-gray-800 animate-pulse">
+                            <span className="ml-auto flex items-center justify-center min-w-[22px] h-6 px-2 bg-neutral-900 text-white text-xs font-bold rounded-full shadow-lg border-2 border-white dark:border-gray-800 animate-pulse">
                               {waitingPayments > 99 ? '99+' : waitingPayments}
                             </span>
                           )}
@@ -3055,7 +3072,7 @@ export default function Navbar() {
                         <Heart size={16} />
                         <span>{t('nav.favorites', 'Favoris')}</span>
                         {favoritesCount > 0 && (
-                          <span className="ml-auto bg-pink-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                          <span className="ml-auto bg-neutral-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                             {favoritesCount}
                           </span>
                         )}
@@ -3067,14 +3084,14 @@ export default function Navbar() {
                         <ShoppingCart size={16} />
                         <span>{t('nav.cart', 'Panier')}</span>
                         {cartCount > 0 && (
-                          <span className="ml-auto bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                          <span className="ml-auto bg-black text-white text-xs font-bold px-2 py-0.5 rounded-full">
                             {cartCount}
                           </span>
                         )}
                       </Link>
                       <button
                         onClick={logout}
-                        className="flex items-center gap-3 px-3 py-2 rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors w-full text-left"
+                        className="flex items-center gap-3 px-3 py-2 rounded-xl text-neutral-800 hover:bg-neutral-50 dark:hover:bg-red-900/20 transition-colors w-full text-left"
                       >
                         <LogOut size={16} />
                         <span>{t('nav.logout', 'Déconnexion')}</span>
@@ -3090,7 +3107,7 @@ export default function Navbar() {
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className={`md:hidden flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-300 active:scale-95 ${
                 isMenuOpen 
-                  ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 shadow-md' 
+                  ? 'bg-neutral-100 dark:bg-neutral-900/40 text-neutral-900 dark:text-neutral-300 shadow-md' 
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
               aria-label={isMenuOpen ? t('nav.closeMenu', 'Fermer le menu') : t('nav.openMenu', 'Ouvrir le menu')}
@@ -3101,7 +3118,7 @@ export default function Navbar() {
         </div>
 
         {/* === SECONDARY NAVIGATION BAR (Proposal A) === */}
-        <div className="hidden lg:block bg-gradient-to-r from-indigo-600 to-indigo-700 dark:from-indigo-800 dark:to-indigo-900">
+        <div className="hidden lg:block bg-gradient-to-r from-neutral-600 to-neutral-700 dark:from-neutral-800 dark:to-neutral-900">
           <div className="mx-auto px-4 sm:px-6 lg:px-8 max-w-[1400px] 2xl:max-w-[1600px]">
             <div className="flex items-center gap-1 h-12">
               {/* Accueil */}
@@ -3144,7 +3161,7 @@ export default function Navbar() {
                           return (
                             <div key={group.id} className="space-y-2">
                               <div className="flex items-center gap-2 mb-3">
-                                {Icon && <Icon className="w-5 h-5 text-indigo-600" />}
+                                {Icon && <Icon className="w-5 h-5 text-neutral-900" />}
                                 <h3 className="font-bold text-gray-900 dark:text-white text-sm">
                                   {group.label}
                                 </h3>
@@ -3154,7 +3171,7 @@ export default function Navbar() {
                                   <li key={option.value}>
                                     <Link
                                       to={`/categories/${option.value}`}
-                                      className="block px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                      className="block px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-900/20 hover:text-neutral-900 dark:hover:text-neutral-300 transition-colors"
                                       onClick={() => setIsCategoryMenuOpen(false)}
                                     >
                                       {option.label}
@@ -3169,7 +3186,7 @@ export default function Navbar() {
                       <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
                         <Link
                           to="/products"
-                          className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 flex items-center gap-2"
+                          className="text-sm font-semibold text-neutral-900 hover:text-neutral-800 dark:text-neutral-300 flex items-center gap-2"
                           onClick={() => setIsCategoryMenuOpen(false)}
                         >
                           {t('nav.viewAllCategories', 'Voir toutes les catégories →')}
@@ -3208,7 +3225,7 @@ export default function Navbar() {
                       </div>
                       <Link
                         to="/shops/verified"
-                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-500"
+                        className="text-xs font-semibold text-neutral-900 hover:text-neutral-500"
                         onClick={() => setIsShopMenuOpen(false)}
                       >
                         {t('nav.seeAllArrow', 'Tout voir →')}
@@ -3218,10 +3235,10 @@ export default function Navbar() {
                     <div className="max-h-96 overflow-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
                       {shopsLoading ? (
                         <div className="p-4 flex items-center justify-center">
-                          <div className="animate-spin rounded-full h-6 w-6 border-2 border-indigo-600 border-t-transparent"></div>
+                          <div className="animate-spin rounded-full h-6 w-6 border-2 border-neutral-600 border-t-transparent"></div>
                         </div>
                       ) : shopsError ? (
-                        <div className="p-4 text-center text-red-500 text-sm flex items-center justify-center gap-2">
+                        <div className="p-4 text-center text-neutral-700 text-sm flex items-center justify-center gap-2">
                           <AlertCircle size={16} />
                           {shopsError}
                         </div>
@@ -3241,14 +3258,14 @@ export default function Navbar() {
                               <img
                                 src={shop.shopLogo || "/api/placeholder/60/60"}
                                 alt={shop.shopName}
-                                className="h-12 w-12 rounded-xl object-cover border border-gray-200 dark:border-gray-600 group-hover:border-indigo-300 transition-colors"
+                                className="h-12 w-12 rounded-xl object-cover border border-gray-200 dark:border-gray-600 group-hover:border-neutral-300 transition-colors"
                                 onError={(e) => {
                                   e.target.src = "/api/placeholder/60/60";
                                 }}
                               />
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
-                                  <span className="font-semibold text-gray-900 dark:text-white text-sm block group-hover:text-indigo-600 transition-colors">
+                                  <span className="font-semibold text-gray-900 dark:text-white text-sm block group-hover:text-neutral-900 transition-colors">
                                     {shop.shopName}
                                   </span>
                                   <VerifiedBadge verified={Boolean(shop.shopVerified)} showLabel={false} />
@@ -3256,7 +3273,7 @@ export default function Navbar() {
                                 <span className="text-xs text-gray-500 block mt-1 truncate">
                                   {shop.shopAddress || t('nav.addressNotProvided', 'Adresse non renseignée')}
                                 </span>
-                                <span className="text-xs text-indigo-600 font-semibold">
+                                <span className="text-xs text-neutral-900 font-semibold">
                                   {shop.productCount || 0} {t('nav.listing', 'annonce')}{shop.productCount > 1 ? "s" : ""}
                                 </span>
                               </div>
@@ -3340,7 +3357,7 @@ export default function Navbar() {
               {user && (
                 <Link
                   to="/my"
-                  className="ml-auto px-4 py-2 bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 font-bold text-sm rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg"
+                  className="ml-auto px-4 py-2 bg-white dark:bg-gray-800 text-neutral-900 dark:text-neutral-300 font-bold text-sm rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900/20 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg"
                 >
                   <Plus size={16} />
                   {t('nav.sell', 'Vendre')}
@@ -3365,7 +3382,7 @@ export default function Navbar() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t('nav.searchPlaceholderShort', 'Rechercher produits, boutiques...')}
-                className="w-full pl-11 pr-20 py-3 bg-gray-50 dark:bg-gray-800/80 border border-gray-200/60 dark:border-gray-700/60 rounded-2xl focus:ring-2 focus:ring-[#007AFF]/50 focus:border-[#007AFF] focus:bg-white dark:focus:bg-gray-800 transition-all duration-200 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 shadow-sm focus:shadow-md"
+                className="w-full pl-11 pr-20 py-3 bg-gray-50 dark:bg-gray-800/80 border border-gray-200/60 dark:border-gray-700/60 rounded-2xl focus:ring-2 focus:ring-[#0A0A0A]/50 focus:border-[#0A0A0A] focus:bg-white dark:focus:bg-gray-800 transition-all duration-200 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 shadow-sm focus:shadow-md"
                 onFocus={() => { 
                   setShowResults(true); 
                   if (isMobileLayout) setIsSearchFullScreen(true);
@@ -3377,7 +3394,7 @@ export default function Navbar() {
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
                 <button 
                   onClick={handleOpenHistoryPanel} 
-                  className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 px-2 py-1 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                  className="text-xs font-semibold text-neutral-900 dark:text-neutral-300 hover:text-neutral-800 dark:hover:text-neutral-300 px-2 py-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-900/20 transition-colors"
                 >
                   {t('nav.history', 'Historique')}
                 </button>
@@ -3394,7 +3411,10 @@ export default function Navbar() {
 
       {/* === MENU MOBILE OVERLAY === */}
       {isMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm mt-16">
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+          style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4.5rem)' }}
+        >
           <div className="bg-white dark:bg-gray-900 h-full overflow-y-auto pb-32">
             <div className="max-w-7xl mx-auto px-4 py-6 space-y-3">
               
@@ -3405,7 +3425,7 @@ export default function Navbar() {
                 className={({ isActive }) => 
                   `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                     isActive 
-                      ? 'bg-indigo-600 text-white shadow-lg' 
+                      ? 'bg-black text-white shadow-lg' 
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                   }`
                 }
@@ -3421,7 +3441,7 @@ export default function Navbar() {
                 className={({ isActive }) => 
                   `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                     isActive 
-                      ? 'bg-indigo-600 text-white shadow-lg' 
+                      ? 'bg-black text-white shadow-lg' 
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                   }`
                 }
@@ -3436,7 +3456,7 @@ export default function Navbar() {
                 className={({ isActive }) => 
                   `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                     isActive 
-                      ? 'bg-indigo-600 text-white shadow-lg' 
+                      ? 'bg-black text-white shadow-lg' 
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                   }`
                 }
@@ -3472,7 +3492,7 @@ export default function Navbar() {
                     className={({ isActive }) => 
                       `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                         isActive 
-                          ? 'bg-indigo-600 text-white shadow-lg' 
+                          ? 'bg-black text-white shadow-lg' 
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                       }`
                     }
@@ -3487,7 +3507,7 @@ export default function Navbar() {
                     className={({ isActive }) => 
                       `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                         isActive 
-                          ? 'bg-indigo-600 text-white shadow-lg' 
+                          ? 'bg-black text-white shadow-lg' 
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                       }`
                     }
@@ -3502,7 +3522,7 @@ export default function Navbar() {
                     className={({ isActive }) =>
                       `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                         isActive
-                          ? 'bg-indigo-600 text-white shadow-lg'
+                          ? 'bg-black text-white shadow-lg'
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                       }`
                     }
@@ -3517,7 +3537,7 @@ export default function Navbar() {
                     className={({ isActive }) => 
                       `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                         isActive 
-                          ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg' 
+                          ? 'bg-gradient-to-r from-neutral-900 to-neutral-800 text-white shadow-lg' 
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                       }`
                     }
@@ -3533,7 +3553,7 @@ export default function Navbar() {
                       className={({ isActive }) => 
                         `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                           isActive 
-                            ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg' 
+                            ? 'bg-gradient-to-r from-neutral-900 to-neutral-900 text-white shadow-lg' 
                             : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                         }`
                       }
@@ -3551,7 +3571,7 @@ export default function Navbar() {
                     <Bell size={20} />
                     {t('nav.notifications', 'Notifications')}
                     {commentAlerts > 0 && (
-                      <span className="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      <span className="ml-auto bg-neutral-900 text-white text-xs font-bold px-2 py-1 rounded-full">
                         {commentAlerts}
                       </span>
                     )}
@@ -3564,7 +3584,7 @@ export default function Navbar() {
                     <ClipboardList size={20} />
                     {t('nav.myOrders', 'Mes commandes')}
                     {hasActiveOrders && (
-                      <span className="ml-auto bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      <span className="ml-auto bg-black text-white text-xs font-bold px-2 py-1 rounded-full">
                         {activeOrdersBadge}
                       </span>
                     )}
@@ -3577,7 +3597,7 @@ export default function Navbar() {
                     <MessageSquare size={20} />
                     {t('nav.messages', 'Messages')}
                     {hasUnreadOrderMessages && (
-                      <span className="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">
+                      <span className="ml-auto bg-neutral-900 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">
                         {unreadOrderMessagesBadge}
                       </span>
                     )}
@@ -3590,7 +3610,7 @@ export default function Navbar() {
                     <Package size={20} />
                     {t('nav.customerOrders', 'Commandes clients')}
                     {hasSellerOrders && (
-                      <span className="ml-auto bg-emerald-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      <span className="ml-auto bg-neutral-900 text-white text-xs font-bold px-2 py-1 rounded-full">
                         {sellerOrdersBadge}
                       </span>
                     )}
@@ -3614,7 +3634,7 @@ export default function Navbar() {
                       <MessageSquare size={20} />
                       {t('nav.feedback', 'Avis amélioration')}
                       {unreadFeedback > 0 && (
-                        <span className="ml-auto bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                        <span className="ml-auto bg-neutral-800 text-white text-xs font-bold px-2 py-1 rounded-full">
                           {unreadFeedback > 99 ? '99+' : unreadFeedback}
                         </span>
                       )}
@@ -3629,7 +3649,7 @@ export default function Navbar() {
                       <CheckCircle size={20} />
                       <span>{t('nav.verifyPayments', 'Vérifier paiements')}</span>
                       {waitingPayments > 0 && (
-                        <span className="ml-auto flex items-center justify-center min-w-[22px] h-6 px-2 bg-red-500 text-white text-xs font-bold rounded-full shadow-lg border-2 border-white dark:border-gray-800 animate-pulse">
+                        <span className="ml-auto flex items-center justify-center min-w-[22px] h-6 px-2 bg-neutral-900 text-white text-xs font-bold rounded-full shadow-lg border-2 border-white dark:border-gray-800 animate-pulse">
                           {waitingPayments > 99 ? '99+' : waitingPayments}
                         </span>
                       )}
@@ -3643,6 +3663,16 @@ export default function Navbar() {
                     >
                       <AlertCircle size={20} />
                       {t('nav.handleComplaints', 'Traiter les réclamations')}
+                    </NavLink>
+                  )}
+                  {(canAccessBackOffice || canManageChatTemplates) && (
+                    <NavLink
+                      to="/admin/chat-templates"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <MessageSquare size={20} />
+                      {t('nav.chatTemplates', 'Chat templates')}
                     </NavLink>
                   )}
                   {!isAdmin && user?.canManageBoosts && (
@@ -3714,26 +3744,18 @@ export default function Navbar() {
                   <NavLink 
                     to="/admin" 
                     onClick={() => setIsMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 font-medium hover:bg-amber-200 dark:hover:bg-amber-900/30 transition-colors"
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl bg-neutral-100 dark:bg-neutral-900/20 text-neutral-700 dark:text-neutral-300 font-medium hover:bg-neutral-200 dark:hover:bg-neutral-900/40 transition-colors"
                   >
                     <Settings size={20} />
                     {isManager ? t('nav.managerArea', 'Espace gestionnaire') : t('nav.administration', 'Administration')}
                     {waitingPayments > 0 && (
-                      <span className="ml-auto bg-yellow-400 text-black text-xs font-bold px-2 py-1 rounded-full">
+                      <span className="ml-auto bg-neutral-400 text-black text-xs font-bold px-2 py-1 rounded-full">
                         {waitingPayments}
                       </span>
                     )}
                   </NavLink>
                       {user?.role === 'admin' && (
                         <>
-                          <NavLink
-                            to="/admin/chat-templates"
-                            onClick={() => setIsMenuOpen(false)}
-                            className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
-                          >
-                            <MessageSquare size={20} />
-                            {t('nav.chatTemplates', 'Chat templates')}
-                          </NavLink>
                           <NavLink
                             to="/admin/promo-codes"
                             onClick={() => setIsMenuOpen(false)}
@@ -3772,7 +3794,7 @@ export default function Navbar() {
                 <Heart size={20} />
                 {t('nav.favorites', 'Favoris')}
                 {favoritesCount > 0 && (
-                  <span className="ml-auto bg-pink-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                  <span className="ml-auto bg-neutral-500 text-white text-xs font-bold px-2 py-1 rounded-full">
                     {favoritesCount}
                   </span>
                 )}
@@ -3786,7 +3808,7 @@ export default function Navbar() {
                 <ShoppingCart size={20} />
                 {t('nav.cart', 'Panier')}
                 {cartCount > 0 && (
-                  <span className="ml-auto bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                  <span className="ml-auto bg-black text-white text-xs font-bold px-2 py-1 rounded-full">
                     {cartCount}
                   </span>
                 )}
@@ -3807,14 +3829,14 @@ export default function Navbar() {
                   <NavLink
                     to="/login"
                     onClick={() => setIsMenuOpen(false)}
-                    className="px-4 py-3 rounded-xl border border-indigo-600 text-indigo-600 text-center font-medium hover:bg-indigo-50 transition-colors"
+                    className="px-4 py-3 rounded-xl border border-neutral-600 text-neutral-900 text-center font-medium hover:bg-neutral-100 transition-colors"
                   >
                     {t('nav.login', 'Connexion')}
                   </NavLink>
                   <NavLink
                     to="/register"
                     onClick={() => setIsMenuOpen(false)}
-                    className="px-4 py-3 rounded-xl bg-indigo-600 text-white text-center font-medium hover:bg-indigo-700 transition-colors"
+                    className="px-4 py-3 rounded-xl bg-black text-white text-center font-medium hover:bg-neutral-700 transition-colors"
                   >
                     {t('nav.register', 'Inscription')}
                   </NavLink>
@@ -3826,7 +3848,7 @@ export default function Navbar() {
                       logout();
                       setIsMenuOpen(false);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-neutral-800 hover:bg-neutral-50 dark:hover:bg-red-900/20 transition-colors"
                   >
                     <LogOut size={20} />
                     {t('nav.logout', 'Déconnexion')}
@@ -3855,7 +3877,7 @@ export default function Navbar() {
               triggerHaptic('medium');
             }}
           >
-            <div className="bg-indigo-600 dark:bg-indigo-500 text-white p-1.5 rounded-full shadow-lg">
+            <div className="bg-black dark:bg-neutral-900 text-white p-1.5 rounded-full shadow-lg">
               <ChevronUp size={12} className="animate-bounce" />
             </div>
           </div>
@@ -3882,24 +3904,24 @@ export default function Navbar() {
                     onTouchStart={handleBottomBarTouchStart}
                     onTouchEnd={handleBottomBarTouchEnd}
                     className={`relative flex flex-col items-center justify-center gap-1.5 px-4 py-2 rounded-2xl transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 active:scale-95 ${
-                      isMenuOpen ? 'text-indigo-600 dark:text-indigo-400 scale-105' : ''
+                      isMenuOpen ? 'text-neutral-900 dark:text-neutral-300 scale-105' : ''
                     }`}
                   >
                     <div className={`relative transition-all duration-300 ${isMenuOpen ? 'scale-110' : ''}`}>
                       {isMenuOpen ? (
-                        <X size={22} className="text-indigo-600 dark:text-indigo-400" strokeWidth={2.5} />
+                        <X size={22} className="text-neutral-900 dark:text-neutral-300" strokeWidth={2.5} />
                       ) : (
                         <Icon size={22} strokeWidth={2} />
                       )}
                       {isMenuOpen && (
-                        <div className="absolute inset-0 -z-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-full blur-md animate-pulse" />
+                        <div className="absolute inset-0 -z-10 bg-neutral-100 dark:bg-neutral-900/40 rounded-full blur-md animate-pulse" />
                       )}
                     </div>
-                    <span className={`text-[11px] font-semibold transition-all ${isMenuOpen ? 'text-indigo-600 dark:text-indigo-400' : ''}`}>
+                    <span className={`text-[11px] font-semibold transition-all ${isMenuOpen ? 'text-neutral-900 dark:text-neutral-300' : ''}`}>
                       {item.label}
                     </span>
                     {isMenuOpen && (
-                      <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-indigo-600 dark:bg-indigo-400 rounded-full" />
+                      <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-black dark:bg-neutral-400 rounded-full" />
                     )}
                     {/* Quick Actions Menu */}
                     {showQuickActions === item.id && (
@@ -3940,7 +3962,7 @@ export default function Navbar() {
                   className={({ isActive: navIsActive }) =>
                     `relative flex flex-col items-center justify-center gap-1.5 px-4 py-2 rounded-2xl transition-all duration-300 ${
                       navIsActive 
-                        ? "text-indigo-600 dark:text-indigo-400 scale-105" 
+                        ? "text-neutral-900 dark:text-neutral-300 scale-105" 
                         : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                     }`
                   }
@@ -3955,26 +3977,26 @@ export default function Navbar() {
                       <div className={`relative transition-all duration-300 ${navIsActive ? 'scale-110' : ''}`}>
                         <Icon 
                           size={22} 
-                          className={navIsActive ? 'text-indigo-600 dark:text-indigo-400' : ''}
+                          className={navIsActive ? 'text-neutral-900 dark:text-neutral-300' : ''}
                           strokeWidth={navIsActive ? 2.5 : 2}
                           fill={item.id === 'favorites' && navIsActive ? 'currentColor' : 'none'}
                         />
                         {navIsActive && (
-                          <div className="absolute inset-0 -z-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-full blur-md animate-pulse" />
+                          <div className="absolute inset-0 -z-10 bg-neutral-100 dark:bg-neutral-900/40 rounded-full blur-md animate-pulse" />
                         )}
                       </div>
-                      <span className={`text-[11px] font-semibold transition-all ${navIsActive ? 'text-indigo-600 dark:text-indigo-400' : ''}`}>
+                      <span className={`text-[11px] font-semibold transition-all ${navIsActive ? 'text-neutral-900 dark:text-neutral-300' : ''}`}>
                         {item.label}
                       </span>
                       {badge > 0 && (
                         <span className={`absolute -top-0.5 right-2.5 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-lg transition-all ${
-                          navIsActive ? 'bg-indigo-600' : item.id === 'favorites' ? 'bg-pink-500' : 'bg-indigo-600'
+                          navIsActive ? 'bg-black' : item.id === 'favorites' ? 'bg-neutral-500' : 'bg-black'
                         }`}>
                           {badge > 99 ? '99+' : badge}
                         </span>
                       )}
                       {navIsActive && (
-                        <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-indigo-600 dark:bg-indigo-400 rounded-full" />
+                        <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-black dark:bg-neutral-400 rounded-full" />
                       )}
                       {/* Quick Actions Menu */}
                       {showQuickActions === item.id && (
@@ -4047,7 +4069,7 @@ export default function Navbar() {
                         className={({ isActive: navIsActive }) =>
                           `relative flex flex-col items-center justify-center gap-1 px-2 py-2 rounded-xl transition-all duration-300 ${
                             navIsActive 
-                              ? "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 scale-105" 
+                              ? "text-neutral-900 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-900/20 scale-105" 
                               : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                           }`
                         }
@@ -4061,22 +4083,22 @@ export default function Navbar() {
                             <div className="relative">
                               <Icon 
                                 size={18} 
-                                className={navIsActive ? 'text-indigo-600 dark:text-indigo-400' : ''}
+                                className={navIsActive ? 'text-neutral-900 dark:text-neutral-300' : ''}
                                 strokeWidth={navIsActive ? 2.5 : 2}
                               />
                               {badge > 0 && (
                                 <span className={`absolute -top-1 -right-1 text-white text-[9px] font-bold px-1 py-0.5 rounded-full min-w-[16px] text-center shadow-lg ${
-                                  navIsActive ? 'bg-indigo-600' : 'bg-red-500'
+                                  navIsActive ? 'bg-black' : 'bg-neutral-900'
                                 }`}>
                                   {badge > 99 ? '99+' : badge}
                                 </span>
                               )}
                             </div>
-                            <span className={`text-[10px] font-medium transition-all truncate w-full text-center ${navIsActive ? 'text-indigo-600 dark:text-indigo-400' : ''}`}>
+                            <span className={`text-[10px] font-medium transition-all truncate w-full text-center ${navIsActive ? 'text-neutral-900 dark:text-neutral-300' : ''}`}>
                               {item.label}
                             </span>
                             {navIsActive && (
-                              <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-0.5 h-0.5 bg-indigo-600 dark:bg-indigo-400 rounded-full" />
+                              <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-0.5 h-0.5 bg-black dark:bg-neutral-400 rounded-full" />
                             )}
                             {/* Quick Actions Menu */}
                             {showQuickActions === item.id && (

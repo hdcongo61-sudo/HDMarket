@@ -58,6 +58,7 @@ boostRequestSchema.index({ status: 1, startDate: 1, endDate: 1 });
 boostRequestSchema.index({ sellerId: 1, createdAt: -1 });
 boostRequestSchema.index({ boostType: 1, city: 1, status: 1 });
 boostRequestSchema.index({ productIds: 1, status: 1, endDate: 1 });
+boostRequestSchema.index({ paymentTransactionId: 1 });
 
 boostRequestSchema.pre('validate', function validateBoostRequest(next) {
   if (typeof this.city === 'string') {

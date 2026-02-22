@@ -3,10 +3,10 @@ import { DollarSign, Package, Percent, Wallet } from 'lucide-react';
 
 const Card = ({ icon: Icon, label, value, subtitle, tone = 'indigo' }) => {
   const toneMap = {
-    indigo: 'bg-indigo-50 border-indigo-100 text-indigo-700',
-    emerald: 'bg-emerald-50 border-emerald-100 text-emerald-700',
-    amber: 'bg-amber-50 border-amber-100 text-amber-700',
-    rose: 'bg-rose-50 border-rose-100 text-rose-700'
+    indigo: 'bg-neutral-50 border-neutral-100 text-neutral-700',
+    emerald: 'bg-neutral-50 border-neutral-100 text-neutral-700',
+    amber: 'bg-neutral-50 border-neutral-100 text-neutral-700',
+    rose: 'bg-neutral-50 border-neutral-100 text-neutral-700'
   };
   const classes = toneMap[tone] || toneMap.indigo;
 

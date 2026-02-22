@@ -8,6 +8,7 @@ import { cacheMiddleware } from '../utils/cache.js';
 import { upload } from '../utils/upload.js';
 import {
   getDashboardStats,
+  getCacheStatsAdmin,
   listUsers,
   updateUserAccountType,
   getUserAccountTypeHistory,
@@ -27,6 +28,8 @@ import {
   toggleProductManager,
   listDeliveryManagers,
   toggleDeliveryManager,
+  listChatTemplateManagers,
+  toggleChatTemplateManager,
   listHelpCenterEditors,
   toggleHelpCenterEditor,
   getSalesTrends,
@@ -74,7 +77,10 @@ import {
   deleteProhibitedWord
 } from '../controllers/prohibitedWordController.js';
 import {
+  listAdminChatTemplates,
   createChatTemplate,
+  updateChatTemplate,
+  deleteChatTemplate,
   sendSupportMessage
 } from '../controllers/chatController.js';
 import { updateAppLogoDesktop, updateAppLogoMobile, updateHeroBanner, updatePromoBanner, updateSplash } from '../controllers/siteSettingController.js';
@@ -150,7 +156,10 @@ import {
   patchAdminLanguages,
   listAdminCities,
   createAdminCity,
-  updateAdminCity
+  updateAdminCity,
+  listAdminCommunes,
+  createAdminCommune,
+  updateAdminCommune
 } from '../controllers/settingsController.js';
 
 const router = express.Router();
@@ -262,7 +271,14 @@ router.get('/stats', protect, (req, res, next) => {
     return res.status(403).json({ message: 'Forbidden' });
   }
   next();
-}, cacheMiddleware({ ttl: 60000 }), getDashboardStats);
+}, cacheMiddleware({ domain: 'admin', scope: 'role', ttl: 60000 }), getDashboardStats);
+router.get(
+  '/cache/stats',
+  protect,
+  requireRole(['admin']),
+  cacheMiddleware({ domain: 'admin', scope: 'role', ttl: 15000 }),
+  getCacheStatsAdmin
+);
 
 // Boost management routes - accessible by admin OR users with canManageBoosts permission
 // These must be defined BEFORE the router.use() that requires admin/manager role
@@ -379,6 +395,22 @@ router.patch(
   validate(schemas.adminCityUpdate),
   updateAdminCity
 );
+router.get('/communes', protect, requireRole(['admin']), listAdminCommunes);
+router.post(
+  '/communes',
+  protect,
+  requireRole(['admin']),
+  validate(schemas.adminCommuneCreate),
+  createAdminCommune
+);
+router.patch(
+  '/communes/:id',
+  protect,
+  requireRole(['admin']),
+  validate(schemas.idParam, 'params'),
+  validate(schemas.adminCommuneUpdate),
+  updateAdminCommune
+);
 
 // Complaint access - admin, manager, or canManageComplaints
 router.get('/complaints', protect, requireComplaintAccess, listComplaintsAdmin);
@@ -416,6 +448,15 @@ router.patch(
   requireRole(['admin']),
   validate(Joi.object({ userId: Joi.string().hex().length(24).required() }), 'params'),
   toggleDeliveryManager
+);
+// Chat template managers - admin only
+router.get('/chat-template-managers', protect, requireRole(['admin']), listChatTemplateManagers);
+router.patch(
+  '/chat-template-managers/:userId/toggle',
+  protect,
+  requireRole(['admin']),
+  validate(Joi.object({ userId: Joi.string().hex().length(24).required() }), 'params'),
+  toggleChatTemplateManager
 );
 // Help center editors - admin only
 router.get('/help-center-editors', protect, requireRole(['admin']), listHelpCenterEditors);
@@ -618,7 +659,10 @@ router.get('/users/:id/audit-logs', validate(schemas.idParam, 'params'), getUser
 router.get('/audit-logs', listAuditLogs);
 router.get('/shops/verified', listVerifiedShopsAdmin);
 router.post('/products/update-sales-count', updateAllProductSalesCount);
+router.get('/chat/templates', listAdminChatTemplates);
 router.post('/chat/templates', createChatTemplate);
+router.patch('/chat/templates/:id', validate(schemas.idParam, 'params'), updateChatTemplate);
+router.delete('/chat/templates/:id', validate(schemas.idParam, 'params'), deleteChatTemplate);
 router.post('/chat/support-message', sendSupportMessage);
 router.get('/prohibited-words', listProhibitedWords);
 router.post(

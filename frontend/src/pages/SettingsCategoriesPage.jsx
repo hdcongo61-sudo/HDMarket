@@ -525,7 +525,7 @@ export default function SettingsCategoriesPage() {
   if (user?.role !== 'admin') {
     return (
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
+        <div className="rounded-3xl border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-700">
           Accès refusé. Cette page est réservée aux administrateurs.
         </div>
       </div>
@@ -669,7 +669,7 @@ export default function SettingsCategoriesPage() {
               <button
                 type="button"
                 onClick={() => openImportWithPayload(importTemplatePayload)}
-                className="inline-flex items-center gap-2 rounded-xl border border-indigo-300 px-3 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+                className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
               >
                 <FileJson size={14} /> Ouvrir dans import
               </button>
@@ -695,7 +695,7 @@ export default function SettingsCategoriesPage() {
               <button
                 type="button"
                 onClick={() => openImportWithPayload(legacyHardcodedPayload)}
-                className="inline-flex items-center gap-2 rounded-xl border border-indigo-300 px-3 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+                className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
               >
                 <FileJson size={14} /> Charger dans import
               </button>

@@ -43,8 +43,8 @@ export default function ProductAnalytics({ productId, productTitle, onClose }) {
         {/* Header */}
         <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
-              <BarChart3 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            <div className="p-2 rounded-lg bg-neutral-100 dark:bg-neutral-900/30">
+              <BarChart3 className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">Analytics du produit</h2>
@@ -64,7 +64,7 @@ export default function ProductAnalytics({ productId, productTitle, onClose }) {
         <div className="p-6 space-y-6">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-600"></div>
             </div>
           ) : error ? (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 text-center">
@@ -74,17 +74,17 @@ export default function ProductAnalytics({ productId, productTitle, onClose }) {
             <>
               {/* Metrics Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-900/20 dark:to-pink-800/20 rounded-xl p-4 border border-pink-200 dark:border-pink-800">
+                <div className="bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900/20 dark:to-neutral-800/20 rounded-xl p-4 border border-neutral-200 dark:border-neutral-800">
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 rounded-lg bg-pink-500 text-white">
+                    <div className="p-2 rounded-lg bg-neutral-500 text-white">
                       <Heart className="w-4 h-4" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-xs font-semibold text-pink-600 dark:text-pink-400 uppercase tracking-wide">Favoris</p>
-                      <p className="text-2xl font-bold text-pink-900 dark:text-pink-100">{metrics.favoritesCount || 0}</p>
+                      <p className="text-xs font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wide">Favoris</p>
+                      <p className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">{metrics.favoritesCount || 0}</p>
                     </div>
                   </div>
-                  <p className="text-xs text-pink-600 dark:text-pink-400">Utilisateurs qui ont aimé</p>
+                  <p className="text-xs text-neutral-600 dark:text-neutral-400">Utilisateurs qui ont aimé</p>
                 </div>
 
                 <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl p-4 border border-green-200 dark:border-green-800">
@@ -100,17 +100,17 @@ export default function ProductAnalytics({ productId, productTitle, onClose }) {
                   <p className="text-xs text-green-600 dark:text-green-400">Contacts générés</p>
                 </div>
 
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl p-4 border border-purple-200 dark:border-purple-800">
+                <div className="bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900/20 dark:to-neutral-800/20 rounded-xl p-4 border border-neutral-200 dark:border-neutral-800">
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 rounded-lg bg-purple-500 text-white">
+                    <div className="p-2 rounded-lg bg-neutral-500 text-white">
                       <ShoppingCart className="w-4 h-4" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wide">Ventes</p>
-                      <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">{metrics.salesCount || 0}</p>
+                      <p className="text-xs font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wide">Ventes</p>
+                      <p className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">{metrics.salesCount || 0}</p>
                     </div>
                   </div>
-                  <p className="text-xs text-purple-600 dark:text-purple-400">Commandes réalisées</p>
+                  <p className="text-xs text-neutral-600 dark:text-neutral-400">Commandes réalisées</p>
                 </div>
               </div>
 
@@ -118,7 +118,7 @@ export default function ProductAnalytics({ productId, productTitle, onClose }) {
               {viewsOverTime.length > 0 && (
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
                   <div className="flex items-center gap-2 mb-4">
-                    <TrendingUp className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                    <TrendingUp className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
                     <div className="flex-1">
                       <h3 className="text-lg font-bold text-gray-900 dark:text-white">Vues sur les 30 derniers jours</h3>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -132,7 +132,7 @@ export default function ProductAnalytics({ productId, productTitle, onClose }) {
                       return (
                         <div key={index} className="flex-1 flex flex-col items-center group relative">
                           <div
-                            className="w-full bg-indigo-500 hover:bg-indigo-600 rounded-t transition-all cursor-pointer"
+                            className="w-full bg-neutral-500 hover:bg-neutral-600 rounded-t transition-all cursor-pointer"
                             style={{ height: `${height}%`, minHeight: day.views > 0 ? '4px' : '0' }}
                             title={`${new Date(day.date).toLocaleDateString('fr-FR')}: ${day.views} vue(s)`}
                           />

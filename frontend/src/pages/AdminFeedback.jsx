@@ -350,7 +350,7 @@ export default function AdminFeedback() {
               type="button"
               onClick={handleExportPDF}
               disabled={exporting || items.length === 0}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-3xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold shadow-sm hover:shadow-md active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-3xl bg-gradient-to-r from-neutral-600 to-neutral-600 text-white text-sm font-semibold shadow-sm hover:shadow-md active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FileText className="w-4 h-4" />
               <span className="hidden sm:inline">{exporting ? 'Export en cours...' : 'Exporter en PDF'}</span>
@@ -366,7 +366,7 @@ export default function AdminFeedback() {
                     loadFeedbackReaders();
                   }
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-3xl bg-white border-2 border-indigo-200 text-indigo-700 text-sm font-semibold hover:bg-indigo-50 active:scale-95 transition-all duration-200"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-3xl bg-white border-2 border-neutral-200 text-neutral-700 text-sm font-semibold hover:bg-neutral-50 active:scale-95 transition-all duration-200"
               >
                 <User className="w-4 h-4" />
                 <span className="hidden sm:inline">Gerer les lecteurs</span>
@@ -396,12 +396,12 @@ export default function AdminFeedback() {
                   value={userSearchQuery}
                   onChange={(e) => setUserSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
-                  className="flex-1 px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="flex-1 px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                 />
                 <button
                   onClick={handleSearchUsers}
                   disabled={searchingUsers || !userSearchQuery.trim()}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50"
+                  className="px-4 py-2 rounded-xl bg-neutral-600 text-white text-sm font-semibold hover:bg-neutral-700 active:scale-95 transition-all disabled:opacity-50"
                 >
                   <Search className="w-4 h-4" />
                 </button>
@@ -421,7 +421,7 @@ export default function AdminFeedback() {
                       </div>
                       <button
                         onClick={() => handleToggleFeedbackReader(user._id || user.id)}
-                        className="ml-3 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 active:scale-95 transition-all"
+                        className="ml-3 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-neutral-600 text-white text-xs font-semibold hover:bg-neutral-700 active:scale-95 transition-all"
                       >
                         <UserPlus className="w-3.5 h-3.5" />
                         Ajouter
@@ -474,7 +474,7 @@ export default function AdminFeedback() {
                   onClick={() => setStatusFilter(filter.key)}
                   className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
                     statusFilter === filter.key
-                      ? 'bg-indigo-600 text-white shadow'
+                      ? 'bg-neutral-600 text-white shadow'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
@@ -486,7 +486,7 @@ export default function AdminFeedback() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
               <input
                 type="text"
-                className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                 placeholder="Rechercher un avis"
                 value={searchDraft}
                 onChange={(event) => setSearchDraft(event.target.value)}
@@ -526,7 +526,7 @@ export default function AdminFeedback() {
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <MessageSquare className="h-4 w-4 text-indigo-500" />
+                          <MessageSquare className="h-4 w-4 text-neutral-500" />
                           <h3 className="text-base font-semibold text-gray-900">
                             {item.subject}
                           </h3>
@@ -559,7 +559,7 @@ export default function AdminFeedback() {
                           type="button"
                           onClick={() => handleExportSinglePDF(item)}
                           disabled={exportingItemId === item._id}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100 disabled:opacity-60 transition-all"
+                          className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 disabled:opacity-60 transition-all"
                           title="Exporter cet avis en PDF"
                         >
                           <FileDown className="h-3.5 w-3.5" />
@@ -575,7 +575,7 @@ export default function AdminFeedback() {
                             type="button"
                             onClick={() => handleMarkRead(item._id)}
                             disabled={actionId === item._id}
-                            className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
+                            className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 disabled:opacity-60"
                           >
                             <CheckCircle className="h-4 w-4" />
                             {actionId === item._id ? 'Mise a jour...' : 'Marquer comme lu'}

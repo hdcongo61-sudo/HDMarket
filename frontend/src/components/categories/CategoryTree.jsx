@@ -26,7 +26,7 @@ function NodeRow({
         onDrop={(event) => onDrop(event, node)}
         className={`group flex items-center gap-2 rounded-xl border px-2 py-2 transition ${
           selectedId === node.id
-            ? 'border-indigo-300 bg-indigo-50 dark:border-indigo-500/50 dark:bg-indigo-500/10'
+            ? 'border-neutral-300 bg-neutral-50 dark:border-neutral-500/50 dark:bg-neutral-500/10'
             : 'border-transparent hover:border-neutral-200 hover:bg-neutral-50 dark:hover:border-neutral-700 dark:hover:bg-neutral-800/80'
         }`}
         style={{ marginLeft: `${depth * 18}px` }}
@@ -35,7 +35,7 @@ function NodeRow({
           type="checkbox"
           checked={selectedIds.has(node.id)}
           onChange={() => onToggleSelect(node.id)}
-          className="h-4 w-4 rounded border-neutral-300 text-indigo-600"
+          className="h-4 w-4 rounded border-neutral-300 text-neutral-600"
         />
         {hasChildren ? (
           <button

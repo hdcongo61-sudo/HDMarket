@@ -113,13 +113,13 @@ export default function MyFeedback() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-neutral-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <User className="w-8 h-8 text-white" />
           </div>
           <p className="text-gray-500">Vous devez être connecté pour accéder à cette page.</p>
           <Link
             to="/login"
-            className="mt-4 inline-flex items-center gap-2 text-indigo-600 font-medium"
+            className="mt-4 inline-flex items-center gap-2 text-neutral-600 font-medium"
           >
             <ArrowLeft size={16} />
             Retour à la connexion
@@ -134,7 +134,7 @@ export default function MyFeedback() {
       <div className="max-w-3xl mx-auto px-4 py-6">
         <Link
           to="/profile"
-          className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-indigo-600 mb-6"
+          className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-neutral-600 mb-6"
         >
           <ArrowLeft size={18} />
           Retour au profil

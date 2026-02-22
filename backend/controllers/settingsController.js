@@ -1,6 +1,7 @@
 import asyncHandler from 'express-async-handler';
 import Currency from '../models/currencyModel.js';
 import City from '../models/cityModel.js';
+import Commune from '../models/communeModel.js';
 import AppSetting from '../models/appSettingModel.js';
 import User from '../models/userModel.js';
 import Product from '../models/productModel.js';
@@ -8,6 +9,7 @@ import { invalidateSettingsCache } from '../utils/cache.js';
 import {
   DEFAULT_APP_SETTINGS,
   SETTING_KEYS,
+  getActiveCommunes,
   getActiveCities,
   getActiveCurrencies,
   getDefaultCity,
@@ -132,6 +134,15 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
           deliveryAvailable: true,
           boostMultiplier: 1
         }
+      ],
+      communes: [
+        {
+          name: 'Centre-ville',
+          cityId: null,
+          isActive: true,
+          deliveryPolicy: 'DEFAULT_RULE',
+          fixedFee: 0
+        }
       ]
     });
   }
@@ -152,6 +163,19 @@ export const getPublicCities = asyncHandler(async (req, res) => {
         boostMultiplier: 1
       }
     ]);
+  }
+});
+
+export const getPublicCommunes = asyncHandler(async (req, res) => {
+  try {
+    const cityId = normalizeText(req.query?.cityId || '');
+    const communes = await getActiveCommunes({
+      cityId: cityId || null
+    });
+    res.json(communes);
+  } catch (error) {
+    console.error('getPublicCommunes fallback used:', error?.message || error);
+    res.json([]);
   }
 });
 
@@ -229,15 +253,29 @@ export const updateUserPreferences = asyncHandler(async (req, res) => {
 });
 
 export const getAdminSettings = asyncHandler(async (req, res) => {
-  const [feeSettings, languagesConfig, currencies, cities, defaultCurrency, defaultCity] =
+  const [feeSettings, languagesConfig, currencies, cities, communesRaw, defaultCurrency, defaultCity] =
     await Promise.all([
       getSafeFeeSettings(),
       getLanguagesConfig(),
       getActiveCurrencies({ includeInactive: true }),
       getActiveCities({ includeInactive: true }),
+      Commune.find({})
+        .populate('cityId', 'name')
+        .sort({ order: 1, name: 1 })
+        .lean(),
       getDefaultCurrency(),
       getDefaultCity()
     ]);
+
+  const communes = (Array.isArray(communesRaw) ? communesRaw : []).map((commune) => {
+    const rawCity = commune?.cityId;
+    const resolvedCityId = rawCity?._id || rawCity || null;
+    return {
+      ...commune,
+      cityId: resolvedCityId,
+      cityName: rawCity?.name || ''
+    };
+  });
 
   res.json({
     feesAndRules: {
@@ -261,6 +299,7 @@ export const getAdminSettings = asyncHandler(async (req, res) => {
     currencies,
     defaultCurrency,
     cities,
+    communes,
     defaultCity
   });
 });
@@ -477,7 +516,7 @@ export const patchAdminLanguages = asyncHandler(async (req, res) => {
 });
 
 export const listAdminCities = asyncHandler(async (req, res) => {
-  const cities = await City.find({}).sort({ isDefault: -1, name: 1 }).lean();
+  const cities = await City.find({}).sort({ isDefault: -1, order: 1, name: 1 }).lean();
   res.json(cities);
 });
 
@@ -495,6 +534,7 @@ export const createAdminCity = asyncHandler(async (req, res) => {
     name,
     isActive: req.body.isActive !== false,
     isDefault: Boolean(req.body.isDefault),
+    order: Number.isFinite(Number(req.body.order)) ? Number(req.body.order) : 0,
     deliveryAvailable: req.body.deliveryAvailable !== false,
     boostMultiplier: Number.isFinite(Number(req.body.boostMultiplier))
       ? Number(req.body.boostMultiplier)
@@ -526,6 +566,9 @@ export const updateAdminCity = asyncHandler(async (req, res) => {
   if (req.body.name !== undefined) city.name = normalizeText(req.body.name);
   if (req.body.deliveryAvailable !== undefined) {
     city.deliveryAvailable = Boolean(req.body.deliveryAvailable);
+  }
+  if (req.body.order !== undefined) {
+    city.order = Math.max(0, Number(req.body.order || 0));
   }
   if (req.body.boostMultiplier !== undefined) {
     city.boostMultiplier = Math.max(0, Number(req.body.boostMultiplier || 0));
@@ -567,6 +610,102 @@ export const updateAdminCity = asyncHandler(async (req, res) => {
 
   invalidateAllSettingsCaches();
   res.json(city);
+});
+
+export const listAdminCommunes = asyncHandler(async (req, res) => {
+  const communes = await Commune.find({})
+    .populate('cityId', 'name')
+    .sort({ order: 1, name: 1 })
+    .lean();
+  res.json(communes);
+});
+
+export const createAdminCommune = asyncHandler(async (req, res) => {
+  const name = normalizeText(req.body.name);
+  const cityId = normalizeText(req.body.cityId);
+  if (!name || !cityId) {
+    return res.status(400).json({ message: 'Nom de commune et ville requis.' });
+  }
+
+  const city = await City.findById(cityId).lean();
+  if (!city) {
+    return res.status(404).json({ message: 'Ville introuvable.' });
+  }
+
+  const exists = await Commune.findOne({
+    cityId,
+    name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')
+  }).lean();
+  if (exists) {
+    return res.status(409).json({ message: 'Cette commune existe déjà pour cette ville.' });
+  }
+
+  const deliveryPolicy = normalizeText(req.body.deliveryPolicy || 'DEFAULT_RULE').toUpperCase();
+  const fixedFee = Number(req.body.fixedFee || 0);
+  if (deliveryPolicy === 'FIXED_FEE' && (!Number.isFinite(fixedFee) || fixedFee < 0)) {
+    return res.status(400).json({ message: 'fixedFee doit être >= 0 pour FIXED_FEE.' });
+  }
+
+  const commune = await Commune.create({
+    name,
+    cityId,
+    isActive: req.body.isActive !== false,
+    deliveryPolicy: ['FREE', 'FIXED_FEE', 'DEFAULT_RULE'].includes(deliveryPolicy)
+      ? deliveryPolicy
+      : 'DEFAULT_RULE',
+    fixedFee: Math.max(0, Number.isFinite(fixedFee) ? fixedFee : 0),
+    order: Number.isFinite(Number(req.body.order)) ? Number(req.body.order) : 0,
+    updatedBy: req.user.id
+  });
+
+  invalidateAllSettingsCaches();
+  res.status(201).json(commune);
+});
+
+export const updateAdminCommune = asyncHandler(async (req, res) => {
+  const commune = await Commune.findById(req.params.id);
+  if (!commune) {
+    return res.status(404).json({ message: 'Commune introuvable.' });
+  }
+
+  if (req.body.name !== undefined) {
+    commune.name = normalizeText(req.body.name);
+  }
+  if (req.body.cityId !== undefined) {
+    const city = await City.findById(req.body.cityId).lean();
+    if (!city) {
+      return res.status(404).json({ message: 'Ville introuvable.' });
+    }
+    commune.cityId = req.body.cityId;
+  }
+  if (req.body.isActive !== undefined) {
+    commune.isActive = Boolean(req.body.isActive);
+  }
+  if (req.body.deliveryPolicy !== undefined) {
+    const nextPolicy = normalizeText(req.body.deliveryPolicy).toUpperCase();
+    if (!['FREE', 'FIXED_FEE', 'DEFAULT_RULE'].includes(nextPolicy)) {
+      return res.status(400).json({ message: 'deliveryPolicy invalide.' });
+    }
+    commune.deliveryPolicy = nextPolicy;
+  }
+  if (req.body.fixedFee !== undefined) {
+    const nextFee = Number(req.body.fixedFee || 0);
+    if (!Number.isFinite(nextFee) || nextFee < 0) {
+      return res.status(400).json({ message: 'fixedFee doit être >= 0.' });
+    }
+    commune.fixedFee = nextFee;
+  }
+  if (req.body.order !== undefined) {
+    commune.order = Math.max(0, Number(req.body.order || 0));
+  }
+  if (commune.deliveryPolicy === 'FIXED_FEE' && Number(commune.fixedFee || 0) < 0) {
+    return res.status(400).json({ message: 'fixedFee requis pour FIXED_FEE.' });
+  }
+
+  commune.updatedBy = req.user.id;
+  await commune.save();
+  invalidateAllSettingsCaches();
+  res.json(commune);
 });
 
 export const ensureDefaultSettingsBootstrap = async () => {
@@ -613,8 +752,24 @@ export const ensureDefaultSettingsBootstrap = async () => {
       name: 'Brazzaville',
       isDefault: true,
       isActive: true,
+      order: 0,
       deliveryAvailable: true,
       boostMultiplier: 1
     });
+  }
+
+  const defaultCity = await City.findOne({ isDefault: true }).lean();
+  if (defaultCity) {
+    const hasCommune = await Commune.exists({});
+    if (!hasCommune) {
+      await Commune.create({
+        name: 'Centre-ville',
+        cityId: defaultCity._id,
+        isActive: true,
+        deliveryPolicy: 'DEFAULT_RULE',
+        fixedFee: 0,
+        order: 0
+      });
+    }
   }
 };

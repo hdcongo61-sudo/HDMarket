@@ -64,12 +64,12 @@ export default function AdminPaymentVerifiers() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-indigo-50/30 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-neutral-50/30 dark:from-gray-900 dark:to-gray-800">
       <div className="max-w-5xl mx-auto px-4 py-8">
         <header className="mb-8">
           <div className="flex items-center gap-3 mb-2">
-            <DollarSign className="w-8 h-8 text-indigo-600" />
-            <h1 className="text-3xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            <DollarSign className="w-8 h-8 text-neutral-600" />
+            <h1 className="text-3xl font-black bg-gradient-to-r from-neutral-600 to-neutral-600 bg-clip-text text-transparent">
               Vérificateurs de paiements
             </h1>
           </div>
@@ -89,12 +89,12 @@ export default function AdminPaymentVerifiers() {
                 value={userSearchQuery}
                 onChange={(e) => setUserSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
               />
               <button
                 onClick={handleSearchUsers}
                 disabled={searchingUsers || !userSearchQuery.trim()}
-                className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50"
+                className="px-4 py-2.5 rounded-xl bg-neutral-600 text-white text-sm font-semibold hover:bg-neutral-700 active:scale-95 transition-all disabled:opacity-50"
               >
                 <Search className="w-4 h-4" />
               </button>
@@ -117,7 +117,7 @@ export default function AdminPaymentVerifiers() {
                     </div>
                     <button
                       onClick={() => handleToggleVerifier(user._id || user.id)}
-                      className="ml-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 active:scale-95 transition-all"
+                      className="ml-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-600 text-white text-xs font-semibold hover:bg-neutral-700 active:scale-95 transition-all"
                     >
                       <UserPlus className="w-3.5 h-3.5" />
                       Ajouter

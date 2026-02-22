@@ -3,8 +3,10 @@ import { protect } from '../middlewares/authMiddleware.js';
 import { validate, schemas } from '../middlewares/validate.js';
 import { upload } from '../utils/upload.js';
 import { complaintUpload } from '../utils/complaintUpload.js';
+import { cacheMiddleware } from '../utils/cache.js';
 import {
   getProfile,
+  clearMyCacheOnLogout,
   getProfileStats,
   updateProfile,
   sendPasswordChangeCode,
@@ -52,11 +54,17 @@ const router = express.Router();
 
 router.use(protect);
 
-router.get('/profile', getProfile);
+router.get('/profile', cacheMiddleware({ domain: 'users', scope: 'user', ttl: 60000 }), getProfile);
+router.post('/logout-cache', clearMyCacheOnLogout);
 router.patch('/preferences', validate(schemas.userPreferencesUpdate), updateUserPreferences);
-router.get('/profile/stats', getProfileStats);
+router.get(
+  '/profile/stats',
+  cacheMiddleware({ domain: 'dashboard', scope: 'user', ttl: 60000 }),
+  getProfileStats
+);
 router.get(
   '/profile/seller-analytics',
+  cacheMiddleware({ domain: 'analytics', scope: 'seller', ttl: 90000 }),
   validate(schemas.sellerAnalyticsQuery, 'query'),
   getSellerAnalytics
 );
@@ -76,7 +84,11 @@ router.put(
 );
 router.post('/password/send-code', validate(schemas.passwordSendCode), sendPasswordChangeCode);
 router.post('/password/change', validate(schemas.passwordChange), changePassword);
-router.get('/notifications', getNotifications);
+router.get(
+  '/notifications',
+  cacheMiddleware({ domain: 'notifications', scope: 'user', ttl: 45000 }),
+  getNotifications
+);
 router.get('/notifications/stream', streamNotifications);
 router.patch('/notifications/read', markNotificationsRead);
 router.get('/notification-preferences', getNotificationPreferences);

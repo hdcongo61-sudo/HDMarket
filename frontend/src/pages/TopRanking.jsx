@@ -117,7 +117,7 @@ export default function TopRanking() {
             <button
               onClick={() => setPage(1)}
               className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
-                page === 1 ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 hover:bg-gray-50'
+                page === 1 ? 'bg-neutral-600 text-white border-neutral-600' : 'border-gray-300 hover:bg-gray-50'
               }`}
             >
               1
@@ -130,7 +130,7 @@ export default function TopRanking() {
             key={pageNum}
             onClick={() => setPage(pageNum)}
             className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
-              page === pageNum ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 hover:bg-gray-50'
+              page === pageNum ? 'bg-neutral-600 text-white border-neutral-600' : 'border-gray-300 hover:bg-gray-50'
             }`}
           >
             {pageNum}
@@ -142,7 +142,7 @@ export default function TopRanking() {
             <button
               onClick={() => setPage(totalPages)}
               className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
-                page === totalPages ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 hover:bg-gray-50'
+                page === totalPages ? 'bg-neutral-600 text-white border-neutral-600' : 'border-gray-300 hover:bg-gray-50'
               }`}
             >
               {totalPages}

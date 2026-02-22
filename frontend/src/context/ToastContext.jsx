@@ -5,13 +5,13 @@ const ToastContext = createContext({ showToast: () => {} });
 const VARIANT_STYLES = {
   success: 'border-green-200 bg-white text-green-700',
   error: 'border-red-200 bg-white text-red-700',
-  info: 'border-indigo-200 bg-white text-indigo-700'
+  info: 'border-neutral-200 bg-white text-neutral-700'
 };
 
 const VARIANT_ICON_BG = {
   success: 'bg-green-100 text-green-600',
   error: 'bg-red-100 text-red-600',
-  info: 'bg-indigo-100 text-indigo-600'
+  info: 'bg-neutral-100 text-neutral-800'
 };
 
 export const ToastProvider = ({ children }) => {

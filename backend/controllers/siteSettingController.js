@@ -44,6 +44,9 @@ export const getHeroBanner = asyncHandler(async (req, res) => {
 export const getAppLogo = asyncHandler(async (req, res) => {
   const settings = await getSettings();
   const legacyLogo = settings?.appLogo || null;
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
   res.json({
     appLogoDesktop: settings?.appLogoDesktop || legacyLogo,
     appLogoMobile: settings?.appLogoMobile || legacyLogo

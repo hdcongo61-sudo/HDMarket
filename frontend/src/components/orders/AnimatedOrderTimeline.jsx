@@ -28,9 +28,18 @@ const INSTALLMENT_STEPS = [
   { key: 'completed', label: 'Terminée', hint: 'Clôture de commande', Icon: CheckCircle2 }
 ];
 
+const PICKUP_STEPS = [
+  { key: 'paid', label: 'Payée', hint: 'Paiement confirmé', Icon: CreditCard },
+  { key: 'processing', label: 'Préparation', hint: 'Commande en traitement', Icon: Package },
+  { key: 'ready_for_pickup', label: 'Prête au retrait', hint: 'Le client peut récupérer', Icon: Package },
+  { key: 'completed', label: 'Retrait confirmé', hint: 'Commande finalisée', Icon: CheckCircle2 }
+];
+
 function mapDeliveryStatus(status) {
   const value = String(status || '').toLowerCase();
   if (['completed', 'confirmed_by_client'].includes(value)) return 'completed';
+  if (value === 'picked_up_confirmed') return 'completed';
+  if (value === 'ready_for_pickup') return 'processing';
   if (['delivery_proof_submitted', 'delivered'].includes(value)) return 'delivery_proof_submitted';
   if (['out_for_delivery', 'delivering'].includes(value)) return 'out_for_delivery';
   if (['ready_for_delivery', 'confirmed', 'pending'].includes(value)) return 'processing';
@@ -47,15 +56,29 @@ function mapInstallmentStatus(status) {
   return 'pending_installment';
 }
 
-export default function AnimatedOrderTimeline({ status, paymentType = 'full', className = '' }) {
+function mapPickupStatus(status) {
+  const value = String(status || '').toLowerCase();
+  if (['completed', 'confirmed_by_client', 'picked_up_confirmed', 'delivered'].includes(value)) return 'completed';
+  if (value === 'ready_for_pickup') return 'ready_for_pickup';
+  if (['ready_for_delivery', 'confirmed', 'pending', 'pending_payment'].includes(value)) return 'processing';
+  if (value === 'paid') return 'paid';
+  return 'paid';
+}
+
+export default function AnimatedOrderTimeline({ status, paymentType = 'full', deliveryMode = 'DELIVERY', className = '' }) {
   const isInstallment = paymentType === 'installment';
-  const steps = isInstallment ? INSTALLMENT_STEPS : DELIVERY_STEPS;
+  const isPickup = String(deliveryMode || '').toUpperCase() === 'PICKUP';
+  const steps = isInstallment ? INSTALLMENT_STEPS : isPickup ? PICKUP_STEPS : DELIVERY_STEPS;
 
   const currentIndex = useMemo(() => {
-    const mapped = isInstallment ? mapInstallmentStatus(status) : mapDeliveryStatus(status);
+    const mapped = isInstallment
+      ? mapInstallmentStatus(status)
+      : isPickup
+        ? mapPickupStatus(status)
+        : mapDeliveryStatus(status);
     const index = steps.findIndex((step) => step.key === mapped);
     return index < 0 ? 0 : index;
-  }, [isInstallment, status, steps]);
+  }, [isInstallment, isPickup, status, steps]);
 
   const progress = steps.length > 1 ? (currentIndex / (steps.length - 1)) * 100 : 0;
 
@@ -69,7 +92,7 @@ export default function AnimatedOrderTimeline({ status, paymentType = 'full', cl
       <div className="relative pl-1">
         <div className="absolute left-3.5 top-1 bottom-1 w-px bg-neutral-200 dark:bg-neutral-700" />
         <motion.div
-          className="absolute left-3.5 top-1 w-px bg-indigo-500"
+          className="absolute left-3.5 top-1 w-px bg-neutral-900 dark:bg-neutral-100"
           animate={{ height: `${Math.max(progress, 2)}%` }}
           transition={{ duration: 0.35, ease: 'easeOut' }}
           style={{ height: '2%' }}
@@ -91,14 +114,24 @@ export default function AnimatedOrderTimeline({ status, paymentType = 'full', cl
                 <div
                   className={`relative z-10 mt-0.5 flex h-6 w-6 items-center justify-center rounded-full border text-[11px] ${
                     done || current
-                      ? 'border-indigo-500 bg-indigo-500 text-white'
+                      ? 'border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-black'
                       : 'border-neutral-300 bg-white text-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-500'
                   }`}
                 >
-                  <Icon className="h-3.5 w-3.5" />
+                  <Icon
+                    className={`h-3.5 w-3.5 ${
+                      step.key === 'paid'
+                        ? 'status-pending-dot'
+                        : step.key === 'out_for_delivery'
+                          ? 'status-delivery-icon'
+                          : step.key === 'completed'
+                            ? 'status-completed-icon'
+                            : ''
+                    }`}
+                  />
                   {current && (
                     <motion.span
-                      className="absolute inset-0 rounded-full border border-indigo-400"
+                      className="absolute inset-0 rounded-full border border-neutral-500 dark:border-neutral-300"
                       initial={{ scale: 1, opacity: 0.6 }}
                       animate={{ scale: 1.6, opacity: 0 }}
                       transition={{ duration: 1.1, repeat: Infinity, ease: 'easeOut' }}

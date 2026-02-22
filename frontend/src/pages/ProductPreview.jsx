@@ -194,7 +194,7 @@ export default function ProductPreview() {
   }, [relatedPicks, product]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-indigo-50/30">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-neutral-50/30">
       <div className="mx-auto w-full max-w-2xl px-3 sm:px-4 pb-20 pt-4 sm:pt-6 space-y-5 sm:space-y-6">
         {/* Back Button - Enhanced */}
         <button
@@ -240,9 +240,9 @@ export default function ProductPreview() {
         ) : product ? (
           <div className="space-y-6">
             {/* Product Card - Enhanced */}
-            <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-white via-indigo-50/40 to-purple-50/40 dark:from-gray-800 dark:via-gray-800 dark:to-indigo-950/20 border-2 border-indigo-300/60 dark:border-indigo-800/50 shadow-2xl">
+            <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-white via-neutral-50/40 to-neutral-50/40 dark:from-gray-800 dark:via-gray-800 dark:to-neutral-950/20 border-2 border-neutral-300/60 dark:border-neutral-800/50 shadow-2xl">
               {/* Decorative gradient bar */}
-              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-neutral-500 via-neutral-500 to-neutral-500" />
               
               <div className="p-6 sm:p-8">
                 <div className="flex gap-5 sm:gap-6">
@@ -256,7 +256,7 @@ export default function ProductPreview() {
                       />
                     </div>
                     {product.discount > 0 && (
-                      <div className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 via-pink-500 to-red-600 text-white text-xs font-black px-3 py-1.5 rounded-full shadow-2xl ring-2 ring-white">
+                      <div className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 via-neutral-500 to-red-600 text-white text-xs font-black px-3 py-1.5 rounded-full shadow-2xl ring-2 ring-white">
                         -{product.discount}%
                       </div>
                     )}
@@ -269,7 +269,7 @@ export default function ProductPreview() {
                         {product.title}
                       </h1>
                       <div className="flex items-baseline gap-3">
-                        <p className="text-2xl sm:text-3xl font-black text-indigo-600 dark:text-indigo-400">
+                        <p className="text-2xl sm:text-3xl font-black text-neutral-600 dark:text-neutral-400">
                           {formatCurrency(product.price)}
                         </p>
                         {product.priceBeforeDiscount && product.priceBeforeDiscount > product.price && (
@@ -282,7 +282,7 @@ export default function ProductPreview() {
 
                     {product?.user?.shopName && (
                       <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <div className="w-6 h-6 bg-gradient-to-br from-neutral-500 to-neutral-600 rounded-lg flex items-center justify-center">
                           <Store className="w-3.5 h-3.5 text-white" />
                         </div>
                         <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 truncate">
@@ -319,7 +319,7 @@ export default function ProductPreview() {
                     {/* CTA Button Enhanced */}
                     <Link
                       to={productLink}
-                      className="inline-flex items-center justify-center gap-2 w-full rounded-3xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 hover:shadow-md transition-all duration-200 active:scale-95"
+                      className="inline-flex items-center justify-center gap-2 w-full rounded-3xl bg-neutral-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-neutral-700 hover:shadow-md transition-all duration-200 active:scale-95"
                     >
                       <Eye className="w-5 h-5" />
                       Voir le produit
@@ -370,7 +370,7 @@ export default function ProductPreview() {
                             />
                             {/* Discount Badge Enhanced */}
                             {hasDiscount && (
-                              <div className="absolute top-3 left-3 bg-gradient-to-r from-red-500 via-pink-500 to-red-600 text-white text-[11px] font-black px-2.5 py-1.5 rounded-full shadow-2xl ring-2 ring-white">
+                              <div className="absolute top-3 left-3 bg-gradient-to-r from-red-500 via-neutral-500 to-red-600 text-white text-[11px] font-black px-2.5 py-1.5 rounded-full shadow-2xl ring-2 ring-white">
                                 -{pick.product.discount}%
                               </div>
                             )}
@@ -380,11 +380,11 @@ export default function ProductPreview() {
 
                           {/* Product Info Enhanced */}
                           <div className="p-3 sm:p-4 space-y-2.5">
-                            <p className="text-xs sm:text-sm font-black text-gray-900 dark:text-white line-clamp-2 leading-tight min-h-[2.5rem] group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                            <p className="text-xs sm:text-sm font-black text-gray-900 dark:text-white line-clamp-2 leading-tight min-h-[2.5rem] group-hover:text-neutral-600 dark:group-hover:text-neutral-400 transition-colors">
                               {pick.product?.title}
                             </p>
                             <div className="flex items-baseline gap-2">
-                              <p className="text-base sm:text-lg font-black text-indigo-600 dark:text-indigo-400">
+                              <p className="text-base sm:text-lg font-black text-neutral-600 dark:text-neutral-400">
                                 {formatCurrency(pick.product?.price)}
                               </p>
                               {hasDiscount && (
@@ -403,8 +403,8 @@ export default function ProductPreview() {
                                 </span>
                               )}
                               {commentCount > 0 && (
-                                <span className="inline-flex items-center gap-1 bg-blue-50 px-2 py-1 rounded-lg">
-                                  <MessageCircle className="h-3.5 w-3.5 text-blue-600" />
+                                <span className="inline-flex items-center gap-1 bg-neutral-50 px-2 py-1 rounded-lg">
+                                  <MessageCircle className="h-3.5 w-3.5 text-neutral-600" />
                                   <span className="font-semibold text-gray-700">{commentCount}</span>
                                 </span>
                               )}

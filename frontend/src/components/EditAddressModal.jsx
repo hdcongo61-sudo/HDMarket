@@ -53,8 +53,8 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
-              <MapPin className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            <div className="p-2 rounded-lg bg-neutral-100 dark:bg-neutral-900/30">
+              <MapPin className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
             </div>
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">
               Modifier l'adresse de livraison
@@ -122,7 +122,7 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
                   required
                   minLength={4}
                   maxLength={300}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 transition-all"
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Minimum 4 caractères, maximum 300 caractères
@@ -139,7 +139,7 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
                   value={deliveryCity}
                   onChange={(e) => setDeliveryCity(e.target.value)}
                   required
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 transition-all"
                 >
                   {cityOptions.map((city) => (
                     <option key={city} value={city}>
@@ -150,8 +150,8 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
               </div>
 
               {/* Info Message */}
-              <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                <p className="text-xs text-blue-800 dark:text-blue-300">
+              <div className="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-900/20 border border-neutral-200 dark:border-neutral-800">
+                <p className="text-xs text-neutral-800 dark:text-neutral-300">
                   <span className="font-semibold">Note :</span> La modification de l'adresse sera notifiée aux vendeurs concernés.
                 </p>
               </div>
@@ -172,7 +172,7 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
               <button
                 type="submit"
                 disabled={loading || !deliveryAddress.trim()}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2.5 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Enregistrement...' : 'Enregistrer'}
               </button>

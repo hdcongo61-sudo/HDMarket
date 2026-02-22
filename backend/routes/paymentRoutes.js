@@ -7,6 +7,7 @@ import {
   createPayment,
   getMyPayments,
   listPaymentsAdmin,
+  verifyTransactionCodeAvailability,
   verifyPayment,
   rejectPayment
 } from '../controllers/paymentController.js';
@@ -43,6 +44,13 @@ router.post(
   promoValidationLimiter,
   validate(schemas.promoCodeValidate),
   validatePromoCodeForSeller
+);
+router.post(
+  '/transaction-code/verify',
+  protect,
+  paymentSubmissionLimiter,
+  validate(schemas.transactionCodeVerify),
+  verifyTransactionCodeAvailability
 );
 router.post('/', protect, paymentSubmissionLimiter, validate(schemas.paymentCreate), createPayment);
 router.get('/me', protect, getMyPayments);

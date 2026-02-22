@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import CartContext from '../context/CartContext';
 import AuthContext from '../context/AuthContext';
-import api from '../services/api';
+import api, { verifyTransactionCodeAvailability } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import {
   CreditCard,
@@ -13,16 +13,41 @@ import {
   ShoppingBag,
   Lock,
   AlertCircle,
-  Tag
+  Tag,
+  Truck,
+  Store,
+  MapPin
 } from 'lucide-react';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
+
+const DELIVERY_SOURCE_LABELS = {
+  COMMUNE_FREE: 'Livraison gratuite (commune)',
+  COMMUNE_FIXED: 'Livraison fixée par la commune',
+  SHOP_FREE: 'Livraison gratuite boutique',
+  PRODUCT_FEE: 'Livraison vendeur',
+  PICKUP: 'Retrait boutique'
+};
+
+const normalizeBoolean = (value, fallback = false) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const text = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'on'].includes(text)) return true;
+    if (['false', '0', 'no', 'off'].includes(text)) return false;
+  }
+  return fallback;
+};
+
+const normalizeText = (value) => String(value || '').trim().toLowerCase();
 
 export default function OrderCheckout() {
   const { cart, clearCart } = useContext(CartContext);
   const { user } = useContext(AuthContext);
   const { showToast } = useToast();
+  const { cities = [], communes = [] } = useAppSettings();
   const navigate = useNavigate();
   const [payments, setPayments] = useState({});
   const [promoStates, setPromoStates] = useState({});
@@ -42,10 +67,24 @@ export default function OrderCheckout() {
     score: null,
     riskLevel: ''
   });
+  const [deliveryMode, setDeliveryMode] = useState('PICKUP');
+  const [shippingAddress, setShippingAddress] = useState({
+    cityId: '',
+    communeId: '',
+    addressLine: user?.address || '',
+    phone: user?.phone || ''
+  });
 
   const totals = cart.totals || { subtotal: 0, quantity: 0 };
 
   const items = cart.items || [];
+  const hasPickupOnlyProducts = useMemo(
+    () =>
+      items.some(
+        (item) => item?.product?.deliveryAvailable === false && item?.product?.pickupAvailable !== false
+      ),
+    [items]
+  );
   const isInstallmentProductEligible = useMemo(() => {
     if (items.length !== 1) return false;
     const product = items[0]?.product;
@@ -95,6 +134,80 @@ export default function OrderCheckout() {
     return Array.from(groups.values());
   }, [items]);
 
+  const selectedCity = useMemo(
+    () => cities.find((entry) => String(entry?._id) === String(shippingAddress.cityId)) || null,
+    [cities, shippingAddress.cityId]
+  );
+  const availableCommunes = useMemo(
+    () =>
+      communes.filter((entry) => {
+        const entryCityId = entry?.cityId?._id || entry?.cityId;
+        return String(entryCityId || '') === String(shippingAddress.cityId || '');
+      }),
+    [communes, shippingAddress.cityId]
+  );
+  const selectedCommune = useMemo(
+    () =>
+      availableCommunes.find((entry) => String(entry?._id) === String(shippingAddress.communeId)) ||
+      null,
+    [availableCommunes, shippingAddress.communeId]
+  );
+
+  const deliveryPreviewBySeller = useMemo(() => {
+    const result = {};
+    sellerGroups.forEach((group) => {
+      if (deliveryMode !== 'DELIVERY') {
+        result[group.sellerId] = { fee: 0, source: 'PICKUP' };
+        return;
+      }
+      if (hasPickupOnlyProducts) {
+        result[group.sellerId] = { fee: 0, source: 'PICKUP' };
+        return;
+      }
+      const policy = String(selectedCommune?.deliveryPolicy || 'DEFAULT_RULE').toUpperCase();
+      if (policy === 'FREE') {
+        result[group.sellerId] = { fee: 0, source: 'COMMUNE_FREE' };
+        return;
+      }
+      if (policy === 'FIXED_FEE') {
+        result[group.sellerId] = {
+          fee: Math.max(0, Number(selectedCommune?.fixedFee || 0)),
+          source: 'COMMUNE_FIXED'
+        };
+        return;
+      }
+      const sellerHasFree = Boolean(group?.items?.[0]?.product?.user?.freeDeliveryEnabled);
+      if (sellerHasFree) {
+        result[group.sellerId] = { fee: 0, source: 'SHOP_FREE' };
+        return;
+      }
+      const maxDeliveryFee = (group.items || []).reduce((max, item) => {
+        const product = item?.product || {};
+        if (normalizeBoolean(product.deliveryAvailable, true) === false) return max;
+        if (normalizeBoolean(product.deliveryFeeEnabled, true) === false) return max;
+        const fee = Math.max(0, Number(product.deliveryFee || 0));
+        return fee > max ? fee : max;
+      }, 0);
+      result[group.sellerId] = { fee: maxDeliveryFee, source: 'PRODUCT_FEE' };
+    });
+    return result;
+  }, [deliveryMode, hasPickupOnlyProducts, selectedCommune, sellerGroups]);
+
+  const deliveryFeePreviewTotal = useMemo(
+    () =>
+      Object.values(deliveryPreviewBySeller).reduce((sum, entry) => sum + Number(entry?.fee || 0), 0),
+    [deliveryPreviewBySeller]
+  );
+  const primaryDeliverySourcePreview = useMemo(() => {
+    const entries = Object.values(deliveryPreviewBySeller);
+    if (!entries.length) return 'PICKUP';
+    if (entries.length === 1) return entries[0]?.source || 'PICKUP';
+    if (entries.every((entry) => entry?.source === entries[0]?.source)) {
+      return entries[0]?.source || 'PICKUP';
+    }
+    return 'PRODUCT_FEE';
+  }, [deliveryPreviewBySeller]);
+
   const getSellerPromoState = (sellerId) =>
     promoStates[sellerId] || { status: 'idle', message: '', code: '', pricing: null, promo: null };
 
@@ -125,8 +238,18 @@ export default function OrderCheckout() {
     }, 0);
   }, [paymentMode, sellerGroups, promoStates, payments]);
 
-  const depositAmount = useMemo(() => Math.round(checkoutSubtotal * 0.25), [checkoutSubtotal]);
-  const remainingAmount = Math.max(0, Number(checkoutSubtotal || 0) - depositAmount);
+  const checkoutTotalWithDelivery = useMemo(
+    () =>
+      Number(
+        (
+          Number(checkoutSubtotal || 0) +
+          (paymentMode === 'full' && deliveryMode === 'DELIVERY' ? Number(deliveryFeePreviewTotal || 0) : 0)
+        ).toFixed(2)
+      ),
+    [checkoutSubtotal, paymentMode, deliveryMode, deliveryFeePreviewTotal]
+  );
+  const depositAmount = useMemo(() => Math.round(checkoutTotalWithDelivery * 0.25), [checkoutTotalWithDelivery]);
+  const remainingAmount = Math.max(0, Number(checkoutTotalWithDelivery || 0) - depositAmount);
   const summaryPaidAmount = paymentMode === 'installment' ? installmentFirstPaymentAmount : depositAmount;
   const summaryRemainingAmount =
     paymentMode === 'installment'
@@ -138,6 +261,55 @@ export default function OrderCheckout() {
       setPaymentMode('full');
     }
   }, [isInstallmentProductEligible, paymentMode]);
+
+  useEffect(() => {
+    if (hasPickupOnlyProducts && deliveryMode === 'DELIVERY') {
+      setDeliveryMode('PICKUP');
+    }
+  }, [hasPickupOnlyProducts, deliveryMode]);
+
+  useEffect(() => {
+    setShippingAddress((prev) => ({
+      ...prev,
+      phone: prev.phone || user?.phone || '',
+      addressLine: prev.addressLine || user?.address || ''
+    }));
+  }, [user?.address, user?.phone]);
+
+  useEffect(() => {
+    if (shippingAddress.cityId) return;
+    const preferredCityName = user?.preferredCity || user?.city || '';
+    const normalizedPreferredCity = normalizeText(preferredCityName);
+    const matched = cities.find(
+      (entry) => normalizeText(entry?.name || '') === normalizedPreferredCity
+    );
+    if (matched?._id) {
+      setShippingAddress((prev) => ({ ...prev, cityId: String(matched._id) }));
+    } else if (cities[0]?._id) {
+      setShippingAddress((prev) => ({ ...prev, cityId: String(cities[0]._id) }));
+    }
+  }, [cities, shippingAddress.cityId, user?.preferredCity, user?.city]);
+
+  useEffect(() => {
+    if (!shippingAddress.cityId) return;
+    const hasSelectedCommune = availableCommunes.some(
+      (entry) => String(entry?._id) === String(shippingAddress.communeId)
+    );
+    if (!hasSelectedCommune) {
+      const normalizedUserCommune = normalizeText(user?.commune || '');
+      const preferredCommune = normalizedUserCommune
+        ? availableCommunes.find(
+            (entry) => normalizeText(entry?.name || '') === normalizedUserCommune
+          )
+        : null;
+      const nextCommuneId = preferredCommune?._id
+        ? String(preferredCommune._id)
+        : availableCommunes[0]?._id
+          ? String(availableCommunes[0]._id)
+          : '';
+      setShippingAddress((prev) => ({ ...prev, communeId: nextCommuneId }));
+    }
+  }, [availableCommunes, shippingAddress.cityId, shippingAddress.communeId, user?.commune]);
 
   useEffect(() => {
     setPayments((prev) => {
@@ -193,6 +365,24 @@ export default function OrderCheckout() {
       setError('Votre panier est vide.');
       return;
     }
+    if (deliveryMode === 'DELIVERY' && hasPickupOnlyProducts) {
+      setError('Le mode livraison est indisponible car votre panier contient un produit retrait boutique uniquement.');
+      return;
+    }
+    if (deliveryMode === 'DELIVERY') {
+      if (!shippingAddress.cityId || !shippingAddress.communeId) {
+        setError('Sélectionnez la ville et la commune de livraison.');
+        return;
+      }
+      if (!shippingAddress.addressLine?.trim()) {
+        setError('Renseignez une adresse de livraison.');
+        return;
+      }
+      if (!shippingAddress.phone?.trim()) {
+        setError('Renseignez le numéro de téléphone pour la livraison.');
+        return;
+      }
+    }
     if (paymentMode === 'installment') {
       if (!isInstallmentProductEligible || !installmentProduct) {
         setError('Le paiement par tranche n’est pas disponible pour cette commande.');
@@ -218,6 +408,23 @@ export default function OrderCheckout() {
         setError('Le code de transaction doit contenir exactement 10 chiffres.');
         return;
       }
+      try {
+        const installmentCodeVerification = await verifyTransactionCodeAvailability(cleanTransactionCode);
+        if (!installmentCodeVerification.available) {
+          const message =
+            installmentCodeVerification.message || 'Ce code de transaction est déjà utilisé.';
+          setError(message);
+          showToast(message, { variant: 'error' });
+          return;
+        }
+      } catch (verificationError) {
+        const message =
+          verificationError?.response?.data?.message ||
+          'Impossible de vérifier le code de transaction.';
+        setError(message);
+        showToast(message, { variant: 'error' });
+        return;
+      }
       if (
         installmentRequiresGuarantor &&
         (!guarantor.fullName || !guarantor.phone || !guarantor.relation || !guarantor.address)
@@ -235,7 +442,9 @@ export default function OrderCheckout() {
           firstPaymentAmount: Number(firstAmount),
           payerName: paymentEntry.payerName.trim(),
           transactionCode: cleanTransactionCode,
-          guarantor
+          guarantor,
+          deliveryMode,
+          shippingAddress
         });
         setOrderConfirmed(true);
         await clearCart();
@@ -279,6 +488,34 @@ export default function OrderCheckout() {
       setError('Le code de transaction doit contenir exactement 10 chiffres.');
       return;
     }
+    const normalizedTransactionCodes = sellerGroups.map((group) =>
+      String(payments[group.sellerId]?.transactionCode || '')
+        .trim()
+        .replace(/\D/g, '')
+    );
+    if (new Set(normalizedTransactionCodes).size !== normalizedTransactionCodes.length) {
+      setError('Chaque vendeur doit avoir un code transaction unique.');
+      return;
+    }
+    try {
+      const transactionChecks = await Promise.all(
+        normalizedTransactionCodes.map((code) => verifyTransactionCodeAvailability(code))
+      );
+      const invalidCode = transactionChecks.find((result) => !result.available);
+      if (invalidCode) {
+        const message = invalidCode.message || 'Ce code de transaction est déjà utilisé.';
+        setError(message);
+        showToast(message, { variant: 'error' });
+        return;
+      }
+    } catch (verificationError) {
+      const message =
+        verificationError?.response?.data?.message ||
+        'Impossible de vérifier les codes de transaction.';
+      setError(message);
+      showToast(message, { variant: 'error' });
+      return;
+    }
     const hasUnvalidatedPromo = sellerGroups.some((group) => {
       const entry = payments[group.sellerId] || {};
       const typedCode = String(entry.promoCode || '').trim().toUpperCase();
@@ -293,6 +530,8 @@ export default function OrderCheckout() {
     setError('');
     try {
       await api.post('/orders/checkout', {
+        deliveryMode,
+        shippingAddress,
         payments: sellerGroups.map((group) => {
           const entry = payments[group.sellerId] || {};
           const normalizedPromoCode = String(entry.promoCode || '').trim().toUpperCase();
@@ -504,10 +743,10 @@ export default function OrderCheckout() {
 
   if (!items.length) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50 flex items-center justify-center px-4 py-10">
+      <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center px-4 py-10">
         <div className="max-w-md w-full text-center">
-          <div className="mx-auto w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center mb-6 shadow-lg border-2 border-blue-100">
-            <ClipboardList size={32} className="text-blue-600" />
+          <div className="mx-auto w-20 h-20 rounded-2xl bg-neutral-100 flex items-center justify-center mb-6 shadow-lg border border-neutral-200">
+            <ClipboardList size={32} className="text-neutral-900" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-gray-900 mb-3">Votre panier est vide</h1>
           <p className="text-gray-600 font-medium mb-8">
@@ -515,7 +754,7 @@ export default function OrderCheckout() {
           </p>
           <Link
             to="/products"
-            className="inline-flex items-center justify-center gap-2 rounded-3xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white hover:bg-blue-700 transition-all duration-200 active:scale-95 shadow-sm"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-black px-6 py-3.5 text-sm font-semibold text-white hover:bg-neutral-900 transition-all duration-200 active:scale-95 shadow-sm"
           >
             <ShoppingBag size={18} />
             Explorer le marché
@@ -526,10 +765,10 @@ export default function OrderCheckout() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-black">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
       {/* Header Enhanced */}
-      <header className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-3xl p-6 sm:p-8 border-2 border-blue-100 shadow-lg">
+      <header className="bg-white rounded-2xl p-6 sm:p-8 border border-neutral-200 shadow-lg">
         <Link
           to="/cart"
           className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
@@ -549,9 +788,9 @@ export default function OrderCheckout() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-6 sm:gap-8">
         {/* Order Summary Enhanced */}
-        <section className="bg-white rounded-3xl border-2 border-gray-200 shadow-xl p-5 sm:p-6 space-y-5">
+        <section className="bg-white rounded-2xl border-2 border-gray-200 shadow-xl p-4 sm:p-6 space-y-5">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 bg-black rounded-2xl flex items-center justify-center shadow-lg">
               <ShoppingBag size={20} className="text-white" />
             </div>
             <h2 className="text-xl font-black text-gray-900">Résumé de la commande</h2>
@@ -574,7 +813,7 @@ export default function OrderCheckout() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <span className="font-black text-blue-600 text-base sm:text-lg">
+                  <span className="font-black text-neutral-900 text-base sm:text-lg">
                     {formatCurrency(lineTotal)}
                   </span>
                 </div>
@@ -585,22 +824,30 @@ export default function OrderCheckout() {
             <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-xl">
               <span className="text-gray-700 font-semibold">Total commande</span>
               <span className="font-black text-gray-900 text-lg">
-                {formatCurrency(paymentMode === 'full' ? checkoutSubtotal : totals.subtotal)}
+                {formatCurrency(paymentMode === 'full' ? checkoutTotalWithDelivery : totals.subtotal)}
               </span>
             </div>
+            {paymentMode === 'full' && deliveryMode === 'DELIVERY' && (
+              <div className="flex justify-between items-center py-2 px-3 bg-neutral-50 rounded-xl border border-neutral-200">
+                <span className="text-neutral-700 font-semibold">
+                  Livraison ({DELIVERY_SOURCE_LABELS[primaryDeliverySourcePreview] || 'Source'})
+                </span>
+                <span className="font-black text-neutral-700 text-lg">{formatCurrency(deliveryFeePreviewTotal)}</span>
+              </div>
+            )}
             {paymentMode === 'full' && checkoutSavings > 0 && (
-              <div className="flex justify-between items-center py-2 px-3 bg-emerald-50 rounded-xl border border-emerald-200">
-                <span className="text-emerald-700 font-semibold">Économie via promo</span>
-                <span className="font-black text-emerald-600 text-lg">
+              <div className="flex justify-between items-center py-2 px-3 bg-neutral-100 rounded-xl border border-neutral-200">
+                <span className="text-neutral-700 font-semibold">Économie via promo</span>
+                <span className="font-black text-neutral-700 text-lg">
                   -{formatCurrency(checkoutSavings)}
                 </span>
               </div>
             )}
-            <div className="flex justify-between items-center py-2 px-3 bg-blue-50 rounded-xl border border-blue-200">
-              <span className="text-blue-700 font-semibold">
+            <div className="flex justify-between items-center py-2 px-3 bg-neutral-100 rounded-xl border border-neutral-200">
+              <span className="text-neutral-700 font-semibold">
                 {paymentMode === 'installment' ? 'Premier paiement' : 'Acompte (25%)'}
               </span>
-              <span className="font-black text-blue-600 text-lg">
+              <span className="font-black text-neutral-900 text-lg">
                 {formatCurrency(summaryPaidAmount)}
               </span>
             </div>
@@ -611,7 +858,7 @@ export default function OrderCheckout() {
               </span>
             </div>
           </div>
-          <div className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-4 text-xs sm:text-sm text-blue-800 flex items-start gap-3">
+          <div className="rounded-2xl border-2 border-neutral-200 bg-neutral-100 p-4 text-xs sm:text-sm text-neutral-800 flex items-start gap-3">
             <ShieldCheck size={16} />
             <span>
               {paymentMode === 'installment'
@@ -622,25 +869,141 @@ export default function OrderCheckout() {
         </section>
 
         {/* Payment Form Enhanced */}
-        <section className="bg-white rounded-3xl border-2 border-gray-200 shadow-xl p-5 sm:p-6 space-y-5">
+        <section className="bg-white rounded-2xl border-2 border-gray-200 shadow-xl p-4 sm:p-6 space-y-5">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 bg-neutral-900 rounded-2xl flex items-center justify-center shadow-lg">
               <CreditCard size={20} className="text-white" />
             </div>
             <h2 className="text-xl font-black text-gray-900">Informations de paiement</h2>
           </div>
           
           <form className="space-y-5" onSubmit={handleSubmit}>
+            <div className="rounded-2xl border-2 border-gray-200 bg-gray-50/60 p-4 space-y-3">
+              <p className="text-xs font-bold uppercase text-gray-700">Mode de livraison</p>
+              <div className="grid grid-cols-2 gap-2 rounded-xl bg-white p-1 border border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setDeliveryMode('PICKUP')}
+                  className={`rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
+                    deliveryMode === 'PICKUP'
+                      ? 'bg-gray-900 text-white'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <Store size={14} className="inline mr-1" />
+                  Passer récupérer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeliveryMode('DELIVERY')}
+                  disabled={hasPickupOnlyProducts}
+                  className={`rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
+                    deliveryMode === 'DELIVERY'
+                      ? 'bg-gray-900 text-white'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  } ${hasPickupOnlyProducts ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <Truck size={14} className="inline mr-1" />
+                  Se faire livrer
+                </button>
+              </div>
+              {hasPickupOnlyProducts && (
+                <p className="text-xs text-neutral-700 bg-neutral-100 border border-neutral-200 rounded-lg px-3 py-2">
+                  Un ou plusieurs produits sont en retrait boutique uniquement.
+                </p>
+              )}
+              {deliveryMode === 'DELIVERY' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-gray-700">Ville</label>
+                    <select
+                      value={shippingAddress.cityId || ''}
+                      onChange={(e) =>
+                        setShippingAddress((prev) => ({
+                          ...prev,
+                          cityId: e.target.value,
+                          communeId: ''
+                        }))
+                      }
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+                    >
+                      <option value="">Sélectionner une ville</option>
+                      {cities.map((entry) => (
+                        <option key={entry._id} value={entry._id}>
+                          {entry.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-gray-700">Commune</label>
+                    <select
+                      value={shippingAddress.communeId || ''}
+                      onChange={(e) =>
+                        setShippingAddress((prev) => ({
+                          ...prev,
+                          communeId: e.target.value
+                        }))
+                      }
+                      disabled={!shippingAddress.cityId}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm disabled:bg-gray-100"
+                    >
+                      <option value="">Sélectionner une commune</option>
+                      {availableCommunes.map((entry) => (
+                        <option key={entry._id} value={entry._id}>
+                          {entry.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1 md:col-span-2">
+                    <label className="block text-xs font-semibold text-gray-700">Adresse</label>
+                    <input
+                      type="text"
+                      value={shippingAddress.addressLine}
+                      onChange={(e) =>
+                        setShippingAddress((prev) => ({ ...prev, addressLine: e.target.value }))
+                      }
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+                      placeholder="Quartier, rue, repère"
+                    />
+                  </div>
+                  <div className="space-y-1 md:col-span-2">
+                    <label className="block text-xs font-semibold text-gray-700">Téléphone</label>
+                    <input
+                      type="tel"
+                      value={shippingAddress.phone}
+                      onChange={(e) =>
+                        setShippingAddress((prev) => ({ ...prev, phone: e.target.value }))
+                      }
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+                      placeholder="Ex: 06xxxxxxx"
+                    />
+                  </div>
+                  <div className="md:col-span-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-800">
+                    <MapPin size={14} className="inline mr-1" />
+                    {selectedCity?.name ? `${selectedCity.name} · ` : ''}
+                    Livraison: {DELIVERY_SOURCE_LABELS[primaryDeliverySourcePreview] || 'Source en attente'} (
+                    {formatCurrency(deliveryFeePreviewTotal)})
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700">
+                  Retrait boutique sélectionné. Aucun frais de livraison ne sera ajouté.
+                </div>
+              )}
+            </div>
+
             {isInstallmentProductEligible && (
-              <div className="rounded-2xl border-2 border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
-                <p className="text-xs font-bold uppercase text-indigo-700">Mode de paiement</p>
+              <div className="rounded-2xl border-2 border-neutral-200 bg-neutral-100 p-4 space-y-3">
+                <p className="text-xs font-bold uppercase text-neutral-700">Mode de paiement</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setPaymentMode('full')}
                     className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-all ${
                       paymentMode === 'full'
-                        ? 'border-indigo-500 bg-white text-indigo-700'
+                        ? 'border-neutral-500 bg-white text-neutral-700'
                         : 'border-gray-200 bg-white text-gray-600'
                     }`}
                   >
@@ -651,18 +1014,18 @@ export default function OrderCheckout() {
                     onClick={() => setPaymentMode('installment')}
                     className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-all ${
                       paymentMode === 'installment'
-                        ? 'border-indigo-500 bg-white text-indigo-700'
+                        ? 'border-neutral-500 bg-white text-neutral-700'
                         : 'border-gray-200 bg-white text-gray-600'
                     }`}
                   >
                     Paiement par tranche ({installmentDuration} jours)
                   </button>
                 </div>
-                <p className="text-xs text-indigo-700">
+                <p className="text-xs text-neutral-700">
                   Paiement en plusieurs fois disponible
                 </p>
                 {installmentEligibility.score !== null && (
-                  <p className="text-xs text-indigo-700">
+                  <p className="text-xs text-neutral-700">
                     Score d'éligibilité: <span className="font-semibold">{installmentEligibility.score}/100</span>{' '}
                     ({installmentEligibility.riskLevel || 'medium'})
                   </p>
@@ -674,14 +1037,19 @@ export default function OrderCheckout() {
               const payment = payments[group.sellerId] || {};
               const promoState = getSellerPromoState(group.sellerId);
               const groupEffectiveSubtotal = getSellerEffectiveSubtotal(group);
+              const groupDeliveryFee =
+                paymentMode === 'full' && deliveryMode === 'DELIVERY'
+                  ? Number(deliveryPreviewBySeller[group.sellerId]?.fee || 0)
+                  : 0;
+              const groupTotalWithDelivery = Number(groupEffectiveSubtotal || 0) + groupDeliveryFee;
               const groupDeposit = paymentMode === 'installment'
                 ? installmentFirstPaymentAmount
-                : Math.round(Number(groupEffectiveSubtotal || 0) * 0.25);
-              const groupRemaining = Math.max(0, Number(groupEffectiveSubtotal || 0) - groupDeposit);
+                : Math.round(Number(groupTotalWithDelivery || 0) * 0.25);
+              const groupRemaining = Math.max(0, Number(groupTotalWithDelivery || 0) - groupDeposit);
               return (
                 <div
                   key={group.sellerId}
-                  className="rounded-3xl border-2 border-gray-200 bg-gradient-to-br from-gray-50 to-blue-50/30 p-5 sm:p-6 space-y-4 shadow-md"
+                  className="rounded-2xl border-2 border-gray-200 bg-neutral-50 p-4 sm:p-6 space-y-4 shadow-md"
                 >
                   <div className="flex items-start justify-between gap-3 pb-3 border-b-2 border-gray-200">
                     <div className="space-y-1.5">
@@ -691,8 +1059,8 @@ export default function OrderCheckout() {
                         <p className="text-xs text-gray-600 font-medium">📞 {group.sellerPhone}</p>
                       )}
                     </div>
-                    <div className="text-right bg-blue-100 px-3 py-2 rounded-xl border border-blue-200">
-                      <p className="text-base sm:text-lg font-black text-blue-600">
+                    <div className="text-right bg-neutral-100 px-3 py-2 rounded-xl border border-neutral-200">
+                      <p className="text-base sm:text-lg font-black text-neutral-900">
                         {formatCurrency(groupDeposit)}
                       </p>
                       <p className="text-xs text-gray-600 font-medium">
@@ -712,19 +1080,19 @@ export default function OrderCheckout() {
                         onChange={(e) =>
                           handlePaymentChange(group.sellerId, 'payerName', e.target.value)
                         }
-                        className="w-full rounded-3xl border-2 border-gray-300 px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
+                        className="w-full rounded-2xl border-2 border-gray-300 px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 transition-all bg-white"
                         placeholder={user?.name || 'Ex: Jean K.'}
                       />
                     </div>
 
-                    <div className="rounded-xl border-2 border-blue-100 bg-blue-50/50 p-3 overflow-hidden">
-                      <p className="text-xs font-bold uppercase text-blue-800 mb-2">Exemple : où trouver l'ID dans le SMS</p>
+                    <div className="rounded-xl border border-neutral-200 bg-neutral-100/50 p-3 overflow-hidden">
+                      <p className="text-xs font-bold uppercase text-neutral-800 mb-2">Exemple : où trouver l'ID dans le SMS</p>
                       <img
                         src="/images/transaction-id-sms-example-checkout.png"
                         alt="Exemple de SMS Mobile Money montrant l'ID de la transaction (ex: 7232173826)"
                         className="w-full max-w-sm mx-auto rounded-lg border border-gray-200 bg-white shadow-sm object-contain"
                       />
-                      <p className="text-xs text-blue-700 mt-2 text-center">
+                      <p className="text-xs text-neutral-700 mt-2 text-center">
                         Saisissez le numéro indiqué à côté de «&nbsp;ID&nbsp;» ou «&nbsp;ID de la transaction&nbsp;» dans le SMS de confirmation.
                       </p>
                     </div>
@@ -733,7 +1101,7 @@ export default function OrderCheckout() {
                       <label className="block text-xs font-bold uppercase text-gray-700 mb-2">
                         Code transaction
                       </label>
-                      <div className="flex items-center gap-3 rounded-3xl border-2 border-gray-300 px-4 py-3 bg-white focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all">
+                      <div className="flex items-center gap-3 rounded-2xl border-2 border-gray-300 px-4 py-3 bg-white focus-within:ring-2 focus-within:ring-neutral-500 focus-within:border-neutral-500 transition-all">
                         <CreditCard size={18} className="text-gray-400 flex-shrink-0" />
                         <input
                           type="text"
@@ -773,7 +1141,7 @@ export default function OrderCheckout() {
                             type="button"
                             onClick={() => applyPromoCodeForSeller(group)}
                             disabled={Boolean(promoLoadingBySeller[group.sellerId]) || !String(payment.promoCode || '').trim()}
-                            className="rounded-2xl bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+                            className="rounded-2xl bg-neutral-900 px-4 py-2.5 text-xs font-semibold text-white hover:bg-neutral-800 disabled:opacity-60"
                           >
                             {promoLoadingBySeller[group.sellerId] ? 'Validation...' : 'Appliquer'}
                           </button>
@@ -782,7 +1150,7 @@ export default function OrderCheckout() {
                           <div
                             className={`rounded-xl border px-3 py-2 text-xs ${
                               promoState.status === 'valid'
-                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                ? 'border-neutral-200 bg-neutral-100 text-neutral-700'
                                 : promoState.status === 'error'
                                 ? 'border-red-200 bg-red-50 text-red-700'
                                 : 'border-gray-200 bg-gray-50 text-gray-600'
@@ -801,9 +1169,9 @@ export default function OrderCheckout() {
                     )}
 
                     {paymentMode === 'installment' && (
-                      <div className="space-y-4 rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4">
+                      <div className="space-y-4 rounded-2xl border border-neutral-200 bg-neutral-100 p-4">
                         <div>
-                          <label className="block text-xs font-bold uppercase text-indigo-700 mb-2">
+                          <label className="block text-xs font-bold uppercase text-neutral-700 mb-2">
                             Premier paiement fixe ({formatCurrency(installmentMinAmount)})
                           </label>
                           <input
@@ -813,16 +1181,16 @@ export default function OrderCheckout() {
                             value={installmentFirstPaymentAmount}
                             readOnly
                             disabled
-                            className="w-full rounded-2xl border border-indigo-200 px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            className="w-full rounded-2xl border border-neutral-200 px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500"
                           />
-                          <p className="mt-1 text-xs text-indigo-700">
+                          <p className="mt-1 text-xs text-neutral-700">
                             Reste estimé: {formatCurrency(installmentRemainingAmount)}
                           </p>
                         </div>
 
                         {installmentRequiresGuarantor && (
-                          <div className="space-y-3 rounded-xl border border-indigo-200 bg-white p-3">
-                            <p className="text-xs font-bold uppercase text-indigo-700">Informations garant</p>
+                          <div className="space-y-3 rounded-xl border border-neutral-200 bg-white p-3">
+                            <p className="text-xs font-bold uppercase text-neutral-700">Informations garant</p>
                             <input
                               type="text"
                               placeholder="Nom complet"
@@ -864,30 +1232,40 @@ export default function OrderCheckout() {
                     )}
                   </div>
                   
-                  <div className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 px-4 py-3 space-y-2 text-xs sm:text-sm">
+                  <div className="rounded-2xl border-2 border-neutral-200 bg-neutral-100 px-4 py-3 space-y-2 text-xs sm:text-sm">
                     <div className="flex justify-between items-center">
                       <span className="text-gray-700 font-semibold">Sous-total vendeur</span>
                       <span className="font-black text-gray-900">
                         {formatCurrency(groupEffectiveSubtotal)}
                       </span>
                     </div>
+                    {paymentMode === 'full' && deliveryMode === 'DELIVERY' && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-700 font-semibold">
+                          Livraison ({DELIVERY_SOURCE_LABELS[deliveryPreviewBySeller[group.sellerId]?.source] || 'Source'})
+                        </span>
+                        <span className="font-black text-neutral-700">
+                          {formatCurrency(groupDeliveryFee)}
+                        </span>
+                      </div>
+                    )}
                     {paymentMode === 'full' && groupEffectiveSubtotal < Number(group.subtotal || 0) && (
                       <div className="flex justify-between items-center">
-                        <span className="text-emerald-700 font-semibold">Économie promo</span>
-                        <span className="font-black text-emerald-600">
+                        <span className="text-neutral-700 font-semibold">Économie promo</span>
+                        <span className="font-black text-neutral-700">
                           -{formatCurrency(Number(group.subtotal || 0) - groupEffectiveSubtotal)}
                         </span>
                       </div>
                     )}
                     <div className="flex justify-between items-center">
-                      <span className="text-blue-700 font-semibold">
+                      <span className="text-neutral-700 font-semibold">
                         {paymentMode === 'installment' ? 'Premier paiement' : 'Acompte (25%)'}
                       </span>
-                      <span className="font-black text-blue-600">
+                      <span className="font-black text-neutral-900">
                         {formatCurrency(groupDeposit)}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center pt-2 border-t border-blue-200">
+                    <div className="flex justify-between items-center pt-2 border-t border-neutral-200">
                       <span className="text-gray-700 font-semibold">Reste à payer</span>
                       <span className="font-black text-gray-900">
                         {formatCurrency(groupRemaining)}
@@ -897,8 +1275,8 @@ export default function OrderCheckout() {
                 </div>
               );
             })}
-            <div className="rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 px-4 py-3 text-xs sm:text-sm text-amber-800 flex items-start gap-3">
-              <CheckCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="rounded-2xl border-2 border-neutral-200 bg-neutral-100 px-4 py-3 text-xs sm:text-sm text-neutral-800 flex items-start gap-3">
+              <CheckCircle size={18} className="text-neutral-700 flex-shrink-0 mt-0.5" />
               {paymentMode === 'installment'
                 ? `Merci de payer le premier montant de ${formatCurrency(summaryPaidAmount)} puis de suivre l’échéancier.`
                 : sellerGroups.length > 1
@@ -914,7 +1292,7 @@ export default function OrderCheckout() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-3xl bg-blue-600 px-6 py-4 text-sm sm:text-base font-semibold text-white hover:bg-blue-700 disabled:opacity-60 transition-all duration-200 active:scale-95 shadow-sm"
+              className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-black px-6 py-4 text-sm sm:text-base font-semibold text-white hover:bg-neutral-900 disabled:opacity-60 transition-all duration-200 active:scale-95 shadow-sm"
             >
               {loading ? (
                 <>

@@ -7,7 +7,7 @@ export default function RevenueByCityChart({ data = [], formatCurrency, formatNu
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center gap-2">
-        <MapPin className="h-4 w-4 text-indigo-600" />
+        <MapPin className="h-4 w-4 text-neutral-600" />
         <h3 className="text-sm font-semibold text-gray-900">Revenu par ville</h3>
       </div>
       {!data.length ? (
@@ -26,10 +26,7 @@ export default function RevenueByCityChart({ data = [], formatCurrency, formatNu
                   </span>
                 </div>
                 <div className="h-2.5 overflow-hidden rounded-full bg-gray-100">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500"
-                    style={{ width: `${Math.min(width, 100)}%` }}
-                  />
+                  <div className="h-full rounded-full bg-neutral-900" style={{ width: `${Math.min(width, 100)}%` }} />
                 </div>
               </div>
             );

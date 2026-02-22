@@ -42,10 +42,10 @@ const STATUS_LABELS = {
 const STATUS_STYLES = {
   pending: 'bg-gray-100 text-gray-700 border-gray-200',
   confirmed: 'bg-amber-100 text-amber-800 border-amber-200',
-  delivering: 'bg-blue-100 text-blue-800 border-blue-200',
+  delivering: 'bg-neutral-100 text-neutral-800 border-neutral-200',
   delivered: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   cancelled: 'bg-red-100 text-red-800 border-red-200',
-  inquiry: 'bg-violet-100 text-violet-800 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-700'
+  inquiry: 'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-900/30 dark:text-neutral-300 dark:border-neutral-700'
 };
 
 const STATUS_ICONS = {
@@ -237,7 +237,7 @@ export default function OrderMessages() {
         {inquiryLoading && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl px-8 py-6 flex flex-col items-center gap-4">
-              <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-12 h-12 border-4 border-neutral-500 border-t-transparent rounded-full animate-spin" />
               <p className="text-gray-700 dark:text-gray-200 font-medium">Ouverture de la conversation avec le vendeur...</p>
             </div>
           </div>
@@ -246,7 +246,7 @@ export default function OrderMessages() {
           <div className="max-w-6xl mx-auto px-4 py-8">
             <div className="flex items-center justify-center h-96">
               <div className="text-center">
-                <div className="w-16 h-16 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin mx-auto mb-4" />
+                <div className="w-16 h-16 rounded-full border-4 border-neutral-100 border-t-neutral-600 animate-spin mx-auto mb-4" />
                 <p className="text-gray-600 dark:text-gray-400">Chargement des conversations...</p>
               </div>
             </div>
@@ -270,7 +270,7 @@ export default function OrderMessages() {
           </nav>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400">
+              <div className="p-2.5 rounded-xl bg-neutral-100 dark:bg-neutral-900/40 text-neutral-600 dark:text-neutral-400">
                 <MessageCircle className="w-6 h-6" />
               </div>
               <div>
@@ -303,7 +303,7 @@ export default function OrderMessages() {
               placeholder="Rechercher par produit, boutique ou message..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm"
+              className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 transition-all text-sm"
             />
             {searchQuery && (
               <button
@@ -322,7 +322,7 @@ export default function OrderMessages() {
               onClick={() => { setPage(1); setActiveFilter('all'); }}
               className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                 activeFilter === 'all'
-                  ? 'bg-indigo-600 text-white shadow-sm'
+                  ? 'bg-neutral-600 text-white shadow-sm'
                   : 'bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700'
               }`}
             >
@@ -336,7 +336,7 @@ export default function OrderMessages() {
               onClick={() => { setPage(1); setActiveFilter('unread'); }}
               className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                 activeFilter === 'unread'
-                  ? 'bg-indigo-600 text-white shadow-sm'
+                  ? 'bg-neutral-600 text-white shadow-sm'
                   : 'bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700'
               }`}
             >
@@ -355,7 +355,7 @@ export default function OrderMessages() {
               onClick={() => { setPage(1); setActiveFilter('archived'); }}
               className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                 activeFilter === 'archived'
-                  ? 'bg-indigo-600 text-white shadow-sm'
+                  ? 'bg-neutral-600 text-white shadow-sm'
                   : 'bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700'
               }`}
             >
@@ -403,7 +403,7 @@ export default function OrderMessages() {
                 </p>
                 <Link
                   to="/orders"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition-colors"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-neutral-600 text-white text-sm font-medium hover:bg-neutral-700 transition-colors"
                 >
                   <Package className="w-4 h-4" />
                   Voir mes commandes
@@ -447,9 +447,9 @@ export default function OrderMessages() {
                   onKeyDown={(e) => e.key === 'Enter' && openConversation(conversation)}
                   className={`group rounded-xl border transition-all duration-200 cursor-pointer ${
                     isSelected
-                      ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-300 dark:border-indigo-700 ring-2 ring-indigo-500/30'
+                      ? 'bg-neutral-50 dark:bg-neutral-900/20 border-neutral-300 dark:border-neutral-700 ring-2 ring-neutral-500/30'
                       : hasUnread
-                        ? 'bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-slate-50/50 dark:hover:bg-gray-700/50'
+                        ? 'bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 hover:border-neutral-200 dark:hover:border-neutral-800 hover:bg-slate-50/50 dark:hover:bg-gray-700/50'
                         : 'bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 hover:border-slate-300 dark:hover:border-gray-600 hover:bg-slate-50/50 dark:hover:bg-gray-700/50'
                   }`}
                 >
@@ -479,7 +479,7 @@ export default function OrderMessages() {
                             <Link
                               to={productPath}
                               onClick={(e) => e.stopPropagation()}
-                              className={`text-sm font-semibold truncate block ${hasUnread ? 'text-slate-900 dark:text-white' : 'text-slate-800 dark:text-gray-100'} hover:text-indigo-600 dark:hover:text-indigo-400`}
+                              className={`text-sm font-semibold truncate block ${hasUnread ? 'text-slate-900 dark:text-white' : 'text-slate-800 dark:text-gray-100'} hover:text-neutral-600 dark:hover:text-neutral-400`}
                             >
                               {conversation.productInfo?.title || 'Produit'}
                             </Link>
@@ -511,14 +511,14 @@ export default function OrderMessages() {
                         <button
                           type="button"
                           onClick={(e) => handleUnarchive(conversation.orderId, e)}
-                          className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800/50 transition-colors"
+                          className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-neutral-100 dark:bg-neutral-900/30 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-800/50 transition-colors"
                         >
                           <ArchiveRestore className="w-3.5 h-3.5" />
                           Désarchiver
                         </button>
                       )}
                     </div>
-                    <ChevronRight className="w-5 h-5 text-slate-300 dark:text-gray-600 flex-shrink-0 self-center group-hover:text-indigo-500 transition-colors" />
+                    <ChevronRight className="w-5 h-5 text-slate-300 dark:text-gray-600 flex-shrink-0 self-center group-hover:text-neutral-500 transition-colors" />
                   </div>
                 </div>
               );

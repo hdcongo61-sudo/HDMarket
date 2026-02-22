@@ -68,7 +68,7 @@ export default function ReassignProductsModal({
             type="checkbox"
             checked={includeChildren}
             onChange={(event) => setIncludeChildren(event.target.checked)}
-            className="h-4 w-4 rounded border-neutral-300 text-indigo-600"
+            className="h-4 w-4 rounded border-neutral-300 text-neutral-600"
           />
           Inclure les sous-catégories
         </label>
@@ -85,7 +85,7 @@ export default function ReassignProductsModal({
           type="button"
           disabled={!targetId || loading}
           onClick={() => onConfirm({ sourceId: source.id, targetId, includeChildren, reason })}
-          className="w-full rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+          className="w-full rounded-xl bg-neutral-600 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-500 disabled:opacity-50"
         >
           Confirmer la réassignation
         </button>

@@ -12,7 +12,9 @@ const adminAuditLogSchema = new mongoose.Schema(
         'shop_verified',
         'shop_unverified',
         'role_changed',
-        'account_type_changed'
+        'account_type_changed',
+        'chat_template_access_granted',
+        'chat_template_access_revoked'
       ],
       required: true
     },

@@ -59,6 +59,20 @@ export const requireHelpCenterAccess = (req, res, next) => {
   return res.status(403).json({ message: 'Forbidden' });
 };
 
+export const requireChatTemplateAccess = (req, res, next) => {
+  if (!req.user) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+  if (
+    req.user.role === 'admin' ||
+    req.user.role === 'manager' ||
+    req.user.canManageChatTemplates === true
+  ) {
+    return next();
+  }
+  return res.status(403).json({ message: 'Forbidden' });
+};
+
 export const requireProductAccess = (req, res, next) => {
   if (!req.user) {
     return res.status(403).json({ message: 'Forbidden' });

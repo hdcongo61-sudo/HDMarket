@@ -82,6 +82,7 @@ export default function ShopProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
+  const [promoOnly, setPromoOnly] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
@@ -213,6 +214,7 @@ export default function ShopProfile() {
 
   useEffect(() => {
     setActiveCategory('all');
+    setPromoOnly(false);
   }, [slug]);
 
   useEffect(() => {
@@ -284,13 +286,16 @@ export default function ShopProfile() {
   }, [products]);
 
   const filteredProducts = useMemo(() => {
-    if (!activeCategory || activeCategory === 'all') return products;
-    return products.filter((product) => {
+    const byCategory = (!activeCategory || activeCategory === 'all')
+      ? products
+      : products.filter((product) => {
       const raw = product?.category;
       const normalized = typeof raw === 'string' ? raw.trim() : '';
       return normalized === activeCategory;
     });
-  }, [activeCategory, products]);
+    if (!promoOnly) return byCategory;
+    return byCategory.filter((product) => Boolean(product?.hasActivePromo));
+  }, [activeCategory, promoOnly, products]);
 
   const hasOwnComment = Boolean(userReview?.comment?.trim());
   const showReviewForm = !hasOwnComment || isEditingReview;
@@ -307,7 +312,7 @@ export default function ShopProfile() {
     return (
       <main className="max-w-5xl mx-auto px-4 py-10 space-y-3">
         <p className="text-red-600 font-semibold">{error}</p>
-        <Link to="/" className="text-indigo-600 underline">
+        <Link to="/" className="text-neutral-600 underline">
           Retourner à l&apos;accueil
         </Link>
       </main>
@@ -320,7 +325,7 @@ export default function ShopProfile() {
     ? user
       ? shop.phone
       : (
-        <Link to="/login" className="text-indigo-600 underline" state={{ from: `/shop/${slug}` }}>
+        <Link to="/login" className="text-neutral-600 underline" state={{ from: `/shop/${slug}` }}>
           Connectez-vous pour voir ce numéro
         </Link>
       )
@@ -334,6 +339,11 @@ export default function ShopProfile() {
 
   const ratingAverage = Number(shop.ratingAverage || 0);
   const ratingCount = Number(shop.ratingCount || 0);
+  const activePromoCountNow = Number(shop.activePromoCountNow || 0);
+  const hasActivePromo = Boolean(shop.hasActivePromo && activePromoCountNow > 0);
+  const maxPromoPercentNow = Number(shop.maxPromoPercentNow || 0);
+  const hasFreeDelivery = Boolean(shop.freeDeliveryEnabled);
+  const hasPromoProductsInList = products.some((product) => Boolean(product?.hasActivePromo));
 
   const hours = Array.isArray(shop.shopHours) ? shop.shopHours : [];
   const todayKey = (() => {
@@ -492,7 +502,7 @@ export default function ShopProfile() {
   return (
     <main className={`bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 py-4 sm:py-8 ${isMobile ? 'pb-24' : ''}`}>
       <div className={`mx-auto flex max-w-7xl flex-col text-slate-900 ${isMobile ? 'gap-4 px-3' : 'gap-8 px-4 sm:px-6 lg:px-8'}`}>
-        <section className={`relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 text-white shadow-2xl ${isMobile ? 'rounded-2xl' : 'rounded-[32px]'}`}>
+        <section className={`relative overflow-hidden bg-gradient-to-br from-slate-900 via-neutral-900 to-neutral-900 text-white shadow-2xl ${isMobile ? 'rounded-2xl' : 'rounded-[32px]'}`}>
           {shop.shopBanner && (
             <div className="absolute inset-0">
               <img
@@ -533,6 +543,25 @@ export default function ShopProfile() {
                     <VerifiedBadge verified={shop.shopVerified} />
                   </div>
                   <p className={`text-white/80 truncate ${isMobile ? 'text-xs' : 'text-sm'}`}>Gérée par {shop.ownerName}</p>
+                  {hasActivePromo && (
+                    <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-amber-300/60 bg-amber-400/20 px-3 py-1 text-xs font-semibold text-amber-100 backdrop-blur">
+                      <Sparkles size={14} />
+                      <span>
+                        Boutique en promo ({formatCount(activePromoCountNow)})
+                        {maxPromoPercentNow > 0 ? ` • jusqu'à -${Math.round(maxPromoPercentNow)}%` : ''}
+                        {shop.nextPromoEndingAt ? ` • jusqu’au ${formatDate(shop.nextPromoEndingAt)}` : ''}
+                      </span>
+                    </div>
+                  )}
+                  {hasFreeDelivery && (
+                    <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-emerald-300/60 bg-emerald-400/20 px-3 py-1 text-xs font-semibold text-emerald-100 backdrop-blur">
+                      <MapPin size={14} />
+                      <span>
+                        Livraison gratuite
+                        {shop.freeDeliveryNote ? ` • ${shop.freeDeliveryNote}` : ''}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
               {!isMobile && (
@@ -609,7 +638,7 @@ export default function ShopProfile() {
               <button
                 type="button"
                 onClick={openCommentsModal}
-                className={`inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 font-semibold text-indigo-700 transition-all duration-200 hover:bg-indigo-100 hover:border-indigo-300 active:scale-95 w-full sm:w-auto justify-center ${isMobile ? 'text-sm py-2.5' : 'text-sm'}`}
+                className={`inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-100 hover:border-neutral-300 active:scale-95 w-full sm:w-auto justify-center ${isMobile ? 'text-sm py-2.5' : 'text-sm'}`}
               >
                 <MessageCircle size={16} />
                 Voir tous les commentaires
@@ -679,7 +708,7 @@ export default function ShopProfile() {
                       setReviewForm((prev) => ({ ...prev, comment: event.target.value }))
                     }
                     rows={4}
-                    className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 transition-all duration-200 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                    className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 transition-all duration-200 focus:border-neutral-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-neutral-100"
                     placeholder="Partagez votre expérience avec cette boutique..."
                   />
                 </div>
@@ -691,7 +720,7 @@ export default function ShopProfile() {
                   )}
                   {!user && (
                     <p className="text-xs text-gray-600">
-                      <Link to="/login" state={{ from: `/shop/${slug}` }} className="font-semibold text-indigo-600 hover:text-indigo-700">
+                      <Link to="/login" state={{ from: `/shop/${slug}` }} className="font-semibold text-neutral-600 hover:text-neutral-700">
                         Connectez-vous
                       </Link>{' '}
                       pour laisser un commentaire.
@@ -701,7 +730,7 @@ export default function ShopProfile() {
                 <button
                   type="submit"
                   disabled={reviewSubmitting || !user}
-                  className="w-full rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-3 text-sm font-bold text-white shadow-lg transition-all duration-200 hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  className="w-full rounded-xl bg-gradient-to-r from-neutral-600 to-neutral-600 px-6 py-3 text-sm font-bold text-white shadow-lg transition-all duration-200 hover:from-neutral-700 hover:to-neutral-700 hover:shadow-xl hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
                   {reviewSubmitting
                     ? 'Envoi en cours…'
@@ -737,12 +766,12 @@ export default function ShopProfile() {
                   return (
                     <div
                       key={review._id}
-                      className="group rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-indigo-200"
+                      className="group rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-neutral-200"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-start gap-3 flex-1">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-100 to-purple-100">
-                            <span className="text-sm font-bold text-indigo-600">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-neutral-100 to-neutral-100">
+                            <span className="text-sm font-bold text-neutral-600">
                               {(review.user?.name || review.user?.shopName || 'U').charAt(0).toUpperCase()}
                             </span>
                           </div>
@@ -775,7 +804,7 @@ export default function ShopProfile() {
                             <button
                               type="button"
                               onClick={() => handleEditReview(review)}
-                              className="inline-flex items-center justify-center rounded-lg p-2 text-gray-500 transition-all duration-200 hover:bg-gray-100 hover:text-indigo-600"
+                              className="inline-flex items-center justify-center rounded-lg p-2 text-gray-500 transition-all duration-200 hover:bg-gray-100 hover:text-neutral-600"
                             >
                               <Edit3 size={14} />
                             </button>
@@ -799,17 +828,17 @@ export default function ShopProfile() {
         <section className={`grid gap-6 ${isMobile ? '' : 'lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]'}`}>
           <div className="space-y-6">
             <article className={`overflow-hidden border border-gray-200/60 bg-gradient-to-br from-white to-gray-50/30 shadow-xl ${isMobile ? 'rounded-2xl' : 'rounded-3xl'}`}>
-              <div className={`flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-gradient-to-r from-indigo-50/50 via-white to-purple-50/30 ${isMobile ? 'px-4 py-4' : 'px-6 py-5'}`}>
+              <div className={`flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-gradient-to-r from-neutral-50/50 via-white to-neutral-50/30 ${isMobile ? 'px-4 py-4' : 'px-6 py-5'}`}>
                 <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100">
-                    <Clock className="h-6 w-6 text-indigo-600" />
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-100">
+                    <Clock className="h-6 w-6 text-neutral-600" />
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-gray-900">Horaires d&apos;ouverture</h3>
                     <p className="text-xs text-gray-500 mt-0.5">Planification communiquée par la boutique</p>
                   </div>
                 </div>
-                <span className="rounded-full bg-indigo-100 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-indigo-700 border border-indigo-200">
+                <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-700 border border-neutral-200">
                   Données directes
                 </span>
               </div>
@@ -827,14 +856,14 @@ export default function ShopProfile() {
                       <div
                         key={`${entry.day}-${entry.open}-${entry.close}`}
                         className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 shadow-sm ${
-                          isToday ? 'border-indigo-200 bg-indigo-50/60' : 'border-slate-100 bg-white'
+                          isToday ? 'border-neutral-200 bg-neutral-50/60' : 'border-slate-100 bg-white'
                         }`}
                       >
                         <div>
                           <div className="flex items-center gap-2">
                             <p className="text-sm font-semibold text-slate-900">{dayLabel}</p>
                             {isToday && (
-                              <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-indigo-600">
+                              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-600">
                                 Aujourd&apos;hui
                               </span>
                             )}
@@ -843,12 +872,12 @@ export default function ShopProfile() {
                         </div>
                         <span
                           className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
-                            entry.closed ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-700'
+                            entry.closed ? 'bg-neutral-100 text-neutral-600' : 'bg-emerald-100 text-emerald-700'
                           }`}
                         >
                           <span
                             className={`h-2 w-2 rounded-full ${
-                              entry.closed ? 'bg-rose-500' : 'bg-emerald-500'
+                              entry.closed ? 'bg-neutral-500' : 'bg-emerald-500'
                             }`}
                           />
                           {entry.closed ? 'Fermé' : 'Ouvert'}
@@ -987,8 +1016,8 @@ export default function ShopProfile() {
         <section className={`rounded-2xl sm:rounded-3xl border border-gray-200/60 bg-gradient-to-br from-white to-gray-50/30 shadow-xl ${isMobile ? 'p-4' : 'p-8'}`}>
           <div className={`flex flex-col gap-4 sm:gap-6 sm:flex-row sm:items-start sm:justify-between ${isMobile ? '' : ''}`}>
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100">
-                <Package size={24} className="text-indigo-600" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-100">
+                <Package size={24} className="text-neutral-600" />
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Produits de la boutique</h2>
@@ -997,15 +1026,31 @@ export default function ShopProfile() {
                 </p>
               </div>
             </div>
-            {categories.length > 0 && (
+            {(categories.length > 0 || hasActivePromo) && (
               <div className={`flex items-center gap-2 ${isMobile ? 'overflow-x-auto pb-2 -mx-1 hide-scrollbar flex-nowrap' : 'flex-wrap'}`}>
+                {hasActivePromo && (
+                  <button
+                    type="button"
+                    onClick={() => setPromoOnly((prev) => !prev)}
+                    disabled={!hasPromoProductsInList}
+                    className={`inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-xs font-bold transition-all duration-200 shrink-0 ${
+                      promoOnly
+                        ? 'border-amber-500 bg-amber-50 text-amber-700 shadow-md'
+                        : 'border-amber-200 bg-white text-amber-700 hover:border-amber-300 hover:bg-amber-50'
+                    } ${!hasPromoProductsInList ? 'opacity-50 cursor-not-allowed hover:bg-white hover:border-amber-200' : ''}`}
+                    title={hasPromoProductsInList ? 'Afficher les produits en promo' : 'Aucun produit promo sur cette page'}
+                  >
+                    <Sparkles size={14} />
+                    {promoOnly ? 'Toutes les offres' : 'Voir les promos de cette boutique'}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setActiveCategory('all')}
                   className={`inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-xs font-bold transition-all duration-200 shrink-0 ${
                     activeCategory === 'all'
-                      ? 'border-indigo-500 bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 shadow-md scale-105'
-                      : 'border-gray-200 bg-white text-gray-600 hover:border-indigo-300 hover:bg-indigo-50'
+                      ? 'border-neutral-500 bg-gradient-to-r from-neutral-50 to-neutral-50 text-neutral-700 shadow-md scale-105'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-neutral-300 hover:bg-neutral-50'
                   }`}
                 >
                   <Grid3x3 size={14} />
@@ -1018,8 +1063,8 @@ export default function ShopProfile() {
                     onClick={() => setActiveCategory(category)}
                     className={`inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-xs font-bold transition-all duration-200 shrink-0 ${
                       activeCategory === category
-                        ? 'border-indigo-500 bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 shadow-md scale-105'
-                        : 'border-gray-200 bg-white text-gray-600 hover:border-indigo-300 hover:bg-indigo-50'
+                        ? 'border-neutral-500 bg-gradient-to-r from-neutral-50 to-neutral-50 text-neutral-700 shadow-md scale-105'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-neutral-300 hover:bg-neutral-50'
                     }`}
                   >
                     {category}
@@ -1037,13 +1082,15 @@ export default function ShopProfile() {
           ) : (
             <div className="mt-6 rounded-2xl border border-dashed border-gray-300 bg-slate-50 px-6 py-12 text-center">
               <p className="text-lg font-semibold text-gray-700">
-                {categories.length && activeCategory !== 'all'
+                {promoOnly
+                  ? 'Aucun produit promo visible pour ce filtre.'
+                  : categories.length && activeCategory !== 'all'
                   ? `Aucun produit dans la catégorie ${activeCategory}.`
                   : 'Aucun produit publié pour le moment.'}
               </p>
               <Link
                 to="/"
-                className="mt-4 inline-flex items-center justify-center rounded-full bg-indigo-600 px-6 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                className="mt-4 inline-flex items-center justify-center rounded-full bg-neutral-600 px-6 py-2 text-sm font-semibold text-white transition hover:bg-neutral-700"
               >
                 Retour à l’accueil
               </Link>
@@ -1067,7 +1114,7 @@ export default function ShopProfile() {
                 <Link
                   to="/login"
                   state={{ from: `/shop/${slug}` }}
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border-2 border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-bold text-indigo-700 transition active:scale-95"
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border-2 border-neutral-200 bg-neutral-50 px-4 py-3 text-sm font-bold text-neutral-700 transition active:scale-95"
                 >
                   <Phone size={18} />
                   Appeler
@@ -1080,7 +1127,7 @@ export default function ShopProfile() {
                 className={`flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition active:scale-95 ${
                   isFollowing
                     ? 'border-2 border-emerald-300 bg-emerald-50 text-emerald-700'
-                    : 'border-2 border-indigo-200 bg-indigo-50 text-indigo-700'
+                    : 'border-2 border-neutral-200 bg-neutral-50 text-neutral-700'
                 } ${(!shop?.shopVerified || followLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <Heart size={18} className={isFollowing ? 'fill-current' : ''} />
@@ -1116,7 +1163,7 @@ export default function ShopProfile() {
                 {commentsLoading ? (
                   <div className="flex items-center justify-center py-12">
                     <div className="flex flex-col items-center gap-3">
-                      <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+                      <div className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
                       <p className="text-sm font-medium text-gray-600">Chargement des commentaires…</p>
                     </div>
                   </div>
@@ -1134,11 +1181,11 @@ export default function ShopProfile() {
                   allComments.map((review) => (
                     <div
                       key={`modal-${review._id}`}
-                      className="group rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-indigo-200"
+                      className="group rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-neutral-200"
                     >
                       <div className="flex items-start gap-4">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex-shrink-0">
-                          <span className="text-base font-bold text-indigo-600">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-neutral-100 to-neutral-100 flex-shrink-0">
+                          <span className="text-base font-bold text-neutral-600">
                             {(review.user?.name || review.user?.shopName || 'U').charAt(0).toUpperCase()}
                           </span>
                         </div>

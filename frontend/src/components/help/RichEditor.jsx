@@ -340,7 +340,7 @@ const RichEditor = forwardRef(function RichEditor(
           onInput={onInput}
           onPaste={onPaste}
           onBlur={() => emitChange(true)}
-          className="help-rich-editor min-h-[280px] w-full rounded-xl border border-transparent px-1 py-1 text-sm leading-7 text-neutral-900 outline-none focus:border-indigo-200 dark:text-neutral-100 dark:focus:border-indigo-700 [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:leading-tight [&_h1]:mb-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:leading-tight [&_h2]:mb-2 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:leading-tight [&_h3]:mb-2 [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_pre]:rounded-lg [&_pre]:bg-neutral-100 [&_pre]:p-3 [&_pre]:font-mono [&_pre]:text-xs dark:[&_pre]:bg-neutral-800"
+          className="help-rich-editor min-h-[280px] w-full rounded-xl border border-transparent px-1 py-1 text-sm leading-7 text-neutral-900 outline-none focus:border-neutral-200 dark:text-neutral-100 dark:focus:border-neutral-700 [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:leading-tight [&_h1]:mb-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:leading-tight [&_h2]:mb-2 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:leading-tight [&_h3]:mb-2 [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_pre]:rounded-lg [&_pre]:bg-neutral-100 [&_pre]:p-3 [&_pre]:font-mono [&_pre]:text-xs dark:[&_pre]:bg-neutral-800"
           data-placeholder={placeholder}
         />
         <div className="mt-2 flex items-center justify-end text-xs text-neutral-500 dark:text-neutral-400">

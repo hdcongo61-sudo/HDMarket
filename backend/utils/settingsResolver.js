@@ -1,6 +1,7 @@
 import AppSetting from '../models/appSettingModel.js';
 import Currency from '../models/currencyModel.js';
 import City from '../models/cityModel.js';
+import Commune from '../models/communeModel.js';
 
 const CACHE_TTL_MS = 60 * 1000;
 const resolverCache = new Map();
@@ -145,7 +146,7 @@ export const getActiveCities = async ({ includeInactive = false } = {}) => {
   if (cached) return cached;
 
   const filter = includeInactive ? {} : { isActive: true };
-  const list = await City.find(filter).sort({ isDefault: -1, name: 1 }).lean();
+  const list = await City.find(filter).sort({ isDefault: -1, order: 1, name: 1 }).lean();
   return setCachedValue(cacheKey, list);
 };
 
@@ -159,6 +160,20 @@ export const getDefaultCity = async () => {
     city = await City.findOne({ isActive: true }).sort({ updatedAt: -1 }).lean();
   }
   return setCachedValue(cacheKey, city || null);
+};
+
+export const getActiveCommunes = async ({ includeInactive = false, cityId = null } = {}) => {
+  const cityScope = cityId ? String(cityId) : 'all';
+  const cacheKey = `communes:${includeInactive ? 'all' : 'active'}:${cityScope}`;
+  const cached = getCachedValue(cacheKey);
+  if (cached) return cached;
+
+  const filter = includeInactive ? {} : { isActive: true };
+  if (cityId) {
+    filter.cityId = cityId;
+  }
+  const list = await Commune.find(filter).sort({ order: 1, name: 1 }).lean();
+  return setCachedValue(cacheKey, list);
 };
 
 export const getLanguagesConfig = async () => {
@@ -202,11 +217,12 @@ export const resolvePublicSettings = async () => {
     SETTING_KEYS.LANGUAGES,
     SETTING_KEYS.DEFAULT_LANGUAGE
   ]);
-  const [defaultCurrency, defaultCity, currencies, cities, languagesConfig] = await Promise.all([
+  const [defaultCurrency, defaultCity, currencies, cities, communes, languagesConfig] = await Promise.all([
     getDefaultCurrency(),
     getDefaultCity(),
     getActiveCurrencies(),
     getActiveCities(),
+    getActiveCommunes(),
     getLanguagesConfig()
   ]);
 
@@ -229,7 +245,8 @@ export const resolvePublicSettings = async () => {
     defaultCurrency: defaultCurrency || null,
     currencies,
     defaultCity: defaultCity || null,
-    cities
+    cities,
+    communes
   };
 
   return setCachedValue(cacheKey, payload);

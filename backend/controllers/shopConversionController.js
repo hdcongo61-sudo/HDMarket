@@ -4,6 +4,11 @@ import User from '../models/userModel.js';
 import { uploadToCloudinary } from '../utils/cloudinaryUploader.js';
 import { createNotification } from '../utils/notificationService.js';
 import { getSettingValue, SETTING_KEYS } from '../utils/settingsResolver.js';
+import {
+  isTransactionCodeAlreadyUsed,
+  normalizeTransactionCode,
+  TRANSACTION_CODE_REUSED_MESSAGE
+} from '../utils/transactionCodeService.js';
 
 /**
  * Create a shop conversion request (for particulier users only)
@@ -49,9 +54,13 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
   }
 
   // Validate transaction number (10 digits)
-  const digitsOnly = transactionNumber.replace(/\D/g, '');
+  const digitsOnly = normalizeTransactionCode(transactionNumber);
   if (digitsOnly.length !== 10) {
     return res.status(400).json({ message: 'Le numéro de transaction doit contenir exactement 10 chiffres.' });
+  }
+  const alreadyUsed = await isTransactionCodeAlreadyUsed(digitsOnly);
+  if (alreadyUsed) {
+    return res.status(409).json({ message: TRANSACTION_CODE_REUSED_MESSAGE });
   }
 
   // Validate operator

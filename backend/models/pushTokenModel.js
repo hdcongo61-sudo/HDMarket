@@ -10,11 +10,33 @@ const pushTokenSchema = new mongoose.Schema(
       default: 'unknown'
     },
     deviceId: { type: String, default: '', trim: true },
+    deviceInfo: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {}
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true
+    },
+    failureCount: {
+      type: Number,
+      default: 0
+    },
+    lastFailureAt: {
+      type: Date,
+      default: null
+    },
+    lastFailureCode: {
+      type: String,
+      default: ''
+    },
     lastSeenAt: { type: Date, default: Date.now }
   },
   { timestamps: true }
 );
 
 pushTokenSchema.index({ user: 1, token: 1 });
+pushTokenSchema.index({ user: 1, isActive: 1, platform: 1 });
 
 export default mongoose.model('PushToken', pushTokenSchema);

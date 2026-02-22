@@ -22,10 +22,10 @@ const SummaryCard = ({ label, value, helper }) => (
 );
 
 const HighlightStat = ({ label, value, helper }) => (
-  <div className="rounded-2xl border border-gray-100 bg-gradient-to-br from-indigo-600 to-blue-600 px-4 py-5 text-white shadow-lg">
-    <p className="text-xs uppercase tracking-wide text-indigo-100">{label}</p>
+  <div className="rounded-2xl border border-gray-100 bg-gradient-to-br from-neutral-600 to-neutral-600 px-4 py-5 text-white shadow-lg">
+    <p className="text-xs uppercase tracking-wide text-neutral-100">{label}</p>
     <p className="text-3xl font-semibold">{value}</p>
-    {helper ? <p className="text-xs text-indigo-100/80 mt-1">{helper}</p> : null}
+    {helper ? <p className="text-xs text-neutral-100/80 mt-1">{helper}</p> : null}
   </div>
 );
 
@@ -213,11 +213,11 @@ export default function AdminUserStats() {
                 <p className="text-[11px] uppercase tracking-wide text-gray-400">{product.status || 'Statut inconnu'}</p>
                 <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
                   <span className="flex items-center gap-1">
-                    <Heart className="h-3 w-3 text-pink-500" />
+                    <Heart className="h-3 w-3 text-neutral-500" />
                     {formatNumber(product.favorites)}
                   </span>
                   <span className="flex items-center gap-1">
-                    <MessageCircle className="h-3 w-3 text-purple-500" />
+                    <MessageCircle className="h-3 w-3 text-neutral-500" />
                     {formatNumber(product.whatsappClicks)}
                   </span>
                   <span className="text-xs text-gray-400">{formatCurrency(product.price)}</span>
@@ -272,7 +272,7 @@ export default function AdminUserStats() {
         <div className="flex items-center gap-2 text-sm font-semibold text-gray-500">
           <Link
             to="/admin"
-            className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-4 py-1 text-xs font-semibold text-gray-600 hover:border-indigo-300 hover:text-indigo-700"
+            className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-4 py-1 text-xs font-semibold text-gray-600 hover:border-neutral-300 hover:text-neutral-700"
           >
             <ArrowLeft className="h-4 w-4" />
             Retour au back office
@@ -314,7 +314,7 @@ export default function AdminUserStats() {
               <h2 className="text-lg font-semibold text-gray-900">Vue d’ensemble</h2>
               <button
                 type="button"
-                className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                className="text-xs font-semibold text-neutral-600 hover:text-neutral-800"
                 onClick={() => openModal('summary')}
               >
                 Voir les résultats
@@ -332,7 +332,7 @@ export default function AdminUserStats() {
               <h2 className="text-lg font-semibold text-gray-900">Performances</h2>
               <button
                 type="button"
-                className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                className="text-xs font-semibold text-neutral-600 hover:text-neutral-800"
                 onClick={() => openModal('highlights')}
               >
                 Voir les résultats
@@ -357,7 +357,7 @@ export default function AdminUserStats() {
                     <Link
                       key={shop.id}
                       to={buildShopPath(shop)}
-                    className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white px-4 py-3 text-xs font-semibold text-gray-700 transition hover:border-indigo-200 hover:text-indigo-800"
+                    className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white px-4 py-3 text-xs font-semibold text-gray-700 transition hover:border-neutral-200 hover:text-neutral-800"
                   >
                     <div className="min-w-0 space-y-0.5">
                       <p className="truncate text-sm font-semibold text-gray-900">{shop.name}</p>
@@ -410,7 +410,7 @@ export default function AdminUserStats() {
               </div>
               <button
                 type="button"
-                className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                className="text-xs font-semibold text-neutral-600 hover:text-neutral-800"
                 onClick={() => openModal('timeline')}
               >
                 Voir les résultats
@@ -440,7 +440,7 @@ export default function AdminUserStats() {
               <h2 className="text-lg font-semibold text-gray-900">Répartition par catégorie</h2>
               <button
                 type="button"
-                className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                className="text-xs font-semibold text-neutral-600 hover:text-neutral-800"
                 onClick={() => openModal('categories')}
               >
                 Voir les résultats
@@ -470,7 +470,7 @@ export default function AdminUserStats() {
               </div>
               <button
                 type="button"
-                className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                className="text-xs font-semibold text-neutral-600 hover:text-neutral-800"
                 onClick={() => openModal('topProducts')}
               >
                 Voir les résultats
@@ -482,7 +482,7 @@ export default function AdminUserStats() {
                 <Link
                   key={product._id}
                   to={buildProductPath(product)}
-                  className="flex flex-col gap-2 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:border-indigo-200 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-2 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:border-neutral-200 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
                     <p className="text-sm font-semibold text-gray-900">{product.title}</p>
@@ -492,11 +492,11 @@ export default function AdminUserStats() {
                   </div>
                   <div className="flex items-center gap-4 text-xs text-gray-500">
                     <span className="flex items-center gap-1">
-                      <Heart className="h-3 w-3 text-pink-500" />
+                      <Heart className="h-3 w-3 text-neutral-500" />
                       {formatNumber(product.favorites)}
                     </span>
                     <span className="flex items-center gap-1">
-                      <MessageCircle className="h-3 w-3 text-purple-500" />
+                      <MessageCircle className="h-3 w-3 text-neutral-500" />
                       {formatNumber(product.whatsappClicks)}
                     </span>
                     <span className="text-xs text-gray-400">{formatCurrency(product.price)}</span>

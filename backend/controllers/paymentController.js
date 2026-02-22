@@ -6,6 +6,11 @@ import { createNotification } from '../utils/notificationService.js';
 import { invalidateProductCache } from '../utils/cache.js';
 import { calculateCommissionBreakdown, normalizePromoCode } from '../utils/promoCodeUtils.js';
 import { consumePromoCodeForSeller, previewPromoForSeller } from '../utils/promoCodeService.js';
+import {
+  isTransactionCodeAlreadyUsed,
+  normalizeTransactionCode,
+  TRANSACTION_CODE_REUSED_MESSAGE
+} from '../utils/transactionCodeService.js';
 
 const isCloseTo = (a, b, tolerance = 0.01) => Math.abs(a - b) <= tolerance;
 
@@ -51,7 +56,7 @@ export const createPayment = asyncHandler(async (req, res) => {
   let commission = promoPreview?.commission || calculateCommissionBreakdown({ productPrice: product.price });
   let received = +(+(amount || 0)).toFixed(2);
 
-  const normalizedTransaction = String(transactionNumber || '').replace(/\D/g, '');
+  const normalizedTransaction = normalizeTransactionCode(transactionNumber);
   const hasCommissionDue = Number(commission.dueAmount || 0) > 0;
 
   if (hasCommissionDue) {
@@ -60,6 +65,11 @@ export const createPayment = asyncHandler(async (req, res) => {
         message:
           'Les informations de paiement sont requises (nom, opérateur, numéro de transaction 10 chiffres).'
       });
+    }
+
+    const alreadyUsed = await isTransactionCodeAlreadyUsed(normalizedTransaction);
+    if (alreadyUsed) {
+      return res.status(409).json({ message: TRANSACTION_CODE_REUSED_MESSAGE });
     }
 
     if (!(isCloseTo(received, commission.dueAmount, 0.02) || received >= commission.dueAmount)) {
@@ -171,6 +181,32 @@ export const createPayment = asyncHandler(async (req, res) => {
   }
 
   res.status(201).json(payment);
+});
+
+export const verifyTransactionCodeAvailability = asyncHandler(async (req, res) => {
+  const transactionCode = normalizeTransactionCode(req.body?.transactionCode);
+  if (!/^\d{10}$/.test(transactionCode)) {
+    return res.status(400).json({
+      valid: false,
+      used: false,
+      message: 'Le code de transaction doit contenir exactement 10 chiffres.'
+    });
+  }
+
+  const alreadyUsed = await isTransactionCodeAlreadyUsed(transactionCode);
+  if (alreadyUsed) {
+    return res.status(409).json({
+      valid: false,
+      used: true,
+      message: TRANSACTION_CODE_REUSED_MESSAGE
+    });
+  }
+
+  return res.json({
+    valid: true,
+    used: false,
+    message: 'Code de transaction disponible.'
+  });
 });
 
 export const getMyPayments = asyncHandler(async (req, res) => {

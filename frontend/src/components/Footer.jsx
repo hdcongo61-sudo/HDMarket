@@ -17,7 +17,7 @@ export default function Footer() {
     <footer className="hidden md:block bg-gray-900 text-gray-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <p className="text-sm font-semibold text-indigo-400 uppercase tracking-widest">
+          <p className="text-sm font-semibold text-neutral-400 uppercase tracking-widest">
             ETS HD Tech Filial
           </p>
           <h3 className="mt-2 text-xl font-bold text-white">HDMarket</h3>
@@ -59,24 +59,24 @@ export default function Footer() {
           <h4 className="text-base font-semibold text-white">{t('footer.support', 'Support')}</h4>
           <ul className="mt-3 space-y-2 text-sm">
             <li className="flex items-center gap-2">
-              <Mail size={16} className="text-indigo-400" />
+              <Mail size={16} className="text-neutral-400" />
               support@hdmarket.cg
             </li>
             {activeNetworks.length > 0 ? (
               activeNetworks.map((network) => (
                 <li key={network._id} className="flex items-center gap-2">
-                  <Phone size={16} className="text-indigo-400" />
+                  <Phone size={16} className="text-neutral-400" />
                   <span>{network.name}: {network.phoneNumber}</span>
                 </li>
               ))
             ) : (
               <li className="flex items-center gap-2">
-                <Phone size={16} className="text-indigo-400" />
+                <Phone size={16} className="text-neutral-400" />
                 +242 06 000 00 00
               </li>
             )}
             <li className="flex items-center gap-2">
-              <MapPin size={16} className="text-indigo-400" />
+              <MapPin size={16} className="text-neutral-400" />
               {t('footer.location', 'Brazzaville, Congo')}
             </li>
           </ul>
@@ -92,7 +92,7 @@ export default function Footer() {
           </p>
           <Link
             to="/help"
-            className="mt-4 inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
+            className="mt-4 inline-flex items-center justify-center rounded-xl bg-neutral-600 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-500"
           >
             {t('footer.contactSupport', 'Contacter le support')}
           </Link>

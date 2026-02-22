@@ -76,7 +76,7 @@ export default function ForgotPassword() {
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <div className="flex justify-center mb-6">
-            <div className="w-20 h-20 bg-[#007AFF] rounded-[20px] flex items-center justify-center shadow-[0_4px_12px_rgba(0,122,255,0.3)]">
+            <div className="w-20 h-20 bg-[#0A0A0A] rounded-[20px] flex items-center justify-center shadow-[0_4px_12px_rgba(0,122,255,0.3)]">
               <ShieldCheck className="w-10 h-10 text-white" />
             </div>
           </div>
@@ -88,7 +88,7 @@ export default function ForgotPassword() {
           <form onSubmit={submit} className="space-y-6">
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                <Mail className="w-4 h-4 text-indigo-500" />
+                <Mail className="w-4 h-4 text-neutral-500" />
                 <span>Adresse email</span>
               </label>
               <div className="relative">
@@ -96,7 +96,7 @@ export default function ForgotPassword() {
                   type="email"
                   inputMode="email"
                   autoComplete="email"
-                  className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+                  className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400"
                   placeholder="votre@email.com"
                   value={form.email}
                   onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
@@ -108,7 +108,7 @@ export default function ForgotPassword() {
                 type="button"
                 onClick={sendCode}
                 disabled={codeSending || !form.email.trim()}
-                className="w-full mt-3 py-3 rounded-xl border border-indigo-200 text-indigo-600 font-semibold hover:bg-indigo-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full mt-3 py-3 rounded-xl border border-neutral-200 text-neutral-600 font-semibold hover:bg-neutral-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {codeSending ? 'Envoi...' : codeSent ? 'Renvoyer le code' : 'Envoyer le code'}
               </button>
@@ -116,12 +116,12 @@ export default function ForgotPassword() {
 
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                <ShieldCheck className="w-4 h-4 text-indigo-500" />
+                <ShieldCheck className="w-4 h-4 text-neutral-500" />
                 <span>Code de vérification</span>
               </label>
               <div className="relative">
                 <input
-                  className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+                  className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400"
                   placeholder="Code reçu par email"
                   value={form.verificationCode}
                   onChange={(e) => setForm((prev) => ({ ...prev, verificationCode: e.target.value }))}
@@ -133,7 +133,7 @@ export default function ForgotPassword() {
 
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                <Lock className="w-4 h-4 text-indigo-500" />
+                <Lock className="w-4 h-4 text-neutral-500" />
                 <span>Nouveau mot de passe</span>
               </label>
               <div className="relative">
@@ -158,13 +158,13 @@ export default function ForgotPassword() {
 
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                <Lock className="w-4 h-4 text-indigo-500" />
+                <Lock className="w-4 h-4 text-neutral-500" />
                 <span>Confirmer le mot de passe</span>
               </label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+                  className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400"
                   placeholder="Confirmez le mot de passe"
                   value={form.confirmPassword}
                   onChange={(e) => setForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
@@ -179,7 +179,7 @@ export default function ForgotPassword() {
                 type="checkbox"
                 checked={showPassword}
                 onChange={() => setShowPassword((prev) => !prev)}
-                className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                className="w-4 h-4 text-neutral-600 rounded focus:ring-neutral-500"
               />
               <span>Afficher les mots de passe</span>
             </label>
@@ -209,7 +209,7 @@ export default function ForgotPassword() {
           <div className="text-center mt-6 pt-6 border-t border-gray-100">
             <Link
               to="/login"
-              className="inline-flex items-center gap-2 text-[15px] text-[#007AFF] hover:underline font-semibold transition-colors"
+              className="inline-flex items-center gap-2 text-[15px] text-[#0A0A0A] hover:underline font-semibold transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               Retour à la connexion

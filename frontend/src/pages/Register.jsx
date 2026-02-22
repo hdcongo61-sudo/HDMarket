@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useNavigate, Navigate, useLocation, Link } from 'react-router-dom';
@@ -7,7 +7,7 @@ import { useAppSettings } from '../context/AppSettingsContext';
 
 export default function Register() {
   const { user, login } = useContext(AuthContext);
-  const { cities } = useAppSettings();
+  const { cities, communes } = useAppSettings();
   const nav = useNavigate();
   const location = useLocation();
   const from = location.state?.from || '/';
@@ -20,6 +20,7 @@ export default function Register() {
     address: '',
     country: 'République du Congo',
     city: '',
+    commune: '',
     gender: ''
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -30,9 +31,27 @@ export default function Register() {
   const [codeMessage, setCodeMessage] = useState('');
   const [codeError, setCodeError] = useState('');
   const [formError, setFormError] = useState('');
-  const cityOptions = (Array.isArray(cities) && cities.length
-    ? cities.map((item) => item.name).filter(Boolean)
-    : ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo']);
+  const cityRecords = useMemo(
+    () =>
+      Array.isArray(cities) && cities.length
+        ? cities.filter((item) => item?.name)
+        : [
+            { _id: 'fallback-bzv', name: 'Brazzaville' },
+            { _id: 'fallback-pn', name: 'Pointe-Noire' },
+            { _id: 'fallback-ou', name: 'Ouesso' },
+            { _id: 'fallback-oy', name: 'Oyo' }
+          ],
+    [cities]
+  );
+  const cityOptions = cityRecords.map((item) => item.name);
+  const selectedCityRecord = cityRecords.find((item) => item.name === form.city) || null;
+  const availableCommunes = useMemo(() => {
+    if (!selectedCityRecord?._id || !Array.isArray(communes)) return [];
+    return communes.filter((item) => {
+      const itemCityId = item?.cityId?._id || item?.cityId;
+      return String(itemCityId || '') === String(selectedCityRecord._id);
+    });
+  }, [communes, selectedCityRecord?._id]);
   const genderOptions = [
     { value: 'homme', label: 'Homme' },
     { value: 'femme', label: 'Femme' }
@@ -66,6 +85,10 @@ export default function Register() {
       setFormError("Veuillez sélectionner votre ville et votre genre.");
       return;
     }
+    if (availableCommunes.length > 0 && !form.commune) {
+      setFormError("Veuillez sélectionner votre commune.");
+      return;
+    }
     if (!form.address.trim()) {
       setFormError("Veuillez renseigner votre adresse complète.");
       return;
@@ -81,6 +104,7 @@ export default function Register() {
       payload.append('accountType', 'person');
       payload.append('country', 'République du Congo');
       payload.append('city', form.city);
+      payload.append('commune', form.commune || '');
       payload.append('gender', form.gender);
       payload.append('address', form.address.trim());
       payload.append('verificationCode', (verificationCode && verificationCode.trim()) || '');
@@ -157,7 +181,7 @@ export default function Register() {
                   type="button"
                   onClick={sendVerificationCode}
                   disabled={codeSending || !form.email.trim()}
-                  className="px-4 py-2.5 rounded-full font-medium text-[15px] border border-[#C7C7CC] text-[#007AFF] hover:bg-[rgba(0,122,255,0.08)] tap-feedback whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2.5 rounded-full font-medium text-[15px] border border-[#C7C7CC] text-[#0A0A0A] hover:bg-[rgba(10,10,10,0.08)] tap-feedback whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {codeSending ? 'Envoi...' : codeSent ? 'Renvoyer' : 'Envoyer'}
                 </button>
@@ -169,7 +193,7 @@ export default function Register() {
             {/* Address */}
             <div>
               <textarea
-                className="w-full px-3 py-2.5 border border-gray-300 focus:outline-none focus:border-indigo-600 text-sm resize-none"
+                className="w-full px-3 py-2.5 border border-gray-300 focus:outline-none focus:border-neutral-600 text-sm resize-none"
                 rows={2}
                 placeholder="Adresse complète *"
                 value={form.address}
@@ -230,7 +254,7 @@ export default function Register() {
                   className="apple-input w-full bg-white dark:bg-[#1C1C1E]"
                   value={form.city}
                   onChange={(e) => {
-                    setForm({ ...form, city: e.target.value });
+                    setForm({ ...form, city: e.target.value, commune: '' });
                     setFormError('');
                   }}
                   required
@@ -245,6 +269,28 @@ export default function Register() {
               </div>
             </div>
 
+            <div>
+              <select
+                className="apple-input w-full bg-white dark:bg-[#1C1C1E]"
+                value={form.commune}
+                onChange={(e) => {
+                  setForm({ ...form, commune: e.target.value });
+                  setFormError('');
+                }}
+                required={availableCommunes.length > 0}
+                disabled={!form.city || availableCommunes.length === 0}
+              >
+                <option value="">
+                  {form.city ? 'Commune *' : 'Choisir ville d’abord'}
+                </option>
+                {availableCommunes.map((commune) => (
+                  <option key={commune._id} value={commune.name}>
+                    {commune.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Gender */}
             <div>
               <div className="grid grid-cols-2 gap-3">
@@ -253,7 +299,7 @@ export default function Register() {
                     key={option.value}
                     className={`flex items-center justify-center px-3 py-2.5 border text-sm cursor-pointer ${
                       form.gender === option.value
-                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                        ? 'border-neutral-600 bg-neutral-50 text-neutral-700'
                         : 'border-gray-300 text-gray-700 hover:border-gray-400'
                     }`}
                   >
@@ -280,7 +326,7 @@ export default function Register() {
               <div className="grid grid-cols-2 gap-3">
                 <label className={`flex items-center justify-center px-3 py-2.5 border text-sm cursor-pointer ${
                   form.accountType === 'person'
-                    ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                    ? 'border-neutral-600 bg-neutral-50 text-neutral-700'
                     : 'border-gray-300 text-gray-700 hover:border-gray-400'
                 }`}>
                   <input
@@ -295,7 +341,7 @@ export default function Register() {
                 </label>
                 <label className={`flex items-center justify-center px-3 py-2.5 border text-sm cursor-pointer ${
                   form.accountType === 'shop'
-                    ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                    ? 'border-neutral-600 bg-neutral-50 text-neutral-700'
                     : 'border-gray-300 text-gray-700 hover:border-gray-400'
                 }`}>
                   <input
@@ -317,7 +363,7 @@ export default function Register() {
                 <p className="font-medium mb-1">Boutique sous approbation</p>
                 <p>
                   Enregistrez-vous d'abord comme particulier puis{' '}
-                  <Link to="/help" className="text-indigo-600 hover:text-indigo-700 underline">
+                  <Link to="/help" className="text-neutral-600 hover:text-neutral-700 underline">
                     contactez l'équipe HDMarket
                   </Link>{' '}
                   pour demander la conversion.
@@ -345,7 +391,7 @@ export default function Register() {
                 !form.city ||
                 !form.gender
               }
-              className="w-full py-3 bg-blue-600 text-white text-sm font-semibold rounded-3xl hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 active:scale-95 shadow-sm"
+              className="w-full py-3 bg-neutral-600 text-white text-sm font-semibold rounded-3xl hover:bg-neutral-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 active:scale-95 shadow-sm"
             >
               {loading ? 'Création du compte...' : 'Créer mon compte'}
             </button>
@@ -355,7 +401,7 @@ export default function Register() {
           <div className="mt-4 pt-4 border-t border-gray-200 text-center">
             <p className="text-sm text-gray-600">
               Déjà un compte ?{' '}
-              <Link to="/login" className="text-indigo-600 hover:text-indigo-700">
+              <Link to="/login" className="text-neutral-600 hover:text-neutral-700">
                 Se connecter
               </Link>
             </p>
@@ -366,11 +412,11 @@ export default function Register() {
         <div className="mt-6 text-center">
           <p className="text-xs text-gray-500">
             En créant un compte, vous acceptez nos{' '}
-            <Link to="/help" className="text-gray-600 hover:text-indigo-600">
+            <Link to="/help" className="text-gray-600 hover:text-neutral-600">
               conditions d'utilisation
             </Link>{' '}
             et notre{' '}
-            <Link to="/privacy" className="text-gray-600 hover:text-indigo-600">
+            <Link to="/privacy" className="text-gray-600 hover:text-neutral-600">
               politique de confidentialité
             </Link>
           </p>

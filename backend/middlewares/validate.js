@@ -32,6 +32,7 @@ export const schemas = {
     accountType: Joi.string().valid('person').default('person'),
     address: Joi.string().min(4).max(200).required(),
     city: Joi.string().trim().min(2).max(80).required(),
+    commune: Joi.string().trim().min(2).max(80).allow('', null),
     gender: Joi.string().valid('homme', 'femme').required(),
     country: Joi.string().valid('République du Congo').optional()
   }),
@@ -71,7 +72,24 @@ export const schemas = {
     installmentEndDate: Joi.date().iso().optional().allow('', null),
     installmentLatePenaltyRate: Joi.number().min(0).max(100).optional(),
     installmentMaxMissedPayments: Joi.number().integer().min(1).max(12).optional(),
-    installmentRequireGuarantor: Joi.boolean().truthy('true').falsy('false').optional()
+    installmentRequireGuarantor: Joi.boolean().truthy('true').falsy('false').optional(),
+    wholesaleEnabled: Joi.boolean().truthy('true').falsy('false').optional(),
+    wholesaleTiers: Joi.alternatives().try(
+      Joi.string().allow('', null),
+      Joi.array()
+        .items(
+          Joi.object({
+            minQty: Joi.number().integer().min(1).required(),
+            unitPrice: Joi.number().min(0).required(),
+            label: Joi.string().max(60).allow('', null)
+          })
+        )
+        .max(10)
+    ).optional(),
+    deliveryAvailable: Joi.boolean().truthy('true').falsy('false').optional(),
+    pickupAvailable: Joi.boolean().truthy('true').falsy('false').optional(),
+    deliveryFee: Joi.number().min(0).optional(),
+    deliveryFeeEnabled: Joi.boolean().truthy('true').falsy('false').optional()
   }).or('category', 'categoryId', 'subcategoryId'),
   productUpdate: Joi.object({
     title: Joi.string().min(2).max(120),
@@ -89,6 +107,23 @@ export const schemas = {
     installmentLatePenaltyRate: Joi.number().min(0).max(100),
     installmentMaxMissedPayments: Joi.number().integer().min(1).max(12),
     installmentRequireGuarantor: Joi.boolean().truthy('true').falsy('false'),
+    wholesaleEnabled: Joi.boolean().truthy('true').falsy('false'),
+    wholesaleTiers: Joi.alternatives().try(
+      Joi.string().allow('', null),
+      Joi.array()
+        .items(
+          Joi.object({
+            minQty: Joi.number().integer().min(1).required(),
+            unitPrice: Joi.number().min(0).required(),
+            label: Joi.string().max(60).allow('', null)
+          })
+        )
+        .max(10)
+    ),
+    deliveryAvailable: Joi.boolean().truthy('true').falsy('false'),
+    pickupAvailable: Joi.boolean().truthy('true').falsy('false'),
+    deliveryFee: Joi.number().min(0),
+    deliveryFeeEnabled: Joi.boolean().truthy('true').falsy('false'),
     removeImages: Joi.array().items(Joi.string().max(500)).max(3).single(),
     removeVideo: Joi.boolean().truthy('true').falsy('false'),
     removePdf: Joi.boolean().truthy('true').falsy('false')
@@ -123,8 +158,11 @@ export const schemas = {
     shopAddress: Joi.string().min(4).max(200),
     shopDescription: Joi.string().min(10).max(1000),
     shopHours: Joi.string().allow('', null),
+    freeDeliveryEnabled: Joi.boolean().truthy('true').falsy('false'),
+    freeDeliveryNote: Joi.string().max(300).allow('', null),
     address: Joi.string().min(4).max(200),
     city: Joi.string().trim().min(2).max(80),
+    commune: Joi.string().trim().min(2).max(80).allow('', null),
     gender: Joi.string().valid('homme', 'femme')
   }).min(0),
   favoriteModify: Joi.object({
@@ -164,6 +202,12 @@ export const schemas = {
       .messages({ 'string.pattern.base': 'Le numéro de transaction doit contenir exactement 10 chiffres.' }),
     amount: Joi.number().min(0).default(0),
     operator: Joi.string().valid('MTN', 'Airtel', 'Orange', 'Moov', 'Other').allow('', null),
+  }),
+  transactionCodeVerify: Joi.object({
+    transactionCode: Joi.string()
+      .pattern(/^\d{10}$/)
+      .required()
+      .messages({ 'string.pattern.base': 'Le code de transaction doit contenir exactement 10 chiffres.' })
   }),
   promoCodeValidate: Joi.object({
     productId: Joi.string().hex().length(24).required(),
@@ -352,6 +396,9 @@ export const schemas = {
       .default('new'),
     shopVerified: Joi.string().valid('true', 'false').allow(''),
     installmentOnly: Joi.boolean().truthy('true').falsy('false'),
+    wholesaleOnly: Joi.boolean().truthy('true').falsy('false'),
+    pickupOnly: Joi.boolean().truthy('true').falsy('false'),
+    freeDeliveryOnly: Joi.boolean().truthy('true').falsy('false'),
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(50).default(12),
   }),
@@ -426,6 +473,13 @@ export const schemas = {
   orderCheckout: Joi.alternatives()
     .try(
       Joi.object({
+        deliveryMode: Joi.string().valid('PICKUP', 'DELIVERY').default('PICKUP'),
+        shippingAddress: Joi.object({
+          cityId: Joi.string().hex().length(24).allow('', null),
+          communeId: Joi.string().hex().length(24).allow('', null),
+          addressLine: Joi.string().max(250).allow('', null),
+          phone: Joi.string().trim().min(5).max(30).allow('', null)
+        }).allow(null),
         payments: Joi.array()
           .items(
             Joi.object({
@@ -442,6 +496,13 @@ export const schemas = {
           .required()
       }),
       Joi.object({
+        deliveryMode: Joi.string().valid('PICKUP', 'DELIVERY').default('PICKUP'),
+        shippingAddress: Joi.object({
+          cityId: Joi.string().hex().length(24).allow('', null),
+          communeId: Joi.string().hex().length(24).allow('', null),
+          addressLine: Joi.string().max(250).allow('', null),
+          phone: Joi.string().trim().min(5).max(30).allow('', null)
+        }).allow(null),
         payerName: Joi.string().min(2).max(120).required(),
         transactionCode: Joi.string()
           .pattern(/^\d{10}$/)
@@ -508,6 +569,8 @@ export const schemas = {
       .valid(
         'pending_payment',
         'paid',
+        'ready_for_pickup',
+        'picked_up_confirmed',
         'ready_for_delivery',
         'out_for_delivery',
         'delivery_proof_submitted',
@@ -562,6 +625,8 @@ export const schemas = {
       .valid(
         'pending_payment',
         'paid',
+        'ready_for_pickup',
+        'picked_up_confirmed',
         'ready_for_delivery',
         'out_for_delivery',
         'delivery_proof_submitted',
@@ -591,6 +656,8 @@ export const schemas = {
     status: Joi.string().valid(
       'pending_payment',
       'paid',
+      'ready_for_pickup',
+      'picked_up_confirmed',
       'ready_for_delivery',
       'out_for_delivery',
       'delivery_proof_submitted',
@@ -773,6 +840,7 @@ export const schemas = {
     name: Joi.string().trim().min(2).max(80).required(),
     isActive: Joi.boolean().default(true),
     isDefault: Joi.boolean().default(false),
+    order: Joi.number().integer().min(0).default(0),
     deliveryAvailable: Joi.boolean().default(true),
     boostMultiplier: Joi.number().positive().default(1)
   }),
@@ -780,15 +848,54 @@ export const schemas = {
     name: Joi.string().trim().min(2).max(80),
     isActive: Joi.boolean(),
     isDefault: Joi.boolean(),
+    order: Joi.number().integer().min(0),
     deliveryAvailable: Joi.boolean(),
     boostMultiplier: Joi.number().positive()
+  }).min(1),
+  adminCommuneCreate: Joi.object({
+    name: Joi.string().trim().min(2).max(80).required(),
+    cityId: Joi.string().hex().length(24).required(),
+    isActive: Joi.boolean().default(true),
+    deliveryPolicy: Joi.string().valid('FREE', 'FIXED_FEE', 'DEFAULT_RULE').default('DEFAULT_RULE'),
+    fixedFee: Joi.number().min(0).default(0),
+    order: Joi.number().integer().min(0).default(0)
+  }),
+  adminCommuneUpdate: Joi.object({
+    name: Joi.string().trim().min(2).max(80),
+    cityId: Joi.string().hex().length(24),
+    isActive: Joi.boolean(),
+    deliveryPolicy: Joi.string().valid('FREE', 'FIXED_FEE', 'DEFAULT_RULE'),
+    fixedFee: Joi.number().min(0),
+    order: Joi.number().integer().min(0)
   }).min(1),
   pushTokenRegister: Joi.object({
     token: Joi.string().trim().required(),
     platform: Joi.string().valid('ios', 'android', 'web', 'unknown').optional(),
-    deviceId: Joi.string().trim().allow('', null)
+    deviceId: Joi.string().trim().allow('', null),
+    deviceInfo: Joi.object({
+      deviceId: Joi.string().trim().allow('', null),
+      model: Joi.string().trim().allow('', null),
+      manufacturer: Joi.string().trim().allow('', null),
+      osVersion: Joi.string().trim().allow('', null),
+      appVersion: Joi.string().trim().allow('', null)
+    }).unknown(true).optional()
   }),
   pushTokenRemove: Joi.object({
+    token: Joi.string().trim().required()
+  }),
+  deviceTokenRegister: Joi.object({
+    token: Joi.string().trim().required(),
+    platform: Joi.string().valid('ios', 'android', 'web', 'unknown').optional(),
+    deviceId: Joi.string().trim().allow('', null),
+    deviceInfo: Joi.object({
+      deviceId: Joi.string().trim().allow('', null),
+      model: Joi.string().trim().allow('', null),
+      manufacturer: Joi.string().trim().allow('', null),
+      osVersion: Joi.string().trim().allow('', null),
+      appVersion: Joi.string().trim().allow('', null)
+    }).unknown(true).optional()
+  }),
+  deviceTokenRemove: Joi.object({
     token: Joi.string().trim().required()
   }),
   bulkProductAction: Joi.object({

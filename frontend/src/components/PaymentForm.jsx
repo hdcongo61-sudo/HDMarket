@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import api from '../services/api';
+import api, { verifyTransactionCodeAvailability } from '../services/api';
 import {
   CreditCard,
   CheckCircle,
@@ -152,6 +152,18 @@ export default function PaymentForm({ product, onSubmitted }) {
       alert('Le numéro de transaction doit contenir exactement 10 chiffres.');
       return;
     }
+    if (hasCommissionDue) {
+      try {
+        const verification = await verifyTransactionCodeAvailability(digitsOnly);
+        if (!verification.available) {
+          alert(verification.message || 'Ce code de transaction est déjà utilisé.');
+          return;
+        }
+      } catch (error) {
+        alert(error?.response?.data?.message || 'Impossible de vérifier le code de transaction.');
+        return;
+      }
+    }
 
     setLoading(true);
     try {
@@ -224,7 +236,7 @@ export default function PaymentForm({ product, onSubmitted }) {
     return (
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-gradient-to-br from-neutral-500 to-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Shield className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Statut de paiement</h2>
@@ -279,7 +291,7 @@ export default function PaymentForm({ product, onSubmitted }) {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Commission à payer:</span>
-                <span className="font-semibold text-indigo-700">{formatCurrency(paidCommissionDue)}</span>
+                <span className="font-semibold text-neutral-700">{formatCurrency(paidCommissionDue)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Statut actuel:</span>
@@ -305,7 +317,7 @@ export default function PaymentForm({ product, onSubmitted }) {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="text-center mb-8">
-        <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <div className="w-16 h-16 bg-gradient-to-br from-neutral-500 to-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <CreditCard className="w-8 h-8 text-white" />
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Validation de l'annonce</h1>
@@ -313,42 +325,42 @@ export default function PaymentForm({ product, onSubmitted }) {
       </div>
 
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-6">
-        <div className="rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 p-4">
+        <div className="rounded-2xl bg-gradient-to-r from-neutral-50 to-neutral-50 border border-neutral-100 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-indigo-900 text-sm">Commission de publication</h3>
-              <p className="text-indigo-700 text-xs">Base 3% du prix du produit</p>
+              <h3 className="font-semibold text-neutral-900 text-sm">Commission de publication</h3>
+              <p className="text-neutral-700 text-xs">Base 3% du prix du produit</p>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold text-indigo-600">{formatCurrency(commissionDue)}</div>
-              <div className="text-indigo-500 text-xs">sur {formatCurrency(product.price)}</div>
+              <div className="text-2xl font-bold text-neutral-600">{formatCurrency(commissionDue)}</div>
+              <div className="text-neutral-500 text-xs">sur {formatCurrency(product.price)}</div>
             </div>
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-            <div className="rounded-xl border border-indigo-200 bg-white/70 px-3 py-2">
-              <p className="text-indigo-500">Base</p>
-              <p className="font-semibold text-indigo-800">{formatCurrency(commission.baseAmount || 0)}</p>
+            <div className="rounded-xl border border-neutral-200 bg-white/70 px-3 py-2">
+              <p className="text-neutral-500">Base</p>
+              <p className="font-semibold text-neutral-800">{formatCurrency(commission.baseAmount || 0)}</p>
             </div>
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
               <p className="text-emerald-600">Réduction</p>
               <p className="font-semibold text-emerald-700">-{formatCurrency(commission.discountAmount || 0)}</p>
             </div>
-            <div className="rounded-xl border border-indigo-200 bg-white/70 px-3 py-2">
-              <p className="text-indigo-500">À payer</p>
-              <p className="font-semibold text-indigo-800">{formatCurrency(commissionDue)}</p>
+            <div className="rounded-xl border border-neutral-200 bg-white/70 px-3 py-2">
+              <p className="text-neutral-500">À payer</p>
+              <p className="font-semibold text-neutral-800">{formatCurrency(commissionDue)}</p>
             </div>
           </div>
         </div>
 
         <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 space-y-3">
           <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-            <Ticket className="w-4 h-4 text-indigo-600" />
+            <Ticket className="w-4 h-4 text-neutral-600" />
             Code promo commission
           </label>
           <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="text"
-              className="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+              className="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400"
               placeholder="Ex: FIRST10"
               value={form.promoCode}
               onChange={(e) => setForm((prev) => ({ ...prev, promoCode: e.target.value.toUpperCase() }))}
@@ -358,7 +370,7 @@ export default function PaymentForm({ product, onSubmitted }) {
               type="button"
               onClick={validatePromo}
               disabled={loading || promoLoading}
-              className="px-4 py-3 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm font-semibold hover:bg-indigo-100 disabled:opacity-50"
+              className="px-4 py-3 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-700 text-sm font-semibold hover:bg-neutral-100 disabled:opacity-50"
             >
               {promoLoading ? 'Validation...' : 'Valider le code'}
             </button>
@@ -394,7 +406,7 @@ export default function PaymentForm({ product, onSubmitted }) {
         {product.confirmationNumber && (
           <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-600">
             <p className="font-semibold text-gray-900 text-[12px] mb-1">
-              Code produit : <span className="text-indigo-600">{product.confirmationNumber}</span>
+              Code produit : <span className="text-neutral-600">{product.confirmationNumber}</span>
             </p>
             <p>
               Communiquez ce code à l’administrateur ou au support lorsque vous confirmez votre commande afin qu’il
@@ -408,11 +420,11 @@ export default function PaymentForm({ product, onSubmitted }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                  <User className="w-4 h-4 text-indigo-500" />
+                  <User className="w-4 h-4 text-neutral-500" />
                   <span>Nom du payeur *</span>
                 </label>
                 <input
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400"
                   placeholder="Votre nom complet"
                   value={form.payerName}
                   onChange={(e) => setForm({ ...form, payerName: e.target.value })}
@@ -423,11 +435,11 @@ export default function PaymentForm({ product, onSubmitted }) {
 
               <div className="space-y-2">
                 <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                  <CreditCard className="w-4 h-4 text-indigo-500" />
+                  <CreditCard className="w-4 h-4 text-neutral-500" />
                   <span>Opérateur mobile *</span>
                 </label>
                 <select
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                   value={form.operator}
                   onChange={(e) => setForm({ ...form, operator: e.target.value })}
                   disabled={loading}
@@ -438,7 +450,7 @@ export default function PaymentForm({ product, onSubmitted }) {
                   <option value="Other">Autre</option>
                 </select>
                 {sendMoneyNumber && (
-                  <p className="text-sm text-indigo-700 bg-indigo-50 rounded-xl px-3 py-2 border border-indigo-100">
+                  <p className="text-sm text-neutral-700 bg-neutral-50 rounded-xl px-3 py-2 border border-neutral-100">
                     Envoyer l&apos;argent au numéro : <span className="font-bold">{sendMoneyNumber}</span>
                   </p>
                 )}
@@ -448,7 +460,7 @@ export default function PaymentForm({ product, onSubmitted }) {
                 <p className="text-sm font-medium text-gray-700">
                   Exemple : où trouver l&apos;ID de la transaction dans le SMS
                 </p>
-                <div className="rounded-xl border-2 border-indigo-100 bg-indigo-50/50 p-3 overflow-hidden">
+                <div className="rounded-xl border-2 border-neutral-100 bg-neutral-50/50 p-3 overflow-hidden">
                   <img
                     src="/images/transaction-id-sms-example.png"
                     alt="Exemple de SMS Mobile Money montrant l'ID de la transaction (ex: 7232173826)"
@@ -462,14 +474,14 @@ export default function PaymentForm({ product, onSubmitted }) {
 
               <div className="space-y-2">
                 <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                  <Hash className="w-4 h-4 text-indigo-500" />
+                  <Hash className="w-4 h-4 text-neutral-500" />
                   <span>Numéro de transaction *</span>
                 </label>
                 <input
                   type="text"
                   inputMode="numeric"
                   maxLength={10}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400"
                   placeholder="10 chiffres (ex: 7232173826)"
                   value={form.transactionNumber}
                   onChange={(e) => {
@@ -484,7 +496,7 @@ export default function PaymentForm({ product, onSubmitted }) {
 
               <div className="space-y-2">
                 <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                  <DollarSign className="w-4 h-4 text-indigo-500" />
+                  <DollarSign className="w-4 h-4 text-neutral-500" />
                   <span>Montant payé</span>
                 </label>
                 <input
@@ -506,7 +518,7 @@ export default function PaymentForm({ product, onSubmitted }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 shadow-lg"
+            className="w-full py-4 bg-gradient-to-r from-neutral-600 to-neutral-600 text-white font-semibold rounded-xl hover:from-neutral-700 hover:to-neutral-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 shadow-lg"
           >
             {loading ? (
               <>

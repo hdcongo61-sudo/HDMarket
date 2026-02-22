@@ -357,7 +357,7 @@ export default function AdminPayments() {
         </div>
         <div className="rounded-xl border bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold text-gray-500 uppercase">Revenus cumulés</p>
-          <p className="text-2xl font-bold text-indigo-600 mt-1">{formatCurrency(paymentSummary.revenue)}</p>
+          <p className="text-2xl font-bold text-neutral-600 mt-1">{formatCurrency(paymentSummary.revenue)}</p>
           <p className="text-xs text-gray-500 mt-1">Toutes commissions</p>
         </div>
       </section>
@@ -407,7 +407,7 @@ export default function AdminPayments() {
                     onClick={() => setFilter(option.value)}
                     className={`flex-shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
                       filter === option.value
-                        ? 'bg-indigo-600 text-white shadow'
+                        ? 'bg-neutral-600 text-white shadow'
                         : 'border border-gray-200 bg-white text-gray-600'
                     }`}
                   >
@@ -424,7 +424,7 @@ export default function AdminPayments() {
                   id="payments-status-filter"
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
-                  className="rounded border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="rounded border px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
                 >
                   {paymentFilterOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -440,7 +440,7 @@ export default function AdminPayments() {
                 value={searchDraft}
                 onChange={(e) => setSearchDraft(e.target.value)}
                 placeholder="Rechercher un produit…"
-                className="w-full rounded border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded border px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
               />
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2">
@@ -453,7 +453,7 @@ export default function AdminPayments() {
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="rounded border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="rounded border px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -465,7 +465,7 @@ export default function AdminPayments() {
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="rounded border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="rounded border px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
                 />
               </div>
               {(startDate || endDate) && (
@@ -566,7 +566,7 @@ export default function AdminPayments() {
                       <Link
                         to={buildProductPath(payment.product)}
                         {...externalLinkProps}
-                        className="flex-1 min-w-[150px] rounded-lg border border-indigo-200 px-3 py-2 text-center text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                        className="flex-1 min-w-[150px] rounded-lg border border-neutral-200 px-3 py-2 text-center text-xs font-semibold text-neutral-700 hover:bg-neutral-50"
                       >
                         Voir l&apos;annonce
                       </Link>
@@ -710,7 +710,7 @@ export default function AdminPayments() {
                             <Link
                               to={buildProductPath(payment.product)}
                               {...externalLinkProps}
-                              className="rounded border border-indigo-200 px-3 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                              className="rounded border border-neutral-200 px-3 py-1 text-xs font-semibold text-neutral-700 hover:bg-neutral-50"
                             >
                               Voir l&apos;annonce
                             </Link>

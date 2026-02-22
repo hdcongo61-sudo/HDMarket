@@ -36,10 +36,13 @@ import { OrderDetailSkeleton } from '../components/orders/OrderSkeletons';
 import { useToast } from '../context/ToastContext';
 import AuthContext from '../context/AuthContext';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
+import { getPickupShopAddress, isPickupOrder as resolvePickupOrder } from '../utils/pickupAddress';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
   paid: 'Payée',
+  ready_for_pickup: 'Prête à récupérer',
+  picked_up_confirmed: 'Retrait confirmé',
   ready_for_delivery: 'Prête à livrer',
   out_for_delivery: 'En cours de livraison',
   delivery_proof_submitted: 'Preuve soumise',
@@ -58,16 +61,18 @@ const STATUS_LABELS = {
 const STATUS_STYLES = {
   pending_payment: { header: 'bg-gray-600', card: 'bg-gray-50 border-gray-200 text-gray-700' },
   paid: { header: 'bg-emerald-600', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
+  ready_for_pickup: { header: 'bg-orange-600', card: 'bg-orange-50 border-orange-200 text-orange-800' },
+  picked_up_confirmed: { header: 'bg-emerald-700', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
   ready_for_delivery: { header: 'bg-amber-600', card: 'bg-amber-50 border-amber-200 text-amber-800' },
-  out_for_delivery: { header: 'bg-blue-600', card: 'bg-blue-50 border-blue-200 text-blue-800' },
-  delivery_proof_submitted: { header: 'bg-cyan-600', card: 'bg-cyan-50 border-cyan-200 text-cyan-800' },
+  out_for_delivery: { header: 'bg-neutral-600', card: 'bg-neutral-50 border-neutral-200 text-neutral-800' },
+  delivery_proof_submitted: { header: 'bg-neutral-600', card: 'bg-neutral-50 border-neutral-200 text-neutral-800' },
   confirmed_by_client: { header: 'bg-emerald-700', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
   pending: { header: 'bg-gray-600', card: 'bg-gray-50 border-gray-200 text-gray-700' },
-  pending_installment: { header: 'bg-violet-600', card: 'bg-violet-50 border-violet-200 text-violet-800' },
-  installment_active: { header: 'bg-indigo-600', card: 'bg-indigo-50 border-indigo-200 text-indigo-800' },
-  overdue_installment: { header: 'bg-rose-600', card: 'bg-rose-50 border-rose-200 text-rose-800' },
+  pending_installment: { header: 'bg-neutral-600', card: 'bg-neutral-50 border-neutral-200 text-neutral-800' },
+  installment_active: { header: 'bg-neutral-600', card: 'bg-neutral-50 border-neutral-200 text-neutral-800' },
+  overdue_installment: { header: 'bg-neutral-600', card: 'bg-neutral-50 border-neutral-200 text-neutral-800' },
   confirmed: { header: 'bg-amber-600', card: 'bg-amber-50 border-amber-200 text-amber-800' },
-  delivering: { header: 'bg-blue-600', card: 'bg-blue-50 border-blue-200 text-blue-800' },
+  delivering: { header: 'bg-neutral-600', card: 'bg-neutral-50 border-neutral-200 text-neutral-800' },
   delivered: { header: 'bg-emerald-600', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
   completed: { header: 'bg-emerald-700', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
   cancelled: { header: 'bg-red-600', card: 'bg-red-50 border-red-200 text-red-800' }
@@ -76,6 +81,8 @@ const STATUS_STYLES = {
 const STATUS_ICONS = {
   pending_payment: Clock,
   paid: CreditCard,
+  ready_for_pickup: Package,
+  picked_up_confirmed: CheckCircle,
   ready_for_delivery: Package,
   out_for_delivery: Truck,
   delivery_proof_submitted: ClipboardList,
@@ -103,7 +110,7 @@ const getInstallmentSaleStatusClassName = (status) => {
     case 'delivered':
       return 'bg-emerald-50 text-emerald-700 border-emerald-200';
     case 'delivering':
-      return 'bg-blue-50 text-blue-700 border-blue-200';
+      return 'bg-neutral-50 text-neutral-700 border-neutral-200';
     case 'cancelled':
       return 'bg-red-50 text-red-700 border-red-200';
     case 'confirmed':
@@ -166,9 +173,9 @@ const getScheduleStatusClassName = (status) => {
     case 'paid':
       return 'bg-emerald-50 text-emerald-700 border-emerald-200';
     case 'proof_uploaded':
-      return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+      return 'bg-neutral-50 text-neutral-700 border-neutral-200';
     case 'overdue':
-      return 'bg-rose-50 text-rose-700 border-rose-200';
+      return 'bg-neutral-50 text-neutral-700 border-neutral-200';
     case 'waived':
       return 'bg-gray-100 text-gray-700 border-gray-200';
     case 'pending':
@@ -184,24 +191,24 @@ const OrderProgress = ({ status, paymentType }) => {
   const colorClasses = {
     gray: 'bg-gray-600',
     amber: 'bg-amber-600',
-    blue: 'bg-blue-600',
+    blue: 'bg-neutral-600',
     emerald: 'bg-emerald-600',
     red: 'bg-red-600',
-    violet: 'bg-violet-600',
-    indigo: 'bg-indigo-600',
-    rose: 'bg-rose-600'
+    violet: 'bg-neutral-600',
+    indigo: 'bg-neutral-600',
+    rose: 'bg-neutral-600'
   };
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-5">
       <div className="flex items-center gap-2 mb-4">
-        <div className="p-2 rounded-lg bg-indigo-600">
+        <div className="p-2 rounded-lg bg-neutral-600">
           <TrendingUp className="w-4 h-4 text-white" />
         </div>
         <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Suivi de commande</h3>
       </div>
       <div className="relative">
         <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200">
-          <div className="absolute top-0 left-0 w-full bg-indigo-600 transition-all duration-500" style={{ height: `${(currentIndex / (flow.length - 1)) * 100}%` }} />
+          <div className="absolute top-0 left-0 w-full bg-neutral-600 transition-all duration-500" style={{ height: `${(currentIndex / (flow.length - 1)) * 100}%` }} />
         </div>
         <div className="space-y-6 relative">
           {flow.filter((s) => s.id !== 'cancelled').map((step, index) => {
@@ -403,7 +410,7 @@ export default function SellerOrderDetail() {
   if (error || !order) {
     return (
       <div className="min-h-screen bg-gray-50 p-4">
-        <Link to="/seller/orders" className="inline-flex items-center gap-2 text-indigo-600 font-medium mb-4">
+        <Link to="/seller/orders" className="inline-flex items-center gap-2 text-neutral-600 font-medium mb-4">
           <ArrowLeft className="w-4 h-4" /> Retour aux commandes
         </Link>
         <p className="text-red-600">{error || 'Commande introuvable.'}</p>
@@ -417,6 +424,8 @@ export default function SellerOrderDetail() {
   const paidAmount = Number(order.paidAmount || 0);
   const remainingAmount = Number(order.remainingAmount ?? Math.max(0, totalAmount - paidAmount));
   const isInstallmentOrder = order.paymentType === 'installment';
+  const isPickupOrder = resolvePickupOrder(order);
+  const pickupShopAddress = isPickupOrder ? getPickupShopAddress(order) : null;
   const installmentPlan = isInstallmentOrder ? order.installmentPlan || {} : null;
   const installmentSchedule = Array.isArray(installmentPlan?.schedule) ? installmentPlan.schedule : [];
   const installmentTotal = Number(installmentPlan?.totalAmount ?? totalAmount);
@@ -446,6 +455,8 @@ export default function SellerOrderDetail() {
   const normalizedOrderStatusForTimeline = (() => {
     const map = {
       pending: 'pending_payment',
+      ready_for_pickup: 'ready_for_delivery',
+      picked_up_confirmed: 'delivered',
       confirmed: 'ready_for_delivery',
       delivering: 'out_for_delivery',
       delivered: order.deliveryStatus === 'submitted' ? 'delivery_proof_submitted' : 'delivered'
@@ -463,8 +474,40 @@ export default function SellerOrderDetail() {
   const buyerCity = String(order.customer?.city || order.deliveryCity || '').trim();
   const cityMismatch =
     Boolean(sellerCity && buyerCity) && sellerCity.toLowerCase() !== buyerCity.toLowerCase();
-  const cancellationBlockedByStatus = ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed'].includes(order.status);
+  const cancellationBlockedByStatus = ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(order.status);
   const canCancelOrder = !cancellationBlockedByStatus && order.status !== 'cancelled' && !order.cancellationWindow?.isActive;
+  const statusTimelineEntries = [
+    { key: 'created', label: 'Créée', icon: Calendar, time: order.createdAt },
+    { key: 'confirmed', label: 'Confirmée', icon: Package, time: order.confirmedAt },
+    isPickupOrder
+      ? {
+          key: 'ready_for_pickup',
+          label: 'Prête au retrait',
+          icon: Store,
+          time: order.readyForPickupAt
+        }
+      : {
+          key: 'out_for_delivery',
+          label: 'En livraison',
+          icon: Truck,
+          time: order.outForDeliveryAt || order.shippedAt
+        },
+    { key: 'proof_submitted', label: 'Preuve soumise', icon: Receipt, time: order.deliverySubmittedAt },
+    {
+      key: 'delivered',
+      label: isPickupOrder ? 'Retrait confirmé' : 'Livrée',
+      icon: CheckCircle,
+      time: order.deliveredAt
+    },
+    {
+      key: 'confirmed_by_client',
+      label: 'Confirmée client',
+      icon: ShieldCheck,
+      time: order.clientDeliveryConfirmedAt
+    },
+    { key: 'completed', label: 'Terminée', icon: CheckCircle, time: order.completedAt },
+    { key: 'cancelled', label: 'Annulée', icon: X, time: order.cancelledAt }
+  ].filter((entry) => Boolean(entry.time));
   const openCancelModal = ({ prefillReason = '', defaultRefund = false } = {}) => {
     setCancelModalOpen(true);
     setCancelIssueRefund(Boolean(defaultRefund && Number(order?.paidAmount || 0) > 0));
@@ -515,14 +558,14 @@ export default function SellerOrderDetail() {
                     {item.snapshot?.image || item.product?.images?.[0] ? (
                       <img src={item.snapshot?.image || item.product?.images?.[0]} alt={item.snapshot?.title || 'Produit'} className="w-16 h-16 rounded-xl object-cover border border-gray-200 flex-shrink-0" />
                     ) : (
-                      <div className="w-16 h-16 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                        <Package className="w-6 h-6 text-indigo-600" />
+                      <div className="w-16 h-16 rounded-xl bg-neutral-100 flex items-center justify-center flex-shrink-0">
+                        <Package className="w-6 h-6 text-neutral-600" />
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between gap-2 mb-1">
                         {item.product ? (
-                          <Link to={buildProductPath(item.product)} {...externalLinkProps} className="font-bold text-gray-900 hover:text-indigo-600 truncate">
+                          <Link to={buildProductPath(item.product)} {...externalLinkProps} className="font-bold text-gray-900 hover:text-neutral-600 truncate">
                             {item.snapshot?.title || 'Produit'}
                           </Link>
                         ) : (
@@ -535,8 +578,8 @@ export default function SellerOrderDetail() {
                         <span>Prix unitaire: {formatCurrency(item.snapshot?.price || 0)}</span>
                       </div>
                       {item.snapshot?.confirmationNumber && (
-                        <div className="mt-2 inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-50 border border-indigo-200">
-                          <span className="text-[10px] font-bold text-indigo-700 uppercase">Code: {item.snapshot.confirmationNumber}</span>
+                        <div className="mt-2 inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-neutral-50 border border-neutral-200">
+                          <span className="text-[10px] font-bold text-neutral-700 uppercase">Code: {item.snapshot.confirmationNumber}</span>
                         </div>
                       )}
                     </div>
@@ -548,10 +591,10 @@ export default function SellerOrderDetail() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {order.deliveryCode && (
                 <div>
-                  <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-indigo-500" /> Code de livraison</h4>
-                  <div className="p-5 rounded-xl border-2 border-indigo-200 bg-indigo-50">
-                    <p className="text-xs font-semibold text-indigo-700 uppercase mb-2">Code pour le livreur</p>
-                    <div className="text-4xl font-black text-indigo-900 tracking-wider font-mono text-center">{order.deliveryCode}</div>
+                  <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-neutral-500" /> Code de livraison</h4>
+                  <div className="p-5 rounded-xl border-2 border-neutral-200 bg-neutral-50">
+                    <p className="text-xs font-semibold text-neutral-700 uppercase mb-2">Code pour le livreur</p>
+                    <div className="text-4xl font-black text-neutral-900 tracking-wider font-mono text-center">{order.deliveryCode}</div>
                   </div>
                 </div>
               )}
@@ -566,13 +609,25 @@ export default function SellerOrderDetail() {
             </div>
 
             <div>
-              <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2"><MapPin className="w-4 h-4 text-gray-500" /> Adresse de livraison</h4>
+              <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-gray-500" /> {isPickupOrder ? 'Point de retrait' : 'Adresse de livraison'}
+              </h4>
               <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 space-y-2">
-                <p className="text-sm font-semibold text-gray-900">{order.deliveryAddress || 'Non renseignée'}</p>
-                <p className="text-xs text-gray-500">{order.deliveryCity || 'Ville non renseignée'}</p>
-                {order.deliveryGuy && (
+                {isPickupOrder ? (
+                  <>
+                    <p className="text-sm font-semibold text-gray-900">{pickupShopAddress?.shopName || 'Boutique'}</p>
+                    <p className="text-sm text-gray-800">{pickupShopAddress?.addressLine || 'Adresse boutique non renseignée'}</p>
+                    {pickupShopAddress?.cityLine ? <p className="text-xs text-gray-500">{pickupShopAddress.cityLine}</p> : null}
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-semibold text-gray-900">{order.deliveryAddress || 'Non renseignée'}</p>
+                    <p className="text-xs text-gray-500">{order.deliveryCity || 'Ville non renseignée'}</p>
+                  </>
+                )}
+                {!isPickupOrder && order.deliveryGuy && (
                   <div className="mt-3 pt-3 border-t border-gray-200 text-xs">
-                    <Truck className="w-3 h-3 text-blue-600 inline mr-1" />
+                    <Truck className="w-3 h-3 text-neutral-600 inline mr-1" />
                     <span className="font-semibold">Livreur:</span> {order.deliveryGuy.name || 'Non assigné'}
                     {order.deliveryGuy.phone && ` • ${order.deliveryGuy.phone}`}
                   </div>
@@ -614,7 +669,7 @@ export default function SellerOrderDetail() {
             {order.trackingNote && (
               <div>
                 <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2"><Info className="w-4 h-4 text-gray-500" /> Note de suivi</h4>
-                <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/50"><p className="text-sm text-gray-700">{order.trackingNote}</p></div>
+                <div className="p-4 rounded-xl border border-neutral-100 bg-neutral-50/50"><p className="text-sm text-gray-700">{order.trackingNote}</p></div>
               </div>
             )}
 
@@ -648,7 +703,7 @@ export default function SellerOrderDetail() {
                         <div>
                           <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
                             <div
-                              className="h-full bg-indigo-600 transition-all duration-300"
+                              className="h-full bg-neutral-600 transition-all duration-300"
                               style={{ width: `${installmentProgressPercent}%` }}
                             />
                           </div>
@@ -710,9 +765,9 @@ export default function SellerOrderDetail() {
             )}
 
             {isInstallmentOrder && (
-              <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4 space-y-3">
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50/40 p-4 space-y-3">
                 <h4 className="text-sm font-bold text-gray-900 uppercase flex items-center gap-2">
-                  <Receipt className="w-4 h-4 text-indigo-600" /> Preuve de vente
+                  <Receipt className="w-4 h-4 text-neutral-600" /> Preuve de vente
                 </h4>
                 <p className="text-sm text-gray-700">
                   Statut:{' '}
@@ -721,7 +776,7 @@ export default function SellerOrderDetail() {
                   </span>
                 </p>
                 {installmentPlan?.guarantor?.required && (
-                  <div className="rounded-lg border border-indigo-200 bg-white p-3 text-xs text-gray-700 space-y-1">
+                  <div className="rounded-lg border border-neutral-200 bg-white p-3 text-xs text-gray-700 space-y-1">
                     <p className="font-semibold text-gray-900">Garant requis</p>
                     <p>Nom: {installmentPlan?.guarantor?.fullName || 'N/A'}</p>
                     <p>Téléphone: {installmentPlan?.guarantor?.phone || 'N/A'}</p>
@@ -755,8 +810,8 @@ export default function SellerOrderDetail() {
             )}
 
             {canRequestDeliveryProof && !showDeliveryProofForm && (
-              <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-4">
-                <p className="text-xs text-cyan-800">
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                <p className="text-xs text-neutral-800">
                   Cliquez sur <span className="font-semibold">Livrer</span> pour soumettre la preuve de livraison.
                 </p>
               </div>
@@ -779,8 +834,8 @@ export default function SellerOrderDetail() {
             )}
 
             {!isInstallmentOrder && order.deliveryStatus === 'submitted' && (
-              <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-4 space-y-2">
-                <p className="text-sm font-semibold text-cyan-900">
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 space-y-2">
+                <p className="text-sm font-semibold text-neutral-900">
                   Preuve de livraison soumise. En attente de confirmation du client.
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -790,7 +845,7 @@ export default function SellerOrderDetail() {
                       href={normalizeFileUrl(proof?.url || proof?.path || '')}
                       target="_blank"
                       rel="noreferrer"
-                      className="rounded-lg border border-cyan-200 bg-white px-2 py-1 text-xs font-semibold text-cyan-700"
+                      className="rounded-lg border border-neutral-200 bg-white px-2 py-1 text-xs font-semibold text-neutral-700"
                     >
                       Preuve {index + 1}
                     </a>
@@ -825,7 +880,7 @@ export default function SellerOrderDetail() {
                           Échéance: {entry?.dueDate ? formatOrderTimestamp(entry.dueDate) : 'Non définie'}
                         </p>
                         {entry?.transactionProof?.transactionCode ? (
-                          <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-2 text-xs text-indigo-900 space-y-1">
+                          <div className="rounded-lg border border-neutral-100 bg-neutral-50/50 p-2 text-xs text-neutral-900 space-y-1">
                             <p>
                               Expéditeur:{' '}
                               <span className="font-semibold">{entry?.transactionProof?.senderName || 'N/A'}</span>
@@ -893,7 +948,7 @@ export default function SellerOrderDetail() {
               </div>
             )}
 
-            <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
+            <div className="rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
               <OrderChat order={order} buttonText="Contacter l'acheteur" unreadCount={unreadCount} />
             </div>
 
@@ -924,7 +979,7 @@ export default function SellerOrderDetail() {
                       installmentSaleStatus !== 'confirmed' ||
                       statusUpdatingId === order._id
                     }
-                    className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 disabled:opacity-50"
                   >
                     <Truck size={12} /> En livraison
                   </button>
@@ -975,13 +1030,15 @@ export default function SellerOrderDetail() {
             )}
 
             {!isInstallmentOrder &&
-              !['cancelled', 'delivery_proof_submitted', 'confirmed_by_client', 'completed', 'delivered'].includes(
+              !['cancelled', 'delivery_proof_submitted', 'confirmed_by_client', 'completed', 'delivered', 'picked_up_confirmed'].includes(
                 order.status
               ) && (
               <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-gray-500" />
-                  <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Mettre à jour le statut</h4>
+                  <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                    Mettre à jour le statut {isPickupOrder ? '(retrait boutique)' : ''}
+                  </h4>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -996,31 +1053,62 @@ export default function SellerOrderDetail() {
                   >
                     <Package size={12} /> Confirmer
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleStatusUpdate('delivering')}
-                    disabled={
-                      !['confirmed', 'ready_for_delivery'].includes(order.status) ||
-                      statusUpdatingId === order._id ||
-                      order.cancellationWindow?.isActive
-                    }
-                    className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
-                  >
-                    <Truck size={12} /> En livraison
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowDeliveryProofForm((prev) => !prev)}
-                    disabled={
-                      !['delivering', 'out_for_delivery'].includes(order.status) ||
-                      ['submitted', 'verified'].includes(order.deliveryStatus) ||
-                      statusUpdatingId === order._id ||
-                      order.cancellationWindow?.isActive
-                    }
-                    className="inline-flex items-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-semibold text-cyan-700 hover:bg-cyan-100 disabled:opacity-50"
-                  >
-                    <ClipboardList size={12} /> {showDeliveryProofForm ? 'Masquer preuve' : 'Livrer'}
-                  </button>
+                  {isPickupOrder ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleStatusUpdate('ready_for_pickup')}
+                        disabled={
+                          !['confirmed'].includes(order.status) ||
+                          statusUpdatingId === order._id ||
+                          order.cancellationWindow?.isActive
+                        }
+                        className="inline-flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700 hover:bg-orange-100 disabled:opacity-50"
+                      >
+                        <Package size={12} /> Prête à récupérer
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleStatusUpdate('picked_up_confirmed')}
+                        disabled={
+                          !['confirmed', 'ready_for_pickup'].includes(order.status) ||
+                          statusUpdatingId === order._id ||
+                          order.cancellationWindow?.isActive
+                        }
+                        className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                      >
+                        <CheckCircle size={12} /> Retrait confirmé
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleStatusUpdate('delivering')}
+                        disabled={
+                          !['confirmed', 'ready_for_delivery'].includes(order.status) ||
+                          statusUpdatingId === order._id ||
+                          order.cancellationWindow?.isActive
+                        }
+                        className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 disabled:opacity-50"
+                      >
+                        <Truck size={12} /> En livraison
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowDeliveryProofForm((prev) => !prev)}
+                        disabled={
+                          !['delivering', 'out_for_delivery'].includes(order.status) ||
+                          ['submitted', 'verified'].includes(order.deliveryStatus) ||
+                          statusUpdatingId === order._id ||
+                          order.cancellationWindow?.isActive
+                        }
+                        className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 disabled:opacity-50"
+                      >
+                        <ClipboardList size={12} /> {showDeliveryProofForm ? 'Masquer preuve' : 'Livrer'}
+                      </button>
+                    </>
+                  )}
                   <button
                     type="button"
                     onClick={() => openCancelModal({ defaultRefund: cityMismatch })}
@@ -1034,10 +1122,16 @@ export default function SellerOrderDetail() {
                     <X size={12} /> Annuler
                   </button>
                 </div>
-                {['delivering', 'out_for_delivery', 'delivery_proof_submitted'].includes(order.status) && (
-                  <p className="text-xs text-cyan-700">
-                    Après "En livraison", cliquez sur "Livrer" pour déposer la preuve de livraison.
+                {isPickupOrder ? (
+                  <p className="text-xs text-orange-700">
+                    Flux retrait: confirmez la commande, marquez-la "Prête à récupérer", puis "Retrait confirmé" quand le client récupère.
                   </p>
+                ) : (
+                  ['delivering', 'out_for_delivery', 'delivery_proof_submitted'].includes(order.status) && (
+                    <p className="text-xs text-neutral-700">
+                      Après "En livraison", cliquez sur "Livrer" pour déposer la preuve de livraison.
+                    </p>
+                  )
                 )}
                 {statusUpdateError.id === order._id && <p className="text-xs text-red-600">{statusUpdateError.message}</p>}
               </div>
@@ -1067,13 +1161,20 @@ export default function SellerOrderDetail() {
               <AnimatedOrderTimeline
                 status={normalizedOrderStatusForTimeline}
                 paymentType={order.paymentType}
+                deliveryMode={order.deliveryMode}
               />
             )}
 
-            <div className="flex flex-wrap gap-4 pt-4 border-t border-gray-100 text-xs text-gray-500">
-              <span className="flex items-center gap-1.5"><Calendar className="w-3 h-3" /> Créée: {formatOrderTimestamp(order.createdAt)}</span>
-              {order.shippedAt && <span className="flex items-center gap-1.5"><Truck className="w-3 h-3" /> Expédiée: {formatOrderTimestamp(order.shippedAt)}</span>}
-              {order.deliveredAt && <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3" /> Livrée: {formatOrderTimestamp(order.deliveredAt)}</span>}
+            <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100 text-xs text-gray-600">
+              {statusTimelineEntries.map((entry) => {
+                const EntryIcon = entry.icon;
+                return (
+                  <span key={entry.key} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1">
+                    <EntryIcon className="w-3 h-3" />
+                    {entry.label}: {formatOrderTimestamp(entry.time)}
+                  </span>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -1121,16 +1222,16 @@ export default function SellerOrderDetail() {
                 />
                 {cancelReason.length > 0 && cancelReason.length < 5 && <p className="mt-1 text-xs text-red-600">Minimum 5 caractères.</p>}
               </div>
-              <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
+              <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-3">
                 <label className="flex items-start gap-2">
                   <input
                     type="checkbox"
                     checked={cancelIssueRefund}
                     disabled={Number(order?.paidAmount || 0) <= 0}
                     onChange={(e) => setCancelIssueRefund(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-neutral-600 focus:ring-neutral-500 disabled:opacity-50"
                   />
-                  <span className="text-xs text-blue-900">
+                  <span className="text-xs text-neutral-900">
                     Demander le remboursement de l'acheteur
                     {Number(order?.paidAmount || 0) > 0 ? (
                       <>

@@ -14,6 +14,13 @@ import { createNotification } from '../utils/notificationService.js';
 import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
 import { buildIdentifierQuery } from '../utils/idResolver.js';
 import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
+import { invalidateUserCache } from '../utils/cache.js';
+import {
+  getUnreadCount,
+  decrementUnreadCount,
+  resetUnreadCount,
+  syncUnreadCount
+} from '../utils/notificationUnreadCounter.js';
 import {
   uploadToCloudinary,
   getCloudinaryFolder,
@@ -90,6 +97,7 @@ const sanitizeUser = (user) => ({
   country: user.country,
   address: user.address,
   city: user.city,
+  commune: user.commune || '',
   preferredLanguage: user.preferredLanguage || 'fr',
   preferredCurrency: user.preferredCurrency || 'XAF',
   preferredCity: user.preferredCity || user.city || '',
@@ -102,6 +110,8 @@ const sanitizeUser = (user) => ({
   shopVerified: Boolean(user.shopVerified),
   shopDescription: user.shopDescription || '',
   shopHours: sanitizeShopHours(user.shopHours || []),
+  freeDeliveryEnabled: Boolean(user.freeDeliveryEnabled),
+  freeDeliveryNote: user.freeDeliveryNote || '',
   followersCount: Number(user.followersCount || 0),
   followingShops: Array.isArray(user.followingShops)
     ? user.followingShops.map((shopId) => shopId.toString())
@@ -112,6 +122,7 @@ const sanitizeUser = (user) => ({
   canManageComplaints: Boolean(user.canManageComplaints),
   canManageProducts: Boolean(user.canManageProducts),
   canManageDelivery: Boolean(user.canManageDelivery),
+  canManageChatTemplates: Boolean(user.canManageChatTemplates),
   canManageHelpCenter: Boolean(user.canManageHelpCenter),
   createdAt: user.createdAt,
   updatedAt: user.updatedAt
@@ -152,6 +163,8 @@ const collectUserStats = async (userId) => {
   const orderStatusKeys = [
     'pending_payment',
     'paid',
+    'ready_for_pickup',
+    'picked_up_confirmed',
     'ready_for_delivery',
     'out_for_delivery',
     'delivery_proof_submitted',
@@ -443,6 +456,12 @@ export const getProfile = asyncHandler(async (req, res) => {
   res.json(sanitizeUser(user));
 });
 
+export const clearMyCacheOnLogout = asyncHandler(async (req, res) => {
+  const userId = req.user?.id || req.user?._id;
+  await invalidateUserCache(userId, ['users', 'orders', 'cart', 'notifications', 'dashboard', 'analytics']);
+  res.json({ success: true });
+});
+
 export const getProfileStats = asyncHandler(async (req, res) => {
   const stats = await collectUserStats(req.user.id);
   res.json(stats);
@@ -569,12 +588,20 @@ export const registerPushToken = asyncHandler(async (req, res) => {
   }
   const platform = req.body?.platform || 'unknown';
   const deviceId = req.body?.deviceId?.trim() || '';
+  const deviceInfo =
+    req.body?.deviceInfo && typeof req.body.deviceInfo === 'object'
+      ? req.body.deviceInfo
+      : {};
   const saved = await PushToken.findOneAndUpdate(
     { token },
     {
       user: userId,
       platform,
       deviceId,
+      deviceInfo,
+      isActive: true,
+      lastFailureAt: null,
+      lastFailureCode: '',
       lastSeenAt: new Date()
     },
     { new: true, upsert: true, setDefaultsOnInsert: true }
@@ -810,10 +837,13 @@ export const updateProfile = asyncHandler(async (req, res) => {
     shopName,
     shopAddress,
     city,
+    commune,
     gender,
     address,
     shopDescription,
-    shopHours
+    shopHours,
+    freeDeliveryEnabled,
+    freeDeliveryNote
   } = req.body;
   const hasShopHoursField = Object.prototype.hasOwnProperty.call(req.body, 'shopHours');
 
@@ -855,6 +885,9 @@ export const updateProfile = asyncHandler(async (req, res) => {
   if (typeof city !== 'undefined' && String(city).trim()) {
     user.city = String(city).trim();
   }
+  if (typeof commune !== 'undefined') {
+    user.commune = String(commune || '').trim();
+  }
 
   if (gender && ['homme', 'femme'].includes(gender)) {
     user.gender = gender;
@@ -867,6 +900,9 @@ export const updateProfile = asyncHandler(async (req, res) => {
   }
   if (typeof shopDescription !== 'undefined') {
     user.shopDescription = shopDescription.toString().trim();
+  }
+  if (typeof freeDeliveryNote !== 'undefined') {
+    user.freeDeliveryNote = String(freeDeliveryNote || '').trim().slice(0, 300);
   }
 
   if (user.accountType === 'shop') {
@@ -945,6 +981,9 @@ export const updateProfile = asyncHandler(async (req, res) => {
     if (hasShopHoursField) {
       user.shopHours = hydrateShopHours(shopHours);
     }
+    if (typeof freeDeliveryEnabled !== 'undefined') {
+      user.freeDeliveryEnabled = Boolean(freeDeliveryEnabled);
+    }
   } else {
     user.shopName = undefined;
     user.shopAddress = undefined;
@@ -952,6 +991,8 @@ export const updateProfile = asyncHandler(async (req, res) => {
     user.shopBanner = undefined;
     user.shopDescription = '';
     user.shopHours = [];
+    user.freeDeliveryEnabled = false;
+    user.freeDeliveryNote = '';
   }
 
   await user.save();
@@ -960,6 +1001,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
     await Product.updateMany({ user: user._id }, { city: String(city).trim(), country: user.country });
   }
 
+  await invalidateUserCache(user._id, ['users', 'dashboard', 'analytics']);
   res.json(sanitizeUser(user));
 });
 
@@ -1365,7 +1407,11 @@ export const getNotifications = asyncHandler(async (req, res) => {
     };
   });
 
-  const unreadCount = alerts.filter((alert) => alert.isNew).length;
+  const fallbackUnreadCount = alerts.filter((alert) => alert.isNew).length;
+  let unreadCount = await getUnreadCount(req.user.id).catch(() => fallbackUnreadCount);
+  if (Number(unreadCount || 0) < fallbackUnreadCount) {
+    unreadCount = await syncUnreadCount(req.user.id).catch(() => fallbackUnreadCount);
+  }
   const preferences = mergeNotificationPreferences(userDoc.notificationPreferences);
 
   res.json({
@@ -1385,6 +1431,12 @@ export const markNotificationsRead = asyncHandler(async (req, res) => {
       { _id: { $in: notificationIds }, user: req.user.id, readAt: null },
       { $set: { readAt: now } }
     );
+    if (Number(result.modifiedCount || 0) > 0) {
+      await decrementUnreadCount(req.user.id, Number(result.modifiedCount || 0)).catch(() =>
+        syncUnreadCount(req.user.id)
+      );
+    }
+    await invalidateUserCache(req.user.id, ['notifications']);
     return res.json({ success: true, updated: result.modifiedCount });
   }
 
@@ -1396,6 +1448,8 @@ export const markNotificationsRead = asyncHandler(async (req, res) => {
     await user.save();
   }
 
+  await resetUnreadCount(req.user.id).catch(() => syncUnreadCount(req.user.id));
+  await invalidateUserCache(req.user.id, ['notifications']);
   res.json({ success: true, readAt: now });
 });
 
@@ -1428,6 +1482,7 @@ export const updateNotificationPreferences = asyncHandler(async (req, res) => {
   );
   if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
 
+  await invalidateUserCache(req.user.id, ['notifications']);
   res.json({ preferences: mergeNotificationPreferences(user.notificationPreferences) });
 });
 
@@ -1439,6 +1494,10 @@ export const deleteNotification = asyncHandler(async (req, res) => {
   if (!deleted) {
     return res.status(404).json({ message: 'Notification introuvable.' });
   }
+  if (!deleted.readAt) {
+    await decrementUnreadCount(req.user.id, 1).catch(() => syncUnreadCount(req.user.id));
+  }
+  await invalidateUserCache(req.user.id, ['notifications']);
   res.json({ success: true });
 });
 

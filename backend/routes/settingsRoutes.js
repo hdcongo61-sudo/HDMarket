@@ -5,13 +5,15 @@ import { cacheMiddleware } from '../utils/cache.js';
 import {
   getPublicSettings,
   getPublicCities,
-  getPublicCurrencies
+  getPublicCurrencies,
+  getPublicCommunes
 } from '../controllers/settingsController.js';
 
 const router = express.Router();
 
 router.get('/public', cacheMiddleware({ ttl: 120000 }), getPublicSettings);
 router.get('/cities', cacheMiddleware({ ttl: 1800000 }), getPublicCities);
+router.get('/communes', cacheMiddleware({ ttl: 1800000 }), getPublicCommunes);
 router.get('/currencies', cacheMiddleware({ ttl: 1800000 }), getPublicCurrencies);
 router.get('/hero-banner', getHeroBanner);
 router.get('/app-logo', getAppLogo);

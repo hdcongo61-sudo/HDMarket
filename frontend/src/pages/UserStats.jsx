@@ -166,6 +166,26 @@ const DEFAULT_SELLER_ANALYTICS = {
   generatedAt: ''
 };
 
+const DEFAULT_DELIVERY_STATS_OVERVIEW = {
+  ordersTotal: 0,
+  pickupOrdersCount: 0,
+  deliveryOrdersCount: 0,
+  pickupRate: 0,
+  deliveryRate: 0,
+  freeDeliveryOrdersCount: 0,
+  avgDeliveryFee: 0,
+  totalDeliveryFeesCharged: 0,
+  revenueByDeliverySource: {
+    COMMUNE_FREE: { count: 0, amount: 0 },
+    COMMUNE_FIXED: { count: 0, amount: 0 },
+    SHOP_FREE: { count: 0, amount: 0 },
+    PRODUCT_FEE: { count: 0, amount: 0 },
+    PICKUP: { count: 0, amount: 0 }
+  },
+  topCommunesByOrders: [],
+  pickupOnlyOrdersCount: 0
+};
+
 const StatCard = ({ icon: Icon, label, value, subtitle, gradient, iconBg, trend }) => (
   <div className="group relative overflow-hidden rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300">
     <div className={`absolute inset-0 ${gradient.replace('from-', 'bg-').split(' ')[0]} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}></div>
@@ -175,9 +195,9 @@ const StatCard = ({ icon: Icon, label, value, subtitle, gradient, iconBg, trend 
           <Icon className="w-6 h-6 text-white" />
         </div>
         {trend && (
-          <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 border border-emerald-200">
-            <TrendingUp className="w-3 h-3 text-emerald-600" />
-            <span className="text-xs font-bold text-emerald-700">{trend}</span>
+          <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-neutral-50 border border-neutral-200">
+            <TrendingUp className="w-3 h-3 text-neutral-600" />
+            <span className="text-xs font-bold text-neutral-700">{trend}</span>
           </div>
         )}
       </div>
@@ -194,11 +214,11 @@ const StatCard = ({ icon: Icon, label, value, subtitle, gradient, iconBg, trend 
 
 const MetricCard = ({ title, value, subtitle, icon: Icon, color = "indigo" }) => {
   const colorClasses = {
-    indigo: { icon: "bg-indigo-600", bg: "bg-indigo-50", border: "border-indigo-100", text: "text-indigo-600" },
-    emerald: { icon: "bg-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100", text: "text-emerald-600" },
-    amber: { icon: "bg-amber-600", bg: "bg-amber-50", border: "border-amber-100", text: "text-amber-600" },
-    purple: { icon: "bg-purple-600", bg: "bg-purple-50", border: "border-purple-100", text: "text-purple-600" },
-    rose: { icon: "bg-rose-600", bg: "bg-rose-50", border: "border-rose-100", text: "text-rose-600" }
+    indigo: { icon: "bg-neutral-600", bg: "bg-neutral-50", border: "border-neutral-100", text: "text-neutral-600" },
+    emerald: { icon: "bg-neutral-600", bg: "bg-neutral-50", border: "border-neutral-100", text: "text-neutral-600" },
+    amber: { icon: "bg-neutral-600", bg: "bg-neutral-50", border: "border-neutral-100", text: "text-neutral-600" },
+    purple: { icon: "bg-neutral-600", bg: "bg-neutral-50", border: "border-neutral-100", text: "text-neutral-600" },
+    rose: { icon: "bg-neutral-600", bg: "bg-neutral-50", border: "border-neutral-100", text: "text-neutral-600" }
   };
   const classes = colorClasses[color] || colorClasses.indigo;
 
@@ -243,6 +263,10 @@ export default function UserStats() {
   const [sellerAnalyticsLoading, setSellerAnalyticsLoading] = useState(false);
   const [sellerAnalyticsRefreshing, setSellerAnalyticsRefreshing] = useState(false);
   const [sellerAnalyticsError, setSellerAnalyticsError] = useState('');
+  const [deliveryStatsOverview, setDeliveryStatsOverview] = useState(DEFAULT_DELIVERY_STATS_OVERVIEW);
+  const [deliveryStatsProducts, setDeliveryStatsProducts] = useState([]);
+  const [deliveryStatsLoading, setDeliveryStatsLoading] = useState(false);
+  const [deliveryStatsError, setDeliveryStatsError] = useState('');
   const [downloadingSellerReport, setDownloadingSellerReport] = useState(false);
   const [analyticsRange, setAnalyticsRange] = useState(() => {
     const today = new Date();
@@ -470,10 +494,59 @@ export default function UserStats() {
     fetchSellerAnalytics({ showLoading: true });
   }, [fetchSellerAnalytics]);
 
+  const fetchDeliveryStats = useCallback(
+    async ({ showLoading = false } = {}) => {
+      if (!isSellerAnalyticsEnabled) {
+        setDeliveryStatsOverview(DEFAULT_DELIVERY_STATS_OVERVIEW);
+        setDeliveryStatsProducts([]);
+        setDeliveryStatsError('');
+        return;
+      }
+
+      if (showLoading) setDeliveryStatsLoading(true);
+      setDeliveryStatsError('');
+
+      try {
+        const params = {
+          from: analyticsRange.dateFrom || undefined,
+          to: analyticsRange.dateTo || undefined
+        };
+        const [overviewRes, productsRes] = await Promise.all([
+          directGet('/orders/seller/delivery-stats/overview', { params, timeout: 15000 }),
+          directGet('/orders/seller/delivery-stats/products', { params, timeout: 15000 })
+        ]);
+        if (!isMountedRef.current) return;
+        setDeliveryStatsOverview({
+          ...DEFAULT_DELIVERY_STATS_OVERVIEW,
+          ...(overviewRes?.data || {}),
+          revenueByDeliverySource: {
+            ...DEFAULT_DELIVERY_STATS_OVERVIEW.revenueByDeliverySource,
+            ...(overviewRes?.data?.revenueByDeliverySource || {})
+          }
+        });
+        setDeliveryStatsProducts(Array.isArray(productsRes?.data) ? productsRes.data : []);
+      } catch (err) {
+        if (!isMountedRef.current) return;
+        setDeliveryStatsError(
+          err.response?.data?.message || 'Impossible de charger les stats de livraison.'
+        );
+      } finally {
+        if (!isMountedRef.current) return;
+        if (showLoading) setDeliveryStatsLoading(false);
+      }
+    },
+    [analyticsRange.dateFrom, analyticsRange.dateTo, directGet, isSellerAnalyticsEnabled]
+  );
+
+  useEffect(() => {
+    fetchDeliveryStats({ showLoading: true });
+  }, [fetchDeliveryStats]);
+
   const handleRefresh = () => {
     if (refreshing || sellerAnalyticsRefreshing) return;
     fetchStats();
     fetchSellerAnalytics();
+    fetchDeliveryStats();
   };
 
   const handleDownloadSellerReport = async () => {
@@ -687,7 +760,7 @@ export default function UserStats() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-16">
         <div className="max-w-md w-full text-center space-y-6">
-          <div className="mx-auto w-20 h-20 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-xl">
+          <div className="mx-auto w-20 h-20 rounded-2xl bg-neutral-600 flex items-center justify-center shadow-xl">
             <BarChart3 className="w-10 h-10 text-white" />
           </div>
           <div>
@@ -696,7 +769,7 @@ export default function UserStats() {
           </div>
           <Link
             to="/login"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-lg hover:shadow-xl transition-all duration-200"
           >
             <ArrowLeft className="w-4 h-4" />
             Se connecter
@@ -710,7 +783,7 @@ export default function UserStats() {
     if (!debugEnabled) return null;
     return (
       <div className="max-w-7xl mx-auto px-4 pt-6">
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 space-y-1">
+        <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-xs text-neutral-900 space-y-1">
           <p className="font-semibold">Debug /stats</p>
           <p>userId: {user?._id || user?.id || '—'}</p>
           <p>role: {user?.role || '—'} · accountType: {user?.accountType || '—'}</p>
@@ -724,6 +797,14 @@ export default function UserStats() {
         </div>
       </div>
     );
+  };
+
+  const deliverySourceLabels = {
+    COMMUNE_FREE: 'Commune gratuite',
+    COMMUNE_FIXED: 'Commune fixe',
+    SHOP_FREE: 'Boutique gratuite',
+    PRODUCT_FEE: 'Frais vendeur',
+    PICKUP: 'Retrait'
   };
 
   if (loading) {
@@ -753,15 +834,15 @@ export default function UserStats() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-16">
         <DebugPanel />
-        <div className="max-w-md w-full bg-white rounded-2xl border border-red-200 shadow-xl p-8 text-center">
-          <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
-            <X className="w-8 h-8 text-red-600" />
+        <div className="max-w-md w-full bg-white rounded-2xl border border-neutral-200 shadow-xl p-8 text-center">
+          <div className="mx-auto w-16 h-16 rounded-full bg-neutral-100 flex items-center justify-center mb-4">
+            <X className="w-8 h-8 text-neutral-800" />
           </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">Erreur de chargement</h2>
           <p className="text-sm text-gray-600 mb-6">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 transition-colors"
           >
             Réessayer
           </button>
@@ -774,7 +855,7 @@ export default function UserStats() {
     <div className="min-h-screen bg-gray-50">
       <DebugPanel />
       {/* Header Section */}
-      <div className="bg-indigo-600 text-white">
+      <div className="bg-neutral-600 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-2">
@@ -819,7 +900,7 @@ export default function UserStats() {
               )}
               <Link
                 to="/profile"
-                className="inline-flex items-center gap-2 rounded-xl bg-white text-indigo-600 px-4 py-2.5 text-sm font-semibold hover:bg-white/90 transition-all shadow-lg"
+                className="inline-flex items-center gap-2 rounded-xl bg-white text-neutral-600 px-4 py-2.5 text-sm font-semibold hover:bg-white/90 transition-all shadow-lg"
               >
                 <Users className="w-4 h-4" />
                 Mon profil
@@ -837,38 +918,38 @@ export default function UserStats() {
             label="Annonces totales"
             value={formatNumber(stats.listings.total)}
             subtitle={`${formatNumber(stats.listings.approved)} approuvées`}
-            gradient="bg-indigo-600"
-            iconBg="bg-indigo-600"
+            gradient="bg-neutral-600"
+            iconBg="bg-neutral-600"
           />
           <StatCard
             icon={Heart}
             label="Favoris reçus"
             value={formatNumber(stats.engagement.favoritesReceived)}
             subtitle={`${formatNumber(stats.engagement.commentsReceived)} commentaires`}
-            gradient="bg-pink-600"
-            iconBg="bg-pink-600"
+            gradient="bg-neutral-600"
+            iconBg="bg-neutral-600"
           />
           <StatCard
             icon={Eye}
             label="Vues totales"
             value={formatNumber(stats.performance.views)}
             subtitle={`${formatNumber(stats.performance.clicks)} clics WhatsApp`}
-            gradient="bg-purple-600"
-            iconBg="bg-purple-600"
+            gradient="bg-neutral-600"
+            iconBg="bg-neutral-600"
           />
           <StatCard
             icon={DollarSign}
             label="Budget annonces"
             value={formatCurrency(stats.advertismentSpend)}
             subtitle="Total des frais confirmés"
-            gradient="bg-emerald-600"
-            iconBg="bg-emerald-600"
+            gradient="bg-neutral-600"
+            iconBg="bg-neutral-600"
           />
         </div>
 
         {isSellerAnalyticsEnabled && (
           <section className="mb-8 space-y-5">
-            <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+            <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">Analytics vendeur avancée</h2>
@@ -903,7 +984,7 @@ export default function UserStats() {
                     type="button"
                     onClick={() => fetchSellerAnalytics({ showLoading: true })}
                     disabled={sellerAnalyticsLoading || sellerAnalyticsRefreshing}
-                    className="inline-flex h-10 items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-60"
+                    className="inline-flex h-10 items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-100 disabled:opacity-60"
                   >
                     {sellerAnalyticsRefreshing || sellerAnalyticsLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -916,7 +997,7 @@ export default function UserStats() {
                     type="button"
                     onClick={handleDownloadSellerReport}
                     disabled={downloadingSellerReport}
-                    className="inline-flex h-10 items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-60"
+                    className="inline-flex h-10 items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-100 disabled:opacity-60"
                   >
                     {downloadingSellerReport ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -928,7 +1009,7 @@ export default function UserStats() {
                 </div>
               </div>
               {sellerAnalyticsError ? (
-                <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                <p className="mt-3 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
                   {sellerAnalyticsError}
                 </p>
               ) : null}
@@ -949,7 +1030,7 @@ export default function UserStats() {
                   formatNumber={formatNumber}
                 />
 
-                <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
                   <div className="space-y-5 xl:col-span-2">
                     <RevenueByCityChart
                       data={sellerAnalytics.revenueByCity}
@@ -962,7 +1043,7 @@ export default function UserStats() {
                     />
                   </div>
                   <div className="space-y-5">
-                    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
                       <h3 className="mb-4 text-sm font-semibold text-gray-900">Boost performance</h3>
                       <div className="space-y-2 text-sm text-gray-700">
                         <p>
@@ -986,7 +1067,7 @@ export default function UserStats() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
                       <h3 className="mb-4 text-sm font-semibold text-gray-900">Promo impact</h3>
                       <div className="space-y-2 text-sm text-gray-700">
                         <p>
@@ -1006,10 +1087,120 @@ export default function UserStats() {
                       formatCurrency={formatCurrency}
                       formatNumber={formatNumber}
                     />
+
+                    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                      <h3 className="mb-4 text-sm font-semibold text-gray-900">Livraison vs retrait</h3>
+                      {deliveryStatsLoading ? (
+                        <div className="space-y-2">
+                          <div className="h-4 w-full animate-pulse rounded bg-gray-100" />
+                          <div className="h-4 w-4/5 animate-pulse rounded bg-gray-100" />
+                          <div className="h-4 w-3/5 animate-pulse rounded bg-gray-100" />
+                        </div>
+                      ) : (
+                        <div className="space-y-2 text-sm text-gray-700">
+                          <p>
+                            Commandes livraison:{' '}
+                            <span className="font-semibold">
+                              {formatNumber(deliveryStatsOverview.deliveryOrdersCount)} ({Number(deliveryStatsOverview.deliveryRate || 0).toFixed(1)}%)
+                            </span>
+                          </p>
+                          <p>
+                            Commandes retrait:{' '}
+                            <span className="font-semibold">
+                              {formatNumber(deliveryStatsOverview.pickupOrdersCount)} ({Number(deliveryStatsOverview.pickupRate || 0).toFixed(1)}%)
+                            </span>
+                          </p>
+                          <p>
+                            Livraison gratuite:{' '}
+                            <span className="font-semibold">{formatNumber(deliveryStatsOverview.freeDeliveryOrdersCount)}</span>
+                          </p>
+                          <p>
+                            Frais livraison moyens:{' '}
+                            <span className="font-semibold">{formatCurrency(deliveryStatsOverview.avgDeliveryFee)}</span>
+                          </p>
+                          <p>
+                            Frais livraison facturés:{' '}
+                            <span className="font-semibold">{formatCurrency(deliveryStatsOverview.totalDeliveryFeesCharged)}</span>
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 <SmartSuggestionsPanel suggestions={sellerAnalytics.suggestions} />
+
+                <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                  <h3 className="mb-4 text-sm font-semibold text-gray-900">Impact par source de frais</h3>
+                  {deliveryStatsError ? (
+                    <p className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
+                      {deliveryStatsError}
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {Object.entries(deliveryStatsOverview.revenueByDeliverySource || {}).map(
+                        ([source, meta]) => (
+                          <div
+                            key={source}
+                            className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2"
+                          >
+                            <p className="text-xs font-semibold uppercase text-gray-500">
+                              {deliverySourceLabels[source] || source}
+                            </p>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {formatNumber(meta?.count || 0)} commandes
+                            </p>
+                            <p className="text-xs text-gray-600">
+                              {formatCurrency(meta?.amount || 0)}
+                            </p>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                  <h3 className="mb-4 text-sm font-semibold text-gray-900">Produits pickup-only / delivery</h3>
+                  {deliveryStatsProducts.length === 0 ? (
+                    <p className="text-sm text-gray-500">Aucune donnée produit pour cette période.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-100 text-left text-xs uppercase text-gray-500">
+                            <th className="py-2 pr-3">Produit</th>
+                            <th className="py-2 pr-3">Retrait</th>
+                            <th className="py-2 pr-3">Livraison</th>
+                            <th className="py-2 pr-3">Revenu</th>
+                            <th className="py-2">Mode</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {deliveryStatsProducts.slice(0, 10).map((row) => (
+                            <tr key={row.productId || row.name} className="border-b border-gray-50">
+                              <td className="py-2 pr-3 font-medium text-gray-900">{row.name}</td>
+                              <td className="py-2 pr-3">{formatNumber(row.ordersCountPickup)}</td>
+                              <td className="py-2 pr-3">{formatNumber(row.ordersCountDelivery)}</td>
+                              <td className="py-2 pr-3">{formatCurrency(row.revenue || 0)}</td>
+                              <td className="py-2">
+                                {row.pickupOnly ? (
+                                  <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-700">
+                                    Pickup only
+                                  </span>
+                                ) : (
+                                  <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-700">
+                                    Livraison active
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </section>
@@ -1019,10 +1210,10 @@ export default function UserStats() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Purchases */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="bg-indigo-50 border-b border-gray-100 px-6 py-4">
+            <div className="bg-neutral-50 border-b border-gray-100 px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-indigo-600">
+                  <div className="p-2 rounded-lg bg-neutral-600">
                     <ShoppingBag className="w-5 h-5 text-white" />
                   </div>
                   <div>
@@ -1034,7 +1225,7 @@ export default function UserStats() {
                   <button
                     type="button"
                     onClick={() => setShowOrdersModal(true)}
-                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                    className="text-xs font-semibold text-neutral-600 hover:text-neutral-700"
                   >
                     Voir détails
                   </button>
@@ -1083,8 +1274,8 @@ export default function UserStats() {
                       <span className="font-semibold">{formatNumber(purchaseStats.byStatus?.delivered?.count || 0)}</span>
                     </div>
                     <div className="flex justify-between pt-1 border-t border-gray-200">
-                      <span className="text-red-600">Annulées:</span>
-                      <span className="font-semibold text-red-600">{formatNumber(purchaseStats.byStatus?.cancelled?.count || 0)}</span>
+                      <span className="text-neutral-800">Annulées:</span>
+                      <span className="font-semibold text-neutral-800">{formatNumber(purchaseStats.byStatus?.cancelled?.count || 0)}</span>
                     </div>
                   </div>
                 </div>
@@ -1094,10 +1285,10 @@ export default function UserStats() {
 
           {/* Sales */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="bg-emerald-50 border-b border-gray-100 px-6 py-4">
+            <div className="bg-neutral-50 border-b border-gray-100 px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-emerald-600">
+                  <div className="p-2 rounded-lg bg-neutral-600">
                     <TrendingUp className="w-5 h-5 text-white" />
                   </div>
                   <div>
@@ -1109,7 +1300,7 @@ export default function UserStats() {
                   <button
                     type="button"
                     onClick={() => setShowSalesModal(true)}
-                    className="text-xs font-semibold text-emerald-600 hover:text-emerald-700"
+                    className="text-xs font-semibold text-neutral-600 hover:text-neutral-700"
                   >
                     Voir détails
                   </button>
@@ -1150,8 +1341,8 @@ export default function UserStats() {
                     <span className="text-gray-600">Livrées</span>
                     <span className="font-bold text-gray-900">{formatNumber(salesStats.byStatus?.delivered?.count || 0)}</span>
                   </div>
-                  <div className="flex justify-between items-center p-2 rounded-lg bg-red-50 border border-red-200 col-span-2">
-                    <span className="text-red-600 font-semibold">Annulées</span>
+                  <div className="flex justify-between items-center p-2 rounded-lg bg-neutral-50 border border-neutral-200 col-span-2">
+                    <span className="text-neutral-800 font-semibold">Annulées</span>
                     <span className="font-bold text-red-700">{formatNumber(salesStats.byStatus?.cancelled?.count || 0)}</span>
                   </div>
                 </div>
@@ -1164,10 +1355,10 @@ export default function UserStats() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Followed Shops */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="bg-purple-50 border-b border-gray-100 px-6 py-4">
+            <div className="bg-neutral-50 border-b border-gray-100 px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-purple-600">
+                  <div className="p-2 rounded-lg bg-neutral-600">
                     <Store className="w-5 h-5 text-white" />
                   </div>
                   <div>
@@ -1179,7 +1370,7 @@ export default function UserStats() {
                   <button
                     type="button"
                     onClick={() => setShowFollowedModal(true)}
-                    className="text-xs font-semibold text-purple-600 hover:text-purple-700"
+                    className="text-xs font-semibold text-neutral-600 hover:text-neutral-700"
                   >
                     Voir toutes
                   </button>
@@ -1199,25 +1390,25 @@ export default function UserStats() {
                     <Link
                       key={shop._id || shop.id}
                       to={buildShopPath(shop)}
-                      className="flex items-center gap-3 rounded-xl border border-gray-100 p-3 hover:border-purple-200 hover:bg-purple-50/50 transition-all group"
+                      className="flex items-center gap-3 rounded-xl border border-gray-100 p-3 hover:border-neutral-200 hover:bg-neutral-50/50 transition-all group"
                     >
                       <div className="h-12 w-12 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0">
                         {shop.shopLogo ? (
                           <img src={shop.shopLogo} alt={shop.shopName || shop.name} className="h-full w-full object-cover" />
                         ) : (
-                          <div className="h-full w-full bg-purple-100 flex items-center justify-center text-purple-600 text-sm font-bold">
+                          <div className="h-full w-full bg-neutral-100 flex items-center justify-center text-neutral-600 text-sm font-bold">
                             {(shop.shopName || shop.name)?.charAt(0) || 'B'}
                           </div>
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 group-hover:text-purple-600 transition-colors truncate">{shop.shopName || shop.name}</p>
+                        <p className="font-semibold text-gray-900 group-hover:text-neutral-600 transition-colors truncate">{shop.shopName || shop.name}</p>
                         <p className="text-xs text-gray-500">
                           {formatNumber(shop.followersCount || 0)} abonné(s)
                         </p>
                       </div>
                       {shop.shopVerified && (
-                        <Award className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                        <Award className="w-5 h-5 text-neutral-600 flex-shrink-0" />
                       )}
                     </Link>
                   ))}
@@ -1225,7 +1416,7 @@ export default function UserStats() {
                     <button
                       type="button"
                       onClick={() => setShowFollowedModal(true)}
-                      className="w-full text-center text-sm font-semibold text-purple-600 hover:text-purple-700 py-2"
+                      className="w-full text-center text-sm font-semibold text-neutral-600 hover:text-neutral-700 py-2"
                     >
                       Voir {followedShops.length - 3} autre(s) boutique(s)
                     </button>
@@ -1237,7 +1428,7 @@ export default function UserStats() {
                   <p className="text-sm text-gray-500 mb-4">Aucune boutique suivie</p>
                   <Link
                     to="/shops/verified"
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-purple-600 hover:text-purple-700"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-600 hover:text-neutral-700"
                   >
                     Explorer les boutiques
                     <ArrowLeft className="w-4 h-4 rotate-180" />
@@ -1249,9 +1440,9 @@ export default function UserStats() {
 
           {/* Performance Metrics */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="bg-blue-50 border-b border-gray-100 px-6 py-4">
+            <div className="bg-neutral-50 border-b border-gray-100 px-6 py-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-600">
+                <div className="p-2 rounded-lg bg-neutral-600">
                   <Activity className="w-5 h-5 text-white" />
                 </div>
                 <div>
@@ -1283,9 +1474,9 @@ export default function UserStats() {
                   icon={Heart}
                   color="rose"
                 />
-                <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
+                <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <div className="p-2 rounded-lg bg-amber-600">
+                    <div className="p-2 rounded-lg bg-neutral-600">
                       <Zap className="w-4 h-4 text-white" />
                     </div>
                   </div>
@@ -1306,9 +1497,9 @@ export default function UserStats() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Categories */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="bg-indigo-50 border-b border-gray-100 px-6 py-4">
+            <div className="bg-neutral-50 border-b border-gray-100 px-6 py-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-indigo-600">
+                <div className="p-2 rounded-lg bg-neutral-600">
                   <BarChart3 className="w-5 h-5 text-white" />
                 </div>
                 <div>
@@ -1333,7 +1524,7 @@ export default function UserStats() {
                       </div>
                       <div className="h-2.5 rounded-full bg-gray-100 overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-indigo-600 transition-all duration-500"
+                          className="h-full rounded-full bg-neutral-600 transition-all duration-500"
                           style={{ width: `${Math.min((cat.count / categoryMax) * 100, 100)}%` }}
                         ></div>
                       </div>
@@ -1346,9 +1537,9 @@ export default function UserStats() {
 
           {/* Timeline */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="bg-pink-50 border-b border-gray-100 px-6 py-4">
+            <div className="bg-neutral-50 border-b border-gray-100 px-6 py-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-pink-600">
+                <div className="p-2 rounded-lg bg-neutral-600">
                   <Calendar className="w-5 h-5 text-white" />
                 </div>
                 <div>
@@ -1366,16 +1557,16 @@ export default function UserStats() {
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   {timeline.map((item) => (
-                    <div key={`${item.year}-${item.month}`} className="rounded-xl border border-gray-100 bg-white p-4 text-center hover:border-pink-200 transition-colors">
+                    <div key={`${item.year}-${item.month}`} className="rounded-xl border border-gray-100 bg-white p-4 text-center hover:border-neutral-200 transition-colors">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{item.label}</p>
                       <p className="text-2xl font-bold text-gray-900 mb-1">{formatNumber(item.count)}</p>
                       <div className="flex items-center justify-center gap-3 text-[10px] text-gray-500">
                         <span className="flex items-center gap-1">
-                          <Heart className="w-3 h-3 text-pink-500" />
+                          <Heart className="w-3 h-3 text-neutral-500" />
                           {formatNumber(item.favorites)}
                         </span>
                         <span className="flex items-center gap-1">
-                          <MessageCircle className="w-3 h-3 text-green-500" />
+                          <MessageCircle className="w-3 h-3 text-neutral-500" />
                           {formatNumber(item.clicks)}
                         </span>
                       </div>
@@ -1390,9 +1581,9 @@ export default function UserStats() {
         {/* Top Products */}
         {stats.topProducts.length > 0 && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="bg-amber-50 border-b border-gray-100 px-6 py-4">
+            <div className="bg-neutral-50 border-b border-gray-100 px-6 py-4">
               <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-amber-600">
+                    <div className="p-2 rounded-lg bg-neutral-600">
                   <Star className="w-5 h-5 text-white" />
                 </div>
                 <div>
@@ -1406,10 +1597,10 @@ export default function UserStats() {
                 {stats.topProducts.map((product, index) => (
                   <div
                     key={product._id}
-                    className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-amber-200 hover:bg-amber-50/30 transition-all group"
+                    className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-neutral-200 hover:bg-neutral-50/30 transition-all group"
                   >
                     <div className="flex-shrink-0">
-                      <div className="w-12 h-12 rounded-lg bg-amber-600 flex items-center justify-center text-white font-bold text-sm">
+                      <div className="w-12 h-12 rounded-lg bg-neutral-600 flex items-center justify-center text-white font-bold text-sm">
                         #{index + 1}
                       </div>
                     </div>
@@ -1421,7 +1612,7 @@ export default function UserStats() {
                     <div className="flex-1 min-w-0">
                       <Link
                         to={buildProductPath(product)}
-                        className="font-semibold text-gray-900 hover:text-amber-600 transition-colors block truncate"
+                        className="font-semibold text-gray-900 hover:text-neutral-600 transition-colors block truncate"
                       >
                         {product.title}
                       </Link>
@@ -1431,11 +1622,11 @@ export default function UserStats() {
                       </p>
                     </div>
                     <div className="flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1 text-pink-600">
+                      <div className="flex items-center gap-1 text-neutral-600">
                         <Heart className="w-4 h-4" />
                         <span className="font-semibold">{formatNumber(product.favorites)}</span>
                       </div>
-                      <div className="flex items-center gap-1 text-green-600">
+                      <div className="flex items-center gap-1 text-neutral-600">
                         <MessageCircle className="w-4 h-4" />
                         <span className="font-semibold">{formatNumber(product.whatsappClicks)}</span>
                       </div>
@@ -1452,15 +1643,15 @@ export default function UserStats() {
       {showFollowedModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
           <div
-            className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity"
+            className="absolute inset-0 bg-neutral-900/60 backdrop-blur-md transition-opacity"
             onClick={() => setShowFollowedModal(false)}
           />
           <div
-            className="relative w-full max-w-3xl rounded-3xl bg-white shadow-2xl border border-gray-100 max-h-[90vh] overflow-hidden flex flex-col"
+            className="relative w-full max-w-3xl rounded-2xl bg-white shadow-2xl border border-gray-100 max-h-[90vh] overflow-hidden flex flex-col"
             onClick={(event) => event.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="bg-purple-600 text-white px-6 py-5">
+            <div className="bg-neutral-600 text-white px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
@@ -1498,27 +1689,27 @@ export default function UserStats() {
                     <Link
                       key={shop._id || shop.id}
                       to={buildShopPath(shop)}
-                      className="group flex items-center gap-4 rounded-xl border-2 border-gray-100 bg-white p-4 hover:border-purple-300 hover:shadow-lg transition-all duration-200"
+                      className="group flex items-center gap-4 rounded-xl border-2 border-gray-100 bg-white p-4 hover:border-neutral-300 hover:shadow-lg transition-all duration-200"
                       onClick={() => setShowFollowedModal(false)}
                     >
                       <div className="relative flex-shrink-0">
-                        <div className="h-16 w-16 rounded-xl bg-gray-100 overflow-hidden ring-2 ring-gray-100 group-hover:ring-purple-200 transition-all">
+                        <div className="h-16 w-16 rounded-xl bg-gray-100 overflow-hidden ring-2 ring-gray-100 group-hover:ring-neutral-200 transition-all">
                           {shop.shopLogo ? (
                             <img src={shop.shopLogo} alt={shop.shopName || shop.name} className="h-full w-full object-cover" />
                           ) : (
-                            <div className="h-full w-full bg-purple-100 flex items-center justify-center text-purple-600 text-lg font-bold">
+                            <div className="h-full w-full bg-neutral-100 flex items-center justify-center text-neutral-600 text-lg font-bold">
                               {(shop.shopName || shop.name)?.charAt(0) || 'B'}
                             </div>
                           )}
                         </div>
                         {shop.shopVerified && (
                           <div className="absolute -top-1 -right-1 p-1 bg-white rounded-full shadow-md">
-                            <Award className="w-4 h-4 text-emerald-600" />
+                            <Award className="w-4 h-4 text-neutral-600" />
                           </div>
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-gray-900 truncate group-hover:text-purple-600 transition-colors">{shop.shopName || shop.name}</p>
+                        <p className="font-bold text-gray-900 truncate group-hover:text-neutral-600 transition-colors">{shop.shopName || shop.name}</p>
                         <div className="flex items-center gap-3 mt-1 flex-wrap">
                           {shop.city && (
                             <div className="flex items-center gap-1">
@@ -1534,20 +1725,20 @@ export default function UserStats() {
                           </div>
                         </div>
                       </div>
-                      <ArrowLeft className="w-5 h-5 text-gray-300 group-hover:text-purple-600 rotate-180 transition-colors flex-shrink-0" />
+                      <ArrowLeft className="w-5 h-5 text-gray-300 group-hover:text-neutral-600 rotate-180 transition-colors flex-shrink-0" />
                     </Link>
                   ))}
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <div className="mx-auto w-20 h-20 rounded-2xl bg-purple-100 flex items-center justify-center mb-4">
-                    <Store className="w-10 h-10 text-purple-600" />
+                  <div className="mx-auto w-20 h-20 rounded-2xl bg-neutral-100 flex items-center justify-center mb-4">
+                    <Store className="w-10 h-10 text-neutral-600" />
                   </div>
                   <h4 className="text-lg font-bold text-gray-900 mb-2">Aucune boutique suivie</h4>
                   <p className="text-sm text-gray-500 mb-6">Commencez à suivre vos boutiques préférées pour les retrouver facilement</p>
                   <Link
                     to="/shops/verified"
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-purple-600 text-white font-semibold hover:bg-purple-700 shadow-lg hover:shadow-xl transition-all"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-lg hover:shadow-xl transition-all"
                     onClick={() => setShowFollowedModal(false)}
                   >
                     <Store className="w-4 h-4" />
@@ -1564,15 +1755,15 @@ export default function UserStats() {
       {showOrdersModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
           <div
-            className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity"
+            className="absolute inset-0 bg-neutral-900/60 backdrop-blur-md transition-opacity"
             onClick={() => setShowOrdersModal(false)}
           />
           <div
-            className="relative w-full max-w-4xl rounded-3xl bg-white shadow-2xl border border-gray-100 max-h-[90vh] overflow-hidden flex flex-col"
+            className="relative w-full max-w-4xl rounded-2xl bg-white shadow-2xl border border-gray-100 max-h-[90vh] overflow-hidden flex flex-col"
             onClick={(event) => event.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="bg-indigo-600 text-white px-6 py-5">
+            <div className="bg-neutral-600 text-white px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
@@ -1611,33 +1802,33 @@ export default function UserStats() {
                 </div>
               ) : orderedError ? (
                 <div className="text-center py-12">
-                  <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
-                    <X className="w-8 h-8 text-red-600" />
+                  <div className="mx-auto w-16 h-16 rounded-full bg-neutral-100 flex items-center justify-center mb-4">
+                    <X className="w-8 h-8 text-neutral-800" />
                   </div>
                   <h4 className="text-lg font-bold text-gray-900 mb-2">Erreur de chargement</h4>
-                  <p className="text-sm text-red-600">{orderedError}</p>
+                  <p className="text-sm text-neutral-800">{orderedError}</p>
                 </div>
               ) : orderedProducts.length ? (
                 <div className="space-y-3">
                   {orderedProducts.map((product, index) => {
                     const content = (
-                      <div className="group flex items-center gap-4 rounded-xl border-2 border-gray-100 bg-white p-4 hover:border-indigo-300 hover:shadow-lg transition-all duration-200">
+                      <div className="group flex items-center gap-4 rounded-xl border-2 border-gray-100 bg-white p-4 hover:border-neutral-300 hover:shadow-lg transition-all duration-200">
                         <div className="flex-shrink-0">
-                          <div className="w-12 h-12 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
+                          <div className="w-12 h-12 rounded-lg bg-neutral-600 flex items-center justify-center text-white font-bold text-sm">
                             #{index + 1}
                           </div>
                         </div>
-                        <div className="h-16 w-16 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0 ring-2 ring-gray-100 group-hover:ring-indigo-200 transition-all">
+                        <div className="h-16 w-16 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0 ring-2 ring-gray-100 group-hover:ring-neutral-200 transition-all">
                           {product.image ? (
                             <img src={product.image} alt={product.title} className="h-full w-full object-cover" />
                           ) : (
-                            <div className="h-full w-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-sm font-bold">
+                            <div className="h-full w-full bg-neutral-100 flex items-center justify-center text-neutral-600 text-sm font-bold">
                               {product.title?.charAt(0) || 'P'}
                             </div>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">{product.title}</p>
+                          <p className="text-sm font-bold text-gray-900 truncate group-hover:text-neutral-600 transition-colors">{product.title}</p>
                           <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                             <span className="flex items-center gap-1">
                               <Package className="w-3 h-3" />
@@ -1650,7 +1841,7 @@ export default function UserStats() {
                           </div>
                         </div>
                         {product.product && (
-                          <ArrowLeft className="w-5 h-5 text-gray-300 group-hover:text-indigo-600 rotate-180 transition-colors flex-shrink-0" />
+                          <ArrowLeft className="w-5 h-5 text-gray-300 group-hover:text-neutral-600 rotate-180 transition-colors flex-shrink-0" />
                         )}
                       </div>
                     );
@@ -1672,14 +1863,14 @@ export default function UserStats() {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <div className="mx-auto w-20 h-20 rounded-2xl bg-indigo-100 flex items-center justify-center mb-4">
-                    <ShoppingBag className="w-10 h-10 text-indigo-600" />
+                  <div className="mx-auto w-20 h-20 rounded-2xl bg-neutral-100 flex items-center justify-center mb-4">
+                    <ShoppingBag className="w-10 h-10 text-neutral-600" />
                   </div>
                   <h4 className="text-lg font-bold text-gray-900 mb-2">Aucun produit commandé</h4>
                   <p className="text-sm text-gray-500 mb-6">Vos produits commandés apparaîtront ici</p>
                   <Link
                     to="/orders"
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-lg hover:shadow-xl transition-all"
                     onClick={() => setShowOrdersModal(false)}
                   >
                     <ShoppingBag className="w-4 h-4" />
@@ -1696,15 +1887,15 @@ export default function UserStats() {
       {showSalesModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
           <div
-            className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity"
+            className="absolute inset-0 bg-neutral-900/60 backdrop-blur-md transition-opacity"
             onClick={() => setShowSalesModal(false)}
           />
           <div
-            className="relative w-full max-w-4xl rounded-3xl bg-white shadow-2xl border border-gray-100 max-h-[90vh] overflow-hidden flex flex-col"
+            className="relative w-full max-w-4xl rounded-2xl bg-white shadow-2xl border border-gray-100 max-h-[90vh] overflow-hidden flex flex-col"
             onClick={(event) => event.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="bg-emerald-600 text-white px-6 py-5">
+            <div className="bg-neutral-600 text-white px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
@@ -1743,46 +1934,46 @@ export default function UserStats() {
                 </div>
               ) : soldError ? (
                 <div className="text-center py-12">
-                  <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
-                    <X className="w-8 h-8 text-red-600" />
+                  <div className="mx-auto w-16 h-16 rounded-full bg-neutral-100 flex items-center justify-center mb-4">
+                    <X className="w-8 h-8 text-neutral-800" />
                   </div>
                   <h4 className="text-lg font-bold text-gray-900 mb-2">Erreur de chargement</h4>
-                  <p className="text-sm text-red-600">{soldError}</p>
+                  <p className="text-sm text-neutral-800">{soldError}</p>
                 </div>
               ) : soldProducts.length ? (
                 <div className="space-y-3">
                   {soldProducts.map((product, index) => {
                     const content = (
-                      <div className="group flex items-center gap-4 rounded-xl border-2 border-gray-100 bg-white p-4 hover:border-emerald-300 hover:shadow-lg transition-all duration-200">
+                      <div className="group flex items-center gap-4 rounded-xl border-2 border-gray-100 bg-white p-4 hover:border-neutral-300 hover:shadow-lg transition-all duration-200">
                         <div className="flex-shrink-0">
-                          <div className="w-12 h-12 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold text-sm">
+                          <div className="w-12 h-12 rounded-lg bg-neutral-600 flex items-center justify-center text-white font-bold text-sm">
                             #{index + 1}
                           </div>
                         </div>
-                        <div className="h-16 w-16 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0 ring-2 ring-gray-100 group-hover:ring-emerald-200 transition-all">
+                        <div className="h-16 w-16 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0 ring-2 ring-gray-100 group-hover:ring-neutral-200 transition-all">
                           {product.image ? (
                             <img src={product.image} alt={product.title} className="h-full w-full object-cover" />
                           ) : (
-                            <div className="h-full w-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-sm font-bold">
+                            <div className="h-full w-full bg-neutral-100 flex items-center justify-center text-neutral-600 text-sm font-bold">
                               {product.title?.charAt(0) || 'P'}
                             </div>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-gray-900 truncate group-hover:text-emerald-600 transition-colors">{product.title}</p>
+                          <p className="text-sm font-bold text-gray-900 truncate group-hover:text-neutral-600 transition-colors">{product.title}</p>
                           <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                             <span className="flex items-center gap-1">
                               <Package className="w-3 h-3" />
                               {formatNumber(product.quantity)} article(s)
                             </span>
-                            <span className="flex items-center gap-1 font-semibold text-emerald-600">
+                            <span className="flex items-center gap-1 font-semibold text-neutral-600">
                               <DollarSign className="w-3 h-3" />
                               {formatCurrency(product.totalEarned)}
                             </span>
                           </div>
                         </div>
                         {product.product && (
-                          <ArrowLeft className="w-5 h-5 text-gray-300 group-hover:text-emerald-600 rotate-180 transition-colors flex-shrink-0" />
+                          <ArrowLeft className="w-5 h-5 text-gray-300 group-hover:text-neutral-600 rotate-180 transition-colors flex-shrink-0" />
                         )}
                       </div>
                     );
@@ -1804,14 +1995,14 @@ export default function UserStats() {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <div className="mx-auto w-20 h-20 rounded-2xl bg-emerald-100 flex items-center justify-center mb-4">
-                    <TrendingUp className="w-10 h-10 text-emerald-600" />
+                  <div className="mx-auto w-20 h-20 rounded-2xl bg-neutral-100 flex items-center justify-center mb-4">
+                    <TrendingUp className="w-10 h-10 text-neutral-600" />
                   </div>
                   <h4 className="text-lg font-bold text-gray-900 mb-2">Aucun produit vendu</h4>
                   <p className="text-sm text-gray-500 mb-6">Vos produits vendus apparaîtront ici une fois que vous recevrez des commandes</p>
                   <Link
                     to="/seller/orders"
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 shadow-lg hover:shadow-xl transition-all"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-lg hover:shadow-xl transition-all"
                     onClick={() => setShowSalesModal(false)}
                   >
                     <TrendingUp className="w-4 h-4" />

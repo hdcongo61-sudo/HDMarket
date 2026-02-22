@@ -834,7 +834,7 @@ export default function UserDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header Section */}
-      <div className="bg-indigo-600 text-white">
+      <div className="bg-neutral-600 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-2">
@@ -874,7 +874,7 @@ export default function UserDashboard() {
                   setEditingProduct(null);
                   setProductModalOpen(true);
                 }}
-                className="inline-flex items-center gap-2 rounded-xl bg-white text-indigo-600 px-4 py-2.5 text-sm font-semibold hover:bg-white/90 transition-all shadow-lg"
+                className="inline-flex items-center gap-2 rounded-xl bg-white text-neutral-600 px-4 py-2.5 text-sm font-semibold hover:bg-white/90 transition-all shadow-lg"
               >
                 <Plus className="w-4 h-4" />
                 Publier une annonce
@@ -890,7 +890,7 @@ export default function UserDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-indigo-600">
+                <div className="p-3 rounded-xl bg-neutral-600">
                   <Package className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-2xl font-bold text-gray-900">{stats.total}</span>
@@ -920,7 +920,7 @@ export default function UserDashboard() {
             </div>
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-purple-600">
+                <div className="p-3 rounded-xl bg-neutral-600">
                   <DollarSign className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalValue)}</span>
@@ -946,9 +946,9 @@ export default function UserDashboard() {
                 </div>
               </div>
             ) : promoAnalytics?.gamification?.rank ? (
-              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
-                <p className="text-sm font-semibold text-indigo-900">Classement promo du mois</p>
-                <p className="text-sm text-indigo-700">
+              <div className="rounded-2xl border border-neutral-100 bg-neutral-50/60 p-4">
+                <p className="text-sm font-semibold text-neutral-900">Classement promo du mois</p>
+                <p className="text-sm text-neutral-700">
                   Position #{promoAnalytics.gamification.rank} sur {promoAnalytics.gamification.totalParticipants || 0} boutiques.
                 </p>
               </div>
@@ -957,7 +957,7 @@ export default function UserDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 rounded-xl bg-indigo-600">
+                  <div className="p-3 rounded-xl bg-neutral-600">
                     <DollarSign className="w-5 h-5 text-white" />
                   </div>
                   <span className="text-2xl font-bold text-gray-900">
@@ -983,7 +983,7 @@ export default function UserDashboard() {
 
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 rounded-xl bg-rose-600">
+                  <div className="p-3 rounded-xl bg-neutral-600">
                     <TrendingUp className="w-5 h-5 text-white" />
                   </div>
                   <span className="text-2xl font-bold text-gray-900">
@@ -1040,7 +1040,7 @@ export default function UserDashboard() {
               </div>
             </div>
 
-            <form onSubmit={handleCreatePromoCode} className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4 space-y-4">
+            <form onSubmit={handleCreatePromoCode} className="rounded-2xl border border-neutral-100 bg-neutral-50/40 p-4 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                 <input
                   type="text"
@@ -1114,7 +1114,7 @@ export default function UserDashboard() {
                   </select>
                 ) : (
                   <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600">
-                    <Tag className="w-4 h-4 text-indigo-600" />
+                    <Tag className="w-4 h-4 text-neutral-600" />
                     Promo appliquée à tous vos produits
                   </div>
                 )}
@@ -1132,7 +1132,7 @@ export default function UserDashboard() {
                 <button
                   type="submit"
                   disabled={promoSubmitting}
-                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-xl bg-neutral-600 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-60"
                 >
                   {promoSubmitting ? 'Création...' : 'Créer le code promo'}
                 </button>
@@ -1192,7 +1192,7 @@ export default function UserDashboard() {
                   value={searchDraft}
                   onChange={(e) => setSearchDraft(e.target.value)}
                   placeholder="Rechercher par titre ou description..."
-                  className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                 />
                 {searchDraft && (
                   <button
@@ -1251,7 +1251,7 @@ export default function UserDashboard() {
                     onClick={() => setViewMode('grid')}
                     className={`p-2 rounded-lg transition-all ${
                       viewMode === 'grid'
-                        ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                        ? 'bg-white dark:bg-gray-700 text-neutral-600 dark:text-neutral-400 shadow-sm'
                         : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                     }`}
                     title="Vue grille"
@@ -1263,7 +1263,7 @@ export default function UserDashboard() {
                     onClick={() => setViewMode('list')}
                     className={`p-2 rounded-lg transition-all ${
                       viewMode === 'list'
-                        ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                        ? 'bg-white dark:bg-gray-700 text-neutral-600 dark:text-neutral-400 shadow-sm'
                         : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                     }`}
                     title="Vue liste"
@@ -1278,7 +1278,7 @@ export default function UserDashboard() {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="px-4 py-2 rounded-xl bg-gray-50 border border-gray-200 text-sm font-semibold text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  className="px-4 py-2 rounded-xl bg-gray-50 border border-gray-200 text-sm font-semibold text-gray-700 focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                 >
                   <option value="date-desc">Date (récent)</option>
                   <option value="date-asc">Date (ancien)</option>
@@ -1319,7 +1319,7 @@ export default function UserDashboard() {
                           }}
                           className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
                             isSelected
-                              ? 'bg-indigo-600 text-white shadow-lg'
+                              ? 'bg-neutral-600 text-white shadow-lg'
                               : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
                           }`}
                         >
@@ -1342,7 +1342,7 @@ export default function UserDashboard() {
                         value={priceMin}
                         onChange={(e) => setPriceMin(e.target.value)}
                         placeholder="Prix minimum"
-                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                       />
                     </div>
                     <div>
@@ -1351,7 +1351,7 @@ export default function UserDashboard() {
                         value={priceMax}
                         onChange={(e) => setPriceMax(e.target.value)}
                         placeholder="Prix maximum"
-                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                       />
                     </div>
                   </div>
@@ -1369,7 +1369,7 @@ export default function UserDashboard() {
                         type="date"
                         value={dateFrom}
                         onChange={(e) => setDateFrom(e.target.value)}
-                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                       />
                     </div>
                     <div>
@@ -1378,7 +1378,7 @@ export default function UserDashboard() {
                         type="date"
                         value={dateTo}
                         onChange={(e) => setDateTo(e.target.value)}
-                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                       />
                     </div>
                   </div>
@@ -1412,7 +1412,7 @@ export default function UserDashboard() {
                             }}
                             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
                               isSelected
-                                ? 'bg-indigo-600 text-white shadow-lg'
+                                ? 'bg-neutral-600 text-white shadow-lg'
                                 : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
                             }`}
                           >
@@ -1443,7 +1443,7 @@ export default function UserDashboard() {
                           onClick={() => setInstallmentFilter(option.key)}
                           className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
                             isSelected
-                              ? 'bg-indigo-600 text-white shadow-lg'
+                              ? 'bg-neutral-600 text-white shadow-lg'
                               : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
                           }`}
                         >
@@ -1462,12 +1462,12 @@ export default function UserDashboard() {
                       value={filterName}
                       onChange={(e) => setFilterName(e.target.value)}
                       placeholder="Nom du filtre..."
-                      className="flex-1 px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                      className="flex-1 px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                     />
                     <button
                       type="button"
                       onClick={saveCurrentFilter}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-all"
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 transition-all"
                     >
                       <Save className="w-4 h-4" />
                       Sauvegarder
@@ -1487,7 +1487,7 @@ export default function UserDashboard() {
                             <button
                               type="button"
                               onClick={() => loadSavedFilter(filter)}
-                              className="text-sm font-semibold text-gray-700 hover:text-indigo-600 transition-colors"
+                              className="text-sm font-semibold text-gray-700 hover:text-neutral-600 transition-colors"
                             >
                               {filter.name}
                             </button>
@@ -1528,7 +1528,7 @@ export default function UserDashboard() {
                     }}
                     className={`group relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                       isActive
-                        ? 'bg-indigo-600 text-white shadow-lg scale-105'
+                        ? 'bg-neutral-600 text-white shadow-lg scale-105'
                         : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
                     }`}
                   >
@@ -1538,7 +1538,7 @@ export default function UserDashboard() {
                       <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                         isActive
                           ? 'bg-white/20 text-white'
-                          : 'bg-indigo-100 text-indigo-700'
+                          : 'bg-neutral-100 text-neutral-700'
                       }`}>
                         {count}
                       </span>
@@ -1566,8 +1566,8 @@ export default function UserDashboard() {
         {/* Empty State */}
         {!loading && items.length === 0 && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
-            <div className="mx-auto w-20 h-20 rounded-2xl bg-indigo-100 flex items-center justify-center mb-4">
-              <Package className="w-10 h-10 text-indigo-600" />
+            <div className="mx-auto w-20 h-20 rounded-2xl bg-neutral-100 flex items-center justify-center mb-4">
+              <Package className="w-10 h-10 text-neutral-600" />
             </div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">Aucune annonce</h3>
             <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
@@ -1579,7 +1579,7 @@ export default function UserDashboard() {
                 setEditingProduct(null);
                 setProductModalOpen(true);
               }}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-lg hover:shadow-xl transition-all"
             >
               <Plus className="w-4 h-4" />
               Publier ma première annonce
@@ -1600,7 +1600,7 @@ export default function UserDashboard() {
             <button
               type="button"
               onClick={clearAllFilters}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border-2 border-indigo-200 bg-white text-indigo-600 font-semibold hover:bg-indigo-50 transition-all"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border-2 border-neutral-200 bg-white text-neutral-600 font-semibold hover:bg-neutral-50 transition-all"
             >
               Réinitialiser les filtres
             </button>
@@ -1609,7 +1609,7 @@ export default function UserDashboard() {
 
         {/* Bulk Actions Toolbar */}
         {!loading && paginatedItems.length > 0 && selectedProducts.size > 0 && (
-          <div className="bg-indigo-600 text-white rounded-2xl border border-indigo-700 shadow-lg p-4 mb-6">
+          <div className="bg-neutral-600 text-white rounded-2xl border border-neutral-700 shadow-lg p-4 mb-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <CheckSquare className="w-5 h-5" />
@@ -1692,7 +1692,7 @@ export default function UserDashboard() {
                     }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                       selectionMode === 'single'
-                        ? 'bg-indigo-600 text-white shadow-sm'
+                        ? 'bg-neutral-600 text-white shadow-sm'
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                     title="Sélection unique"
@@ -1707,7 +1707,7 @@ export default function UserDashboard() {
                     }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                       selectionMode === 'multiple'
-                        ? 'bg-indigo-600 text-white shadow-sm'
+                        ? 'bg-neutral-600 text-white shadow-sm'
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                     title="Sélection multiple"
@@ -1721,10 +1721,10 @@ export default function UserDashboard() {
                   <button
                     type="button"
                     onClick={selectAllProducts}
-                    className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-indigo-600 transition-colors"
+                    className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-neutral-600 transition-colors"
                   >
                     {selectedProducts.size === paginatedItems.length ? (
-                      <CheckSquare className="w-5 h-5 text-indigo-600" />
+                      <CheckSquare className="w-5 h-5 text-neutral-600" />
                     ) : (
                       <Square className="w-5 h-5 text-gray-400" />
                     )}
@@ -1768,7 +1768,7 @@ export default function UserDashboard() {
                       key={productId}
                       className={`bg-white rounded-xl border-2 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden relative ${
                         isSelected
-                          ? 'border-indigo-500 ring-2 ring-indigo-200'
+                          ? 'border-neutral-500 ring-2 ring-neutral-200'
                           : isTopPerformer
                           ? 'border-yellow-400 ring-2 ring-yellow-200'
                           : 'border-gray-100'
@@ -1792,7 +1792,7 @@ export default function UserDashboard() {
                             }}
                             className={`p-2 rounded-lg backdrop-blur-sm transition-all cursor-pointer ${
                               isSelected
-                                ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg'
+                                ? 'bg-neutral-600 text-white hover:bg-neutral-700 shadow-lg'
                                 : 'bg-black/60 text-white hover:bg-black/80'
                             }`}
                             style={{ pointerEvents: 'auto' }}
@@ -1839,7 +1839,7 @@ export default function UserDashboard() {
                         </div>
                         {/* Boosted Badge */}
                         {product.boosted && (
-                          <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg backdrop-blur-sm">
+                          <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-gradient-to-r from-neutral-500 to-neutral-600 text-white shadow-lg backdrop-blur-sm">
                             <Zap className="w-3 h-3" />
                             <span className="text-xs font-bold uppercase tracking-wide">Boosté</span>
                           </div>
@@ -1862,7 +1862,7 @@ export default function UserDashboard() {
                               {product.title}
                             </h3>
                             <div className="flex items-baseline gap-2 mb-3">
-                              <span className="text-2xl font-black text-indigo-600">
+                              <span className="text-2xl font-black text-neutral-600">
                                 {formatCurrency(product.price)}
                               </span>
                               {product.priceBeforeDiscount && product.priceBeforeDiscount > product.price && (
@@ -1884,7 +1884,7 @@ export default function UserDashboard() {
                                 </div>
                               )}
                               {product.boosted && (
-                                <div className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 font-semibold">
+                                <div className="flex items-center gap-1 text-neutral-600 dark:text-neutral-400 font-semibold">
                                   <Zap className="w-3 h-3" />
                                   <span>Boosté</span>
                                 </div>
@@ -1904,7 +1904,7 @@ export default function UserDashboard() {
                               <Link
                                 to={buildProductPath(product)}
                                 {...externalLinkProps}
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm font-semibold hover:bg-indigo-100 transition-all"
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-700 text-sm font-semibold hover:bg-neutral-100 transition-all"
                               >
                                 <Eye className="w-4 h-4" />
                                 Voir
@@ -1915,7 +1915,7 @@ export default function UserDashboard() {
                               onClick={() => {
                                 setAnalyticsProduct({ id: productId, title: product.title });
                               }}
-                              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-purple-200 bg-purple-50 text-purple-700 text-sm font-semibold hover:bg-purple-100 transition-all"
+                              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-700 text-sm font-semibold hover:bg-neutral-100 transition-all"
                             >
                               <BarChart3 className="w-4 h-4" />
                               Analytics
@@ -1972,7 +1972,7 @@ export default function UserDashboard() {
                     key={productId}
                     className={`bg-white rounded-2xl border-2 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden relative ${
                       isSelected
-                        ? 'border-indigo-500 ring-2 ring-indigo-200'
+                        ? 'border-neutral-500 ring-2 ring-neutral-200'
                         : isTopPerformer
                         ? 'border-yellow-400 ring-2 ring-yellow-200'
                         : 'border-gray-100'
@@ -2003,7 +2003,7 @@ export default function UserDashboard() {
                         }}
                         className={`p-2.5 rounded-lg backdrop-blur-sm transition-all cursor-pointer ${
                           isSelected
-                            ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg'
+                            ? 'bg-neutral-600 text-white hover:bg-neutral-700 shadow-lg'
                             : 'bg-black/60 text-white hover:bg-black/80'
                         }`}
                         style={{ pointerEvents: 'auto' }}
@@ -2041,7 +2041,7 @@ export default function UserDashboard() {
                         </div>
                         {/* Boosted Badge */}
                         {product.boosted && (
-                          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg backdrop-blur-sm">
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-neutral-500 to-neutral-600 text-white shadow-lg backdrop-blur-sm">
                             <Zap className="w-3.5 h-3.5" />
                             <span className="text-xs font-bold uppercase tracking-wide">Boosté</span>
                           </div>
@@ -2065,7 +2065,7 @@ export default function UserDashboard() {
                           {product.title}
                         </h3>
                         <div className="flex items-baseline gap-2">
-                          <span className="text-xl font-black text-indigo-600">
+                          <span className="text-xl font-black text-neutral-600">
                             {formatCurrency(product.price)}
                           </span>
                           {product.priceBeforeDiscount && product.priceBeforeDiscount > product.price && (
@@ -2092,7 +2092,7 @@ export default function UserDashboard() {
                           </div>
                         )}
                         {product.boosted && (
-                          <div className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 font-semibold">
+                          <div className="flex items-center gap-1 text-neutral-600 dark:text-neutral-400 font-semibold">
                             <Zap className="w-3 h-3" />
                             <span>Boosté</span>
                           </div>
@@ -2111,7 +2111,7 @@ export default function UserDashboard() {
                           <Link
                             to={buildProductPath(product)}
                             {...externalLinkProps}
-                            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm font-semibold hover:bg-indigo-100 transition-all"
+                            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-700 text-sm font-semibold hover:bg-neutral-100 transition-all"
                           >
                             <Eye className="w-4 h-4" />
                             Voir
@@ -2122,7 +2122,7 @@ export default function UserDashboard() {
                           onClick={() => {
                             setAnalyticsProduct({ id: productId, title: product.title });
                           }}
-                          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-purple-200 bg-purple-50 text-purple-700 text-sm font-semibold hover:bg-purple-100 transition-all"
+                          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-700 text-sm font-semibold hover:bg-neutral-100 transition-all"
                         >
                           <BarChart3 className="w-4 h-4" />
                           Analytics
@@ -2226,7 +2226,7 @@ export default function UserDashboard() {
             onClick={(event) => event.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className={`bg-indigo-600 text-white flex-shrink-0 ${isMobile ? 'px-4 py-4 safe-area-top' : 'px-6 py-5'}`}>
+            <div className={`bg-neutral-600 text-white flex-shrink-0 ${isMobile ? 'px-4 py-4 safe-area-top' : 'px-6 py-5'}`}>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className={`rounded-xl bg-white/20 backdrop-blur-sm flex-shrink-0 ${isMobile ? 'p-2.5' : 'p-3'}`}>

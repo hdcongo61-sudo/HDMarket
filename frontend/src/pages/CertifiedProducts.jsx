@@ -49,7 +49,7 @@ export default function CertifiedProducts() {
       <header className="space-y-2">
         <button
           onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 mb-4 text-sm font-semibold text-gray-600 hover:text-indigo-600 transition-colors"
+          className="inline-flex items-center gap-2 mb-4 text-sm font-semibold text-gray-600 hover:text-neutral-600 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Retour

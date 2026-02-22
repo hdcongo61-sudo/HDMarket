@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Image, Layout, Smartphone, Upload, Shield, Search, X, Sparkles, Plus, Trash2, Edit, Save, Flag, MessageSquare, FileImage, User, Package, CheckCircle, XCircle, Clock } from 'lucide-react';
-import api from '../services/api';
+import api, { clearCache } from '../services/api';
 import { useToast } from '../context/ToastContext';
 
 const formatDateInput = (value) => {
@@ -53,6 +53,14 @@ function NetworkEditForm({ network, onSave, onCancel }) {
 
 export default function AdminAppSettings() {
   const { showToast } = useToast();
+  const emitAppLogoUpdated = useCallback((payload = {}) => {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(
+      new CustomEvent('hdmarket:app-logo-updated', {
+        detail: payload
+      })
+    );
+  }, []);
 
   const [appLogoDesktopFile, setAppLogoDesktopFile] = useState(null);
   const [appLogoDesktopPreview, setAppLogoDesktopPreview] = useState('');
@@ -119,7 +127,7 @@ export default function AdminAppSettings() {
       try {
         const [heroRes, logoRes, promoRes, prohibitedRes, splashRes, networksRes] = await Promise.all([
           api.get('/settings/hero-banner'),
-          api.get('/settings/app-logo'),
+          api.get('/settings/app-logo', { skipCache: true }),
           api.get('/settings/promo-banner'),
           api.get('/admin/prohibited-words').catch(() => ({ data: [] })),
           api.get('/settings/splash').catch(() => ({ data: null })),
@@ -200,7 +208,7 @@ export default function AdminAppSettings() {
   const getStatusBadge = (status) => {
     const styles = {
       pending: 'bg-yellow-100 text-yellow-700 border-yellow-300',
-      reviewed: 'bg-blue-100 text-blue-700 border-blue-300',
+      reviewed: 'bg-neutral-100 text-neutral-700 border-neutral-300',
       resolved: 'bg-green-100 text-green-700 border-green-300',
       dismissed: 'bg-gray-100 text-gray-700 border-gray-300'
     };
@@ -430,8 +438,11 @@ export default function AdminAppSettings() {
       const { data } = await api.put('/admin/app-logo/desktop', payload, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      setAppLogoDesktopPreview(data?.appLogoDesktop ?? appLogoDesktopPreview);
+      const nextDesktopLogo = data?.appLogoDesktop ?? appLogoDesktopPreview;
+      setAppLogoDesktopPreview(nextDesktopLogo);
       setAppLogoDesktopFile(null);
+      clearCache('/settings/app-logo').catch(() => {});
+      emitAppLogoUpdated({ appLogoDesktop: nextDesktopLogo });
       setAppLogoDesktopSuccess('Logo desktop mis à jour avec succès.');
       showToast('Logo desktop mis à jour.', { variant: 'success' });
     } catch (err) {
@@ -441,7 +452,7 @@ export default function AdminAppSettings() {
     } finally {
       setAppLogoDesktopSaving(false);
     }
-  }, [appLogoDesktopFile, appLogoDesktopPreview, showToast]);
+  }, [appLogoDesktopFile, appLogoDesktopPreview, emitAppLogoUpdated, showToast]);
 
   const saveAppLogoMobile = useCallback(async () => {
     if (!appLogoMobileFile) {
@@ -457,8 +468,11 @@ export default function AdminAppSettings() {
       const { data } = await api.put('/admin/app-logo/mobile', payload, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      setAppLogoMobilePreview(data?.appLogoMobile ?? appLogoMobilePreview);
+      const nextMobileLogo = data?.appLogoMobile ?? appLogoMobilePreview;
+      setAppLogoMobilePreview(nextMobileLogo);
       setAppLogoMobileFile(null);
+      clearCache('/settings/app-logo').catch(() => {});
+      emitAppLogoUpdated({ appLogoMobile: nextMobileLogo });
       setAppLogoMobileSuccess('Logo mobile mis à jour avec succès.');
       showToast('Logo mobile mis à jour.', { variant: 'success' });
     } catch (err) {
@@ -468,7 +482,7 @@ export default function AdminAppSettings() {
     } finally {
       setAppLogoMobileSaving(false);
     }
-  }, [appLogoMobileFile, appLogoMobilePreview, showToast]);
+  }, [appLogoMobileFile, appLogoMobilePreview, emitAppLogoUpdated, showToast]);
 
   const addProhibitedWord = useCallback(
     async (event) => {
@@ -513,10 +527,10 @@ export default function AdminAppSettings() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/20">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-neutral-50/20">
         <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-center py-24">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
             <p className="mt-4 text-sm font-medium text-gray-600">Chargement des paramètres…</p>
           </div>
         </div>
@@ -525,15 +539,15 @@ export default function AdminAppSettings() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/20">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-neutral-50/20">
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-8 sm:px-6 lg:px-8">
         <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between pb-6 border-b border-gray-200/60">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 shadow-lg">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-neutral-600 to-neutral-600 shadow-lg">
               <Image size={24} className="text-white" strokeWidth={2.5} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 via-indigo-900 to-purple-900 bg-clip-text text-transparent">
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 via-neutral-900 to-neutral-900 bg-clip-text text-transparent">
                 App Settings
               </h1>
               <p className="text-sm text-gray-600 mt-0.5">
@@ -544,14 +558,14 @@ export default function AdminAppSettings() {
           <div className="flex flex-wrap items-center gap-2">
             <Link
               to="/admin/settings/categories"
-              className="inline-flex items-center gap-2 rounded-xl border border-indigo-300 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 shadow-sm hover:bg-indigo-100 transition-all"
+              className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 bg-neutral-50 px-4 py-2.5 text-sm font-semibold text-neutral-700 shadow-sm hover:bg-neutral-100 transition-all"
             >
               <Layout size={16} />
               Gérer les catégories
             </Link>
             <Link
               to="/admin"
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-700 transition-all"
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 hover:border-neutral-300 hover:text-neutral-700 transition-all"
             >
               <ArrowLeft size={16} />
               Retour au tableau de bord
@@ -591,7 +605,7 @@ export default function AdminAppSettings() {
                   )}
                   <label className="mt-2 flex flex-col items-center gap-1 cursor-pointer">
                     <Upload size={20} className="text-gray-400" />
-                    <span className="text-xs text-indigo-600 font-medium">Cliquez pour uploader</span>
+                    <span className="text-xs text-neutral-600 font-medium">Cliquez pour uploader</span>
                     <span className="text-xs text-gray-400">PNG, JPG, WEBP — format horizontal</span>
                     <input type="file" accept="image/*" onChange={onAppLogoDesktopChange} className="hidden" />
                   </label>
@@ -600,7 +614,7 @@ export default function AdminAppSettings() {
                   type="button"
                   onClick={saveAppLogoDesktop}
                   disabled={appLogoDesktopSaving || !appLogoDesktopFile}
-                  className="w-full rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full rounded-xl bg-neutral-600 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {appLogoDesktopSaving ? 'Mise à jour…' : 'Enregistrer le logo desktop'}
                 </button>
@@ -622,7 +636,7 @@ export default function AdminAppSettings() {
                   )}
                   <label className="mt-2 flex flex-col items-center gap-1 cursor-pointer">
                     <Upload size={20} className="text-gray-400" />
-                    <span className="text-xs text-indigo-600 font-medium">Cliquez pour uploader</span>
+                    <span className="text-xs text-neutral-600 font-medium">Cliquez pour uploader</span>
                     <span className="text-xs text-gray-400">PNG, JPG, WEBP — format carré</span>
                     <input type="file" accept="image/*" onChange={onAppLogoMobileChange} className="hidden" />
                   </label>
@@ -631,7 +645,7 @@ export default function AdminAppSettings() {
                   type="button"
                   onClick={saveAppLogoMobile}
                   disabled={appLogoMobileSaving || !appLogoMobileFile}
-                  className="w-full rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full rounded-xl bg-neutral-600 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {appLogoMobileSaving ? 'Mise à jour…' : 'Enregistrer le logo mobile'}
                 </button>
@@ -642,8 +656,8 @@ export default function AdminAppSettings() {
           {/* Hero Banner (Accueil) */}
           <div className="rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100">
-                <Image size={20} className="text-indigo-600" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
+                <Image size={20} className="text-neutral-600" />
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Bannière du HERO (Accueil)</h2>
@@ -657,7 +671,7 @@ export default function AdminAppSettings() {
             <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 p-6 cursor-pointer hover:bg-gray-100 transition-colors">
               {heroBannerPreview ? (
                 <div className="text-center w-full">
-                  <img src={heroBannerPreview} alt="Bannière HERO" className="h-32 w-full rounded-xl object-cover mx-auto mb-2 border-2 border-indigo-200" />
+                  <img src={heroBannerPreview} alt="Bannière HERO" className="h-32 w-full rounded-xl object-cover mx-auto mb-2 border-2 border-neutral-200" />
                   <p className="text-sm text-gray-600">Bannière actuelle</p>
                 </div>
               ) : (
@@ -665,7 +679,7 @@ export default function AdminAppSettings() {
               )}
               <label className="mt-2 flex flex-col items-center gap-1 cursor-pointer">
                 <Upload size={20} className="text-gray-400" />
-                <span className="text-xs text-indigo-600 font-medium">Cliquez pour uploader</span>
+                <span className="text-xs text-neutral-600 font-medium">Cliquez pour uploader</span>
                 <span className="text-xs text-gray-400">PNG, JPG — 1600×600px recommandé</span>
                 <input type="file" accept="image/*" onChange={onHeroBannerChange} className="hidden" />
               </label>
@@ -674,7 +688,7 @@ export default function AdminAppSettings() {
               type="button"
               onClick={saveHeroBanner}
               disabled={heroBannerSaving || !heroBannerFile}
-              className="mt-4 w-full rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="mt-4 w-full rounded-xl bg-neutral-600 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {heroBannerSaving ? 'Mise à jour…' : 'Enregistrer la bannière HERO'}
             </button>
@@ -683,8 +697,8 @@ export default function AdminAppSettings() {
           {/* Promo Banner */}
           <div className="rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pink-100">
-                <Image size={20} className="text-pink-600" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
+                <Image size={20} className="text-neutral-600" />
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Bannière publicitaire</h2>
@@ -703,7 +717,7 @@ export default function AdminAppSettings() {
                   value={promoBannerLink}
                   onChange={(e) => setPromoBannerLink(e.target.value)}
                   placeholder="https://exemple.com/promo ou /products"
-                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                 />
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -713,7 +727,7 @@ export default function AdminAppSettings() {
                     type="date"
                     value={promoBannerStartAt}
                     onChange={(e) => setPromoBannerStartAt(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                   />
                 </div>
                 <div>
@@ -722,7 +736,7 @@ export default function AdminAppSettings() {
                     type="date"
                     value={promoBannerEndAt}
                     onChange={(e) => setPromoBannerEndAt(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                   />
                 </div>
               </div>
@@ -740,7 +754,7 @@ export default function AdminAppSettings() {
                 )}
                 <label className="mt-2 flex flex-col items-center gap-1 cursor-pointer">
                   <Upload size={18} className="text-gray-400" />
-                  <span className="text-xs text-indigo-600 font-medium">Upload</span>
+                  <span className="text-xs text-neutral-600 font-medium">Upload</span>
                   <input type="file" accept="image/*" onChange={onPromoBannerChange} className="hidden" />
                 </label>
               </div>
@@ -755,7 +769,7 @@ export default function AdminAppSettings() {
                 )}
                 <label className="mt-2 flex flex-col items-center gap-1 cursor-pointer">
                   <Upload size={18} className="text-gray-400" />
-                  <span className="text-xs text-indigo-600 font-medium">Upload</span>
+                  <span className="text-xs text-neutral-600 font-medium">Upload</span>
                   <input type="file" accept="image/*" onChange={onPromoBannerMobileChange} className="hidden" />
                 </label>
               </div>
@@ -764,7 +778,7 @@ export default function AdminAppSettings() {
               type="button"
               onClick={savePromoBanner}
               disabled={promoBannerSaving}
-              className="w-full rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full rounded-xl bg-neutral-600 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {promoBannerSaving ? 'Mise à jour…' : 'Enregistrer la bannière publicitaire'}
             </button>
@@ -791,7 +805,7 @@ export default function AdminAppSettings() {
                 id="splash-enabled"
                 checked={splashEnabled}
                 onChange={(e) => setSplashEnabled(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                className="h-4 w-4 rounded border-gray-300 text-neutral-600 focus:ring-neutral-500"
               />
               <label htmlFor="splash-enabled" className="text-sm font-medium text-gray-700 cursor-pointer">
                 Afficher l’écran de démarrage au chargement de l’app
@@ -813,7 +827,7 @@ export default function AdminAppSettings() {
                 )}
                 <label className="mt-2 flex flex-col items-center gap-1 cursor-pointer">
                   <Upload size={18} className="text-gray-400" />
-                  <span className="text-xs text-indigo-600 font-medium">Choisir une image</span>
+                  <span className="text-xs text-neutral-600 font-medium">Choisir une image</span>
                   <span className="text-xs text-gray-400">PNG, JPG — plein écran</span>
                   <input type="file" accept="image/*" onChange={onSplashImageChange} className="hidden" />
                 </label>
@@ -828,7 +842,7 @@ export default function AdminAppSettings() {
                   max={30}
                   value={splashDurationSeconds}
                   onChange={(e) => setSplashDurationSeconds(Math.min(30, Math.max(1, Number(e.target.value) || 3)))}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                 />
                 <p className="text-xs text-gray-500">Entre 1 et 30 secondes. L’utilisateur peut passer avant la fin.</p>
               </div>
@@ -837,7 +851,7 @@ export default function AdminAppSettings() {
               type="button"
               onClick={saveSplash}
               disabled={splashSaving || (splashEnabled && !splashImageFile && !splashImagePreview)}
-              className="w-full rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full rounded-xl bg-neutral-600 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {splashSaving ? 'Mise à jour…' : 'Enregistrer l’écran de démarrage'}
             </button>
@@ -864,14 +878,14 @@ export default function AdminAppSettings() {
                   placeholder="Ex : contrefaçon, interdit..."
                   value={newProhibitedWord}
                   onChange={(e) => setNewProhibitedWord(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                   disabled={prohibitedLoading}
                 />
               </div>
               <button
                 type="submit"
                 disabled={prohibitedLoading || !newProhibitedWord.trim()}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-neutral-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {prohibitedLoading ? (
                   <>
@@ -1173,9 +1187,9 @@ export default function AdminAppSettings() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           {report.type === 'comment' ? (
-                            <MessageSquare size={16} className="text-blue-600" />
+                            <MessageSquare size={16} className="text-neutral-600" />
                           ) : (
-                            <FileImage size={16} className="text-purple-600" />
+                            <FileImage size={16} className="text-neutral-600" />
                           )}
                           <span className="font-semibold text-gray-900">
                             {report.type === 'comment' ? 'Commentaire signalé' : 'Photo signalée'}
@@ -1196,7 +1210,7 @@ export default function AdminAppSettings() {
                             <Link
                               to={`/product/${report.product?.slug || report.product?._id}`}
                               target="_blank"
-                              className="text-indigo-600 hover:underline"
+                              className="text-neutral-600 hover:underline"
                             >
                               {report.product?.title || '—'}
                             </Link>
@@ -1228,9 +1242,9 @@ export default function AdminAppSettings() {
                             {report.handledBy && ` par ${report.handledBy?.name || '—'}`}
                           </p>
                           {report.adminNote && (
-                            <div className="mt-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
-                              <p className="text-xs text-blue-600 font-medium mb-1">Note admin:</p>
-                              <p className="text-sm text-blue-700">{report.adminNote}</p>
+                            <div className="mt-2 p-2 bg-neutral-50 rounded-lg border border-neutral-200">
+                              <p className="text-xs text-neutral-600 font-medium mb-1">Note admin:</p>
+                              <p className="text-sm text-neutral-700">{report.adminNote}</p>
                             </div>
                           )}
                         </div>

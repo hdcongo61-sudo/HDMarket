@@ -78,6 +78,8 @@ export default function Home() {
   const [topProductsTab, setTopProductsTab] = useState('favorites');
   const [installmentProducts, setInstallmentProducts] = useState([]);
   const [installmentLoading, setInstallmentLoading] = useState(false);
+  const [wholesaleProducts, setWholesaleProducts] = useState([]);
+  const [wholesaleLoading, setWholesaleLoading] = useState(false);
   const [shouldLoadInstallment, setShouldLoadInstallment] = useState(false);
   const installmentSectionRef = useRef(null);
 const cityList = useMemo(
@@ -179,6 +181,27 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
       setInstallmentLoading(false);
     }
   }, []);
+
+  const loadWholesaleProducts = useCallback(async () => {
+    setWholesaleLoading(true);
+    try {
+      const params = {
+        page: 1,
+        limit: isMobileView ? 8 : 10
+      };
+      if (hasUserCity && effectiveUserCity) {
+        params.userCity = effectiveUserCity;
+        params.nearMe = true;
+      }
+      const { data } = await api.get('/products/public/wholesale', { params });
+      setWholesaleProducts(Array.isArray(data?.items) ? data.items : []);
+    } catch (error) {
+      console.error('Erreur chargement produits en gros:', error);
+      setWholesaleProducts([]);
+    } finally {
+      setWholesaleLoading(false);
+    }
+  }, [effectiveUserCity, hasUserCity, isMobileView]);
 
   const loadCertifiedProducts = useCallback(async () => {
     try {
@@ -544,6 +567,10 @@ const loadDiscountProducts = async () => {
   }, [loadTopSalesTodayByCity]);
 
   useEffect(() => {
+    loadWholesaleProducts();
+  }, [loadWholesaleProducts]);
+
+  useEffect(() => {
     if (!flashDeals.length) return undefined;
     const timer = setInterval(() => {
       setFlashNow(Date.now());
@@ -578,7 +605,7 @@ const loadDiscountProducts = async () => {
               onClick={() => setPage(pageNum)}
               className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
                 page === pageNum
-                  ? "bg-indigo-600 text-white border-indigo-600"
+                  ? "bg-neutral-900 text-white border-neutral-600"
                   : "border-gray-300 hover:bg-gray-50"
               }`}
             >
@@ -615,39 +642,99 @@ const loadDiscountProducts = async () => {
     const scrollStyle = { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' };
 
     return (
-      <main className="max-w-7xl mx-auto px-3 pt-2 pb-4 space-y-3">
-        {/* Horizontal Category Pills */}
-        <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar" style={scrollStyle}>
-          <Link
-            to="/products"
-            {...externalLinkProps}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#007AFF] text-white text-xs font-bold whitespace-nowrap shadow-[0_1px_3px_rgba(0,0,0,0.08)] tap-feedback transition-transform"
-          >
-            <LayoutGrid className="w-3.5 h-3.5" />
-            {t('home.all', 'Tout')}
-          </Link>
-          {categoryGroups.map((group) => {
-            const Icon = group.icon;
-            return (
+      <main className="max-w-7xl mx-auto px-3 max-[375px]:px-2.5 pt-2.5 max-[375px]:pt-1.5 pb-4 max-[375px]:pb-3 space-y-3 max-[375px]:space-y-2.5">
+        {/* Mobile Categories Module */}
+        <section className="rounded-2xl border border-gray-200 bg-white p-3 max-[375px]:p-2.5 shadow-sm">
+          <div className="mb-2.5 max-[375px]:mb-2 flex items-center justify-between">
+            <div className="flex items-center gap-2 max-[375px]:gap-1.5">
+              <div className="inline-flex h-6 w-6 max-[375px]:h-5 max-[375px]:w-5 items-center justify-center rounded-lg bg-neutral-900">
+                <LayoutGrid className="h-3.5 w-3.5 max-[375px]:h-3 max-[375px]:w-3 text-white" />
+              </div>
+              <p className="text-xs max-[375px]:text-[11px] font-bold text-gray-900">{t('home.allCategories', 'Toutes catégories')}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCategoryModalOpen(true)}
+              className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 max-[375px]:px-2 py-1.5 max-[375px]:py-1 text-[11px] max-[375px]:text-[10px] font-semibold text-gray-700 transition-colors active:scale-95"
+            >
+              Tout voir <ChevronRight className="h-3 w-3 max-[375px]:h-2.5 max-[375px]:w-2.5" />
+            </button>
+          </div>
+          <div className="flex gap-2 max-[375px]:gap-1.5 overflow-x-auto pb-1 hide-scrollbar" style={scrollStyle}>
+            <Link
+              to="/products"
+              {...externalLinkProps}
+              className="inline-flex items-center gap-1.5 max-[375px]:gap-1 px-3.5 max-[375px]:px-3 py-2 max-[375px]:py-1.5 rounded-full bg-[#0A0A0A] text-white text-xs max-[375px]:text-[11px] font-bold leading-none whitespace-nowrap shadow-[0_1px_3px_rgba(0,0,0,0.08)] tap-feedback transition-transform"
+            >
+              <LayoutGrid className="w-3.5 h-3.5 max-[375px]:w-3 max-[375px]:h-3" />
+              <span className="block truncate">{t('home.all', 'Tout')}</span>
+            </Link>
+            {categoryGroups.map((group) => {
+              const Icon = group.icon;
+              return (
+                <Link
+                  key={group.id}
+                  to={`/categories/${group.options?.[0]?.value || ''}`}
+                  className="inline-flex min-w-0 max-w-[138px] max-[375px]:max-w-[124px] items-center gap-1.5 max-[375px]:gap-1 px-3.5 max-[375px]:px-3 py-2 max-[375px]:py-1.5 rounded-full bg-white border border-gray-200 text-xs max-[375px]:text-[11px] font-semibold leading-none text-gray-700 whitespace-nowrap shadow-sm active:scale-95 transition-transform"
+                  title={group.label}
+                >
+                  {Icon && <Icon className="w-3.5 h-3.5 max-[375px]:w-3 max-[375px]:h-3 text-neutral-700 flex-shrink-0" />}
+                  <span className="block min-w-0 truncate">{group.label.split(' & ')[0]}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Mobile Hero */}
+        <section className="relative overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-900 shadow-sm min-h-[170px] max-[375px]:min-h-[155px]">
+          {heroBanner && (
+            <div className="absolute inset-0">
+              <img src={heroBanner} alt="Bannière HDMarket" className="h-full w-full object-cover" loading="eager" />
+              <div className="absolute inset-0 bg-black/55" />
+            </div>
+          )}
+          {!heroBanner && <div className="absolute inset-0 bg-neutral-900" />}
+          <div className="relative z-10 flex h-full flex-col justify-between p-4 max-[375px]:p-3 text-white">
+            <div>
+              <div className="mb-2 max-[375px]:mb-1.5 inline-flex items-center gap-1.5 max-[375px]:gap-1 rounded-full border border-white/25 bg-white/10 px-2.5 max-[375px]:px-2 py-1 max-[375px]:py-0.5 text-[10px] font-semibold">
+                <Star className="h-3 w-3 max-[375px]:h-2.5 max-[375px]:w-2.5" fill="currentColor" />
+                HDMarket CG
+              </div>
+              <h1 className="text-lg max-[375px]:text-base font-black leading-tight">
+                {t('home.localMarket', 'Le marché local.')}
+                <span className="block text-neutral-200">{t('home.simplified', 'Simplifié.')}</span>
+              </h1>
+              <p className="mt-1.5 max-[375px]:mt-1 text-xs max-[375px]:text-[11px] text-neutral-200">
+                {t('home.heroSubMobile', 'Livraison flexible. Paiement en tranche. Sécurisé.')}
+              </p>
+            </div>
+            <div className="mt-3 max-[375px]:mt-2.5 flex items-center gap-2 max-[375px]:gap-1.5">
               <Link
-                key={group.id}
-                to={`/categories/${group.options?.[0]?.value || ''}`}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white border border-gray-200 text-xs font-semibold text-gray-700 whitespace-nowrap shadow-sm active:scale-95 transition-transform"
+                to="/products"
+                {...externalLinkProps}
+                className="inline-flex items-center rounded-xl bg-white px-3 max-[375px]:px-2.5 py-2 max-[375px]:py-1.5 text-xs max-[375px]:text-[11px] font-semibold text-gray-900"
               >
-                {Icon && <Icon className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />}
-                <span>{group.label.split(' & ')[0]}</span>
+                Explorer <ChevronRight className="ml-1 h-3.5 w-3.5 max-[375px]:h-3 max-[375px]:w-3" />
               </Link>
-            );
-          })}
-        </div>
+              <Link
+                to="/my"
+                className="inline-flex items-center rounded-xl border border-white/35 bg-white/10 px-3 max-[375px]:px-2.5 py-2 max-[375px]:py-1.5 text-xs max-[375px]:text-[11px] font-semibold text-white backdrop-blur-sm"
+              >
+                <Zap className="mr-1 h-3.5 w-3.5 max-[375px]:h-3 max-[375px]:w-3" />
+                Publier
+              </Link>
+            </div>
+          </div>
+        </section>
 
         {/* Buyer or Seller callout */}
-        <div className="flex items-center justify-center gap-2 py-2.5 px-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100/80">
-          <ShoppingBag className="w-4 h-4 text-indigo-600 flex-shrink-0" />
-          <span className="text-xs text-gray-700 text-center">
-            {t('home.buyOrSellPrefix', 'Achetez ou vendez sur HDMarket —')} <span className="font-semibold text-indigo-700">{t('home.youChoose', 'vous choisissez')}</span>.
+        <div className="flex items-center justify-center gap-2 max-[375px]:gap-1.5 py-2.5 max-[375px]:py-2 px-3 max-[375px]:px-2.5 bg-neutral-50 rounded-xl border border-neutral-200/80">
+          <ShoppingBag className="w-4 h-4 max-[375px]:w-3.5 max-[375px]:h-3.5 text-neutral-800 flex-shrink-0" />
+          <span className="text-xs max-[375px]:text-[11px] text-gray-700 text-center">
+            {t('home.buyOrSellPrefix', 'Achetez ou vendez sur HDMarket —')} <span className="font-semibold text-neutral-700">{t('home.youChoose', 'vous choisissez')}</span>.
           </span>
-          <Tag className="w-4 h-4 text-purple-600 flex-shrink-0" />
+          <Tag className="w-4 h-4 max-[375px]:w-3.5 max-[375px]:h-3.5 text-neutral-800 flex-shrink-0" />
         </div>
 
         {/* Compact Promo Banner */}
@@ -656,7 +743,7 @@ const loadDiscountProducts = async () => {
           const bannerSrc = isPromoActive ? activeBanner : defaultPromoBanner;
           const bannerLink = isPromoActive ? promoBannerLink : '/products';
           const img = <img src={bannerSrc} alt="Promo" className="h-full w-full object-cover" loading="eager" />;
-          const cls = "block w-full overflow-hidden rounded-xl shadow-sm aspect-[2/1] h-[331px]";
+          const cls = "block w-full overflow-hidden rounded-xl shadow-sm aspect-[2/1] h-[331px] max-[375px]:h-[280px]";
           if (bannerLink?.startsWith('/')) return <Link to={bannerLink} {...externalLinkProps} className={cls}>{img}</Link>;
           if (bannerLink) return <a href={bannerLink} target="_blank" rel="noopener noreferrer" className={cls}>{img}</a>;
           return <div className={cls}>{img}</div>;
@@ -667,12 +754,12 @@ const loadDiscountProducts = async () => {
           <section>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-red-500 rounded-lg flex items-center justify-center">
+                <div className="w-6 h-6 bg-neutral-900 rounded-lg flex items-center justify-center">
                   <Zap className="w-3.5 h-3.5 text-white" />
                 </div>
                 <h2 className="text-sm font-bold text-gray-900">{t('home.flashDeals', 'Flash Deals')}</h2>
               </div>
-              <Link to="/top-deals" {...externalLinkProps} className="text-xs font-semibold text-indigo-600 flex items-center">
+              <Link to="/top-deals" {...externalLinkProps} className="text-xs font-semibold text-neutral-800 flex items-center">
                 {t('home.viewAll', 'Voir tout')} <ChevronRight className="w-3 h-3 ml-0.5" />
               </Link>
             </div>
@@ -692,7 +779,7 @@ const loadDiscountProducts = async () => {
                       </span>
                     )}
                     {product.discount > 0 && (
-                      <span className="absolute top-1.5 left-1.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow">
+                      <span className="absolute top-1.5 left-1.5 bg-neutral-900 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow">
                         -{product.discount}%
                       </span>
                     )}
@@ -707,7 +794,7 @@ const loadDiscountProducts = async () => {
                       </p>
                     )}
                     {Number(product.promoSavedAmount || 0) > 0 && (
-                      <p className="text-[10px] text-emerald-600 font-semibold">
+                      <p className="text-[10px] text-neutral-600 font-semibold">
                         {t('home.saveLabel', 'Éco')}: {formatPrice(product.promoSavedAmount)}
                       </p>
                     )}
@@ -723,7 +810,7 @@ const loadDiscountProducts = async () => {
           <section>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-rose-500 rounded-lg flex items-center justify-center">
+                <div className="w-6 h-6 bg-neutral-500 rounded-lg flex items-center justify-center">
                   <Flame className="w-3.5 h-3.5 text-white" />
                 </div>
                 <h2 className="text-sm font-bold text-gray-900">{t('home.promoShopsWeek', 'Boutiques en promo cette semaine')}</h2>
@@ -744,7 +831,7 @@ const loadDiscountProducts = async () => {
                     />
                     <div className="min-w-0">
                       <p className="text-xs font-semibold text-gray-900 truncate">{shop.shopName}</p>
-                      <p className="text-[10px] text-rose-600 font-semibold">
+                      <p className="text-[10px] text-neutral-600 font-semibold">
                         {shop.activePromoCountNow || shop.promoCountThisWeek} promo(s)
                       </p>
                     </div>
@@ -762,7 +849,7 @@ const loadDiscountProducts = async () => {
           <section>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-blue-500 rounded-lg flex items-center justify-center">
+                <div className="w-6 h-6 bg-neutral-800 rounded-lg flex items-center justify-center">
                   <MapPin className="w-3.5 h-3.5 text-white" />
                 </div>
                 <h2 className="text-sm font-bold text-gray-900">{t('home.topSalesInCityToday', `Top ventes à ${effectiveUserCity} aujourd'hui`).replace('{city}', effectiveUserCity || '')}</h2>
@@ -770,7 +857,7 @@ const loadDiscountProducts = async () => {
               <Link
                 to={`/products?city=${encodeURIComponent(effectiveUserCity)}`}
                 {...externalLinkProps}
-                className="text-xs font-semibold text-[#007AFF] flex items-center"
+                className="text-xs font-semibold text-[#0A0A0A] flex items-center"
               >
                 {t('home.viewAll', 'Voir tout')} <ChevronRight className="w-3 h-3 ml-0.5" />
               </Link>
@@ -792,7 +879,7 @@ const loadDiscountProducts = async () => {
                   >
                     <div className="relative aspect-square bg-gray-100">
                       <img src={product.images?.[0] || '/api/placeholder/200/200'} alt={product.title} className="w-full h-full object-cover" loading="lazy" />
-                      <span className="absolute top-1.5 right-1.5 rounded-md bg-blue-600/90 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+                      <span className="absolute top-1.5 right-1.5 rounded-md bg-neutral-900/90 px-1.5 py-0.5 text-[9px] font-semibold text-white">
                         {Number(product.totalSoldToday || 0)} vendu(s)
                       </span>
                     </div>
@@ -814,12 +901,12 @@ const loadDiscountProducts = async () => {
           <section>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-orange-500 rounded-lg flex items-center justify-center">
+                <div className="w-6 h-6 bg-neutral-500 rounded-lg flex items-center justify-center">
                   <TrendingUp className="w-3.5 h-3.5 text-white" />
                 </div>
                 <h2 className="text-sm font-bold text-gray-900">{t('home.bestSales', 'Meilleures ventes')}</h2>
               </div>
-              <Link to="/top-sales" {...externalLinkProps} className="text-xs font-semibold text-[#007AFF] flex items-center">
+              <Link to="/top-sales" {...externalLinkProps} className="text-xs font-semibold text-[#0A0A0A] flex items-center">
                 {t('home.viewAll', 'Voir tout')} <ChevronRight className="w-3 h-3 ml-0.5" />
               </Link>
             </div>
@@ -835,7 +922,7 @@ const loadDiscountProducts = async () => {
                     <img src={product.images?.[0] || '/api/placeholder/200/200'} alt={product.title} className="w-full h-full object-cover" loading="lazy" />
                     {idx < 3 && (
                       <span className={`absolute top-1.5 left-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow ${
-                        idx === 0 ? 'bg-yellow-500' : idx === 1 ? 'bg-gray-400' : 'bg-amber-600'
+                        idx === 0 ? 'bg-neutral-500' : idx === 1 ? 'bg-gray-400' : 'bg-neutral-600'
                       }`}>
                         {idx + 1}
                       </span>
@@ -856,12 +943,12 @@ const loadDiscountProducts = async () => {
           <section>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-emerald-500 rounded-lg flex items-center justify-center">
+                <div className="w-6 h-6 bg-neutral-500 rounded-lg flex items-center justify-center">
                   <Shield className="w-3.5 h-3.5 text-white" />
                 </div>
                 <h2 className="text-sm font-bold text-gray-900">{t('home.verifiedShops', 'Boutiques vérifiées')}</h2>
               </div>
-              <Link to="/shops/verified" {...externalLinkProps} className="text-xs font-semibold text-[#007AFF] flex items-center">
+              <Link to="/shops/verified" {...externalLinkProps} className="text-xs font-semibold text-[#0A0A0A] flex items-center">
                 {t('home.viewAll', 'Voir tout')} <ChevronRight className="w-3 h-3 ml-0.5" />
               </Link>
             </div>
@@ -875,7 +962,7 @@ const loadDiscountProducts = async () => {
                   <img src={shop.shopLogo || '/api/placeholder/40/40'} alt={shop.shopName} className="w-9 h-9 rounded-lg object-cover border border-gray-100" />
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-gray-900 truncate max-w-[100px]">{shop.shopName}</p>
-                  <p className="text-[10px] text-emerald-600 font-medium">{shop.productCount || 0} {t('home.listings', 'annonces')}</p>
+                  <p className="text-[10px] text-neutral-600 font-medium">{shop.productCount || 0} {t('home.listings', 'annonces')}</p>
                   </div>
                 </Link>
               ))}
@@ -907,19 +994,19 @@ const loadDiscountProducts = async () => {
             <section>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 bg-blue-500 rounded-lg flex items-center justify-center">
+                  <div className="w-6 h-6 bg-neutral-800 rounded-lg flex items-center justify-center">
                     <MapPin className="w-3.5 h-3.5 text-white" />
                   </div>
                   <h2 className="text-sm font-bold text-gray-900">{displayCity}</h2>
                 </div>
-                <Link to={`/cities?city=${encodeURIComponent(displayCity)}`} {...externalLinkProps} className="text-xs font-semibold text-[#007AFF] flex items-center">
+                <Link to={`/cities?city=${encodeURIComponent(displayCity)}`} {...externalLinkProps} className="text-xs font-semibold text-[#0A0A0A] flex items-center">
                   Voir tout <ChevronRight className="w-3 h-3 ml-0.5" />
                 </Link>
               </div>
               {displayCity && cityProds.length === 0 && uniqueSellers.length === 0 && (
                 <p className="text-xs text-gray-500 py-2">
                   Aucune annonce dans votre ville pour le moment.{' '}
-                  <Link to={`/cities?city=${encodeURIComponent(displayCity)}`} {...externalLinkProps} className="text-indigo-600 font-medium">
+                  <Link to={`/cities?city=${encodeURIComponent(displayCity)}`} {...externalLinkProps} className="text-neutral-800 font-medium">
                     Explorer {displayCity}
                   </Link>
                 </p>
@@ -998,7 +1085,7 @@ const loadDiscountProducts = async () => {
               onClick={() => { setSort(option.value); setPage(1); }}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all active:scale-95 ${
                 sort === option.value
-                  ? 'bg-indigo-600 text-white shadow-sm'
+                  ? 'bg-neutral-900 text-white shadow-sm'
                   : 'bg-white text-gray-600 border border-gray-200'
               }`}
             >
@@ -1007,7 +1094,7 @@ const loadDiscountProducts = async () => {
           ))}
         </div>
 
-        <label className="flex items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700">
+        <label className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700">
           <input
             type="checkbox"
             checked={installmentOnlyFilter}
@@ -1015,12 +1102,12 @@ const loadDiscountProducts = async () => {
               setInstallmentOnlyFilter(e.target.checked);
               setPage(1);
             }}
-            className="h-4 w-4 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
+            className="h-4 w-4 rounded border-neutral-300 text-neutral-800 focus:ring-neutral-500"
           />
           Afficher uniquement les produits en tranche
         </label>
         {hasUserCity && (
-          <label className="flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700">
+          <label className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700">
             <input
               type="checkbox"
               checked={nearMeOnlyFilter}
@@ -1028,18 +1115,57 @@ const loadDiscountProducts = async () => {
                 setNearMeOnlyFilter(e.target.checked);
                 setPage(1);
               }}
-              className="h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+              className="h-4 w-4 rounded border-neutral-300 text-neutral-800 focus:ring-neutral-500"
             />
             {t('home.onlyMyCity', 'Voir uniquement dans ma ville')}
           </label>
         )}
+
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-bold text-gray-900">{t('home.wholesaleTitle', 'Vente en gros')}</h2>
+            <Link to="/products?wholesaleOnly=true" className="text-xs font-semibold text-neutral-800">
+              {t('home.viewAll', 'Voir tout')}
+            </Link>
+          </div>
+          {wholesaleLoading && !wholesaleProducts.length ? (
+            <div className="grid grid-cols-2 gap-2">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={`wholesale-skeleton-${index}`} className="h-48 animate-pulse rounded-xl bg-gray-200" />
+              ))}
+            </div>
+          ) : wholesaleProducts.length > 0 ? (
+            <div className="grid grid-cols-2 gap-2">
+              {wholesaleProducts.slice(0, 4).map((product) => {
+                const minQty = Number(product?.wholesaleMinQty || product?.wholesaleTiers?.[0]?.minQty || 2);
+                return (
+                  <div key={`wholesale-mobile-${product._id}`} className="space-y-1">
+                    <ProductCard p={product} productLink={buildHomeProductLink(product)} />
+                    <div className="px-1">
+                      <span className="inline-flex items-center rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[10px] font-semibold text-neutral-700">
+                        Vente en gros
+                      </span>
+                      <p className="mt-1 text-[11px] text-gray-600">
+                        À partir de <span className="font-semibold">{minQty}</span> unités
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500">
+              {t('home.noWholesaleProducts', 'Aucun produit en vente en gros actuellement.')}
+            </p>
+          )}
+        </section>
 
         <section ref={installmentSectionRef}>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-bold text-gray-900">
               {t('home.installmentProducts', 'Produits disponibles en paiement par tranche')}
             </h2>
-            <Link to="/products?installmentOnly=true" className="text-xs font-semibold text-indigo-600">
+            <Link to="/products?installmentOnly=true" className="text-xs font-semibold text-neutral-800">
               Voir tout
             </Link>
           </div>
@@ -1066,16 +1192,16 @@ const loadDiscountProducts = async () => {
         <section>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md shadow-indigo-500/25">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-neutral-500 to-neutral-600 flex items-center justify-center shadow-md shadow-black/20">
                 <ShoppingBag className="w-4 h-4 text-white" />
               </div>
               <div>
                 <h2 className="text-base font-bold text-gray-900">{t('home.forYou', 'Pour vous')}</h2>
                 <p className="text-xs text-gray-500 font-medium">
-                  <span className="tabular-nums font-semibold text-indigo-600">{formatCount(totalProducts)}</span> {t('home.listings', 'annonces')}
+                  <span className="tabular-nums font-semibold text-neutral-800">{formatCount(totalProducts)}</span> {t('home.listings', 'annonces')}
                 </p>
                 {hasUserCity && (
-                  <p className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                  <p className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-neutral-50 px-2 py-0.5 text-[10px] font-semibold text-neutral-700">
                     <MapPin className="h-3 w-3" />
                     {t('home.nearYou', 'Produits près de vous')}
                   </p>
@@ -1084,7 +1210,7 @@ const loadDiscountProducts = async () => {
             </div>
             <Link
               to="/products"
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 text-indigo-700 font-semibold text-sm hover:bg-indigo-100 active:scale-[0.98] transition-all"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-neutral-50 text-neutral-700 font-semibold text-sm hover:bg-neutral-100 active:scale-[0.98] transition-all"
             >
               Voir tout
               <ChevronRight className="w-4 h-4 flex-shrink-0" />
@@ -1108,7 +1234,7 @@ const loadDiscountProducts = async () => {
               </div>
               {loading && page > 1 && (
                 <div className="flex justify-center py-4">
-                  <div className="w-6 h-6 border-2 border-[#007AFF] border-t-transparent rounded-full animate-spin" />
+                  <div className="w-6 h-6 border-2 border-[#0A0A0A] border-t-transparent rounded-full animate-spin" />
                 </div>
               )}
             </>
@@ -1118,7 +1244,7 @@ const loadDiscountProducts = async () => {
               <p className="text-sm text-gray-500 mb-3">{t('home.noProductsFound', 'Aucun produit trouvé')}</p>
               <button
                 onClick={() => { setCategory(''); setSort('new'); setPage(1); }}
-                className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-full active:scale-95"
+                className="px-4 py-2 bg-neutral-900 text-white text-xs font-semibold rounded-full active:scale-95"
               >
                 {t('home.reset', 'Réinitialiser')}
               </button>
@@ -1134,8 +1260,8 @@ const loadDiscountProducts = async () => {
               to="/top-favorites"
               className="flex flex-col items-center gap-1.5 p-3 bg-white rounded-xl border border-gray-100 shadow-sm active:scale-95 transition-transform"
             >
-              <div className="w-8 h-8 bg-pink-100 rounded-lg flex items-center justify-center">
-                <Heart className="w-4 h-4 text-pink-600" />
+              <div className="w-8 h-8 bg-neutral-100 rounded-lg flex items-center justify-center">
+                <Heart className="w-4 h-4 text-neutral-600" />
               </div>
               <span className="text-[11px] font-semibold text-gray-700 text-center">{t('home.topFavorites', 'Top Favoris')}</span>
             </Link>
@@ -1143,8 +1269,8 @@ const loadDiscountProducts = async () => {
               to="/top-ranking"
               className="flex flex-col items-center gap-1.5 p-3 bg-white rounded-xl border border-gray-100 shadow-sm active:scale-95 transition-transform"
             >
-              <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
-                <Star className="w-4 h-4 text-amber-600" fill="currentColor" />
+              <div className="w-8 h-8 bg-neutral-100 rounded-lg flex items-center justify-center">
+                <Star className="w-4 h-4 text-neutral-600" fill="currentColor" />
               </div>
               <span className="text-[11px] font-semibold text-gray-700 text-center">{t('home.topRated', 'Top Notés')}</span>
             </Link>
@@ -1152,8 +1278,8 @@ const loadDiscountProducts = async () => {
               to="/top-new"
               className="flex flex-col items-center gap-1.5 p-3 bg-white rounded-xl border border-gray-100 shadow-sm active:scale-95 transition-transform"
             >
-              <div className="w-8 h-8 bg-sky-100 rounded-lg flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-sky-600" />
+              <div className="w-8 h-8 bg-neutral-100 rounded-lg flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-neutral-600" />
               </div>
               <span className="text-[11px] font-semibold text-gray-700 text-center">{t('home.newProducts', 'Neufs')}</span>
             </Link>
@@ -1161,8 +1287,8 @@ const loadDiscountProducts = async () => {
               to="/top-used"
               className="flex flex-col items-center gap-1.5 p-3 bg-white rounded-xl border border-gray-100 shadow-sm active:scale-95 transition-transform"
             >
-              <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center">
-                <RefreshCcw className="w-4 h-4 text-slate-600" />
+              <div className="w-8 h-8 bg-neutral-100 rounded-lg flex items-center justify-center">
+                <RefreshCcw className="w-4 h-4 text-neutral-600" />
               </div>
               <span className="text-[11px] font-semibold text-gray-700 text-center">{t('home.usedProducts', 'Occasion')}</span>
             </Link>
@@ -1170,8 +1296,8 @@ const loadDiscountProducts = async () => {
               to="/certified-products"
               className="flex flex-col items-center gap-1.5 p-3 bg-white rounded-xl border border-gray-100 shadow-sm active:scale-95 transition-transform"
             >
-              <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
-                <Shield className="w-4 h-4 text-emerald-600" />
+              <div className="w-8 h-8 bg-neutral-100 rounded-lg flex items-center justify-center">
+                <Shield className="w-4 h-4 text-neutral-600" />
               </div>
               <span className="text-[11px] font-semibold text-gray-700 text-center">{t('home.certified', 'Certifiés')}</span>
             </Link>
@@ -1180,8 +1306,8 @@ const loadDiscountProducts = async () => {
               {...externalLinkProps}
               className="flex flex-col items-center gap-1.5 p-3 bg-white rounded-xl border border-gray-100 shadow-sm active:scale-95 transition-transform"
             >
-              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                <MapPin className="w-4 h-4 text-blue-600" />
+              <div className="w-8 h-8 bg-neutral-100 rounded-lg flex items-center justify-center">
+                <MapPin className="w-4 h-4 text-neutral-800" />
               </div>
               <span className="text-[11px] font-semibold text-gray-700 text-center">{t('home.cities', 'Villes')}</span>
             </Link>
@@ -1200,21 +1326,21 @@ const loadDiscountProducts = async () => {
     const displayFlashDeals = (flashDeals.length ? flashDeals : fallbackDeals).slice(0, 4);
 
     const topProductsTabData = {
-      favorites: { items: highlights.favorites, icon: Heart, label: t('home.topFavorites', 'Top Favoris'), link: '/top-favorites', iconColor: 'text-pink-600', bgColor: 'bg-pink-600' },
-      topRated: { items: highlights.topRated, icon: Star, label: t('home.topRated', 'Top Notés'), link: '/top-ranking', iconColor: 'text-amber-600', bgColor: 'bg-amber-600' },
-      newProducts: { items: highlights.newProducts, icon: Sparkles, label: t('home.newProducts', 'Neufs'), link: '/top-new', iconColor: 'text-sky-600', bgColor: 'bg-sky-600' },
-      usedProducts: { items: highlights.usedProducts, icon: RefreshCcw, label: t('home.usedProducts', 'Occasion'), link: '/top-used', iconColor: 'text-slate-600', bgColor: 'bg-slate-600' }
+      favorites: { items: highlights.favorites, icon: Heart, label: t('home.topFavorites', 'Top Favoris'), link: '/top-favorites', iconColor: 'text-neutral-600', bgColor: 'bg-neutral-600' },
+      topRated: { items: highlights.topRated, icon: Star, label: t('home.topRated', 'Top Notés'), link: '/top-ranking', iconColor: 'text-neutral-600', bgColor: 'bg-neutral-600' },
+      newProducts: { items: highlights.newProducts, icon: Sparkles, label: t('home.newProducts', 'Neufs'), link: '/top-new', iconColor: 'text-neutral-600', bgColor: 'bg-neutral-600' },
+      usedProducts: { items: highlights.usedProducts, icon: RefreshCcw, label: t('home.usedProducts', 'Occasion'), link: '/top-used', iconColor: 'text-neutral-600', bgColor: 'bg-neutral-600' }
     };
     const activeTabData = topProductsTabData[topProductsTab] || topProductsTabData.favorites;
 
     return (
-      <main className="max-w-[1400px] 2xl:max-w-[1600px] mx-auto px-6 lg:px-8 py-5 space-y-5">
+      <main className="max-w-[1400px] 2xl:max-w-[1600px] mx-auto px-6 lg:px-8 py-4 space-y-5">
         {/* Category Pills Bar */}
         <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar items-center">
           <Link
             to="/products"
             {...externalLinkProps}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#007AFF] text-white text-sm font-bold whitespace-nowrap shadow-[0_1px_3px_rgba(0,0,0,0.08)] hover:bg-[#0051D5] transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#0A0A0A] text-white text-sm font-bold whitespace-nowrap shadow-[0_1px_3px_rgba(0,0,0,0.08)] hover:bg-[#111111] transition-colors"
           >
             <LayoutGrid className="w-4 h-4" />
             Tout
@@ -1225,9 +1351,9 @@ const loadDiscountProducts = async () => {
               <Link
                 key={group.id}
                 to={`/categories/${group.options?.[0]?.value || ''}`}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-gray-200 text-sm font-semibold text-gray-700 whitespace-nowrap shadow-sm hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-gray-200 text-sm font-semibold text-gray-700 whitespace-nowrap shadow-sm hover:border-neutral-300 hover:text-neutral-800 transition-colors"
               >
-                {Icon && <Icon className="w-4 h-4 text-indigo-500 flex-shrink-0" />}
+                {Icon && <Icon className="w-4 h-4 text-neutral-700 flex-shrink-0" />}
                 <span>{group.label.split(' & ')[0]}</span>
               </Link>
             );
@@ -1242,42 +1368,42 @@ const loadDiscountProducts = async () => {
         </div>
 
         {/* Buyer or Seller callout */}
-        <div className="flex items-center justify-center gap-3 py-3 px-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100/80">
-          <ShoppingBag className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+        <div className="flex items-center justify-center gap-3 py-3 px-4 bg-gradient-to-r from-neutral-50 to-neutral-50 rounded-xl border border-neutral-200/80">
+          <ShoppingBag className="w-5 h-5 text-neutral-800 flex-shrink-0" />
           <span className="text-sm text-gray-700 text-center">
-            {t('home.buyOrSellPrefix', 'Achetez ou vendez sur HDMarket —')} <span className="font-semibold text-indigo-700">{t('home.youChoose', 'vous choisissez')}</span>.
+            {t('home.buyOrSellPrefix', 'Achetez ou vendez sur HDMarket —')} <span className="font-semibold text-neutral-700">{t('home.youChoose', 'vous choisissez')}</span>.
           </span>
-          <Tag className="w-5 h-5 text-purple-600 flex-shrink-0" />
+          <Tag className="w-5 h-5 text-neutral-800 flex-shrink-0" />
         </div>
 
         {/* Zone 1: Hero (65%) + Flash Deals Panel (35%) */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
           {/* Hero Banner */}
           <div className="flex flex-col gap-4">
-            <section className="relative bg-gradient-to-br from-indigo-900 via-indigo-800 to-purple-900 rounded-2xl overflow-hidden shadow-lg" style={{ minHeight: '300px' }}>
+            <section className="relative bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 rounded-2xl overflow-hidden shadow-lg" style={{ minHeight: '300px' }}>
               {heroBanner && (
                 <div className="absolute inset-0">
                   <img src={heroBanner} alt="Bannière HDMarket" className="h-full w-full object-cover" loading="lazy" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-slate-950/70 via-indigo-950/70 to-purple-950/70" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-neutral-950/70 via-neutral-950/70 to-neutral-950/70" />
                 </div>
               )}
               <div className="relative z-10 px-6 py-8 lg:py-10 text-left">
                 <div className="inline-flex items-center px-3 py-1.5 bg-white/15 backdrop-blur-md rounded-full border border-white/30 mb-4 shadow-lg">
-                  <Star className="w-3.5 h-3.5 text-yellow-300 mr-1.5" fill="currentColor" />
+                  <Star className="w-3.5 h-3.5 text-neutral-300 mr-1.5" fill="currentColor" />
                   <span className="text-xs text-white font-semibold">{t('nav.marketplacePremium', 'Marketplace Premium')}</span>
                 </div>
                 <h1 className="text-3xl lg:text-4xl font-black text-white mb-3 leading-tight">
                   Votre Marché
-                  <span className="block bg-gradient-to-r from-yellow-300 via-yellow-400 to-yellow-300 bg-clip-text text-transparent">{t('home.digital', 'Digital')}</span>
+                  <span className="block bg-gradient-to-r from-neutral-300 via-neutral-400 to-neutral-300 bg-clip-text text-transparent">{t('home.digital', 'Digital')}</span>
                 </h1>
-                <p className="text-sm text-indigo-100 mb-5 max-w-md leading-relaxed">
-                  Découvrez <span className="font-bold text-yellow-300">{formatCount(totalProducts)}</span> produits vérifiés. Vendez et achetez en toute confiance.
+                <p className="text-sm text-neutral-200 mb-5 max-w-md leading-relaxed">
+                  Découvrez <span className="font-bold text-neutral-300">{formatCount(totalProducts)}</span> produits vérifiés. Vendez et achetez en toute confiance.
                 </p>
                 <div className="flex gap-3">
-                  <Link to="/my" className="inline-flex items-center px-5 py-2.5 bg-white text-gray-900 font-semibold rounded-xl hover:bg-gray-50 transition-all text-sm shadow-sm">
+                  <Link to="/my" className="inline-flex items-center px-4 py-2.5 bg-white text-gray-900 font-semibold rounded-xl hover:bg-gray-50 transition-all text-sm shadow-sm">
                     <Zap className="w-4 h-4 mr-1.5" /> Publier
                   </Link>
-                  <Link to="/products" {...externalLinkProps} className="inline-flex items-center px-5 py-2.5 bg-white/15 backdrop-blur-md text-white font-semibold rounded-xl border border-white/30 hover:bg-white/25 transition-all text-sm">
+                  <Link to="/products" {...externalLinkProps} className="inline-flex items-center px-4 py-2.5 bg-white/15 backdrop-blur-md text-white font-semibold rounded-xl border border-white/30 hover:bg-white/25 transition-all text-sm">
                     Explorer <ChevronRight className="w-4 h-4 ml-1" />
                   </Link>
                 </div>
@@ -1300,12 +1426,12 @@ const loadDiscountProducts = async () => {
           <section className="apple-card p-4 flex flex-col">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-neutral-900 rounded-lg flex items-center justify-center">
                   <Zap className="w-4 h-4 text-white" />
                 </div>
                 <h2 className="text-base font-bold text-gray-900">{t('home.flashDeals', 'Flash Deals')}</h2>
               </div>
-              <Link to="/top-deals" {...externalLinkProps} className="text-xs font-semibold text-indigo-600 flex items-center hover:text-indigo-500">
+              <Link to="/top-deals" {...externalLinkProps} className="text-xs font-semibold text-neutral-800 flex items-center hover:text-neutral-700">
                 Voir tout <ChevronRight className="w-3 h-3 ml-0.5" />
               </Link>
             </div>
@@ -1322,7 +1448,7 @@ const loadDiscountProducts = async () => {
                     key={`deal-panel-${product._id}-${idx}`}
                     to={buildHomeProductLink(product)}
                     {...externalLinkProps}
-                    className="group bg-gray-50 rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-indigo-200 transition-all"
+                    className="group bg-gray-50 rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-neutral-200 transition-all"
                   >
                     <div className="relative aspect-square bg-gray-100">
                       <img src={product.images?.[0] || '/api/placeholder/200/200'} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
@@ -1332,7 +1458,7 @@ const loadDiscountProducts = async () => {
                         </span>
                       )}
                       {product.discount > 0 && (
-                        <span className="absolute top-1.5 left-1.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow">-{product.discount}%</span>
+                        <span className="absolute top-1.5 left-1.5 bg-neutral-900 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow">-{product.discount}%</span>
                       )}
                     </div>
                     <div className="p-2">
@@ -1341,7 +1467,7 @@ const loadDiscountProducts = async () => {
                         <p className="text-[10px] text-gray-400 line-through">{Number(product.priceBeforeDiscount).toLocaleString()} F</p>
                       )}
                       {Number(product.promoSavedAmount || 0) > 0 && (
-                        <p className="text-[10px] text-emerald-600 font-semibold">
+                        <p className="text-[10px] text-neutral-600 font-semibold">
                           Éco: {Number(product.promoSavedAmount).toLocaleString()} F
                         </p>
                       )}
@@ -1362,7 +1488,7 @@ const loadDiscountProducts = async () => {
           <section>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-neutral-800 rounded-lg flex items-center justify-center">
                   <MapPin className="w-4 h-4 text-white" />
                 </div>
                 <h2 className="text-lg font-bold text-gray-900">Top ventes à {effectiveUserCity} aujourd&apos;hui</h2>
@@ -1370,7 +1496,7 @@ const loadDiscountProducts = async () => {
               <Link
                 to={`/products?city=${encodeURIComponent(effectiveUserCity)}`}
                 {...externalLinkProps}
-                className="text-sm font-semibold text-[#007AFF] flex items-center hover:text-[#0051D5]"
+                className="text-sm font-semibold text-[#0A0A0A] flex items-center hover:text-[#111111]"
               >
                 Voir tout <ChevronRight className="w-4 h-4 ml-0.5" />
               </Link>
@@ -1388,11 +1514,11 @@ const loadDiscountProducts = async () => {
                     key={`city-sales-desktop-${product._id}-${idx}`}
                     to={buildHomeProductLink(product)}
                     {...externalLinkProps}
-                    className="group bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md hover:border-indigo-200 transition-all"
+                    className="group bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md hover:border-neutral-200 transition-all"
                   >
                     <div className="relative aspect-square bg-gray-100">
                       <img src={product.images?.[0] || '/api/placeholder/200/200'} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
-                      <span className="absolute top-2 right-2 rounded-md bg-blue-600/90 px-2 py-0.5 text-[10px] font-semibold text-white">
+                      <span className="absolute top-2 right-2 rounded-md bg-neutral-900/90 px-2 py-0.5 text-[10px] font-semibold text-white">
                         {Number(product.totalSoldToday || 0)} vendu(s)
                       </span>
                     </div>
@@ -1414,12 +1540,12 @@ const loadDiscountProducts = async () => {
           <section>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-neutral-500 rounded-lg flex items-center justify-center">
                   <TrendingUp className="w-4 h-4 text-white" />
                 </div>
                 <h2 className="text-lg font-bold text-gray-900">{t('home.bestSales', 'Meilleures ventes')}</h2>
               </div>
-              <Link to="/top-sales" {...externalLinkProps} className="text-sm font-semibold text-[#007AFF] flex items-center hover:text-[#0051D5]">
+              <Link to="/top-sales" {...externalLinkProps} className="text-sm font-semibold text-[#0A0A0A] flex items-center hover:text-[#111111]">
                 Voir tout <ChevronRight className="w-4 h-4 ml-0.5" />
               </Link>
             </div>
@@ -1429,13 +1555,13 @@ const loadDiscountProducts = async () => {
                   key={`bestseller-d-${product._id}-${idx}`}
                   to={buildHomeProductLink(product)}
                   {...externalLinkProps}
-                  className="group bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md hover:border-indigo-200 transition-all"
+                  className="group bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md hover:border-neutral-200 transition-all"
                 >
                   <div className="relative aspect-square bg-gray-100">
                     <img src={product.images?.[0] || '/api/placeholder/200/200'} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
                     {idx < 3 && (
                       <span className={`absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg ${
-                        idx === 0 ? 'bg-yellow-500' : idx === 1 ? 'bg-gray-400' : 'bg-amber-600'
+                        idx === 0 ? 'bg-neutral-500' : idx === 1 ? 'bg-gray-400' : 'bg-neutral-600'
                       }`}>
                         {idx + 1}
                       </span>
@@ -1452,17 +1578,17 @@ const loadDiscountProducts = async () => {
         )}
 
         {/* Zone 3: Shops (35%) + Tabbed Top Products (65%) */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-4">
           {/* Verified Shops Panel */}
-          <section className="bg-indigo-50/60 rounded-2xl border border-indigo-100 p-5">
+          <section className="bg-neutral-50/60 rounded-2xl border border-neutral-200 p-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 bg-emerald-500 rounded-lg flex items-center justify-center">
+                <div className="w-7 h-7 bg-neutral-500 rounded-lg flex items-center justify-center">
                   <Shield className="w-3.5 h-3.5 text-white" />
                 </div>
                 <h2 className="text-base font-bold text-gray-900">{t('home.verifiedShops', 'Boutiques vérifiées')}</h2>
               </div>
-              <Link to="/shops/verified" {...externalLinkProps} className="text-xs font-semibold text-[#007AFF] hover:text-[#0051D5]">
+              <Link to="/shops/verified" {...externalLinkProps} className="text-xs font-semibold text-[#0A0A0A] hover:text-[#111111]">
                 Voir tout
               </Link>
             </div>
@@ -1481,14 +1607,14 @@ const loadDiscountProducts = async () => {
                   <Link
                     key={shop._id}
                     to={buildShopPath(shop)}
-                    className="flex items-center gap-3 rounded-xl bg-white border border-gray-100 hover:border-indigo-200 hover:shadow-sm transition-all p-3"
+                    className="flex items-center gap-3 rounded-xl bg-white border border-gray-100 hover:border-neutral-200 hover:shadow-sm transition-all p-3"
                   >
                     <img src={shop.shopLogo || '/api/placeholder/40/40'} alt={shop.shopName} className="w-10 h-10 rounded-lg object-cover border border-gray-100" />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-gray-900 truncate">{shop.shopName}</p>
                       <p className="text-xs text-gray-500 truncate">{shop.shopAddress || 'Adresse non renseignée'}</p>
                     </div>
-                    <span className="text-xs text-emerald-600 font-semibold whitespace-nowrap">{shop.productCount || 0} {t('home.listings', 'annonces')}</span>
+                    <span className="text-xs text-neutral-600 font-semibold whitespace-nowrap">{shop.productCount || 0} {t('home.listings', 'annonces')}</span>
                   </Link>
                 ))}
               </div>
@@ -1498,10 +1624,10 @@ const loadDiscountProducts = async () => {
           </section>
 
           {/* Tabbed Top Products Widget */}
-          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-bold text-gray-900">{t('home.trending', 'Tendances')}</h2>
-              <Link to={activeTabData.link} {...externalLinkProps} className="text-xs font-semibold text-[#007AFF] hover:text-[#0051D5] flex items-center">
+              <Link to={activeTabData.link} {...externalLinkProps} className="text-xs font-semibold text-[#0A0A0A] hover:text-[#111111] flex items-center">
                 Voir tout <ChevronRight className="w-3 h-3 ml-0.5" />
               </Link>
             </div>
@@ -1540,28 +1666,28 @@ const loadDiscountProducts = async () => {
                     key={`trend-${topProductsTab}-${product._id}-${index}`}
                     to={buildHomeProductLink(product)}
                     {...externalLinkProps}
-                    className="group bg-gray-50 rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-indigo-200 transition-all"
+                    className="group bg-gray-50 rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-neutral-200 transition-all"
                   >
                     <div className="relative aspect-square bg-gray-100">
                       <img src={product.images?.[0] || '/api/placeholder/200/200'} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
                       <span className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow ${
-                        index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : 'bg-amber-600'
+                        index === 0 ? 'bg-neutral-500' : index === 1 ? 'bg-gray-400' : 'bg-neutral-600'
                       }`}>
                         {index + 1}
                       </span>
                     </div>
                     <div className="p-3">
-                      <p className="text-sm font-medium text-gray-700 truncate group-hover:text-[#007AFF] transition-colors">{product.title}</p>
+                      <p className="text-sm font-medium text-gray-700 truncate group-hover:text-neutral-900 transition-colors">{product.title}</p>
                       <p className="text-sm font-bold text-gray-900 mt-0.5">{formatPrice(product.price || 0)}</p>
                       {topProductsTab === 'favorites' && (
                         <div className="flex items-center gap-1 mt-1 text-xs text-gray-500">
-                          <Heart className="w-3 h-3 text-rose-500" fill="currentColor" />
+                          <Heart className="w-3 h-3 text-neutral-500" fill="currentColor" />
                           <span>{product.favoritesCount || 0}</span>
                         </div>
                       )}
                       {topProductsTab === 'topRated' && (
                         <div className="flex items-center gap-1 mt-1 text-xs text-gray-500">
-                          <Star className="w-3 h-3 text-yellow-400" fill="currentColor" />
+                          <Star className="w-3 h-3 text-neutral-400" fill="currentColor" />
                           <span className="font-semibold text-gray-700">{Number(product.ratingAverage || 0).toFixed(1)}</span>
                           <span>({product.ratingCount || 0})</span>
                         </div>
@@ -1576,10 +1702,10 @@ const loadDiscountProducts = async () => {
           </section>
         </div>
 
-        <section className="bg-white rounded-2xl border border-rose-100 shadow-sm p-5">
+        <section className="bg-white rounded-2xl border border-neutral-100 shadow-sm p-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-rose-500 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-neutral-500 rounded-lg flex items-center justify-center">
                 <Flame className="w-4 h-4 text-white" />
               </div>
               <div>
@@ -1600,17 +1726,17 @@ const loadDiscountProducts = async () => {
                 <Link
                   key={`promo-shop-desktop-${shop._id}`}
                   to={buildShopPath(shop)}
-                  className="rounded-xl border border-rose-100 bg-rose-50/50 px-3 py-3 hover:bg-rose-50 transition-colors"
+                  className="rounded-xl border border-neutral-100 bg-neutral-50/50 px-3 py-3 hover:bg-neutral-50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
                     <img
                       src={shop.shopLogo || '/api/placeholder/48/48'}
                       alt={shop.shopName}
-                      className="w-11 h-11 rounded-lg object-cover border border-rose-100"
+                      className="w-11 h-11 rounded-lg object-cover border border-neutral-100"
                     />
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">{shop.shopName}</p>
-                      <p className="text-xs text-rose-700 font-semibold">
+                      <p className="text-xs text-neutral-700 font-semibold">
                         {shop.activePromoCountNow || shop.promoCountThisWeek} promo(s) actives
                       </p>
                     </div>
@@ -1623,12 +1749,51 @@ const loadDiscountProducts = async () => {
           )}
         </section>
 
-        <section ref={installmentSectionRef} className="bg-white rounded-2xl border border-indigo-100 shadow-sm p-5">
+        <section className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-bold text-gray-900">{t('home.wholesaleTitle', 'Vente en gros')}</h2>
+            <Link to="/products?wholesaleOnly=true" className="text-xs font-semibold text-neutral-800">
+              {t('home.viewAll', 'Voir tout')}
+            </Link>
+          </div>
+          {wholesaleLoading && !wholesaleProducts.length ? (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={`wholesale-desktop-skeleton-${index}`} className="h-56 animate-pulse rounded-xl bg-gray-200" />
+              ))}
+            </div>
+          ) : wholesaleProducts.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              {wholesaleProducts.slice(0, 4).map((product) => {
+                const minQty = Number(product?.wholesaleMinQty || product?.wholesaleTiers?.[0]?.minQty || 2);
+                return (
+                  <div key={`wholesale-desktop-${product._id}`} className="space-y-2">
+                    <ProductCard p={product} productLink={buildHomeProductLink(product)} />
+                    <div className="px-1">
+                      <span className="inline-flex items-center rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[11px] font-semibold text-neutral-700">
+                        Vente en gros
+                      </span>
+                      <p className="mt-1 text-xs text-gray-600">
+                        À partir de <span className="font-semibold">{minQty}</span> unités
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">
+              {t('home.noWholesaleProducts', 'Aucun produit en vente en gros actuellement.')}
+            </p>
+          )}
+        </section>
+
+        <section ref={installmentSectionRef} className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-bold text-gray-900">
               {t('home.installmentProducts', 'Produits disponibles en paiement par tranche')}
             </h2>
-            <Link to="/products?installmentOnly=true" className="text-xs font-semibold text-indigo-600">
+            <Link to="/products?installmentOnly=true" className="text-xs font-semibold text-neutral-800">
               Voir tout
             </Link>
           </div>
@@ -1662,7 +1827,7 @@ const loadDiscountProducts = async () => {
             <Link
               to="/cities"
               {...externalLinkProps}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-indigo-50 border border-gray-100 hover:border-indigo-200 text-gray-700 hover:text-indigo-700 font-medium text-sm transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-neutral-50 border border-gray-100 hover:border-neutral-200 text-gray-700 hover:text-neutral-700 font-medium text-sm transition-all"
             >
               <MapPin className="w-4 h-4" />
               Par ville
@@ -1670,7 +1835,7 @@ const loadDiscountProducts = async () => {
             <Link
               to="/top-favorites"
               {...externalLinkProps}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-indigo-50 border border-gray-100 hover:border-indigo-200 text-gray-700 hover:text-indigo-700 font-medium text-sm transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-neutral-50 border border-gray-100 hover:border-neutral-200 text-gray-700 hover:text-neutral-700 font-medium text-sm transition-all"
             >
               <Heart className="w-4 h-4" />
               Favoris
@@ -1678,7 +1843,7 @@ const loadDiscountProducts = async () => {
             <Link
               to="/top-ranking"
               {...externalLinkProps}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-indigo-50 border border-gray-100 hover:border-indigo-200 text-gray-700 hover:text-indigo-700 font-medium text-sm transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-neutral-50 border border-gray-100 hover:border-neutral-200 text-gray-700 hover:text-neutral-700 font-medium text-sm transition-all"
             >
               <Star className="w-4 h-4" />
               Mieux notés
@@ -1686,7 +1851,7 @@ const loadDiscountProducts = async () => {
             <Link
               to="/top-new"
               {...externalLinkProps}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-indigo-50 border border-gray-100 hover:border-indigo-200 text-gray-700 hover:text-indigo-700 font-medium text-sm transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-neutral-50 border border-gray-100 hover:border-neutral-200 text-gray-700 hover:text-neutral-700 font-medium text-sm transition-all"
             >
               <Sparkles className="w-4 h-4" />
               Nouveautés
@@ -1694,7 +1859,7 @@ const loadDiscountProducts = async () => {
             <Link
               to="/top-used"
               {...externalLinkProps}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-indigo-50 border border-gray-100 hover:border-indigo-200 text-gray-700 hover:text-indigo-700 font-medium text-sm transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-neutral-50 border border-gray-100 hover:border-neutral-200 text-gray-700 hover:text-neutral-700 font-medium text-sm transition-all"
             >
               <Clock className="w-4 h-4" />
               Occasions
@@ -1702,7 +1867,7 @@ const loadDiscountProducts = async () => {
             <Link
               to="/certified-products"
               {...externalLinkProps}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-indigo-50 border border-gray-100 hover:border-indigo-200 text-gray-700 hover:text-indigo-700 font-medium text-sm transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-neutral-50 border border-gray-100 hover:border-neutral-200 text-gray-700 hover:text-neutral-700 font-medium text-sm transition-all"
             >
               <Shield className="w-4 h-4" />
               Produits certifiés
@@ -1720,14 +1885,14 @@ const loadDiscountProducts = async () => {
                 <span className="text-sm font-normal text-gray-500 ml-2">({formatCount(totalProducts)})</span>
               </h2>
               {hasUserCity && (
-                <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-neutral-50 px-2 py-0.5 text-[11px] font-semibold text-neutral-700">
                   <MapPin className="h-3.5 w-3.5" />
                   {t('home.nearYou', 'Produits près de vous')}
                 </p>
               )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <label className="inline-flex items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700">
+              <label className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-700">
                 <input
                   type="checkbox"
                   checked={installmentOnlyFilter}
@@ -1735,12 +1900,12 @@ const loadDiscountProducts = async () => {
                     setInstallmentOnlyFilter(e.target.checked);
                     setPage(1);
                   }}
-                  className="h-4 w-4 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
+                  className="h-4 w-4 rounded border-neutral-300 text-neutral-800 focus:ring-neutral-500"
                 />
                 Afficher uniquement les produits en tranche
               </label>
               {hasUserCity && (
-                <label className="inline-flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700">
+                <label className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-700">
                   <input
                     type="checkbox"
                     checked={nearMeOnlyFilter}
@@ -1748,7 +1913,7 @@ const loadDiscountProducts = async () => {
                       setNearMeOnlyFilter(e.target.checked);
                       setPage(1);
                     }}
-                    className="h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+                    className="h-4 w-4 rounded border-neutral-300 text-neutral-800 focus:ring-neutral-500"
                   />
                   {t('home.onlyMyCity', 'Voir uniquement dans ma ville')}
                 </label>
@@ -1757,7 +1922,7 @@ const loadDiscountProducts = async () => {
               <select
                 value={sort}
                 onChange={(e) => { setSort(e.target.value); setPage(1); }}
-                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer"
+                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 cursor-pointer"
               >
                 <option value="new">{t('home.sortNew', 'Nouveautés')}</option>
                 <option value="price_asc">{t('home.sortPriceAsc', 'Prix croissant')}</option>
@@ -1768,7 +1933,7 @@ const loadDiscountProducts = async () => {
               <select
                 value={category}
                 onChange={(e) => { setCategory(e.target.value); setPage(1); }}
-                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer"
+                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 cursor-pointer"
               >
                 <option value="">{t('home.allCategories', 'Toutes catégories')}</option>
                 <option value="electronics">{t('home.categoryElectronics', 'Électronique')}</option>
@@ -1804,7 +1969,7 @@ const loadDiscountProducts = async () => {
               <p className="text-gray-500 text-sm mb-4">{t('home.adjustFilters', 'Modifiez vos critères de filtrage')}</p>
               <button
                 onClick={() => { setCategory(''); setSort('new'); setPage(1); }}
-                className="apple-btn-primary px-5 py-2.5 text-sm"
+                className="apple-btn-primary px-4 py-2.5 text-sm"
               >
                 {t('home.resetFilters', 'Réinitialiser les filtres')}
               </button>
@@ -1827,15 +1992,15 @@ const loadDiscountProducts = async () => {
           onClick={() => setCategoryModalOpen(false)}
         >
           <div
-            className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-3xl bg-white dark:bg-gray-800 border border-gray-200/60 dark:border-gray-700/50 shadow-2xl"
+            className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl bg-white dark:bg-gray-800 border border-gray-200/60 dark:border-gray-700/50 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="sticky top-0 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-gray-700/50 px-6 py-5">
+            <div className="sticky top-0 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-gray-700/50 px-6 py-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-1">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-100/80 dark:bg-indigo-900/30 border border-indigo-200/50 dark:border-indigo-800/50 w-fit mb-2">
-                    <LayoutGrid className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                    <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider">{t('home.allCategories', 'Toutes les catégories')}</span>
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-neutral-100/80 dark:bg-neutral-900/60 border border-neutral-200/50 dark:border-neutral-700/70 w-fit mb-2">
+                    <LayoutGrid className="w-4 h-4 text-neutral-800 dark:text-neutral-500" />
+                    <span className="text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">{t('home.allCategories', 'Toutes les catégories')}</span>
                   </div>
                   <h3 className="text-xl font-black text-gray-900 dark:text-white">{t('home.exploreCategoriesTitle', 'Explorer nos univers')}</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">{t('home.exploreCategoriesSubtitle', 'Sélectionnez une catégorie pour découvrir nos produits')}</p>
@@ -1855,14 +2020,14 @@ const loadDiscountProducts = async () => {
                 {categoryGroups.map((group, index) => {
                   const Icon = group.icon;
                   const categoryStyles = [
-                    { bg: 'from-[#007AFF]/10 to-[#34C7FE]/10', icon: 'text-[#007AFF]', border: 'border-[#007AFF]/20', hover: 'hover:from-[#007AFF]/20 hover:to-[#34C7FE]/20' },
-                    { bg: 'from-pink-500/10 to-rose-500/10', icon: 'text-pink-600 dark:text-pink-400', border: 'border-pink-200/50 dark:border-pink-800/50', hover: 'hover:from-pink-500/20 hover:to-rose-500/20' },
-                    { bg: 'from-emerald-500/10 to-teal-500/10', icon: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200/50 dark:border-emerald-800/50', hover: 'hover:from-emerald-500/20 hover:to-teal-500/20' },
-                    { bg: 'from-amber-500/10 to-orange-500/10', icon: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200/50 dark:border-amber-800/50', hover: 'hover:from-amber-500/20 hover:to-orange-500/20' },
-                    { bg: 'from-purple-500/10 to-indigo-500/10', icon: 'text-purple-600 dark:text-purple-400', border: 'border-purple-200/50 dark:border-purple-800/50', hover: 'hover:from-purple-500/20 hover:to-indigo-500/20' },
-                    { bg: 'from-red-500/10 to-rose-500/10', icon: 'text-red-600 dark:text-red-400', border: 'border-red-200/50 dark:border-red-800/50', hover: 'hover:from-red-500/20 hover:to-rose-500/20' },
-                    { bg: 'from-violet-500/10 to-purple-500/10', icon: 'text-violet-600 dark:text-violet-400', border: 'border-violet-200/50 dark:border-violet-800/50', hover: 'hover:from-violet-500/20 hover:to-purple-500/20' },
-                    { bg: 'from-slate-500/10 to-gray-500/10', icon: 'text-slate-600 dark:text-slate-400', border: 'border-slate-200/50 dark:border-slate-800/50', hover: 'hover:from-slate-500/20 hover:to-gray-500/20' }
+                    { bg: 'from-[#0A0A0A]/10 to-[#6B7280]/10', icon: 'text-[#0A0A0A]', border: 'border-[#0A0A0A]/20', hover: 'hover:from-[#0A0A0A]/20 hover:to-[#6B7280]/20' },
+                    { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-600 dark:text-neutral-400', border: 'border-neutral-200/50 dark:border-neutral-800/50', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
+                    { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-600 dark:text-neutral-400', border: 'border-neutral-200/50 dark:border-neutral-800/50', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
+                    { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-600 dark:text-neutral-400', border: 'border-neutral-200/50 dark:border-neutral-800/50', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
+                    { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-800 dark:text-neutral-500', border: 'border-neutral-200/50 dark:border-neutral-700/70', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
+                    { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-800 dark:text-neutral-600', border: 'border-neutral-200/50 dark:border-neutral-700/70', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
+                    { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-800 dark:text-neutral-500', border: 'border-neutral-200/50 dark:border-neutral-700/70', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
+                    { bg: 'from-neutral-500/10 to-gray-500/10', icon: 'text-neutral-600 dark:text-neutral-400', border: 'border-neutral-200/50 dark:border-neutral-800/50', hover: 'hover:from-neutral-500/20 hover:to-gray-500/20' }
                   ];
                   const style = categoryStyles[index % categoryStyles.length];
                   return (
@@ -1872,7 +2037,7 @@ const loadDiscountProducts = async () => {
                       onClick={() => setCategoryModalOpen(false)}
                       className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${style.bg} border ${style.border} backdrop-blur-sm transition-all duration-300 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98] ${style.hover}`}
                     >
-                      <div className="p-5 flex flex-col items-center gap-3 text-center">
+                      <div className="p-4 flex flex-col items-center gap-3 text-center">
                         <div className={`relative w-16 h-16 rounded-2xl bg-white/80 dark:bg-gray-800/80 border-2 ${style.border} flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:rotate-3 group-hover:scale-110`}>
                           {Icon ? <Icon className={`relative w-8 h-8 ${style.icon}`} /> : null}
                         </div>

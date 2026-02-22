@@ -125,7 +125,7 @@ export default function Favorites() {
             <button
               onClick={() => setPage(1)}
               className={`flex items-center justify-center min-w-[44px] min-h-[44px] rounded-lg border transition-colors tap-feedback ${
-                page === 1 ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 hover:bg-gray-50'
+                page === 1 ? 'bg-neutral-600 text-white border-neutral-600' : 'border-gray-300 hover:bg-gray-50'
               }`}
             >
               1
@@ -139,7 +139,7 @@ export default function Favorites() {
             key={pageNum}
             onClick={() => setPage(pageNum)}
             className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
-              page === pageNum ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 hover:bg-gray-50'
+              page === pageNum ? 'bg-neutral-600 text-white border-neutral-600' : 'border-gray-300 hover:bg-gray-50'
             }`}
           >
             {pageNum}
@@ -152,7 +152,7 @@ export default function Favorites() {
             <button
               onClick={() => setPage(totalPages)}
               className={`flex items-center justify-center min-w-[44px] min-h-[44px] rounded-lg border transition-colors tap-feedback ${
-                page === totalPages ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 hover:bg-gray-50'
+                page === totalPages ? 'bg-neutral-600 text-white border-neutral-600' : 'border-gray-300 hover:bg-gray-50'
               }`}
             >
               {totalPages}
@@ -176,12 +176,12 @@ export default function Favorites() {
       <header className="text-center sm:text-left">
         <button
           onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 mb-4 text-sm font-semibold text-gray-600 hover:text-indigo-600 transition-colors"
+          className="inline-flex items-center gap-2 mb-4 text-sm font-semibold text-gray-600 hover:text-neutral-600 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Retour
         </button>
-        <p className="text-sm uppercase tracking-wide text-indigo-600 font-semibold">
+        <p className="text-sm uppercase tracking-wide text-neutral-600 font-semibold">
           Vos favoris
         </p>
         <h1 className="text-xl sm:text-3xl font-bold text-gray-900 mt-1">Articles enregistrés</h1>
@@ -199,7 +199,7 @@ export default function Favorites() {
           {/* Filters — Category & Price */}
           <div className="flex flex-wrap items-center gap-3 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 shadow-sm">
             <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-              <Filter className="w-4 h-4 text-indigo-500" />
+              <Filter className="w-4 h-4 text-neutral-500" />
               Filtres
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-4">
@@ -208,7 +208,7 @@ export default function Favorites() {
                 <select
                   value={filterCategory}
                   onChange={(e) => setFilterCategory(e.target.value)}
-                  className="rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm py-2 pl-3 pr-8 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-[160px]"
+                  className="rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm py-2 pl-3 pr-8 focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 min-w-[160px]"
                   aria-label="Filtrer par catégorie"
                 >
                   <option value="">Toutes les catégories</option>
@@ -224,7 +224,7 @@ export default function Favorites() {
                 <select
                   value={filterPrice}
                   onChange={(e) => setFilterPrice(e.target.value)}
-                  className="rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm py-2 pl-3 pr-8 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-[180px]"
+                  className="rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm py-2 pl-3 pr-8 focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 min-w-[180px]"
                   aria-label="Filtrer par prix"
                 >
                   {PRICE_RANGES.map((r) => (
@@ -242,7 +242,7 @@ export default function Favorites() {
                     setFilterPrice('all');
                     setPage(1);
                   }}
-                  className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                  className="text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:underline"
                 >
                   Réinitialiser
                 </button>
@@ -261,7 +261,7 @@ export default function Favorites() {
               <button
                 type="button"
                 onClick={() => { setFilterCategory(''); setFilterPrice('all'); setPage(1); }}
-                className="mt-3 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                className="mt-3 text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:underline"
               >
                 Réinitialiser les filtres
               </button>
@@ -285,7 +285,7 @@ export default function Favorites() {
           </p>
           <Link
             to="/"
-            className="inline-flex items-center justify-center rounded-full bg-indigo-600 px-6 py-3 font-medium text-white mt-6 hover:bg-indigo-700 transition"
+            className="inline-flex items-center justify-center rounded-full bg-neutral-600 px-6 py-3 font-medium text-white mt-6 hover:bg-neutral-700 transition"
           >
             Découvrir les produits
           </Link>

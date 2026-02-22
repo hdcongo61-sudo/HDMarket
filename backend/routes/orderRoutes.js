@@ -2,6 +2,7 @@ import express from 'express';
 import { protect } from '../middlewares/authMiddleware.js';
 import { requireRole } from '../middlewares/roleMiddleware.js';
 import { validate, schemas } from '../middlewares/validate.js';
+import { cacheMiddleware } from '../utils/cache.js';
 import {
   adminCreateOrder,
   adminDeleteOrder,
@@ -24,6 +25,8 @@ import {
   getOrderDeliveryLogs,
   sellerUpdateOrderStatus,
   sellerCancelOrder,
+  sellerDeliveryStatsOverview,
+  sellerDeliveryStatsProducts,
   saveDraftOrder,
   getDraftOrders,
   deleteDraftOrder,
@@ -98,14 +101,38 @@ router.patch(
   validate(schemas.installmentPaymentValidation),
   sellerValidateInstallmentPayment
 );
-router.get('/seller/installment/analytics', sellerInstallmentAnalytics);
+router.get(
+  '/seller/installment/analytics',
+  cacheMiddleware({ domain: 'analytics', scope: 'seller', ttl: 120000 }),
+  sellerInstallmentAnalytics
+);
+router.get(
+  '/seller/delivery-stats/overview',
+  cacheMiddleware({ domain: 'dashboard', scope: 'seller', ttl: 90000 }),
+  sellerDeliveryStatsOverview
+);
+router.get(
+  '/seller/delivery-stats/products',
+  cacheMiddleware({ domain: 'dashboard', scope: 'seller', ttl: 90000 }),
+  sellerDeliveryStatsProducts
+);
 router.post('/inquiry', validate(schemas.orderInquiry), createInquiryOrder);
 router.post('/draft', saveDraftOrder);
 router.get('/draft', getDraftOrders);
 router.delete('/draft/:id', validate(schemas.idParam, 'params'), deleteDraftOrder);
-router.get('/seller', sellerListOrders);
-router.get('/detail/:id', validate(schemas.idParam, 'params'), getUserOrder);
-router.get('/seller/detail/:id', validate(schemas.idParam, 'params'), sellerGetOrder);
+router.get('/seller', cacheMiddleware({ domain: 'orders', scope: 'seller', ttl: 45000 }), sellerListOrders);
+router.get(
+  '/detail/:id',
+  cacheMiddleware({ domain: 'orders', scope: 'user', ttl: 30000 }),
+  validate(schemas.idParam, 'params'),
+  getUserOrder
+);
+router.get(
+  '/seller/detail/:id',
+  cacheMiddleware({ domain: 'orders', scope: 'seller', ttl: 30000 }),
+  validate(schemas.idParam, 'params'),
+  sellerGetOrder
+);
 router.post(
   '/seller/:id/delivery-proof',
   validate(schemas.idParam, 'params'),
@@ -156,7 +183,7 @@ router.post('/:id/archive', validate(schemas.idParam, 'params'), archiveOrderCon
 router.post('/:id/unarchive', validate(schemas.idParam, 'params'), unarchiveOrderConversation);
 router.post('/:id/delete', validate(schemas.idParam, 'params'), deleteOrderConversation);
 
-router.get('/', userListOrders);
+router.get('/', cacheMiddleware({ domain: 'orders', scope: 'user', ttl: 45000 }), userListOrders);
 router.get('/:id/review-reminder-check', validate(schemas.idParam, 'params'), checkOrderReviewReminderStatus);
 
 // Order messages routes for specific order

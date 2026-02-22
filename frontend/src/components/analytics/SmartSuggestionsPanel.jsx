@@ -2,20 +2,20 @@ import React from 'react';
 import { Lightbulb, Sparkles } from 'lucide-react';
 
 const priorityClass = {
-  high: 'bg-rose-50 text-rose-700 border-rose-200',
-  medium: 'bg-amber-50 text-amber-700 border-amber-200',
-  low: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+  high: 'bg-neutral-50 text-neutral-700 border-neutral-200',
+  medium: 'bg-neutral-50 text-neutral-700 border-neutral-200',
+  low: 'bg-neutral-50 text-neutral-700 border-neutral-200'
 };
 
 export default function SmartSuggestionsPanel({ suggestions = [] }) {
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center gap-2">
-        <Lightbulb className="h-4 w-4 text-indigo-600" />
+        <Lightbulb className="h-4 w-4 text-neutral-600" />
         <h3 className="text-sm font-semibold text-gray-900">Suggestions intelligentes</h3>
       </div>
       {!suggestions.length ? (
-        <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-700">
+        <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-4 text-sm text-neutral-700">
           <div className="mb-1 flex items-center gap-1 font-semibold">
             <Sparkles className="h-4 w-4" />
             Aucune alerte critique

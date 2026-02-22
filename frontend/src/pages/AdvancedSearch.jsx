@@ -214,7 +214,7 @@ export default function AdvancedSearch() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-indigo-600 text-white">
+      <div className="bg-neutral-600 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
@@ -261,7 +261,7 @@ export default function AdvancedSearch() {
                     <button
                       type="button"
                       onClick={clearAllFilters}
-                      className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                      className="text-xs font-semibold text-neutral-600 hover:text-neutral-700"
                     >
                       Tout effacer
                     </button>
@@ -284,7 +284,7 @@ export default function AdvancedSearch() {
                       setCategory(e.target.value);
                       setPage(1);
                     }}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                   >
                     <option value="">Toutes les catégories</option>
                     {categoryGroups.map((group) => (
@@ -314,7 +314,7 @@ export default function AdvancedSearch() {
                           setPage(1);
                         }}
                         placeholder="0"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                       />
                     </div>
                     <div>
@@ -329,7 +329,7 @@ export default function AdvancedSearch() {
                           setPage(1);
                         }}
                         placeholder="∞"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                       />
                     </div>
                   </div>
@@ -355,7 +355,7 @@ export default function AdvancedSearch() {
                                 setCondition(e.target.value);
                                 setPage(1);
                               }}
-                              className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                              className="w-4 h-4 text-neutral-600 focus:ring-neutral-500"
                             />
                             <span className="text-sm text-gray-700">{cond.label}</span>
                           </label>
@@ -370,7 +370,7 @@ export default function AdvancedSearch() {
                               setCondition('');
                               setPage(1);
                             }}
-                            className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                            className="w-4 h-4 text-neutral-600 focus:ring-neutral-500"
                           />
                           <span className="text-sm text-gray-700">Tous</span>
                         </label>
@@ -388,7 +388,7 @@ export default function AdvancedSearch() {
                           setCertified(e.target.value);
                           setPage(1);
                         }}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                       >
                         <option value="">Tous</option>
                         <option value="true">Certifiés uniquement</option>
@@ -406,7 +406,7 @@ export default function AdvancedSearch() {
                             setShopVerified(e.target.checked ? 'true' : '');
                             setPage(1);
                           }}
-                          className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 rounded"
+                          className="w-4 h-4 text-neutral-600 focus:ring-neutral-500 rounded"
                         />
                         <span className="text-sm text-gray-700 flex items-center gap-1">
                           <CheckCircle className="w-4 h-4 text-emerald-500" />
@@ -425,7 +425,7 @@ export default function AdvancedSearch() {
                             setHasDiscount(e.target.checked);
                             setPage(1);
                           }}
-                          className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 rounded"
+                          className="w-4 h-4 text-neutral-600 focus:ring-neutral-500 rounded"
                         />
                         <span className="text-sm text-gray-700 flex items-center gap-1">
                           <Tag className="w-4 h-4 text-amber-500" />
@@ -452,7 +452,7 @@ export default function AdvancedSearch() {
                             setPage(1);
                           }}
                           placeholder="0"
-                          className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                         />
                       </div>
                     </div>
@@ -473,7 +473,7 @@ export default function AdvancedSearch() {
                             setPage(1);
                           }}
                           placeholder="0"
-                          className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                         />
                       </div>
                     </div>
@@ -494,7 +494,7 @@ export default function AdvancedSearch() {
                             setPage(1);
                           }}
                           placeholder="0"
-                          className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                         />
                       </div>
                     </div>
@@ -509,7 +509,7 @@ export default function AdvancedSearch() {
                       setCity(e.target.value);
                       setPage(1);
                     }}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                   >
                     <option value="">Toutes les villes</option>
                     {cityOptions.map((cityName) => (
@@ -548,7 +548,7 @@ export default function AdvancedSearch() {
                     <Filter className="w-4 h-4" />
                     Filtres
                     {activeFiltersCount > 0 && (
-                      <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold">
+                      <span className="px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-700 text-xs font-bold">
                         {activeFiltersCount}
                       </span>
                     )}
@@ -561,7 +561,7 @@ export default function AdvancedSearch() {
                       setSort(e.target.value);
                       setPage(1);
                     }}
-                    className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                   >
                     {SORT_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -639,7 +639,7 @@ export default function AdvancedSearch() {
                 <button
                   type="button"
                   onClick={clearAllFilters}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 transition-colors"
                 >
                   <RefreshCw className="w-4 h-4" />
                   Réinitialiser les filtres

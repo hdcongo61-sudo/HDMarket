@@ -28,5 +28,6 @@ const shopConversionRequestSchema = new mongoose.Schema(
 shopConversionRequestSchema.index({ user: 1, createdAt: -1 });
 shopConversionRequestSchema.index({ status: 1, createdAt: -1 });
 shopConversionRequestSchema.index({ user: 1, status: 1 });
+shopConversionRequestSchema.index({ transactionNumber: 1 });
 
 export default mongoose.model('ShopConversionRequest', shopConversionRequestSchema);

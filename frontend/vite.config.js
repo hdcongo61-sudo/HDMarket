@@ -3,6 +3,7 @@ import tailwindcss from '@tailwindcss/vite';
 import autoprefixer from 'autoprefixer';
 
 export default defineConfig({
+  base: '/',
   cacheDir: 'node_modules/.vite-tailwind4',
   plugins: [tailwindcss()],
   css: {

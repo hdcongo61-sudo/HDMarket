@@ -69,6 +69,14 @@ const formatDateTime = (value) =>
         minute: '2-digit'
       })
     : '';
+const formatBytes = (value) => {
+  const bytes = Number(value || 0);
+  if (!Number.isFinite(bytes) || bytes <= 0) return '—';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+};
 const formatPercent = (value, total) => {
   if (!total || !value) return '—';
   const percent = (Number(value) / Number(total)) * 100;
@@ -84,7 +92,7 @@ const formatMonthLabel = (key) => {
 
 function SectionStatCard({ label, value, helper, icon: Icon }) {
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-gray-200/60 bg-gradient-to-br from-white to-gray-50/50 px-5 py-4 shadow-sm transition-all duration-300 hover:shadow-md hover:border-indigo-200/60">
+    <div className="group relative overflow-hidden rounded-2xl border border-gray-200/60 bg-gradient-to-br from-white to-gray-50/50 px-5 py-4 shadow-sm transition-all duration-300 hover:shadow-md hover:border-neutral-200/60">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">{label}</p>
@@ -92,12 +100,12 @@ function SectionStatCard({ label, value, helper, icon: Icon }) {
           {helper ? <p className="text-xs text-gray-500 mt-1">{helper}</p> : null}
         </div>
         {Icon && (
-          <div className="ml-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 text-indigo-600 transition-transform duration-300 group-hover:scale-110">
+          <div className="ml-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-100 text-neutral-600 transition-transform duration-300 group-hover:scale-110">
             <Icon size={20} strokeWidth={2} />
           </div>
         )}
       </div>
-      <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/0 to-purple-500/0 transition-opacity duration-300 group-hover:from-indigo-500/5 group-hover:to-purple-500/5" />
+      <div className="absolute inset-0 bg-gradient-to-br from-neutral-500/0 to-neutral-500/0 transition-opacity duration-300 group-hover:from-neutral-500/5 group-hover:to-neutral-500/5" />
     </div>
   );
 }
@@ -139,22 +147,22 @@ const USERS_PER_PAGE = 10;
 
 function StatCard({ title, value, subtitle, highlight, icon: Icon, trend }) {
   const iconColors = highlight
-    ? 'from-indigo-500 to-purple-600'
+    ? 'from-neutral-500 to-neutral-600'
     : 'from-gray-400 to-gray-500';
   
   return (
     <div className={`group relative overflow-hidden rounded-2xl border transition-all duration-300 ${
       highlight
-        ? 'border-indigo-200/60 bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/30 shadow-md hover:shadow-lg'
-        : 'border-gray-200/60 bg-gradient-to-br from-white to-gray-50/50 shadow-sm hover:shadow-md hover:border-indigo-200/40'
+        ? 'border-neutral-200/60 bg-gradient-to-br from-neutral-50/50 via-white to-neutral-50/30 shadow-md hover:shadow-lg'
+        : 'border-gray-200/60 bg-gradient-to-br from-white to-gray-50/50 shadow-sm hover:shadow-md hover:border-neutral-200/40'
     }`}>
       <div className="p-5">
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
-            <p className={`text-sm font-semibold mb-1 ${highlight ? 'text-indigo-700' : 'text-gray-600'}`}>
+            <p className={`text-sm font-semibold mb-1 ${highlight ? 'text-neutral-700' : 'text-gray-600'}`}>
               {title}
             </p>
-            <p className={`text-3xl font-bold mb-1 ${highlight ? 'bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent' : 'text-gray-900'}`}>
+            <p className={`text-3xl font-bold mb-1 ${highlight ? 'bg-gradient-to-r from-neutral-600 to-neutral-600 bg-clip-text text-transparent' : 'text-gray-900'}`}>
               {value}
             </p>
             {subtitle && (
@@ -174,7 +182,7 @@ function StatCard({ title, value, subtitle, highlight, icon: Icon, trend }) {
         </div>
       </div>
       {highlight && (
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/0 via-purple-500/0 to-pink-500/0 transition-opacity duration-300 group-hover:from-indigo-500/5 group-hover:via-purple-500/5 group-hover:to-pink-500/5" />
+        <div className="absolute inset-0 bg-gradient-to-br from-neutral-500/0 via-neutral-500/0 to-neutral-500/0 transition-opacity duration-300 group-hover:from-neutral-500/5 group-hover:via-neutral-500/5 group-hover:to-neutral-500/5" />
       )}
     </div>
   );
@@ -189,6 +197,9 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState('');
+  const [cacheStats, setCacheStats] = useState(null);
+  const [cacheStatsLoading, setCacheStatsLoading] = useState(false);
+  const [cacheStatsError, setCacheStatsError] = useState('');
   const [salesTrends, setSalesTrends] = useState(null);
   const [salesTrendsLoading, setSalesTrendsLoading] = useState(false);
   const [salesTrendsPeriod, setSalesTrendsPeriod] = useState(30);
@@ -275,7 +286,7 @@ export default function AdminDashboard() {
 
   const complaintStatusStyles = {
     pending: 'bg-orange-100 text-orange-800',
-    in_review: 'bg-blue-100 text-blue-800',
+    in_review: 'bg-neutral-100 text-neutral-800',
     resolved: 'bg-green-100 text-green-800'
   };
 
@@ -311,6 +322,21 @@ export default function AdminDashboard() {
       setStatsError(e.response?.data?.message || e.message || 'Erreur lors du chargement des statistiques.');
     } finally {
       setStatsLoading(false);
+    }
+  }, []);
+
+  const loadCacheStats = useCallback(async () => {
+    setCacheStatsLoading(true);
+    try {
+      const { data } = await api.get('/admin/cache/stats');
+      setCacheStats(data);
+      setCacheStatsError('');
+    } catch (e) {
+      setCacheStatsError(
+        e.response?.data?.message || e.message || 'Erreur lors du chargement des métriques cache.'
+      );
+    } finally {
+      setCacheStatsLoading(false);
     }
   }, []);
 
@@ -617,11 +643,20 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!canViewStats) return;
     loadStats();
+    loadCacheStats();
     loadSalesTrends();
     loadOrderHeatmap();
     loadConversionMetrics();
     loadCohortAnalysis();
-  }, [loadStats, loadSalesTrends, loadOrderHeatmap, loadConversionMetrics, loadCohortAnalysis, canViewStats]);
+  }, [
+    loadStats,
+    loadCacheStats,
+    loadSalesTrends,
+    loadOrderHeatmap,
+    loadConversionMetrics,
+    loadCohortAnalysis,
+    canViewStats
+  ]);
 
   useEffect(() => {
     if (!canManagePayments) return;
@@ -906,7 +941,14 @@ export default function AdminDashboard() {
     try {
       const tasks = [];
       if (canViewStats) {
-        tasks.push(loadStats(), loadSalesTrends(), loadOrderHeatmap(), loadConversionMetrics(), loadCohortAnalysis());
+        tasks.push(
+          loadStats(),
+          loadCacheStats(),
+          loadSalesTrends(),
+          loadOrderHeatmap(),
+          loadConversionMetrics(),
+          loadCohortAnalysis()
+        );
       }
       if (canManagePayments) tasks.push(loadPayments());
       if (canManageUsers) tasks.push(loadUsers());
@@ -921,6 +963,7 @@ export default function AdminDashboard() {
     }
   }, [
     loadStats,
+    loadCacheStats,
     loadSalesTrends,
     loadOrderHeatmap,
     loadConversionMetrics,
@@ -971,6 +1014,20 @@ export default function AdminDashboard() {
   const productGenderStats = Array.isArray(stats?.demographics?.productGenders)
     ? stats.demographics.productGenders
     : [];
+  const cacheHitRatio = Number(cacheStats?.hitRatio || 0);
+  const cacheHits = Number(cacheStats?.hits || 0);
+  const cacheReads = Number(cacheStats?.totalReads || 0);
+  const cacheErrors = Number(cacheStats?.errors || 0);
+  const cacheHistory = useMemo(() => {
+    const list = Array.isArray(cacheStats?.history) ? cacheStats.history : [];
+    return list.map((item) => ({
+      label: item?.timestamp
+        ? new Date(item.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+        : '',
+      hitRatio: Number(item?.hitRatio || 0),
+      misses: Number(item?.misses || 0)
+    }));
+  }, [cacheStats]);
   const totalUserPages = Math.max(1, Math.ceil(users.length / USERS_PER_PAGE));
   const paginatedUsers = useMemo(() => {
     const start = (usersPage - 1) * USERS_PER_PAGE;
@@ -1055,7 +1112,7 @@ export default function AdminDashboard() {
               {order.customer?.name || 'Client'} · {order.deliveryCity}
             </p>
           </div>
-          <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700">
+          <span className="inline-flex items-center rounded-full bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700">
             {statusLabel}
           </span>
         </div>
@@ -1080,7 +1137,7 @@ export default function AdminDashboard() {
           </button>
           <Link
             to={`/admin/orders?orderId=${order._id}`}
-            className="text-xs font-semibold text-indigo-600 hover:underline"
+            className="text-xs font-semibold text-neutral-600 hover:underline"
           >
             Voir dans commandes
           </Link>
@@ -1099,16 +1156,16 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/20 lg:min-h-0 lg:bg-transparent">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-neutral-50/20 lg:min-h-0 lg:bg-transparent">
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-8 sm:px-6 lg:px-8">
       <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between pb-6 border-b border-gray-200/60">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 shadow-lg">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-neutral-600 to-neutral-600 shadow-lg">
               <Settings size={24} className="text-white" strokeWidth={2.5} />
             </div>
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-indigo-900 to-purple-900 bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-neutral-900 to-neutral-900 bg-clip-text text-transparent">
                 {pageTitle}
               </h1>
               <p className="text-sm text-gray-600 mt-1">{pageSubtitle}</p>
@@ -1120,21 +1177,21 @@ export default function AdminDashboard() {
             type="button"
             onClick={refreshAll}
             disabled={refreshing}
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-60 disabled:pointer-events-none"
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:border-neutral-300 hover:text-neutral-700 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2 disabled:opacity-60 disabled:pointer-events-none"
           >
             <RefreshCw size={16} className={refreshing ? 'animate-spin' : 'transition-transform duration-300 hover:rotate-180'} />
             {refreshing ? 'Actualisation…' : 'Actualiser'}
           </button>
           <Link
             to="/admin/settings"
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:border-neutral-300 hover:text-neutral-700 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2"
           >
             <Settings size={16} />
             App Settings
           </Link>
           <Link
             to="/admin/products"
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-neutral-600 to-neutral-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 hover:from-neutral-700 hover:to-neutral-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2"
           >
             <BarChart3 size={16} />
             Produits & statistiques
@@ -1150,8 +1207,8 @@ export default function AdminDashboard() {
               onClick={() => setActiveAdminTab(tab.key)}
               className={`flex-shrink-0 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200 ${
                 activeAdminTab === tab.key
-                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg scale-105'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50'
+                  ? 'bg-gradient-to-r from-neutral-600 to-neutral-600 text-white shadow-lg scale-105'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:border-neutral-300 hover:bg-neutral-50/50'
               }`}
             >
               {tab.label}
@@ -1165,8 +1222,8 @@ export default function AdminDashboard() {
           <section className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100">
-              <Activity size={20} className="text-indigo-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-100">
+              <Activity size={20} className="text-neutral-600" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">Vue d'ensemble</h2>
@@ -1187,7 +1244,7 @@ export default function AdminDashboard() {
         {statsLoading && !stats ? (
           <div className="flex items-center justify-center py-12">
             <div className="flex flex-col items-center gap-3">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
               <p className="text-sm font-medium text-gray-600">Chargement des statistiques…</p>
             </div>
           </div>
@@ -1248,6 +1305,83 @@ export default function AdminDashboard() {
         )}
           </section>
 
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Santé du cache</h3>
+                <p className="text-xs text-gray-500">
+                  Redis + cache mémoire (isolation par scope utilisateur/rôle)
+                </p>
+              </div>
+            </div>
+            {cacheStatsError ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-medium text-amber-800">{cacheStatsError}</p>
+              </div>
+            ) : null}
+            {cacheStatsLoading && !cacheStats ? (
+              <div className="rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-500">
+                Chargement des métriques cache…
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <SectionStatCard
+                    label="Hit ratio"
+                    value={`${cacheHitRatio.toFixed(2)} %`}
+                    helper={`${formatNumber(cacheHits)} hits / ${formatNumber(cacheReads)} lectures`}
+                    icon={TrendingUp}
+                  />
+                  <SectionStatCard
+                    label="Redis"
+                    value={cacheStats?.redis?.ready ? 'Connecté' : 'Fallback mémoire'}
+                    helper={`${formatNumber(cacheStats?.redis?.keyCount || 0)} clés`}
+                    icon={Activity}
+                  />
+                  <SectionStatCard
+                    label="Mémoire Redis"
+                    value={
+                      cacheStats?.redis?.memoryUsedHuman ||
+                      formatBytes(cacheStats?.redis?.memoryUsedBytes || 0)
+                    }
+                    helper={`L1 mémoire: ${formatNumber(cacheStats?.hotCacheSize || 0)} entrées`}
+                    icon={BarChart3}
+                  />
+                  <SectionStatCard
+                    label="Invalidations / erreurs"
+                    value={`${formatNumber(cacheStats?.invalidations || 0)} / ${formatNumber(cacheErrors)}`}
+                    helper={`SET: ${formatNumber(cacheStats?.sets || 0)} • MISS: ${formatNumber(cacheStats?.misses || 0)}`}
+                    icon={AlertCircle}
+                  />
+                </div>
+                <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-sm font-semibold text-gray-900">Tendance hit ratio (échantillons récents)</p>
+                    <p className="text-xs text-gray-500">{cacheHistory.length} points</p>
+                  </div>
+                  {cacheHistory.length > 1 ? (
+                    <div className="h-24 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={cacheHistory}>
+                          <Line
+                            type="monotone"
+                            dataKey="hitRatio"
+                            stroke="#0a0a0a"
+                            strokeWidth={2}
+                            dot={false}
+                            isAnimationActive={false}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500">Pas assez de points pour afficher la tendance.</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </section>
+
           <section className="space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1262,7 +1396,7 @@ export default function AdminDashboard() {
               <button
                 type="button"
                 onClick={() => setRemindersOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 transition-all duration-200 hover:bg-indigo-100 hover:border-indigo-300"
+                className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-100 hover:border-neutral-300"
               >
                 <Clock size={16} />
                 Relances commandes
@@ -1277,7 +1411,7 @@ export default function AdminDashboard() {
             {statsLoading && !stats ? (
               <div className="flex items-center justify-center py-12">
                 <div className="flex flex-col items-center gap-3">
-                  <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+                  <div className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
                   <p className="text-sm font-medium text-gray-600">Chargement des statistiques…</p>
                 </div>
               </div>
@@ -1340,8 +1474,8 @@ export default function AdminDashboard() {
             <>
               <section className="space-y-6">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-purple-100">
-                    <MessageSquare size={20} className="text-violet-600" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-100">
+                    <MessageSquare size={20} className="text-neutral-600" />
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-gray-900">Notification globale</h2>
@@ -1357,7 +1491,7 @@ export default function AdminDashboard() {
                       <select
                         value={broadcastTarget}
                         onChange={(e) => setBroadcastTarget(e.target.value)}
-                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                       >
                         <option value="all">Tous les utilisateurs</option>
                         <option value="person">Particuliers uniquement</option>
@@ -1372,7 +1506,7 @@ export default function AdminDashboard() {
                         onChange={(e) => setBroadcastTitle(e.target.value)}
                         placeholder="Ex : Actualités"
                         maxLength={200}
-                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                       />
                     </div>
                     <div>
@@ -1383,7 +1517,7 @@ export default function AdminDashboard() {
                         placeholder="Contenu de la notification..."
                         rows={4}
                         maxLength={2000}
-                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                       />
                       <p className="text-xs text-gray-500 mt-1">{broadcastMessage.length} / 2000</p>
                     </div>
@@ -1391,7 +1525,7 @@ export default function AdminDashboard() {
                       type="button"
                       onClick={sendBroadcast}
                       disabled={broadcastSending || !broadcastMessage.trim()}
-                      className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-2 rounded-xl bg-neutral-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {broadcastSending ? (
                         <>
@@ -1411,8 +1545,8 @@ export default function AdminDashboard() {
 
               <section className="space-y-6">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-100 to-blue-100">
-                    <Phone size={20} className="text-sky-600" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-100">
+                    <Phone size={20} className="text-neutral-600" />
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-gray-900">Export des numéros de téléphone</h2>
@@ -1425,7 +1559,7 @@ export default function AdminDashboard() {
                     <select
                       value={exportTarget}
                       onChange={(e) => setExportTarget(e.target.value)}
-                      className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                     >
                       <option value="all">Tous les utilisateurs</option>
                       <option value="person">Particuliers uniquement</option>
@@ -1435,7 +1569,7 @@ export default function AdminDashboard() {
                       type="button"
                       onClick={handleExportPhones}
                       disabled={exportLoading}
-                      className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-2 rounded-xl bg-neutral-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {exportLoading ? (
                         <>
@@ -1492,10 +1626,10 @@ export default function AdminDashboard() {
                   <div className="space-y-4 max-h-[60vh] overflow-auto pr-1">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <p className="text-xs uppercase tracking-wide text-rose-600">
+                        <p className="text-xs uppercase tracking-wide text-neutral-600">
                           Commandes +48h non livrées
                         </p>
-                        <span className="text-xs font-semibold text-rose-600">
+                        <span className="text-xs font-semibold text-neutral-600">
                           {overdueReminderOrders.length}
                         </span>
                       </div>
@@ -1530,8 +1664,8 @@ export default function AdminDashboard() {
           {canViewStats && (
             <section className="space-y-6">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100">
-                  <BarChart3 size={20} className="text-indigo-600" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-100">
+                  <BarChart3 size={20} className="text-neutral-600" />
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">Analytics en Temps Réel</h3>
@@ -1556,7 +1690,7 @@ export default function AdminDashboard() {
                         }}
                         className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
                           salesTrendsPeriod === days
-                            ? 'bg-indigo-600 text-white'
+                            ? 'bg-neutral-600 text-white'
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         }`}
                       >
@@ -1567,7 +1701,7 @@ export default function AdminDashboard() {
                 </div>
                 {salesTrendsLoading ? (
                   <div className="h-64 flex items-center justify-center">
-                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
                   </div>
                 ) : salesTrends?.trends?.length ? (
                   <ResponsiveContainer width="100%" height={300}>
@@ -1620,7 +1754,7 @@ export default function AdminDashboard() {
                 <h4 className="text-base font-semibold text-gray-900 mb-4">Heatmap des Heures de Pointe</h4>
                 {orderHeatmapLoading ? (
                   <div className="h-64 flex items-center justify-center">
-                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
                   </div>
                 ) : orderHeatmap?.heatmap?.length ? (
                   <ResponsiveContainer width="100%" height={300}>
@@ -1682,13 +1816,13 @@ export default function AdminDashboard() {
                   <h4 className="text-base font-semibold text-gray-900 mb-4">Métriques de Conversion</h4>
                   {conversionLoading ? (
                     <div className="h-48 flex items-center justify-center">
-                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
                     </div>
                   ) : conversionMetrics ? (
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
                         <span className="text-sm text-gray-700">Visiteurs uniques</span>
-                        <span className="text-lg font-bold text-indigo-600">
+                        <span className="text-lg font-bold text-neutral-600">
                           {conversionMetrics.metrics.uniqueVisitors.toLocaleString()}
                         </span>
                       </div>
@@ -1698,9 +1832,9 @@ export default function AdminDashboard() {
                           {conversionMetrics.metrics.uniqueCustomers.toLocaleString()}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
                         <span className="text-sm text-gray-700">Taux de conversion</span>
-                        <span className="text-lg font-bold text-purple-600">
+                        <span className="text-lg font-bold text-neutral-600">
                           {conversionMetrics.metrics.visitorToOrderRate}%
                         </span>
                       </div>
@@ -1721,7 +1855,7 @@ export default function AdminDashboard() {
                   <h4 className="text-base font-semibold text-gray-900 mb-4">Analyse de Cohort</h4>
                   {cohortLoading ? (
                     <div className="h-48 flex items-center justify-center">
-                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
                     </div>
                   ) : cohortAnalysis?.cohorts?.length ? (
                     <div className="space-y-3 max-h-64 overflow-y-auto">
@@ -1788,7 +1922,7 @@ export default function AdminDashboard() {
                 <div className="flex-1 overflow-y-auto pr-2">
                   {hourOrdersLoading ? (
                     <div className="flex items-center justify-center py-12">
-                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
                     </div>
                   ) : hourOrdersError ? (
                     <p className="text-sm text-red-600 text-center py-8">{hourOrdersError}</p>
@@ -1814,7 +1948,7 @@ export default function AdminDashboard() {
                                       : order.status === 'cancelled'
                                       ? 'bg-red-100 text-red-800'
                                       : order.status === 'delivering'
-                                      ? 'bg-blue-100 text-blue-800'
+                                      ? 'bg-neutral-100 text-neutral-800'
                                       : order.status === 'confirmed'
                                       ? 'bg-yellow-100 text-yellow-800'
                                       : 'bg-gray-100 text-gray-800'
@@ -1885,7 +2019,7 @@ export default function AdminDashboard() {
 
                           {order.deliveryCode && (
                             <div className="mt-2">
-                              <span className="text-xs font-semibold text-indigo-600">
+                              <span className="text-xs font-semibold text-neutral-600">
                                 Code: {order.deliveryCode}
                               </span>
                             </div>
@@ -2062,7 +2196,7 @@ export default function AdminDashboard() {
                     <p className="text-sm font-medium text-gray-900">{cat.category}</p>
                     <p className="text-xs text-gray-500">Prix moyen&nbsp;: {formatCurrency(cat.avgPrice)}</p>
                   </div>
-                  <span className="text-sm font-semibold text-indigo-600">
+                  <span className="text-sm font-semibold text-neutral-600">
                     {formatNumber(cat.listings)} annonces
                   </span>
                 </li>
@@ -2126,7 +2260,7 @@ export default function AdminDashboard() {
             </div>
             <Link
               to="/admin/payments"
-              className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+              className="text-xs font-semibold text-neutral-600 hover:text-neutral-700"
             >
               Voir tous →
             </Link>
@@ -2177,7 +2311,7 @@ export default function AdminDashboard() {
             </p>
             <Link
               to="/admin/users"
-              className="mt-2 inline-flex items-center text-xs font-medium text-indigo-600 hover:underline"
+              className="mt-2 inline-flex items-center text-xs font-medium text-neutral-600 hover:underline"
             >
               Ouvrir la gestion des suspensions →
             </Link>
@@ -2210,7 +2344,7 @@ export default function AdminDashboard() {
           >
             <input
               type="search"
-              className="w-full rounded border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:w-60"
+              className="w-full rounded border px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500 sm:w-60"
               placeholder="Nom, email ou téléphone"
               value={userSearchDraft}
               onChange={(e) => setUserSearchDraft(e.target.value)}
@@ -2230,7 +2364,7 @@ export default function AdminDashboard() {
                       }}
                       className={`flex-shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
                         userAccountFilter === option.value
-                          ? 'bg-indigo-600 text-white shadow'
+                          ? 'bg-neutral-600 text-white shadow'
                           : 'bg-white text-gray-600 border border-gray-200'
                       }`}
                     >
@@ -2240,7 +2374,7 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 <select
-                  className="rounded border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="rounded border px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
                   value={userAccountFilter}
                   onChange={(e) => {
                     setEditingUser(null);
@@ -2259,7 +2393,7 @@ export default function AdminDashboard() {
               <div className="flex gap-2">
                 <button
                   type="submit"
-                  className="rounded bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+                  className="rounded bg-neutral-600 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-60"
                   disabled={usersLoading}
                 >
                   Rechercher
@@ -2353,7 +2487,7 @@ export default function AdminDashboard() {
                             <span>Nom de la boutique</span>
                             <input
                               type="text"
-                              className="w-full rounded border px-2 py-1 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                              className="w-full rounded border px-2 py-1 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
                               value={editingUser.shopName}
                               onChange={(e) =>
                                 setEditingUser((prev) =>
@@ -2367,7 +2501,7 @@ export default function AdminDashboard() {
                             <span>Adresse de la boutique</span>
                             <input
                               type="text"
-                              className="w-full rounded border px-2 py-1 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                              className="w-full rounded border px-2 py-1 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
                               value={editingUser.shopAddress}
                               onChange={(e) =>
                                 setEditingUser((prev) =>
@@ -2380,7 +2514,7 @@ export default function AdminDashboard() {
                           <div className="flex gap-2">
                             <button
                               type="button"
-                              className="flex-1 rounded bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+                              className="flex-1 rounded bg-neutral-600 px-3 py-2 text-xs font-semibold text-white hover:bg-neutral-700 disabled:opacity-60"
                               disabled={updatingUserId === user.id}
                               onClick={() => {
                                 if (!editingUser?.shopName?.trim() || !editingUser?.shopAddress?.trim()) {
@@ -2409,7 +2543,7 @@ export default function AdminDashboard() {
                       ) : (
                         <button
                           type="button"
-                          className="w-full rounded bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+                          className="w-full rounded bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100"
                           onClick={() => {
                             setEditingUser({
                               id: user.id,
@@ -2458,7 +2592,7 @@ export default function AdminDashboard() {
                       </div>
                       <Link
                         to={`/admin/users/${user.id}/stats`}
-                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                        className="text-xs font-semibold text-neutral-600 hover:text-neutral-800"
                       >
                         Voir ses statistiques →
                       </Link>
@@ -2552,7 +2686,7 @@ export default function AdminDashboard() {
                                 <label className="flex flex-col gap-1 text-xs font-medium text-gray-600">
                                   Nom de la boutique
                                   <input
-                                    className="w-full rounded border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                    className="w-full rounded border px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
                                     value={editingUser.shopName}
                                     onChange={(e) =>
                                       setEditingUser((prev) =>
@@ -2565,7 +2699,7 @@ export default function AdminDashboard() {
                                 <label className="flex flex-col gap-1 text-xs font-medium text-gray-600">
                                   Adresse de la boutique
                                   <textarea
-                                    className="w-full rounded border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                    className="w-full rounded border px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
                                     rows={2}
                                     value={editingUser.shopAddress}
                                     onChange={(e) =>
@@ -2581,7 +2715,7 @@ export default function AdminDashboard() {
                                 <div className="flex gap-2">
                                   <button
                                     type="button"
-                                    className="flex-1 rounded bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+                                    className="flex-1 rounded bg-neutral-600 px-3 py-2 text-xs font-semibold text-white hover:bg-neutral-700 disabled:opacity-60"
                                     disabled={updatingUserId === user.id}
                                     onClick={() => {
                                       if (!editingUser?.shopName?.trim() || !editingUser?.shopAddress?.trim()) {
@@ -2610,7 +2744,7 @@ export default function AdminDashboard() {
                             ) : (
                               <button
                                 type="button"
-                                className="rounded bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+                                className="rounded bg-neutral-50 px-3 py-1 text-xs font-semibold text-neutral-700 hover:bg-neutral-100"
                                 onClick={() => {
                                   setEditingUser({
                                     id: user.id,
@@ -2659,7 +2793,7 @@ export default function AdminDashboard() {
                         </div>
                         <Link
                           to={`/admin/users/${user.id}/stats`}
-                          className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                          className="text-xs font-semibold text-neutral-600 hover:text-neutral-800"
                         >
                           Voir ses statistiques →
                         </Link>
@@ -2751,7 +2885,7 @@ export default function AdminDashboard() {
                     onClick={() => setFilter(option.value)}
                     className={`flex-shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
                       filter === option.value
-                        ? 'bg-indigo-600 text-white shadow'
+                        ? 'bg-neutral-600 text-white shadow'
                         : 'bg-white text-gray-600 border border-gray-200'
                     }`}
                   >
@@ -2768,7 +2902,7 @@ export default function AdminDashboard() {
                   id="admin-payments-filter"
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
-                  className="rounded border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="rounded border px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
                 >
                   {paymentFilterOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -2784,7 +2918,7 @@ export default function AdminDashboard() {
                 value={paymentSearchDraft}
                 onChange={(e) => setPaymentSearchDraft(e.target.value)}
                 placeholder="Rechercher un produit…"
-                className="w-full rounded border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded border px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
               />
             </div>
           </div>
@@ -2844,7 +2978,7 @@ export default function AdminDashboard() {
                     <Link
                       to={buildProductPath(p.product)}
                       {...externalLinkProps}
-                      className="flex-1 min-w-[140px] rounded-lg border border-indigo-200 px-3 py-2 text-center text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                      className="flex-1 min-w-[140px] rounded-lg border border-neutral-200 px-3 py-2 text-center text-xs font-semibold text-neutral-700 hover:bg-neutral-50"
                     >
                       Voir l&apos;annonce
                     </Link>
@@ -2974,7 +3108,7 @@ export default function AdminDashboard() {
                         <Link
                           to={buildProductPath(p.product)}
                           {...externalLinkProps}
-                          className="rounded border border-indigo-200 px-3 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                          className="rounded border border-neutral-200 px-3 py-1 text-xs font-semibold text-neutral-700 hover:bg-neutral-50"
                         >
                           Voir l&apos;annonce
                         </Link>
@@ -3086,7 +3220,7 @@ export default function AdminDashboard() {
               <select
                 value={complaintsFilter}
                 onChange={(e) => setComplaintsFilter(e.target.value)}
-                className="rounded border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="rounded border px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
               >
                 {complaintStatusFilterOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -3173,7 +3307,7 @@ export default function AdminDashboard() {
                             handleComplaintStatusChange(complaint._id, e.target.value)
                           }
                           disabled={complaintActioningId === complaint._id}
-                          className="rounded border border-gray-200 px-3 py-1 text-xs text-gray-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="rounded border border-gray-200 px-3 py-1 text-xs text-gray-600 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
                         >
                           {Object.keys(complaintStatusLabels).map((statusKey) => (
                             <option key={statusKey} value={statusKey}>
@@ -3196,7 +3330,7 @@ export default function AdminDashboard() {
                               href={attachment.url}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600 hover:border-rose-200"
+                              className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600 hover:border-neutral-200"
                             >
                               <Paperclip className="w-3 h-3" />
                               {attachment.originalName || attachment.filename}

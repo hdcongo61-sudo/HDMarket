@@ -89,7 +89,7 @@ export default function NotificationItem({
             onPointerDown={startLongPress}
             onPointerUp={cancelLongPress}
             onPointerLeave={cancelLongPress}
-            className="group relative flex items-start gap-3 rounded-2xl px-1 py-1.5 text-left transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/70"
+            className="ui-card group relative flex items-start gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/70"
           >
             <div className="relative mt-0.5 flex-shrink-0">
               {avatarLetter ? (
@@ -102,7 +102,7 @@ export default function NotificationItem({
                 </div>
               )}
               {isUnread && (
-                <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-blue-500" />
+                <span className="status-pending-dot absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-neutral-900 dark:bg-neutral-100" />
               )}
             </div>
 
@@ -117,7 +117,7 @@ export default function NotificationItem({
                   </p>
                 </div>
                 {isUnread && (
-                  <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-blue-700 dark:border-blue-900 dark:bg-blue-950/60 dark:text-blue-300">
+                  <span className="rounded-full border border-neutral-300 bg-neutral-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
                     {t('notifications.newBadge', 'New')}
                   </span>
                 )}
@@ -187,7 +187,7 @@ export default function NotificationItem({
             onClick={() => setMenuOpen(false)}
           >
             <motion.div
-              className="absolute inset-x-4 bottom-4 rounded-2xl border border-neutral-200 bg-white p-2 shadow-xl dark:border-neutral-700 dark:bg-neutral-900"
+              className="ui-card absolute inset-x-4 bottom-4 rounded-2xl p-2 shadow-xl"
               initial={{ y: 24, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 24, opacity: 0 }}
@@ -212,7 +212,7 @@ export default function NotificationItem({
                   onDelete?.();
                   setMenuOpen(false);
                 }}
-                className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-neutral-600 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-950/40"
               >
                 {t('notifications.delete', 'Supprimer')}
               </button>

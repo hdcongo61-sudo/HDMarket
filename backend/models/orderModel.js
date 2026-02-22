@@ -4,12 +4,26 @@ const orderItemSchema = new mongoose.Schema(
   {
     product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
     quantity: { type: Number, default: 1, min: 1 },
+    unitPrice: { type: Number, default: 0, min: 0 },
+    lineTotal: { type: Number, default: 0, min: 0 },
     snapshot: {
       title: String,
       price: Number,
+      basePrice: Number,
       image: String,
       shopName: String,
       shopId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      shopAddress: { type: String, default: '' },
+      shopCity: { type: String, default: '' },
+      shopCommune: { type: String, default: '' },
+      wholesaleEnabled: { type: Boolean, default: false },
+      wholesaleApplied: { type: Boolean, default: false },
+      wholesaleTierMinQty: { type: Number, default: 0, min: 0 },
+      wholesaleTierLabel: { type: String, default: '' },
+      deliveryAvailable: { type: Boolean, default: true },
+      pickupAvailable: { type: Boolean, default: true },
+      deliveryFeeEnabled: { type: Boolean, default: true },
+      deliveryFee: { type: Number, default: 0, min: 0 },
       confirmationNumber: String,
       slug: String
     }
@@ -119,6 +133,8 @@ const orderSchema = new mongoose.Schema(
       enum: [
         'pending_payment',
         'paid',
+        'ready_for_pickup',
+        'picked_up_confirmed',
         'ready_for_delivery',
         'out_for_delivery',
         'delivery_proof_submitted',
@@ -141,13 +157,34 @@ const orderSchema = new mongoose.Schema(
       enum: ['full', 'installment'],
       default: 'full'
     },
+    deliveryMode: {
+      type: String,
+      enum: ['PICKUP', 'DELIVERY'],
+      default: 'DELIVERY'
+    },
+    deliveryFeeSource: {
+      type: String,
+      enum: ['COMMUNE_FREE', 'COMMUNE_FIXED', 'SHOP_FREE', 'PRODUCT_FEE', 'PICKUP'],
+      default: 'PRODUCT_FEE'
+    },
     installmentSaleStatus: {
       type: String,
       enum: ['', 'confirmed', 'delivering', 'delivered', 'cancelled'],
       default: ''
     },
+    itemsSubtotal: { type: Number, default: 0, min: 0 },
+    deliveryFeeTotal: { type: Number, default: 0, min: 0 },
+    discountTotal: { type: Number, default: 0, min: 0 },
     deliveryAddress: { type: String, required: true, trim: true },
     deliveryCity: { type: String, default: 'Brazzaville', trim: true },
+    shippingAddressSnapshot: {
+      cityId: { type: mongoose.Schema.Types.ObjectId, ref: 'City', default: null },
+      cityName: { type: String, trim: true, default: '' },
+      communeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Commune', default: null },
+      communeName: { type: String, trim: true, default: '' },
+      addressLine: { type: String, trim: true, default: '' },
+      phone: { type: String, trim: true, default: '' }
+    },
     trackingNote: { type: String, default: '' },
     totalAmount: { type: Number, default: 0 },
     paidAmount: { type: Number, default: 0 },
@@ -163,8 +200,12 @@ const orderSchema = new mongoose.Schema(
     },
     paymentName: { type: String, trim: true, default: '' },
     paymentTransactionCode: { type: String, trim: true, default: '' },
+    confirmedAt: { type: Date },
+    readyForPickupAt: { type: Date },
+    outForDeliveryAt: { type: Date },
     shippedAt: { type: Date },
     deliveredAt: { type: Date },
+    completedAt: { type: Date },
     deliveryDate: { type: Date },
     deliveryProofImages: { type: [deliveryProofImageSchema], default: [] },
     clientSignatureImage: { type: String, trim: true, default: '' },
@@ -214,9 +255,14 @@ orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ customer: 1, createdAt: -1 });
 orderSchema.index({ customer: 1, isDraft: 1, createdAt: -1 });
 orderSchema.index({ paymentType: 1, status: 1, createdAt: -1 });
+orderSchema.index({ deliveryMode: 1, deliveryFeeSource: 1, createdAt: -1 });
+orderSchema.index({ 'shippingAddressSnapshot.cityId': 1, 'shippingAddressSnapshot.communeId': 1, createdAt: -1 });
 orderSchema.index({ 'items.snapshot.shopId': 1, createdAt: -1, status: 1 });
 orderSchema.index({ 'items.product': 1, createdAt: -1, status: 1 });
 orderSchema.index({ 'installmentPlan.nextDueDate': 1, status: 1 });
+orderSchema.index({ paymentTransactionCode: 1 });
+orderSchema.index({ 'draftPayments.transactionCode': 1 });
+orderSchema.index({ 'installmentPlan.schedule.transactionProof.transactionCode': 1 });
 orderSchema.index({ deliveryStatus: 1, updatedAt: -1 });
 
 export default mongoose.model('Order', orderSchema);

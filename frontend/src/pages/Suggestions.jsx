@@ -249,7 +249,7 @@ export default function Suggestions() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header Section */}
-      <div className="bg-indigo-600 text-white">
+      <div className="bg-neutral-600 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-2">
@@ -285,7 +285,7 @@ export default function Suggestions() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-indigo-600">
+                <div className="p-3 rounded-xl bg-neutral-600">
                   <Eye className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-2xl font-bold text-gray-900">{formatNumber(views.length)}</span>
@@ -295,7 +295,7 @@ export default function Suggestions() {
             </div>
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-purple-600">
+                <div className="p-3 rounded-xl bg-neutral-600">
                   <Target className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-2xl font-bold text-gray-900">{formatNumber(preferredCategories.length)}</span>
@@ -327,12 +327,12 @@ export default function Suggestions() {
               {preferredCategories.map((category) => (
                 <div
                   key={category}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-50 border border-indigo-200"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-neutral-50 border border-neutral-200"
                 >
-                  <TrendingUp className="w-4 h-4 text-indigo-600" />
-                  <span className="text-sm font-semibold text-indigo-700">{CATEGORY_LABELS[category] || category}</span>
+                  <TrendingUp className="w-4 h-4 text-neutral-600" />
+                  <span className="text-sm font-semibold text-neutral-700">{CATEGORY_LABELS[category] || category}</span>
                   {categoryStats[category] > 0 && (
-                    <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold">
+                    <span className="px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-700 text-xs font-bold">
                       {categoryStats[category]}
                     </span>
                   )}
@@ -358,8 +358,8 @@ export default function Suggestions() {
         {/* Empty State - No Views */}
         {!preferredCategories.length && !loading && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
-            <div className="mx-auto w-20 h-20 rounded-2xl bg-indigo-100 flex items-center justify-center mb-4">
-              <Search className="w-10 h-10 text-indigo-600" />
+            <div className="mx-auto w-20 h-20 rounded-2xl bg-neutral-100 flex items-center justify-center mb-4">
+              <Search className="w-10 h-10 text-neutral-600" />
             </div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">Aucune suggestion disponible</h3>
             <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
@@ -368,14 +368,14 @@ export default function Suggestions() {
             <div className="flex flex-wrap gap-3 justify-center">
               <Link
                 to="/"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-lg hover:shadow-xl transition-all"
               >
                 <ShoppingBag className="w-4 h-4" />
                 Explorer les produits
               </Link>
               <Link
                 to="/shops/verified"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border-2 border-indigo-200 bg-white text-indigo-600 font-semibold hover:bg-indigo-50 transition-all"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border-2 border-neutral-200 bg-white text-neutral-600 font-semibold hover:bg-neutral-50 transition-all"
               >
                 <Award className="w-4 h-4" />
                 Boutiques vérifiées
@@ -397,7 +397,7 @@ export default function Suggestions() {
             <button
               type="button"
               onClick={handleRefresh}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-lg hover:shadow-xl transition-all"
             >
               <RefreshCw className="w-4 h-4" />
               Actualiser les suggestions
@@ -439,7 +439,7 @@ export default function Suggestions() {
             <button
               type="button"
               onClick={loadMore}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-lg hover:shadow-xl transition-all"
             >
               <ArrowRight className="w-4 h-4" />
               Charger plus de suggestions

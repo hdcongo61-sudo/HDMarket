@@ -70,7 +70,7 @@ export default function ImportWizard({
               if (!payload) return;
               onDryRun(payload);
             }}
-            className="rounded-xl border border-indigo-300 px-3 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+            className="rounded-xl border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
           >
             Dry run
           </button>
@@ -82,7 +82,7 @@ export default function ImportWizard({
               if (!payload) return;
               onApply(payload);
             }}
-            className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+            className="rounded-xl bg-neutral-600 px-3 py-2 text-xs font-medium text-white hover:bg-neutral-500 disabled:opacity-50"
           >
             Appliquer
           </button>
@@ -95,7 +95,7 @@ export default function ImportWizard({
           placeholder='{"tree":[{"name":"Electronique","children":[{"name":"Téléphones"}]}]}'
           className="w-full rounded-2xl border border-neutral-300 bg-white px-3 py-2 text-xs font-mono text-neutral-800 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
         />
-        {parseError ? <p className="mt-2 text-xs text-rose-600">{parseError}</p> : null}
+        {parseError ? <p className="mt-2 text-xs text-neutral-600">{parseError}</p> : null}
 
         {summary ? (
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -105,7 +105,7 @@ export default function ImportWizard({
             </div>
             <div className="rounded-xl border border-neutral-200 p-2 text-center dark:border-neutral-800">
               <p className="text-xs text-neutral-500">Mises à jour</p>
-              <p className="text-sm font-semibold text-indigo-600">{summary.updated}</p>
+              <p className="text-sm font-semibold text-neutral-600">{summary.updated}</p>
             </div>
             <div className="rounded-xl border border-neutral-200 p-2 text-center dark:border-neutral-800">
               <p className="text-xs text-neutral-500">Ignorées</p>
@@ -113,14 +113,14 @@ export default function ImportWizard({
             </div>
             <div className="rounded-xl border border-neutral-200 p-2 text-center dark:border-neutral-800">
               <p className="text-xs text-neutral-500">Conflits</p>
-              <p className="text-sm font-semibold text-rose-600">{summary.conflicts}</p>
+              <p className="text-sm font-semibold text-neutral-600">{summary.conflicts}</p>
             </div>
           </div>
         ) : null}
 
         {summary ? (
           <div className="mt-3 flex items-start gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-2 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300">
-            {summary.conflicts > 0 ? <AlertTriangle size={14} className="mt-0.5 text-rose-500" /> : <CheckCircle2 size={14} className="mt-0.5 text-emerald-500" />}
+            {summary.conflicts > 0 ? <AlertTriangle size={14} className="mt-0.5 text-neutral-500" /> : <CheckCircle2 size={14} className="mt-0.5 text-emerald-500" />}
             <p>
               {summary.conflicts > 0
                 ? 'Des conflits existent. Vérifiez le diff avant application.'

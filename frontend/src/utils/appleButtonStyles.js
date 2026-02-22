@@ -1,21 +1,21 @@
 /**
  * Apple Design System Button Styles
  * Following Apple's Human Interface Guidelines (HIG)
- * Uses Apple System Blue #007AFF, proper radius, subtle shadows
+ * Monochrome HDMarket system (black/white), proper radius, subtle shadows
  */
 
 export const appleButtonStyles = {
-  // Primary Button (Main actions) - Apple Blue
+  // Primary Button (Main actions)
   primary: {
     base: "px-6 py-3 rounded-full font-semibold text-[17px] transition-all duration-200 tap-feedback min-h-[48px] flex items-center justify-center",
-    enabled: "bg-[#007AFF] text-white hover:bg-[#0051D5] active:bg-[#0051D5] shadow-[0_1px_3px_rgba(0,0,0,0.08)]",
+    enabled: "bg-[#0A0A0A] text-white hover:bg-[#111111] active:bg-[#111111] shadow-[0_1px_3px_rgba(0,0,0,0.08)]",
     disabled: "bg-[#C7C7CC] text-white/80 cursor-not-allowed opacity-80"
   },
   
   // Secondary Button (Alternative actions)
   secondary: {
     base: "px-6 py-3 rounded-full font-semibold text-[17px] transition-all duration-200 tap-feedback min-h-[48px] flex items-center justify-center",
-    enabled: "bg-white text-[#007AFF] border border-[#C7C7CC] hover:bg-[#F2F2F7] active:bg-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
+    enabled: "bg-white text-[#0A0A0A] border border-[#C7C7CC] hover:bg-[#F2F2F7] active:bg-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
     disabled: "bg-[#F2F2F7] text-[#AEAEB2] border-[#E5E5EA] cursor-not-allowed"
   },
   
@@ -36,7 +36,7 @@ export const appleButtonStyles = {
   // Ghost Button (Minimal, text-like)
   ghost: {
     base: "px-4 py-2 rounded-full font-medium text-[15px] transition-all duration-200 tap-feedback min-h-[44px] flex items-center justify-center",
-    enabled: "text-[#007AFF] hover:bg-[rgba(0,122,255,0.08)] active:bg-[rgba(0,122,255,0.16)]",
+    enabled: "text-[#0A0A0A] hover:bg-[rgba(10,10,10,0.08)] active:bg-[rgba(10,10,10,0.16)]",
     disabled: "text-[#AEAEB2] cursor-not-allowed"
   },
   
@@ -50,14 +50,14 @@ export const appleButtonStyles = {
   // Small Button
   small: {
     base: "px-4 py-2 rounded-full font-medium text-[15px] transition-all duration-200 tap-feedback min-h-[44px] flex items-center justify-center",
-    enabled: "bg-[#007AFF] text-white hover:bg-[#0051D5] shadow-[0_1px_3px_rgba(0,0,0,0.08)]",
+    enabled: "bg-[#0A0A0A] text-white hover:bg-[#111111] shadow-[0_1px_3px_rgba(0,0,0,0.08)]",
     disabled: "bg-[#C7C7CC] text-white/80 cursor-not-allowed opacity-80"
   },
   
   // Large Button
   large: {
     base: "px-8 py-4 rounded-full font-semibold text-[19px] transition-all duration-200 tap-feedback min-h-[52px] flex items-center justify-center",
-    enabled: "bg-[#007AFF] text-white hover:bg-[#0051D5] shadow-[0_4px_12px_rgba(0,0,0,0.1)]",
+    enabled: "bg-[#0A0A0A] text-white hover:bg-[#111111] shadow-[0_4px_12px_rgba(0,0,0,0.1)]",
     disabled: "bg-[#C7C7CC] text-white/80 cursor-not-allowed opacity-80"
   }
 };

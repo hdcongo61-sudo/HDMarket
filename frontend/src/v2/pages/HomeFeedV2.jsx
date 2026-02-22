@@ -23,7 +23,7 @@ export default function HomeFeedV2() {
       >
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1 rounded-full bg-[var(--v2-surface-soft)] px-3 py-1.5 text-xs v2-text-soft"><Compass className="h-3.5 w-3.5" />Près de vous</span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1.5 text-xs text-blue-700 dark:bg-blue-950/60 dark:text-blue-300"><Sparkles className="h-3.5 w-3.5" />Suggestions intelligentes</span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-neutral-50 px-3 py-1.5 text-xs text-neutral-700 dark:bg-neutral-950/60 dark:text-neutral-300"><Sparkles className="h-3.5 w-3.5" />Suggestions intelligentes</span>
         </div>
       </V2Card>
 

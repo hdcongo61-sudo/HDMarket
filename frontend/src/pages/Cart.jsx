@@ -292,7 +292,7 @@ export default function Cart() {
       {loading && items.length === 0 ? (
         <div className="flex items-center justify-center py-16">
           <div className="flex items-center gap-3 text-gray-600">
-            <div className="w-6 h-6 border-2 border-[#007AFF] border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-[#0A0A0A] border-t-transparent rounded-full animate-spin" />
             <span className="font-medium">Chargement du panier...</span>
           </div>
         </div>
@@ -307,7 +307,7 @@ export default function Cart() {
           </p>
           <Link
             to="/products"
-            className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-3.5 min-h-[48px] rounded-3xl hover:bg-blue-700 transition-all duration-200 tap-feedback font-semibold shadow-sm"
+            className="inline-flex items-center justify-center gap-2 bg-neutral-600 text-white px-6 py-3.5 min-h-[48px] rounded-3xl hover:bg-neutral-700 transition-all duration-200 tap-feedback font-semibold shadow-sm"
           >
             <ShoppingBagIcon className="w-5 h-5" />
             Découvrir les produits
@@ -327,7 +327,7 @@ export default function Cart() {
               return (
                 <div
                   key={product._id}
-                  className="group bg-white rounded-xl sm:rounded-3xl border-2 border-gray-200 p-2 sm:p-5 lg:p-6 hover:shadow-xl transition-all duration-300 hover:border-blue-200"
+                  className="group bg-white rounded-xl sm:rounded-3xl border-2 border-gray-200 p-2 sm:p-5 lg:p-6 hover:shadow-xl transition-all duration-300 hover:border-neutral-200"
                 >
                   <div className="flex flex-col md:flex-row gap-2 sm:gap-5 lg:gap-6">
                     {/* Product Image Enhanced - Much Smaller on Mobile */}
@@ -344,7 +344,7 @@ export default function Cart() {
                           loading="lazy"
                         />
                         {discount > 0 && (
-                          <div className="absolute top-1 left-1 sm:top-3 sm:left-3 bg-gradient-to-r from-red-500 via-pink-500 to-red-600 text-white text-[9px] sm:text-xs font-black px-1.5 py-0.5 sm:px-3 sm:py-1.5 rounded-full shadow-lg ring-1 sm:ring-2 ring-white">
+                          <div className="absolute top-1 left-1 sm:top-3 sm:left-3 bg-gradient-to-r from-red-500 via-neutral-500 to-red-600 text-white text-[9px] sm:text-xs font-black px-1.5 py-0.5 sm:px-3 sm:py-1.5 rounded-full shadow-lg ring-1 sm:ring-2 ring-white">
                             -{discount}%
                           </div>
                         )}
@@ -358,7 +358,7 @@ export default function Cart() {
                   <Link
                     to={buildProductPath(product)}
                     {...externalLinkProps}
-                    className="text-sm sm:text-xl lg:text-2xl font-black text-gray-900 hover:text-blue-600 transition-colors line-clamp-2"
+                    className="text-sm sm:text-xl lg:text-2xl font-black text-gray-900 hover:text-neutral-600 transition-colors line-clamp-2"
                   >
                             {product.title}
                           </Link>
@@ -366,7 +366,7 @@ export default function Cart() {
                           
                           {/* Price Display Enhanced - Much Smaller on Mobile */}
                           <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap">
-                            <span className="text-sm sm:text-2xl lg:text-3xl font-black text-blue-600">
+                            <span className="text-sm sm:text-2xl lg:text-3xl font-black text-neutral-600">
                               {formatPrice(product.price)}
                             </span>
                             {discount > 0 && (
@@ -416,9 +416,9 @@ export default function Cart() {
                           </div>
 
                           {/* Line Total Enhanced - Much Smaller on Mobile */}
-                          <div className="text-right bg-blue-50 px-2 py-1 sm:px-4 sm:py-2 rounded-lg sm:rounded-2xl border border-blue-100">
+                          <div className="text-right bg-neutral-50 px-2 py-1 sm:px-4 sm:py-2 rounded-lg sm:rounded-2xl border border-neutral-100">
                             <span className="text-[9px] sm:text-xs text-gray-600 font-medium block mb-0.5 sm:mb-1">Sous-total</span>
-                            <div className="text-sm sm:text-xl lg:text-2xl font-black text-blue-600">
+                            <div className="text-sm sm:text-xl lg:text-2xl font-black text-neutral-600">
                               {formatPrice(lineTotal)}
                             </div>
                           </div>
@@ -487,22 +487,22 @@ export default function Cart() {
                 )}
 
                 {/* Shipping Estimate Enhanced */}
-                <div className="flex justify-between items-center py-3 px-4 bg-blue-50 rounded-2xl border border-blue-200">
+                <div className="flex justify-between items-center py-3 px-4 bg-neutral-50 rounded-2xl border border-neutral-200">
                   <span className="text-gray-700 font-semibold">Livraison estimée</span>
-                  <span className="font-black text-blue-600">Gratuite</span>
+                  <span className="font-black text-neutral-600">Gratuite</span>
                 </div>
 
                 {/* Divider Enhanced */}
                 <div className="border-t-2 border-gray-200 pt-5">
                   <div className="flex justify-between items-center">
                     <span className="text-xl font-black text-gray-900">Total</span>
-                    <span className="text-3xl font-black text-blue-600">{formatPrice(totals.subtotal)}</span>
+                    <span className="text-3xl font-black text-neutral-600">{formatPrice(totals.subtotal)}</span>
                   </div>
                 </div>
 
                 {/* Info Note Enhanced */}
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-4">
-                  <p className="text-xs text-blue-800 text-center font-medium leading-relaxed">
+                <div className="bg-gradient-to-br from-neutral-50 to-neutral-50 border-2 border-neutral-200 rounded-2xl p-4">
+                  <p className="text-xs text-neutral-800 text-center font-medium leading-relaxed">
                     💡 Les paiements sont sécurisés et gérés après validation des annonces. 
                     Contactez directement les vendeurs pour finaliser vos achats.
                   </p>
@@ -522,7 +522,7 @@ export default function Cart() {
             </div>
 
             {/* Security Badges Enhanced */}
-            <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-3xl p-6 text-center border-2 border-gray-200">
+            <div className="bg-gradient-to-br from-gray-50 to-neutral-50 rounded-3xl p-6 text-center border-2 border-gray-200">
               <h3 className="font-black text-gray-900 mb-4">Paiement sécurisé</h3>
               <div className="flex flex-col sm:flex-row justify-center items-center gap-4 text-gray-600">
                 <div className="text-xs font-semibold">🔒 Paiement sécurisé</div>

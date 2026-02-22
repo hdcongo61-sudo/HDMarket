@@ -30,5 +30,6 @@ const paymentSchema = new mongoose.Schema(
 
 paymentSchema.index({ promoCode: 1, createdAt: -1 });
 paymentSchema.index({ user: 1, createdAt: -1 });
+paymentSchema.index({ transactionNumber: 1 });
 
 export default mongoose.model('Payment', paymentSchema);

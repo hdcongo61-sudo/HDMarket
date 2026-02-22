@@ -60,7 +60,7 @@ export default function SwipeActions({
           disabled={!canMarkRead}
           className={`pointer-events-auto inline-flex h-9 items-center gap-1 rounded-full px-3 text-xs font-medium transition ${
             canMarkRead
-              ? 'bg-blue-600 text-white hover:bg-blue-500'
+              ? 'bg-neutral-600 text-white hover:bg-neutral-500'
               : 'bg-neutral-300 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-400'
           }`}
         >
@@ -73,7 +73,7 @@ export default function SwipeActions({
         <button
           type="button"
           onClick={handleDelete}
-          className="pointer-events-auto inline-flex h-9 items-center gap-1 rounded-full bg-rose-600 px-3 text-xs font-medium text-white hover:bg-rose-500"
+          className="pointer-events-auto inline-flex h-9 items-center gap-1 rounded-full bg-neutral-600 px-3 text-xs font-medium text-white hover:bg-neutral-500"
         >
           <Trash2 className="h-3.5 w-3.5" />
           Suppr.

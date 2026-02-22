@@ -35,6 +35,14 @@ const FALLBACK_CITY = {
   deliveryAvailable: true,
   boostMultiplier: 1
 };
+const FALLBACK_COMMUNE = {
+  _id: 'fallback-commune-centre',
+  name: 'Centre-ville',
+  cityId: FALLBACK_CITY._id,
+  isActive: true,
+  deliveryPolicy: 'DEFAULT_RULE',
+  fixedFee: 0
+};
 
 const AppSettingsContext = createContext(null);
 
@@ -58,7 +66,8 @@ export const AppSettingsProvider = ({ children }) => {
     defaultCurrency: null,
     currencies: [],
     defaultCity: null,
-    cities: []
+    cities: [],
+    communes: []
   });
   const [language, setLanguageState] = useState('fr');
   const [currencyCode, setCurrencyCodeState] = useState('XAF');
@@ -69,6 +78,7 @@ export const AppSettingsProvider = ({ children }) => {
   const normalizePublicPayload = useCallback((payload = {}) => {
     const normalizedCurrencies = Array.isArray(payload.currencies) ? payload.currencies : [];
     const normalizedCities = Array.isArray(payload.cities) ? payload.cities : [];
+    const normalizedCommunes = Array.isArray(payload.communes) ? payload.communes : [];
     const normalizedLanguages = Array.isArray(payload.languages) ? payload.languages : [];
 
     const currencies =
@@ -92,7 +102,8 @@ export const AppSettingsProvider = ({ children }) => {
       defaultCurrency,
       currencies,
       defaultCity,
-      cities
+      cities,
+      communes: normalizedCommunes.length > 0 ? normalizedCommunes : [FALLBACK_COMMUNE]
     };
     setPublicSettings(safe);
     return safe;
@@ -103,9 +114,10 @@ export const AppSettingsProvider = ({ children }) => {
       const { data } = await api.get('/settings/public', { skipCache: true });
       return normalizePublicPayload(data || {});
     } catch {
-      const [currenciesResult, citiesResult] = await Promise.allSettled([
+      const [currenciesResult, citiesResult, communesResult] = await Promise.allSettled([
         api.get('/settings/currencies', { skipCache: true }),
-        api.get('/settings/cities', { skipCache: true })
+        api.get('/settings/cities', { skipCache: true }),
+        api.get('/settings/communes', { skipCache: true })
       ]);
 
       const fallbackPayload = {
@@ -119,7 +131,11 @@ export const AppSettingsProvider = ({ children }) => {
         cities:
           citiesResult.status === 'fulfilled' && Array.isArray(citiesResult.value?.data)
             ? citiesResult.value.data
-            : [FALLBACK_CITY]
+            : [FALLBACK_CITY],
+        communes:
+          communesResult.status === 'fulfilled' && Array.isArray(communesResult.value?.data)
+            ? communesResult.value.data
+            : [FALLBACK_COMMUNE]
       };
       return normalizePublicPayload(fallbackPayload);
     }
@@ -234,6 +250,10 @@ export const AppSettingsProvider = ({ children }) => {
     () => (publicSettings.cities || []).filter((item) => item?.isActive !== false),
     [publicSettings.cities]
   );
+  const activeCommunes = useMemo(
+    () => (publicSettings.communes || []).filter((item) => item?.isActive !== false),
+    [publicSettings.communes]
+  );
 
   const selectedCurrency =
     activeCurrencies.find((item) => String(item.code).toUpperCase() === String(currencyCode).toUpperCase()) ||
@@ -298,6 +318,7 @@ export const AppSettingsProvider = ({ children }) => {
       languages: activeLanguages,
       currencies: activeCurrencies,
       cities: activeCities,
+      communes: activeCommunes,
       defaultLanguage: publicSettings.defaultLanguage || 'fr',
       defaultCurrency: publicSettings.defaultCurrency || null,
       defaultCity: publicSettings.defaultCity || null,
@@ -325,6 +346,7 @@ export const AppSettingsProvider = ({ children }) => {
       activeLanguages,
       activeCurrencies,
       activeCities,
+      activeCommunes,
       language,
       currencyCode,
       city,

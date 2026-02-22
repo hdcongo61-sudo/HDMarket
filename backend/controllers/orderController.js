@@ -5,6 +5,8 @@ import DeliveryLog from '../models/deliveryLogModel.js';
 import OrderMessage from '../models/orderMessageModel.js';
 import Product from '../models/productModel.js';
 import User from '../models/userModel.js';
+import City from '../models/cityModel.js';
+import Commune from '../models/communeModel.js';
 import DeliveryGuy from '../models/deliveryGuyModel.js';
 import Cart from '../models/cartModel.js';
 import { createNotification } from '../utils/notificationService.js';
@@ -17,10 +19,24 @@ import {
   consumeMarketplacePromoForOrder,
   rollbackConsumedMarketplacePromo
 } from '../utils/marketplacePromoCodeService.js';
+import { DELIVERY_FEE_SOURCE, resolveDeliveryPricing } from '../utils/deliveryPricing.js';
+import { getWholesalePricing } from '../utils/wholesaleUtils.js';
+import {
+  findUsedTransactionCodes,
+  normalizeTransactionCode,
+  TRANSACTION_CODE_REUSED_MESSAGE
+} from '../utils/transactionCodeService.js';
+import {
+  invalidateAdminCache,
+  invalidateSellerCache,
+  invalidateUserCache
+} from '../utils/cache.js';
 
 const ORDER_STATUS = [
   'pending_payment',
   'paid',
+  'ready_for_pickup',
+  'picked_up_confirmed',
   'ready_for_delivery',
   'out_for_delivery',
   'delivery_proof_submitted',
@@ -118,11 +134,11 @@ const sendOrderSms = async ({ phone, message, context }) => {
 
 const baseOrderQuery = () =>
   Order.find()
-    .populate('customer', 'name email phone address city')
+    .populate('customer', 'name email phone address city commune')
     .populate({
       path: 'items.product',
       select: 'title price images status user slug',
-      populate: { path: 'user', select: 'name shopName phone' }
+      populate: { path: 'user', select: 'name shopName phone shopAddress city commune' }
     })
     .populate('deliveryGuy', 'name phone active')
     .populate('createdBy', 'name email');
@@ -152,6 +168,26 @@ const ensureOrderProductSlugs = async (orders = []) => {
 };
 
 const ensureObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+const invalidateOrderCachesForMutation = async ({ customerId, sellerIds = [], includeAdmin = true }) => {
+  const sellerIdList = Array.from(new Set((Array.isArray(sellerIds) ? sellerIds : []).map((id) => String(id || '')).filter(Boolean)));
+
+  if (customerId) {
+    await invalidateUserCache(customerId, ['orders', 'notifications', 'dashboard', 'analytics']);
+  }
+
+  if (sellerIdList.length) {
+    await Promise.all(
+      sellerIdList.map((sellerId) =>
+        invalidateSellerCache(sellerId, ['orders', 'dashboard', 'analytics'])
+      )
+    );
+  }
+
+  if (includeAdmin) {
+    await invalidateAdminCache(['admin', 'dashboard', 'analytics']);
+  }
+};
 
 const getRequestIp = (req) =>
   (req.headers['x-forwarded-for'] || req.ip || '')
@@ -233,6 +269,144 @@ const filterOrderItemsForSeller = (order, sellerId) => {
   });
 };
 
+const normalizeDeliveryMode = (value) =>
+  String(value || 'PICKUP').toUpperCase() === 'DELIVERY' ? 'DELIVERY' : 'PICKUP';
+
+const isPickupOnlyProduct = (product = {}) =>
+  product?.deliveryAvailable === false && product?.pickupAvailable !== false;
+
+const buildOrderItemFromProduct = (product, quantity = 1) => {
+  const qty = Math.max(1, Number(quantity) || 1);
+  const pricing = getWholesalePricing(product, qty);
+  const unitPrice = Number(pricing.unitPrice || 0);
+  const lineTotal = Number(pricing.lineTotal || 0);
+  const tier = pricing.tierApplied || null;
+
+  return {
+    product: product._id,
+    quantity: qty,
+    unitPrice,
+    lineTotal,
+    snapshot: {
+      title: product.title,
+      price: unitPrice,
+      basePrice: Number(product.price || 0),
+      image: Array.isArray(product.images) ? product.images[0] : null,
+      shopName: product.user?.shopName || product.user?.name || '',
+      shopId: product.user?._id || product.user || null,
+      shopAddress: product.user?.shopAddress || '',
+      shopCity: product.user?.city || '',
+      shopCommune: product.user?.commune || '',
+      wholesaleEnabled: Boolean(product.wholesaleEnabled),
+      wholesaleApplied: Boolean(tier),
+      wholesaleTierMinQty: Number(tier?.minQty || 0),
+      wholesaleTierLabel: String(tier?.label || ''),
+      deliveryAvailable: product.deliveryAvailable !== false,
+      pickupAvailable: product.pickupAvailable !== false,
+      deliveryFeeEnabled: product.deliveryFeeEnabled !== false,
+      deliveryFee: Number(product.deliveryFee || 0),
+      confirmationNumber: product.confirmationNumber || '',
+      slug: product.slug || null
+    }
+  };
+};
+
+const calculateOrderItemsSubtotal = (items = []) =>
+  Number(
+    (Array.isArray(items) ? items : []).reduce(
+      (sum, item) => {
+        const fallbackLineTotal =
+          Number(item?.unitPrice ?? item?.snapshot?.price ?? 0) * Number(item?.quantity || 1);
+        const lineTotal = item?.lineTotal ?? fallbackLineTotal;
+        return sum + Number(lineTotal || 0);
+      },
+      0
+    ).toFixed(2)
+  );
+
+const resolveCheckoutAddress = async ({ deliveryMode, shippingAddress = {}, customer }) => {
+  const phone =
+    String(shippingAddress?.phone || customer?.phone || '')
+      .trim()
+      .slice(0, 30) || '';
+
+  if (deliveryMode === 'PICKUP') {
+    return {
+      cityDoc: null,
+      communeDoc: null,
+      deliveryAddress: 'Retrait en boutique',
+      deliveryCity: customer?.city || '',
+      snapshot: {
+        cityId: null,
+        cityName: customer?.city || '',
+        communeId: null,
+        communeName: customer?.commune || '',
+        addressLine: 'Retrait en boutique',
+        phone
+      }
+    };
+  }
+
+  const cityId = String(shippingAddress?.cityId || '').trim();
+  const communeId = String(shippingAddress?.communeId || '').trim();
+  const addressLine = String(shippingAddress?.addressLine || '').trim();
+  if (!ensureObjectId(cityId)) {
+    const error = new Error('Ville de livraison invalide.');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!ensureObjectId(communeId)) {
+    const error = new Error('Commune de livraison invalide.');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!addressLine) {
+    const error = new Error('Adresse de livraison requise.');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!phone) {
+    const error = new Error('Numéro de téléphone requis pour la livraison.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const [cityDoc, communeDoc] = await Promise.all([
+    City.findOne({ _id: cityId, isActive: true }).lean(),
+    Commune.findOne({ _id: communeId, isActive: true }).lean()
+  ]);
+  if (!cityDoc) {
+    const error = new Error('Ville de livraison introuvable.');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!communeDoc) {
+    const error = new Error('Commune de livraison introuvable.');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (String(communeDoc.cityId) !== String(cityDoc._id)) {
+    const error = new Error('La commune sélectionnée ne correspond pas à la ville.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return {
+    cityDoc,
+    communeDoc,
+    deliveryAddress: addressLine,
+    deliveryCity: cityDoc.name || customer?.city || '',
+    snapshot: {
+      cityId: cityDoc._id,
+      cityName: cityDoc.name || '',
+      communeId: communeDoc._id,
+      communeName: communeDoc.name || '',
+      addressLine,
+      phone
+    }
+  };
+};
+
 // Check if order is within 30-minute cancellation window (returns false if buyer has skipped it)
 const isWithinCancellationWindow = (order) => {
   if (!order || !order.createdAt) return false;
@@ -291,7 +465,15 @@ const buildOrderResponse = (order) => {
     items: Array.isArray(obj.items)
       ? obj.items.map((item) => ({
           ...item,
-          snapshot: item.snapshot || {}
+          snapshot: {
+            ...(item.snapshot || {}),
+            shopAddress:
+              item?.snapshot?.shopAddress || item?.product?.user?.shopAddress || '',
+            shopCity:
+              item?.snapshot?.shopCity || item?.product?.user?.city || '',
+            shopCommune:
+              item?.snapshot?.shopCommune || item?.product?.user?.commune || ''
+          }
         }))
       : [],
     customer: obj.customer
@@ -301,7 +483,8 @@ const buildOrderResponse = (order) => {
           email: obj.customer.email,
           phone: obj.customer.phone,
           address: obj.customer.address,
-          city: obj.customer.city
+          city: obj.customer.city,
+          commune: obj.customer.commune || ''
         }
       : null,
     createdBy: obj.createdBy
@@ -371,7 +554,7 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
 
   const [customer, productDocs] = await Promise.all([
     User.findById(customerId).select('name email phone address city'),
-    Product.find({ _id: { $in: productIds } }).populate('user', 'shopName name slug')
+    Product.find({ _id: { $in: productIds } }).populate('user', 'shopName name slug shopAddress city commune')
   ]);
 
   if (!customer) {
@@ -386,19 +569,7 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
       if (!product || product.status !== 'approved') {
         throw Object.assign(new Error('Produit indisponible ou non approuvé.'), { statusCode: 400 });
       }
-      return {
-        product: product._id,
-        quantity: item.quantity,
-        snapshot: {
-          title: product.title,
-          price: product.price,
-          image: Array.isArray(product.images) ? product.images[0] : null,
-          shopName: product.user?.shopName || product.user?.name || '',
-          shopId: product.user?._id || null,
-          confirmationNumber: product.confirmationNumber || '',
-          slug: product.slug || null
-        }
-      };
+      return buildOrderItemFromProduct(product, item.quantity);
     });
   } catch (error) {
     if (error.statusCode) {
@@ -407,10 +578,7 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
     throw error;
   }
 
-  const totalAmount = orderItems.reduce(
-    (sum, item) => sum + Number(item.snapshot?.price || 0) * Number(item.quantity || 1),
-    0
-  );
+  const totalAmount = calculateOrderItemsSubtotal(orderItems);
 
   const deliveryCode = await generateDeliveryCode();
 
@@ -449,14 +617,26 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
     context: `order_created:${order._id}`
   });
 
+  const sellerIds = Array.from(
+    new Set(orderItems.map((item) => String(resolveItemShopId(item) || '')).filter(Boolean))
+  );
+  await invalidateUserCache(customer._id, ['orders']);
+  await Promise.all(
+    sellerIds.map((sellerId) => invalidateSellerCache(sellerId, ['orders', 'dashboard', 'analytics']))
+  );
+  await invalidateAdminCache(['admin', 'dashboard']);
+
   res.status(201).json(buildOrderResponse(populated));
 });
 
 export const userCheckoutOrder = asyncHandler(async (req, res) => {
-  const { payerName, transactionCode, payments, promoCode } = req.body;
+  const { payerName, transactionCode, payments, promoCode, deliveryMode: rawDeliveryMode, shippingAddress } = req.body;
   const userId = req.user?.id || req.user?._id;
+  const deliveryMode = normalizeDeliveryMode(rawDeliveryMode);
 
-  const customer = await User.findById(userId).select('name email phone address city restrictions');
+  const customer = await User.findById(userId).select(
+    'name email phone address city commune restrictions'
+  );
   if (!customer) {
     return res.status(404).json({ message: 'Client introuvable.' });
   }
@@ -464,11 +644,6 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     return res.status(403).json({
       message: getRestrictionMessage('canOrder'),
       restrictionType: 'canOrder'
-    });
-  }
-  if (!customer.address || !customer.city) {
-    return res.status(400).json({
-      message: 'Veuillez compléter votre adresse et votre ville avant de confirmer la commande.'
     });
   }
 
@@ -488,7 +663,7 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
 
   const productDocs = await Product.find({ _id: { $in: productIds } }).populate(
     'user',
-    'shopName name slug'
+    'shopName name slug shopAddress city commune freeDeliveryEnabled freeDeliveryNote'
   );
   const productMap = new Map(productDocs.map((doc) => [doc._id.toString(), doc]));
 
@@ -499,19 +674,7 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
       if (!product || product.status !== 'approved') {
         throw Object.assign(new Error('Produit indisponible ou non approuvé.'), { statusCode: 400 });
       }
-      return {
-        product: product._id,
-        quantity: item.quantity,
-        snapshot: {
-          title: product.title,
-          price: product.price,
-          image: Array.isArray(product.images) ? product.images[0] : null,
-          shopName: product.user?.shopName || product.user?.name || '',
-          shopId: product.user?._id || null,
-          confirmationNumber: product.confirmationNumber || '',
-          slug: product.slug || null
-        }
-      };
+      return buildOrderItemFromProduct(product, item.quantity);
     });
   } catch (error) {
     if (error.statusCode) {
@@ -540,6 +703,19 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Aucun vendeur associé à la commande.' });
   }
 
+  const hasPickupOnlyInCart = orderItems.some((item) =>
+    isPickupOnlyProduct({
+      deliveryAvailable: item?.snapshot?.deliveryAvailable,
+      pickupAvailable: item?.snapshot?.pickupAvailable
+    })
+  );
+  if (deliveryMode === 'DELIVERY' && hasPickupOnlyInCart) {
+    return res.status(400).json({
+      message:
+        'Votre panier contient un produit disponible uniquement en retrait boutique. Passez en mode retrait.'
+    });
+  }
+
   const normalizedPayments = Array.isArray(payments) ? payments : [];
   const paymentsBySeller = new Map();
   if (normalizedPayments.length) {
@@ -549,16 +725,25 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
       }
       paymentsBySeller.set(String(payment.sellerId), {
         payerName: payment?.payerName?.trim() || '',
-        transactionCode: payment?.transactionCode?.trim() || '',
+        transactionCode: normalizeTransactionCode(payment?.transactionCode),
         promoCode: payment?.promoCode?.trim() || ''
       });
     }
   }
 
   const fallbackPayer = payerName?.trim() || '';
-  const fallbackTransaction = transactionCode?.trim() || '';
+  const fallbackTransaction = normalizeTransactionCode(transactionCode);
   const fallbackPromoCode = promoCode?.trim() || '';
   const usePaymentList = paymentsBySeller.size > 0;
+  const shipping = await resolveCheckoutAddress({
+    deliveryMode,
+    shippingAddress,
+    customer
+  });
+  const sellerDocs = await User.find({ _id: { $in: Array.from(itemsBySeller.keys()) } })
+    .select('_id freeDeliveryEnabled')
+    .lean();
+  const sellerMap = new Map(sellerDocs.map((seller) => [String(seller._id), seller]));
 
   if (!usePaymentList && itemsBySeller.size > 1) {
     return res
@@ -582,6 +767,26 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     }
   }
 
+  const transactionCodesForCheckout = usePaymentList
+    ? Array.from(itemsBySeller.keys()).map(
+        (sellerId) => normalizeTransactionCode(paymentsBySeller.get(sellerId)?.transactionCode)
+      )
+    : [normalizeTransactionCode(fallbackTransaction)];
+
+  const hasInvalidTransactionCode = transactionCodesForCheckout.some((code) => !/^\d{10}$/.test(code));
+  if (hasInvalidTransactionCode) {
+    return res.status(400).json({ message: 'Le code de transaction doit contenir exactement 10 chiffres.' });
+  }
+
+  if (new Set(transactionCodesForCheckout).size !== transactionCodesForCheckout.length) {
+    return res.status(409).json({ message: 'Chaque vendeur doit avoir un code transaction unique.' });
+  }
+
+  const usedTransactionCodes = await findUsedTransactionCodes(transactionCodesForCheckout);
+  if (usedTransactionCodes.size > 0) {
+    return res.status(409).json({ message: TRANSACTION_CODE_REUSED_MESSAGE });
+  }
+
   // Delete existing draft orders for this user when confirming
   await Order.deleteMany({ customer: userId, isDraft: true });
 
@@ -594,10 +799,8 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     // Generate unique delivery codes for each order
     orderPayloads = await Promise.all(
       Array.from(itemsBySeller.entries()).map(async ([sellerId, sellerItems]) => {
-        let totalAmount = sellerItems.reduce(
-          (sum, item) => sum + Number(item.snapshot?.price || 0) * Number(item.quantity || 1),
-          0
-        );
+        const itemsSubtotal = calculateOrderItemsSubtotal(sellerItems);
+        let discountedSubtotal = Number(itemsSubtotal || 0);
         const paymentInfo = usePaymentList
           ? paymentsBySeller.get(sellerId)
           : {
@@ -617,7 +820,7 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
           });
           if (promoResult?.applied) {
             consumedPromos.push({ promoId: promoResult.promo?._id, clientId: userId });
-            totalAmount = Number(promoResult.pricing?.finalAmount || totalAmount);
+            discountedSubtotal = Number(promoResult.pricing?.finalAmount || discountedSubtotal);
             appliedPromoCode = {
               code: promoResult.promo.code,
               boutiqueId: promoResult.promo.boutiqueId,
@@ -630,7 +833,20 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
           }
         }
 
-        totalAmount = Number(totalAmount.toFixed(2));
+        const discountTotal = Math.max(0, Number(itemsSubtotal || 0) - Number(discountedSubtotal || 0));
+        const deliveryPricing = resolveDeliveryPricing({
+          deliveryMode,
+          commune: shipping.communeDoc,
+          shop: sellerMap.get(String(sellerId)) || null,
+          items: sellerItems.map((item) => ({
+            deliveryAvailable: item?.snapshot?.deliveryAvailable,
+            pickupAvailable: item?.snapshot?.pickupAvailable,
+            deliveryFee: item?.snapshot?.deliveryFee,
+            deliveryFeeEnabled: item?.snapshot?.deliveryFeeEnabled !== false
+          }))
+        });
+        const deliveryFeeTotal = Number(deliveryPricing.deliveryFeeTotal || 0);
+        const totalAmount = Number((Number(discountedSubtotal || 0) + deliveryFeeTotal).toFixed(2));
         const paidAmount = Math.round(totalAmount * 0.25);
         const remainingAmount = Math.max(0, totalAmount - paidAmount);
         const deliveryCode = await generateDeliveryCode();
@@ -640,8 +856,14 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
           items: sellerItems,
           customer: customer._id,
           createdBy: userId,
-          deliveryAddress: customer.address,
-          deliveryCity: customer.city,
+          deliveryAddress: shipping.deliveryAddress,
+          deliveryCity: shipping.deliveryCity,
+          shippingAddressSnapshot: shipping.snapshot,
+          deliveryMode,
+          deliveryFeeSource: deliveryPricing.deliveryFeeSource || DELIVERY_FEE_SOURCE.PRODUCT_FEE,
+          deliveryFeeTotal,
+          itemsSubtotal: Number(itemsSubtotal.toFixed(2)),
+          discountTotal: Number(discountTotal.toFixed(2)),
           trackingNote: '',
           totalAmount,
           paidAmount,
@@ -724,6 +946,15 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     }
     throw error;
   }
+
+  const affectedSellerIds = Array.from(new Set(orderPayloads.map((entry) => String(entry.sellerId || '')).filter(Boolean)));
+  await invalidateUserCache(userId, ['orders', 'cart', 'notifications']);
+  await Promise.all(
+    affectedSellerIds.map((sellerId) =>
+      invalidateSellerCache(sellerId, ['orders', 'dashboard', 'analytics'])
+    )
+  );
+  await invalidateAdminCache(['admin', 'dashboard']);
 
   const responseOrders = populated.map(buildOrderResponse);
   if (responseOrders.length === 1) {
@@ -811,17 +1042,18 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
   let deliveredTimestampAdded = false;
 
   if (status) {
+    const statusChangedAt = new Date();
     if (!ORDER_STATUS.includes(status)) {
       return res.status(400).json({ message: 'Statut invalide.' });
     }
     // Prevent cancelling already delivered orders
     if (
       status === 'cancelled' &&
-      ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed'].includes(order.status)
+      ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(order.status)
     ) {
       return res.status(400).json({ message: 'Impossible d\'annuler une commande déjà livrée.' });
     }
-    if (status === 'delivered' && !hasValidDeliveryEvidence(order)) {
+    if (status === 'delivered' && order.deliveryMode !== 'PICKUP' && !hasValidDeliveryEvidence(order)) {
       return res.status(400).json({
         message:
           'Impossible de marquer livrée sans preuve complète (photo + signature + date de livraison).'
@@ -835,16 +1067,39 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
       notifyDelivered = status === 'delivered';
       notifyCancelled = status === 'cancelled';
     }
+    if (['confirmed', 'ready_for_delivery'].includes(status) && !order.confirmedAt) {
+      order.confirmedAt = statusChangedAt;
+    }
+    if (status === 'ready_for_pickup' && !order.readyForPickupAt) {
+      order.readyForPickupAt = statusChangedAt;
+    }
+    if ((status === 'delivering' || status === 'out_for_delivery') && !order.outForDeliveryAt) {
+      order.outForDeliveryAt = statusChangedAt;
+    }
     if ((status === 'delivering' || status === 'out_for_delivery') && !order.shippedAt) {
-      order.shippedAt = new Date();
+      order.shippedAt = statusChangedAt;
+    }
+    if (status === 'delivery_proof_submitted' && !order.deliverySubmittedAt) {
+      order.deliverySubmittedAt = statusChangedAt;
     }
     if (status === 'delivered' && !order.deliveredAt) {
-      order.deliveredAt = order.deliveryDate || new Date();
+      order.deliveredAt = order.deliveryDate || statusChangedAt;
       notifyDelivered = true;
       deliveredTimestampAdded = true;
     }
+    if (status === 'picked_up_confirmed' && !order.deliveredAt) {
+      order.deliveredAt = statusChangedAt;
+      notifyDelivered = true;
+      deliveredTimestampAdded = true;
+    }
+    if (status === 'confirmed_by_client' && !order.clientDeliveryConfirmedAt) {
+      order.clientDeliveryConfirmedAt = statusChangedAt;
+    }
+    if (status === 'completed' && !order.completedAt) {
+      order.completedAt = statusChangedAt;
+    }
     if (status === 'cancelled' && !order.cancelledAt) {
-      order.cancelledAt = new Date();
+      order.cancelledAt = statusChangedAt;
       order.cancelledBy = req.user.id;
       if (cancellationReason && typeof cancellationReason === 'string') {
         order.cancellationReason = cancellationReason.trim();
@@ -1004,6 +1259,10 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
 
   const populated = await baseOrderQuery().findById(order._id);
   await ensureOrderProductSlugs([populated]);
+  await invalidateOrderCachesForMutation({
+    customerId: order.customer,
+    sellerIds: (order.items || []).map((item) => resolveItemShopId(item))
+  });
   res.json(buildOrderResponse(populated));
 });
 
@@ -1017,7 +1276,7 @@ export const adminSendOrderReminder = asyncHandler(async (req, res) => {
   if (!order) {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
-  if (['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed'].includes(order.status)) {
+  if (['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(order.status)) {
     return res.status(400).json({ message: 'Commande déjà livrée.' });
   }
 
@@ -1075,6 +1334,10 @@ export const adminDeleteOrder = asyncHandler(async (req, res) => {
     await Product.updateOne({ _id: productId }, { $set: { salesCount } });
   }
 
+  await invalidateOrderCachesForMutation({
+    customerId: order.customer,
+    sellerIds: (order.items || []).map((item) => resolveItemShopId(item))
+  });
   res.json({ message: 'Commande supprimée.' });
 });
 
@@ -1177,7 +1440,7 @@ export const adminSearchProducts = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(20)
     .select('title price images user status slug')
-    .populate('user', 'shopName name slug');
+    .populate('user', 'shopName name slug shopAddress city commune');
   res.json(products);
 });
 
@@ -1286,7 +1549,7 @@ export const saveDraftOrder = asyncHandler(async (req, res) => {
 
   const productDocs = await Product.find({ _id: { $in: productIds } }).populate(
     'user',
-    'shopName name slug'
+    'shopName name slug shopAddress city commune'
   );
   const productMap = new Map(productDocs.map((doc) => [doc._id.toString(), doc]));
 
@@ -1297,19 +1560,7 @@ export const saveDraftOrder = asyncHandler(async (req, res) => {
       if (!product || product.status !== 'approved') {
         throw Object.assign(new Error('Produit indisponible ou non approuvé.'), { statusCode: 400 });
       }
-      return {
-        product: product._id,
-        quantity: item.quantity,
-        snapshot: {
-          title: product.title,
-          price: product.price,
-          image: Array.isArray(product.images) ? product.images[0] : null,
-          shopName: product.user?.shopName || product.user?.name || '',
-          shopId: product.user?._id || null,
-          confirmationNumber: product.confirmationNumber || '',
-          slug: product.slug || null
-        }
-      };
+      return buildOrderItemFromProduct(product, item.quantity);
     });
   } catch (error) {
     if (error.statusCode) {
@@ -1338,7 +1589,7 @@ export const saveDraftOrder = asyncHandler(async (req, res) => {
   const draftPayments = normalizedPayments.map((payment) => ({
     sellerId: payment?.sellerId || null,
     payerName: payment?.payerName?.trim() || '',
-    transactionCode: payment?.transactionCode?.trim() || '',
+    transactionCode: normalizeTransactionCode(payment?.transactionCode),
     promoCode: payment?.promoCode?.trim()?.toUpperCase() || ''
   }));
 
@@ -1347,10 +1598,7 @@ export const saveDraftOrder = asyncHandler(async (req, res) => {
 
   // Create draft orders (one per seller)
   const draftOrderPayloads = Array.from(itemsBySeller.entries()).map(([sellerId, sellerItems]) => {
-    const totalAmount = sellerItems.reduce(
-      (sum, item) => sum + Number(item.snapshot?.price || 0) * Number(item.quantity || 1),
-      0
-    );
+    const totalAmount = calculateOrderItemsSubtotal(sellerItems);
     const paidAmount = Math.round(totalAmount * 0.25);
     const remainingAmount = Math.max(0, totalAmount - paidAmount);
 
@@ -1428,7 +1676,7 @@ export const createInquiryOrder = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Produit invalide.' });
   }
 
-  const product = await Product.findById(productId).populate('user', 'shopName name slug _id');
+  const product = await Product.findById(productId).populate('user', 'shopName name slug _id shopAddress city commune');
   if (!product || product.status !== 'approved') {
     return res.status(404).json({ message: 'Produit introuvable ou non disponible.' });
   }
@@ -1447,16 +1695,6 @@ export const createInquiryOrder = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Client introuvable.' });
   }
 
-  const snapshot = {
-    title: product.title,
-    price: product.price,
-    image: Array.isArray(product.images) ? product.images[0] : null,
-    shopName: product.user?.shopName || product.user?.name || '',
-    shopId: sellerId,
-    confirmationNumber: product.confirmationNumber || '',
-    slug: product.slug || null
-  };
-
   const existingInquiry = await Order.findOne({
     customer: userId,
     isDraft: true,
@@ -1471,11 +1709,7 @@ export const createInquiryOrder = asyncHandler(async (req, res) => {
     return res.status(200).json(buildOrderResponse(populated));
   }
 
-  const orderItem = {
-    product: product._id,
-    quantity: 1,
-    snapshot
-  };
+  const orderItem = buildOrderItemFromProduct(product, 1);
 
   const order = await Order.create({
     items: [orderItem],
@@ -1523,7 +1757,7 @@ export const userUpdateOrderStatus = asyncHandler(async (req, res) => {
   // Prevent cancelling already delivered orders
   if (
     status === 'cancelled' &&
-    ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed'].includes(order.status)
+    ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(order.status)
   ) {
     return res.status(400).json({ message: 'Impossible d\'annuler une commande déjà livrée.' });
   }
@@ -1578,6 +1812,10 @@ export const userUpdateOrderStatus = asyncHandler(async (req, res) => {
     });
   }
 
+  await invalidateOrderCachesForMutation({
+    customerId: order.customer,
+    sellerIds: (order.items || []).map((item) => resolveItemShopId(item))
+  });
   res.json(buildOrderResponse(populated));
 });
 
@@ -1604,7 +1842,7 @@ export const userUpdateOrderAddress = asyncHandler(async (req, res) => {
 
   // Only allow address modification before shipping
   if (
-    ['delivering', 'out_for_delivery', 'delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed'].includes(
+    ['delivering', 'out_for_delivery', 'delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(
       order.status
     )
   ) {
@@ -1661,6 +1899,10 @@ export const userUpdateOrderAddress = asyncHandler(async (req, res) => {
     );
   }
 
+  await invalidateOrderCachesForMutation({
+    customerId: order.customer,
+    sellerIds: (order.items || []).map((item) => resolveItemShopId(item))
+  });
   res.json(buildOrderResponse(populated));
 });
 
@@ -1685,7 +1927,7 @@ export const userSkipCancellationWindow = asyncHandler(async (req, res) => {
   }
 
   if (
-    ['cancelled', 'delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed'].includes(
+    ['cancelled', 'delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(
       order.status
     )
   ) {
@@ -1706,6 +1948,10 @@ export const userSkipCancellationWindow = asyncHandler(async (req, res) => {
   const populated = await baseOrderQuery().findById(order._id);
   await ensureOrderProductSlugs([populated]);
 
+  await invalidateOrderCachesForMutation({
+    customerId: order.customer,
+    sellerIds: (order.items || []).map((item) => resolveItemShopId(item))
+  });
   res.json(buildOrderResponse(populated));
 });
 
@@ -1865,6 +2111,9 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
   order.deliveryStatus = 'submitted';
   order.deliveryProofAttemptCount = Number(order.deliveryProofAttemptCount || 0) + 1;
   order.status = 'delivery_proof_submitted';
+  if (!order.outForDeliveryAt) {
+    order.outForDeliveryAt = now;
+  }
   if (!order.shippedAt) {
     order.shippedAt = now;
   }
@@ -1913,6 +2162,10 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
 
   const populated = await baseOrderQuery().findById(order._id);
   await ensureOrderProductSlugs([populated]);
+  await invalidateOrderCachesForMutation({
+    customerId: order.customer,
+    sellerIds: (order.items || []).map((item) => resolveItemShopId(item))
+  });
   res.json({
     message: 'Preuve de livraison soumise. En attente de confirmation client.',
     order: buildOrderResponse(populated)
@@ -1961,6 +2214,9 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
   order.status = 'confirmed_by_client';
   await order.save();
   order.status = 'completed';
+  if (!order.completedAt) {
+    order.completedAt = now;
+  }
   await order.save();
 
   await DeliveryLog.create({
@@ -2002,6 +2258,10 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
 
   const populated = await baseOrderQuery().findById(order._id);
   await ensureOrderProductSlugs([populated]);
+  await invalidateOrderCachesForMutation({
+    customerId: order.customer,
+    sellerIds: Array.from(sellerIds)
+  });
   res.json({
     message: 'Livraison confirmée. La commande est terminée.',
     order: buildOrderResponse(populated)
@@ -2089,17 +2349,24 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
     const notifyDelivering = status === 'delivering' && previousSaleStatus !== 'delivering';
     const notifyDelivered = status === 'delivered' && previousSaleStatus !== 'delivered';
     const notifyCancelled = status === 'cancelled' && previousSaleStatus !== 'cancelled';
+    const saleStatusChangedAt = new Date();
 
     if (status !== previousSaleStatus) {
       order.installmentSaleStatus = status;
+      if (status === 'confirmed' && !order.confirmedAt) {
+        order.confirmedAt = saleStatusChangedAt;
+      }
+      if (status === 'delivering' && !order.outForDeliveryAt) {
+        order.outForDeliveryAt = saleStatusChangedAt;
+      }
       if (status === 'delivering' && !order.shippedAt) {
-        order.shippedAt = new Date();
+        order.shippedAt = saleStatusChangedAt;
       }
       if (status === 'delivered' && !order.deliveredAt) {
-        order.deliveredAt = order.deliveryDate || new Date();
+        order.deliveredAt = order.deliveryDate || saleStatusChangedAt;
       }
       if (status === 'cancelled' && !order.cancelledAt) {
-        order.cancelledAt = new Date();
+        order.cancelledAt = saleStatusChangedAt;
         order.cancelledBy = userId;
       }
     }
@@ -2183,6 +2450,10 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
       });
     }
 
+    await invalidateOrderCachesForMutation({
+      customerId: order.customer,
+      sellerIds: [userId]
+    });
     return res.json(buildOrderResponse(populatedInstallment));
   }
 
@@ -2207,6 +2478,8 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
     'pending_payment',
     'paid',
     'confirmed',
+    'ready_for_pickup',
+    'picked_up_confirmed',
     'ready_for_delivery',
     'delivering',
     'out_for_delivery',
@@ -2223,34 +2496,74 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
     });
   }
 
+  if (
+    order.deliveryMode === 'PICKUP' &&
+    ['ready_for_delivery', 'delivering', 'out_for_delivery', 'delivery_proof_submitted', 'delivered', 'confirmed_by_client'].includes(status)
+  ) {
+    return res.status(400).json({
+      message: 'Cette commande est en retrait boutique. Utilisez les statuts de retrait.'
+    });
+  }
+
   // Prevent cancelling already delivered orders
   if (
     status === 'cancelled' &&
-    ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed'].includes(order.status)
+    ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(order.status)
   ) {
     return res.status(400).json({ message: 'Impossible d\'annuler une commande déjà livrée.' });
   }
-  if (status === 'delivered' && !hasValidDeliveryEvidence(order)) {
+  if (status === 'delivered' && order.deliveryMode !== 'PICKUP' && !hasValidDeliveryEvidence(order)) {
     return res.status(400).json({
       message: 'Preuve de livraison obligatoire: photo(s) + signature client.'
     });
   }
+  if (
+    order.deliveryMode === 'PICKUP' &&
+    status === 'picked_up_confirmed' &&
+    !['confirmed', 'ready_for_pickup'].includes(order.status)
+  ) {
+    return res.status(400).json({
+      message: 'La commande doit être prête à récupérer avant validation du retrait.'
+    });
+  }
 
+  const statusChangedAt = new Date();
   if (order.status !== status) {
     order.status = status;
     notifyPending = status === 'pending' || status === 'pending_payment';
     notifyConfirmed = status === 'confirmed';
     notifyDelivering = status === 'delivering' || status === 'out_for_delivery';
-    if ((status === 'delivering' || status === 'out_for_delivery') && !order.shippedAt) {
-      order.shippedAt = new Date();
-    }
-    if (status === 'delivered' && !order.deliveredAt) {
-      order.deliveredAt = order.deliveryDate || new Date();
-    }
-    if (status === 'cancelled' && !order.cancelledAt) {
-      order.cancelledAt = new Date();
-      order.cancelledBy = userId;
-    }
+  }
+  if (['confirmed', 'ready_for_delivery'].includes(status) && !order.confirmedAt) {
+    order.confirmedAt = statusChangedAt;
+  }
+  if (status === 'ready_for_pickup' && !order.readyForPickupAt) {
+    order.readyForPickupAt = statusChangedAt;
+  }
+  if ((status === 'delivering' || status === 'out_for_delivery') && !order.outForDeliveryAt) {
+    order.outForDeliveryAt = statusChangedAt;
+  }
+  if ((status === 'delivering' || status === 'out_for_delivery') && !order.shippedAt) {
+    order.shippedAt = statusChangedAt;
+  }
+  if (status === 'delivery_proof_submitted' && !order.deliverySubmittedAt) {
+    order.deliverySubmittedAt = statusChangedAt;
+  }
+  if (status === 'delivered' && !order.deliveredAt) {
+    order.deliveredAt = order.deliveryDate || statusChangedAt;
+  }
+  if (status === 'picked_up_confirmed' && !order.deliveredAt) {
+    order.deliveredAt = statusChangedAt;
+  }
+  if (status === 'confirmed_by_client' && !order.clientDeliveryConfirmedAt) {
+    order.clientDeliveryConfirmedAt = statusChangedAt;
+  }
+  if (status === 'completed' && !order.completedAt) {
+    order.completedAt = statusChangedAt;
+  }
+  if (status === 'cancelled' && !order.cancelledAt) {
+    order.cancelledAt = statusChangedAt;
+    order.cancelledBy = userId;
   }
 
   await order.save();
@@ -2368,6 +2681,10 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
     }
   }
 
+  await invalidateOrderCachesForMutation({
+    customerId: order.customer,
+    sellerIds: [userId]
+  });
   res.json(buildOrderResponse(populated));
 });
 
@@ -2386,7 +2703,7 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
   }
 
   // Prevent cancelling already delivered or cancelled orders
-  if (['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed'].includes(order.status)) {
+  if (['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(order.status)) {
     return res.status(400).json({ message: 'Impossible d\'annuler une commande déjà livrée.' });
   }
   if (order.status === 'cancelled') {
@@ -2490,5 +2807,264 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
     }
   }
 
+  await invalidateOrderCachesForMutation({
+    customerId: order.customer,
+    sellerIds: [userId]
+  });
   res.json(buildOrderResponse(populated));
+});
+
+export const sellerDeliveryStatsOverview = asyncHandler(async (req, res) => {
+  const userId = req.user?.id || req.user?._id;
+  const from = req.query?.from ? new Date(req.query.from) : null;
+  const to = req.query?.to ? new Date(req.query.to) : null;
+  const createdAt = {};
+  if (from && !Number.isNaN(from.getTime())) createdAt.$gte = from;
+  if (to && !Number.isNaN(to.getTime())) {
+    const end = new Date(to);
+    end.setHours(23, 59, 59, 999);
+    createdAt.$lte = end;
+  }
+  const baseMatch = {
+    isDraft: { $ne: true },
+    'items.snapshot.shopId': new mongoose.Types.ObjectId(userId)
+  };
+  if (Object.keys(createdAt).length) {
+    baseMatch.createdAt = createdAt;
+  }
+
+  const [overviewAgg, sourceAgg, communesAgg] = await Promise.all([
+    Order.aggregate([
+      { $match: baseMatch },
+      {
+        $addFields: {
+          sellerItems: {
+            $filter: {
+              input: '$items',
+              as: 'item',
+              cond: { $eq: ['$$item.snapshot.shopId', new mongoose.Types.ObjectId(userId)] }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          deliveryMode: 1,
+          deliveryFeeTotal: { $ifNull: ['$deliveryFeeTotal', 0] },
+          pickupOnlyFlag: {
+            $gt: [
+              {
+                $size: {
+                  $filter: {
+                    input: '$sellerItems',
+                    as: 'item',
+                    cond: {
+                      $and: [
+                        { $eq: ['$$item.snapshot.deliveryAvailable', false] },
+                        { $ne: ['$$item.snapshot.pickupAvailable', false] }
+                      ]
+                    }
+                  }
+                }
+              },
+              0
+            ]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          ordersTotal: { $sum: 1 },
+          pickupOrdersCount: {
+            $sum: { $cond: [{ $eq: ['$deliveryMode', 'PICKUP'] }, 1, 0] }
+          },
+          deliveryOrdersCount: {
+            $sum: { $cond: [{ $eq: ['$deliveryMode', 'DELIVERY'] }, 1, 0] }
+          },
+          freeDeliveryOrdersCount: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$deliveryMode', 'DELIVERY'] },
+                    { $lte: ['$deliveryFeeTotal', 0] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          },
+          totalDeliveryFeesCharged: {
+            $sum: {
+              $cond: [{ $eq: ['$deliveryMode', 'DELIVERY'] }, '$deliveryFeeTotal', 0]
+            }
+          },
+          avgDeliveryFeeRaw: {
+            $avg: {
+              $cond: [{ $eq: ['$deliveryMode', 'DELIVERY'] }, '$deliveryFeeTotal', null]
+            }
+          },
+          pickupOnlyOrdersCount: {
+            $sum: { $cond: ['$pickupOnlyFlag', 1, 0] }
+          }
+        }
+      }
+    ]),
+    Order.aggregate([
+      { $match: { ...baseMatch, deliveryMode: 'DELIVERY' } },
+      {
+        $group: {
+          _id: '$deliveryFeeSource',
+          amount: { $sum: { $ifNull: ['$deliveryFeeTotal', 0] } },
+          count: { $sum: 1 }
+        }
+      }
+    ]),
+    Order.aggregate([
+      { $match: { ...baseMatch, deliveryMode: 'DELIVERY' } },
+      {
+        $group: {
+          _id: {
+            communeName: {
+              $ifNull: ['$shippingAddressSnapshot.communeName', 'Commune inconnue']
+            }
+          },
+          orders: { $sum: 1 }
+        }
+      },
+      { $sort: { orders: -1 } },
+      { $limit: 10 }
+    ])
+  ]);
+
+  const row = overviewAgg[0] || {};
+  const ordersTotal = Number(row.ordersTotal || 0);
+  const pickupOrdersCount = Number(row.pickupOrdersCount || 0);
+  const deliveryOrdersCount = Number(row.deliveryOrdersCount || 0);
+
+  res.json({
+    ordersTotal,
+    pickupOrdersCount,
+    deliveryOrdersCount,
+    pickupRate: ordersTotal > 0 ? Number(((pickupOrdersCount / ordersTotal) * 100).toFixed(2)) : 0,
+    deliveryRate:
+      ordersTotal > 0 ? Number(((deliveryOrdersCount / ordersTotal) * 100).toFixed(2)) : 0,
+    freeDeliveryOrdersCount: Number(row.freeDeliveryOrdersCount || 0),
+    avgDeliveryFee: Number(row.avgDeliveryFeeRaw || 0),
+    totalDeliveryFeesCharged: Number(row.totalDeliveryFeesCharged || 0),
+    revenueByDeliverySource: sourceAgg.reduce(
+      (acc, item) => ({
+        ...acc,
+        [String(item._id || DELIVERY_FEE_SOURCE.PRODUCT_FEE)]: {
+          count: Number(item.count || 0),
+          amount: Number(item.amount || 0)
+        }
+      }),
+      {
+        COMMUNE_FREE: { count: 0, amount: 0 },
+        COMMUNE_FIXED: { count: 0, amount: 0 },
+        SHOP_FREE: { count: 0, amount: 0 },
+        PRODUCT_FEE: { count: 0, amount: 0 },
+        PICKUP: { count: 0, amount: 0 }
+      }
+    ),
+    topCommunesByOrders: communesAgg.map((item) => ({
+      commune: item?._id?.communeName || 'Commune inconnue',
+      orders: Number(item.orders || 0)
+    })),
+    pickupOnlyOrdersCount: Number(row.pickupOnlyOrdersCount || 0)
+  });
+});
+
+export const sellerDeliveryStatsProducts = asyncHandler(async (req, res) => {
+  const userId = req.user?.id || req.user?._id;
+  const from = req.query?.from ? new Date(req.query.from) : null;
+  const to = req.query?.to ? new Date(req.query.to) : null;
+  const createdAt = {};
+  if (from && !Number.isNaN(from.getTime())) createdAt.$gte = from;
+  if (to && !Number.isNaN(to.getTime())) {
+    const end = new Date(to);
+    end.setHours(23, 59, 59, 999);
+    createdAt.$lte = end;
+  }
+  const baseMatch = {
+    isDraft: { $ne: true },
+    'items.snapshot.shopId': new mongoose.Types.ObjectId(userId)
+  };
+  if (Object.keys(createdAt).length) {
+    baseMatch.createdAt = createdAt;
+  }
+
+  const rows = await Order.aggregate([
+    { $match: baseMatch },
+    { $unwind: '$items' },
+    {
+      $match: {
+        'items.snapshot.shopId': new mongoose.Types.ObjectId(userId)
+      }
+    },
+    {
+      $group: {
+        _id: '$items.product',
+        name: { $first: '$items.snapshot.title' },
+        deliveryAvailableFromSnapshot: { $first: '$items.snapshot.deliveryAvailable' },
+        pickupAvailableFromSnapshot: { $first: '$items.snapshot.pickupAvailable' },
+        ordersCountPickup: {
+          $sum: { $cond: [{ $eq: ['$deliveryMode', 'PICKUP'] }, 1, 0] }
+        },
+        ordersCountDelivery: {
+          $sum: { $cond: [{ $eq: ['$deliveryMode', 'DELIVERY'] }, 1, 0] }
+        },
+        revenue: {
+          $sum: {
+            $multiply: [
+              { $ifNull: ['$items.snapshot.price', 0] },
+              { $ifNull: ['$items.quantity', 1] }
+            ]
+          }
+        }
+      }
+    },
+    {
+      $lookup: {
+        from: 'products',
+        localField: '_id',
+        foreignField: '_id',
+        as: 'productDoc'
+      }
+    },
+    { $unwind: { path: '$productDoc', preserveNullAndEmptyArrays: true } },
+    {
+      $project: {
+        productId: '$_id',
+        name: 1,
+        deliveryAvailable: {
+          $ifNull: ['$productDoc.deliveryAvailable', '$deliveryAvailableFromSnapshot']
+        },
+        pickupAvailable: { $ifNull: ['$productDoc.pickupAvailable', '$pickupAvailableFromSnapshot'] },
+        ordersCountPickup: 1,
+        ordersCountDelivery: 1,
+        ordersCount: { $add: ['$ordersCountPickup', '$ordersCountDelivery'] },
+        revenue: 1
+      }
+    },
+    { $sort: { ordersCount: -1, revenue: -1 } },
+    { $limit: 100 }
+  ]);
+
+  res.json(
+    rows.map((row) => ({
+      productId: row.productId,
+      name: row.name || 'Produit',
+      deliveryAvailable: row.deliveryAvailable !== false,
+      pickupAvailable: row.pickupAvailable !== false,
+      ordersCountPickup: Number(row.ordersCountPickup || 0),
+      ordersCountDelivery: Number(row.ordersCountDelivery || 0),
+      ordersCount: Number(row.ordersCount || 0),
+      revenue: Number(row.revenue || 0),
+      pickupOnly: row.deliveryAvailable === false && row.pickupAvailable !== false
+    }))
+  );
 });

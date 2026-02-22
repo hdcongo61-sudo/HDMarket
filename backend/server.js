@@ -27,8 +27,10 @@ import supportRoutes from './routes/supportRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import cityRoutes from './routes/cityRoutes.js';
+import communeRoutes from './routes/communeRoutes.js';
 import currencyRoutes from './routes/currencyRoutes.js';
 import userPreferenceRoutes from './routes/userPreferenceRoutes.js';
+import deviceRoutes from './routes/deviceRoutes.js';
 import marketplacePromoCodeRoutes from './routes/marketplacePromoCodeRoutes.js';
 import disputeRoutes from './routes/disputeRoutes.js';
 import boostRoutes from './routes/boostRoutes.js';
@@ -37,13 +39,28 @@ import User from './models/userModel.js';
 import ChatMessage from './models/chatMessageModel.js';
 import { createNotification } from './utils/notificationService.js';
 import { setChatSocket } from './sockets/chatSocket.js';
+import { registerNotificationSocket, configureSocketRedisAdapter } from './sockets/notificationSocket.js';
 import { requestTracker, getDailyRequestStats } from './middlewares/requestTracker.js';
 import { sendReviewReminders } from './utils/reviewReminder.js';
 import { processInstallmentReminders } from './utils/installmentReminder.js';
 import { expireBoostRequests } from './utils/boostService.js';
+import { startCacheSnapshotScheduler } from './utils/cache.js';
 import { ensureDefaultSettingsBootstrap } from './controllers/settingsController.js';
+import { initRedis, closeRedis } from './config/redisClient.js';
+import { initNotificationQueue, closeNotificationQueue } from './queues/notificationQueue.js';
+import { initNotificationWorker, closeNotificationWorker } from './workers/notificationWorker.js';
 
 connectDB();
+initRedis().catch(() => {
+  // Redis is optional; cache layer keeps a memory fallback.
+});
+startCacheSnapshotScheduler();
+initNotificationQueue().catch(() => {
+  // Queue is optional if BullMQ/Redis not configured.
+});
+initNotificationWorker().catch(() => {
+  // Worker fallback is handled inside notification service.
+});
 
 // const logCloudinaryEnv = () => {
 //   if (process.env.NODE_ENV === 'production') return;
@@ -153,8 +170,10 @@ app.use('/api/support', supportRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/cities', cityRoutes);
+app.use('/api/communes', communeRoutes);
 app.use('/api/currencies', currencyRoutes);
 app.use('/api/user', userPreferenceRoutes);
+app.use('/api/devices', deviceRoutes);
 app.use('/api/marketplace-promo-codes', marketplacePromoCodeRoutes);
 app.use('/api/disputes', disputeRoutes);
 app.use('/api/boosts', boostRoutes);
@@ -174,7 +193,12 @@ const socketCors = {
 
 const io = new Server(httpServer, { cors: socketCors });
 
+configureSocketRedisAdapter(io).catch(() => {
+  // Adapter is optional; single-node socket delivery still works.
+});
+
 setChatSocket(io);
+registerNotificationSocket(io);
 
 io.use(async (socket, next) => {
   const token =
@@ -383,4 +407,22 @@ httpServer.listen(port, () => {
 
   setTimeout(runBoostExpiration, 10 * 60 * 1000);
   setInterval(runBoostExpiration, BOOST_EXPIRATION_INTERVAL);
+});
+
+const gracefulShutdown = async () => {
+  try {
+    await closeNotificationWorker();
+    await closeNotificationQueue();
+    await closeRedis();
+  } catch {
+    // noop
+  }
+};
+
+process.on('SIGINT', () => {
+  gracefulShutdown().finally(() => process.exit(0));
+});
+
+process.on('SIGTERM', () => {
+  gracefulShutdown().finally(() => process.exit(0));
 });

@@ -61,6 +61,36 @@ const notificationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {}
     },
+    priority: {
+      type: String,
+      enum: ['LOW', 'NORMAL', 'HIGH', 'CRITICAL'],
+      default: 'NORMAL',
+      index: true
+    },
+    groupingKey: {
+      type: String,
+      default: '',
+      index: true
+    },
+    groupCount: {
+      type: Number,
+      default: 1,
+      min: 1
+    },
+    delivery: {
+      queueJobId: { type: String, default: '' },
+      queueAttempts: { type: Number, default: 0 },
+      lastAttemptAt: { type: Date, default: null },
+      deliveredAt: { type: Date, default: null },
+      socketDelivered: { type: Boolean, default: false },
+      pushDelivered: { type: Boolean, default: false },
+      pushError: { type: String, default: '' },
+      status: {
+        type: String,
+        enum: ['pending', 'queued', 'delivered', 'failed'],
+        default: 'pending'
+      }
+    },
     readAt: { type: Date, default: null }
   },
   {
@@ -69,5 +99,8 @@ const notificationSchema = new mongoose.Schema(
 );
 
 notificationSchema.index({ user: 1, createdAt: -1 });
+notificationSchema.index({ user: 1, readAt: 1, createdAt: -1 });
+notificationSchema.index({ user: 1, type: 1, groupingKey: 1, createdAt: -1 });
+notificationSchema.index({ priority: 1, createdAt: -1 });
 
 export default mongoose.model('Notification', notificationSchema);

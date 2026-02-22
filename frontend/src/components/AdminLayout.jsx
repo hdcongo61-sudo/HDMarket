@@ -31,7 +31,7 @@ const buildNavItems = (t) => [
   { to: '/admin/products', label: t('nav.products', 'Produits'), icon: Package, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.canManageProducts },
   { to: '/admin/delivery-guys', label: t('nav.deliveryGuys', 'Livreurs'), icon: Truck, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.canManageDelivery },
   { to: '/admin/complaints', label: t('nav.complaints', 'Réclamations'), icon: AlertCircle, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.canManageComplaints },
-  { to: '/admin/chat-templates', label: t('nav.chatTemplates', 'Modèles de chat'), icon: MessageSquare, show: (u) => u?.role === 'admin' },
+  { to: '/admin/chat-templates', label: t('nav.chatTemplates', 'Modèles de chat'), icon: MessageSquare, show: (u) => u?.role === 'admin' || u?.canManageChatTemplates },
   { to: '/admin/promo-codes', label: t('nav.promoCodes', 'Codes promo'), icon: Ticket, show: (u) => u?.role === 'admin' },
   { to: '/admin/settings', label: t('nav.appSettings', 'Paramètres app'), icon: SlidersHorizontal, show: (u) => u?.role === 'admin' },
   { to: '/admin/system-settings', label: t('nav.systemSettings', 'Paramètres système'), icon: SlidersHorizontal, show: (u) => u?.role === 'admin' },
@@ -54,7 +54,7 @@ export default function AdminLayout() {
   const visibleItems = navItems.filter((item) => item.show(user));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/20 flex lg:h-[calc(100vh-5rem)] lg:min-h-0 lg:overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-neutral-50/20 flex lg:h-[calc(100vh-5rem)] lg:min-h-0 lg:overflow-hidden">
       {/* Desktop sidebar */}
       <aside
         className={`hidden lg:flex lg:h-full flex-col border-r border-gray-200/80 bg-white/90 backdrop-blur-sm shrink-0 transition-[width] duration-200 ${
@@ -65,7 +65,7 @@ export default function AdminLayout() {
           <div className={`flex items-center px-3 ${sidebarCollapsed ? 'justify-center' : 'justify-between'} mb-4`}>
             {!sidebarCollapsed && (
               <div className="flex items-center gap-2 min-w-0">
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shrink-0">
+                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-neutral-600 to-neutral-600 flex items-center justify-center shrink-0">
                   <BarChart3 size={18} className="text-white" />
                 </div>
                 <span className="font-bold text-gray-900 truncate text-sm">
@@ -93,7 +93,7 @@ export default function AdminLayout() {
                   className={({ isActive }) =>
                     `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
                       isActive
-                        ? 'bg-indigo-600 text-white shadow-md'
+                        ? 'bg-neutral-600 text-white shadow-md'
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                     } ${sidebarCollapsed ? 'justify-center' : ''}`
                   }

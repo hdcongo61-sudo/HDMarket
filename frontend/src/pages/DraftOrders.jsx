@@ -80,7 +80,7 @@ export default function DraftOrders() {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-16 h-16 border-4 border-neutral-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600 font-medium">Chargement...</p>
         </div>
       </div>
@@ -91,7 +91,7 @@ export default function DraftOrders() {
     <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
         {/* Header */}
-        <header className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-3xl p-6 sm:p-8 border-2 border-blue-100 shadow-lg">
+        <header className="bg-gradient-to-br from-neutral-50 via-neutral-50 to-neutral-50 rounded-3xl p-6 sm:p-8 border-2 border-neutral-100 shadow-lg">
           <Link
             to="/profile"
             className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
@@ -100,7 +100,7 @@ export default function DraftOrders() {
             <span className="font-medium text-sm">Retour au profil</span>
           </Link>
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+            <div className="w-12 h-12 bg-gradient-to-br from-neutral-500 to-neutral-600 rounded-2xl flex items-center justify-center shadow-lg">
               <ClipboardList size={24} className="text-white" />
             </div>
             <div>
@@ -130,7 +130,7 @@ export default function DraftOrders() {
             </p>
             <Link
               to="/cart"
-              className="inline-flex items-center justify-center gap-2 rounded-3xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white hover:bg-blue-700 transition-all duration-200 active:scale-95 shadow-sm"
+              className="inline-flex items-center justify-center gap-2 rounded-3xl bg-neutral-600 px-6 py-3.5 text-sm font-semibold text-white hover:bg-neutral-700 transition-all duration-200 active:scale-95 shadow-sm"
             >
               <ShoppingCart size={18} />
               Voir mon panier
@@ -193,12 +193,12 @@ export default function DraftOrders() {
                             <div className="flex-1 min-w-0">
                               <Link
                                 to={buildProductPath(item.product)}
-                                className="font-black text-gray-900 text-sm sm:text-base line-clamp-2 mb-1 hover:text-blue-600 transition-colors"
+                                className="font-black text-gray-900 text-sm sm:text-base line-clamp-2 mb-1 hover:text-neutral-600 transition-colors"
                               >
                                 {item.snapshot?.title || item.product?.title}
                               </Link>
                               <p className="text-xs text-gray-600 font-medium mb-1">Quantité: x{item.quantity}</p>
-                              <p className="text-sm font-black text-blue-600">
+                              <p className="text-sm font-black text-neutral-600">
                                 {formatCurrency((item.snapshot?.price || item.product?.price || 0) * (item.quantity || 1))}
                               </p>
                             </div>
@@ -209,8 +209,8 @@ export default function DraftOrders() {
 
                     {/* Payment Info */}
                     {draftPayment.payerName || draftPayment.transactionCode ? (
-                      <div className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-4 space-y-2">
-                        <h4 className="text-xs font-bold uppercase text-blue-700 tracking-wide">Informations de paiement</h4>
+                      <div className="rounded-2xl border-2 border-neutral-200 bg-gradient-to-br from-neutral-50 to-neutral-50 p-4 space-y-2">
+                        <h4 className="text-xs font-bold uppercase text-neutral-700 tracking-wide">Informations de paiement</h4>
                         {draftPayment.payerName && (
                           <p className="text-sm text-gray-700">
                             <span className="font-semibold">Payeur:</span> {draftPayment.payerName}
@@ -239,9 +239,9 @@ export default function DraftOrders() {
                           {formatCurrency(draft.totalAmount)}
                         </span>
                       </div>
-                      <div className="flex justify-between items-center py-2 px-3 bg-blue-50 rounded-xl border border-blue-200">
-                        <span className="text-blue-700 font-semibold">Acompte (25%)</span>
-                        <span className="font-black text-blue-600 text-lg">
+                      <div className="flex justify-between items-center py-2 px-3 bg-neutral-50 rounded-xl border border-neutral-200">
+                        <span className="text-neutral-700 font-semibold">Acompte (25%)</span>
+                        <span className="font-black text-neutral-600 text-lg">
                           {formatCurrency(depositAmount)}
                         </span>
                       </div>
@@ -257,7 +257,7 @@ export default function DraftOrders() {
                     <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t-2 border-gray-200">
                       <Link
                         to="/orders/checkout"
-                        className="flex-1 inline-flex items-center justify-center gap-2 rounded-3xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white hover:bg-blue-700 transition-all duration-200 active:scale-95 shadow-sm"
+                        className="flex-1 inline-flex items-center justify-center gap-2 rounded-3xl bg-neutral-600 px-6 py-3.5 text-sm font-semibold text-white hover:bg-neutral-700 transition-all duration-200 active:scale-95 shadow-sm"
                       >
                         <CreditCard size={18} />
                         Continuer la commande

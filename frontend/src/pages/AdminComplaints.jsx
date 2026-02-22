@@ -24,11 +24,11 @@ const STATUS_OPTIONS = [
 
 const STATUS_STYLES = {
   OPEN: 'bg-amber-100 text-amber-800',
-  SELLER_RESPONDED: 'bg-indigo-100 text-indigo-800',
-  UNDER_REVIEW: 'bg-blue-100 text-blue-800',
+  SELLER_RESPONDED: 'bg-neutral-100 text-neutral-800',
+  UNDER_REVIEW: 'bg-neutral-100 text-neutral-800',
   RESOLVED_CLIENT: 'bg-emerald-100 text-emerald-800',
   RESOLVED_SELLER: 'bg-green-100 text-green-800',
-  REJECTED: 'bg-rose-100 text-rose-800'
+  REJECTED: 'bg-neutral-100 text-neutral-800'
 };
 
 const STATUS_LABELS = Object.fromEntries(STATUS_OPTIONS.filter((o) => o.value).map((o) => [o.value, o.label]));
@@ -175,11 +175,11 @@ export default function AdminComplaints() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/20 lg:min-h-0 lg:bg-transparent">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-neutral-50/20 lg:min-h-0 lg:bg-transparent">
       <div className="mx-auto max-w-7xl px-4 py-8 space-y-6 sm:px-6 lg:px-8">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-indigo-600 p-3 text-white">
+            <div className="rounded-2xl bg-neutral-600 p-3 text-white">
               <ShieldAlert className="h-6 w-6" />
             </div>
             <div>
@@ -233,7 +233,7 @@ export default function AdminComplaints() {
         </section>
 
         {error && (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 inline-flex items-center gap-2">
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-700 inline-flex items-center gap-2">
             <AlertCircle className="h-4 w-4" />
             {error}
           </div>
@@ -241,7 +241,7 @@ export default function AdminComplaints() {
 
         {loading ? (
           <div className="py-12 flex justify-center">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
           </div>
         ) : items.length === 0 ? (
           <p className="text-sm text-gray-500">Aucun litige pour ce filtre.</p>
@@ -329,9 +329,9 @@ export default function AdminComplaints() {
                   )}
 
                   {item.sellerResponse && (
-                    <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50 p-3">
-                      <p className="text-xs font-semibold text-indigo-700">Réponse vendeur</p>
-                      <p className="text-sm text-indigo-900 whitespace-pre-line">{item.sellerResponse}</p>
+                    <div className="mt-3 rounded-xl border border-neutral-100 bg-neutral-50 p-3">
+                      <p className="text-xs font-semibold text-neutral-700">Réponse vendeur</p>
+                      <p className="text-sm text-neutral-900 whitespace-pre-line">{item.sellerResponse}</p>
                     </div>
                   )}
 
@@ -343,7 +343,7 @@ export default function AdminComplaints() {
                           href={file.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs text-indigo-700"
+                          className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-700"
                         >
                           <Paperclip className="h-3.5 w-3.5" />
                           {file.originalName || file.filename || 'preuve vendeur'}

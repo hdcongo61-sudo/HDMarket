@@ -5,6 +5,7 @@ const citySchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true, unique: true },
     isActive: { type: Boolean, default: true, index: true },
     isDefault: { type: Boolean, default: false, index: true },
+    order: { type: Number, default: 0, min: 0 },
     deliveryAvailable: { type: Boolean, default: true },
     boostMultiplier: { type: Number, default: 1, min: 0 },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }
@@ -12,6 +13,6 @@ const citySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-citySchema.index({ isActive: 1, isDefault: -1, name: 1 });
+citySchema.index({ isActive: 1, isDefault: -1, order: 1, name: 1 });
 
 export default mongoose.model('City', citySchema);

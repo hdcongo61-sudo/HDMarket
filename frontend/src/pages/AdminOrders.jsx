@@ -19,7 +19,7 @@ const STATUS_LABELS = {
 const STATUS_CLASSES = {
   pending: 'bg-gray-100 text-gray-700',
   confirmed: 'bg-yellow-100 text-yellow-800',
-  delivering: 'bg-blue-100 text-blue-800',
+  delivering: 'bg-neutral-100 text-neutral-800',
   delivered: 'bg-green-100 text-green-800',
   cancelled: 'bg-red-100 text-red-800'
 };
@@ -795,8 +795,8 @@ export default function AdminOrders() {
             onClick={() => setStatusFilter(key)}
             className={`px-4 py-2 text-xs font-semibold rounded-3xl border-2 transition-all duration-200 active:scale-95 flex items-center gap-2 shadow-sm ${
               isActive 
-                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-indigo-600 shadow-lg' 
-                : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
+                ? 'bg-gradient-to-r from-neutral-600 to-neutral-600 text-white border-neutral-600 shadow-lg' 
+                : 'bg-white text-gray-700 border-gray-200 hover:border-neutral-300 hover:bg-neutral-50'
             }`}
           >
             <span>{key === 'all' ? 'Toutes' : STATUS_LABELS[key]}</span>
@@ -804,7 +804,7 @@ export default function AdminOrders() {
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                 isActive
                   ? 'bg-white/30 text-white' 
-                  : 'bg-indigo-600 text-white'
+                  : 'bg-neutral-600 text-white'
               }`}>
                 {pendingCount}
               </span>
@@ -813,7 +813,7 @@ export default function AdminOrders() {
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                 isActive
                   ? 'bg-white/30 text-white' 
-                  : 'bg-indigo-600 text-white'
+                  : 'bg-neutral-600 text-white'
               }`}>
                 {statusCount}
               </span>
@@ -828,21 +828,21 @@ export default function AdminOrders() {
     <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-8 py-6 space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <ClipboardList className="w-6 h-6 text-indigo-600" />
+          <ClipboardList className="w-6 h-6 text-neutral-600" />
           Gestion des commandes
         </h1>
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={openCreateModal}
-            className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+            className="inline-flex items-center gap-2 rounded-full bg-neutral-600 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700"
           >
             <Plus className="h-4 w-4" />
             Créer une commande
           </button>
           <Link
             to="/admin"
-            className="text-sm text-indigo-600 hover:text-indigo-500 flex items-center gap-1"
+            className="text-sm text-neutral-600 hover:text-neutral-500 flex items-center gap-1"
           >
             <ArrowLeft className="w-4 h-4" />
             Retour au tableau de bord
@@ -857,14 +857,14 @@ export default function AdminOrders() {
           const bgColors = {
             pending: 'bg-gradient-to-br from-gray-50 to-gray-100',
             confirmed: 'bg-gradient-to-br from-amber-50 to-yellow-100',
-            delivering: 'bg-gradient-to-br from-blue-50 to-indigo-100',
+            delivering: 'bg-gradient-to-br from-neutral-50 to-neutral-100',
             delivered: 'bg-gradient-to-br from-emerald-50 to-green-100',
-            cancelled: 'bg-gradient-to-br from-red-50 to-pink-100'
+            cancelled: 'bg-gradient-to-br from-red-50 to-neutral-100'
           };
           const iconColors = {
             pending: 'text-gray-600',
             confirmed: 'text-amber-600',
-            delivering: 'text-blue-600',
+            delivering: 'text-neutral-600',
             delivered: 'text-emerald-600',
             cancelled: 'text-red-600'
           };
@@ -926,7 +926,7 @@ export default function AdminOrders() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                     <input
                       type="text"
-                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                       placeholder="Recherche client"
                       value={customerQuery}
                       onChange={(e) => {
@@ -942,7 +942,7 @@ export default function AdminOrders() {
                         key={customer._id}
                         onClick={() => setSelectedCustomer(customer)}
                         className={`w-full text-left px-3 py-2 text-sm flex flex-col ${
-                          selectedCustomer?._id === customer._id ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50'
+                          selectedCustomer?._id === customer._id ? 'bg-neutral-50 text-neutral-700' : 'hover:bg-gray-50'
                         }`}
                       >
                         <span className="font-semibold">{customer.name}</span>
@@ -962,7 +962,7 @@ export default function AdminOrders() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                     <input
                       type="text"
-                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                       placeholder="Recherche produit"
                       value={productQuery}
                       onChange={(e) => {
@@ -994,7 +994,7 @@ export default function AdminOrders() {
                               className={`px-2 py-1 text-xs rounded-full border ${
                                 alreadySelected
                                   ? 'border-gray-200 text-gray-400 cursor-not-allowed'
-                                  : 'border-indigo-200 text-indigo-600 hover:bg-indigo-50'
+                                  : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50'
                               }`}
                             >
                               {alreadySelected ? 'Ajouté' : 'Ajouter'}
@@ -1049,7 +1049,7 @@ export default function AdminOrders() {
                     Adresse de livraison *
                   </label>
                   <textarea
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                     rows={3}
                     value={newOrder.deliveryAddress}
                     onChange={(e) => setNewOrder((prev) => ({ ...prev, deliveryAddress: e.target.value }))}
@@ -1062,7 +1062,7 @@ export default function AdminOrders() {
                     Ville de livraison *
                   </label>
                   <select
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                     value={newOrder.deliveryCity}
                     onChange={(e) => setNewOrder((prev) => ({ ...prev, deliveryCity: e.target.value }))}
                   >
@@ -1077,7 +1077,7 @@ export default function AdminOrders() {
                     Note de suivi
                   </label>
                   <textarea
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                     rows={2}
                     value={newOrder.trackingNote}
                     onChange={(e) => setNewOrder((prev) => ({ ...prev, trackingNote: e.target.value }))}
@@ -1096,7 +1096,7 @@ export default function AdminOrders() {
                   selectedProducts.length === 0 ||
                   !newOrder.deliveryAddress.trim()
                 }
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-neutral-600 text-white px-4 py-2 text-sm font-semibold hover:bg-neutral-700 disabled:opacity-50"
               >
                 <Plus size={16} />
                 Ajouter la commande
@@ -1142,7 +1142,7 @@ export default function AdminOrders() {
                 <select
                   value={assignDeliveryGuyId}
                   onChange={(e) => setAssignDeliveryGuyId(e.target.value)}
-                  className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                   disabled={deliveryGuysLoading || assignSaving}
                 >
                   <option value="">Assigner un livreur</option>
@@ -1175,7 +1175,7 @@ export default function AdminOrders() {
                   }
                 }}
                 disabled={assignSaving}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-neutral-600 text-white px-4 py-2 text-sm font-semibold hover:bg-neutral-700 disabled:opacity-50"
               >
                 {assignSaving ? 'Mise à jour...' : 'Enregistrer'}
               </button>
@@ -1272,7 +1272,7 @@ export default function AdminOrders() {
                 placeholder="Rechercher par produit, client, adresse..."
                 value={searchDraft}
                 onChange={(e) => setSearchDraft(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-3xl border-2 border-gray-200 bg-white text-sm font-medium text-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                className="w-full pl-10 pr-4 py-2.5 rounded-3xl border-2 border-gray-200 bg-white text-sm font-medium text-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 transition-all duration-200"
                 title="Rechercher par nom de produit, nom du client, email, téléphone, adresse de livraison ou note de suivi"
               />
             </div>
@@ -1357,7 +1357,7 @@ export default function AdminOrders() {
                               </span>
                             </div>
                             {item.snapshot?.confirmationNumber && (
-                              <span className="text-[11px] text-indigo-600 font-semibold uppercase tracking-wide">
+                              <span className="text-[11px] text-neutral-600 font-semibold uppercase tracking-wide">
                                 Code produit : {item.snapshot.confirmationNumber}
                               </span>
                             )}
@@ -1365,13 +1365,13 @@ export default function AdminOrders() {
                         ))}
                       </div>
                     {order.deliveryCode && (
-                      <div className="rounded-xl border-2 border-indigo-200 bg-indigo-50 p-3 mb-3">
+                      <div className="rounded-xl border-2 border-neutral-200 bg-neutral-50 p-3 mb-3">
                         <div className="flex items-center gap-2 mb-2">
-                          <ShieldCheck size={14} className="text-indigo-600" />
-                          <p className="text-[11px] font-semibold text-indigo-700 uppercase tracking-wide">Code de livraison</p>
+                          <ShieldCheck size={14} className="text-neutral-600" />
+                          <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wide">Code de livraison</p>
                         </div>
                         <div className="text-center">
-                          <span className="text-2xl font-black text-indigo-900 tracking-wider font-mono">
+                          <span className="text-2xl font-black text-neutral-900 tracking-wider font-mono">
                             {order.deliveryCode}
                           </span>
                         </div>
@@ -1408,7 +1408,7 @@ export default function AdminOrders() {
                       <select
                         value={order.status}
                         onChange={(e) => handleUpdateOrder(order._id, { status: e.target.value })}
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                       >
                         {Object.keys(STATUS_LABELS).map((key) => (
                           <option key={key} value={key}>
@@ -1426,13 +1426,13 @@ export default function AdminOrders() {
                         <button
                           type="button"
                           onClick={() => openAssignModal(order)}
-                          className="mt-2 text-xs font-semibold text-indigo-600 hover:underline"
+                          className="mt-2 text-xs font-semibold text-neutral-600 hover:underline"
                         >
                           Assigner un livreur
                         </button>
                       </div>
                       <textarea
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                         rows={2}
                         value={order.trackingNote || ''}
                         onChange={(e) =>
@@ -1442,7 +1442,7 @@ export default function AdminOrders() {
                         }
                       />
                       {/* Chat Button */}
-                      <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3">
+                      <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-3">
                         <OrderChat 
                           order={order} 
                           buttonText="Contacte l'acheteur"
@@ -1453,7 +1453,7 @@ export default function AdminOrders() {
                         <button
                           type="button"
                           onClick={() => openOrderPdf(order)}
-                          className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100"
                         >
                           <ClipboardList size={14} />
                           Bon de commande (PDF)
@@ -1542,7 +1542,7 @@ export default function AdminOrders() {
                                   </span>
                                 </div>
                                 {item.snapshot?.confirmationNumber && (
-                                  <span className="block text-[11px] text-indigo-600 font-semibold uppercase tracking-wide">
+                                  <span className="block text-[11px] text-neutral-600 font-semibold uppercase tracking-wide">
                                     Code produit : {item.snapshot.confirmationNumber}
                                   </span>
                                 )}
@@ -1584,12 +1584,12 @@ export default function AdminOrders() {
                         </td>
                         <td className="px-3 py-3 text-xs text-gray-600">
                           {order.deliveryCode && (
-                            <div className="mb-2 p-2 rounded-lg border border-indigo-200 bg-indigo-50">
+                            <div className="mb-2 p-2 rounded-lg border border-neutral-200 bg-neutral-50">
                               <div className="flex items-center gap-1 mb-1">
-                                <ShieldCheck size={12} className="text-indigo-600" />
-                                <span className="font-semibold text-indigo-700">Code:</span>
+                                <ShieldCheck size={12} className="text-neutral-600" />
+                                <span className="font-semibold text-neutral-700">Code:</span>
                               </div>
-                              <span className="text-lg font-black text-indigo-900 tracking-wider font-mono">
+                              <span className="text-lg font-black text-neutral-900 tracking-wider font-mono">
                                 {order.deliveryCode}
                               </span>
                             </div>
@@ -1609,7 +1609,7 @@ export default function AdminOrders() {
                           <select
                             value={order.status}
                             onChange={(e) => handleUpdateOrder(order._id, { status: e.target.value })}
-                            className="w-full rounded-lg border border-gray-200 px-2 py-1 text-xs focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            className="w-full rounded-lg border border-gray-200 px-2 py-1 text-xs focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                           >
                             {Object.keys(STATUS_LABELS).map((key) => (
                               <option key={key} value={key}>
@@ -1627,13 +1627,13 @@ export default function AdminOrders() {
                             <button
                               type="button"
                               onClick={() => openAssignModal(order)}
-                              className="mt-1 text-[11px] font-semibold text-indigo-600 hover:underline"
+                              className="mt-1 text-[11px] font-semibold text-neutral-600 hover:underline"
                             >
                               Assigner un livreur
                             </button>
                           </div>
                           <textarea
-                            className="w-full rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            className="w-full rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-600 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                             rows={2}
                             value={order.trackingNote || ''}
                             onChange={(e) =>
@@ -1643,7 +1643,7 @@ export default function AdminOrders() {
                             }
                           />
                           {/* Chat Button */}
-                          <div className="rounded-lg border border-indigo-100 bg-indigo-50 p-2">
+                          <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-2">
                             <OrderChat 
                               order={order} 
                               buttonText="Contacte l'acheteur"
@@ -1654,7 +1654,7 @@ export default function AdminOrders() {
                             <button
                               type="button"
                               onClick={() => openOrderPdf(order)}
-                              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-100"
+                              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-2 py-1 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-100"
                             >
                               <ClipboardList size={12} />
                               Bon de commande (PDF)
@@ -1684,14 +1684,14 @@ export default function AdminOrders() {
                             <Trash2 size={12} />
                             Supprimer
                           </button>
-                          <div className="text-xs text-indigo-600 space-y-1">
+                          <div className="text-xs text-neutral-600 space-y-1">
                             {orderItems.map((item) =>
                               item.product ? (
                                 <Link
                                   key={`${order._id}-${item.product}-${item.snapshot?.title}-link`}
                                   to={buildProductPath(item.product)}
                                   {...externalLinkProps}
-                                  className="block hover:text-indigo-500"
+                                  className="block hover:text-neutral-500"
                                 >
                                   Voir « {item.snapshot?.title || 'Produit'} »
                                 </Link>

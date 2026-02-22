@@ -176,7 +176,7 @@ export default function AdminBoostManagement() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 space-y-5">
       <div className="flex items-center gap-2">
-        <Sparkles className="h-5 w-5 text-indigo-600" />
+        <Sparkles className="h-5 w-5 text-neutral-600" />
         <h1 className="text-xl font-bold text-gray-900">Boost Management</h1>
       </div>
 
@@ -193,7 +193,7 @@ export default function AdminBoostManagement() {
             onClick={() => setActiveTab(key)}
             className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
               activeTab === key
-                ? 'bg-indigo-600 text-white'
+                ? 'bg-neutral-600 text-white'
                 : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100'
             }`}
           >
@@ -263,7 +263,7 @@ export default function AdminBoostManagement() {
                 />
                 <button
                   type="submit"
-                  className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                  className="rounded-xl bg-neutral-600 px-3 py-2 text-sm font-semibold text-white hover:bg-neutral-700"
                 >
                   Enregistrer
                 </button>
@@ -386,7 +386,7 @@ export default function AdminBoostManagement() {
                 />
                 <button
                   type="submit"
-                  className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                  className="rounded-xl bg-neutral-600 px-3 py-2 text-sm font-semibold text-white hover:bg-neutral-700"
                 >
                   Ajouter
                 </button>
@@ -424,7 +424,7 @@ export default function AdminBoostManagement() {
                           {item.seller?.shopName || item.seller?.name || 'Vendeur'} • {item.city || 'Global'}
                         </p>
                       </div>
-                      <span className="text-sm font-semibold text-indigo-700">{formatCurrency(item.totalPrice)}</span>
+                      <span className="text-sm font-semibold text-neutral-700">{formatCurrency(item.totalPrice)}</span>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">

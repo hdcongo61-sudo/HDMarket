@@ -23,6 +23,10 @@ import {
   uploadToCloudinary
 } from '../utils/cloudinaryUploader.js';
 import { createNotification } from '../utils/notificationService.js';
+import {
+  isTransactionCodeAlreadyUsed,
+  TRANSACTION_CODE_REUSED_MESSAGE
+} from '../utils/transactionCodeService.js';
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
@@ -308,6 +312,10 @@ export const createBoostRequest = asyncHandler(async (req, res) => {
   }
   if (!/^\d{10}$/.test(paymentTransactionId)) {
     return res.status(400).json({ message: 'L’ID de transaction doit contenir exactement 10 chiffres.' });
+  }
+  const alreadyUsed = await isTransactionCodeAlreadyUsed(paymentTransactionId);
+  if (alreadyUsed) {
+    return res.status(409).json({ message: TRANSACTION_CODE_REUSED_MESSAGE });
   }
 
   const selectedNetwork = await NetworkSetting.findOne({

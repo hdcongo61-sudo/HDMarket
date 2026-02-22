@@ -58,7 +58,25 @@ const productSchema = new mongoose.Schema(
     installmentLatePenaltyRate: { type: Number, default: 0, min: 0, max: 100 },
     installmentMaxMissedPayments: { type: Number, default: 3, min: 1, max: 12 },
     installmentRequireGuarantor: { type: Boolean, default: false },
-    installmentSuspendedAt: { type: Date, default: null }
+    installmentSuspendedAt: { type: Date, default: null },
+    wholesaleEnabled: { type: Boolean, default: false, index: true },
+    wholesaleTiers: {
+      type: [
+        new mongoose.Schema(
+          {
+            minQty: { type: Number, min: 1, required: true },
+            unitPrice: { type: Number, min: 0, required: true },
+            label: { type: String, default: '' }
+          },
+          { _id: false }
+        )
+      ],
+      default: []
+    },
+    deliveryAvailable: { type: Boolean, default: true, index: true },
+    pickupAvailable: { type: Boolean, default: true, index: true },
+    deliveryFee: { type: Number, default: 0, min: 0 },
+    deliveryFeeEnabled: { type: Boolean, default: true }
   },
   { timestamps: true }
 );
@@ -69,7 +87,9 @@ productSchema.index({ status: 1, category: 1, price: 1, createdAt: -1 });
 productSchema.index({ status: 1, categoryId: 1, subcategoryId: 1, createdAt: -1 });
 productSchema.index({ salesCount: -1, status: 1 });
 productSchema.index({ installmentEnabled: 1, installmentStartDate: 1, installmentEndDate: 1, status: 1 });
+productSchema.index({ status: 1, wholesaleEnabled: 1, createdAt: -1 });
 productSchema.index({ status: 1, city: 1, boosted: -1, validationDate: -1, createdAt: -1 });
+productSchema.index({ status: 1, deliveryAvailable: 1, pickupAvailable: 1, createdAt: -1 });
 productSchema.index({ user: 1, createdAt: -1 });
 productSchema.index({ user: 1, _id: 1 });
 

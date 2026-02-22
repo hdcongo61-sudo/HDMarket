@@ -70,7 +70,7 @@ export default function TopSales() {
         <header className="bg-gradient-to-br from-orange-50 via-white to-red-50 dark:from-gray-900 dark:via-gray-800 dark:to-orange-950/20 rounded-3xl p-4 sm:p-6 lg:p-8 border border-gray-200/60 dark:border-gray-700/50 shadow-lg">
           <button
             onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 mb-4 text-sm font-semibold text-gray-600 hover:text-indigo-600 transition-colors"
+            className="inline-flex items-center gap-2 mb-4 text-sm font-semibold text-gray-600 hover:text-neutral-600 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Retour
@@ -150,7 +150,7 @@ export default function TopSales() {
                       onClick={() => setPage(pageNum)}
                       className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
                         page === pageNum
-                          ? "bg-indigo-600 text-white border-indigo-600"
+                          ? "bg-neutral-600 text-white border-neutral-600"
                           : "border-gray-300 hover:bg-gray-50"
                       }`}
                     >

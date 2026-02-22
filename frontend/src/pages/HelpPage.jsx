@@ -84,7 +84,7 @@ function SectionTitle({ icon: Icon, title, subtitle }) {
   return (
     <div className="mb-4">
       <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-        {Icon ? <Icon className="h-4 w-4 text-indigo-500 dark:text-indigo-300" /> : null}
+        {Icon ? <Icon className="h-4 w-4 text-neutral-500 dark:text-neutral-300" /> : null}
         <h2>{title}</h2>
       </div>
       {subtitle ? <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{subtitle}</p> : null}
@@ -529,12 +529,12 @@ export default function HelpPage() {
 
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-indigo-100/60 to-transparent dark:from-indigo-950/20" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-neutral-100/60 to-transparent dark:from-neutral-950/20" />
 
       <header className="sticky top-0 z-20 border-b border-neutral-200/70 bg-white/70 backdrop-blur-xl dark:border-neutral-800/70 dark:bg-neutral-950/70">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
-            <p className="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-indigo-600 dark:text-indigo-300">
+            <p className="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-600 dark:text-neutral-300">
               {companyName}
             </p>
             <h1 className="truncate text-lg font-semibold">Centre d'aide</h1>
@@ -555,7 +555,7 @@ export default function HelpPage() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
-              className="rounded-3xl border border-neutral-200 bg-white/90 p-4 backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
+              className="rounded-2xl border border-neutral-200 bg-white/90 p-4 backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
             >
               <SectionTitle
                 icon={UserCog}
@@ -570,7 +570,7 @@ export default function HelpPage() {
                   value={editorSearch}
                   onChange={(event) => setEditorSearch(event.target.value)}
                   placeholder="Rechercher un utilisateur"
-                  className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 py-2 pl-9 pr-3 text-sm outline-none ring-indigo-500 transition focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900"
+                  className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 py-2 pl-9 pr-3 text-sm outline-none ring-neutral-500 transition focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900"
                 />
               </label>
 
@@ -605,7 +605,7 @@ export default function HelpPage() {
                               className={`rounded-full px-3 py-1 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
                                 isGranted
                                   ? 'border border-red-300 text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/40'
-                                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                  : 'bg-neutral-600 text-white hover:bg-neutral-700'
                               }`}
                             >
                               {isWorking ? '...' : isGranted ? 'Retirer' : 'Accorder'}
@@ -669,7 +669,7 @@ export default function HelpPage() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.24, ease: 'easeOut' }}
-              className="rounded-3xl border border-neutral-200 bg-white/90 p-4 backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
+              className="rounded-2xl border border-neutral-200 bg-white/90 p-4 backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
             >
               <SectionTitle
                 icon={CircleHelp}
@@ -684,7 +684,7 @@ export default function HelpPage() {
                     <select
                       value={category}
                       onChange={(event) => setCategory(event.target.value)}
-                      className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-800 outline-none ring-indigo-500 transition focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                      className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-800 outline-none ring-neutral-500 transition focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                     >
                       {HELP_CATEGORIES.map((item) => (
                         <option key={item.value} value={item.value}>
@@ -702,7 +702,7 @@ export default function HelpPage() {
                       onChange={(event) => setSubject(event.target.value)}
                       maxLength={140}
                       placeholder="Ex: Paiement non validé"
-                      className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-indigo-500 transition focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                      className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-neutral-500 transition focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                     />
                   </label>
                 </div>
@@ -718,7 +718,7 @@ export default function HelpPage() {
                       onClick={() => setContentFormat(format)}
                       className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${
                         contentFormat === format
-                          ? 'bg-indigo-600 text-white'
+                          ? 'bg-neutral-600 text-white'
                           : 'border border-neutral-300 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800'
                       }`}
                     >
@@ -813,7 +813,7 @@ export default function HelpPage() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.26, ease: 'easeOut' }}
-              className="rounded-3xl border border-neutral-200 bg-white/90 p-4 backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
+              className="rounded-2xl border border-neutral-200 bg-white/90 p-4 backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
             >
               <SectionTitle
                 icon={FileText}
@@ -830,13 +830,13 @@ export default function HelpPage() {
                           value={editingConditionTitle}
                           onChange={(event) => setEditingConditionTitle(event.target.value)}
                           maxLength={140}
-                          className="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none ring-indigo-500 transition focus:ring-2 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+                          className="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none ring-neutral-500 transition focus:ring-2 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
                         />
                         <textarea
                           value={editingConditionDescription}
                           onChange={(event) => setEditingConditionDescription(event.target.value)}
                           rows={4}
-                          className="w-full resize-y rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none ring-indigo-500 transition focus:ring-2 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+                          className="w-full resize-y rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none ring-neutral-500 transition focus:ring-2 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
                         />
                         <div className="flex items-center justify-end gap-2">
                           <button
@@ -851,7 +851,7 @@ export default function HelpPage() {
                             type="button"
                             onClick={() => saveConditionEdit(index)}
                             disabled={conditionActionLoading}
-                            className="rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="rounded-full bg-neutral-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             Enregistrer
                           </button>
@@ -906,16 +906,16 @@ export default function HelpPage() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
-            className="rounded-3xl border border-neutral-200 bg-white/90 p-4 backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
+            className="rounded-2xl border border-neutral-200 bg-white/90 p-4 backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
           >
             <SectionTitle icon={CircleHelp} title="Contact support" />
             <div className="space-y-2 text-sm text-neutral-600 dark:text-neutral-300">
               <p className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-indigo-500" />
+                <Mail className="h-4 w-4 text-neutral-500" />
                 support@hdmarket.cg
               </p>
               <p className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-emerald-500" />
+                <Phone className="h-4 w-4 text-neutral-500" />
                 {networkDisplay || 'Numéro indisponible'}
               </p>
               <p className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
@@ -929,20 +929,20 @@ export default function HelpPage() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.24, ease: 'easeOut' }}
-            className="rounded-3xl border border-neutral-200 bg-white/90 p-4 backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
+            className="rounded-2xl border border-neutral-200 bg-white/90 p-4 backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
           >
             <SectionTitle icon={FileText} title="Bonnes pratiques" />
             <ul className="space-y-2 text-sm text-neutral-600 dark:text-neutral-300">
               <li className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" />
                 Ajoutez l'ID de commande, transaction ou capture utile.
               </li>
               <li className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" />
                 Décrivez les étapes, la date et l'impact rencontré.
               </li>
               <li className="flex items-start gap-2">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" />
                 Évitez les données sensibles (mot de passe, code OTP).
               </li>
             </ul>

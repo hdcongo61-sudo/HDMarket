@@ -337,7 +337,7 @@ export default function VerifiedShops() {
             <button
               type="button"
               onClick={() => setAllShopsModalOpen(true)}
-              className="flex-shrink-0 w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white px-4 py-3 sm:py-2.5 text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.98]"
+              className="flex-shrink-0 w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-neutral-600 hover:bg-neutral-700 active:bg-neutral-800 text-white px-4 py-3 sm:py-2.5 text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.98]"
             >
               <Grid3x3 className="w-4 h-4" aria-hidden />
               Voir toutes les boutiques
@@ -359,7 +359,7 @@ export default function VerifiedShops() {
               onClick={() => setSelectedCity('')}
               className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-sm font-semibold transition-all ${
                 selectedCity === ''
-                  ? 'bg-indigo-600 text-white shadow-md'
+                  ? 'bg-neutral-600 text-white shadow-md'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
             >
@@ -372,7 +372,7 @@ export default function VerifiedShops() {
                 onClick={() => setSelectedCity(city)}
                 className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-sm font-semibold transition-all ${
                   selectedCity === city
-                    ? 'bg-indigo-600 text-white shadow-md'
+                    ? 'bg-neutral-600 text-white shadow-md'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
               >
@@ -420,7 +420,7 @@ export default function VerifiedShops() {
               <button
                 type="button"
                 onClick={() => setSelectedCity('')}
-                className="mt-3 text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                className="mt-3 text-sm font-medium text-neutral-600 hover:text-neutral-700"
               >
                 Voir toutes les villes
               </button>
@@ -459,10 +459,10 @@ export default function VerifiedShops() {
                           <img
                             src={shop.shopLogo || '/api/placeholder/60/60'}
                             alt={shop.shopName}
-                            className="w-12 h-12 rounded-full object-cover border-2 border-indigo-200"
+                            className="w-12 h-12 rounded-full object-cover border-2 border-neutral-200"
                           />
                           {/* Promotional Badge */}
-                          <div className="absolute -bottom-1 -left-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full shadow-lg">
+                          <div className="absolute -bottom-1 -left-1 bg-gradient-to-r from-red-500 to-neutral-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full shadow-lg">
                             Vérifié
                           </div>
                         </div>
@@ -481,7 +481,7 @@ export default function VerifiedShops() {
                               </span>
                             )}
                             {isBestReviewed && (
-                              <span className="inline-flex items-center gap-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                              <span className="inline-flex items-center gap-1 bg-gradient-to-r from-neutral-500 to-neutral-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
                                 <Crown className="w-3 h-3" />
                                 #1
                               </span>
@@ -527,7 +527,7 @@ export default function VerifiedShops() {
                               
                               {/* Discount Badge */}
                               {item.discount > 0 && (
-                                <div className="absolute top-1 left-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-lg z-10">
+                                <div className="absolute top-1 left-1 bg-gradient-to-r from-red-500 to-neutral-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-lg z-10">
                                   -{item.discount}%
                                 </div>
                               )}
@@ -597,11 +597,11 @@ export default function VerifiedShops() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4 text-xs text-gray-600">
                         <span className="flex items-center gap-1.5">
-                          <Heart className="w-4 h-4 text-pink-500" />
+                          <Heart className="w-4 h-4 text-neutral-500" />
                           <span className="font-semibold">{formatCount(shop.followersCount || 0)}</span>
                         </span>
                         <span className="flex items-center gap-1.5">
-                          <ShoppingCart className="w-4 h-4 text-indigo-500" />
+                          <ShoppingCart className="w-4 h-4 text-neutral-500" />
                           <span className="font-semibold">{formatCount(shop.productCount || 0)}</span>
                         </span>
                         <span className="flex items-center gap-1.5">
@@ -611,7 +611,7 @@ export default function VerifiedShops() {
                       </div>
                       <Link
                         to={buildShopPath(shop)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold hover:from-indigo-700 hover:to-purple-700 transition-all shadow-sm hover:shadow-md"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-neutral-600 to-neutral-600 text-white text-xs font-bold hover:from-neutral-700 hover:to-neutral-700 transition-all shadow-sm hover:shadow-md"
                       >
                         Voir boutique
                         <ChevronRight className="w-3 h-3" />
@@ -621,12 +621,12 @@ export default function VerifiedShops() {
 
                   {/* Admin Meta */}
                   {isAdmin && meta?.shopVerifiedBy && (
-                    <div className="px-4 py-3 border-t border-gray-100 bg-indigo-50/50">
-                      <div className="flex items-center gap-2 text-xs text-indigo-700">
+                    <div className="px-4 py-3 border-t border-gray-100 bg-neutral-50/50">
+                      <div className="flex items-center gap-2 text-xs text-neutral-700">
                         <User className="w-3.5 h-3.5" />
                         <span className="font-semibold">Vérifiée par {meta.shopVerifiedBy.name}</span>
                         {meta.shopVerifiedAt && (
-                          <span className="text-indigo-600">
+                          <span className="text-neutral-600">
                             · {new Date(meta.shopVerifiedAt).toLocaleDateString('fr-FR')}
                           </span>
                         )}
@@ -687,7 +687,7 @@ export default function VerifiedShops() {
         <div className="text-center">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-600 hover:text-indigo-500"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-neutral-600 hover:text-neutral-500"
           >
             Retourner à l&apos;accueil
           </Link>
@@ -710,8 +710,8 @@ export default function VerifiedShops() {
             {/* Modal Header */}
             <div className="sticky top-0 z-10 flex items-center justify-between gap-4 p-6 border-b border-gray-200 bg-white rounded-t-3xl">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100">
-                  <Store size={24} className="text-indigo-600" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-100">
+                  <Store size={24} className="text-neutral-600" />
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-gray-900">Toutes les boutiques</h2>
@@ -741,7 +741,7 @@ export default function VerifiedShops() {
                   value={allShopsSearch}
                   onChange={(e) => setAllShopsSearch(e.target.value)}
                   placeholder="Rechercher une boutique par nom ou adresse..."
-                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-white text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-all duration-200"
+                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-white text-sm focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-100 transition-all duration-200"
                 />
               </div>
             </div>
@@ -800,15 +800,15 @@ export default function VerifiedShops() {
                         <div className="flex items-center justify-between text-xs">
                           <div className="flex items-center gap-3 text-gray-600">
                             <span className="flex items-center gap-1">
-                              <ShoppingCart size={12} className="text-indigo-500" />
+                              <ShoppingCart size={12} className="text-neutral-500" />
                               <span className="font-semibold">{formatCount(shop.productCount || 0)}</span>
                             </span>
                             <span className="flex items-center gap-1">
-                              <Heart size={12} className="text-pink-500" />
+                              <Heart size={12} className="text-neutral-500" />
                               <span className="font-semibold">{formatCount(shop.followersCount || 0)}</span>
                             </span>
                           </div>
-                          <ChevronRight size={14} className="text-gray-400 group-hover:text-indigo-600 transition-colors" />
+                          <ChevronRight size={14} className="text-gray-400 group-hover:text-neutral-600 transition-colors" />
                         </div>
                       </Link>
                     ))}
@@ -870,15 +870,15 @@ export default function VerifiedShops() {
                         <div className="flex items-center justify-between text-xs">
                           <div className="flex items-center gap-3 text-gray-600">
                             <span className="flex items-center gap-1">
-                              <ShoppingCart size={12} className="text-indigo-500" />
+                              <ShoppingCart size={12} className="text-neutral-500" />
                               <span className="font-semibold">{formatCount(shop.productCount || 0)}</span>
                             </span>
                             <span className="flex items-center gap-1">
-                              <Heart size={12} className="text-pink-500" />
+                              <Heart size={12} className="text-neutral-500" />
                               <span className="font-semibold">{formatCount(shop.followersCount || 0)}</span>
                             </span>
                           </div>
-                          <ChevronRight size={14} className="text-gray-400 group-hover:text-indigo-600 transition-colors" />
+                          <ChevronRight size={14} className="text-gray-400 group-hover:text-neutral-600 transition-colors" />
                         </div>
                       </Link>
                     ))}

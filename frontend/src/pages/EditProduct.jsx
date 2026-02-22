@@ -108,7 +108,7 @@ export default function EditProduct() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
+          <div className="w-16 h-16 bg-gradient-to-br from-neutral-500 to-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
             <Edit className="w-8 h-8 text-white" />
           </div>
           <p className="text-gray-500">Chargement de l'annonce…</p>
@@ -121,14 +121,14 @@ export default function EditProduct() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="max-w-md mx-auto text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">Erreur</h2>
           <p className="text-gray-600 mb-6">{error}</p>
           <button
             onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-neutral-600 text-white font-semibold rounded-xl hover:bg-neutral-700 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Retour
@@ -154,7 +154,7 @@ export default function EditProduct() {
 
         {/* En-tête du formulaire */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-gradient-to-br from-neutral-500 to-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Edit className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Modifier l'annonce</h1>
@@ -165,18 +165,18 @@ export default function EditProduct() {
           {/* Section Informations de base */}
           <div className="space-y-4">
             <div className="flex items-center space-x-3 mb-4">
-              <div className="w-2 h-6 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full"></div>
+              <div className="w-2 h-6 bg-gradient-to-b from-neutral-500 to-neutral-500 rounded-full"></div>
               <h2 className="text-lg font-semibold text-gray-900">Informations du produit</h2>
             </div>
 
             {/* Titre */}
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                <FileText className="w-4 h-4 text-indigo-500" />
+                <FileText className="w-4 h-4 text-neutral-500" />
                 <span>Titre de l'annonce *</span>
               </label>
               <input
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400"
                 placeholder="Ex: iPhone 13 Pro Max 256GB - État neuf"
                 value={form.title}
                 onChange={(e) => onChange('title', e.target.value)}
@@ -187,12 +187,12 @@ export default function EditProduct() {
             {/* Description */}
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                <FileText className="w-4 h-4 text-indigo-500" />
+                <FileText className="w-4 h-4 text-neutral-500" />
                 <span>Description détaillée *</span>
               </label>
               <textarea
                 rows={4}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400 resize-none"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400 resize-none"
                 placeholder="Décrivez votre produit en détail : caractéristiques, état, accessoires inclus..."
                 value={form.description}
                 onChange={(e) => onChange('description', e.target.value)}
@@ -205,11 +205,11 @@ export default function EditProduct() {
               {/* Catégorie */}
               <div className="space-y-2">
                 <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                  <Tag className="w-4 h-4 text-indigo-500" />
+                  <Tag className="w-4 h-4 text-neutral-500" />
                   <span>Catégorie *</span>
                 </label>
                 <select
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                   value={form.category}
                   onChange={(e) => onChange('category', e.target.value)}
                   required
@@ -243,7 +243,7 @@ export default function EditProduct() {
                       />
                       <div className={`w-5 h-5 border-2 rounded-full flex items-center justify-center transition-all ${
                         form.condition === 'new' 
-                          ? 'border-indigo-500 bg-indigo-500' 
+                          ? 'border-neutral-500 bg-neutral-500' 
                           : 'border-gray-300'
                       }`}>
                         {form.condition === 'new' && (
@@ -265,7 +265,7 @@ export default function EditProduct() {
                       />
                       <div className={`w-5 h-5 border-2 rounded-full flex items-center justify-center transition-all ${
                         form.condition === 'used' 
-                          ? 'border-indigo-500 bg-indigo-500' 
+                          ? 'border-neutral-500 bg-neutral-500' 
                           : 'border-gray-300'
                       }`}>
                         {form.condition === 'used' && (
@@ -289,19 +289,19 @@ export default function EditProduct() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Prix Actuel */}
-              <div className="rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 p-4">
+              <div className="rounded-2xl bg-gradient-to-r from-neutral-50 to-neutral-50 border border-neutral-100 p-4">
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
-                    <DollarSign className="w-4 h-4 text-indigo-500" />
-                    <span className="text-sm font-medium text-indigo-900">Prix actuel</span>
+                    <DollarSign className="w-4 h-4 text-neutral-500" />
+                    <span className="text-sm font-medium text-neutral-900">Prix actuel</span>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-2xl font-bold text-indigo-600">{priceDisplay.current}</p>
+                    <p className="text-2xl font-bold text-neutral-600">{priceDisplay.current}</p>
                     {priceDisplay.before && (
                       <p className="text-sm text-gray-500 line-through">{priceDisplay.before}</p>
                     )}
                   </div>
-                  <p className="text-xs text-indigo-700">
+                  <p className="text-xs text-neutral-700">
                     Le prix de vente ne peut pas être modifié après création
                   </p>
                 </div>
@@ -315,7 +315,7 @@ export default function EditProduct() {
                 </label>
                 <input
                   type="number"
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                   min="0"
                   max="99"
                   step="1"
@@ -338,13 +338,13 @@ export default function EditProduct() {
           {form.images?.length > 0 && (
             <div className="space-y-4">
               <div className="flex items-center space-x-3 mb-4">
-                <div className="w-2 h-6 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full"></div>
+                <div className="w-2 h-6 bg-gradient-to-b from-neutral-500 to-neutral-500 rounded-full"></div>
                 <h2 className="text-lg font-semibold text-gray-900">Images du produit</h2>
               </div>
 
               <div className="space-y-3">
                 <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                  <Image className="w-4 h-4 text-blue-500" />
+                  <Image className="w-4 h-4 text-neutral-500" />
                   <span>Images actuelles ({form.images.length})</span>
                 </label>
                 
@@ -383,7 +383,7 @@ export default function EditProduct() {
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2"
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-neutral-600 to-neutral-600 text-white font-semibold rounded-xl hover:from-neutral-700 hover:to-neutral-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2"
             >
               {saving ? (
                 <>

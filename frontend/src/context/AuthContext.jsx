@@ -30,10 +30,12 @@ const readPersistedUser = async () => {
       canManageComplaints: Boolean(parsed.canManageComplaints),
       canManageProducts: Boolean(parsed.canManageProducts),
       canManageDelivery: Boolean(parsed.canManageDelivery),
+      canManageChatTemplates: Boolean(parsed.canManageChatTemplates),
       canManageHelpCenter: Boolean(parsed.canManageHelpCenter),
       preferredLanguage: parsed.preferredLanguage || 'fr',
       preferredCurrency: parsed.preferredCurrency || 'XAF',
       preferredCity: parsed.preferredCity || parsed.city || '',
+      commune: parsed.commune || '',
       theme: ['light', 'dark', 'system'].includes(parsed.theme) ? parsed.theme : 'system'
     };
     return { id: payload.id, role: payload.role, token, ...normalized };
@@ -88,10 +90,12 @@ export const AuthProvider = ({ children }) => {
       canManageComplaints: Boolean(data.canManageComplaints),
       canManageProducts: Boolean(data.canManageProducts),
       canManageDelivery: Boolean(data.canManageDelivery),
+      canManageChatTemplates: Boolean(data.canManageChatTemplates),
       canManageHelpCenter: Boolean(data.canManageHelpCenter),
       country: data.country || 'République du Congo',
       address: data.address || '',
       city: data.city || '',
+      commune: data.commune || '',
       preferredLanguage: data.preferredLanguage || 'fr',
       preferredCurrency: data.preferredCurrency || 'XAF',
       preferredCity: data.preferredCity || data.city || '',
@@ -104,6 +108,13 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
+      if (user?.token) {
+        try {
+          await api.post('/users/logout-cache');
+        } catch {
+          // ignore logout cache API errors
+        }
+      }
       await clearAllCache();
       await clearUserDataOnLogout();
       await Promise.all([

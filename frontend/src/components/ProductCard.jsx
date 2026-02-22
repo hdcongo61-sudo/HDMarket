@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Heart, Star, Eye, ShoppingCart, MessageCircle, Zap, Clock, ShieldCheck, TrendingUp, Award, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Heart, Star, Eye, ShoppingCart, MessageCircle, Zap, Clock, ShieldCheck, TrendingUp, Award, ChevronLeft, ChevronRight, Package } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import CartContext from '../context/CartContext';
 import FavoriteContext from '../context/FavoriteContext';
@@ -215,6 +215,10 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
 
   // === CALCULS ET DÉRIVATIONS ===
   const hasDiscount = typeof p.discount === 'number' && p.discount > 0;
+  const promoPercent = Number(p?.promoPercent || 0);
+  const hasActivePromo = Boolean(p?.hasActivePromo && promoPercent > 0);
+  const promoPercentLabel = Math.max(1, Math.round(promoPercent));
+  const promoScopeLabel = p?.promoScope === 'product' ? 'Produit' : 'Boutique';
   const installmentAvailable = useMemo(() => {
     if (p?.installmentAvailable) return true;
     if (!p?.installmentEnabled) return false;
@@ -224,6 +228,12 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
     const now = new Date();
     return now >= start && now <= end;
   }, [p]);
+  const pickupOnly = p?.deliveryAvailable === false && p?.pickupAvailable !== false;
+  const freeDeliveryAvailable = Boolean(
+    (p?.deliveryAvailable !== false && (p?.user?.freeDeliveryEnabled || p?.shopFreeDeliveryEnabled)) ||
+      (p?.deliveryAvailable !== false &&
+        (p?.deliveryFeeEnabled === false || Number(p?.deliveryFee || 0) <= 0))
+  );
   const discountedPrice = formatPrice(hasDiscount ? p.priceAfterDiscount || p.price : p.price);
   const originalPrice = hasDiscount && p.priceBeforeDiscount
     ? formatPrice(p.priceBeforeDiscount)
@@ -270,7 +280,7 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
   
   const conditionLabel = p?.condition === 'new' ? 'Neuf' : 'Occasion';
   const conditionColor = p?.condition === 'new' 
-    ? 'bg-emerald-600' 
+    ? 'bg-neutral-900' 
     : 'bg-amber-600';
 
   // === GESTION DES INTERACTIONS ===
@@ -368,8 +378,8 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
   const isBestSeller = salesCount >= 10000;
 
   return (
-    <div 
-      className="group relative flex h-full w-full flex-col bg-white overflow-hidden rounded-[16px] border border-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] transition-all duration-300 dark:bg-[#1C1C1E] dark:border-[#38383A]"
+    <div
+      className="ui-card ui-hover-scale group relative flex h-full w-full flex-col overflow-hidden rounded-2xl transition-all duration-300"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -460,8 +470,8 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
                   }}
                   className={`rounded-full transition-all duration-300 ${
                     index === currentImageIndex 
-                      ? 'w-2 h-2 sm:w-2.5 sm:h-2.5 bg-white shadow-lg' 
-                      : 'w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white/60 hover:bg-white/80'
+                      ? 'w-2 h-2 max-[375px]:w-1.5 max-[375px]:h-1.5 sm:w-2.5 sm:h-2.5 bg-white shadow-lg' 
+                      : 'w-1.5 h-1.5 max-[375px]:w-1 max-[375px]:h-1 sm:w-2 sm:h-2 bg-white/60 hover:bg-white/80'
                   }`}
                   aria-label={`Go to image ${index + 1}`}
                 />
@@ -477,10 +487,10 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
                   e.stopPropagation();
                   goToPreviousImage();
                 }}
-                className="absolute left-2 top-1/2 -translate-y-1/2 z-30 bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-lg hover:bg-white transition-all opacity-0 group-hover:opacity-100 hover:scale-110 hidden sm:flex items-center justify-center"
+                className="absolute left-1 top-1/2 -translate-y-1/2 z-30 hidden h-7 w-7 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm shadow-sm transition-all hover:scale-105 hover:bg-white sm:flex sm:opacity-0 sm:group-hover:opacity-100"
                 aria-label="Previous image"
               >
-                <ChevronLeft className="w-4 h-4 text-gray-700" />
+                <ChevronLeft className="h-3 w-3 text-gray-700" />
               </button>
               <button
                 type="button"
@@ -489,10 +499,10 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
                   e.stopPropagation();
                   goToNextImage();
                 }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 z-30 bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-lg hover:bg-white transition-all opacity-0 group-hover:opacity-100 hover:scale-110 hidden sm:flex items-center justify-center"
+                className="absolute right-1 top-1/2 -translate-y-1/2 z-30 hidden h-7 w-7 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm shadow-sm transition-all hover:scale-105 hover:bg-white sm:flex sm:opacity-0 sm:group-hover:opacity-100"
                 aria-label="Next image"
               >
-                <ChevronRight className="w-4 h-4 text-gray-700" />
+                <ChevronRight className="h-3 w-3 text-gray-700" />
               </button>
             </>
           </div>
@@ -509,39 +519,55 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
             />
             
             {/* Skeleton loader */}
-            {!imageLoaded && (
-              <div className="absolute inset-0 bg-gray-200 animate-pulse z-10"></div>
-            )}
+            {!imageLoaded && <div className="ui-skeleton absolute inset-0 z-10" />}
           </div>
         )}
 
         {/* 🔖 BADGES PROMOTIONNELS TAOBAO STYLE */}
         <div className="absolute top-1.5 sm:top-2 left-1.5 sm:left-2 z-20 flex flex-col gap-1 sm:gap-1.5">
+          {/* Badge Promo code (boutique/produit) */}
+          {hasActivePromo && (
+            <div className="bg-black text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded sm:rounded-md text-[9px] sm:text-[10px] font-black shadow-lg border border-white/20">
+              Promo {promoScopeLabel} -{promoPercentLabel}%
+            </div>
+          )}
           {/* Badge Promotion Principal */}
           {hasDiscount && (
-            <div className="bg-red-600 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded sm:rounded-md text-[9px] sm:text-[10px] font-black shadow-lg border border-white/20">
+            <div className="bg-neutral-900 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded sm:rounded-md text-[9px] sm:text-[10px] font-black shadow-lg border border-white/20">
               -{p.discount}%
             </div>
           )}
           
           {/* Badge 年货补贴周 Style */}
           {(hasDiscount || isNew) && (
-            <div className="bg-orange-600 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
+            <div className="bg-neutral-700 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
               {isNew ? 'Nouveau' : 'Promo'}
             </div>
           )}
 
           {/* Badge Certifié */}
           {p.certified && (
-            <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-emerald-500 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
+            <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-neutral-900 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
               <ShieldCheck className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
               Certifié
             </div>
           )}
           {installmentAvailable && (
-            <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-indigo-600 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
+            <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-neutral-800 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
               <Clock className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
               Paiement en tranche
+            </div>
+          )}
+          {pickupOnly && (
+            <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-slate-700 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
+              <Package className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
+              Retrait boutique
+            </div>
+          )}
+          {freeDeliveryAvailable && (
+            <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-neutral-900 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
+              <ShieldCheck className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
+              Livraison gratuite
             </div>
           )}
         </div>
@@ -557,8 +583,8 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
             size={14}
             className={`sm:w-4 sm:h-4 transition-all duration-300 ${
               isInFavorites 
-                ? 'text-red-500 transform scale-110' 
-                : 'text-gray-600 group-hover/fav:text-red-400'
+                ? 'text-neutral-700 dark:text-neutral-200 transform scale-110' 
+                : 'text-gray-600 group-hover/fav:text-neutral-900 dark:group-hover/fav:text-neutral-100'
             }`}
             strokeWidth={2}
             fill={isInFavorites ? 'currentColor' : 'none'}
@@ -577,14 +603,14 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
             
             {/* Badge Hot Sale */}
             {isHotSale && (
-              <div className="bg-orange-600 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[9px] sm:text-[10px] font-bold">
+              <div className="bg-neutral-700 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[9px] sm:text-[10px] font-bold">
                 Tendance {formatSalesCount(salesCount)}
               </div>
             )}
 
             {/* Badge Best Seller */}
             {isBestSeller && (
-              <div className="bg-purple-600 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[9px] sm:text-[10px] font-bold flex items-center gap-0.5 sm:gap-1">
+              <div className="bg-black text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[9px] sm:text-[10px] font-bold flex items-center gap-0.5 sm:gap-1">
                 <Award className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                 TOP VENTE
               </div>
@@ -602,12 +628,12 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
 
         {/* Prix avec réduction */}
         <div className="flex items-baseline gap-1.5 sm:gap-2 flex-wrap">
-          <span className="text-base sm:text-lg font-black text-red-600">{discountedPrice}</span>
+          <span className="text-base sm:text-lg font-black text-neutral-950 dark:text-white">{discountedPrice}</span>
           {originalPrice && (
             <span className="text-[10px] sm:text-xs text-gray-400 line-through">{originalPrice}</span>
           )}
           {hasDiscount && (
-            <span className="text-[9px] sm:text-[10px] font-bold text-red-500 bg-red-50 px-1 sm:px-1.5 py-0.5 rounded">
+            <span className="text-[9px] sm:text-[10px] font-bold text-neutral-700 dark:text-neutral-200 bg-neutral-100 dark:bg-neutral-800 px-1 sm:px-1.5 py-0.5 rounded">
               Prix promo
             </span>
           )}
@@ -617,7 +643,7 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
         <div className="flex items-center gap-2 sm:gap-3 text-[9px] sm:text-[10px] text-gray-500 flex-wrap">
           {ratingAverage > 0 && (
             <div className="flex items-center gap-0.5 sm:gap-1">
-              <Star className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-500 fill-amber-500" />
+              <Star className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-neutral-700 fill-neutral-700 dark:text-neutral-200 dark:fill-neutral-200" />
               <span className="font-semibold text-gray-700">{ratingAverage}</span>
               {ratingCount > 0 && (
                 <span className="text-gray-500 hidden sm:inline">({formatSalesCount(ratingCount)})</span>
@@ -631,7 +657,7 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
             </div>
           )}
           {salesCount > 0 && (
-            <div className="flex items-center gap-0.5 sm:gap-1 text-orange-600">
+            <div className="flex items-center gap-0.5 sm:gap-1 text-neutral-700 dark:text-neutral-300">
               <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
               <span className="font-semibold">
                 {hasRealSalesData ? 'Vendu' : 'Engagement'} {formatSalesCount(salesCount)}
@@ -641,20 +667,25 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
         </div>
 
         {installmentAvailable && (
-          <div className="inline-flex w-fit items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[9px] font-semibold text-indigo-700">
+          <div className="inline-flex w-fit items-center gap-1 rounded-full border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 text-[9px] font-semibold text-neutral-700 dark:text-neutral-200">
             Paiement en plusieurs fois disponible
+          </div>
+        )}
+        {pickupOnly && (
+          <div className="inline-flex w-fit items-center gap-1 rounded-full border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 px-2 py-0.5 text-[9px] font-semibold text-neutral-700 dark:text-neutral-200">
+            Retrait boutique uniquement
           </div>
         )}
 
         {/* Badges de fonctionnalités */}
         {p.certified && (
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded text-[9px] font-semibold border border-emerald-200">
+            <span className="inline-flex items-center gap-1 bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-100 px-2 py-0.5 rounded text-[9px] font-semibold border border-neutral-200 dark:border-neutral-700">
               <ShieldCheck className="w-2.5 h-2.5" />
               Garanti authentique
             </span>
             {conditionLabel === 'Neuf' && (
-              <span className="bg-[rgba(0,122,255,0.12)] text-[#007AFF] px-2 py-0.5 rounded text-[9px] font-semibold border border-[rgba(0,122,255,0.24)]">
+              <span className="bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 px-2 py-0.5 rounded text-[9px] font-semibold border border-neutral-200 dark:border-neutral-700">
                 Neuf
               </span>
             )}
@@ -675,7 +706,7 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
             <Link
               to={buildShopPath(p.user)}
               {...externalLinkProps}
-              className="text-[10px] font-semibold text-[#8E8E93] truncate hover:text-[#007AFF]"
+              className="text-[10px] font-semibold text-[#8E8E93] truncate hover:text-neutral-700 dark:text-neutral-200"
             >
               {p.user?.shopName || 'Boutique HDMarket'}
             </Link>
@@ -685,7 +716,7 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
 
         {/* 🛒 BOUTON AJOUTER AU PANIER */}
         {!isOwner && (
-          <div className="pt-2 border-t border-gray-100">
+          <div className="pt-2 border-t border-gray-100 dark:border-neutral-800">
             <button
               type="button"
               onClick={(e) => {
@@ -698,8 +729,8 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
                 inCart
                   ? 'bg-gray-100 text-gray-500 cursor-not-allowed opacity-60'
                   : adding
-                  ? 'bg-[#007AFF]/80 text-white cursor-wait'
-                  : 'bg-[#007AFF] text-white hover:bg-[#0051D5] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
+                  ? 'bg-neutral-800 text-white cursor-wait'
+                  : 'bg-black text-white hover:bg-neutral-900 shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
               }`}
             >
               <ShoppingCart size={12} className="sm:w-4 sm:h-4" />
@@ -712,10 +743,10 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
 
         {/* Messages de feedback */}
         {feedback && (
-          <p className="text-[10px] text-emerald-600 font-semibold">{feedback}</p>
+          <p className="text-[10px] text-neutral-700 dark:text-neutral-200 font-semibold">{feedback}</p>
         )}
         {addError && (
-          <p className="text-[10px] text-red-600">{addError}</p>
+          <p className="text-[10px] text-neutral-950 dark:text-white">{addError}</p>
         )}
       </div>
     </div>

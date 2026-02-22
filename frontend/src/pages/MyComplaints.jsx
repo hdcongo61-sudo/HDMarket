@@ -39,11 +39,11 @@ const STATUS_LABELS = {
 
 const STATUS_STYLES = {
   OPEN: 'bg-amber-100 text-amber-800',
-  SELLER_RESPONDED: 'bg-indigo-100 text-indigo-800',
-  UNDER_REVIEW: 'bg-blue-100 text-blue-800',
+  SELLER_RESPONDED: 'bg-neutral-100 text-neutral-800',
+  UNDER_REVIEW: 'bg-neutral-100 text-neutral-800',
   RESOLVED_CLIENT: 'bg-emerald-100 text-emerald-800',
   RESOLVED_SELLER: 'bg-green-100 text-green-800',
-  REJECTED: 'bg-rose-100 text-rose-800'
+  REJECTED: 'bg-neutral-100 text-neutral-800'
 };
 
 const RESOLUTION_LABELS = {
@@ -87,11 +87,11 @@ const DisputeTimeline = ({ status }) => {
           return (
             <React.Fragment key={step}>
               <div
-                className={`h-2.5 w-2.5 rounded-full ${done ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                className={`h-2.5 w-2.5 rounded-full ${done ? 'bg-neutral-600' : 'bg-gray-300'}`}
                 title={step}
               />
               {index < steps.length - 1 && (
-                <div className={`h-0.5 flex-1 ${level > index ? 'bg-indigo-500' : 'bg-gray-200'}`} />
+                <div className={`h-0.5 flex-1 ${level > index ? 'bg-neutral-500' : 'bg-gray-200'}`} />
               )}
             </React.Fragment>
           );
@@ -267,11 +267,11 @@ export default function MyComplaints() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-neutral-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <User className="w-8 h-8 text-white" />
           </div>
           <p className="text-gray-500">Vous devez être connecté pour accéder à cette page.</p>
-          <Link to="/login" className="mt-4 inline-flex items-center gap-2 text-indigo-600 font-medium">
+          <Link to="/login" className="mt-4 inline-flex items-center gap-2 text-neutral-600 font-medium">
             <ArrowLeft size={16} />
             Retour à la connexion
           </Link>
@@ -285,7 +285,7 @@ export default function MyComplaints() {
       <div className="mx-auto max-w-4xl px-4 py-6 space-y-6">
         <Link
           to="/profile"
-          className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-indigo-600"
+          className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-neutral-600"
         >
           <ArrowLeft size={18} />
           Retour au profil
@@ -293,8 +293,8 @@ export default function MyComplaints() {
 
         <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
           <div className="flex items-start gap-3 mb-4">
-            <div className="rounded-xl bg-rose-100 p-2">
-              <ShieldAlert className="h-5 w-5 text-rose-600" />
+            <div className="rounded-xl bg-neutral-100 p-2">
+              <ShieldAlert className="h-5 w-5 text-neutral-600" />
             </div>
             <div>
               <h1 className="text-xl font-semibold text-gray-900">Gestion des litiges</h1>
@@ -346,7 +346,7 @@ export default function MyComplaints() {
             <div className="space-y-2">
               <label className="flex items-center justify-between text-sm font-medium text-gray-700">
                 <span className="inline-flex items-center gap-2">
-                  <MessageCircle className="h-4 w-4 text-rose-500" />
+                  <MessageCircle className="h-4 w-4 text-neutral-500" />
                   Description *
                 </span>
                 <span className="text-xs text-gray-500">
@@ -371,7 +371,7 @@ export default function MyComplaints() {
               <label className="text-sm font-medium text-gray-700">
                 Preuves (images/PDF, max {MAX_FILES})
               </label>
-              <label className="flex cursor-pointer items-center justify-between rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600 hover:border-indigo-300 hover:bg-indigo-50">
+              <label className="flex cursor-pointer items-center justify-between rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600 hover:border-neutral-300 hover:bg-neutral-50">
                 <span className="inline-flex items-center gap-2">
                   <Upload className="h-4 w-4" />
                   Ajouter des preuves
@@ -400,7 +400,7 @@ export default function MyComplaints() {
                       </span>
                       <button
                         type="button"
-                        className="font-semibold text-rose-600"
+                        className="font-semibold text-neutral-600"
                         onClick={() => removeFile(index)}
                         disabled={submitLoading}
                       >
@@ -423,7 +423,7 @@ export default function MyComplaints() {
               <button
                 type="submit"
                 disabled={submitLoading}
-                className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl bg-neutral-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-60"
               >
                 {submitLoading ? (
                   <>
@@ -500,9 +500,9 @@ export default function MyComplaints() {
                   )}
 
                   {dispute.sellerResponse && (
-                    <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50 p-3">
-                      <p className="text-xs font-semibold text-indigo-700">Réponse vendeur</p>
-                      <p className="text-sm text-indigo-900 whitespace-pre-line">{dispute.sellerResponse}</p>
+                    <div className="mt-3 rounded-xl border border-neutral-100 bg-neutral-50 p-3">
+                      <p className="text-xs font-semibold text-neutral-700">Réponse vendeur</p>
+                      <p className="text-sm text-neutral-900 whitespace-pre-line">{dispute.sellerResponse}</p>
                     </div>
                   )}
 

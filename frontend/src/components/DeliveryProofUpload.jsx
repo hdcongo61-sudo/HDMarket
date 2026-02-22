@@ -96,9 +96,9 @@ export default function DeliveryProofUpload({ orderId, initialProofs = [], onSuc
   };
 
   return (
-    <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4 space-y-4">
+    <div className="rounded-2xl border border-neutral-200 bg-neutral-50/40 p-4 space-y-4">
       <div className="flex items-center gap-2">
-        <Camera className="w-4 h-4 text-indigo-600" />
+        <Camera className="w-4 h-4 text-neutral-600" />
         <h4 className="text-sm font-bold text-gray-900 uppercase">Soumettre la preuve de livraison</h4>
       </div>
 
@@ -112,7 +112,7 @@ export default function DeliveryProofUpload({ orderId, initialProofs = [], onSuc
                 href={buildFileUrl(proof?.url || proof?.path || '')}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-white px-2 py-1 text-xs text-indigo-700"
+                className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-700"
               >
                 <Paperclip className="w-3 h-3" />
                 Preuve {index + 1}
@@ -124,7 +124,7 @@ export default function DeliveryProofUpload({ orderId, initialProofs = [], onSuc
 
       <div>
         <label className="block text-xs font-semibold text-gray-700 mb-1">Photos de livraison (max {MAX_FILES})</label>
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700">
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs font-semibold text-neutral-700">
           <Camera className="w-4 h-4" />
           Ajouter des photos
           <input type="file" accept="image/*" multiple className="hidden" onChange={onFilesChange} />
@@ -192,7 +192,7 @@ export default function DeliveryProofUpload({ orderId, initialProofs = [], onSuc
           type="button"
           onClick={submit}
           disabled={loading}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-lg bg-neutral-600 px-3 py-2 text-xs font-semibold text-white hover:bg-neutral-700 disabled:opacity-60"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           {loading ? 'Envoi...' : 'Soumettre la preuve'}

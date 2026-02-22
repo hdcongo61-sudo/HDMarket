@@ -8,6 +8,7 @@ import {
   normalizeMarketplacePromoCode,
   previewMarketplacePromoForOrder
 } from '../utils/marketplacePromoCodeService.js';
+import { getWholesalePricing } from '../utils/wholesaleUtils.js';
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
@@ -746,7 +747,7 @@ export const previewMarketplacePromoCode = asyncHandler(async (req, res) => {
     const productDocs = await Product.find({
       _id: { $in: normalizedItems.map((item) => item.productId) },
       status: 'approved'
-    }).select('_id user price');
+    }).select('_id user price wholesaleEnabled wholesaleTiers');
 
     if (!productDocs.length) {
       return res.status(404).json({ message: 'Produits introuvables.' });
@@ -762,10 +763,12 @@ export const previewMarketplacePromoCode = asyncHandler(async (req, res) => {
       .map((item) => {
         const product = byId.get(String(item.productId));
         if (!product) return null;
+        const qty = Math.max(1, Number(item.quantity || 1));
+        const wholesalePricing = getWholesalePricing(product, qty);
         return {
           product: product._id,
-          quantity: Math.max(1, Number(item.quantity || 1)),
-          unitPrice: Number(product.price || 0)
+          quantity: qty,
+          unitPrice: Number(wholesalePricing.unitPrice || product.price || 0)
         };
       })
       .filter(Boolean);
@@ -773,16 +776,20 @@ export const previewMarketplacePromoCode = asyncHandler(async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({ message: 'Produit invalide.' });
     }
-    const product = await Product.findOne({ _id: productId, status: 'approved' }).select('user price');
+    const product = await Product.findOne({ _id: productId, status: 'approved' }).select(
+      'user price wholesaleEnabled wholesaleTiers'
+    );
     if (!product) {
       return res.status(404).json({ message: 'Produit introuvable.' });
     }
     boutiqueId = product.user;
+    const qty = Math.max(1, Number(quantity || 1));
+    const wholesalePricing = getWholesalePricing(product, qty);
     previewItems = [
       {
         product: productId,
-        quantity: Math.max(1, Number(quantity || 1)),
-        unitPrice: Number(product.price || 0)
+        quantity: qty,
+        unitPrice: Number(wholesalePricing.unitPrice || product.price || 0)
       }
     ];
   }

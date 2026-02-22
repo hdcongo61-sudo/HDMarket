@@ -26,17 +26,12 @@ import {
   Store,
   Sparkles,
   X,
-  Search,
-  Filter,
   ChevronDown,
-  ChevronUp,
-  RotateCcw,
   LayoutGrid,
   List,
   RefreshCw,
   Wifi,
   WifiOff,
-  Trash2,
   ChevronRight
 } from 'lucide-react';
 import { buildProductPath } from '../utils/links';
@@ -53,10 +48,13 @@ import { useNavigate } from 'react-router-dom';
 import useIsMobile from '../hooks/useIsMobile';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { getPickupShopAddress, isPickupOrder } from '../utils/pickupAddress';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
   paid: 'Payée',
+  ready_for_pickup: 'Prête à récupérer',
+  picked_up_confirmed: 'Retrait confirmé',
   ready_for_delivery: 'Prête à livrer',
   out_for_delivery: 'En cours de livraison',
   delivery_proof_submitted: 'Preuve soumise',
@@ -73,20 +71,22 @@ const STATUS_LABELS = {
 };
 
 const STATUS_STYLES = {
-  pending: { header: 'bg-gray-600', card: 'bg-gray-50 border-gray-200 text-gray-700' },
-  pending_installment: { header: 'bg-violet-600', card: 'bg-violet-50 border-violet-200 text-violet-800' },
-  installment_active: { header: 'bg-indigo-600', card: 'bg-indigo-50 border-indigo-200 text-indigo-800' },
-  overdue_installment: { header: 'bg-rose-600', card: 'bg-rose-50 border-rose-200 text-rose-800' },
-  confirmed: { header: 'bg-amber-600', card: 'bg-amber-50 border-amber-200 text-amber-800' },
-  delivering: { header: 'bg-blue-600', card: 'bg-blue-50 border-blue-200 text-blue-800' },
-  delivered: { header: 'bg-emerald-600', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
-  completed: { header: 'bg-emerald-700', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
-  cancelled: { header: 'bg-red-600', card: 'bg-red-50 border-red-200 text-red-800' }
+  pending: { header: 'bg-neutral-700', card: 'bg-white border-neutral-200 text-neutral-800 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-100' },
+  pending_installment: { header: 'bg-neutral-700', card: 'bg-white border-neutral-200 text-neutral-800 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-100' },
+  installment_active: { header: 'bg-neutral-700', card: 'bg-white border-neutral-200 text-neutral-800 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-100' },
+  overdue_installment: { header: 'bg-neutral-700', card: 'bg-white border-neutral-200 text-neutral-800 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-100' },
+  confirmed: { header: 'bg-neutral-700', card: 'bg-white border-neutral-200 text-neutral-800 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-100' },
+  delivering: { header: 'bg-neutral-700', card: 'bg-white border-neutral-200 text-neutral-800 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-100' },
+  delivered: { header: 'bg-neutral-700', card: 'bg-white border-neutral-200 text-neutral-800 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-100' },
+  completed: { header: 'bg-neutral-700', card: 'bg-white border-neutral-200 text-neutral-800 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-100' },
+  cancelled: { header: 'bg-neutral-700', card: 'bg-white border-neutral-200 text-neutral-800 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-100' }
 };
 
 const STATUS_ICONS = {
   pending_payment: Clock,
   paid: CreditCard,
+  ready_for_pickup: Package,
+  picked_up_confirmed: CheckCircle,
   ready_for_delivery: Package,
   out_for_delivery: Truck,
   delivery_proof_submitted: ClipboardList,
@@ -113,6 +113,8 @@ const STATUS_TABS = [
   { key: 'all', label: 'Toutes', icon: ClipboardList, count: null },
   { key: 'pending_payment', label: 'Paiement', icon: Clock, count: null },
   { key: 'paid', label: 'Payées', icon: CreditCard, count: null },
+  { key: 'ready_for_pickup', label: 'Prêtes au retrait', icon: Package, count: null },
+  { key: 'picked_up_confirmed', label: 'Retraits confirmés', icon: CheckCircle, count: null },
   { key: 'ready_for_delivery', label: 'Prêtes à livrer', icon: Package, count: null },
   { key: 'out_for_delivery', label: 'En livraison', icon: Truck, count: null },
   { key: 'delivery_proof_submitted', label: 'Preuve soumise', icon: ClipboardList, count: null },
@@ -197,15 +199,42 @@ const getEffectiveOrderStatus = (order) => {
   return map[order.status] || order.status || 'pending';
 };
 
+const getFullPaymentBadgeStatus = (order) => {
+  if (!order || order.paymentType === 'installment') return 'pending_payment';
+
+  const rawStatus = String(order.status || '').toLowerCase();
+  const paidAmount = Number(order.paidAmount || 0);
+
+  if (rawStatus === 'cancelled') {
+    return paidAmount > 0 ? 'paid' : 'pending_payment';
+  }
+
+  const paidStatuses = new Set([
+    'paid',
+    'ready_for_pickup',
+    'picked_up_confirmed',
+    'ready_for_delivery',
+    'out_for_delivery',
+    'delivery_proof_submitted',
+    'confirmed_by_client',
+    'confirmed',
+    'delivering',
+    'delivered',
+    'completed'
+  ]);
+
+  return paidStatuses.has(rawStatus) ? 'paid' : 'pending_payment';
+};
+
 const OrderProgress = ({ status }) => {
   const { t } = useAppSettings();
   const currentIndexRaw = ORDER_FLOW.findIndex((step) => step.id === status);
   const currentIndex = currentIndexRaw >= 0 ? currentIndexRaw : 0;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5">
+    <div className="bg-white rounded-2xl border border-gray-100 p-4">
       <div className="flex items-center gap-2 mb-4">
-        <div className="p-2 rounded-lg bg-indigo-600">
+        <div className="p-2 rounded-lg bg-neutral-900">
           <TrendingUp className="w-4 h-4 text-white" />
         </div>
         <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">{t('orders.tracking', 'Suivi de commande')}</h3>
@@ -214,7 +243,7 @@ const OrderProgress = ({ status }) => {
         {/* Progress Line */}
         <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200">
           <div
-            className="absolute top-0 left-0 w-full bg-indigo-600 transition-all duration-500"
+            className="absolute top-0 left-0 w-full bg-neutral-900 transition-all duration-500"
             style={{ height: `${(currentIndex / (ORDER_FLOW.length - 1)) * 100}%` }}
           />
         </div>
@@ -226,9 +255,9 @@ const OrderProgress = ({ status }) => {
             const isCurrent = currentIndex === index;
             const colorClasses = {
               gray: 'bg-gray-600',
-              amber: 'bg-amber-600',
-              blue: 'bg-blue-600',
-              emerald: 'bg-emerald-600'
+              amber: 'bg-neutral-700',
+              blue: 'bg-neutral-700',
+              emerald: 'bg-neutral-700'
             };
             
             return (
@@ -254,7 +283,7 @@ const OrderProgress = ({ status }) => {
                       </span>
                     )}
                     {!isCurrent && reached && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-neutral-100 text-neutral-700">
                         Terminé
                       </span>
                     )}
@@ -281,6 +310,8 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
   const computedTotal = orderItems.reduce((sum, item) => sum + Number(item.snapshot?.price || 0) * Number(item.quantity || 1), 0);
   const totalAmount = Number(order.totalAmount ?? computedTotal);
   const effectiveStatus = getEffectiveOrderStatus(order);
+  const pickupOrder = isPickupOrder(order);
+  const pickupShopAddress = pickupOrder ? getPickupShopAddress(order) : null;
 
   // Progress percentage based on status
   const progressMap = { pending: 25, confirmed: 50, delivering: 75, delivered: 100, cancelled: 0 };
@@ -288,10 +319,10 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
 
   // Status colors
   const statusColors = {
-    pending: { bg: 'bg-amber-500', light: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
-    confirmed: { bg: 'bg-blue-500', light: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
-    delivering: { bg: 'bg-teal-500', light: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200' },
-    delivered: { bg: 'bg-emerald-500', light: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+    pending: { bg: 'bg-neutral-500 dark:bg-neutral-300', light: 'bg-neutral-100 dark:bg-neutral-800', text: 'text-neutral-700 dark:text-neutral-200', border: 'border-neutral-200 dark:border-neutral-700' },
+    confirmed: { bg: 'bg-neutral-600 dark:bg-neutral-300', light: 'bg-neutral-100 dark:bg-neutral-800', text: 'text-neutral-800 dark:text-neutral-100', border: 'border-neutral-200 dark:border-neutral-700' },
+    delivering: { bg: 'bg-neutral-700 dark:bg-neutral-200', light: 'bg-neutral-100 dark:bg-neutral-800', text: 'text-neutral-800 dark:text-neutral-100', border: 'border-neutral-200 dark:border-neutral-700' },
+    delivered: { bg: 'bg-neutral-800 dark:bg-neutral-200', light: 'bg-neutral-100 dark:bg-neutral-800', text: 'text-neutral-900 dark:text-neutral-100', border: 'border-neutral-200 dark:border-neutral-700' },
     cancelled: { bg: 'bg-red-500', light: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' }
   };
   const colors = statusColors[effectiveStatus] || statusColors.pending;
@@ -300,8 +331,20 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
   const timelineSteps = [
     { id: 'pending', label: 'Passée', icon: ClipboardList, time: order.createdAt },
     { id: 'confirmed', label: 'Confirmée', icon: Package, time: order.confirmedAt },
-    { id: 'delivering', label: 'Expédiée', icon: Truck, time: order.shippedAt },
-    { id: 'delivered', label: 'Livrée', icon: CheckCircle, time: order.deliveredAt }
+    {
+      id: 'delivering',
+      label: pickupOrder ? 'Prête au retrait' : 'Expédiée',
+      icon: pickupOrder ? Store : Truck,
+      time: pickupOrder
+        ? order.readyForPickupAt || order.shippedAt || order.updatedAt
+        : order.outForDeliveryAt || order.shippedAt
+    },
+    {
+      id: 'delivered',
+      label: pickupOrder ? 'Retirée' : 'Livrée',
+      icon: CheckCircle,
+      time: order.completedAt || order.clientDeliveryConfirmedAt || order.deliveredAt
+    }
   ];
 
   const statusIndex = ['pending', 'confirmed', 'delivering', 'delivered'].indexOf(effectiveStatus);
@@ -318,9 +361,9 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
   };
 
   return (
-    <div className="bg-white rounded-3xl shadow-lg overflow-hidden border border-gray-100">
+    <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
       {/* Header with Progress Circle */}
-      <div className="px-5 py-4 border-b border-gray-100">
+      <div className="px-4 py-4 border-b border-gray-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {/* Circular Progress */}
@@ -329,7 +372,7 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
                 <circle cx="28" cy="28" r="24" stroke="#e5e7eb" strokeWidth="4" fill="none" />
                 <circle
                   cx="28" cy="28" r="24"
-                  stroke={isCancelled ? '#ef4444' : '#6366f1'}
+                  stroke={isCancelled ? '#ef4444' : '#0a0a0a'}
                   strokeWidth="4"
                   fill="none"
                   strokeLinecap="round"
@@ -395,22 +438,22 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
 
       {/* Delivery Code - Prominent display */}
       {order.deliveryCode && effectiveStatus !== 'cancelled' && (
-        <div className="mx-4 mt-3 p-4 rounded-2xl bg-indigo-50 border-2 border-indigo-200">
+        <div className="mx-4 mt-3 p-4 rounded-2xl bg-neutral-100 dark:bg-neutral-800 border-2 border-neutral-200 dark:border-neutral-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-indigo-600 uppercase tracking-wide">{t('orders.deliveryCode', 'Code de livraison')}</p>
-              <p className="text-3xl font-black text-indigo-900 tracking-widest font-mono mt-1">
+              <p className="text-xs font-medium text-neutral-800 uppercase tracking-wide">{t('orders.deliveryCode', 'Code de livraison')}</p>
+              <p className="text-3xl font-black text-neutral-900 tracking-widest font-mono mt-1">
                 {order.deliveryCode}
               </p>
             </div>
-            <ShieldCheck className="w-10 h-10 text-indigo-400" />
+            <ShieldCheck className="w-10 h-10 text-neutral-500" />
           </div>
         </div>
       )}
 
       {/* Timeline */}
       {!isCancelled && (
-        <div className="px-5 py-4">
+        <div className="px-4 py-4">
           <div className="flex items-center gap-2 mb-4">
             <Clock className="w-4 h-4 text-gray-400" />
             <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{t('orders.tracking', 'Suivi')}</span>
@@ -419,7 +462,7 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
             {/* Timeline Line */}
             <div className="absolute left-[15px] top-4 bottom-4 w-0.5 bg-gray-200">
               <div
-                className="absolute top-0 left-0 w-full bg-indigo-500 transition-all duration-500"
+                className="absolute top-0 left-0 w-full bg-neutral-900 transition-all duration-500"
                 style={{ height: `${(statusIndex / 3) * 100}%` }}
               />
             </div>
@@ -434,9 +477,9 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
                   <div key={step.id} className="flex items-center gap-4 relative">
                     <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
                       isReached
-                        ? 'bg-indigo-500 text-white shadow-md'
+                        ? 'bg-neutral-900 text-white shadow-md'
                         : 'bg-gray-100 text-gray-400'
-                    } ${isCurrent ? 'ring-4 ring-indigo-100' : ''}`}>
+                    } ${isCurrent ? 'ring-4 ring-neutral-100' : ''}`}>
                       <Icon className="w-4 h-4" />
                     </div>
                     <div className="flex-1 flex items-center justify-between">
@@ -493,7 +536,7 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
               type="button"
               onClick={() => onSkipWindow(order._id)}
               disabled={skipLoadingId === order._id}
-              className="px-4 py-3 rounded-xl bg-emerald-500 text-white font-semibold text-sm hover:bg-emerald-600 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+              className="px-4 py-3 rounded-xl bg-neutral-900 text-white font-semibold text-sm hover:bg-neutral-700 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
             >
               <ShieldCheck className="w-4 h-4" />
               {skipLoadingId === order._id ? '...' : 'Autoriser'}
@@ -501,7 +544,7 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
             <button
               type="button"
               onClick={() => onCancelOrder(order._id)}
-              className="px-4 py-3 rounded-xl bg-red-500 text-white font-semibold text-sm hover:bg-red-600 transition-all flex items-center justify-center gap-2"
+              className="px-4 py-3 rounded-xl bg-red-600 text-white font-semibold text-sm hover:bg-red-700 transition-all flex items-center justify-center gap-2"
             >
               <X className="w-4 h-4" />
               Annuler
@@ -530,8 +573,8 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
                     className="w-12 h-12 rounded-lg object-cover"
                   />
                 ) : (
-                  <div className="w-12 h-12 rounded-lg bg-indigo-100 flex items-center justify-center">
-                    <Package className="w-5 h-5 text-indigo-500" />
+                  <div className="w-12 h-12 rounded-lg bg-neutral-100 flex items-center justify-center">
+                    <Package className="w-5 h-5 text-neutral-700" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
@@ -553,20 +596,34 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4 text-gray-500" />
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{t('orders.delivery', 'Livraison')}</span>
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+              {pickupOrder ? 'Retrait boutique' : t('orders.delivery', 'Livraison')}
+            </span>
             </div>
-            {(order.status === 'pending' || order.status === 'confirmed') && (
+            {!pickupOrder && (order.status === 'pending' || order.status === 'confirmed') && (
               <button
                 type="button"
                 onClick={() => onEditAddress(order)}
-                className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                className="text-xs font-semibold text-neutral-800 hover:text-neutral-700"
               >
                 Modifier
               </button>
             )}
           </div>
-          <p className="text-sm font-medium text-gray-900">{order.deliveryAddress || 'Non renseignée'}</p>
-          <p className="text-xs text-gray-500 mt-1">{order.deliveryCity || 'Ville non renseignée'}</p>
+          {pickupOrder ? (
+            <>
+              <p className="text-sm font-semibold text-gray-900">{pickupShopAddress?.shopName || 'Boutique'}</p>
+              <p className="text-sm font-medium text-gray-900">{pickupShopAddress?.addressLine || 'Adresse boutique non renseignée'}</p>
+              {pickupShopAddress?.cityLine ? (
+                <p className="text-xs text-gray-500 mt-1">{pickupShopAddress.cityLine}</p>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-medium text-gray-900">{order.deliveryAddress || 'Non renseignée'}</p>
+              <p className="text-xs text-gray-500 mt-1">{order.deliveryCity || 'Ville non renseignée'}</p>
+            </>
+          )}
         </div>
       </div>
 
@@ -583,7 +640,7 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
             type="button"
             onClick={() => onReorder(order)}
             disabled={reordering}
-            className="w-full px-4 py-3 rounded-xl bg-indigo-500 text-white font-semibold hover:bg-indigo-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full px-4 py-3 rounded-xl bg-neutral-900 text-white font-semibold hover:bg-neutral-900 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {reordering ? (
               <Clock className="w-4 h-4 animate-spin" />
@@ -613,6 +670,7 @@ const OrderSummaryCard = ({ order }) => {
       ? order.installmentSaleStatus || 'confirmed'
       : order.installmentSaleStatus || '';
   const effectiveStatus = getEffectiveOrderStatus(order);
+  const fullPaymentBadgeStatus = getFullPaymentBadgeStatus(order);
   const installmentProgress =
     installmentTotal > 0 ? Math.min(100, Math.round((installmentPaid / installmentTotal) * 100)) : 0;
   const firstItem = orderItems[0];
@@ -639,8 +697,8 @@ const OrderSummaryCard = ({ order }) => {
         {firstItem?.snapshot?.image ? (
           <img src={firstItem.snapshot.image} alt={productTitle} className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover border border-gray-200 flex-shrink-0" />
         ) : (
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
-            <Package className="w-8 h-8 text-indigo-600" />
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-neutral-100 flex items-center justify-center flex-shrink-0">
+            <Package className="w-8 h-8 text-neutral-800" />
           </div>
         )}
         <div className="min-w-0 flex-1">
@@ -653,12 +711,12 @@ const OrderSummaryCard = ({ order }) => {
           </div>
           {isInstallmentOrder && (
             <div className="mt-2 space-y-1">
-              <p className="text-xs font-semibold text-indigo-700">
+              <p className="text-xs font-semibold text-neutral-700">
                 {t('orders.installmentProgress', 'Progression tranche')}: {installmentProgress}%
               </p>
-              <div className="h-1.5 rounded-full bg-indigo-100 overflow-hidden">
+              <div className="h-1.5 rounded-full bg-neutral-100 overflow-hidden">
                 <div
-                  className="h-full bg-indigo-600"
+                  className="h-full bg-neutral-900"
                   style={{ width: `${installmentProgress}%` }}
                 />
               </div>
@@ -678,12 +736,16 @@ const OrderSummaryCard = ({ order }) => {
       </div>
       {/* Footer: total + CTA */}
       <div className="px-4 pb-4 flex items-center justify-between gap-3">
-        <StatusBadge paymentType={isInstallmentOrder ? 'installment' : 'full'} compact />
+        {isInstallmentOrder ? (
+          <StatusBadge paymentType="installment" compact />
+        ) : (
+          <StatusBadge status={fullPaymentBadgeStatus} compact />
+        )}
         <div className="flex items-center gap-2">
           <span className="font-bold text-gray-900">
             {formatCurrency(isInstallmentOrder ? installmentPaid : totalAmount)}
           </span>
-          <span className="text-indigo-600 font-medium text-sm flex items-center gap-0.5">{t('orders.viewDetail', 'Voir le détail')} <ChevronRight className="w-4 h-4" /></span>
+          <span className="text-neutral-800 font-medium text-sm flex items-center gap-0.5">{t('orders.viewDetail', 'Voir le détail')} <ChevronRight className="w-4 h-4" /></span>
         </div>
       </div>
     </Link>
@@ -705,18 +767,7 @@ export default function UserOrders() {
   const [selectedOrderForEdit, setSelectedOrderForEdit] = useState(null);
   const [reordering, setReordering] = useState(false);
   const [skipLoadingId, setSkipLoadingId] = useState(null);
-  const [searchDraft, setSearchDraft] = useState('');
-  const [searchValue, setSearchValue] = useState('');
   const [orderUnreadCounts, setOrderUnreadCounts] = useState({});
-  const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({
-    dateFrom: '',
-    dateTo: '',
-    amountMin: '',
-    amountMax: '',
-    shopName: ''
-  });
-  const [availableShops, setAvailableShops] = useState([]);
   const [viewMode, setViewMode] = useState('card'); // 'card' or 'list'
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -877,23 +928,11 @@ export default function UserOrders() {
           return sum + Number(order.totalAmount ?? computed);
         }, 0);
         const byStatus = allOrders.reduce((acc, order) => {
-          const status = getEffectiveOrderStatus(order);
+          const status = order.status || 'pending';
           acc[status] = (acc[status] || 0) + 1;
           return acc;
         }, {});
         setStats({ total, totalAmount, byStatus });
-
-        // Extract unique shop names from all orders
-        const shopsSet = new Set();
-        allOrders.forEach((order) => {
-          const items = order.items || (order.productSnapshot ? [{ snapshot: order.productSnapshot }] : []);
-          items.forEach((item) => {
-            if (item.snapshot?.shopName) {
-              shopsSet.add(item.snapshot.shopName);
-            }
-          });
-        });
-        setAvailableShops(Array.from(shopsSet).sort());
       } catch (err) {
         console.error('Error loading stats:', err);
       } finally {
@@ -943,9 +982,6 @@ export default function UserOrders() {
         if (activeStatus !== 'all') {
           params.set('status', activeStatus);
         }
-        if (searchValue.trim()) {
-          params.set('search', searchValue.trim());
-        }
         const { data } = await api.get(`/orders?${params.toString()}`);
         const items = Array.isArray(data) ? data : data?.items || [];
         const totalPages = Math.max(1, Number(data?.totalPages) || 1);
@@ -974,77 +1010,10 @@ export default function UserOrders() {
       }
     };
     loadOrders();
-  }, [activeStatus, page, searchValue, user?._id]);
+  }, [activeStatus, page, user?._id]);
 
-  // Debounce search input
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setSearchValue(searchDraft.trim());
-    }, 400);
-    return () => clearTimeout(handler);
-  }, [searchDraft]);
-
-  // Reset to page 1 when search or status changes
-  useEffect(() => {
-    setPage(1);
-  }, [activeStatus, searchValue]);
-
-  // Filter orders based on multiple criteria
-  const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
-      // Date filter
-      if (filters.dateFrom) {
-        const orderDate = new Date(order.createdAt);
-        const fromDate = new Date(filters.dateFrom);
-        fromDate.setHours(0, 0, 0, 0);
-        if (orderDate < fromDate) return false;
-      }
-      if (filters.dateTo) {
-        const orderDate = new Date(order.createdAt);
-        const toDate = new Date(filters.dateTo);
-        toDate.setHours(23, 59, 59, 999);
-        if (orderDate > toDate) return false;
-      }
-
-      // Amount filter
-      const orderItems = order.items || (order.productSnapshot ? [{ snapshot: order.productSnapshot, quantity: 1 }] : []);
-      const computedTotal = orderItems.reduce(
-        (sum, item) => sum + Number(item.snapshot?.price || 0) * Number(item.quantity || 1),
-        0
-      );
-      const totalAmount = Number(order.totalAmount ?? computedTotal);
-
-      if (filters.amountMin && totalAmount < Number(filters.amountMin)) return false;
-      if (filters.amountMax && totalAmount > Number(filters.amountMax)) return false;
-
-      // Shop filter
-      if (filters.shopName) {
-        const items = order.items || (order.productSnapshot ? [{ snapshot: order.productSnapshot }] : []);
-        const hasShop = items.some((item) =>
-          item.snapshot?.shopName?.toLowerCase().includes(filters.shopName.toLowerCase())
-        );
-        if (!hasShop) return false;
-      }
-
-      return true;
-    });
-  }, [orders, filters]);
-
-  const hasActiveFilters = filters.dateFrom || filters.dateTo || filters.amountMin || filters.amountMax || filters.shopName;
-
-  const resetFilters = () => {
-    setFilters({
-      dateFrom: '',
-      dateTo: '',
-      amountMin: '',
-      amountMax: '',
-      shopName: ''
-    });
-  };
-
-  const emptyMessage = hasActiveFilters
-    ? 'Aucune commande ne correspond à vos critères de filtrage.'
-    : activeStatus === 'all'
+  const emptyMessage =
+    activeStatus === 'all'
       ? 'Vous n\'avez pas encore de commande.'
       : `Aucune commande ${STATUS_LABELS[activeStatus].toLowerCase()} pour le moment.`;
 
@@ -1291,7 +1260,7 @@ export default function UserOrders() {
       {/* Pull-to-Refresh Indicator */}
       {pullDistance > 0 && (
         <div
-          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center bg-indigo-600 text-white transition-all duration-200"
+          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center bg-neutral-900 text-white transition-all duration-200"
           style={{ height: Math.min(pullDistance, 80) }}
         >
           <RefreshCw
@@ -1306,7 +1275,7 @@ export default function UserOrders() {
 
       {/* Refreshing Indicator */}
       {isRefreshing && (
-        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center bg-indigo-600 text-white py-3">
+        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center bg-neutral-900 text-white py-3">
           <RefreshCw className="w-5 h-5 animate-spin" />
           <span className="ml-2 text-sm font-medium">{t('orders.refreshing', 'Actualisation...')}</span>
         </div>
@@ -1314,7 +1283,7 @@ export default function UserOrders() {
 
       {/* Offline Banner */}
       {!isOnline && (
-        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 bg-amber-500 text-white py-2 px-4">
+        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 bg-neutral-900 text-white py-2 px-4">
           <WifiOff className="w-4 h-4" />
           <span className="text-sm font-medium">{t('orders.offlineMode', 'Mode hors ligne - Données en cache')}</span>
         </div>
@@ -1343,7 +1312,7 @@ export default function UserOrders() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 sm:mb-8">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-indigo-600">
+                <div className="p-3 rounded-xl bg-neutral-900">
                   <ClipboardList className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-2xl font-bold text-gray-900">{stats.total}</span>
@@ -1353,7 +1322,7 @@ export default function UserOrders() {
             </div>
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-emerald-600">
+                <div className="p-3 rounded-xl bg-neutral-700">
                   <DollarSign className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalAmount)}</span>
@@ -1363,7 +1332,7 @@ export default function UserOrders() {
             </div>
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-amber-600">
+                <div className="p-3 rounded-xl bg-neutral-700">
                   <Clock className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-2xl font-bold text-gray-900">{stats.byStatus.pending || 0}</span>
@@ -1374,241 +1343,14 @@ export default function UserOrders() {
           </div>
         )}
 
-        {/* Search and Status Tabs */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-6 sm:mb-8 space-y-4">
-          {/* Search Bar and Filter Toggle */}
-          <div className={`flex items-center gap-2 sm:gap-3 ${isMobile ? 'flex-col' : ''}`}>
-            <div className={`relative w-full ${isMobile ? '' : 'flex-1 max-w-md'}`}>
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder={t('orders.searchPlaceholder', 'Rechercher par produit, boutique, adresse...')}
-                value={searchDraft}
-                onChange={(e) => setSearchDraft(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border-2 border-gray-200 bg-white text-sm font-medium text-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
-                title={t('orders.searchTitle', 'Rechercher par nom de produit, nom de boutique, adresse de livraison ou code de livraison')}
-              />
-              {searchDraft && (
-                <button
-                  type="button"
-                  onClick={() => setSearchDraft('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-            <div className={`flex items-center gap-2 ${isMobile ? 'w-full' : ''}`}>
-            <button
-              type="button"
-              onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 min-h-[44px] ${
-                showFilters || hasActiveFilters
-                  ? 'bg-indigo-600 text-white shadow-lg'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
-              } ${isMobile ? 'flex-1' : ''}`}
-            >
-              <Filter className="w-4 h-4" />
-              <span>{t('orders.filters', 'Filtres')}</span>
-              {hasActiveFilters && (
-                <span className="px-1.5 py-0.5 rounded-full text-xs font-bold bg-white/20">
-                  {[filters.dateFrom || filters.dateTo, filters.amountMin || filters.amountMax, filters.shopName].filter(Boolean).length}
-                </span>
-              )}
-              {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
-
-            {/* View Mode Toggle - Hidden on mobile (card view is default and best) */}
-            {!isMobile && (
-            <div className="flex items-center rounded-xl border border-gray-200 bg-gray-50 p-1">
-              <button
-                type="button"
-                onClick={() => setViewMode('card')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  viewMode === 'card'
-                    ? 'bg-white text-indigo-600 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-                title={t('orders.cardView', 'Vue carte')}
-              >
-                <LayoutGrid className="w-4 h-4" />
-                <span className="hidden sm:inline">{t('orders.card', 'Carte')}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('list')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  viewMode === 'list'
-                    ? 'bg-white text-indigo-600 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-                title={t('orders.listView', 'Vue liste')}
-              >
-                <List className="w-4 h-4" />
-                <span className="hidden sm:inline">{t('orders.list', 'Liste')}</span>
-              </button>
-            </div>
-            )}
-            </div>
-          </div>
-
-          {/* Advanced Filters Panel */}
-          {showFilters && (
-            <div className="border-t border-gray-100 pt-4 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Date Range Filter */}
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wide">
-                    <Calendar className="w-3.5 h-3.5" />
-                    {t('orders.period', 'Période')}
-                  </label>
-                  <div className="flex flex-col gap-2">
-                    <div className="relative">
-                      <input
-                        type="date"
-                        value={filters.dateFrom}
-                        onChange={(e) => setFilters((prev) => ({ ...prev, dateFrom: e.target.value }))}
-                        className="w-full px-3 py-2 rounded-lg border-2 border-gray-200 text-sm text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                        placeholder={t('orders.from', 'Du')}
-                      />
-                      <span className="absolute -top-2 left-2 px-1 bg-white text-[10px] text-gray-500">{t('orders.from', 'Du')}</span>
-                    </div>
-                    <div className="relative">
-                      <input
-                        type="date"
-                        value={filters.dateTo}
-                        onChange={(e) => setFilters((prev) => ({ ...prev, dateTo: e.target.value }))}
-                        className="w-full px-3 py-2 rounded-lg border-2 border-gray-200 text-sm text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                        placeholder={t('orders.to', 'Au')}
-                      />
-                      <span className="absolute -top-2 left-2 px-1 bg-white text-[10px] text-gray-500">{t('orders.to', 'Au')}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Amount Range Filter */}
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wide">
-                    <DollarSign className="w-3.5 h-3.5" />
-                    {t('orders.amount', 'Montant')}
-                  </label>
-                  <div className="flex flex-col gap-2">
-                    <div className="relative">
-                      <input
-                        type="number"
-                        value={filters.amountMin}
-                        onChange={(e) => setFilters((prev) => ({ ...prev, amountMin: e.target.value }))}
-                        className="w-full px-3 py-2 rounded-lg border-2 border-gray-200 text-sm text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                        placeholder={t('orders.minimum', 'Minimum')}
-                        min="0"
-                      />
-                      <span className="absolute -top-2 left-2 px-1 bg-white text-[10px] text-gray-500">{t('orders.min', 'Min')}</span>
-                    </div>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        value={filters.amountMax}
-                        onChange={(e) => setFilters((prev) => ({ ...prev, amountMax: e.target.value }))}
-                        className="w-full px-3 py-2 rounded-lg border-2 border-gray-200 text-sm text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                        placeholder={t('orders.maximum', 'Maximum')}
-                        min="0"
-                      />
-                      <span className="absolute -top-2 left-2 px-1 bg-white text-[10px] text-gray-500">{t('orders.max', 'Max')}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Shop Filter */}
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wide">
-                    <Store className="w-3.5 h-3.5" />
-                    {t('orders.shopSeller', 'Vendeur/Boutique')}
-                  </label>
-                  <select
-                    value={filters.shopName}
-                    onChange={(e) => setFilters((prev) => ({ ...prev, shopName: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border-2 border-gray-200 text-sm text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white"
-                  >
-                    <option value="">{t('orders.allShops', 'Toutes les boutiques')}</option>
-                    {availableShops.map((shop) => (
-                      <option key={shop} value={shop}>{shop}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Reset Filters Button */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-transparent">{t('orders.actions', 'Actions')}</label>
-                  <button
-                    type="button"
-                    onClick={resetFilters}
-                    disabled={!hasActiveFilters}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg border-2 border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                    {t('orders.reset', 'Réinitialiser')}
-                  </button>
-                </div>
-              </div>
-
-              {/* Active Filters Summary */}
-              {hasActiveFilters && (
-                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
-                  <span className="text-xs font-semibold text-gray-500">{t('orders.activeFilters', 'Filtres actifs:')}</span>
-                  {(filters.dateFrom || filters.dateTo) && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-50 border border-indigo-200 text-xs font-medium text-indigo-700">
-                      <Calendar className="w-3 h-3" />
-                      {filters.dateFrom && filters.dateTo
-                        ? `${new Date(filters.dateFrom).toLocaleDateString('fr-FR')} - ${new Date(filters.dateTo).toLocaleDateString('fr-FR')}`
-                        : filters.dateFrom
-                        ? `${t('orders.since', 'Depuis')} ${new Date(filters.dateFrom).toLocaleDateString('fr-FR')}`
-                        : `${t('orders.until', "Jusqu'au")} ${new Date(filters.dateTo).toLocaleDateString('fr-FR')}`}
-                      <button
-                        type="button"
-                        onClick={() => setFilters((prev) => ({ ...prev, dateFrom: '', dateTo: '' }))}
-                        className="ml-1 hover:text-indigo-900"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {(filters.amountMin || filters.amountMax) && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-xs font-medium text-emerald-700">
-                      <DollarSign className="w-3 h-3" />
-                      {filters.amountMin && filters.amountMax
-                        ? `${formatCurrency(filters.amountMin)} - ${formatCurrency(filters.amountMax)}`
-                        : filters.amountMin
-                        ? `${t('orders.min', 'Min')} ${formatCurrency(filters.amountMin)}`
-                        : `${t('orders.max', 'Max')} ${formatCurrency(filters.amountMax)}`}
-                      <button
-                        type="button"
-                        onClick={() => setFilters((prev) => ({ ...prev, amountMin: '', amountMax: '' }))}
-                        className="ml-1 hover:text-emerald-900"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {filters.shopName && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-50 border border-amber-200 text-xs font-medium text-amber-700">
-                      <Store className="w-3 h-3" />
-                      {filters.shopName}
-                      <button
-                        type="button"
-                        onClick={() => setFilters((prev) => ({ ...prev, shopName: '' }))}
-                        className="ml-1 hover:text-amber-900"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Status Tabs - Horizontal scroll on mobile with snap */}
-          <div className={`flex gap-2 ${isMobile ? 'overflow-x-auto pb-2 -mx-1 px-1 hide-scrollbar snap-x snap-mandatory' : 'flex-wrap'}`} style={isMobile ? { WebkitOverflowScrolling: 'touch' } : undefined}>
+        {/* Status Tabs */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-6 sm:mb-8">
+          <div
+            className={`flex gap-2 ${
+              isMobile ? 'overflow-x-auto pb-2 -mx-1 px-1 hide-scrollbar snap-x snap-mandatory' : 'flex-wrap'
+            }`}
+            style={isMobile ? { WebkitOverflowScrolling: 'touch' } : undefined}
+          >
             {STATUS_TABS.map((tab) => {
               const isActive = tab.key === activeStatus;
               const to = tab.key === 'all' ? '/orders' : `/orders/${tab.key}`;
@@ -1619,19 +1361,19 @@ export default function UserOrders() {
                 <Link
                   key={tab.key}
                   to={to}
-                  className={`group relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 min-h-[44px] flex-shrink-0 snap-start ${
+                  className={`group relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 min-h-[44px] ${
                     isActive
-                      ? 'bg-indigo-600 text-white shadow-lg scale-105'
+                      ? 'bg-neutral-900 text-white shadow-lg scale-105'
                       : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
-                  }`}
+                  } ${isMobile ? 'flex-shrink-0 snap-start' : ''}`}
                 >
-                  <Icon className="w-4 h-4 flex-shrink-0" />
-                  <span className="whitespace-nowrap">{tab.label}</span>
+                  <Icon className="w-4 h-4" />
+                  <span>{tab.label}</span>
                   {count > 0 && (
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold flex-shrink-0 ${
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                       isActive
                         ? 'bg-white/20 text-white'
-                        : 'bg-indigo-100 text-indigo-700'
+                        : 'bg-neutral-100 text-neutral-700'
                     }`}>
                       {count}
                     </span>
@@ -1653,33 +1395,17 @@ export default function UserOrders() {
               </div>
             </div>
           </div>
-        ) : filteredOrders.length === 0 ? (
+        ) : orders.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
             <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
-              {hasActiveFilters ? (
-                <Filter className="w-10 h-10 text-gray-400" />
-              ) : (
-                <ClipboardList className="w-10 h-10 text-gray-400" />
-              )}
+              <ClipboardList className="w-10 h-10 text-gray-400" />
             </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">
-              {hasActiveFilters ? t('orders.noResults', 'Aucun résultat') : t('orders.noOrders', 'Aucune commande')}
-            </h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">{t('orders.noOrders', 'Aucune commande')}</h3>
             <p className="text-sm text-gray-500 mb-6">{emptyMessage}</p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={resetFilters}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 min-h-[48px] rounded-xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition-all active:scale-[0.98]"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  {t('orders.resetFilters', 'Réinitialiser les filtres')}
-                </button>
-              )}
               <Link
                 to="/"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 min-h-[48px] rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 min-h-[48px] rounded-xl bg-neutral-900 text-white font-semibold hover:bg-neutral-800 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
               >
                 <Sparkles className="w-4 h-4" />
                 {t('orders.discoverProducts', 'Découvrir nos produits')}
@@ -1701,7 +1427,7 @@ export default function UserOrders() {
                   <div className="col-span-2">{t('orders.status', 'Statut')}</div>
                 </div>
                 <div className="divide-y divide-gray-100">
-                  {filteredOrders.map((order) => {
+                  {orders.map((order) => {
                     const orderItems =
                       order.items && order.items.length
                         ? order.items
@@ -1741,8 +1467,8 @@ export default function UserOrders() {
                               className="w-10 h-10 rounded-lg object-cover border border-gray-200 flex-shrink-0"
                             />
                           ) : (
-                            <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                              <Package className="w-5 h-5 text-indigo-600" />
+                            <div className="w-10 h-10 rounded-lg bg-neutral-100 flex items-center justify-center flex-shrink-0">
+                              <Package className="w-5 h-5 text-neutral-800" />
                             </div>
                           )}
                           <div className="min-w-0">
@@ -1792,7 +1518,7 @@ export default function UserOrders() {
             {/* Card View - Summary cards linking to order detail */}
             {(viewMode === 'card' || isMobile) && (
             <div className={`space-y-4 sm:space-y-6 ${isMobile ? 'pb-4' : ''}`}>
-              {filteredOrders.map((order) => (
+              {orders.map((order) => (
                 <OrderSummaryCard key={order._id} order={order} />
               ))}
             </div>
@@ -1811,7 +1537,7 @@ export default function UserOrders() {
                     type="button"
                     onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                     disabled={page <= 1}
-                    className="px-5 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
                     {t('orders.previous', 'Précédent')}
                   </button>
@@ -1819,7 +1545,7 @@ export default function UserOrders() {
                     type="button"
                     onClick={() => setPage((prev) => Math.min(meta.totalPages, prev + 1))}
                     disabled={page >= meta.totalPages}
-                    className="px-5 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
                     {t('orders.next', 'Suivant')}
                   </button>

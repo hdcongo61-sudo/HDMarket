@@ -390,12 +390,12 @@ export default function AdminReports() {
   }, [report]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-indigo-50/30 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-neutral-50/30 dark:from-gray-900 dark:to-gray-800">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <header className="mb-8">
           <div className="flex items-center gap-3 mb-2">
-            <FileText className="w-8 h-8 text-indigo-600" />
-            <h1 className="text-3xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            <FileText className="w-8 h-8 text-neutral-600" />
+            <h1 className="text-3xl font-black bg-gradient-to-r from-neutral-600 to-neutral-600 bg-clip-text text-transparent">
               Rapports Administratifs
             </h1>
           </div>
@@ -417,7 +417,7 @@ export default function AdminReports() {
               <select
                 value={period}
                 onChange={(e) => setPeriod(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
               >
                 {PERIOD_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -438,7 +438,7 @@ export default function AdminReports() {
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                   />
                 </div>
 
@@ -450,7 +450,7 @@ export default function AdminReports() {
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                   />
                 </div>
               </>
@@ -467,7 +467,7 @@ export default function AdminReports() {
             <button
               onClick={generateReport}
               disabled={loading}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-60"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-neutral-600 text-white text-sm font-semibold hover:bg-neutral-700 active:scale-95 transition-all disabled:opacity-60"
             >
               <Calendar className="w-4 h-4" />
               {loading ? 'Génération...' : 'Générer le rapport'}
@@ -745,8 +745,8 @@ export default function AdminReports() {
 // Stat Card Component
 function StatCard({ icon: Icon, title, value, change, color }) {
   const colors = {
-    blue: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400',
-    purple: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400',
+    blue: 'bg-neutral-50 dark:bg-neutral-900/20 text-neutral-600 dark:text-neutral-400',
+    purple: 'bg-neutral-50 dark:bg-neutral-900/20 text-neutral-600 dark:text-neutral-400',
     green: 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400',
     orange: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
   };
@@ -776,7 +776,7 @@ function ReportSection({ title, icon: Icon, children }) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
       <div className="flex items-center gap-3 mb-4">
-        <Icon className="w-5 h-5 text-indigo-600" />
+        <Icon className="w-5 h-5 text-neutral-600" />
         <h3 className="text-lg font-bold text-gray-900 dark:text-white">{title}</h3>
       </div>
       <div className="space-y-2">
@@ -790,10 +790,10 @@ function ReportSection({ title, icon: Icon, children }) {
 function ReportRow({ label, value, highlight, small }) {
   return (
     <div className={`flex items-center justify-between ${small ? 'text-sm' : ''} ${highlight ? 'font-semibold' : ''}`}>
-      <span className={`${highlight ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-400'}`}>
+      <span className={`${highlight ? 'text-neutral-600 dark:text-neutral-400' : 'text-gray-600 dark:text-gray-400'}`}>
         {label}
       </span>
-      <span className={`${highlight ? 'text-indigo-900 dark:text-indigo-300' : 'text-gray-900 dark:text-white'} font-semibold`}>
+      <span className={`${highlight ? 'text-neutral-900 dark:text-neutral-300' : 'text-gray-900 dark:text-white'} font-semibold`}>
         {value}
       </span>
     </div>

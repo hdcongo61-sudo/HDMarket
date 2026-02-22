@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import api from '../services/api';
+import api, { verifyTransactionCodeAvailability } from '../services/api';
 import {
   Package,
   Truck,
@@ -38,10 +38,13 @@ import { OrderDetailSkeleton } from '../components/orders/OrderSkeletons';
 import CartContext from '../context/CartContext';
 import AuthContext from '../context/AuthContext';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
+import { getPickupShopAddress, isPickupOrder } from '../utils/pickupAddress';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
   paid: 'Payée',
+  ready_for_pickup: 'Prête à récupérer',
+  picked_up_confirmed: 'Retrait confirmé',
   ready_for_delivery: 'Prête à livrer',
   out_for_delivery: 'En cours de livraison',
   delivery_proof_submitted: 'Preuve de livraison soumise',
@@ -60,16 +63,18 @@ const STATUS_LABELS = {
 const STATUS_STYLES = {
   pending_payment: { header: 'bg-gray-600', card: 'bg-gray-50 border-gray-200 text-gray-700' },
   paid: { header: 'bg-emerald-600', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
+  ready_for_pickup: { header: 'bg-orange-600', card: 'bg-orange-50 border-orange-200 text-orange-800' },
+  picked_up_confirmed: { header: 'bg-emerald-700', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
   ready_for_delivery: { header: 'bg-amber-600', card: 'bg-amber-50 border-amber-200 text-amber-800' },
-  out_for_delivery: { header: 'bg-blue-600', card: 'bg-blue-50 border-blue-200 text-blue-800' },
-  delivery_proof_submitted: { header: 'bg-cyan-600', card: 'bg-cyan-50 border-cyan-200 text-cyan-800' },
+  out_for_delivery: { header: 'bg-neutral-600', card: 'bg-neutral-50 border-neutral-200 text-neutral-800' },
+  delivery_proof_submitted: { header: 'bg-neutral-600', card: 'bg-neutral-50 border-neutral-200 text-neutral-800' },
   confirmed_by_client: { header: 'bg-emerald-700', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
   pending: { header: 'bg-gray-600', card: 'bg-gray-50 border-gray-200 text-gray-700' },
-  pending_installment: { header: 'bg-violet-600', card: 'bg-violet-50 border-violet-200 text-violet-800' },
-  installment_active: { header: 'bg-indigo-600', card: 'bg-indigo-50 border-indigo-200 text-indigo-800' },
-  overdue_installment: { header: 'bg-rose-600', card: 'bg-rose-50 border-rose-200 text-rose-800' },
+  pending_installment: { header: 'bg-neutral-600', card: 'bg-neutral-50 border-neutral-200 text-neutral-800' },
+  installment_active: { header: 'bg-neutral-600', card: 'bg-neutral-50 border-neutral-200 text-neutral-800' },
+  overdue_installment: { header: 'bg-neutral-600', card: 'bg-neutral-50 border-neutral-200 text-neutral-800' },
   confirmed: { header: 'bg-amber-600', card: 'bg-amber-50 border-amber-200 text-amber-800' },
-  delivering: { header: 'bg-blue-600', card: 'bg-blue-50 border-blue-200 text-blue-800' },
+  delivering: { header: 'bg-neutral-600', card: 'bg-neutral-50 border-neutral-200 text-neutral-800' },
   delivered: { header: 'bg-emerald-600', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
   completed: { header: 'bg-emerald-700', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
   cancelled: { header: 'bg-red-600', card: 'bg-red-50 border-red-200 text-red-800' }
@@ -78,6 +83,8 @@ const STATUS_STYLES = {
 const STATUS_ICONS = {
   pending_payment: Clock,
   paid: CreditCard,
+  ready_for_pickup: Package,
+  picked_up_confirmed: CheckCircle,
   ready_for_delivery: Package,
   out_for_delivery: Truck,
   delivery_proof_submitted: Receipt,
@@ -168,9 +175,9 @@ const getScheduleStatusClassName = (status) => {
     case 'paid':
       return 'bg-emerald-50 text-emerald-700 border-emerald-200';
     case 'proof_uploaded':
-      return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+      return 'bg-neutral-50 text-neutral-700 border-neutral-200';
     case 'overdue':
-      return 'bg-rose-50 text-rose-700 border-rose-200';
+      return 'bg-neutral-50 text-neutral-700 border-neutral-200';
     case 'waived':
       return 'bg-gray-100 text-gray-700 border-gray-200';
     case 'pending':
@@ -186,16 +193,16 @@ const OrderProgress = ({ status, paymentType }) => {
   const colorClasses = {
     gray: 'bg-gray-600',
     amber: 'bg-amber-600',
-    blue: 'bg-blue-600',
+    blue: 'bg-neutral-600',
     emerald: 'bg-emerald-600',
-    violet: 'bg-violet-600',
-    indigo: 'bg-indigo-600',
-    rose: 'bg-rose-600'
+    violet: 'bg-neutral-600',
+    indigo: 'bg-neutral-600',
+    rose: 'bg-neutral-600'
   };
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-5">
       <div className="flex items-center gap-2 mb-4">
-        <div className="p-2 rounded-lg bg-indigo-600">
+        <div className="p-2 rounded-lg bg-neutral-600">
           <TrendingUp className="w-4 h-4 text-white" />
         </div>
         <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Suivi de commande</h3>
@@ -203,7 +210,7 @@ const OrderProgress = ({ status, paymentType }) => {
       <div className="relative">
         <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200">
           <div
-            className="absolute top-0 left-0 w-full bg-indigo-600 transition-all duration-500"
+            className="absolute top-0 left-0 w-full bg-neutral-600 transition-all duration-500"
             style={{ height: `${(currentIndex / (flow.length - 1)) * 100}%` }}
           />
         </div>
@@ -382,6 +389,16 @@ export default function OrderDetail() {
       alert('L’ID de transaction doit contenir exactement 10 chiffres.');
       return;
     }
+    try {
+      const verification = await verifyTransactionCodeAvailability(cleanTransactionCode);
+      if (!verification.available) {
+        alert(verification.message || 'Ce code de transaction est déjà utilisé.');
+        return;
+      }
+    } catch (error) {
+      alert(error?.response?.data?.message || 'Impossible de vérifier le code de transaction.');
+      return;
+    }
     if (!Number.isFinite(amount) || amount <= 0) {
       alert('Montant de tranche invalide.');
       return;
@@ -501,7 +518,7 @@ export default function OrderDetail() {
   if (error || !order) {
     return (
       <div className="min-h-screen bg-gray-50 p-4">
-        <Link to="/orders" className="inline-flex items-center gap-2 text-indigo-600 font-medium mb-4">
+        <Link to="/orders" className="inline-flex items-center gap-2 text-neutral-600 font-medium mb-4">
           <ArrowLeft className="w-4 h-4" /> Retour aux commandes
         </Link>
         <p className="text-red-600">{error || 'Commande introuvable.'}</p>
@@ -551,6 +568,40 @@ export default function OrderDetail() {
   const createdByLabel = createdBySelf ? 'Vous' : order.createdBy?.name || order.createdBy?.email || 'Admin HDMarket';
   const StatusIcon = STATUS_ICONS[effectiveOrderStatus] || Clock;
   const statusStyle = STATUS_STYLES[effectiveOrderStatus] || STATUS_STYLES.pending;
+  const pickupOrder = isPickupOrder(order);
+  const pickupShopAddress = pickupOrder ? getPickupShopAddress(order) : null;
+  const statusTimelineEntries = [
+    { key: 'created', label: 'Créée', icon: Calendar, time: order.createdAt },
+    { key: 'confirmed', label: 'Confirmée', icon: Package, time: order.confirmedAt },
+    pickupOrder
+      ? {
+          key: 'ready_for_pickup',
+          label: 'Prête au retrait',
+          icon: Store,
+          time: order.readyForPickupAt
+        }
+      : {
+          key: 'out_for_delivery',
+          label: 'En livraison',
+          icon: Truck,
+          time: order.outForDeliveryAt || order.shippedAt
+        },
+    { key: 'proof_submitted', label: 'Preuve soumise', icon: Receipt, time: order.deliverySubmittedAt },
+    {
+      key: 'delivered',
+      label: pickupOrder ? 'Retrait confirmé' : 'Livrée',
+      icon: CheckCircle,
+      time: order.deliveredAt
+    },
+    {
+      key: 'confirmed_by_client',
+      label: 'Confirmée client',
+      icon: ShieldCheck,
+      time: order.clientDeliveryConfirmedAt
+    },
+    { key: 'completed', label: 'Terminée', icon: CheckCircle, time: order.completedAt },
+    { key: 'cancelled', label: 'Annulée', icon: X, time: order.cancelledAt }
+  ].filter((entry) => Boolean(entry.time));
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
@@ -615,14 +666,14 @@ export default function OrderDetail() {
                     {item.snapshot?.image || item.product?.images?.[0] ? (
                       <img src={item.snapshot?.image || item.product?.images?.[0]} alt={item.snapshot?.title || 'Produit'} className="w-16 h-16 rounded-xl object-cover border border-gray-200 flex-shrink-0" />
                     ) : (
-                      <div className="w-16 h-16 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                        <Package className="w-6 h-6 text-indigo-600" />
+                      <div className="w-16 h-16 rounded-xl bg-neutral-100 flex items-center justify-center flex-shrink-0">
+                        <Package className="w-6 h-6 text-neutral-600" />
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between gap-2 mb-1">
                         {item.product ? (
-                          <Link to={buildProductPath(item.product)} {...externalLinkProps} className="font-bold text-gray-900 hover:text-indigo-600 truncate">
+                          <Link to={buildProductPath(item.product)} {...externalLinkProps} className="font-bold text-gray-900 hover:text-neutral-600 truncate">
                             {item.snapshot?.title || 'Produit'}
                           </Link>
                         ) : (
@@ -649,16 +700,18 @@ export default function OrderDetail() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {order.deliveryCode && (
                 <div>
-                  <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-2 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-indigo-500" /> Code de livraison</h4>
-                  <div className="p-5 rounded-xl border-2 border-indigo-200 bg-indigo-50">
-                    <p className="text-xs font-semibold text-indigo-700 uppercase mb-2">Présentez ce code au livreur</p>
-                    <div className="text-4xl font-black text-indigo-900 tracking-wider font-mono text-center">{order.deliveryCode}</div>
+                  <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-2 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-neutral-500" /> Code de livraison</h4>
+                  <div className="p-5 rounded-xl border-2 border-neutral-200 bg-neutral-50">
+                    <p className="text-xs font-semibold text-neutral-700 uppercase mb-2">Présentez ce code au livreur</p>
+                    <div className="text-4xl font-black text-neutral-900 tracking-wider font-mono text-center">{order.deliveryCode}</div>
                   </div>
                 </div>
               )}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-bold text-gray-900 uppercase flex items-center gap-2"><MapPin className="w-4 h-4 text-gray-500" /> Adresse de livraison</h4>
+                  <h4 className="text-sm font-bold text-gray-900 uppercase flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-gray-500" /> {pickupOrder ? 'Adresse boutique (retrait)' : 'Adresse de livraison'}
+                  </h4>
                   {[
                     'pending',
                     'pending_payment',
@@ -666,18 +719,28 @@ export default function OrderDetail() {
                     'confirmed',
                     'ready_for_delivery',
                     'pending_installment'
-                  ].includes(order.status) && (
-                    <button type="button" onClick={() => setEditAddressModalOpen(true)} className="px-4 py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-semibold hover:bg-indigo-100">
+                  ].includes(order.status) && !pickupOrder && (
+                    <button type="button" onClick={() => setEditAddressModalOpen(true)} className="px-4 py-2 rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-700 text-xs font-semibold hover:bg-neutral-100">
                       Modifier
                     </button>
                   )}
                 </div>
                 <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 space-y-2">
-                  <p className="text-sm font-semibold text-gray-900">{order.deliveryAddress || 'Non renseignée'}</p>
-                  <p className="text-xs text-gray-500">{order.deliveryCity || 'Ville non renseignée'}</p>
-                  {order.deliveryGuy && (
+                  {pickupOrder ? (
+                    <>
+                      <p className="text-sm font-semibold text-gray-900">{pickupShopAddress?.shopName || 'Boutique'}</p>
+                      <p className="text-sm text-gray-800">{pickupShopAddress?.addressLine || 'Adresse boutique non renseignée'}</p>
+                      {pickupShopAddress?.cityLine ? <p className="text-xs text-gray-500">{pickupShopAddress.cityLine}</p> : null}
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-semibold text-gray-900">{order.deliveryAddress || 'Non renseignée'}</p>
+                      <p className="text-xs text-gray-500">{order.deliveryCity || 'Ville non renseignée'}</p>
+                    </>
+                  )}
+                  {!pickupOrder && order.deliveryGuy && (
                     <div className="mt-3 pt-3 border-t border-gray-200 text-xs">
-                      <Truck className="w-3 h-3 text-blue-600 inline mr-1" />
+                      <Truck className="w-3 h-3 text-neutral-600 inline mr-1" />
                       <span className="font-semibold">Livreur:</span> {order.deliveryGuy.name || 'Non assigné'}
                       {order.deliveryGuy.phone && ` • ${order.deliveryGuy.phone}`}
                     </div>
@@ -689,16 +752,16 @@ export default function OrderDetail() {
             {order.trackingNote && (
               <div>
                 <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2"><Info className="w-4 h-4 text-gray-500" /> Note de suivi</h4>
-                <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/50"><p className="text-sm text-gray-700">{order.trackingNote}</p></div>
+                <div className="p-4 rounded-xl border border-neutral-100 bg-neutral-50/50"><p className="text-sm text-gray-700">{order.trackingNote}</p></div>
               </div>
             )}
 
             {(order.deliveryStatus === 'submitted' ||
               order.deliveryStatus === 'verified' ||
               order.status === 'delivery_proof_submitted') && (
-              <div className="rounded-2xl border border-cyan-200 bg-cyan-50/50 p-4 space-y-3">
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50/50 p-4 space-y-3">
                 <h4 className="text-sm font-bold text-gray-900 uppercase flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-cyan-700" /> Preuve de livraison
+                  <ShieldCheck className="w-4 h-4 text-neutral-700" /> Preuve de livraison
                 </h4>
                 <p className="text-sm text-gray-700">
                   Statut:{' '}
@@ -726,7 +789,7 @@ export default function OrderDetail() {
                         href={normalizeFileUrl(proof?.url || proof?.path || '')}
                         target="_blank"
                         rel="noreferrer"
-                        className="rounded-lg border border-cyan-200 bg-white px-2 py-1 text-xs font-semibold text-cyan-700"
+                        className="rounded-lg border border-neutral-200 bg-white px-2 py-1 text-xs font-semibold text-neutral-700"
                       >
                         Voir photo {index + 1}
                       </a>
@@ -755,7 +818,7 @@ export default function OrderDetail() {
                     </button>
                     <Link
                       to={`/reclamations?orderId=${order._id}`}
-                      className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                      className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100"
                     >
                       Ouvrir un litige
                     </Link>
@@ -794,7 +857,7 @@ export default function OrderDetail() {
                         <div>
                           <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
                             <div
-                              className="h-full bg-indigo-600 transition-all duration-300"
+                              className="h-full bg-neutral-600 transition-all duration-300"
                               style={{ width: `${installmentProgressPercent}%` }}
                             />
                           </div>
@@ -854,9 +917,9 @@ export default function OrderDetail() {
             )}
 
             {isInstallmentOrder && (
-              <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4 space-y-3">
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50/40 p-4 space-y-3">
                 <h4 className="text-sm font-bold text-gray-900 uppercase flex items-center gap-2">
-                  <Receipt className="w-4 h-4 text-indigo-600" /> Validation de vente
+                  <Receipt className="w-4 h-4 text-neutral-600" /> Validation de vente
                 </h4>
                 <p className="text-sm text-gray-700">
                   Statut:{' '}
@@ -915,7 +978,7 @@ export default function OrderDetail() {
                           Échéance: {entry?.dueDate ? formatOrderTimestamp(entry.dueDate) : 'Non définie'}
                         </div>
                         {hasTransactionProof && (
-                          <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-2 text-xs text-indigo-900 space-y-1">
+                          <div className="rounded-lg border border-neutral-100 bg-neutral-50/50 p-2 text-xs text-neutral-900 space-y-1">
                             <p>
                               Expéditeur: <span className="font-semibold">{transactionProof.senderName || 'N/A'}</span>
                             </p>
@@ -956,8 +1019,8 @@ export default function OrderDetail() {
                                 placeholder="Nom affiché dans le transfert"
                               />
                             </div>
-                            <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-3 overflow-hidden">
-                              <p className="text-xs font-bold uppercase text-blue-800 mb-2">
+                            <div className="rounded-xl border border-neutral-100 bg-neutral-50/50 p-3 overflow-hidden">
+                              <p className="text-xs font-bold uppercase text-neutral-800 mb-2">
                                 Exemple: où trouver l'ID dans le SMS
                               </p>
                               <img
@@ -1001,14 +1064,14 @@ export default function OrderDetail() {
                                 !String(proofDraft.payerName || '').trim() ||
                                 String(proofDraft.transactionCode || '').replace(/\D/g, '').length !== 10
                               }
-                              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+                              className="inline-flex items-center gap-2 rounded-lg bg-neutral-600 px-3 py-2 text-xs font-semibold text-white hover:bg-neutral-700 disabled:opacity-60"
                             >
                               {installmentUploadIndex === index ? 'Envoi...' : 'Envoyer la preuve transactionnelle'}
                             </button>
                           </div>
                         )}
                         {entry?.status === 'proof_uploaded' && (
-                          <p className="text-xs text-indigo-700">
+                          <p className="text-xs text-neutral-700">
                             Votre preuve est transmise. En attente de validation vendeur.
                           </p>
                         )}
@@ -1042,6 +1105,7 @@ export default function OrderDetail() {
               <AnimatedOrderTimeline
                 status={effectiveOrderStatus}
                 paymentType={progressPaymentType}
+                deliveryMode={order.deliveryMode}
               />
             )}
 
@@ -1049,17 +1113,23 @@ export default function OrderDetail() {
               <OrderChat order={order} buttonText="Contacter le vendeur" unreadCount={unreadCount} />
               {['delivered', 'completed', 'confirmed_by_client'].includes(effectiveOrderStatus) &&
                 order.items?.length > 0 && (
-                <button type="button" onClick={handleReorder} disabled={reordering} className="w-full px-6 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 flex items-center justify-center gap-2 disabled:opacity-50">
+                <button type="button" onClick={handleReorder} disabled={reordering} className="w-full px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 flex items-center justify-center gap-2 disabled:opacity-50">
                   {reordering ? <Clock className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
                   <span>{reordering ? 'Ajout au panier...' : 'Commander à nouveau'}</span>
                 </button>
               )}
             </div>
 
-            <div className="flex flex-wrap gap-4 pt-4 border-t border-gray-100 text-xs text-gray-500">
-              <span className="flex items-center gap-1.5"><Calendar className="w-3 h-3" /> Créée: {formatOrderTimestamp(order.createdAt)}</span>
-              {order.shippedAt && <span className="flex items-center gap-1.5"><Truck className="w-3 h-3" /> Expédiée: {formatOrderTimestamp(order.shippedAt)}</span>}
-              {order.deliveredAt && <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3" /> Livrée: {formatOrderTimestamp(order.deliveredAt)}</span>}
+            <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100 text-xs text-gray-600">
+              {statusTimelineEntries.map((entry) => {
+                const EntryIcon = entry.icon;
+                return (
+                  <span key={entry.key} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1">
+                    <EntryIcon className="w-3 h-3" />
+                    {entry.label}: {formatOrderTimestamp(entry.time)}
+                  </span>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -1069,10 +1139,10 @@ export default function OrderDetail() {
           <div className="mt-8 md:hidden">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-indigo-600" />
+                <Sparkles className="w-4 h-4 text-neutral-600" />
                 Suggestions & produits similaires
               </h3>
-              <Link to="/suggestions" className="text-sm font-semibold text-indigo-600 flex items-center gap-0.5">
+              <Link to="/suggestions" className="text-sm font-semibold text-neutral-600 flex items-center gap-0.5">
                 Voir tout <ChevronRight className="w-4 h-4" />
               </Link>
             </div>
@@ -1105,7 +1175,7 @@ export default function OrderDetail() {
                       </div>
                       <div className="p-2">
                         <p className="text-xs font-semibold text-gray-900 line-clamp-2 min-h-[2rem]">{product.title || 'Produit'}</p>
-                        <p className="text-xs font-bold text-indigo-600 mt-0.5">{formatCurrency(price)}</p>
+                        <p className="text-xs font-bold text-neutral-600 mt-0.5">{formatCurrency(price)}</p>
                       </div>
                     </Link>
                   );
@@ -1114,7 +1184,7 @@ export default function OrderDetail() {
             ) : (
               <Link
                 to="/suggestions"
-                className="block py-6 rounded-xl border border-dashed border-gray-200 text-center text-sm text-gray-500 hover:border-indigo-200 hover:text-indigo-600"
+                className="block py-6 rounded-xl border border-dashed border-gray-200 text-center text-sm text-gray-500 hover:border-neutral-200 hover:text-neutral-600"
               >
                 Découvrir des suggestions personnalisées
               </Link>

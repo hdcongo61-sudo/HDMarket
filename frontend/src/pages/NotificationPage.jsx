@@ -481,7 +481,7 @@ export default function NotificationPage() {
           </AnimatePresence>
 
           {actionError && (
-            <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300">
+            <div className="mt-4 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-700 dark:border-neutral-900 dark:bg-neutral-950/40 dark:text-neutral-300">
               {actionError}
             </div>
           )}
@@ -491,7 +491,7 @@ export default function NotificationPage() {
               <NotificationSkeleton count={8} />
             </div>
           ) : error ? (
-            <div className="mt-8 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300">
+            <div className="mt-8 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700 dark:border-neutral-900 dark:bg-neutral-950/40 dark:text-neutral-300">
               {error}
             </div>
           ) : visibleAlerts.length ? (

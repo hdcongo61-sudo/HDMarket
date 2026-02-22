@@ -6,6 +6,8 @@ import ProductView from '../models/productViewModel.js';
 import Comment from '../models/commentModel.js';
 import Rating from '../models/ratingModel.js';
 import ShopReview from '../models/shopReviewModel.js';
+import MarketplacePromoCode from '../models/marketplacePromoCodeModel.js';
+import Commune from '../models/communeModel.js';
 import { createNotification } from '../utils/notificationService.js';
 import { sanitizeShopHours } from '../utils/shopHours.js';
 import { buildIdentifierQuery } from '../utils/idResolver.js';
@@ -29,7 +31,26 @@ const formatShopReview = (review) => {
   };
 };
 
-const loadShopByIdentifier = async (identifier, projection = 'shopName shopAddress shopLogo shopBanner name createdAt shopVerified followersCount slug accountType phone shopDescription shopHours isBlocked') => {
+const clampPercent = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.min(100, Math.max(0, parsed));
+};
+
+const getPromoPercentForPrice = ({ promo, price }) => {
+  if (!promo) return 0;
+  if (promo.discountType === 'percentage') {
+    return clampPercent(promo.discountValue);
+  }
+  const basePrice = Number(price || 0);
+  const fixedDiscount = Number(promo.discountValue || 0);
+  if (!Number.isFinite(basePrice) || basePrice <= 0 || !Number.isFinite(fixedDiscount) || fixedDiscount <= 0) {
+    return 0;
+  }
+  return clampPercent((fixedDiscount / basePrice) * 100);
+};
+
+const loadShopByIdentifier = async (identifier, projection = 'shopName shopAddress shopLogo shopBanner name createdAt shopVerified followersCount slug accountType phone shopDescription shopHours freeDeliveryEnabled freeDeliveryNote isBlocked') => {
   const query = buildIdentifierQuery(identifier);
   if (!Object.keys(query).length) return null;
   const shop = await User.findOne(query).select(projection);
@@ -78,7 +99,7 @@ export const listShops = asyncHandler(async (req, res) => {
     const includeImages = req.query?.withImages === 'true';
     const imageLimit = Math.max(1, Math.min(Number(req.query?.imageLimit) || 6, 12));
     const shops = await User.find(filters)
-      .select('shopName shopAddress shopLogo shopBanner name createdAt shopVerified followersCount shopBoosted shopBoostScore shopBoostStartDate shopBoostEndDate city')
+      .select('shopName shopAddress shopLogo shopBanner name createdAt shopVerified followersCount shopBoosted shopBoostScore shopBoostStartDate shopBoostEndDate city freeDeliveryEnabled freeDeliveryNote')
       .sort({ shopBoosted: -1, shopBoostScore: -1, followersCount: -1, shopName: 1, createdAt: -1 })
       .lean();
 
@@ -176,6 +197,8 @@ export const listShops = asyncHandler(async (req, res) => {
         ratingCount: ratingStats.count,
         createdAt: shop.createdAt,
         city: shop.city || '',
+        freeDeliveryEnabled: Boolean(shop.freeDeliveryEnabled),
+        freeDeliveryNote: shop.freeDeliveryNote || '',
         sampleImages
       };
     });
@@ -187,9 +210,69 @@ export const listShops = asyncHandler(async (req, res) => {
   }
 });
 
+export const listFreeDeliveryShops = asyncHandler(async (req, res) => {
+  const page = Math.max(1, Number(req.query?.page) || 1);
+  const limit = Math.max(1, Math.min(Number(req.query?.limit) || 12, 200));
+  const skip = (page - 1) * limit;
+  const city = typeof req.query?.city === 'string' ? req.query.city.trim() : '';
+  const communeId = typeof req.query?.communeId === 'string' ? req.query.communeId.trim() : '';
+  const commune =
+    communeId && mongoose.Types.ObjectId.isValid(communeId)
+      ? await Commune.findOne({ _id: communeId, isActive: true }).lean()
+      : null;
+  const communeForcesFree = String(commune?.deliveryPolicy || '').toUpperCase() === 'FREE';
+
+  const filter = { accountType: 'shop' };
+  if (city) {
+    filter.city = city;
+  }
+  if (!communeForcesFree) {
+    filter.freeDeliveryEnabled = true;
+  }
+
+  const [shops, totalItems] = await Promise.all([
+    User.find(filter)
+      .select(
+        'shopName shopAddress shopLogo shopBanner name createdAt shopVerified followersCount city slug freeDeliveryEnabled freeDeliveryNote'
+      )
+      .sort({ freeDeliveryEnabled: -1, followersCount: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    User.countDocuments(filter)
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+
+  res.json({
+    source: communeForcesFree ? 'COMMUNE_FREE' : 'SHOP_FREE',
+    communeId: commune?._id || null,
+    communeName: commune?.name || '',
+    page,
+    limit,
+    totalItems,
+    totalPages,
+    items: shops.map((shop) => ({
+      _id: shop._id,
+      slug: shop.slug,
+      shopName: shop.shopName || shop.name || 'Boutique',
+      shopLogo: shop.shopLogo || null,
+      shopAddress: shop.shopAddress || '',
+      city: shop.city || '',
+      shopVerified: Boolean(shop.shopVerified),
+      followersCount: Number(shop.followersCount || 0),
+      freeDeliveryEnabled: communeForcesFree ? true : Boolean(shop.freeDeliveryEnabled),
+      freeDeliveryNote:
+        communeForcesFree && !shop.freeDeliveryNote
+          ? 'Livraison gratuite via la politique de votre commune.'
+          : shop.freeDeliveryNote || ''
+    }))
+  });
+});
+
 export const getShopProfile = asyncHandler(async (req, res) => {
   const shop = await loadShopByIdentifier(req.params.id, [
-    'name shopName phone accountType createdAt shopLogo shopBanner shopAddress shopVerified shopDescription shopHours isBlocked followersCount slug'
+    'name shopName phone accountType createdAt shopLogo shopBanner shopAddress shopVerified shopDescription shopHours freeDeliveryEnabled freeDeliveryNote isBlocked followersCount slug'
   ].join(' '));
   if (!shop || shop.accountType !== 'shop') {
     return res.status(404).json({ message: 'Boutique introuvable.' });
@@ -241,6 +324,42 @@ export const getShopProfile = asyncHandler(async (req, res) => {
     ])
   );
 
+  const now = new Date();
+  const [recentReviewsRaw, activePromos] = await Promise.all([
+    ShopReview.find({ shop: shop._id })
+      .sort({ createdAt: -1 })
+      .limit(3)
+      .populate('user', 'name shopName shopLogo slug')
+      .lean(),
+    MarketplacePromoCode.find({
+      boutiqueId: shop._id,
+      isActive: true,
+      startDate: { $lte: now },
+      endDate: { $gte: now },
+      $expr: { $lt: ['$usedCount', '$usageLimit'] }
+    })
+      .select('appliesTo productId endDate discountType discountValue')
+      .lean()
+  ]);
+
+  const hasBoutiqueWidePromo = activePromos.some((promo) => promo?.appliesTo === 'boutique');
+  const boutiquePromos = activePromos.filter((promo) => promo?.appliesTo === 'boutique');
+  const productPromoMap = activePromos.reduce((acc, promo) => {
+    if (promo?.appliesTo !== 'product' || !promo?.productId) return acc;
+    const key = String(promo.productId);
+    if (!acc.has(key)) acc.set(key, []);
+    acc.get(key).push(promo);
+    return acc;
+  }, new Map());
+  const activePromoCountNow = Number(activePromos.length || 0);
+  const nextPromoEndingAt = activePromos.reduce((minDate, promo) => {
+    if (!promo?.endDate) return minDate;
+    const date = new Date(promo.endDate);
+    if (Number.isNaN(date.getTime())) return minDate;
+    if (!minDate) return date;
+    return date < minDate ? date : minDate;
+  }, null);
+
   const sellerInfo = {
     _id: shop._id,
     name: shop.name,
@@ -253,6 +372,18 @@ export const getShopProfile = asyncHandler(async (req, res) => {
   };
 
   const products = productsRaw.map((item) => {
+    const productId = String(item._id);
+    const productSpecificPromos = productPromoMap.get(productId) || [];
+    const applicablePromos = [...boutiquePromos, ...productSpecificPromos];
+    const basePrice = Number(item?.price || item?.priceBeforeDiscount || 0);
+    const bestPromo = applicablePromos.reduce(
+      (best, promo) => {
+        const percent = getPromoPercentForPrice({ promo, price: basePrice });
+        if (percent <= best.percent) return best;
+        return { percent, promo };
+      },
+      { percent: 0, promo: null }
+    );
     const commentCount = commentMap.get(String(item._id)) || 0;
     const rating = ratingMap.get(String(item._id)) || { average: 0, count: 0 };
     return {
@@ -260,6 +391,14 @@ export const getShopProfile = asyncHandler(async (req, res) => {
       commentCount,
       ratingAverage: rating.average,
       ratingCount: rating.count,
+      hasActivePromo: applicablePromos.length > 0,
+      promoPercent: Number(bestPromo.percent.toFixed(2)),
+      promoScope:
+        bestPromo.promo?.appliesTo === 'product'
+          ? 'product'
+          : bestPromo.promo?.appliesTo === 'boutique'
+            ? 'boutique'
+            : null,
       user: sellerInfo
     };
   });
@@ -272,12 +411,18 @@ export const getShopProfile = asyncHandler(async (req, res) => {
   const ratingSummary = ratingSummaryAgg[0] || { average: 0, count: 0 };
   const ratingAverage = ratingSummary.count ? Number(ratingSummary.average?.toFixed(2) || 0) : 0;
   const ratingCount = ratingSummary.count || 0;
-
-  const recentReviewsRaw = await ShopReview.find({ shop: shop._id })
-    .sort({ createdAt: -1 })
-    .limit(3)
-    .populate('user', 'name shopName shopLogo slug')
-    .lean();
+  const maxPromoPercentFromProducts = products.reduce((max, item) => {
+    const percent = Number(item?.promoPercent || 0);
+    return percent > max ? percent : max;
+  }, 0);
+  const fallbackPercentagePromo = activePromos.reduce((max, promo) => {
+    if (promo?.discountType !== 'percentage') return max;
+    const percent = clampPercent(promo.discountValue);
+    return percent > max ? percent : max;
+  }, 0);
+  const maxPromoPercentNow = Number(
+    Math.max(maxPromoPercentFromProducts, fallbackPercentagePromo).toFixed(2)
+  );
 
   const recentReviews = recentReviewsRaw.map(formatShopReview);
 
@@ -297,7 +442,14 @@ export const getShopProfile = asyncHandler(async (req, res) => {
       followersCount: Number(shop.followersCount || 0),
       ratingAverage,
       ratingCount,
-      shopHours: sanitizeShopHours(shop.shopHours || [])
+      shopHours: sanitizeShopHours(shop.shopHours || []),
+      freeDeliveryEnabled: Boolean(shop.freeDeliveryEnabled),
+      freeDeliveryNote: shop.freeDeliveryNote || '',
+      hasActivePromo: activePromoCountNow > 0,
+      hasBoutiqueWidePromo,
+      activePromoCountNow,
+      maxPromoPercentNow,
+      nextPromoEndingAt: nextPromoEndingAt || null
     },
     products,
     pagination: {

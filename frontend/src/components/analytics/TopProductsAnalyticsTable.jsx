@@ -11,7 +11,7 @@ const classLabel = {
 const classStyle = {
   high_potential: 'bg-amber-50 text-amber-700',
   high_performer: 'bg-emerald-50 text-emerald-700',
-  low_performer: 'bg-rose-50 text-rose-700',
+  low_performer: 'bg-neutral-50 text-neutral-700',
   stable: 'bg-slate-100 text-slate-600'
 };
 
@@ -22,7 +22,7 @@ export default function TopProductsAnalyticsTable({
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center gap-2">
-        <TrendingUp className="h-4 w-4 text-indigo-600" />
+        <TrendingUp className="h-4 w-4 text-neutral-600" />
         <h3 className="text-sm font-semibold text-gray-900">Produits les plus vus</h3>
       </div>
       {!products.length ? (

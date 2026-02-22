@@ -8,7 +8,7 @@ import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 
 const STATUS_STYLES = {
   PENDING: 'bg-amber-50 border-amber-200 text-amber-700',
-  APPROVED: 'bg-blue-50 border-blue-200 text-blue-700',
+  APPROVED: 'bg-neutral-50 border-neutral-200 text-neutral-700',
   ACTIVE: 'bg-emerald-50 border-emerald-200 text-emerald-700',
   REJECTED: 'bg-red-50 border-red-200 text-red-700',
   EXPIRED: 'bg-gray-100 border-gray-200 text-gray-700'
@@ -75,7 +75,7 @@ export default function SellerBoosts() {
       <div className="max-w-6xl mx-auto px-4 space-y-6">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <Link to="/dashboard" className="inline-flex items-center gap-2 text-indigo-600 font-medium">
+            <Link to="/dashboard" className="inline-flex items-center gap-2 text-neutral-600 font-medium">
               <ArrowLeft className="h-4 w-4" /> Retour au dashboard
             </Link>
             <h1 className="mt-2 text-2xl font-bold text-gray-900">Boost interne</h1>
@@ -98,7 +98,7 @@ export default function SellerBoosts() {
           </div>
           <div className="rounded-xl border border-gray-200 bg-white p-3">
             <p className="text-xs text-gray-500 uppercase">CA boost</p>
-            <p className="text-xl font-bold text-indigo-700">{formatCurrency(stats.revenue)}</p>
+            <p className="text-xl font-bold text-neutral-700">{formatCurrency(stats.revenue)}</p>
           </div>
         </div>
 
@@ -121,7 +121,7 @@ export default function SellerBoosts() {
                 <article key={item.id} className="rounded-xl border border-gray-200 p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-indigo-600" />
+                      <Sparkles className="h-4 w-4 text-neutral-600" />
                       <p className="text-sm font-semibold text-gray-900">{item.boostType}</p>
                     </div>
                     <span className={`inline-flex items-center rounded-full border px-2 py-1 text-xs font-semibold ${STATUS_STYLES[item.status] || STATUS_STYLES.EXPIRED}`}>

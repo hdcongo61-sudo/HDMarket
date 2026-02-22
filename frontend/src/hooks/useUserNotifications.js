@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { io } from 'socket.io-client';
 import api from '../services/api';
 
 const DEFAULT_PREFERENCES = Object.freeze({
@@ -115,6 +116,17 @@ export default function useUserNotifications(enabled, options = {}) {
 
   const eventSourceRef = useRef(null);
   const retryRef = useRef(null);
+  const socketRef = useRef(null);
+  const refreshTimerRef = useRef(null);
+
+  const scheduleRefresh = useCallback(() => {
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current);
+    }
+    refreshTimerRef.current = setTimeout(() => {
+      fetchData();
+    }, 120);
+  }, [fetchData]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return () => {};
@@ -177,7 +189,7 @@ export default function useUserNotifications(enabled, options = {}) {
       eventSourceRef.current = source;
 
       source.onopen = () => {
-        fetchData();
+        scheduleRefresh();
       };
 
       source.onmessage = (event) => {
@@ -188,7 +200,7 @@ export default function useUserNotifications(enabled, options = {}) {
         } catch {
           // ignore parse errors and still refresh
         }
-        fetchData();
+        scheduleRefresh();
       };
 
       source.onerror = () => {
@@ -203,18 +215,79 @@ export default function useUserNotifications(enabled, options = {}) {
       closeSource();
       clearRetry();
     };
-  }, [enabled, fetchData]);
+  }, [enabled, scheduleRefresh]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return () => {};
+    if (!enabled) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      return () => {};
+    }
+
+    let token = window.localStorage.getItem('qm_token');
+    if (token) {
+      try {
+        const parsed = JSON.parse(token);
+        if (typeof parsed === 'string') token = parsed;
+      } catch {
+        // noop
+      }
+    }
+    if (!token) return () => {};
+
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+    const origin = apiBase.replace(/\/api\/?$/, '');
+    const socket = io(`${origin}/notifications`, {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      reconnectionAttempts: 20,
+      reconnectionDelay: 800
+    });
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      scheduleRefresh();
+    });
+    socket.on('notification', () => {
+      scheduleRefresh();
+    });
+    socket.on('notifications:refresh', () => {
+      scheduleRefresh();
+    });
+    socket.on('connect_error', () => {
+      // SSE fallback remains active.
+    });
+
+    return () => {
+      socket.disconnect();
+      if (socketRef.current === socket) {
+        socketRef.current = null;
+      }
+    };
+  }, [enabled, scheduleRefresh]);
 
   useEffect(() => {
     if (skipRefreshEvent) return;
     const handler = () => {
-      fetchData();
+      scheduleRefresh();
     };
     window.addEventListener(EVENT_KEY, handler);
     return () => {
       window.removeEventListener(EVENT_KEY, handler);
     };
-  }, [fetchData, skipRefreshEvent]);
+  }, [scheduleRefresh, skipRefreshEvent]);
+
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+    };
+  }, []);
 
   return { counts, loading, error, refresh: fetchData, updateCounts };
 }

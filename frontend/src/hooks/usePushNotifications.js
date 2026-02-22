@@ -57,10 +57,22 @@ export default function usePushNotifications(user) {
 
     const sendTokenToServer = async (tokenValue, platform, retryCount = 0) => {
       try {
-        await api.post('/users/push-tokens', {
+        const payload = {
           token: tokenValue,
-          platform
-        });
+          platform,
+          deviceInfo: {
+            deviceId: Capacitor.isNativePlatform() ? (window?.device?.uuid || '') : '',
+            model: Capacitor.isNativePlatform() ? (window?.device?.model || '') : '',
+            osVersion: Capacitor.isNativePlatform() ? (window?.device?.version || '') : '',
+            appVersion: import.meta.env.VITE_APP_VERSION || ''
+          }
+        };
+        try {
+          await api.post('/devices/register', payload);
+        } catch {
+          // backward-compatible fallback
+          await api.post('/users/push-tokens', payload);
+        }
         if (isDev) console.log('[HDMarket] Push token registered', platform);
         return true;
       } catch (err) {

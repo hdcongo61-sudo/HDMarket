@@ -82,6 +82,7 @@ export default function AdminUsers() {
   const [page, setPage] = useState(1);
   const [pendingUserId, setPendingUserId] = useState('');
   const [verifyingShopId, setVerifyingShopId] = useState('');
+  const [togglingChatTemplateUserId, setTogglingChatTemplateUserId] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const isMobileView = useIsMobile(1023);
 
@@ -437,6 +438,33 @@ export default function AdminUsers() {
     }
   }, []);
 
+  const handleToggleChatTemplateAccess = async (user) => {
+    if (!user?.id) return;
+    if (user.role === 'admin') {
+      setActionError("Impossible de modifier les permissions d'un administrateur.");
+      return;
+    }
+    setActionError('');
+    setTogglingChatTemplateUserId(user.id);
+    try {
+      const { data } = await api.patch(`/admin/chat-template-managers/${user.id}/toggle`);
+      const nextGranted = Boolean(data?.user?.canManageChatTemplates);
+      setUsers((prev) =>
+        prev.map((item) =>
+          item.id === user.id ? { ...item, canManageChatTemplates: nextGranted } : item
+        )
+      );
+    } catch (e) {
+      setActionError(
+        e.response?.data?.message ||
+          e.message ||
+          "Impossible de mettre à jour l'accès templates chat."
+      );
+    } finally {
+      setTogglingChatTemplateUserId('');
+    }
+  };
+
   const getUserConversionRequest = (userId) => {
     return conversionRequests.find((r) => r.user?._id === userId || r.user === userId);
   };
@@ -597,9 +625,9 @@ export default function AdminUsers() {
       return 'bg-green-100 text-green-700';
     }
     if (action.includes('account_type_changed')) {
-      return 'bg-purple-100 text-purple-700';
+      return 'bg-neutral-100 text-neutral-700';
     }
-    return 'bg-blue-100 text-blue-700';
+    return 'bg-neutral-100 text-neutral-700';
   };
 
   // Get active restrictions count for a user
@@ -620,7 +648,7 @@ export default function AdminUsers() {
         <div className="flex flex-col sm:flex-row gap-2">
           <Link
             to="/admin"
-            className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
+            className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100"
           >
             <ArrowLeft size={16} />
             Retour au tableau de bord
@@ -670,7 +698,7 @@ export default function AdminUsers() {
               <input
                 type="search"
                 placeholder="Rechercher un nom, email ou téléphone"
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
               />
@@ -678,7 +706,7 @@ export default function AdminUsers() {
             <div className="flex flex-wrap gap-2">
               <button
                 type="submit"
-                className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition"
+                className="rounded-lg bg-neutral-600 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-700 transition"
               >
                 Rechercher
               </button>
@@ -703,7 +731,7 @@ export default function AdminUsers() {
                     onClick={() => setAccountTypeFilter(option.value)}
                     className={`flex-shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
                       accountTypeFilter === option.value
-                        ? 'bg-indigo-600 text-white shadow'
+                        ? 'bg-neutral-600 text-white shadow'
                         : 'border border-gray-200 bg-white text-gray-600'
                     }`}
                   >
@@ -765,7 +793,7 @@ export default function AdminUsers() {
               <select
                 value={accountTypeFilter}
                 onChange={(e) => setAccountTypeFilter(e.target.value)}
-                className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
               >
                 {accountFilterOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -776,7 +804,7 @@ export default function AdminUsers() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
               >
                 {statusFilterOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -787,7 +815,7 @@ export default function AdminUsers() {
               <select
                 value={restrictionFilter}
                 onChange={(e) => setRestrictionFilter(e.target.value)}
-                className={`rounded-lg border px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 ${
+                className={`rounded-lg border px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400 ${
                   restrictionFilter !== 'all' ? 'border-amber-400 bg-amber-50 text-amber-700' : 'border-gray-200 text-gray-700'
                 }`}
               >
@@ -800,7 +828,7 @@ export default function AdminUsers() {
               <select
                 value={conversionFilter}
                 onChange={(e) => setConversionFilter(e.target.value)}
-                className={`rounded-lg border px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 ${
+                className={`rounded-lg border px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400 ${
                   conversionFilter !== 'all' ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-700'
                 }`}
               >
@@ -834,14 +862,14 @@ export default function AdminUsers() {
                         {user.accountType === 'shop' && user.shopName ? (
                           <div className="text-xs space-y-1">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-indigo-600">Boutique : {user.shopName}</span>
+                              <span className="font-semibold text-neutral-600">Boutique : {user.shopName}</span>
                               <VerifiedBadge verified={Boolean(user.shopVerified)} />
                             </div>
                             <p className="text-gray-500">Abonnés : {formatNumber(user.followersCount)}</p>
                           </div>
                         ) : null}
                       </div>
-                      <span className="rounded-full bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700">
+                      <span className="rounded-full bg-neutral-50 px-2 py-1 text-[11px] font-semibold text-neutral-700">
                         {accountTypeLabels[user.accountType] || user.accountType}
                       </span>
                     </div>
@@ -860,6 +888,30 @@ export default function AdminUsers() {
                           Actif
                         </span>
                       )}
+                    </div>
+                    <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+                      <div className="space-y-0.5">
+                        <p className="text-[11px] font-semibold text-gray-700">Gestion templates chat</p>
+                        <p className="text-[10px] text-gray-500">
+                          {user.canManageChatTemplates ? 'Accès accordé' : 'Accès non accordé'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleChatTemplateAccess(user)}
+                        disabled={user.role === 'admin' || togglingChatTemplateUserId === user.id}
+                        className={`rounded-full px-3 py-1 text-[11px] font-semibold transition disabled:opacity-50 ${
+                          user.canManageChatTemplates
+                            ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        {togglingChatTemplateUserId === user.id
+                          ? '...'
+                          : user.canManageChatTemplates
+                            ? 'ON'
+                            : 'OFF'}
+                      </button>
                     </div>
                     {isBlocked ? (
                       <div className="text-xs text-gray-500 space-y-1">
@@ -938,7 +990,7 @@ export default function AdminUsers() {
                         <button
                           type="button"
                           onClick={() => openConversionModal(user)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-purple-500 px-3 py-2 text-xs font-semibold text-purple-600 hover:bg-purple-50 bg-purple-50"
+                          className="inline-flex items-center gap-1 rounded-lg border border-neutral-500 px-3 py-2 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 bg-neutral-50"
                         >
                           <Store size={14} />
                           Demande boutique
@@ -975,7 +1027,7 @@ export default function AdminUsers() {
                         <button
                           type="button"
                           onClick={() => openOrdersModal(user)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-indigo-500 px-3 py-2 text-xs font-semibold text-indigo-600 hover:bg-indigo-50"
+                          className="inline-flex items-center gap-1 rounded-lg border border-neutral-500 px-3 py-2 text-xs font-semibold text-neutral-600 hover:bg-neutral-50"
                         >
                           <Package size={14} />
                           Commandes
@@ -1007,19 +1059,20 @@ export default function AdminUsers() {
                   <th className="px-3 py-2 text-left font-semibold text-gray-600">Type</th>
                   <th className="px-3 py-2 text-left font-semibold text-gray-600">Rôle</th>
                   <th className="px-3 py-2 text-left font-semibold text-gray-600">Statut</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-600">Templates chat</th>
                   <th className="px-3 py-2 text-left font-semibold text-gray-600">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="px-3 py-6 text-center text-gray-500">
+                    <td colSpan={6} className="px-3 py-6 text-center text-gray-500">
                       Chargement des utilisateurs…
                     </td>
                   </tr>
                 ) : displayedUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-3 py-6 text-center text-gray-500">
+                    <td colSpan={6} className="px-3 py-6 text-center text-gray-500">
                       Aucun utilisateur à afficher.
                     </td>
                   </tr>
@@ -1035,13 +1088,13 @@ export default function AdminUsers() {
                             <span className="text-gray-400 text-xs">{user.phone}</span>
                             {user.accountType === 'shop' && user.shopName ? (
                               <div className="text-xs text-gray-500 mt-1 space-y-1">
-                                <span className="text-indigo-600 font-semibold">
+                                <span className="text-neutral-600 font-semibold">
                                   Boutique : {user.shopName}
                                 </span>
                                 <p>Abonnés : {formatNumber(user.followersCount)}</p>
                                 <Link
                                   to={buildShopPath(user)}
-                                  className="text-indigo-500 underline text-xs font-semibold"
+                                  className="text-neutral-500 underline text-xs font-semibold"
                                 >
                                   Voir la boutique
                                 </Link>
@@ -1051,7 +1104,7 @@ export default function AdminUsers() {
                         </td>
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+                            <span className="inline-flex items-center rounded-full bg-neutral-50 px-2 py-0.5 text-xs font-semibold text-neutral-700">
                               {accountTypeLabels[user.accountType] || user.accountType}
                             </span>
                             {user.accountType === 'shop' && (
@@ -1088,6 +1141,29 @@ export default function AdminUsers() {
                           )}
                         </td>
                         <td className="px-3 py-3">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleChatTemplateAccess(user)}
+                            disabled={user.role === 'admin' || togglingChatTemplateUserId === user.id}
+                            className={`inline-flex min-w-[128px] items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                              user.canManageChatTemplates
+                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                            title={
+                              user.role === 'admin'
+                                ? 'Permission toujours active pour un administrateur'
+                                : 'Basculer l’accès à la gestion des templates chat'
+                            }
+                          >
+                            {togglingChatTemplateUserId === user.id
+                              ? 'Mise à jour...'
+                              : user.canManageChatTemplates
+                                ? 'Accès accordé'
+                                : 'Accès retiré'}
+                          </button>
+                        </td>
+                        <td className="px-3 py-3">
                           <div className="flex flex-wrap items-center gap-2">
                             {isBlocked ? (
                               <button
@@ -1113,7 +1189,7 @@ export default function AdminUsers() {
                               <button
                                 type="button"
                                 onClick={() => openConversionModal(user)}
-                                className="rounded-lg border border-purple-500 px-3 py-1.5 text-xs font-semibold text-purple-600 hover:bg-purple-50 bg-purple-50"
+                                className="rounded-lg border border-neutral-500 px-3 py-1.5 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 bg-neutral-50"
                               >
                                 <Store size={14} className="inline mr-1" />
                                 Demande boutique
@@ -1197,7 +1273,7 @@ export default function AdminUsers() {
                               <button
                                 type="button"
                                 onClick={() => openOrdersModal(user)}
-                                className="inline-flex items-center gap-1 rounded-lg border border-indigo-400 px-2 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50"
+                                className="inline-flex items-center gap-1 rounded-lg border border-neutral-400 px-2 py-1.5 text-xs font-semibold text-neutral-600 hover:bg-neutral-50"
                                 title="Commandes reçues"
                               >
                                 <Package size={12} />
@@ -1331,8 +1407,8 @@ export default function AdminUsers() {
                 {isActive && (
                   <div className="space-y-5 animate-in fade-in slide-in-from-top-2 duration-300">
                     {/* Dates Section */}
-                    <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-                      <h4 className="text-sm font-bold text-blue-900 mb-3 flex items-center gap-2">
+                    <div className="bg-neutral-50 rounded-xl p-4 border border-neutral-100">
+                      <h4 className="text-sm font-bold text-neutral-900 mb-3 flex items-center gap-2">
                         <Calendar size={16} />
                         Période de restriction
                       </h4>
@@ -1345,7 +1421,7 @@ export default function AdminUsers() {
                             type="datetime-local"
                             value={restrictionForm.startDate}
                             onChange={(e) => setRestrictionForm((prev) => ({ ...prev, startDate: e.target.value }))}
-                            className="w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-2.5 text-sm font-medium focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all"
+                            className="w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-2.5 text-sm font-medium focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-200 transition-all"
                           />
                           <p className="text-xs text-gray-500 mt-1.5">Optionnel - Laissez vide pour commencer immédiatement</p>
                         </div>
@@ -1357,7 +1433,7 @@ export default function AdminUsers() {
                             type="datetime-local"
                             value={restrictionForm.endDate}
                             onChange={(e) => setRestrictionForm((prev) => ({ ...prev, endDate: e.target.value }))}
-                            className="w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-2.5 text-sm font-medium focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all"
+                            className="w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-2.5 text-sm font-medium focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-200 transition-all"
                           />
                           <p className="text-xs text-gray-500 mt-1.5">Optionnel - Laissez vide pour une restriction permanente</p>
                         </div>
@@ -1384,14 +1460,14 @@ export default function AdminUsers() {
                     </div>
 
                     {/* Info Box */}
-                    <div className="bg-indigo-50 rounded-xl p-4 border border-indigo-100">
+                    <div className="bg-neutral-50 rounded-xl p-4 border border-neutral-100">
                       <div className="flex items-start gap-3">
-                        <div className="p-1.5 bg-indigo-100 rounded-lg">
-                          <ShieldAlert size={16} className="text-indigo-600" />
+                        <div className="p-1.5 bg-neutral-100 rounded-lg">
+                          <ShieldAlert size={16} className="text-neutral-600" />
                         </div>
                         <div className="flex-1">
-                          <p className="text-xs font-semibold text-indigo-900 mb-1">Information importante</p>
-                          <p className="text-xs text-indigo-700 leading-relaxed">
+                          <p className="text-xs font-semibold text-neutral-900 mb-1">Information importante</p>
+                          <p className="text-xs text-neutral-700 leading-relaxed">
                             Cette restriction sera appliquée immédiatement après validation. L'utilisateur sera notifié si nécessaire.
                             Les restrictions peuvent être modifiées ou supprimées à tout moment depuis cette page.
                           </p>
@@ -1574,7 +1650,7 @@ export default function AdminUsers() {
                   {/* Shop Information */}
                   <div className="bg-gray-50 rounded-xl p-4 space-y-3">
                     <h4 className="font-semibold text-gray-900 flex items-center gap-2">
-                      <Store size={18} className="text-indigo-600" />
+                      <Store size={18} className="text-neutral-600" />
                       Informations de la boutique
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1608,9 +1684,9 @@ export default function AdminUsers() {
                   </div>
 
                   {/* Payment Information */}
-                  <div className="bg-blue-50 rounded-xl p-4 space-y-3">
+                  <div className="bg-neutral-50 rounded-xl p-4 space-y-3">
                     <h4 className="font-semibold text-gray-900 flex items-center gap-2">
-                      <DollarSign size={18} className="text-blue-600" />
+                      <DollarSign size={18} className="text-neutral-600" />
                       Informations de paiement
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

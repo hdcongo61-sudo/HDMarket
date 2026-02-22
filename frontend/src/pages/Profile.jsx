@@ -58,9 +58,12 @@ const initialForm = {
   shopName: '',
   shopAddress: '',
   shopDescription: '',
+  freeDeliveryEnabled: false,
+  freeDeliveryNote: '',
   address: '',
   country: 'République du Congo',
   city: '',
+  commune: '',
   gender: ''
 };
 
@@ -112,7 +115,7 @@ const ORDER_STATUS_LABELS = {
 const ORDER_STATUS_STYLES = {
   pending: 'border-gray-200 bg-gray-50 text-gray-700',
   confirmed: 'border-yellow-200 bg-yellow-50 text-yellow-800',
-  delivering: 'border-blue-200 bg-blue-50 text-blue-800',
+  delivering: 'border-neutral-200 bg-neutral-50 text-neutral-800',
   delivered: 'border-green-200 bg-green-50 text-green-800',
   cancelled: 'border-red-200 bg-red-50 text-red-800'
 };
@@ -160,7 +163,7 @@ const OrderProgress = ({ status }) => {
             <div key={step.id} className="flex items-start gap-3">
               <div
                 className={`mt-0.5 w-9 h-9 rounded-full border-2 flex items-center justify-center ${
-                  reached ? 'border-indigo-600 text-indigo-600 bg-white' : 'border-gray-200 text-gray-400 bg-white'
+                  reached ? 'border-neutral-600 text-neutral-800 bg-white' : 'border-gray-200 text-gray-400 bg-white'
                 }`}
               >
                 <Icon size={16} />
@@ -169,7 +172,7 @@ const OrderProgress = ({ status }) => {
                 <p className={`text-sm font-semibold ${reached ? 'text-gray-900' : 'text-gray-500'}`}>
                   {step.label}
                   {isCurrent && (
-                    <span className="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                    <span className="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-700">
                       {step.id === 'pending'
                         ? 'En attente'
                         : step.id === 'delivered'
@@ -261,7 +264,7 @@ const hydrateShopHoursFromUser = (value) => {
 
 export default function Profile() {
   const { user, updateUser } = useContext(AuthContext);
-  const { cities } = useAppSettings();
+  const { cities, communes } = useAppSettings();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
@@ -340,13 +343,27 @@ export default function Profile() {
     { label: 'Vues', value: stats.performance?.views || 0 },
     { label: 'WhatsApp', value: stats.performance?.clicks || 0 }
   ];
-  const cityOptions = useMemo(
+  const cityRecords = useMemo(
     () =>
       Array.isArray(cities) && cities.length
-        ? cities.map((item) => item.name).filter(Boolean)
-        : ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'],
+        ? cities.filter((item) => item?.name)
+        : [
+            { _id: 'fallback-bzv', name: 'Brazzaville' },
+            { _id: 'fallback-pn', name: 'Pointe-Noire' },
+            { _id: 'fallback-ou', name: 'Ouesso' },
+            { _id: 'fallback-oy', name: 'Oyo' }
+          ],
     [cities]
   );
+  const cityOptions = cityRecords.map((item) => item.name);
+  const selectedCityRecord = cityRecords.find((item) => item.name === form.city) || null;
+  const availableCommunes = useMemo(() => {
+    if (!selectedCityRecord?._id || !Array.isArray(communes)) return [];
+    return communes.filter((item) => {
+      const itemCityId = item?.cityId?._id || item?.cityId;
+      return String(itemCityId || '') === String(selectedCityRecord._id);
+    });
+  }, [communes, selectedCityRecord?._id]);
 
   useEffect(
     () => () => {
@@ -374,9 +391,12 @@ export default function Profile() {
       shopName: user.shopName || '',
       shopAddress: user.shopAddress || '',
       shopDescription: user.shopDescription || '',
+      freeDeliveryEnabled: Boolean(user.freeDeliveryEnabled),
+      freeDeliveryNote: user.freeDeliveryNote || '',
       address: user.address || '',
       country: user.country || 'République du Congo',
       city: user.city || '',
+      commune: user.commune || '',
       gender: user.gender || ''
     }));
     setShopLogoPreview(user.shopLogo || '');
@@ -609,14 +629,25 @@ export default function Profile() {
   }, [filteredOrders, showToast]);
 
   const onChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
+    const nextValue = type === 'checkbox' ? checked : value;
+    if (name === 'city') {
+      setForm((prev) => ({
+        ...prev,
+        city: value,
+        commune: ''
+      }));
+      return;
+    }
     if (name === 'accountType') {
       setForm((prev) => ({
         ...prev,
         accountType: value,
         shopName: value === 'shop' ? prev.shopName : '',
         shopAddress: value === 'shop' ? prev.shopAddress : '',
-        shopDescription: value === 'shop' ? prev.shopDescription : ''
+        shopDescription: value === 'shop' ? prev.shopDescription : '',
+        freeDeliveryEnabled: value === 'shop' ? prev.freeDeliveryEnabled : false,
+        freeDeliveryNote: value === 'shop' ? prev.freeDeliveryNote : ''
       }));
       if (value !== 'shop') {
         setShopLogoFile(null);
@@ -626,7 +657,7 @@ export default function Profile() {
       }
       return;
     }
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => ({ ...prev, [name]: nextValue }));
   };
 
   const onLogoChange = (e) => {
@@ -738,6 +769,12 @@ export default function Profile() {
       showToast(message, { variant: 'error' });
       return;
     }
+    if (availableCommunes.length > 0 && !form.commune) {
+      const message = 'Veuillez sélectionner votre commune.';
+      setError(message);
+      showToast(message, { variant: 'error' });
+      return;
+    }
     if (!form.address.trim()) {
       const message = 'Veuillez renseigner votre adresse complète.';
       setError(message);
@@ -773,12 +810,15 @@ export default function Profile() {
       payload.append('email', form.email);
       payload.append('accountType', form.accountType);
       payload.append('city', form.city);
+      payload.append('commune', form.commune || '');
       payload.append('gender', form.gender);
       payload.append('address', form.address.trim());
       if (form.accountType === 'shop') {
         payload.append('shopName', form.shopName);
         payload.append('shopAddress', form.shopAddress);
         payload.append('shopDescription', form.shopDescription.trim());
+        payload.append('freeDeliveryEnabled', String(Boolean(form.freeDeliveryEnabled)));
+        payload.append('freeDeliveryNote', form.freeDeliveryNote || '');
         if (shopLogoFile) {
           payload.append('shopLogo', shopLogoFile);
         }
@@ -802,9 +842,12 @@ export default function Profile() {
         shopName: data.shopName || '',
         shopAddress: data.shopAddress || '',
         shopDescription: data.shopDescription || '',
+        freeDeliveryEnabled: Boolean(data.freeDeliveryEnabled),
+        freeDeliveryNote: data.freeDeliveryNote || '',
         address: data.address || '',
         country: data.country || 'République du Congo',
         city: data.city || '',
+        commune: data.commune || '',
         gender: data.gender || ''
       }));
       setShopLogoPreview(data.shopLogo || '');
@@ -833,7 +876,7 @@ export default function Profile() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-neutral-900 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <User className="w-8 h-8 text-white" />
           </div>
           <p className="text-gray-500">Vous devez être connecté pour accéder à votre profil.</p>
@@ -847,21 +890,30 @@ export default function Profile() {
       <div className="max-w-6xl mx-auto px-4 py-6">
         {/* En-tête */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-20 h-20 bg-neutral-900 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <User className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Mon Profil</h1>
           <p className="text-gray-500">Gérez vos informations et consultez vos statistiques</p>
           {user?.address ? (
             <p className="mt-2 flex items-center justify-center text-sm text-gray-600 gap-2">
-              <MapPin className="w-4 h-4 text-indigo-500" />
+              <MapPin className="w-4 h-4 text-neutral-700" />
               <span>{user.address}</span>
+            </p>
+          ) : null}
+          {user?.city || user?.commune ? (
+            <p className="mt-1 flex items-center justify-center text-sm text-gray-500 gap-2">
+              <MapPin className="w-4 h-4 text-neutral-500" />
+              <span>
+                {user?.city || 'Ville inconnue'}
+                {user?.commune ? ` • ${user.commune}` : ''}
+              </span>
             </p>
           ) : null}
           {userShopLink && (
             <Link
               to={userShopLink}
-              className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-xl border border-indigo-200 text-sm font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors"
+              className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-xl border border-neutral-200 text-sm font-semibold text-neutral-800 hover:bg-neutral-50 transition-colors"
             >
               <Store className="w-4 h-4" />
               Voir ma boutique publique
@@ -888,11 +940,11 @@ export default function Profile() {
             <div className="mb-3">
               <div className="flex items-center justify-between text-xs mb-1.5">
                 <span className="font-medium text-gray-500 dark:text-gray-400">Profil complété</span>
-                <span className="font-semibold text-indigo-600 dark:text-indigo-400 tabular-nums">{profileCompletionPercent}%</span>
+                <span className="font-semibold text-neutral-800 dark:text-neutral-500 tabular-nums">{profileCompletionPercent}%</span>
               </div>
               <div className="h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-indigo-500 transition-all duration-300 ease-out"
+                  className="h-full rounded-full bg-neutral-800 transition-all duration-300 ease-out"
                   style={{ width: `${profileCompletionPercent}%` }}
                 />
               </div>
@@ -909,7 +961,7 @@ export default function Profile() {
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all touch-manipulation min-h-[44px] ${
                       isActive
-                        ? 'bg-indigo-600 text-white shadow-md'
+                        ? 'bg-neutral-900 text-white shadow-md'
                         : 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
@@ -935,7 +987,7 @@ export default function Profile() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center space-x-2 px-4 py-3 rounded-xl font-medium transition-all flex-1 w-full text-left sm:text-center ${
                     activeTab === tab.id
-                      ? 'bg-indigo-600 text-white shadow-lg'
+                      ? 'bg-neutral-900 text-white shadow-lg'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                   }`}
                 >
@@ -952,21 +1004,28 @@ export default function Profile() {
           <>
             <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
             <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 mb-6">
-              <div className="w-2 h-6 bg-indigo-600 rounded-full"></div>
+              <div className="w-2 h-6 bg-neutral-900 rounded-full"></div>
               <h2 className="text-xl font-semibold text-gray-900">Informations personnelles</h2>
             </div>
 
             <form onSubmit={onSubmit} className="space-y-6">
-              {/* Informations de base */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <section className="rounded-2xl border border-neutral-200 bg-neutral-50/30 p-4 sm:p-5 space-y-5">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-semibold text-neutral-700">
+                    Section utilisateur
+                  </span>
+                  <span className="text-xs text-gray-500">Informations personnelles et de contact</span>
+                </div>
+                {/* Informations de base */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                    <User className="w-4 h-4 text-indigo-500" />
+                    <User className="w-4 h-4 text-neutral-700" />
                     <span>Nom complet *</span>
                   </label>
                   <div className="relative">
                     <input
-                      className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                      className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                       name="name"
                       value={form.name}
                       onChange={onChange}
@@ -979,13 +1038,13 @@ export default function Profile() {
 
                 <div className="space-y-2">
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                    <Mail className="w-4 h-4 text-indigo-500" />
+                    <Mail className="w-4 h-4 text-neutral-700" />
                     <span>Adresse email *</span>
                   </label>
                   <div className="relative">
                     <input
                       type="email"
-                      className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                      className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                       name="email"
                       value={form.email}
                       onChange={onChange}
@@ -998,7 +1057,7 @@ export default function Profile() {
 
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                <Phone className="w-4 h-4 text-indigo-500" />
+                <Phone className="w-4 h-4 text-neutral-700" />
                 <span>Téléphone</span>
               </label>
               <div className="relative">
@@ -1015,7 +1074,7 @@ export default function Profile() {
 
                 <div className="space-y-2">
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                    <MapPin className="w-4 h-4 text-indigo-500" />
+                    <MapPin className="w-4 h-4 text-neutral-700" />
                     <span>Pays *</span>
                   </label>
                   <div className="relative">
@@ -1031,12 +1090,12 @@ export default function Profile() {
 
                 <div className="space-y-2">
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                    <MapPin className="w-4 h-4 text-indigo-500" />
+                    <MapPin className="w-4 h-4 text-neutral-700" />
                     <span>Ville *</span>
                   </label>
                   <div className="relative">
                     <select
-                      className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                      className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                       name="city"
                       value={form.city}
                       onChange={onChange}
@@ -1054,14 +1113,43 @@ export default function Profile() {
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                    <MapPin className="w-4 h-4 text-neutral-700" />
+                    <span>Commune</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all disabled:bg-gray-100 disabled:text-gray-500"
+                      name="commune"
+                      value={form.commune || ''}
+                      onChange={onChange}
+                      disabled={loading || !form.city || availableCommunes.length === 0}
+                      required={availableCommunes.length > 0}
+                    >
+                      <option value="">
+                        {availableCommunes.length > 0
+                          ? 'Choisissez votre commune'
+                          : 'Aucune commune configurée'}
+                      </option>
+                      {availableCommunes.map((commune) => (
+                        <option key={commune._id} value={commune.name}>
+                          {commune.name}
+                        </option>
+                      ))}
+                    </select>
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  </div>
+                </div>
+
                 <div className="space-y-2 md:col-span-2">
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                    <MapPin className="w-4 h-4 text-indigo-500" />
+                    <MapPin className="w-4 h-4 text-neutral-700" />
                     <span>Adresse complète *</span>
                   </label>
                   <div className="relative">
                     <textarea
-                      className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+                      className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400"
                       rows={2}
                       name="address"
                       value={form.address}
@@ -1076,7 +1164,7 @@ export default function Profile() {
 
                 <div className="space-y-2 md:col-span-2">
                   <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <Users className="w-4 h-4 text-indigo-500" />
+                    <Users className="w-4 h-4 text-neutral-700" />
                     Genre *
                     <span className="text-[11px] text-gray-500">Non modifiable</span>
                   </span>
@@ -1089,7 +1177,7 @@ export default function Profile() {
                         key={option.value}
                         className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-colors ${
                           form.gender === option.value
-                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                            ? 'border-neutral-500 bg-neutral-50 text-neutral-700'
                             : 'border-gray-200 bg-gray-50 text-gray-600'
                         }`}
                       >
@@ -1107,15 +1195,15 @@ export default function Profile() {
                   </div>
                 </div>
 
-                {/* Type de compte */}
-                <div className="space-y-2">
+                  {/* Type de compte */}
+                  <div className="space-y-2">
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                    <Shield className="w-4 h-4 text-indigo-500" />
+                    <Shield className="w-4 h-4 text-neutral-700" />
                     <span>Type de compte</span>
                   </label>
                   {user?.accountType === 'shop' ? (
                     <select
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                       name="accountType"
                       value={form.accountType}
                       onChange={onChange}
@@ -1133,19 +1221,23 @@ export default function Profile() {
                         readOnly
                       />
                       <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                        <span className="text-xs bg-neutral-100 text-neutral-700 px-2 py-1 rounded-full">
                           Basique
                         </span>
                       </div>
                     </div>
                   )}
+                  </div>
                 </div>
-              </div>
+              </section>
 
               {/* Section boutique conditionnelle */}
               {form.accountType === 'shop' && (
-                <div className="space-y-6 pt-6 border-t border-gray-100">
+                <section className="rounded-2xl border border-amber-100 bg-amber-50/30 p-4 sm:p-5 space-y-6">
                   <div className="flex items-center space-x-3 flex-wrap gap-y-2">
+                    <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                      Section boutique
+                    </span>
                     <div className="w-2 h-6 bg-amber-600 rounded-full"></div>
                     <h3 className="text-lg font-semibold text-gray-900">Informations de la boutique</h3>
                     <VerifiedBadge verified={Boolean(user?.shopVerified)} />
@@ -1164,7 +1256,7 @@ export default function Profile() {
                       </label>
                       <div className="relative">
                         <input
-                          className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                          className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                           name="shopName"
                           value={form.shopName}
                           onChange={onChange}
@@ -1182,7 +1274,7 @@ export default function Profile() {
                       </label>
                       <div className="relative">
                         <input
-                          className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                          className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                           name="shopAddress"
                           value={form.shopAddress}
                           onChange={onChange}
@@ -1200,7 +1292,7 @@ export default function Profile() {
                       <span>À propos de la boutique *</span>
                     </label>
                     <textarea
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400 text-sm"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400 text-sm"
                       rows={4}
                       name="shopDescription"
                       value={form.shopDescription}
@@ -1214,6 +1306,34 @@ export default function Profile() {
                     </p>
                   </div>
 
+                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 space-y-3">
+                    <label className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-semibold text-emerald-800">
+                        Livraison gratuite pour toutes les commandes
+                      </span>
+                      <input
+                        type="checkbox"
+                        name="freeDeliveryEnabled"
+                        checked={Boolean(form.freeDeliveryEnabled)}
+                        onChange={onChange}
+                        disabled={loading}
+                        className="h-5 w-5 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                    </label>
+                    <p className="text-xs text-emerald-700">
+                      Actif uniquement pour le mode livraison quand la commune est en règle DEFAULT_RULE.
+                    </p>
+                    <input
+                      type="text"
+                      name="freeDeliveryNote"
+                      value={form.freeDeliveryNote || ''}
+                      onChange={onChange}
+                      placeholder="Note visible côté client (optionnel)"
+                      disabled={loading}
+                      className="w-full rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm"
+                    />
+                  </div>
+
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
@@ -1224,7 +1344,7 @@ export default function Profile() {
                         type="button"
                         onClick={resetShopHours}
                         disabled={loading}
-                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-500 disabled:opacity-50 transition-colors"
+                        className="text-xs font-semibold text-neutral-800 hover:text-neutral-700 disabled:opacity-50 transition-colors"
                       >
                         Réinitialiser
                       </button>
@@ -1254,7 +1374,7 @@ export default function Profile() {
                               value={entry.open}
                               onChange={handleShopTimeChange(entry.day, 'open')}
                               disabled={entry.closed || loading}
-                              className="h-10 w-24 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                              className="h-10 w-24 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm outline-none focus:border-neutral-500 focus:ring-2 focus:ring-neutral-100"
                             />
                             <span className="text-xs text-gray-400">à</span>
                             <input
@@ -1262,7 +1382,7 @@ export default function Profile() {
                               value={entry.close}
                               onChange={handleShopTimeChange(entry.day, 'close')}
                               disabled={entry.closed || loading}
-                              className="h-10 w-24 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                              className="h-10 w-24 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm outline-none focus:border-neutral-500 focus:ring-2 focus:ring-neutral-100"
                             />
                             <label className="flex items-center gap-1 text-xs text-gray-500">
                               <input
@@ -1270,7 +1390,7 @@ export default function Profile() {
                                 checked={entry.closed}
                                 onChange={(event) => toggleShopHourClosed(entry.day, event.target.checked)}
                                 disabled={loading}
-                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                className="rounded border-gray-300 text-neutral-800 focus:ring-neutral-500"
                               />
                               <span>Fermé</span>
                             </label>
@@ -1329,7 +1449,7 @@ export default function Profile() {
                   {user?.shopVerified ? (
                     <div className="space-y-3">
                       <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                        <Image className="w-4 h-4 text-indigo-500" />
+                        <Image className="w-4 h-4 text-neutral-700" />
                         <span>Bannière de la boutique</span>
                       </label>
                       <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group p-6">
@@ -1338,7 +1458,7 @@ export default function Profile() {
                             <img
                               src={shopBannerPreview}
                               alt="Bannière boutique"
-                              className="h-32 w-full rounded-2xl object-cover mx-auto mb-3 border-2 border-indigo-200"
+                              className="h-32 w-full rounded-2xl object-cover mx-auto mb-3 border-2 border-neutral-200"
                             />
                             <p className="text-sm text-gray-600 mb-2">Bannière actuelle</p>
                             <button
@@ -1351,9 +1471,9 @@ export default function Profile() {
                           </div>
                         ) : (
                           <label className="text-center cursor-pointer">
-                            <Upload className="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2 mx-auto" />
+                            <Upload className="w-8 h-8 text-gray-400 group-hover:text-neutral-700 transition-colors mb-2 mx-auto" />
                             <span className="text-sm text-gray-500">
-                              <span className="text-indigo-600 font-medium">Cliquez pour uploader</span>
+                              <span className="text-neutral-800 font-medium">Cliquez pour uploader</span>
                               <br />
                               <span className="text-xs">PNG, JPG - 1200x400px recommandé</span>
                             </span>
@@ -1368,11 +1488,11 @@ export default function Profile() {
                       </div>
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 text-xs text-indigo-700">
+                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50/50 p-4 text-xs text-neutral-700">
                       La bannière est disponible uniquement pour les boutiques certifiées.
                     </div>
                   )}
-                </div>
+                </section>
               )}
 
               {/* Mot de passe - CORRECTION ICI */}
@@ -1391,7 +1511,7 @@ export default function Profile() {
                     <div className="relative">
                       <input
                         type={showPassword ? "text" : "password"}
-                        className="w-full px-4 py-3 pl-11 pr-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 pl-11 pr-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                         name="password"
                         value={form.password}
                         onChange={onChange}
@@ -1417,7 +1537,7 @@ export default function Profile() {
                     <div className="relative">
                       <input
                         type={showPassword ? "text" : "password"}
-                        className="w-full px-4 py-3 pl-11 pr-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 pl-11 pr-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                         name="confirmPassword"
                         value={form.confirmPassword}
                         onChange={onChange}
@@ -1441,7 +1561,7 @@ export default function Profile() {
                       type="button"
                       onClick={sendPasswordChangeCode}
                       disabled={passwordCodeSending || loading}
-                      className="px-4 py-2 rounded-xl border border-indigo-200 text-indigo-600 font-semibold hover:bg-indigo-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 rounded-xl border border-neutral-200 text-neutral-800 font-semibold hover:bg-neutral-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {passwordCodeSending
                         ? 'Envoi...'
@@ -1452,7 +1572,7 @@ export default function Profile() {
                   </div>
                   <div className="relative">
                     <input
-                      className="w-full px-4 py-3 pl-11 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                      className="w-full px-4 py-3 pl-11 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                       placeholder="Code reçu par email"
                       value={passwordCode}
                       onChange={(e) => setPasswordCode(e.target.value)}
@@ -1469,7 +1589,7 @@ export default function Profile() {
                     type="checkbox"
                     checked={showPassword}
                     onChange={() => setShowPassword(!showPassword)}
-                    className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                    className="w-4 h-4 text-neutral-800 rounded focus:ring-neutral-500"
                   />
                   <span>Afficher les mots de passe</span>
                 </label>
@@ -1495,7 +1615,7 @@ export default function Profile() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-8 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center space-x-2 shadow-lg"
+                  className="px-8 py-3 bg-neutral-900 text-white font-semibold rounded-xl hover:bg-neutral-800 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center space-x-2 shadow-lg"
                 >
                   {loading ? (
                     <>
@@ -1521,7 +1641,7 @@ export default function Profile() {
             <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-6 bg-blue-600 rounded-full" />
+                  <div className="w-2 h-6 bg-neutral-900 rounded-full" />
                   <h2 className="text-xl font-semibold text-gray-900">Vue d'ensemble</h2>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1533,7 +1653,7 @@ export default function Profile() {
                       onClick={() => setStatsPeriod(opt.value)}
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                         statsPeriod === opt.value
-                          ? 'bg-indigo-600 text-white shadow'
+                          ? 'bg-neutral-900 text-white shadow'
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }`}
                     >
@@ -1545,7 +1665,7 @@ export default function Profile() {
 
               {statsLoading ? (
                 <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-indigo-600 border-t-transparent" />
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-neutral-600 border-t-transparent" />
                 </div>
               ) : statsError ? (
                 <div className="text-center py-8 text-red-600">
@@ -1561,7 +1681,7 @@ export default function Profile() {
                         setShowOrdersModal(true);
                         if (!ordersLoaded && !ordersLoading) fetchOrders();
                       }}
-                      className="bg-indigo-600 text-white rounded-2xl p-5 shadow-lg text-left hover:bg-indigo-700 active:scale-[0.98] transition-all cursor-pointer"
+                      className="bg-neutral-900 text-white rounded-2xl p-5 shadow-lg text-left hover:bg-neutral-800 active:scale-[0.98] transition-all cursor-pointer"
                     >
                       <div className="flex items-center justify-between mb-3">
                         <ClipboardList className="w-7 h-7 opacity-90" />
@@ -1591,7 +1711,7 @@ export default function Profile() {
                     )}
                     <Link
                       to="/my"
-                      className="bg-blue-600 text-white rounded-2xl p-5 shadow-lg block hover:bg-blue-700 active:scale-[0.98] transition-all"
+                      className="bg-neutral-900 text-white rounded-2xl p-5 shadow-lg block hover:bg-neutral-800 active:scale-[0.98] transition-all"
                     >
                       <div className="flex items-center justify-between mb-3">
                         <Package className="w-7 h-7 opacity-90" />
@@ -1600,7 +1720,7 @@ export default function Profile() {
                       <p className="text-white/90 text-sm font-medium">Produits</p>
                       <p className="text-white/70 text-xs mt-1">Actifs: {formatNumber(stats.listings.approved)} · Attente: {formatNumber(stats.listings.pending)}</p>
                     </Link>
-                    <div className="bg-purple-600 text-white rounded-2xl p-5 shadow-lg">
+                    <div className="bg-neutral-900 text-white rounded-2xl p-5 shadow-lg">
                       <div className="flex items-center justify-between mb-3">
                         <TrendingUp className="w-7 h-7 opacity-90" />
                         <span className="text-xl font-bold">{formatNumber(stats.performance.views)}</span>
@@ -1608,7 +1728,7 @@ export default function Profile() {
                       <p className="text-white/90 text-sm font-medium">Vues</p>
                       <p className="text-white/70 text-xs mt-1">Vues totales</p>
                     </div>
-                    <div className="bg-pink-600 text-white rounded-2xl p-5 shadow-lg">
+                    <div className="bg-neutral-600 text-white rounded-2xl p-5 shadow-lg">
                       <div className="flex items-center justify-between mb-3">
                         <Heart className="w-7 h-7 opacity-90" />
                         <span className="text-xl font-bold">{formatNumber(stats.engagement.favoritesReceived)}</span>
@@ -1657,15 +1777,15 @@ export default function Profile() {
 
                     <div className="bg-gray-50 rounded-2xl border border-gray-100 p-5">
                       <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                        <ClipboardList className="w-5 h-5 text-indigo-600" />
+                        <ClipboardList className="w-5 h-5 text-neutral-800" />
                         Commandes par statut
                       </h3>
                       <ResponsiveContainer width="100%" height={220}>
                         <BarChart
                           data={[
                             { label: 'En attente', count: stats.orders?.purchases?.byStatus?.pending?.count || 0, fill: '#f59e0b' },
-                            { label: 'Confirmées', count: stats.orders?.purchases?.byStatus?.confirmed?.count || 0, fill: '#3b82f6' },
-                            { label: 'Livraison', count: stats.orders?.purchases?.byStatus?.delivering?.count || 0, fill: '#8b5cf6' },
+                            { label: 'Confirmées', count: stats.orders?.purchases?.byStatus?.confirmed?.count || 0, fill: '#0a0a0a' },
+                            { label: 'Livraison', count: stats.orders?.purchases?.byStatus?.delivering?.count || 0, fill: '#0a0a0a' },
                             { label: 'Livrées', count: stats.orders?.purchases?.byStatus?.delivered?.count || 0, fill: '#10b981' },
                             { label: 'Annulées', count: stats.orders?.purchases?.byStatus?.cancelled?.count || 0, fill: '#ef4444' }
                           ]}
@@ -1678,8 +1798,8 @@ export default function Profile() {
                           <Bar dataKey="count" name="Commandes" radius={[6, 6, 0, 0]}>
                             {[
                               { fill: '#f59e0b' },
-                              { fill: '#3b82f6' },
-                              { fill: '#8b5cf6' },
+                              { fill: '#0a0a0a' },
+                              { fill: '#0a0a0a' },
                               { fill: '#10b981' },
                               { fill: '#ef4444' }
                             ].map((entry, index) => (
@@ -1692,7 +1812,7 @@ export default function Profile() {
 
                     <div className="bg-gray-50 rounded-2xl border border-gray-100 p-5">
                       <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                        <Package className="w-5 h-5 text-blue-600" />
+                        <Package className="w-5 h-5 text-neutral-800" />
                         Répartition des produits
                       </h3>
                       <ResponsiveContainer width="100%" height={220}>
@@ -1726,7 +1846,7 @@ export default function Profile() {
 
                     <div className="bg-gray-50 rounded-2xl border border-gray-100 p-5">
                       <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                        <BarChart3 className="w-5 h-5 text-purple-600" />
+                        <BarChart3 className="w-5 h-5 text-neutral-800" />
                         Activité par jour
                       </h3>
                       <div className="h-[220px] flex items-center justify-center rounded-xl bg-white border border-gray-100">
@@ -1747,7 +1867,7 @@ export default function Profile() {
         {activeTab === 'performance' && (
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
             <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 mb-6">
-              <div className="w-2 h-6 bg-purple-600 rounded-full"></div>
+              <div className="w-2 h-6 bg-neutral-900 rounded-full"></div>
               <h2 className="text-xl font-semibold text-gray-900">Performance et Insights</h2>
             </div>
 
@@ -1755,32 +1875,32 @@ export default function Profile() {
               {/* Insights de performance */}
               <div className="space-y-6">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-                  <TrendingUp className="w-5 h-5 text-purple-500" />
+                  <TrendingUp className="w-5 h-5 text-neutral-700" />
                   <span>Vos performances</span>
                 </h3>
                 
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-purple-50 border border-purple-100">
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-neutral-50 border border-neutral-200">
                     <div>
-                      <p className="text-sm font-medium text-purple-900">Score d'engagement</p>
-                      <p className="text-2xl font-bold text-purple-600">
+                      <p className="text-sm font-medium text-neutral-900">Score d'engagement</p>
+                      <p className="text-2xl font-bold text-neutral-800">
                         {Math.round((stats.engagement.favoritesReceived + stats.engagement.commentsReceived) / Math.max(stats.listings.approved, 1))}
                       </p>
                     </div>
-                    <Award className="w-8 h-8 text-purple-500" />
+                    <Award className="w-8 h-8 text-neutral-700" />
                   </div>
 
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-blue-50 border border-blue-100">
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-neutral-50 border border-neutral-200">
                     <div>
-                      <p className="text-sm font-medium text-blue-900">Taux d'approbation</p>
-                      <p className="text-2xl font-bold text-blue-600">
+                      <p className="text-sm font-medium text-neutral-900">Taux d'approbation</p>
+                      <p className="text-2xl font-bold text-neutral-800">
                         {stats.listings.total > 0 
                           ? `${Math.round((stats.listings.approved / stats.listings.total) * 100)}%`
                           : '0%'
                         }
                       </p>
                     </div>
-                    <CheckCircle className="w-8 h-8 text-blue-500" />
+                    <CheckCircle className="w-8 h-8 text-neutral-700" />
                   </div>
                 </div>
               </div>
@@ -1803,9 +1923,9 @@ export default function Profile() {
                   )}
 
                   {stats.engagement.favoritesReceived === 0 && stats.listings.approved > 0 && (
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-3 rounded-xl bg-blue-50 border border-blue-200">
-                      <Heart className="w-4 h-4 text-blue-600" />
-                      <p className="text-sm text-blue-800">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-3 rounded-xl bg-neutral-50 border border-neutral-200">
+                      <Heart className="w-4 h-4 text-neutral-800" />
+                      <p className="text-sm text-neutral-800">
                         Améliorez vos photos pour augmenter les favoris
                       </p>
                     </div>
@@ -1831,7 +1951,7 @@ export default function Profile() {
             <div className="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <ClipboardList className="w-5 h-5 text-indigo-600" />
+                  <ClipboardList className="w-5 h-5 text-neutral-800" />
                   Mes commandes
                 </h3>
                 <button
@@ -1912,7 +2032,7 @@ export default function Profile() {
                 <Link
                   to="/profile"
                   onClick={() => setShowOrdersModal(false)}
-                  className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                  className="text-sm font-medium text-neutral-800 hover:text-neutral-700"
                 >
                   Voir tout l'historique →
                 </Link>
@@ -1925,7 +2045,7 @@ export default function Profile() {
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
               <div>
-                <div className="flex items-center gap-2 text-sm font-semibold text-indigo-600">
+                <div className="flex items-center gap-2 text-sm font-semibold text-neutral-800">
                   <ClipboardList className="w-4 h-4" />
                   Gestion des commandes
                 </div>
@@ -1935,7 +2055,7 @@ export default function Profile() {
               <div className="flex items-center gap-3 flex-wrap">
                 <Link
                   to="/orders"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm font-medium hover:bg-indigo-100 transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-700 text-sm font-medium hover:bg-neutral-100 transition-colors"
                 >
                   <ChevronRight className="w-4 h-4" />
                   Page complète
@@ -1957,7 +2077,7 @@ export default function Profile() {
                     <>
                       <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
                         <circle cx="12" cy="12" r="10" stroke="#c7d2fe" strokeWidth="4" opacity="0.3" />
-                        <path d="M22 12a10 10 0 00-10-10" stroke="#6366f1" strokeWidth="4" strokeLinecap="round" />
+                        <path d="M22 12a10 10 0 00-10-10" stroke="#0a0a0a" strokeWidth="4" strokeLinecap="round" />
                       </svg>
                       Chargement…
                     </>
@@ -1988,7 +2108,7 @@ export default function Profile() {
                   type="button"
                   onClick={() => setOrdersFilterStatus(chip.key)}
                   className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                    ordersFilterStatus === chip.key ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ordersFilterStatus === chip.key ? 'bg-neutral-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
                   {chip.label}
@@ -2005,7 +2125,7 @@ export default function Profile() {
                   placeholder="Rechercher par n° commande, produit, client..."
                   value={ordersSearch}
                   onChange={(e) => setOrdersSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500"
                 />
               </div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -2013,7 +2133,7 @@ export default function Profile() {
                   type="button"
                   onClick={() => setOrdersShowFilters(!ordersShowFilters)}
                   className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium ${
-                    ordersShowFilters ? 'border-indigo-300 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    ordersShowFilters ? 'border-neutral-300 bg-neutral-50 text-neutral-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                   }`}
                 >
                   <Filter className="w-4 h-4" />
@@ -2022,7 +2142,7 @@ export default function Profile() {
                 <select
                   value={ordersSortBy}
                   onChange={(e) => setOrdersSortBy(e.target.value)}
-                  className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 focus:ring-2 focus:ring-indigo-500"
+                  className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 focus:ring-2 focus:ring-neutral-500"
                 >
                   <option value="date_desc">Date ▼</option>
                   <option value="date_asc">Date ▲</option>
@@ -2034,7 +2154,7 @@ export default function Profile() {
                   <button
                     type="button"
                     onClick={() => setOrdersViewMode('list')}
-                    className={`p-2 ${ordersViewMode === 'list' ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
+                    className={`p-2 ${ordersViewMode === 'list' ? 'bg-neutral-100 text-neutral-800' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
                     title="Vue liste"
                   >
                     <List className="w-4 h-4" />
@@ -2042,7 +2162,7 @@ export default function Profile() {
                   <button
                     type="button"
                     onClick={() => setOrdersViewMode('grid')}
-                    className={`p-2 ${ordersViewMode === 'grid' ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
+                    className={`p-2 ${ordersViewMode === 'grid' ? 'bg-neutral-100 text-neutral-800' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
                     title="Vue grille"
                   >
                     <LayoutGrid className="w-4 h-4" />
@@ -2091,9 +2211,9 @@ export default function Profile() {
             {/* Statistiques commandes */}
             {!ordersLoading && orders.length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-                <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-100">
-                  <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Affichées</p>
-                  <p className="text-xl font-bold text-indigo-900">{filteredOrders.length}</p>
+                <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-200">
+                  <p className="text-xs font-semibold text-neutral-800 uppercase tracking-wide">Affichées</p>
+                  <p className="text-xl font-bold text-neutral-900">{filteredOrders.length}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100">
                   <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">Total montant</p>
@@ -2160,7 +2280,7 @@ export default function Profile() {
                                       </span>
                                     </div>
                                     {item.snapshot?.confirmationNumber && (
-                                      <span className="text-[11px] text-indigo-600 font-semibold uppercase tracking-wide">
+                                      <span className="text-[11px] text-neutral-800 font-semibold uppercase tracking-wide">
                                         Code produit : {item.snapshot.confirmationNumber}
                                       </span>
                                     )}
@@ -2169,7 +2289,7 @@ export default function Profile() {
                               </div>
                               <div className="mt-3 flex flex-wrap gap-3 text-xs text-gray-500">
                                 <span className="inline-flex items-center gap-1">
-                                  <Shield className="w-3.5 h-3.5 text-indigo-500" />
+                                  <Shield className="w-3.5 h-3.5 text-neutral-700" />
                                   Gestionnaire : {order.createdBy?.name || order.createdBy?.email || 'Admin HDMarket'}
                                 </span>
                                 <span className="hidden sm:block text-gray-300">•</span>
@@ -2233,7 +2353,7 @@ export default function Profile() {
                             <button
                               type="button"
                               onClick={() => setSelectedOrderDetail(order)}
-                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-indigo-600 hover:bg-indigo-50 border border-indigo-200"
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-neutral-800 hover:bg-neutral-50 border border-neutral-200"
                             >
                               <Package size={14} />
                               Voir détails
@@ -2258,7 +2378,7 @@ export default function Profile() {
                 <div className="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white">
                     <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                      <ClipboardList className="w-5 h-5 text-indigo-600" />
+                      <ClipboardList className="w-5 h-5 text-neutral-800" />
                       Commande #{selectedOrderDetail._id?.slice(-6)}
                     </h3>
                     <button type="button" onClick={() => setSelectedOrderDetail(null)} className="p-2 rounded-full text-gray-500 hover:bg-gray-100" aria-label="Fermer">
@@ -2300,8 +2420,8 @@ export default function Profile() {
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Timeline</p>
                       <div className="space-y-4">
                         <div className="flex gap-3">
-                          <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                            <Clock className="w-4 h-4 text-indigo-600" />
+                          <div className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center flex-shrink-0">
+                            <Clock className="w-4 h-4 text-neutral-800" />
                           </div>
                           <div>
                             <p className="font-medium text-gray-900">Créée</p>
@@ -2310,8 +2430,8 @@ export default function Profile() {
                         </div>
                         {selectedOrderDetail.shippedAt && (
                           <div className="flex gap-3">
-                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                              <Truck className="w-4 h-4 text-blue-600" />
+                            <div className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center flex-shrink-0">
+                              <Truck className="w-4 h-4 text-neutral-800" />
                             </div>
                             <div>
                               <p className="font-medium text-gray-900">Expédiée</p>
@@ -2348,14 +2468,14 @@ export default function Profile() {
                     <Link
                       to="/orders/messages"
                       onClick={() => setSelectedOrderDetail(null)}
-                      className="px-4 py-2 rounded-xl border border-indigo-200 text-indigo-600 font-medium hover:bg-indigo-50"
+                      className="px-4 py-2 rounded-xl border border-neutral-200 text-neutral-800 font-medium hover:bg-neutral-50"
                     >
                       Messages
                     </Link>
                     <Link
                       to="/orders"
                       onClick={() => setSelectedOrderDetail(null)}
-                      className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700"
+                      className="px-4 py-2 rounded-xl bg-neutral-900 text-white font-medium hover:bg-neutral-800"
                     >
                       Page commandes
                     </Link>
@@ -2380,7 +2500,7 @@ export default function Profile() {
                   href={userShopLink || '#'}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-4 rounded-xl border-2 border-gray-100 p-4 hover:border-indigo-200 hover:bg-indigo-50/30 transition-colors"
+                  className="flex items-center gap-4 rounded-xl border-2 border-gray-100 p-4 hover:border-neutral-200 hover:bg-neutral-50/30 transition-colors"
                 >
                   {(shopLogoPreview || user?.shopLogo) ? (
                     <img
@@ -2397,7 +2517,7 @@ export default function Profile() {
                     <p className="font-semibold text-gray-900 truncate">{form.shopName || 'Ma boutique'}</p>
                     <p className="text-xs text-gray-500 truncate">{form.shopAddress || 'Adresse non renseignée'}</p>
                   </div>
-                  <span className="text-sm font-semibold text-indigo-600 flex-shrink-0">Voir l’aperçu public →</span>
+                  <span className="text-sm font-semibold text-neutral-800 flex-shrink-0">Voir l’aperçu public →</span>
                 </a>
               </div>
             </div>
@@ -2419,7 +2539,7 @@ export default function Profile() {
               <button
                 type="button"
                 onClick={() => setActiveTab('profile')}
-                className="mt-3 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+                className="mt-3 text-sm font-semibold text-neutral-800 hover:text-neutral-700"
               >
                 Modifier dans l’onglet Profil
               </button>
@@ -2456,7 +2576,7 @@ export default function Profile() {
               <button
                 type="button"
                 onClick={() => setActiveTab('profile')}
-                className="mt-3 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+                className="mt-3 text-sm font-semibold text-neutral-800 hover:text-neutral-700"
               >
                 Gérer dans l’onglet Profil
               </button>
@@ -2485,7 +2605,7 @@ export default function Profile() {
               <button
                 type="button"
                 onClick={() => setActiveTab('profile')}
-                className="mt-3 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+                className="mt-3 text-sm font-semibold text-neutral-800 hover:text-neutral-700"
               >
                 Modifier dans l’onglet Profil
               </button>
@@ -2513,7 +2633,7 @@ export default function Profile() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('stats')}
-                  className="mt-3 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+                  className="mt-3 text-sm font-semibold text-neutral-800 hover:text-neutral-700"
                 >
                   Voir tout dans l’onglet Statistiques
                 </button>
@@ -2522,7 +2642,7 @@ export default function Profile() {
 
             <Link
               to={userShopLink || '/profile'}
-              className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-neutral-900 text-white font-semibold hover:bg-neutral-800 transition-colors"
             >
               <Store className="w-4 h-4" />
               Voir ma boutique publique
@@ -2534,7 +2654,7 @@ export default function Profile() {
         {activeTab === 'notifications' && (
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
             <div className="flex flex-col gap-3 mb-6">
-              <div className="flex items-center gap-2 text-sm font-semibold text-indigo-600">
+              <div className="flex items-center gap-2 text-sm font-semibold text-neutral-800">
                 <Bell className="w-4 h-4" />
                 Préférences de notifications
               </div>
@@ -2543,7 +2663,7 @@ export default function Profile() {
             </div>
             <Link
               to="/notifications"
-              className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-neutral-900 text-white font-semibold hover:bg-neutral-800 transition-colors"
             >
               <Bell className="w-4 h-4" />
               Gérer les préférences
@@ -2568,7 +2688,7 @@ export default function Profile() {
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
-                      className="w-full px-4 py-3 pl-11 pr-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                      className="w-full px-4 py-3 pl-11 pr-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                       name="password"
                       value={form.password}
                       onChange={onChange}
@@ -2593,7 +2713,7 @@ export default function Profile() {
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
-                      className="w-full px-4 py-3 pl-11 pr-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                      className="w-full px-4 py-3 pl-11 pr-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                       name="confirmPassword"
                       value={form.confirmPassword}
                       onChange={onChange}
@@ -2614,14 +2734,14 @@ export default function Profile() {
                     type="button"
                     onClick={sendPasswordChangeCode}
                     disabled={passwordCodeSending || loading}
-                    className="px-4 py-2 rounded-xl border border-indigo-200 text-indigo-600 font-semibold hover:bg-indigo-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 rounded-xl border border-neutral-200 text-neutral-800 font-semibold hover:bg-neutral-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {passwordCodeSending ? 'Envoi...' : passwordCodeSent ? 'Renvoyer le code' : 'Envoyer le code'}
                   </button>
                 </div>
                 <div className="relative">
                   <input
-                    className="w-full px-4 py-3 pl-11 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 pl-11 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                     placeholder="Code reçu par email"
                     value={passwordCode}
                     onChange={(e) => setPasswordCode(e.target.value)}
@@ -2637,7 +2757,7 @@ export default function Profile() {
                   type="checkbox"
                   checked={showPassword}
                   onChange={() => setShowPassword(!showPassword)}
-                  className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                  className="w-4 h-4 text-neutral-800 rounded focus:ring-neutral-500"
                 />
                 <span>Afficher les mots de passe</span>
               </label>
@@ -2648,7 +2768,7 @@ export default function Profile() {
                   if (ok) showToast('Mot de passe mis à jour.', { variant: 'success' });
                 }}
                 disabled={loading || !form.password || form.password !== form.confirmPassword || !passwordCode.trim()}
-                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-5 py-3 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Lock className="w-4 h-4" />
                 Mettre à jour le mot de passe

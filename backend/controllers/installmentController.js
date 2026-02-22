@@ -6,6 +6,7 @@ import User from '../models/userModel.js';
 import Cart from '../models/cartModel.js';
 import { createNotification } from '../utils/notificationService.js';
 import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
+import { getWholesalePricing } from '../utils/wholesaleUtils.js';
 import {
   addDays,
   generateInstallmentSchedule,
@@ -15,6 +16,11 @@ import {
 } from '../utils/installmentUtils.js';
 import { calculateProductSalesCount } from '../utils/salesCalculator.js';
 import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
+import {
+  isTransactionCodeAlreadyUsed,
+  normalizeTransactionCode,
+  TRANSACTION_CODE_REUSED_MESSAGE
+} from '../utils/transactionCodeService.js';
 
 const ensureObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -26,7 +32,7 @@ const resolveItemShopId = (item) =>
 
 const baseOrderQuery = () =>
   Order.find()
-    .populate('customer', 'name email phone address city')
+    .populate('customer', 'name email phone address city commune')
     .populate({
       path: 'items.product',
       select: 'title price images status user slug',
@@ -79,7 +85,8 @@ const buildOrderResponse = (order) => {
           email: obj.customer.email,
           phone: obj.customer.phone,
           address: obj.customer.address,
-          city: obj.customer.city
+          city: obj.customer.city,
+          commune: obj.customer.commune || ''
         }
       : null,
     createdBy: obj.createdBy
@@ -211,7 +218,7 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
   const { productId, quantity = 1, firstPaymentAmount, payerName, transactionCode } = req.body;
   const guarantor = parseGuarantorPayload(req.body);
   const cleanPayerName = String(payerName || '').trim();
-  const cleanTransactionCode = String(transactionCode || '').replace(/\D/g, '');
+  const cleanTransactionCode = normalizeTransactionCode(transactionCode);
 
   if (!ensureObjectId(productId)) {
     return res.status(400).json({ message: 'Produit invalide.' });
@@ -219,10 +226,14 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
   if (!cleanPayerName || cleanTransactionCode.length !== 10) {
     return res.status(400).json({ message: 'Le nom du payeur et un ID transaction valide sont requis.' });
   }
+  const transactionCodeAlreadyUsed = await isTransactionCodeAlreadyUsed(cleanTransactionCode);
+  if (transactionCodeAlreadyUsed) {
+    return res.status(409).json({ message: TRANSACTION_CODE_REUSED_MESSAGE });
+  }
 
   const [customer, product] = await Promise.all([
-    User.findById(userId).select('name email phone address city restrictions'),
-    Product.findById(productId).populate('user', 'shopName name slug accountType')
+    User.findById(userId).select('name email phone address city commune restrictions'),
+    Product.findById(productId).populate('user', 'shopName name slug accountType shopAddress city commune')
   ]);
 
   if (!customer) {
@@ -241,7 +252,9 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Le paiement par tranche n’est pas disponible pour ce produit.' });
   }
   const qty = Math.max(1, Number(quantity) || 1);
-  const totalAmount = Number((Number(product.price || 0) * qty).toFixed(2));
+  const pricing = getWholesalePricing(product, qty);
+  const unitPrice = Number(pricing.unitPrice || 0);
+  const totalAmount = Number(pricing.lineTotal || 0);
   const firstPayment = Number(firstPaymentAmount || 0);
   if (!Number.isFinite(firstPayment) || firstPayment < Number(product.installmentMinAmount || 0)) {
     return res.status(400).json({
@@ -296,12 +309,26 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
     const orderItem = {
       product: product._id,
       quantity: qty,
+      unitPrice,
+      lineTotal: totalAmount,
       snapshot: {
         title: product.title,
-        price: product.price,
+        price: unitPrice,
+        basePrice: Number(product.price || 0),
         image: Array.isArray(product.images) ? product.images[0] : null,
         shopName: product.user?.shopName || product.user?.name || '',
         shopId: product.user?._id || null,
+        shopAddress: product.user?.shopAddress || '',
+        shopCity: product.user?.city || '',
+        shopCommune: product.user?.commune || '',
+        wholesaleEnabled: Boolean(product.wholesaleEnabled),
+        wholesaleApplied: Boolean(pricing.tierApplied),
+        wholesaleTierMinQty: Number(pricing.tierApplied?.minQty || 0),
+        wholesaleTierLabel: String(pricing.tierApplied?.label || ''),
+        deliveryAvailable: product.deliveryAvailable !== false,
+        pickupAvailable: product.pickupAvailable !== false,
+        deliveryFeeEnabled: product.deliveryFeeEnabled !== false,
+        deliveryFee: Number(product.deliveryFee || 0),
         confirmationNumber: product.confirmationNumber || '',
         slug: product.slug || null
       }
@@ -389,7 +416,7 @@ export const uploadInstallmentPaymentProof = asyncHandler(async (req, res) => {
   const { id, scheduleIndex } = req.params;
   const { payerName, transactionCode, amount } = req.body;
   const cleanPayerName = String(payerName || '').trim();
-  const cleanTransactionCode = String(transactionCode || '').replace(/\D/g, '');
+  const cleanTransactionCode = normalizeTransactionCode(transactionCode);
   const submittedAmount = Number(amount || 0);
 
   if (!ensureObjectId(id)) {
@@ -401,6 +428,10 @@ export const uploadInstallmentPaymentProof = asyncHandler(async (req, res) => {
   }
   if (!cleanPayerName || cleanTransactionCode.length !== 10 || !Number.isFinite(submittedAmount) || submittedAmount <= 0) {
     return res.status(400).json({ message: 'Nom, ID transaction (10 chiffres) et montant valides sont requis.' });
+  }
+  const transactionCodeAlreadyUsed = await isTransactionCodeAlreadyUsed(cleanTransactionCode);
+  if (transactionCodeAlreadyUsed) {
+    return res.status(409).json({ message: TRANSACTION_CODE_REUSED_MESSAGE });
   }
 
   const order = await Order.findOne({
@@ -517,6 +548,9 @@ export const sellerConfirmInstallmentSale = asyncHandler(async (req, res) => {
   order.installmentPlan.nextDueDate = getNextDueDate(order.installmentPlan.schedule || []);
   if (order.status === 'pending_installment') {
     order.status = 'installment_active';
+    if (!order.confirmedAt) {
+      order.confirmedAt = new Date();
+    }
   }
   order.markModified('installmentPlan');
   await order.save();
@@ -623,6 +657,9 @@ export const sellerValidateInstallmentPayment = asyncHandler(async (req, res) =>
 
   if (order.installmentPlan.remainingAmount <= 0) {
     order.status = 'completed';
+    if (!order.completedAt) {
+      order.completedAt = now;
+    }
     if (!order.installmentSaleStatus) {
       order.installmentSaleStatus = 'confirmed';
     }
@@ -640,6 +677,9 @@ export const sellerValidateInstallmentPayment = asyncHandler(async (req, res) =>
     }
   } else {
     order.status = 'installment_active';
+    if (!order.confirmedAt) {
+      order.confirmedAt = now;
+    }
     await order.save();
   }
 

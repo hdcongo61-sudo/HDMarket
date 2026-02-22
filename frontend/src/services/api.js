@@ -35,6 +35,7 @@ const CACHE_EXCLUDE_PREFIXES = [
   '/users/register',
   '/users/profile/stats',
   '/users/profile/seller-analytics',
+  '/settings/app-logo',
   '/cart',
   '/orders/create',
   '/admin',
@@ -42,6 +43,14 @@ const CACHE_EXCLUDE_PREFIXES = [
   '/support',
   '/chat',
   '/settings/networks'
+];
+const USER_SCOPED_CACHE_PREFIXES = [
+  '/users/profile',
+  '/users/notifications',
+  '/users/favorites',
+  '/users/search-history',
+  '/orders',
+  '/cart'
 ];
 
 // Enable caching for all platforms (not just native)
@@ -61,11 +70,37 @@ const normalizeUrl = (config) => {
   return raw.replace(base, '');
 };
 
+const decodeJwtUserId = (token) => {
+  try {
+    const payload = String(token || '').split('.')[1];
+    if (!payload) return '';
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const parsed = JSON.parse(atob(normalized));
+    return String(parsed?.id || parsed?._id || parsed?.sub || '').trim();
+  } catch {
+    return '';
+  }
+};
+
+const getUserScopeSuffix = (config, normalizedUrl) => {
+  if (!USER_SCOPED_CACHE_PREFIXES.some((prefix) => normalizedUrl.startsWith(prefix))) {
+    return '';
+  }
+
+  const authHeader = config?.headers?.Authorization || config?.headers?.authorization || '';
+  const token = String(authHeader).startsWith('Bearer ')
+    ? String(authHeader).slice(7)
+    : '';
+  const userId = decodeJwtUserId(token);
+  return userId ? `::user:${userId}` : '::user:anon';
+};
+
 const buildCacheKey = (config) => {
   const normalized = normalizeUrl(config);
   const params = config.params ? new URLSearchParams(config.params).toString() : '';
   const query = params ? (normalized.includes('?') ? `&${params}` : `?${params}`) : '';
-  return `${CACHE_PREFIX}${normalized}${query}`;
+  const userScope = getUserScopeSuffix(config, normalized);
+  return `${CACHE_PREFIX}${normalized}${query}${userScope}`;
 };
 
 // Get TTL for a specific endpoint
@@ -329,5 +364,47 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+const normalizeTransactionCode = (value) => String(value || '').replace(/\D/g, '').trim();
+
+export const verifyTransactionCodeAvailability = async (transactionCode) => {
+  const normalizedCode = normalizeTransactionCode(transactionCode);
+  if (normalizedCode.length !== 10) {
+    return {
+      valid: false,
+      used: false,
+      available: false,
+      code: normalizedCode,
+      message: 'Le code de transaction doit contenir exactement 10 chiffres.'
+    };
+  }
+
+  try {
+    const { data } = await api.post(
+      '/payments/transaction-code/verify',
+      { transactionCode: normalizedCode },
+      { skipCache: true, headers: { 'x-skip-cache': '1' } }
+    );
+    return {
+      valid: Boolean(data?.valid),
+      used: Boolean(data?.used),
+      available: Boolean(data?.valid && !data?.used),
+      code: normalizedCode,
+      message: data?.message || 'Code de transaction disponible.'
+    };
+  } catch (error) {
+    if (error?.response?.status === 409 || error?.response?.status === 400) {
+      const payload = error.response?.data || {};
+      return {
+        valid: Boolean(payload?.valid),
+        used: Boolean(payload?.used || error.response?.status === 409),
+        available: false,
+        code: normalizedCode,
+        message: payload?.message || 'Code de transaction invalide ou déjà utilisé.'
+      };
+    }
+    throw error;
+  }
+};
 
 export default api;

@@ -23,11 +23,11 @@ const STATUS_LABELS = {
 
 const STATUS_STYLES = {
   OPEN: 'bg-amber-100 text-amber-800',
-  SELLER_RESPONDED: 'bg-indigo-100 text-indigo-800',
-  UNDER_REVIEW: 'bg-blue-100 text-blue-800',
+  SELLER_RESPONDED: 'bg-neutral-100 text-neutral-800',
+  UNDER_REVIEW: 'bg-neutral-100 text-neutral-800',
   RESOLVED_CLIENT: 'bg-emerald-100 text-emerald-800',
   RESOLVED_SELLER: 'bg-green-100 text-green-800',
-  REJECTED: 'bg-rose-100 text-rose-800'
+  REJECTED: 'bg-neutral-100 text-neutral-800'
 };
 
 const formatDate = (value) => {
@@ -146,7 +146,7 @@ export default function SellerDisputes() {
       <div className="mx-auto max-w-6xl px-4 py-6 space-y-5">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-indigo-600 p-2.5 text-white">
+            <div className="rounded-xl bg-neutral-600 p-2.5 text-white">
               <ShieldAlert className="h-5 w-5" />
             </div>
             <div>
@@ -177,11 +177,11 @@ export default function SellerDisputes() {
           </div>
         </header>
 
-        {error && <p className="text-sm text-rose-600">{error}</p>}
+        {error && <p className="text-sm text-neutral-600">{error}</p>}
 
         {loading ? (
           <div className="py-10 flex justify-center">
-            <div className="h-9 w-9 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+            <div className="h-9 w-9 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
           </div>
         ) : items.length === 0 ? (
           <p className="text-sm text-gray-500">Aucun litige pour ce filtre.</p>
@@ -237,9 +237,9 @@ export default function SellerDisputes() {
                   )}
 
                   {item.sellerResponse && (
-                    <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50 p-3">
-                      <p className="text-xs font-semibold text-indigo-700">Votre réponse</p>
-                      <p className="text-sm text-indigo-900 whitespace-pre-line">{item.sellerResponse}</p>
+                    <div className="mt-3 rounded-xl border border-neutral-100 bg-neutral-50 p-3">
+                      <p className="text-xs font-semibold text-neutral-700">Votre réponse</p>
+                      <p className="text-sm text-neutral-900 whitespace-pre-line">{item.sellerResponse}</p>
                     </div>
                   )}
 
@@ -251,7 +251,7 @@ export default function SellerDisputes() {
                           href={file.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs text-indigo-700"
+                          className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-700"
                         >
                           <Paperclip className="h-3.5 w-3.5" />
                           {file.originalName || file.filename || 'preuve vendeur'}
@@ -261,8 +261,8 @@ export default function SellerDisputes() {
                   )}
 
                   {isOpen && (
-                    <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 p-3">
-                      <p className="text-xs font-semibold text-indigo-700 mb-2 inline-flex items-center gap-2">
+                    <div className="mt-4 rounded-xl border border-neutral-100 bg-neutral-50 p-3">
+                      <p className="text-xs font-semibold text-neutral-700 mb-2 inline-flex items-center gap-2">
                         <MessageSquare className="h-4 w-4" />
                         Répondre au litige
                       </p>
@@ -271,10 +271,10 @@ export default function SellerDisputes() {
                         value={form.sellerResponse}
                         onChange={(e) => setForm(item._id, { sellerResponse: e.target.value })}
                         placeholder="Détaillez votre version et fournissez les éléments de preuve."
-                        className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm"
+                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm"
                       />
                       <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs text-indigo-700">
+                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-700">
                           <Paperclip className="h-3.5 w-3.5" />
                           Ajouter des preuves ({form.files.length}/5)
                           <input
@@ -301,7 +301,7 @@ export default function SellerDisputes() {
                           type="button"
                           onClick={() => submitResponse(item._id)}
                           disabled={sendingId === item._id}
-                          className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+                          className="rounded-lg bg-neutral-600 px-3 py-2 text-xs font-semibold text-white hover:bg-neutral-700 disabled:opacity-60"
                         >
                           {sendingId === item._id ? 'Envoi...' : 'Envoyer la réponse'}
                         </button>
@@ -313,7 +313,7 @@ export default function SellerDisputes() {
                     <div className="mt-3">
                       <Link
                         to={`/seller/orders/detail/${item.orderId._id}`}
-                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-500"
+                        className="text-xs font-semibold text-neutral-600 hover:text-neutral-500"
                       >
                         Voir la commande complète
                       </Link>

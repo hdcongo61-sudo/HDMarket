@@ -189,7 +189,7 @@ const paginationButtons = useMemo(() => {
           onClick={() => setPage(i)}
           className={`flex h-10 w-10 items-center justify-center rounded-lg border text-sm transition-colors ${
             page === i
-              ? 'border-indigo-600 bg-indigo-600 text-white'
+              ? 'border-neutral-600 bg-neutral-600 text-white'
               : 'border-gray-200 hover:bg-gray-50'
           }`}
         >
@@ -241,7 +241,7 @@ const paginationButtons = useMemo(() => {
           </div>
           <Link
             to="/search"
-            className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
+            className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-sm font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors"
           >
             <SlidersHorizontal className="w-4 h-4" />
             Recherche avancée
@@ -256,13 +256,13 @@ const paginationButtons = useMemo(() => {
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Rechercher un produit..."
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-base sm:text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-base sm:text-sm focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-200"
               />
             </div>
             <div className="flex gap-2">
               <button
                 type="submit"
-                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700"
+                className="inline-flex items-center gap-2 rounded-xl bg-neutral-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-neutral-700"
               >
                 Rechercher
               </button>
@@ -285,7 +285,7 @@ const paginationButtons = useMemo(() => {
               {items.length} résultat{items.length > 1 ? 's' : ''} affiché{items.length > 1 ? 's' : ''}
             </span>
             {searchTerm && (
-              <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">
+              <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700">
                 Filtre&nbsp;:&nbsp;{searchTerm}
               </span>
             )}
@@ -293,7 +293,7 @@ const paginationButtons = useMemo(() => {
               <button
                 type="button"
                 onClick={clearCategoryFilter}
-                className="inline-flex items-center gap-2 rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700 hover:bg-purple-200 transition-colors"
+                className="inline-flex items-center gap-2 rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700 hover:bg-neutral-200 transition-colors"
               >
                 Catégorie&nbsp;:&nbsp;{categoryMeta?.label || categoryFilter}
                 <span aria-hidden="true">×</span>
@@ -303,7 +303,7 @@ const paginationButtons = useMemo(() => {
               <button
                 type="button"
                 onClick={() => handleInstallmentFilterChange(false)}
-                className="inline-flex items-center gap-2 rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-200 transition-colors"
+                className="inline-flex items-center gap-2 rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700 hover:bg-neutral-200 transition-colors"
               >
                 Paiement par tranche
                 <span aria-hidden="true">×</span>
@@ -316,7 +316,7 @@ const paginationButtons = useMemo(() => {
                 type="checkbox"
                 checked={installmentOnly}
                 onChange={(event) => handleInstallmentFilterChange(event.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                className="h-4 w-4 rounded border-gray-300 text-neutral-600 focus:ring-neutral-500"
               />
               Tranche uniquement
             </label>
@@ -327,7 +327,7 @@ const paginationButtons = useMemo(() => {
               id="sort-options"
               value={sort}
               onChange={(event) => setSort(event.target.value)}
-              className="rounded-lg sm:rounded-xl border border-gray-200 bg-white px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              className="rounded-lg sm:rounded-xl border border-gray-200 bg-white px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-200"
             >
               {SORT_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -395,14 +395,14 @@ const paginationButtons = useMemo(() => {
           </div>
         )}
 
-        <section className="rounded-xl border border-indigo-100 bg-white px-4 py-4 text-sm text-indigo-700 sm:px-6 sm:py-5">
+        <section className="rounded-xl border border-neutral-100 bg-white px-4 py-4 text-sm text-neutral-700 sm:px-6 sm:py-5">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="font-semibold text-indigo-800">
+            <p className="font-semibold text-neutral-800">
               Besoin d&apos;une catégorie spécifique&nbsp;?
             </p>
             <Link
               to="/"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-500"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-600 hover:text-neutral-500"
             >
               Retour à la page d&apos;accueil
             </Link>

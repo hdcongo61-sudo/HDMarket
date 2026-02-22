@@ -21,6 +21,7 @@ export const register = asyncHandler(async (req, res) => {
     phone,
     role,
     city,
+    commune,
     address,
     gender,
     verificationCode
@@ -91,6 +92,7 @@ export const register = asyncHandler(async (req, res) => {
     country: 'République du Congo',
     address: address.trim(),
     city,
+    commune: String(commune || '').trim(),
     gender
   });
   const token = genToken(user);
@@ -114,10 +116,12 @@ export const register = asyncHandler(async (req, res) => {
     canManageComplaints: Boolean(user.canManageComplaints),
     canManageProducts: Boolean(user.canManageProducts),
     canManageDelivery: Boolean(user.canManageDelivery),
+    canManageChatTemplates: Boolean(user.canManageChatTemplates),
     canManageHelpCenter: Boolean(user.canManageHelpCenter),
     country: user.country,
     address: user.address || '',
     city: user.city,
+    commune: user.commune || '',
     preferredLanguage: user.preferredLanguage || 'fr',
     preferredCurrency: user.preferredCurrency || 'XAF',
     preferredCity: user.preferredCity || user.city || '',
@@ -167,6 +171,7 @@ export const login = asyncHandler(async (req, res) => {
     canManageComplaints: Boolean(user.canManageComplaints),
     canManageProducts: Boolean(user.canManageProducts),
     canManageDelivery: Boolean(user.canManageDelivery),
+    canManageChatTemplates: Boolean(user.canManageChatTemplates),
     canManageHelpCenter: Boolean(user.canManageHelpCenter),
     shopLogo: user.shopLogo || null,
     followersCount: Number(user.followersCount || 0),
@@ -174,6 +179,7 @@ export const login = asyncHandler(async (req, res) => {
     country: user.country,
     address: user.address || '',
     city: user.city,
+    commune: user.commune || '',
     preferredLanguage: user.preferredLanguage || 'fr',
     preferredCurrency: user.preferredCurrency || 'XAF',
     preferredCity: user.preferredCity || user.city || '',

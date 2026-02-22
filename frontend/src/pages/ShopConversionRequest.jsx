@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import api from '../services/api';
+import api, { verifyTransactionCodeAvailability } from '../services/api';
 import { useAppSettings } from '../context/AppSettingsContext';
 import {
   Store,
@@ -181,6 +181,19 @@ export default function ShopConversionRequest() {
       setError('Le numéro de transaction doit contenir exactement 10 chiffres.');
       return;
     }
+    try {
+      const verification = await verifyTransactionCodeAvailability(form.transactionNumber);
+      if (!verification.available) {
+        setError(verification.message || 'Ce code de transaction est déjà utilisé.');
+        return;
+      }
+    } catch (verificationError) {
+      setError(
+        verificationError?.response?.data?.message ||
+          'Impossible de vérifier le numéro de transaction.'
+      );
+      return;
+    }
     if (Number(form.paymentAmount) !== requiredAmount) {
       setError(`Le montant du paiement doit être de ${requiredAmountLabel}.`);
       return;
@@ -291,12 +304,12 @@ export default function ShopConversionRequest() {
   const hasPendingRequest = requests.some((r) => r.status === 'pending');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/20 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-neutral-50/20 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-neutral-500 to-neutral-600 text-white">
               <Store size={24} />
             </div>
             <h1 className="text-3xl font-black text-gray-900">Devenir Boutique</h1>
@@ -361,7 +374,7 @@ export default function ShopConversionRequest() {
                   type="text"
                   value={form.shopName}
                   onChange={(e) => setForm((prev) => ({ ...prev, shopName: e.target.value }))}
-                  className="w-full rounded-xl border-2 border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                  className="w-full rounded-xl border-2 border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 transition-all"
                   placeholder="Ex: Ma Super Boutique"
                   required
                 />
@@ -376,7 +389,7 @@ export default function ShopConversionRequest() {
                   type="text"
                   value={form.shopAddress}
                   onChange={(e) => setForm((prev) => ({ ...prev, shopAddress: e.target.value }))}
-                  className="w-full rounded-xl border-2 border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                  className="w-full rounded-xl border-2 border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 transition-all"
                   placeholder="Ex: Avenue de la République, Brazzaville"
                   required
                 />
@@ -393,7 +406,7 @@ export default function ShopConversionRequest() {
                     setForm((prev) => ({ ...prev, shopDescription: e.target.value }))
                   }
                   rows={4}
-                  className="w-full rounded-xl border-2 border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-none"
+                  className="w-full rounded-xl border-2 border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 transition-all resize-none"
                   placeholder="Décrivez votre boutique..."
                 />
               </div>
@@ -435,14 +448,14 @@ export default function ShopConversionRequest() {
               {/* Payment Section */}
               <div className="pt-6 border-t border-gray-200">
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <DollarSign size={20} className="text-indigo-600" />
+                  <DollarSign size={20} className="text-neutral-600" />
                   Informations de paiement
                 </h3>
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-                  <p className="text-sm font-semibold text-blue-900 mb-1">
+                <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 mb-6">
+                  <p className="text-sm font-semibold text-neutral-900 mb-1">
                     Montant requis: <span className="text-lg">{requiredAmountLabel}</span>
                   </p>
-                  <p className="text-xs text-blue-700">
+                  <p className="text-xs text-neutral-700">
                     Veuillez effectuer un paiement de {requiredAmountLabel} et fournir les informations de
                     transaction ci-dessous.
                   </p>
@@ -470,7 +483,7 @@ export default function ShopConversionRequest() {
                   <label className="block text-sm font-bold text-gray-700 mb-2">
                     Nom de la transaction <span className="text-red-500">*</span>
                   </label>
-                  <div className="flex items-center gap-3 rounded-xl border-2 border-gray-300 px-4 py-3 bg-white focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all">
+                  <div className="flex items-center gap-3 rounded-xl border-2 border-gray-300 px-4 py-3 bg-white focus-within:ring-2 focus-within:ring-neutral-500 focus-within:border-neutral-500 transition-all">
                     <CreditCard size={18} className="text-gray-400 flex-shrink-0" />
                     <input
                       type="text"
@@ -492,7 +505,7 @@ export default function ShopConversionRequest() {
                   </label>
                   {networksLoading ? (
                     <div className="flex items-center justify-center py-4">
-                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-neutral-600 border-t-transparent" />
                     </div>
                   ) : activeNetworks.length > 0 ? (
                     <div className="space-y-2">
@@ -504,7 +517,7 @@ export default function ShopConversionRequest() {
                             onClick={() => setForm((prev) => ({ ...prev, operator: network.name }))}
                             className={`px-4 py-3 rounded-xl border-2 font-semibold text-sm transition-all text-left ${
                               form.operator === network.name
-                                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                                ? 'border-neutral-600 bg-neutral-50 text-neutral-700'
                                 : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
                             }`}
                           >
@@ -521,7 +534,7 @@ export default function ShopConversionRequest() {
                         onClick={() => setForm((prev) => ({ ...prev, operator: 'MTN' }))}
                         className={`px-4 py-3 rounded-xl border-2 font-semibold text-sm transition-all ${
                           form.operator === 'MTN'
-                            ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                            ? 'border-neutral-600 bg-neutral-50 text-neutral-700'
                             : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
                         }`}
                       >
@@ -532,7 +545,7 @@ export default function ShopConversionRequest() {
                         onClick={() => setForm((prev) => ({ ...prev, operator: 'Airtel' }))}
                         className={`px-4 py-3 rounded-xl border-2 font-semibold text-sm transition-all ${
                           form.operator === 'Airtel'
-                            ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                            ? 'border-neutral-600 bg-neutral-50 text-neutral-700'
                             : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
                         }`}
                       >
@@ -547,7 +560,7 @@ export default function ShopConversionRequest() {
                   <label className="block text-sm font-bold text-gray-700 mb-2">
                     Numéro de transaction (10 chiffres) <span className="text-red-500">*</span>
                   </label>
-                  <div className="flex items-center gap-3 rounded-xl border-2 border-gray-300 px-4 py-3 bg-white focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all">
+                  <div className="flex items-center gap-3 rounded-xl border-2 border-gray-300 px-4 py-3 bg-white focus-within:ring-2 focus-within:ring-neutral-500 focus-within:border-neutral-500 transition-all">
                     <Hash size={18} className="text-gray-400 flex-shrink-0" />
                     <input
                       type="text"
@@ -608,7 +621,7 @@ export default function ShopConversionRequest() {
                       </button>
                     </div>
                   ) : (
-                    <label className="flex flex-col items-center justify-center w-full min-h-[140px] py-6 px-4 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 hover:border-indigo-300 transition-colors">
+                    <label className="flex flex-col items-center justify-center w-full min-h-[140px] py-6 px-4 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 hover:border-neutral-300 transition-colors">
                       <FileImage className="text-gray-400 mb-2 flex-shrink-0" size={32} />
                       <span className="text-sm text-gray-600 text-center">
                         Cliquez pour ajouter une preuve
@@ -632,7 +645,7 @@ export default function ShopConversionRequest() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-sm hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
+                className="w-full py-4 rounded-xl bg-gradient-to-r from-neutral-600 to-neutral-600 text-white font-bold text-sm hover:from-neutral-700 hover:to-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
               >
                 {loading ? 'Envoi en cours...' : 'Soumettre la demande'}
               </button>

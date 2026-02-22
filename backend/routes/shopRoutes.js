@@ -4,6 +4,7 @@ import {
   getMyShopReview,
   getShopProfile,
   getShopReviews,
+  listFreeDeliveryShops,
   listShops,
   upsertShopReview
 } from '../controllers/shopController.js';
@@ -13,6 +14,7 @@ import { validate, schemas } from '../middlewares/validate.js';
 const router = express.Router();
 
 router.get('/', listShops);
+router.get('/free-delivery', listFreeDeliveryShops);
 router.get('/:id/reviews', validate(schemas.slugParam, 'params'), getShopReviews);
 router.get('/:id/reviews/user', protect, validate(schemas.slugParam, 'params'), getMyShopReview);
 router.post(

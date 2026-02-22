@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState, useRef, useCallback } from 'react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
-import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2, ChevronDown, ChevronUp, RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut } from 'lucide-react';
+import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2, ChevronDown, ChevronUp, RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Plus } from 'lucide-react';
 import categoryGroups from '../data/categories';
 import ProductCard from './ProductCard';
 import useIsMobile from '../hooks/useIsMobile';
@@ -41,7 +41,13 @@ export default function ProductForm(props) {
     installmentEndDate: '',
     installmentLatePenaltyRate: '',
     installmentMaxMissedPayments: 3,
-    installmentRequireGuarantor: false
+    installmentRequireGuarantor: false,
+    wholesaleEnabled: false,
+    wholesaleTiers: [],
+    deliveryAvailable: true,
+    pickupAvailable: true,
+    deliveryFeeEnabled: true,
+    deliveryFee: ''
   });
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -60,6 +66,7 @@ export default function ProductForm(props) {
   const [pdfFile, setPdfFile] = useState(null);
   const [pdfError, setPdfError] = useState('');
   const [installmentError, setInstallmentError] = useState('');
+  const [wholesaleError, setWholesaleError] = useState('');
   const [existingPdf, setExistingPdf] = useState(null);
   const [removePdf, setRemovePdf] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -732,9 +739,34 @@ export default function ProductForm(props) {
     setPdfError('');
   };
 
+  const addWholesaleTier = () => {
+    setForm((prev) => ({
+      ...prev,
+      wholesaleTiers: [...(Array.isArray(prev.wholesaleTiers) ? prev.wholesaleTiers : []), { minQty: '', unitPrice: '', label: '' }]
+    }));
+  };
+
+  const updateWholesaleTier = (index, field, value) => {
+    setForm((prev) => {
+      const tiers = Array.isArray(prev.wholesaleTiers) ? [...prev.wholesaleTiers] : [];
+      const current = tiers[index] || { minQty: '', unitPrice: '', label: '' };
+      tiers[index] = { ...current, [field]: value };
+      return { ...prev, wholesaleTiers: tiers };
+    });
+  };
+
+  const removeWholesaleTier = (index) => {
+    setForm((prev) => {
+      const tiers = Array.isArray(prev.wholesaleTiers) ? [...prev.wholesaleTiers] : [];
+      tiers.splice(index, 1);
+      return { ...prev, wholesaleTiers: tiers };
+    });
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setInstallmentError('');
+    setWholesaleError('');
 
     if (form.installmentEnabled) {
       if (!isBoutiqueOwner) {
@@ -773,6 +805,65 @@ export default function ProductForm(props) {
       }
     }
 
+    if (form.wholesaleEnabled) {
+      if (!isBoutiqueOwner) {
+        setWholesaleError('Seules les boutiques peuvent activer la vente en gros.');
+        return;
+      }
+      const rawTiers = Array.isArray(form.wholesaleTiers) ? form.wholesaleTiers : [];
+      if (!rawTiers.length) {
+        setWholesaleError('Ajoutez au moins un palier de quantité.');
+        return;
+      }
+      const normalizedTiers = rawTiers
+        .map((tier) => ({
+          minQty: Number(tier?.minQty),
+          unitPrice: Number(tier?.unitPrice),
+          label: String(tier?.label || '').trim()
+        }))
+        .sort((a, b) => a.minQty - b.minQty);
+
+      const seen = new Set();
+      let previousUnitPrice = null;
+      for (const tier of normalizedTiers) {
+        if (!Number.isInteger(tier.minQty) || tier.minQty < 2) {
+          setWholesaleError('Chaque palier doit commencer à partir de 2 unités.');
+          return;
+        }
+        if (!Number.isFinite(tier.unitPrice) || tier.unitPrice <= 0) {
+          setWholesaleError('Chaque palier doit avoir un prix unitaire valide.');
+          return;
+        }
+        if (seen.has(tier.minQty)) {
+          setWholesaleError('Les quantités minimum doivent être uniques.');
+          return;
+        }
+        seen.add(tier.minQty);
+        if (previousUnitPrice !== null && tier.unitPrice > previousUnitPrice) {
+          setWholesaleError(
+            'Le prix unitaire ne peut pas augmenter quand la quantité minimum augmente.'
+          );
+          return;
+        }
+        previousUnitPrice = tier.unitPrice;
+      }
+    }
+
+    if (!form.deliveryAvailable && !form.pickupAvailable) {
+      alert('Activez au moins un mode de réception: retrait boutique ou livraison.');
+      return;
+    }
+    if (!form.deliveryAvailable) {
+      setForm((prev) => ({ ...prev, deliveryFeeEnabled: false, deliveryFee: '' }));
+    }
+    if (form.deliveryAvailable && form.deliveryFeeEnabled) {
+      const deliveryFeeValue = Number(form.deliveryFee || 0);
+      if (!Number.isFinite(deliveryFeeValue) || deliveryFeeValue < 0) {
+        alert('Les frais de livraison doivent être un montant positif ou nul.');
+        return;
+      }
+    }
+
     setLoading(true);
     if (videoFile) {
       setIsUploadingVideo(true);
@@ -781,8 +872,10 @@ export default function ProductForm(props) {
     try {
       const data = new FormData();
       Object.entries(form).forEach(([k, v]) => {
+        if (k === 'wholesaleTiers') return;
+        if (k === 'wholesaleEnabled' && !isBoutiqueOwner) return;
         if (
-          ['discount', 'installmentMinAmount', 'installmentDuration', 'installmentLatePenaltyRate'].includes(k) &&
+          ['discount', 'installmentMinAmount', 'installmentDuration', 'installmentLatePenaltyRate', 'deliveryFee'].includes(k) &&
           (v === '' || v === null || v === undefined)
         ) {
           return;
@@ -790,6 +883,17 @@ export default function ProductForm(props) {
         if (['installmentStartDate', 'installmentEndDate'].includes(k) && !v) return;
         data.append(k, v);
       });
+      if (isBoutiqueOwner) {
+        const normalizedWholesaleTiers = (Array.isArray(form.wholesaleTiers) ? form.wholesaleTiers : [])
+          .map((tier) => ({
+            minQty: Number(tier?.minQty),
+            unitPrice: Number(tier?.unitPrice),
+            label: String(tier?.label || '').trim()
+          }))
+          .filter((tier) => Number.isFinite(tier.minQty) && Number.isFinite(tier.unitPrice))
+          .sort((a, b) => a.minQty - b.minQty);
+        data.append('wholesaleTiers', JSON.stringify(normalizedWholesaleTiers));
+      }
       files.slice(0, MAX_IMAGES).forEach((item) => {
         const file = item?.file || item;
         if (file instanceof File) {
@@ -842,7 +946,13 @@ export default function ProductForm(props) {
         installmentEndDate: '',
         installmentLatePenaltyRate: '',
         installmentMaxMissedPayments: 3,
-        installmentRequireGuarantor: false
+        installmentRequireGuarantor: false,
+        wholesaleEnabled: false,
+        wholesaleTiers: [],
+        deliveryAvailable: true,
+        pickupAvailable: true,
+        deliveryFeeEnabled: true,
+        deliveryFee: ''
       });
       setFiles([]);
       setImagePreviews([]);
@@ -857,6 +967,7 @@ export default function ProductForm(props) {
       setPdfError('');
       setExistingPdf(null);
       setRemovePdf(false);
+      setWholesaleError('');
       
     } catch (e) {
       alert(e.response?.data?.message || e.message);
@@ -936,7 +1047,22 @@ export default function ProductForm(props) {
         initialValues.installmentMaxMissedPayments !== null
           ? initialValues.installmentMaxMissedPayments
           : 3,
-      installmentRequireGuarantor: Boolean(initialValues.installmentRequireGuarantor)
+      installmentRequireGuarantor: Boolean(initialValues.installmentRequireGuarantor),
+      wholesaleEnabled: Boolean(initialValues.wholesaleEnabled),
+      wholesaleTiers: Array.isArray(initialValues.wholesaleTiers)
+        ? initialValues.wholesaleTiers.map((tier) => ({
+            minQty: tier?.minQty ?? '',
+            unitPrice: tier?.unitPrice ?? '',
+            label: tier?.label || ''
+          }))
+        : [],
+      deliveryAvailable: initialValues.deliveryAvailable !== false,
+      pickupAvailable: initialValues.pickupAvailable !== false,
+      deliveryFeeEnabled: initialValues.deliveryFeeEnabled !== false,
+      deliveryFee:
+        initialValues.deliveryFee !== undefined && initialValues.deliveryFee !== null
+          ? initialValues.deliveryFee
+          : ''
     });
     setExistingImages(Array.isArray(initialValues.images) ? initialValues.images : []);
     setExistingPdf(initialValues.pdf || null);
@@ -952,20 +1078,29 @@ export default function ProductForm(props) {
   const buttonLabel =
     submitLabel || (isEditing ? 'Mettre à jour l’annonce' : 'Publier l’annonce');
   const priceGridClass = isEditing ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2';
+  const normalizedWholesalePreviewTiers = (Array.isArray(form.wholesaleTiers) ? form.wholesaleTiers : [])
+    .map((tier) => ({
+      minQty: Number(tier?.minQty),
+      unitPrice: Number(tier?.unitPrice),
+      label: String(tier?.label || '').trim()
+    }))
+    .filter((tier) => Number.isInteger(tier.minQty) && tier.minQty >= 2 && Number.isFinite(tier.unitPrice) && tier.unitPrice > 0)
+    .sort((a, b) => a.minQty - b.minQty);
+  const wholesalePreviewBasePrice = Number(form.price || 0);
 
   return (
     <div className={`max-w-2xl mx-auto ${isMobile ? 'px-0 pb-28 bg-[#f2f2f7] min-h-screen' : ''}`}>
       {/* En-tête du formulaire — Apple-style on mobile */}
       <div className={isMobile ? 'text-left px-4 pt-2 pb-4 bg-[#f2f2f7]' : 'text-center mb-8'}>
         {!isMobile && (
-          <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-gradient-to-br from-neutral-500 to-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Package className="w-8 h-8 text-white" />
           </div>
         )}
         <div className={isMobile ? 'flex items-center gap-3' : ''}>
           {isMobile && (
             <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm border border-gray-200/80">
-              <Package className="w-6 h-6 text-indigo-600" />
+              <Package className="w-6 h-6 text-neutral-600" />
             </div>
           )}
           <div className="min-w-0">
@@ -986,8 +1121,8 @@ export default function ProductForm(props) {
                 aria-expanded={expandedSections.info}
               >
                 <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                    <FileText className="w-4 h-4 text-indigo-600" />
+                  <div className="w-8 h-8 rounded-lg bg-neutral-100 flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-4 h-4 text-neutral-600" />
                   </div>
                   <h2 className="text-[17px] font-semibold text-gray-900">Informations du produit</h2>
                 </div>
@@ -997,7 +1132,7 @@ export default function ProductForm(props) {
               </button>
             ) : (
               <div className="flex items-center space-x-3 mb-4">
-                <div className="w-2 h-6 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full"></div>
+                <div className="w-2 h-6 bg-gradient-to-b from-neutral-500 to-neutral-500 rounded-full"></div>
                 <h2 className="text-lg font-semibold text-gray-900">Informations du produit</h2>
               </div>
             )}
@@ -1006,11 +1141,11 @@ export default function ProductForm(props) {
           {/* Titre */}
           <div className="space-y-2">
             <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-              <FileText className="w-4 h-4 text-indigo-500" />
+              <FileText className="w-4 h-4 text-neutral-500" />
               <span>Titre de l'annonce *</span>
             </label>
             <input
-              className="w-full px-4 py-3.5 min-h-[48px] text-base bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+              className="w-full px-4 py-3.5 min-h-[48px] text-base bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400"
               placeholder="Ex: iPhone 13 Pro Max 256GB - État neuf"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -1021,12 +1156,12 @@ export default function ProductForm(props) {
           {/* Description */}
           <div className="space-y-2">
             <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-              <FileText className="w-4 h-4 text-indigo-500" />
+              <FileText className="w-4 h-4 text-neutral-500" />
               <span>Description détaillée *</span>
             </label>
             <textarea
               rows={4}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400 resize-none"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400 resize-none"
               placeholder="Décrivez votre produit en détail : caractéristiques, état, accessoires inclus..."
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -1039,11 +1174,11 @@ export default function ProductForm(props) {
             {/* Catégorie */}
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                <Tag className="w-4 h-4 text-indigo-500" />
+                <Tag className="w-4 h-4 text-neutral-500" />
                 <span>Catégorie *</span>
               </label>
               <select
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
                 required
@@ -1064,12 +1199,12 @@ export default function ProductForm(props) {
             {/* Prix */}
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                <DollarSign className="w-4 h-4 text-indigo-500" />
+                <DollarSign className="w-4 h-4 text-neutral-500" />
                 <span>Prix *</span>
               </label>
               <input
                 type="number"
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400"
                 placeholder="Ex: 250000"
                 value={form.price}
                 onChange={(e) => setForm({ ...form, price: e.target.value })}
@@ -1126,7 +1261,7 @@ export default function ProductForm(props) {
                     />
                     <div className={`border-2 rounded-full flex items-center justify-center transition-all ${isMobile ? 'w-6 h-6' : 'w-5 h-5'} ${
                       form.condition === 'new' 
-                        ? 'border-indigo-500 bg-indigo-500' 
+                        ? 'border-neutral-500 bg-neutral-500' 
                         : 'border-gray-300'
                     }`}>
                       {form.condition === 'new' && (
@@ -1148,7 +1283,7 @@ export default function ProductForm(props) {
                     />
                     <div className={`border-2 rounded-full flex items-center justify-center transition-all ${isMobile ? 'w-6 h-6' : 'w-5 h-5'} ${
                       form.condition === 'used' 
-                        ? 'border-indigo-500 bg-indigo-500' 
+                        ? 'border-neutral-500 bg-neutral-500' 
                         : 'border-gray-300'
                     }`}>
                       {form.condition === 'used' && (
@@ -1161,6 +1296,77 @@ export default function ProductForm(props) {
               </div>
             </div>
 
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 space-y-4">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Modes de réception</p>
+              <p className="text-xs text-gray-500">
+                Définissez si ce produit peut être retiré en boutique, livré, ou les deux.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <label className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm">
+                <span>Retrait boutique</span>
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.pickupAvailable)}
+                  onChange={(e) => setForm((prev) => ({ ...prev, pickupAvailable: e.target.checked }))}
+                  className="h-4 w-4 rounded border-gray-300 text-neutral-600 focus:ring-neutral-500"
+                />
+              </label>
+              <label className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm">
+                <span>Livraison disponible</span>
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.deliveryAvailable)}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      deliveryAvailable: e.target.checked,
+                      deliveryFeeEnabled: e.target.checked ? prev.deliveryFeeEnabled : false
+                    }))
+                  }
+                  className="h-4 w-4 rounded border-gray-300 text-neutral-600 focus:ring-neutral-500"
+                />
+              </label>
+            </div>
+            {form.deliveryAvailable && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm">
+                  <span>Frais livraison actifs</span>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(form.deliveryFeeEnabled)}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        deliveryFeeEnabled: e.target.checked,
+                        deliveryFee: e.target.checked ? prev.deliveryFee : ''
+                      }))
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-neutral-600 focus:ring-neutral-500"
+                  />
+                </label>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700">Frais livraison (FCFA)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.deliveryFee}
+                    disabled={!form.deliveryFeeEnabled}
+                    onChange={(e) => setForm((prev) => ({ ...prev, deliveryFee: e.target.value }))}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm disabled:bg-gray-100"
+                    placeholder="Ex: 1500"
+                  />
+                </div>
+              </div>
+            )}
+            {!form.deliveryAvailable && form.pickupAvailable && (
+              <p className="text-xs text-neutral-700 bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2">
+                Ce produit sera affiché comme <strong>Retrait boutique uniquement</strong>.
+              </p>
+            )}
           </div>
 
           <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 space-y-4">
@@ -1181,7 +1387,7 @@ export default function ProductForm(props) {
                     setForm((prev) => ({ ...prev, installmentEnabled: e.target.checked }))
                   }
                 />
-                <div className="relative w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:bg-indigo-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full" />
+                <div className="relative w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:bg-neutral-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full" />
               </label>
             </div>
 
@@ -1204,7 +1410,7 @@ export default function ProductForm(props) {
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, installmentMinAmount: e.target.value }))
                     }
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                     placeholder="Ex: 30000"
                   />
                 </div>
@@ -1217,7 +1423,7 @@ export default function ProductForm(props) {
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, installmentDuration: e.target.value }))
                     }
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                     placeholder="Ex: 30"
                   />
                 </div>
@@ -1229,7 +1435,7 @@ export default function ProductForm(props) {
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, installmentStartDate: e.target.value }))
                     }
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1240,7 +1446,7 @@ export default function ProductForm(props) {
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, installmentEndDate: e.target.value }))
                     }
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1255,7 +1461,7 @@ export default function ProductForm(props) {
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, installmentLatePenaltyRate: e.target.value }))
                     }
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                     placeholder="Ex: 5"
                   />
                 </div>
@@ -1271,7 +1477,7 @@ export default function ProductForm(props) {
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, installmentMaxMissedPayments: e.target.value }))
                     }
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                   />
                 </div>
                 <label className="md:col-span-2 flex items-center gap-2 text-sm text-gray-700">
@@ -1281,7 +1487,7 @@ export default function ProductForm(props) {
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, installmentRequireGuarantor: e.target.checked }))
                     }
-                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    className="h-4 w-4 rounded border-gray-300 text-neutral-600 focus:ring-neutral-500"
                   />
                   Exiger les informations d’un garant
                 </label>
@@ -1291,6 +1497,138 @@ export default function ProductForm(props) {
             {installmentError && (
               <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                 {installmentError}
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Vente en gros</p>
+                <p className="text-xs text-gray-500">
+                  Configurez des paliers: plus la quantité augmente, plus le prix unitaire baisse.
+                </p>
+              </div>
+              <label className="inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={Boolean(form.wholesaleEnabled)}
+                  disabled={!isBoutiqueOwner}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, wholesaleEnabled: e.target.checked }))
+                  }
+                />
+                <div className="relative w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:bg-neutral-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full" />
+              </label>
+            </div>
+
+            {!isBoutiqueOwner && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Cette option est réservée aux comptes convertis en boutique.
+              </p>
+            )}
+
+            {form.wholesaleEnabled && (
+              <div className="space-y-3">
+                {(Array.isArray(form.wholesaleTiers) ? form.wholesaleTiers : []).map((tier, index) => (
+                  <div
+                    key={`wholesale-tier-${index}`}
+                    className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] gap-2 rounded-xl border border-gray-200 bg-white p-3"
+                  >
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-700">Qté min</label>
+                      <input
+                        type="number"
+                        min="2"
+                        value={tier?.minQty ?? ''}
+                        onChange={(e) => updateWholesaleTier(index, 'minQty', e.target.value)}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                        placeholder="Ex: 10"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-700">Prix / unité</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={tier?.unitPrice ?? ''}
+                        onChange={(e) => updateWholesaleTier(index, 'unitPrice', e.target.value)}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                        placeholder="Ex: 9500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-700">Libellé (optionnel)</label>
+                      <input
+                        type="text"
+                        value={tier?.label ?? ''}
+                        onChange={(e) => updateWholesaleTier(index, 'label', e.target.value)}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                        placeholder="Ex: 10-49"
+                      />
+                    </div>
+                    <div className="flex items-end justify-end">
+                      <button
+                        type="button"
+                        onClick={() => removeWholesaleTier(index)}
+                        className="inline-flex items-center justify-center rounded-lg border border-red-200 bg-red-50 p-2 text-red-600 hover:bg-red-100 transition-colors"
+                        aria-label="Supprimer ce palier"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={addWholesaleTier}
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Ajouter un palier
+                </button>
+
+                {normalizedWholesalePreviewTiers.length > 0 && (
+                  <div className="rounded-xl border border-gray-200 bg-white p-3">
+                    <p className="text-xs font-semibold text-gray-800 mb-2">Aperçu des prix appliqués</p>
+                    <div className="space-y-1.5 text-xs text-gray-700">
+                      {Number.isFinite(wholesalePreviewBasePrice) &&
+                        wholesalePreviewBasePrice > 0 &&
+                        normalizedWholesalePreviewTiers[0]?.minQty > 1 && (
+                          <p>
+                            Qté 1-{normalizedWholesalePreviewTiers[0].minQty - 1}:{" "}
+                            <span className="font-semibold">
+                              {formatPriceWithStoredSettings(wholesalePreviewBasePrice)}
+                            </span>{" "}
+                            / unité
+                          </p>
+                        )}
+                      {normalizedWholesalePreviewTiers.map((tier, index) => {
+                        const nextTier = normalizedWholesalePreviewTiers[index + 1];
+                        const rangeLabel = nextTier
+                          ? `${tier.minQty}-${nextTier.minQty - 1}`
+                          : `${tier.minQty}+`;
+                        return (
+                          <p key={`wholesale-preview-${tier.minQty}-${index}`}>
+                            {tier.label ? `${tier.label}:` : `Qté ${rangeLabel}:`}{" "}
+                            <span className="font-semibold">
+                              {formatPriceWithStoredSettings(tier.unitPrice)}
+                            </span>{" "}
+                            / unité
+                          </p>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {wholesaleError && (
+              <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {wholesaleError}
               </p>
             )}
           </div>
@@ -1308,8 +1646,8 @@ export default function ProductForm(props) {
               aria-expanded={expandedSections.images}
             >
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <Camera className="w-4 h-4 text-blue-600" />
+                <div className="w-8 h-8 rounded-lg bg-neutral-100 flex items-center justify-center flex-shrink-0">
+                  <Camera className="w-4 h-4 text-neutral-600" />
                 </div>
                 <h2 className="text-[17px] font-semibold text-gray-900">Photos du produit</h2>
               </div>
@@ -1319,7 +1657,7 @@ export default function ProductForm(props) {
             </button>
           ) : (
             <div className="flex items-center space-x-3 mb-4">
-              <div className="w-2 h-6 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full"></div>
+              <div className="w-2 h-6 bg-gradient-to-b from-neutral-500 to-neutral-500 rounded-full"></div>
               <h2 className="text-lg font-semibold text-gray-900">Photos du produit</h2>
             </div>
           )}
@@ -1330,7 +1668,7 @@ export default function ProductForm(props) {
               {/* Upload d'images */}
               <div className="space-y-3">
                 <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                  <Camera className="w-4 h-4 text-blue-500" />
+                  <Camera className="w-4 h-4 text-neutral-500" />
                   <span>
                     Photos{' '}
                     {(existingImages.length + files.length) > 0 &&
@@ -1365,9 +1703,9 @@ export default function ProductForm(props) {
                 )}
 
                 <label className={`flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 active:bg-gray-100 transition-colors group ${isMobile ? 'h-28 min-h-[120px] py-4' : 'h-32'}`}>
-                  <Upload className={`text-gray-400 group-hover:text-indigo-500 transition-colors mb-2 ${isMobile ? 'w-10 h-10' : 'w-8 h-8'}`} />
+                  <Upload className={`text-gray-400 group-hover:text-neutral-500 transition-colors mb-2 ${isMobile ? 'w-10 h-10' : 'w-8 h-8'}`} />
                   <span className={`text-gray-500 text-center ${isMobile ? 'text-sm' : 'text-sm'}`}>
-                    <span className="text-indigo-600 font-medium">{isMobile ? 'Appuyez pour ajouter des photos' : 'Cliquez pour uploader'}</span>
+                    <span className="text-neutral-600 font-medium">{isMobile ? 'Appuyez pour ajouter des photos' : 'Cliquez pour uploader'}</span>
                     <br />
                     <span className="text-xs">PNG, JPG jusqu'à 10MB</span>
                   </span>
@@ -1428,7 +1766,7 @@ export default function ProductForm(props) {
                               <button
                                 type="button"
                                 onClick={() => editImageCrop(index)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-neutral-100 text-neutral-700 hover:bg-neutral-200 transition-colors"
                                 aria-label="Recadrer cette image"
                                 title="Recadrer"
                               >
@@ -1521,20 +1859,20 @@ export default function ProductForm(props) {
               </label>
             ) : null}
             {isCompressingVideo && (
-              <div className="space-y-3 p-4 rounded-xl border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-cyan-50 shadow-sm">
+              <div className="space-y-3 p-4 rounded-xl border-2 border-neutral-300 bg-gradient-to-br from-neutral-50 to-neutral-50 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+                    <div className="w-8 h-8 border-3 border-neutral-600 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
                     <div>
-                      <p className="text-sm font-semibold text-blue-900">Compression de la vidéo en cours...</p>
-                      <p className="text-xs text-blue-600 mt-0.5">
+                      <p className="text-sm font-semibold text-neutral-900">Compression de la vidéo en cours...</p>
+                      <p className="text-xs text-neutral-600 mt-0.5">
                         Réduction de la taille tout en conservant la résolution originale
                       </p>
                     </div>
                   </div>
                   <div className="flex flex-col items-end">
-                    <span className="text-lg font-bold text-blue-700">{Math.round(compressionProgress)}%</span>
-                    <span className="text-[10px] text-blue-500 font-medium">Progression</span>
+                    <span className="text-lg font-bold text-neutral-700">{Math.round(compressionProgress)}%</span>
+                    <span className="text-[10px] text-neutral-500 font-medium">Progression</span>
                   </div>
                 </div>
                 
@@ -1542,7 +1880,7 @@ export default function ProductForm(props) {
                 <div className="space-y-1">
                   <div className="w-full rounded-full bg-gray-200 h-3 overflow-hidden shadow-inner">
                     <div
-                      className="h-full bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-500 transition-all duration-300 ease-out shadow-lg relative"
+                      className="h-full bg-gradient-to-r from-neutral-500 via-neutral-500 to-teal-500 transition-all duration-300 ease-out shadow-lg relative"
                       style={{ width: `${compressionProgress}%` }}
                     >
                       {/* Subtle animated shine effect */}
@@ -1553,23 +1891,23 @@ export default function ProductForm(props) {
                   {/* Progress indicators */}
                   <div className="flex items-center justify-between text-[10px] text-gray-600">
                     <span>0%</span>
-                    <span className="font-semibold text-blue-600">En cours...</span>
+                    <span className="font-semibold text-neutral-600">En cours...</span>
                     <span>100%</span>
                   </div>
                 </div>
                 
                 {/* Additional info */}
-                <div className="flex items-center gap-2 pt-2 border-t border-blue-200">
+                <div className="flex items-center gap-2 pt-2 border-t border-neutral-200">
                   <div className="flex-1">
                     <p className="text-xs text-gray-600">
-                      <span className="font-semibold text-blue-700">Taille originale:</span>{' '}
+                      <span className="font-semibold text-neutral-700">Taille originale:</span>{' '}
                       {(originalVideoSize / (1024 * 1024)).toFixed(2)} MB
                     </p>
                   </div>
-                  <div className="w-px h-4 bg-blue-200"></div>
+                  <div className="w-px h-4 bg-neutral-200"></div>
                   <div className="flex-1 text-right">
                     <p className="text-xs text-gray-600">
-                      <span className="font-semibold text-blue-700">Cible:</span>{' '}
+                      <span className="font-semibold text-neutral-700">Cible:</span>{' '}
                       {MAX_VIDEO_SIZE_MB} MB max
                     </p>
                   </div>
@@ -1629,7 +1967,7 @@ export default function ProductForm(props) {
                 </div>
                 <div className="w-full rounded-full bg-gray-100 h-2 overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-indigo-600 to-purple-600 transition-all duration-200"
+                    className="h-full bg-gradient-to-r from-neutral-600 to-neutral-600 transition-all duration-200"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
@@ -1641,7 +1979,7 @@ export default function ProductForm(props) {
             <p className="font-semibold text-gray-700">Vidéo réservée aux boutiques certifiées</p>
             <p>
               Contactez un administrateur via{' '}
-              <a href="/help" className="font-semibold text-indigo-600 hover:underline">
+              <a href="/help" className="font-semibold text-neutral-600 hover:underline">
                 le centre d’aide
               </a>{' '}
               pour valider votre boutique.
@@ -1666,7 +2004,7 @@ export default function ProductForm(props) {
                     href={existingPdf}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-semibold text-indigo-600 hover:underline"
+                    className="font-semibold text-neutral-600 hover:underline"
                   >
                     Ouvrir
                   </a>
@@ -1750,13 +2088,13 @@ export default function ProductForm(props) {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="w-2 h-6 bg-gradient-to-b from-purple-500 to-pink-500 rounded-full"></div>
+                <div className="w-2 h-6 bg-gradient-to-b from-neutral-500 to-neutral-500 rounded-full"></div>
                 <h2 className="text-lg font-semibold text-gray-900">Aperçu</h2>
               </div>
               <button
                 type="button"
                 onClick={() => setShowPreview(!showPreview)}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-neutral-600 hover:text-neutral-700 hover:bg-neutral-50 rounded-lg transition-colors"
               >
                 {showPreview ? (
                   <>
@@ -1816,7 +2154,7 @@ export default function ProductForm(props) {
             <button
               type="submit"
               disabled={loading || !form.title || !form.description || !form.price || !form.category}
-              className="w-full min-h-[52px] py-4 bg-blue-500 text-white text-[17px] font-semibold rounded-xl active:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm touch-manipulation transition-opacity"
+              className="w-full min-h-[52px] py-4 bg-neutral-500 text-white text-[17px] font-semibold rounded-xl active:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm touch-manipulation transition-opacity"
             >
               {loading ? (
                 <>
@@ -1835,7 +2173,7 @@ export default function ProductForm(props) {
           <button
             type="submit"
             disabled={loading || !form.title || !form.description || !form.price || !form.category}
-            className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 shadow-lg"
+            className="w-full py-4 bg-gradient-to-r from-neutral-600 to-neutral-600 text-white font-semibold rounded-xl hover:from-neutral-700 hover:to-neutral-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 shadow-lg"
           >
             {loading ? (
               <>
@@ -1858,7 +2196,7 @@ export default function ProductForm(props) {
           <div className={`bg-white shadow-2xl overflow-hidden flex flex-col ${isMobile ? 'w-full h-full max-h-none rounded-none' : 'rounded-2xl max-w-4xl w-full max-h-[90vh]'}`}>
             <div className={`flex items-center justify-between border-b border-gray-200 flex-shrink-0 ${isMobile ? 'p-4 min-h-[56px] safe-area-top' : 'p-4'}`}>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
+                <div className="w-10 h-10 bg-gradient-to-br from-neutral-500 to-neutral-500 rounded-xl flex items-center justify-center">
                   <Crop className="w-5 h-5 text-white" />
                 </div>
                 <div>
@@ -1899,7 +2237,7 @@ export default function ProductForm(props) {
                     key={preset || 'free'}
                     type="button"
                     onClick={() => applyCropAspectPreset(preset)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors touch-manipulation ${cropAspect === preset ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-100'}`}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors touch-manipulation ${cropAspect === preset ? 'bg-neutral-600 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-100'}`}
                   >
                     {preset === null ? 'Libre' : preset}
                   </button>
@@ -1916,7 +2254,7 @@ export default function ProductForm(props) {
                   step={0.1}
                   value={imageScale}
                   onChange={handleZoomInput}
-                  className="flex-1 h-2 rounded-full appearance-none bg-gray-200 accent-indigo-600"
+                  className="flex-1 h-2 rounded-full appearance-none bg-gray-200 accent-neutral-600"
                 />
                 <button type="button" onClick={() => handleZoomChange(0.2)} className="p-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-100 active:bg-gray-200 touch-manipulation" aria-label="Zoom avant">
                   <ZoomIn className="w-5 h-5 text-gray-700" />
@@ -1997,10 +2335,10 @@ export default function ProductForm(props) {
                   }}
                 >
                   {/* Visual corner handles */}
-                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white border-2 border-blue-500 rounded-full pointer-events-none" />
-                  <div className="absolute -bottom-1 -left-1 w-4 h-4 bg-white border-2 border-blue-500 rounded-full pointer-events-none" />
-                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-white border-2 border-blue-500 rounded-full pointer-events-none" />
-                  <div className="absolute -top-1 -left-1 w-4 h-4 bg-white border-2 border-blue-500 rounded-full pointer-events-none" />
+                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white border-2 border-neutral-500 rounded-full pointer-events-none" />
+                  <div className="absolute -bottom-1 -left-1 w-4 h-4 bg-white border-2 border-neutral-500 rounded-full pointer-events-none" />
+                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-white border-2 border-neutral-500 rounded-full pointer-events-none" />
+                  <div className="absolute -top-1 -left-1 w-4 h-4 bg-white border-2 border-neutral-500 rounded-full pointer-events-none" />
                 </div>
               </div>
             </div>
@@ -2016,7 +2354,7 @@ export default function ProductForm(props) {
               <button
                 type="button"
                 onClick={handleCropConfirm}
-                className={`font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:from-indigo-700 hover:to-purple-700 active:scale-[0.98] transition-all shadow-sm touch-manipulation ${isMobile ? 'min-h-[48px] px-5 py-3 text-base' : 'px-4 py-2 text-sm rounded-lg'}`}
+                className={`font-medium text-white bg-gradient-to-r from-neutral-600 to-neutral-600 rounded-xl hover:from-neutral-700 hover:to-neutral-700 active:scale-[0.98] transition-all shadow-sm touch-manipulation ${isMobile ? 'min-h-[48px] px-5 py-3 text-base' : 'px-4 py-2 text-sm rounded-lg'}`}
               >
                 Confirmer le recadrage
               </button>

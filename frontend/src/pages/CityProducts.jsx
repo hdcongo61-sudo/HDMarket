@@ -155,7 +155,7 @@ export default function CityProducts() {
           <div>
             <button
               onClick={() => navigate(-1)}
-              className="inline-flex items-center gap-2 mb-3 sm:mb-4 text-sm font-semibold text-gray-600 hover:text-indigo-600 transition-colors"
+              className="inline-flex items-center gap-2 mb-3 sm:mb-4 text-sm font-semibold text-gray-600 hover:text-neutral-600 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               Retour
@@ -173,7 +173,7 @@ export default function CityProducts() {
               id="city-select"
               value={selectedCity}
               onChange={(event) => setSelectedCity(event.target.value)}
-              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-200"
             >
               {cityOptions.map((city) => (
                 <option key={city} value={city}>
@@ -215,22 +215,22 @@ export default function CityProducts() {
           </div>
         )}
 
-        <section className="rounded-xl border border-indigo-100 bg-white px-4 py-4 text-sm text-indigo-700 sm:px-6 sm:py-5">
+        <section className="rounded-xl border border-neutral-100 bg-white px-4 py-4 text-sm text-neutral-700 sm:px-6 sm:py-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <p className="font-semibold text-indigo-800">
+            <p className="font-semibold text-neutral-800">
               Besoin d&apos;accéder aux annonces d&apos;une catégorie spécifique&nbsp;?
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <Link
                 to="/products"
                 {...externalLinkProps}
-                className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100"
+                className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
               >
                 Parcourir tous les produits
               </Link>
               <Link
                 to="/#categories"
-                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-indigo-600 hover:bg-gray-50"
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-600 hover:bg-gray-50"
               >
                 Voir les catégories
               </Link>
