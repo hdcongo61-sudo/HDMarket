@@ -8,6 +8,12 @@ import { clearUserDataOnLogout } from '../utils/clearUserDataOnLogout';
 
 const AuthContext = createContext();
 
+const isJwtExpired = (payload) => {
+  const exp = Number(payload?.exp || 0);
+  if (!Number.isFinite(exp) || exp <= 0) return false;
+  return Date.now() >= exp * 1000;
+};
+
 const readPersistedUser = async () => {
   if (typeof window === 'undefined') return null;
   try {
@@ -15,6 +21,11 @@ const readPersistedUser = async () => {
     if (!token) return null;
     
     const payload = jwtDecode(token);
+    if (isJwtExpired(payload)) {
+      await storage.remove('qm_token');
+      await storage.remove('qm_user');
+      return null;
+    }
     const stored = await storage.get('qm_user');
     const parsed = stored || {};
     

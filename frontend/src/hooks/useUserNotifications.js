@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import api from '../services/api';
+import storage from '../utils/storage.js';
 
 const DEFAULT_PREFERENCES = Object.freeze({
   product_comment: true,
@@ -64,6 +65,72 @@ const buildInitialState = () => ({
   preferences: buildDefaultPreferences()
 });
 
+const applyNotificationsPatch = (prev, patch = {}) => {
+  const state = prev && typeof prev === 'object' ? prev : buildInitialState();
+  const alerts = Array.isArray(state.alerts) ? state.alerts : [];
+  const patchType = String(patch?.type || '').trim();
+
+  if (patchType === 'reset') {
+    return buildInitialState();
+  }
+
+  if (patchType === 'markAllRead') {
+    return {
+      ...state,
+      alerts: alerts.map((alert) => ({ ...alert, isNew: false, readAt: alert?.readAt || new Date().toISOString() })),
+      unreadCount: 0,
+      commentAlerts: 0
+    };
+  }
+
+  if (patchType === 'markRead') {
+    const ids = Array.isArray(patch.notificationIds)
+      ? patch.notificationIds.map((id) => String(id))
+      : [];
+    if (!ids.length) return state;
+    const idSet = new Set(ids);
+    const unreadToMark = alerts.filter((alert) => idSet.has(String(alert?._id)) && alert?.isNew).length;
+    return {
+      ...state,
+      alerts: alerts.map((alert) =>
+        idSet.has(String(alert?._id))
+          ? { ...alert, isNew: false, readAt: alert?.readAt || new Date().toISOString() }
+          : alert
+      ),
+      unreadCount: Math.max(0, Number(state.unreadCount || 0) - unreadToMark),
+      commentAlerts: Math.max(0, Number(state.commentAlerts || 0) - unreadToMark)
+    };
+  }
+
+  if (patchType === 'delete') {
+    const notificationId = String(patch.notificationId || '').trim();
+    if (!notificationId) return state;
+    const removed = alerts.find((alert) => String(alert?._id) === notificationId);
+    const wasUnread = Boolean(removed?.isNew);
+    return {
+      ...state,
+      alerts: alerts.filter((alert) => String(alert?._id) !== notificationId),
+      unreadCount: wasUnread ? Math.max(0, Number(state.unreadCount || 0) - 1) : Number(state.unreadCount || 0),
+      commentAlerts: wasUnread
+        ? Math.max(0, Number(state.commentAlerts || 0) - 1)
+        : Number(state.commentAlerts || 0)
+    };
+  }
+
+  return state;
+};
+
+const readAuthToken = async () => {
+  try {
+    const token = await storage.get('qm_token');
+    if (typeof token === 'string') return token.trim();
+    if (!token) return '';
+    return String(token).trim();
+  } catch {
+    return '';
+  }
+};
+
 export default function useUserNotifications(enabled, options = {}) {
   const { skipRefreshEvent = false } = options;
   const [counts, setCounts] = useState(() => buildInitialState());
@@ -81,6 +148,13 @@ export default function useUserNotifications(enabled, options = {}) {
     if (!enabled) {
       const emptyState = buildInitialState();
       setCounts(emptyState);
+      return emptyState;
+    }
+    const token = await readAuthToken();
+    if (!token) {
+      const emptyState = buildInitialState();
+      setCounts(emptyState);
+      setError('');
       return emptyState;
     }
     setLoading(true);
@@ -103,6 +177,12 @@ export default function useUserNotifications(enabled, options = {}) {
       setError('');
       return nextState;
     } catch (e) {
+      if (e?.response?.status === 401 || e?.response?.status === 403) {
+        const emptyState = buildInitialState();
+        setCounts(emptyState);
+        setError('');
+        return emptyState;
+      }
       setError(e.response?.data?.message || e.message || 'Erreur lors du chargement des notifications.');
       return buildInitialState();
     } finally {
@@ -156,62 +236,59 @@ export default function useUserNotifications(enabled, options = {}) {
       };
     }
 
-    let token = window.localStorage.getItem('qm_token');
-    // Handle token that may be JSON-stringified (has quotes around it)
-    if (token) {
-      try {
-        const parsed = JSON.parse(token);
-        if (typeof parsed === 'string') {
-          token = parsed;
-        }
-      } catch {
-        // Token is already a plain string, use as-is
-      }
-    }
-    if (!token) {
-      closeSource();
-      clearRetry();
-      return () => {
+    let cancelled = false;
+
+    const initializeStream = async () => {
+      const token = await readAuthToken();
+      if (cancelled) return;
+      if (!token) {
         closeSource();
         clearRetry();
-      };
-    }
+        return;
+      }
 
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-    const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
-    const streamUrl = new URL('users/notifications/stream', normalizedBase);
-    streamUrl.searchParams.set('token', token);
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+      const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+      const streamUrl = new URL('users/notifications/stream', normalizedBase);
+      streamUrl.searchParams.set('token', token);
 
-    const connect = () => {
-      clearRetry();
-      closeSource();
-      const source = new EventSource(streamUrl.toString());
-      eventSourceRef.current = source;
-
-      source.onopen = () => {
-        scheduleRefresh();
-      };
-
-      source.onmessage = (event) => {
-        if (!event?.data) return;
-        try {
-          const payload = JSON.parse(event.data);
-          if (payload?.type === 'connected') return;
-        } catch {
-          // ignore parse errors and still refresh
-        }
-        scheduleRefresh();
-      };
-
-      source.onerror = () => {
+      const connect = () => {
+        if (cancelled) return;
+        clearRetry();
         closeSource();
-        retryRef.current = setTimeout(connect, 5000);
+        const source = new EventSource(streamUrl.toString());
+        eventSourceRef.current = source;
+
+        source.onopen = () => {
+          scheduleRefresh();
+        };
+
+        source.onmessage = (event) => {
+          if (!event?.data) return;
+          try {
+            const payload = JSON.parse(event.data);
+            if (payload?.type === 'connected') return;
+          } catch {
+            // ignore parse errors and still refresh
+          }
+          scheduleRefresh();
+        };
+
+        source.onerror = () => {
+          closeSource();
+          retryRef.current = setTimeout(() => {
+            if (!cancelled) connect();
+          }, 5000);
+        };
       };
+
+      connect();
     };
 
-    connect();
+    initializeStream();
 
     return () => {
+      cancelled = true;
       closeSource();
       clearRetry();
     };
@@ -219,6 +296,9 @@ export default function useUserNotifications(enabled, options = {}) {
 
   useEffect(() => {
     if (typeof window === 'undefined') return () => {};
+    let cancelled = false;
+    let mountedSocket = null;
+
     if (!enabled) {
       if (socketRef.current) {
         socketRef.current.disconnect();
@@ -227,43 +307,47 @@ export default function useUserNotifications(enabled, options = {}) {
       return () => {};
     }
 
-    let token = window.localStorage.getItem('qm_token');
-    if (token) {
-      try {
-        const parsed = JSON.parse(token);
-        if (typeof parsed === 'string') token = parsed;
-      } catch {
-        // noop
+    const initializeSocket = async () => {
+      const token = await readAuthToken();
+      if (cancelled || !token) return;
+
+      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+      const origin = apiBase.replace(/\/api\/?$/, '');
+      const socket = io(`${origin}/notifications`, {
+        auth: { token },
+        transports: ['websocket', 'polling'],
+        reconnectionAttempts: 20,
+        reconnectionDelay: 800
+      });
+      mountedSocket = socket;
+      if (cancelled) {
+        socket.disconnect();
+        return;
       }
-    }
-    if (!token) return () => {};
+      socketRef.current = socket;
 
-    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-    const origin = apiBase.replace(/\/api\/?$/, '');
-    const socket = io(`${origin}/notifications`, {
-      auth: { token },
-      transports: ['websocket', 'polling'],
-      reconnectionAttempts: 20,
-      reconnectionDelay: 800
-    });
-    socketRef.current = socket;
+      socket.on('connect', () => {
+        scheduleRefresh();
+      });
+      socket.on('notification', () => {
+        scheduleRefresh();
+      });
+      socket.on('notifications:refresh', () => {
+        scheduleRefresh();
+      });
+      socket.on('connect_error', () => {
+        // SSE fallback remains active.
+      });
+    };
 
-    socket.on('connect', () => {
-      scheduleRefresh();
-    });
-    socket.on('notification', () => {
-      scheduleRefresh();
-    });
-    socket.on('notifications:refresh', () => {
-      scheduleRefresh();
-    });
-    socket.on('connect_error', () => {
-      // SSE fallback remains active.
-    });
+    initializeSocket();
 
     return () => {
-      socket.disconnect();
-      if (socketRef.current === socket) {
+      cancelled = true;
+      if (mountedSocket) {
+        mountedSocket.disconnect();
+      }
+      if (socketRef.current === mountedSocket) {
         socketRef.current = null;
       }
     };
@@ -271,14 +355,26 @@ export default function useUserNotifications(enabled, options = {}) {
 
   useEffect(() => {
     if (skipRefreshEvent) return;
-    const handler = () => {
+    const handler = (event) => {
+      const detail = event?.detail && typeof event.detail === 'object' ? event.detail : null;
+      const patchType = String(detail?.type || '').trim();
+      if (patchType) {
+        updateCounts((prev) => applyNotificationsPatch(prev, detail));
+      }
+      if (
+        patchType &&
+        ['markRead', 'markAllRead', 'delete', 'reset'].includes(patchType) &&
+        detail?.refetch !== true
+      ) {
+        return;
+      }
       scheduleRefresh();
     };
     window.addEventListener(EVENT_KEY, handler);
     return () => {
       window.removeEventListener(EVENT_KEY, handler);
     };
-  }, [scheduleRefresh, skipRefreshEvent]);
+  }, [scheduleRefresh, skipRefreshEvent, updateCounts]);
 
   useEffect(() => {
     return () => {
@@ -292,6 +388,11 @@ export default function useUserNotifications(enabled, options = {}) {
   return { counts, loading, error, refresh: fetchData, updateCounts };
 }
 
-export const triggerNotificationsRefresh = () => {
-  window.dispatchEvent(new Event('hdmarket:notifications-refresh'));
+export const triggerNotificationsRefresh = (detail = null) => {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(
+    new CustomEvent('hdmarket:notifications-refresh', {
+      detail: detail && typeof detail === 'object' ? detail : undefined
+    })
+  );
 };

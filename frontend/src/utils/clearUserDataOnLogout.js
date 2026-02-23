@@ -7,10 +7,18 @@
 import storage from './storage.js';
 
 const LOCAL_STORAGE_KEYS_TO_REMOVE = [
+  'qm_token',
+  'qm_user',
   'cached_orders',
+  'hdmarket:cache-keys',
   'hdmarket:recent-product-views',
   'hdmarket_saved_searches',
   'hdmarket_custom_nav_items',
+  'hd_pref_language',
+  'hd_pref_currency',
+  'hd_pref_city',
+  'hd_pref_theme',
+  'hd_public_currency_settings',
   'hdmarket_chat_hidden',
   'hdmarket_chat_button_collapsed',
   'hdmarket_order_chat_encryption',
@@ -20,6 +28,7 @@ const LOCAL_STORAGE_KEYS_TO_REMOVE = [
 const STORAGE_KEYS_TO_REMOVE = ['userDashboard_savedFilters'];
 
 const CHAT_KEY_PREFIX = 'hdmarket_chat_key_';
+const API_CACHE_KEY_PREFIX = 'hdmarket:api-cache:';
 
 /**
  * Clear all keys that may contain previous user's data.
@@ -43,9 +52,18 @@ export const clearUserDataOnLogout = async () => {
       const keysToRemove = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith(CHAT_KEY_PREFIX)) keysToRemove.push(key);
+        if (!key) continue;
+        if (key.startsWith(CHAT_KEY_PREFIX) || key.startsWith(API_CACHE_KEY_PREFIX)) {
+          keysToRemove.push(key);
+        }
       }
       keysToRemove.forEach((key) => localStorage.removeItem(key));
+    } catch {
+      // ignore
+    }
+
+    try {
+      sessionStorage.clear();
     } catch {
       // ignore
     }
@@ -57,6 +75,19 @@ export const clearUserDataOnLogout = async () => {
       } catch {
         // ignore
       }
+    }
+
+    // Clear browser cache storage + ask active SW to clear its own caches.
+    try {
+      if (typeof navigator !== 'undefined' && navigator.serviceWorker?.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
+      }
+      if (typeof caches !== 'undefined') {
+        const names = await caches.keys();
+        await Promise.all(names.map((name) => caches.delete(name)));
+      }
+    } catch {
+      // ignore
     }
   } catch (err) {
     if (process.env.NODE_ENV === 'development') {

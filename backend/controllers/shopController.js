@@ -516,7 +516,7 @@ export const getMyShopReview = asyncHandler(async (req, res) => {
 });
 
 export const upsertShopReview = asyncHandler(async (req, res) => {
-  const shop = await User.findById(req.params.id).select('accountType shopName name');
+  const shop = await loadShopByIdentifier(req.params.id, 'accountType shopName name');
   if (!shop || shop.accountType !== 'shop') {
     return res.status(404).json({ message: 'Boutique introuvable.' });
   }
@@ -562,7 +562,7 @@ export const upsertShopReview = asyncHandler(async (req, res) => {
 });
 
 export const deleteShopReview = asyncHandler(async (req, res) => {
-  const shop = await User.findById(req.params.id).select('accountType');
+  const shop = await loadShopByIdentifier(req.params.id, 'accountType');
   if (!shop || shop.accountType !== 'shop') {
     return res.status(404).json({ message: 'Boutique introuvable.' });
   }

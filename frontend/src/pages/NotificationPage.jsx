@@ -307,12 +307,14 @@ export default function NotificationPage() {
     if (!Array.isArray(notificationIds) || !notificationIds.length) return;
     try {
       await fetchMarkRead(notificationIds);
-      const idSet = new Set(notificationIds);
+      const idSet = new Set(notificationIds.map((id) => String(id)));
       updateCounts((prev) => {
         const previousAlerts = Array.isArray(prev?.alerts) ? prev.alerts : [];
-        const markedUnread = previousAlerts.filter((alert) => idSet.has(alert._id) && alert.isNew).length;
+        const markedUnread = previousAlerts.filter((alert) => idSet.has(String(alert?._id)) && alert.isNew).length;
         const nextAlerts = previousAlerts.map((alert) =>
-          idSet.has(alert._id) ? { ...alert, isNew: false, readAt: alert.readAt || new Date().toISOString() } : alert
+          idSet.has(String(alert?._id))
+            ? { ...alert, isNew: false, readAt: alert.readAt || new Date().toISOString() }
+            : alert
         );
         return {
           ...prev,
@@ -321,7 +323,7 @@ export default function NotificationPage() {
           commentAlerts: Math.max(0, Number(prev?.commentAlerts || 0) - markedUnread)
         };
       });
-      triggerNotificationsRefresh();
+      triggerNotificationsRefresh({ type: 'markRead', notificationIds, refetch: false });
     } catch (requestError) {
       setActionError(
         requestError?.response?.data?.message ||
@@ -344,11 +346,12 @@ export default function NotificationPage() {
       await api.delete(`/users/notifications/${notificationId}`);
       updateCounts((prev) => {
         const previousAlerts = Array.isArray(prev?.alerts) ? prev.alerts : [];
-        const deleted = previousAlerts.find((alert) => alert._id === notificationId);
+        const notificationIdStr = String(notificationId);
+        const deleted = previousAlerts.find((alert) => String(alert?._id) === notificationIdStr);
         const wasUnread = Boolean(deleted?.isNew);
         return {
           ...prev,
-          alerts: previousAlerts.filter((alert) => alert._id !== notificationId),
+          alerts: previousAlerts.filter((alert) => String(alert?._id) !== notificationIdStr),
           unreadCount: wasUnread ? Math.max(0, Number(prev?.unreadCount || 0) - 1) : Number(prev?.unreadCount || 0),
           commentAlerts: wasUnread
             ? Math.max(0, Number(prev?.commentAlerts || 0) - 1)
@@ -360,7 +363,7 @@ export default function NotificationPage() {
         next.delete(notificationId);
         return next;
       });
-      triggerNotificationsRefresh();
+      triggerNotificationsRefresh({ type: 'delete', notificationId, refetch: false });
     } catch (requestError) {
       setActionError(
         requestError?.response?.data?.message ||
@@ -382,7 +385,7 @@ export default function NotificationPage() {
         unreadCount: 0,
         commentAlerts: 0
       }));
-      triggerNotificationsRefresh();
+      triggerNotificationsRefresh({ type: 'markAllRead', refetch: false });
     } catch (requestError) {
       setActionError(
         requestError?.response?.data?.message ||

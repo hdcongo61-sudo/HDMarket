@@ -71,6 +71,24 @@ const buildEmptyLanguage = () => ({
   isActive: true
 });
 
+const normalizeLabel = (value) => String(value || '').trim().toLowerCase();
+
+const sortCities = (list = []) =>
+  [...list].sort((a, b) => {
+    const defaultDelta = Number(Boolean(b?.isDefault)) - Number(Boolean(a?.isDefault));
+    if (defaultDelta !== 0) return defaultDelta;
+    const orderDelta = Number(a?.order || 0) - Number(b?.order || 0);
+    if (orderDelta !== 0) return orderDelta;
+    return String(a?.name || '').localeCompare(String(b?.name || ''), 'fr', { sensitivity: 'base' });
+  });
+
+const sortCommunes = (list = []) =>
+  [...list].sort((a, b) => {
+    const orderDelta = Number(a?.order || 0) - Number(b?.order || 0);
+    if (orderDelta !== 0) return orderDelta;
+    return String(a?.name || '').localeCompare(String(b?.name || ''), 'fr', { sensitivity: 'base' });
+  });
+
 export default function AdminSystemSettings() {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -98,40 +116,47 @@ export default function AdminSystemSettings() {
   const [currencyRateDrafts, setCurrencyRateDrafts] = useState({});
   const [savingCurrencyCode, setSavingCurrencyCode] = useState('');
 
+  const emitSettingsRefresh = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new Event('hdmarket:settings-refresh'));
+  }, []);
+
+  const resolveCityName = useCallback((cityId, sourceCities = cities) => {
+    const normalizedId = String(cityId || '').trim();
+    if (!normalizedId) return '';
+    const match = (sourceCities || []).find((city) => String(city?._id || '') === normalizedId);
+    return match?.name || '';
+  }, [cities]);
+
+  const normalizeCommuneWithCities = useCallback(
+    (commune, sourceCities = cities) => {
+      const rawCity = commune?.cityId;
+      const normalizedCityId = String(rawCity?._id || rawCity || '').trim();
+      const cityName =
+        rawCity?.name ||
+        commune?.cityName ||
+        resolveCityName(normalizedCityId, sourceCities) ||
+        '';
+      return {
+        ...commune,
+        cityId: normalizedCityId,
+        cityName
+      };
+    },
+    [cities, resolveCityName]
+  );
+
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
       const { data } = await api.get('/admin/settings');
       setFees(data?.feesAndRules || {});
       setCurrencies(Array.isArray(data?.currencies) ? data.currencies : []);
-      const nextCities = Array.isArray(data?.cities) ? data.cities : [];
-      const cityNameById = new Map(
-        nextCities.map((city) => [String(city?._id || ''), city?.name || ''])
-      );
-      const cityIdByName = new Map(
-        nextCities.map((city) => [String(city?.name || '').trim().toLowerCase(), String(city?._id || '')])
-      );
+      const nextCities = sortCities(Array.isArray(data?.cities) ? data.cities : []);
       const nextCommunesRaw = Array.isArray(data?.communes) ? data.communes : [];
-      const nextCommunes = nextCommunesRaw.map((commune) => {
-        const rawCity = commune?.cityId;
-        const rawCityAsString = typeof rawCity === 'string' ? rawCity.trim() : '';
-        const cityIdFromName = cityIdByName.get(rawCityAsString.toLowerCase()) || '';
-        const normalizedCityId = String(rawCity?._id || rawCity || cityIdFromName || '');
-        const normalizedCityName =
-          rawCity?.name ||
-          cityNameById.get(cityIdFromName) ||
-          cityNameById.get(rawCityAsString) ||
-          (cityIdFromName ? cityNameById.get(cityIdFromName) : '') ||
-          rawCityAsString ||
-          cityNameById.get(normalizedCityId) ||
-          commune?.cityName ||
-          '';
-        return {
-          ...commune,
-          cityId: normalizedCityId,
-          cityName: normalizedCityName
-        };
-      });
+      const nextCommunes = sortCommunes(
+        nextCommunesRaw.map((commune) => normalizeCommuneWithCities(commune, nextCities))
+      );
       setCities(nextCities);
       setCommunes(nextCommunes);
       const langs = Array.isArray(data?.languages?.languages) ? data.languages.languages : [];
@@ -144,7 +169,7 @@ export default function AdminSystemSettings() {
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, [normalizeCommuneWithCities, showToast]);
 
   useEffect(() => {
     loadSettings();
@@ -231,13 +256,49 @@ export default function AdminSystemSettings() {
 
   const createCity = async (e) => {
     e.preventDefault();
+    const trimmedName = String(cityForm.name || '').trim();
+    if (!trimmedName) {
+      showToast('Nom de ville requis.', { variant: 'error' });
+      return;
+    }
+    if (cities.some((entry) => normalizeLabel(entry?.name) === normalizeLabel(trimmedName))) {
+      showToast('Cette ville existe déjà.', { variant: 'error' });
+      return;
+    }
+
     setCreatingCity(true);
+    const optimisticId = `tmp-city-${Date.now()}`;
+    const optimisticCity = {
+      _id: optimisticId,
+      name: trimmedName,
+      isActive: cityForm.isActive !== false,
+      isDefault: Boolean(cityForm.isDefault),
+      deliveryAvailable: cityForm.deliveryAvailable !== false,
+      boostMultiplier: Number.isFinite(Number(cityForm.boostMultiplier))
+        ? Number(cityForm.boostMultiplier)
+        : 1,
+      order: Number.isFinite(Number(cityForm.order)) ? Number(cityForm.order) : 0
+    };
+    setCities((prev) => sortCities([...prev, optimisticCity]));
     try {
-      await api.post('/admin/cities', cityForm);
+      const { data } = await api.post('/admin/cities', { ...cityForm, name: trimmedName });
+      const persistedCity = data || {};
+      setCities((prev) =>
+        sortCities(
+          prev.map((entry) => {
+            if (String(entry?._id) !== String(optimisticId)) return entry;
+            return {
+              ...entry,
+              ...persistedCity
+            };
+          })
+        )
+      );
       showToast('Ville creee.', { variant: 'success' });
       setCityForm(emptyCityForm);
-      await loadSettings();
+      emitSettingsRefresh();
     } catch (error) {
+      setCities((prev) => prev.filter((entry) => String(entry?._id) !== String(optimisticId)));
       showToast(error.response?.data?.message || 'Erreur creation ville.', { variant: 'error' });
     } finally {
       setCreatingCity(false);
@@ -245,10 +306,37 @@ export default function AdminSystemSettings() {
   };
 
   const patchCity = async (cityId, patch) => {
+    const cityIdStr = String(cityId || '');
+    const previousCities = cities;
+    setCities((prev) => {
+      const next = prev.map((entry) => {
+        if (String(entry?._id) !== cityIdStr) return entry;
+        return { ...entry, ...patch };
+      });
+      if (patch?.isDefault === true) {
+        return sortCities(
+          next.map((entry) => ({ ...entry, isDefault: String(entry?._id) === cityIdStr }))
+        );
+      }
+      return sortCities(next);
+    });
     try {
-      await api.patch(`/admin/cities/${cityId}`, patch);
-      await loadSettings();
+      const { data } = await api.patch(`/admin/cities/${cityId}`, patch);
+      setCities((prev) =>
+        sortCities(
+          prev.map((entry) => {
+            if (String(entry?._id) !== cityIdStr) return patch?.isDefault === true ? { ...entry, isDefault: false } : entry;
+            return {
+              ...entry,
+              ...(data || {}),
+              ...(patch?.isDefault === true ? { isDefault: true } : {})
+            };
+          })
+        )
+      );
+      emitSettingsRefresh();
     } catch (error) {
+      setCities(previousCities);
       showToast(error.response?.data?.message || 'Erreur mise a jour ville.', { variant: 'error' });
     }
   };
@@ -259,21 +347,68 @@ export default function AdminSystemSettings() {
       showToast('Selectionnez une ville pour la commune.', { variant: 'error' });
       return;
     }
+    const trimmedName = String(communeForm.name || '').trim();
+    if (!trimmedName) {
+      showToast('Nom commune requis.', { variant: 'error' });
+      return;
+    }
     if (communeForm.deliveryPolicy === 'FIXED_FEE' && Number(communeForm.fixedFee || 0) < 0) {
       showToast('Le frais fixe doit etre superieur ou egal a 0.', { variant: 'error' });
       return;
     }
+    const selectedCity = cities.find((city) => String(city?._id || '') === String(communeForm.cityId || ''));
+    if (!selectedCity) {
+      showToast('Ville invalide.', { variant: 'error' });
+      return;
+    }
+    const duplicate = communes.some(
+      (entry) =>
+        String(entry?.cityId || '') === String(communeForm.cityId || '') &&
+        normalizeLabel(entry?.name) === normalizeLabel(trimmedName)
+    );
+    if (duplicate) {
+      showToast('Cette commune existe déjà pour cette ville.', { variant: 'error' });
+      return;
+    }
     setCreatingCommune(true);
+    const optimisticId = `tmp-commune-${Date.now()}`;
+    const optimisticCommune = normalizeCommuneWithCities(
+      {
+        _id: optimisticId,
+        name: trimmedName,
+        cityId: String(communeForm.cityId || ''),
+        cityName: selectedCity.name || '',
+        deliveryPolicy: communeForm.deliveryPolicy || 'DEFAULT_RULE',
+        fixedFee:
+          communeForm.deliveryPolicy === 'FIXED_FEE'
+            ? Math.max(0, Number(communeForm.fixedFee || 0))
+            : 0,
+        isActive: communeForm.isActive !== false,
+        order: Number.isFinite(Number(communeForm.order)) ? Number(communeForm.order) : 0
+      },
+      cities
+    );
+    setCommunes((prev) => sortCommunes([...prev, optimisticCommune]));
     try {
-      await api.post('/admin/communes', {
+      const { data } = await api.post('/admin/communes', {
         ...communeForm,
+        name: trimmedName,
         fixedFee: Number(communeForm.fixedFee || 0),
         order: Number(communeForm.order || 0)
       });
+      setCommunes((prev) =>
+        sortCommunes(
+          prev.map((entry) => {
+            if (String(entry?._id) !== String(optimisticId)) return entry;
+            return normalizeCommuneWithCities({ ...entry, ...(data || {}) }, cities);
+          })
+        )
+      );
       showToast('Commune creee.', { variant: 'success' });
       setCommuneForm((prev) => ({ ...emptyCommuneForm, cityId: prev.cityId || '' }));
-      await loadSettings();
+      emitSettingsRefresh();
     } catch (error) {
+      setCommunes((prev) => prev.filter((entry) => String(entry?._id) !== String(optimisticId)));
       showToast(error.response?.data?.message || 'Erreur creation commune.', { variant: 'error' });
     } finally {
       setCreatingCommune(false);
@@ -281,10 +416,29 @@ export default function AdminSystemSettings() {
   };
 
   const patchCommune = async (communeId, patch) => {
+    const communeIdStr = String(communeId || '');
+    const previousCommunes = communes;
+    setCommunes((prev) =>
+      sortCommunes(
+        prev.map((entry) => {
+          if (String(entry?._id) !== communeIdStr) return entry;
+          return normalizeCommuneWithCities({ ...entry, ...patch }, cities);
+        })
+      )
+    );
     try {
-      await api.patch(`/admin/communes/${communeId}`, patch);
-      await loadSettings();
+      const { data } = await api.patch(`/admin/communes/${communeId}`, patch);
+      setCommunes((prev) =>
+        sortCommunes(
+          prev.map((entry) => {
+            if (String(entry?._id) !== communeIdStr) return entry;
+            return normalizeCommuneWithCities({ ...entry, ...(data || {}) }, cities);
+          })
+        )
+      );
+      emitSettingsRefresh();
     } catch (error) {
+      setCommunes(previousCommunes);
       showToast(error.response?.data?.message || 'Erreur mise a jour commune.', { variant: 'error' });
     }
   };
@@ -292,7 +446,7 @@ export default function AdminSystemSettings() {
   const startCommuneEdit = (commune) => {
     setEditingCommuneId(String(commune?._id || ''));
     setEditingCommuneDraft({
-      cityId: String(commune?.cityId || ''),
+      cityId: String(commune?.cityId?._id || commune?.cityId || ''),
       deliveryPolicy: String(commune?.deliveryPolicy || 'DEFAULT_RULE'),
       fixedFee: Number(commune?.fixedFee || 0)
     });
@@ -321,17 +475,43 @@ export default function AdminSystemSettings() {
       showToast('Le frais fixe doit etre superieur ou egal a 0.', { variant: 'error' });
       return;
     }
+    const previousCommunes = communes;
+    setCommunes((prev) =>
+      sortCommunes(
+        prev.map((entry) => {
+          if (String(entry?._id) !== String(editingCommuneId)) return entry;
+          return normalizeCommuneWithCities(
+            {
+              ...entry,
+              cityId: nextCityId,
+              deliveryPolicy: nextPolicy,
+              fixedFee: nextPolicy === 'FIXED_FEE' ? Math.max(0, nextFee) : 0
+            },
+            cities
+          );
+        })
+      )
+    );
     setSavingCommuneEdit(true);
     try {
-      await api.patch(`/admin/communes/${editingCommuneId}`, {
+      const { data } = await api.patch(`/admin/communes/${editingCommuneId}`, {
         cityId: nextCityId,
         deliveryPolicy: nextPolicy,
         fixedFee: nextPolicy === 'FIXED_FEE' ? Math.max(0, nextFee) : 0
       });
+      setCommunes((prev) =>
+        sortCommunes(
+          prev.map((entry) => {
+            if (String(entry?._id) !== String(editingCommuneId)) return entry;
+            return normalizeCommuneWithCities({ ...entry, ...(data || {}) }, cities);
+          })
+        )
+      );
       showToast('Commune mise a jour.', { variant: 'success' });
-      await loadSettings();
+      emitSettingsRefresh();
       cancelCommuneEdit();
     } catch (error) {
+      setCommunes(previousCommunes);
       showToast(error.response?.data?.message || 'Erreur mise a jour commune.', { variant: 'error' });
     } finally {
       setSavingCommuneEdit(false);

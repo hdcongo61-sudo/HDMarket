@@ -11,6 +11,7 @@ const STORAGE_KEYS = {
   city: 'hd_pref_city',
   theme: 'hd_pref_theme'
 };
+const SETTINGS_REFRESH_EVENT = 'hdmarket:settings-refresh';
 
 const FALLBACK_CURRENCY = {
   code: 'XAF',
@@ -140,6 +141,24 @@ export const AppSettingsProvider = ({ children }) => {
       return normalizePublicPayload(fallbackPayload);
     }
   }, [normalizePublicPayload]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return () => {};
+    let refreshing = false;
+    const handleRefresh = async () => {
+      if (refreshing) return;
+      refreshing = true;
+      try {
+        await loadPublicSettings();
+      } finally {
+        refreshing = false;
+      }
+    };
+    window.addEventListener(SETTINGS_REFRESH_EVENT, handleRefresh);
+    return () => {
+      window.removeEventListener(SETTINGS_REFRESH_EVENT, handleRefresh);
+    };
+  }, [loadPublicSettings]);
 
   useEffect(() => {
     let mounted = true;

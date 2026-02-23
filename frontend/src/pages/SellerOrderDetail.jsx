@@ -268,8 +268,10 @@ export default function SellerOrderDetail() {
       const { data } = await api.get(`/orders/seller/detail/${orderId}`);
       setOrder(data);
       const { data: messages } = await api.get(`/orders/${orderId}/messages`);
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const unread = Array.isArray(messages) ? messages.filter((m) => String(m.recipient?._id) === String(user?._id) && !m.readAt) : [];
+      const currentUserId = user?._id || user?.id || '';
+      const unread = Array.isArray(messages)
+        ? messages.filter((m) => String(m.recipient?._id) === String(currentUserId) && !m.readAt)
+        : [];
       setUnreadCount(unread.length);
     } catch (err) {
       setError(err.response?.data?.message || 'Commande introuvable.');
@@ -277,7 +279,7 @@ export default function SellerOrderDetail() {
     } finally {
       setLoading(false);
     }
-  }, [orderId]);
+  }, [orderId, user?._id, user?.id]);
 
   useEffect(() => {
     loadOrder();

@@ -453,6 +453,45 @@ export default function ProductDetails() {
     );
   };
 
+  const decrementCommentCount = () => {
+    setProduct((prev) =>
+      prev ? { ...prev, commentCount: Math.max(0, Number(prev.commentCount || 0) - 1) } : prev
+    );
+  };
+
+  const replaceCommentInState = (temporaryId, persistedComment) => {
+    if (!temporaryId || !persistedComment?._id) return;
+    const tempId = String(temporaryId);
+    const replaceRecursively = (list) =>
+      (Array.isArray(list) ? list : []).map((entry) => {
+        const entryId = String(entry?._id || '');
+        if (entryId === tempId) {
+          const existingReplies = Array.isArray(entry?.replies) ? entry.replies : [];
+          const persistedReplies = Array.isArray(persistedComment?.replies) ? persistedComment.replies : existingReplies;
+          return { ...persistedComment, replies: persistedReplies };
+        }
+        const replies = Array.isArray(entry?.replies) ? entry.replies : [];
+        if (!replies.length) return entry;
+        return { ...entry, replies: replaceRecursively(replies) };
+      });
+
+    setComments((prev) => replaceRecursively(prev));
+  };
+
+  const removeCommentFromState = (commentId) => {
+    if (!commentId) return;
+    const targetId = String(commentId);
+    const pruneRecursively = (list) =>
+      (Array.isArray(list) ? list : [])
+        .filter((entry) => String(entry?._id || '') !== targetId)
+        .map((entry) => {
+          const replies = Array.isArray(entry?.replies) ? entry.replies : [];
+          return replies.length ? { ...entry, replies: pruneRecursively(replies) } : entry;
+        });
+
+    setComments((prev) => pruneRecursively(prev));
+  };
+
   const updateRatingStats = (nextRating, previousRating) => {
     setProduct((prev) => {
       if (!prev) return prev;
@@ -530,20 +569,38 @@ export default function ProductDetails() {
 
     setSubmittingComment(true);
     setCommentError("");
+    const message = newComment.trim();
+    const tempCommentId = `tmp-comment-${Date.now()}`;
+    const optimisticComment = {
+      _id: tempCommentId,
+      message,
+      product: product?._id,
+      user: {
+        _id: user?._id || user?.id || 'me',
+        name: user?.name || 'Vous'
+      },
+      parent: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      replies: []
+    };
+    setNewComment("");
+    insertCommentIntoState(optimisticComment);
+    incrementCommentCount();
     
     try {
       const commentData = {
         productId: product?._id,
-        message: newComment.trim()
+        message
       };
 
       const response = await api.post(`/products/${slug}/comments`, commentData);
-
-      setNewComment("");
-      insertCommentIntoState(response?.data);
-      incrementCommentCount();
+      replaceCommentInState(tempCommentId, response?.data);
       
     } catch (error) {
+      removeCommentFromState(tempCommentId);
+      decrementCommentCount();
+      setNewComment(message);
       if (error.response?.status === 401) {
         handleSessionExpired();
         return;
@@ -594,22 +651,44 @@ export default function ProductDetails() {
 
     setSubmittingComment(true);
     setCommentError("");
+    const message = replyText.trim();
+    const tempReplyId = `tmp-reply-${Date.now()}`;
+    const optimisticReply = {
+      _id: tempReplyId,
+      message,
+      product: product?._id,
+      user: {
+        _id: user?._id || user?.id || 'me',
+        name: user?.name || 'Vous'
+      },
+      parent: {
+        _id: parentComment?._id,
+        message: parentComment?.message || '',
+        user: parentComment?.user || null
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    setReplyText("");
+    setReplyingTo(null);
+    insertCommentIntoState(optimisticReply);
+    incrementCommentCount();
     
     try {
       const replyData = {
         productId: product?._id,
-        message: replyText.trim(),
+        message,
         parentId: parentComment._id  // Référence au commentaire parent
       };
 
       const response = await api.post(`/products/${slug}/comments`, replyData);
-
-      setReplyText("");
-      setReplyingTo(null);
-      insertCommentIntoState(response?.data);
-      incrementCommentCount();
+      replaceCommentInState(tempReplyId, response?.data);
       
     } catch (error) {
+      removeCommentFromState(tempReplyId);
+      decrementCommentCount();
+      setReplyingTo(parentComment?._id || null);
+      setReplyText(message);
       if (error.response?.status === 401) {
         handleSessionExpired();
         return;
@@ -632,18 +711,30 @@ export default function ProductDetails() {
     }
 
     const previousRating = userRating || 0;
+    const previousRatingAverage = Number(product?.ratingAverage || 0);
+    const previousRatingCount = Number(product?.ratingCount || 0);
     setSubmittingRating(true);
+    setUserRating(newRating);
+    setRating(newRating);
+    updateRatingStats(newRating, previousRating);
     try {
       await api.put(`/products/${slug}/rating`, {
         value: newRating,
         productId: product?._id
       });
-
-      setUserRating(newRating);
-      setRating(newRating);
-      updateRatingStats(newRating, previousRating);
       
     } catch (error) {
+      setUserRating(previousRating);
+      setRating(previousRating);
+      setProduct((prev) =>
+        prev
+          ? {
+              ...prev,
+              ratingAverage: previousRatingAverage,
+              ratingCount: previousRatingCount
+            }
+          : prev
+      );
       if (error.response?.status === 401) {
         handleSessionExpired();
         return;

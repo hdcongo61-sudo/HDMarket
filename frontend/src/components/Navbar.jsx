@@ -4,7 +4,7 @@ import AuthContext from "../context/AuthContext";
 import CartContext from "../context/CartContext";
 import FavoriteContext from "../context/FavoriteContext";
 import useAdminCounts from "../hooks/useAdminCounts";
-import useUserNotifications from "../hooks/useUserNotifications";
+import useUserNotifications, { triggerNotificationsRefresh } from "../hooks/useUserNotifications";
 import api from "../services/api";
 import { buildProductPath, buildShopPath } from "../utils/links";
 import { getCachedSearch, setCachedSearch } from "../utils/searchCache.js";
@@ -595,6 +595,21 @@ export default function Navbar() {
   };
 
   // Quick actions for navigation items
+  async function handleMarkAllNotificationsReadQuickAction() {
+    if (!user || commentAlerts < 1) {
+      triggerHaptic('light');
+      return;
+    }
+    try {
+      await api.patch('/users/notifications/read');
+      triggerNotificationsRefresh({ type: 'markAllRead', refetch: false });
+      triggerHaptic('success');
+    } catch (error) {
+      console.error('Failed to mark all notifications as read:', error);
+      triggerHaptic('warning');
+    }
+  }
+
   const getQuickActions = (itemId) => {
     const actions = {
       home: [
@@ -613,7 +628,7 @@ export default function Navbar() {
         { label: t('nav.statistics', 'Statistiques'), action: () => { navigate('/stats'); triggerHaptic('light'); } }
       ],
       notifications: [
-        { label: t('nav.markAllRead', 'Marquer tout lu'), action: () => { /* Mark all read */ triggerHaptic('light'); } },
+        { label: t('nav.markAllRead', 'Marquer tout lu'), action: () => { void handleMarkAllNotificationsReadQuickAction(); } },
         { label: t('nav.notificationSettings', 'Paramètres notifications'), action: () => { navigate('/profile'); triggerHaptic('light'); } }
       ]
     };

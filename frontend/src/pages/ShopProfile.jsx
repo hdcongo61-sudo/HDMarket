@@ -109,7 +109,7 @@ export default function ShopProfile() {
     const fetchShop = async () => {
       try {
         setLoading(true);
-        const { data } = await api.get(`/shops/${slug}`);
+        const { data } = await api.get(`/shops/${slug}`, { skipCache: true, headers: { 'x-skip-cache': '1' } });
         if (!active) return;
         setShop(data.shop);
         const loadedProducts = Array.isArray(data.products) ? data.products : [];
@@ -170,7 +170,9 @@ export default function ShopProfile() {
       try {
         // Fetch more products from the shop to find top sellers
         const { data: shopData } = await api.get(`/shops/${slug}`, {
-          params: { limit: 100 }
+          params: { limit: 100 },
+          skipCache: true,
+          headers: { 'x-skip-cache': '1' }
         });
         if (!active) return;
         const shopProducts = Array.isArray(shopData?.products) ? shopData.products : [];
@@ -233,7 +235,10 @@ export default function ShopProfile() {
     }
     const loadUserReview = async () => {
       try {
-        const { data } = await api.get(`/shops/${shopIdentifier}/reviews/user`);
+        const { data } = await api.get(`/shops/${shopIdentifier}/reviews/user`, {
+          skipCache: true,
+          headers: { 'x-skip-cache': '1' }
+        });
         if (!active) return;
         setUserReview(data);
         setReviewForm({ rating: data.rating || 0, comment: data.comment || '' });
@@ -439,7 +444,9 @@ export default function ShopProfile() {
     setCommentsError('');
     try {
       const { data } = await api.get(`/shops/${shopIdentifier}/reviews`, {
-        params: { page: 1, limit: 50 }
+        params: { page: 1, limit: 50 },
+        skipCache: true,
+        headers: { 'x-skip-cache': '1' }
       });
       setAllComments(Array.isArray(data.reviews) ? data.reviews : []);
     } catch (err) {
@@ -477,11 +484,69 @@ export default function ShopProfile() {
     setReviewSuccess('');
     try {
       const target = shopIdentifier;
+      const previousReview = userReview;
       const { data } = await api.post(`/shops/${target}/reviews`, reviewForm);
       setUserReview(data);
       setReviewForm({ rating: data.rating || 0, comment: data.comment || '' });
       setIsEditingReview(!Boolean(data.comment?.trim()));
       setReviewSuccess('Votre avis a bien été enregistré.');
+
+      const actor = {
+        _id: user?._id || user?.id || data?.user?._id || '',
+        name: user?.name || data?.user?.name || 'Utilisateur',
+        shopName: user?.shopName || data?.user?.shopName || null,
+        shopLogo: user?.shopLogo || data?.user?.shopLogo || null
+      };
+      const normalizedReview = {
+        ...data,
+        user: data?.user?._id ? data.user : actor
+      };
+
+      setRecentReviews((prev) => {
+        const list = Array.isArray(prev) ? prev : [];
+        const filtered = list.filter(
+          (item) => String(item?.user?._id || '') !== String(actor._id || '')
+        );
+        return [normalizedReview, ...filtered].sort(
+          (a, b) => new Date(b?.createdAt || b?.updatedAt || 0).getTime() - new Date(a?.createdAt || a?.updatedAt || 0).getTime()
+        );
+      });
+
+      setAllComments((prev) => {
+        if (!Array.isArray(prev) || prev.length === 0) return prev;
+        const filtered = prev.filter(
+          (item) => String(item?.user?._id || '') !== String(actor._id || '')
+        );
+        return [normalizedReview, ...filtered].sort(
+          (a, b) => new Date(b?.createdAt || b?.updatedAt || 0).getTime() - new Date(a?.createdAt || a?.updatedAt || 0).getTime()
+        );
+      });
+
+      setShop((prev) => {
+        if (!prev) return prev;
+        const nextRating = Number(data?.rating || 0);
+        const currentCount = Number(prev.ratingCount || 0);
+        const currentAverage = Number(prev.ratingAverage || 0);
+        const previousRating = Number(previousReview?.rating || 0);
+        const hadPrevious = Number.isFinite(previousRating) && previousRating > 0;
+
+        let nextCount = currentCount;
+        let nextAverage = currentAverage;
+
+        if (hadPrevious && currentCount > 0) {
+          nextAverage = (currentAverage * currentCount - previousRating + nextRating) / currentCount;
+        } else {
+          nextCount = currentCount + 1;
+          nextAverage = nextCount > 0 ? (currentAverage * currentCount + nextRating) / nextCount : nextRating;
+        }
+
+        return {
+          ...prev,
+          ratingAverage: Number.isFinite(nextAverage) ? Number(nextAverage.toFixed(2)) : prev.ratingAverage,
+          ratingCount: nextCount
+        };
+      });
+
       setReloadKey((prev) => prev + 1);
     } catch (err) {
       setReviewError(
@@ -762,7 +827,7 @@ export default function ShopProfile() {
                   const isOwnReview =
                     Boolean(user) &&
                     Boolean(review.user?._id) &&
-                    String(review.user._id) === String(user.id);
+                    String(review.user._id) === String(user?._id || user?.id);
                   return (
                     <div
                       key={review._id}

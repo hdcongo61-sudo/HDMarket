@@ -1,40 +1,26 @@
 /**
- * Service Worker for PWA offline caching + Firebase web push
- * Caches API responses and static assets for offline access
+ * HDMarket PWA Service Worker
+ * - Static assets: cache-first
+ * - Dynamic API data: network-first + background revalidation
+ * - Auth API responses are never cached to avoid cross-user data leaks
  */
 
-const CACHE_NAME = 'hdmarket-v2';
-const API_CACHE_NAME = 'hdmarket-api-v2';
-const STATIC_CACHE_NAME = 'hdmarket-static-v2';
+const SW_VERSION = 'v4-2026-02-23';
+const CACHE_NAME = `hdmarket-${SW_VERSION}`;
+const STATIC_CACHE_NAME = `hdmarket-static-${SW_VERSION}`;
+const API_CACHE_NAME = `hdmarket-api-${SW_VERSION}`;
+const SEARCH_HISTORY_CACHE = `hdmarket-search-history-${SW_VERSION}`;
+
 const FIREBASE_SDK_VERSION = '9.23.0';
 const DEFAULT_FIREBASE_SDK_BASES = [
   `https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}`,
   '/firebase'
 ];
 
-// Assets to cache on install
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/favicon.svg'
-];
-
-// API endpoints to cache (read-only GET requests)
-const CACHEABLE_ENDPOINTS = [
-  '/api/products/public',
-  '/api/shops',
-  '/api/settings',
-  '/api/categories',
-  '/api/cities',
-  '/api/search',
-  '/api/search/popular',
-  '/api/users/search-history'
-];
-
-// Search history cache name
-const SEARCH_HISTORY_CACHE = 'hdmarket-search-history-v1';
+const STATIC_ASSETS = ['/', '/index.html', '/favicon.svg'];
 const DEFAULT_NOTIFICATION_ICON = '/icons/icon-192.svg';
 const DEFAULT_NOTIFICATION_BADGE = '/icons/icon-192.svg';
+
 const DEV_HOSTS = new Set(['localhost', '127.0.0.1']);
 const DEV_BYPASS_PATHS = [
   /^\/@vite\//,
@@ -46,11 +32,83 @@ const DEV_BYPASS_PATHS = [
   /^\/__vite_ping/
 ];
 
+const PUBLIC_CACHEABLE_API_PREFIXES = [
+  '/api/products/public',
+  '/api/shops',
+  '/api/settings',
+  '/api/categories',
+  '/api/cities',
+  '/api/search',
+  '/api/search/popular'
+];
+
+const NETWORK_FIRST_API_PREFIXES = [
+  '/api/settings/cities',
+  '/api/settings/communes',
+  '/api/admin/cities',
+  '/api/admin/communes',
+  '/api/users/notifications',
+  '/api/users/profile',
+  '/api/orders'
+];
+
+const NON_CACHEABLE_API_PATTERNS = [
+  /^\/api\/products\/public\/[^/]+\/comments(?:\/|$)/,
+  /^\/api\/products\/public\/[^/]+\/ratings(?:\/|$)/,
+  /^\/api\/shops\/[^/]+\/reviews(?:\/|$)/,
+  /^\/api\/shops\/[^/]+$/
+];
+
 let firebaseConfig = null;
 let firebaseMessaging = null;
 let firebaseInitialized = false;
 let firebaseScriptsLoaded = false;
 let firebaseSdkBaseUrl = null;
+
+const isDevHost = () => DEV_HOSTS.has(self.location.hostname);
+
+const isAuthRequest = (request) => {
+  try {
+    const authHeader = request?.headers?.get('authorization');
+    return Boolean(authHeader && String(authHeader).trim());
+  } catch {
+    return false;
+  }
+};
+
+const clearAllCaches = async () => {
+  const names = await caches.keys();
+  await Promise.all(names.map((name) => caches.delete(name)));
+};
+
+const stampCacheResponse = (response) => {
+  const clone = response.clone();
+  const headers = new Headers(clone.headers);
+  headers.set('sw-cache-date', Date.now().toString());
+  return new Response(clone.body, {
+    status: clone.status,
+    statusText: clone.statusText,
+    headers
+  });
+};
+
+const offlineJson = (status = 503, message = 'Connexion indisponible.') =>
+  new Response(JSON.stringify({ offline: true, message }), {
+    status,
+    headers: { 'Content-Type': 'application/json' }
+  });
+
+const isPublicCacheableApiRequest = (request, path) => {
+  if (!request || request.method !== 'GET') return false;
+  if (isAuthRequest(request)) return false;
+  if (NON_CACHEABLE_API_PATTERNS.some((pattern) => pattern.test(path))) return false;
+  return PUBLIC_CACHEABLE_API_PREFIXES.some((prefix) => path.startsWith(prefix));
+};
+
+const isNetworkFirstApiRequest = (request, path) => {
+  if (!request || request.method !== 'GET') return false;
+  return NETWORK_FIRST_API_PREFIXES.some((prefix) => path.startsWith(prefix));
+};
 
 const loadFirebaseScripts = (sdkBaseUrl) => {
   if (firebaseScriptsLoaded) return true;
@@ -63,10 +121,7 @@ const loadFirebaseScripts = (sdkBaseUrl) => {
   let lastError = null;
   for (const base of bases) {
     try {
-      importScripts(
-        `${base}/firebase-app-compat.js`,
-        `${base}/firebase-messaging-compat.js`
-      );
+      importScripts(`${base}/firebase-app-compat.js`, `${base}/firebase-messaging-compat.js`);
       firebaseScriptsLoaded = true;
       return true;
     } catch (err) {
@@ -103,7 +158,7 @@ const initFirebaseMessaging = (config, sdkBaseUrl) => {
           body,
           icon,
           badge: DEFAULT_NOTIFICATION_BADGE,
-          data: { url },
+          data: { url }
         };
         if (image) options.image = image;
         self.registration.showNotification(title, options);
@@ -115,342 +170,215 @@ const initFirebaseMessaging = (config, sdkBaseUrl) => {
   }
 };
 
-const clearAllCaches = async () => {
-  const cacheNames = await caches.keys();
-  await Promise.all(cacheNames.map((name) => caches.delete(name)));
-};
-
-// Install event - cache static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(STATIC_CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
-    })
+    caches.open(STATIC_CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
   );
   self.skipWaiting();
 });
 
-// Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((name) => {
-            return (
-              name !== CACHE_NAME &&
-              name !== API_CACHE_NAME &&
-              name !== STATIC_CACHE_NAME
-            );
-          })
+    caches.keys().then((names) =>
+      Promise.all(
+        names
+          .filter(
+            (name) =>
+              ![CACHE_NAME, STATIC_CACHE_NAME, API_CACHE_NAME, SEARCH_HISTORY_CACHE].includes(name)
+          )
           .map((name) => caches.delete(name))
-      );
-    })
+      )
+    )
   );
-  if (DEV_HOSTS.has(self.location.hostname)) {
+
+  if (isDevHost()) {
     event.waitUntil(clearAllCaches());
     event.waitUntil(self.registration.unregister());
   }
-  return self.clients.claim();
+
+  event.waitUntil(self.clients.claim());
 });
 
-// Listen for messages (e.g. Firebase config, cache management)
 self.addEventListener('message', (event) => {
   const { type, payload } = event.data || {};
+
   if (type === 'SET_FIREBASE_CONFIG') {
-    const nextConfig = payload?.config || payload || null;
+    firebaseConfig = payload?.config || payload || null;
     firebaseSdkBaseUrl = payload?.sdkBaseUrl || null;
-    firebaseConfig = nextConfig;
     initFirebaseMessaging(firebaseConfig, firebaseSdkBaseUrl);
+    return;
   }
+
+  if (type === 'SKIP_WAITING') {
+    self.skipWaiting();
+    return;
+  }
+
   if (type === 'CLEAR_CACHE') {
     event.waitUntil(clearAllCaches());
+    return;
+  }
+
+  if (type === 'CLEAR_API_CACHE') {
+    event.waitUntil(caches.delete(API_CACHE_NAME));
+    return;
+  }
+
+  if (type === 'CLEAR_SEARCH_CACHE') {
+    event.waitUntil(caches.delete(SEARCH_HISTORY_CACHE));
   }
 });
 
-// Notification click handler (open deep link)
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  const url = event.notification?.data?.url;
-  if (!url) return;
+const handleNetworkFirstDynamicApi = async (request) => {
+  // Privacy safety: never persist authenticated API payloads in SW cache.
+  if (isAuthRequest(request)) {
+    try {
+      return await fetch(request, { cache: 'no-store' });
+    } catch {
+      return offlineJson(503, 'Connexion indisponible. Cette ressource nécessite une connexion active.');
+    }
+  }
 
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if (client.url === url && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      if (clients.openWindow) {
-        return clients.openWindow(url);
-      }
-      return null;
-    })
-  );
-});
+  const cache = await caches.open(API_CACHE_NAME);
+  const cached = await cache.match(request);
 
-// Fetch event - serve from cache, fallback to network
+  try {
+    const networkResponse = await fetch(request, { cache: 'no-store' });
+    if (networkResponse.ok) {
+      await cache.put(request, stampCacheResponse(networkResponse));
+    }
+    return networkResponse;
+  } catch {
+    if (cached) return cached;
+    return offlineJson(503, 'Connexion indisponible. Données dynamiques non disponibles hors ligne.');
+  }
+};
+
+const revalidatePublicApiInBackground = async (request, cache) => {
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse.ok) {
+      await cache.put(request, stampCacheResponse(networkResponse));
+    }
+  } catch {
+    // Ignore background refresh errors.
+  }
+};
+
+const handlePublicApiRequest = async (request, event) => {
+  const cache = await caches.open(API_CACHE_NAME);
+  const cached = await cache.match(request);
+
+  if (cached) {
+    event.waitUntil(revalidatePublicApiInBackground(request, cache));
+    return cached;
+  }
+
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse.ok) {
+      await cache.put(request, stampCacheResponse(networkResponse));
+    }
+    return networkResponse;
+  } catch {
+    return offlineJson(503, 'Connexion indisponible.');
+  }
+};
+
+const handleSearchHistoryRequest = async (request) => {
+  const cache = await caches.open(SEARCH_HISTORY_CACHE);
+
+  if (request.method === 'GET') {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    try {
+      const networkResponse = await fetch(request);
+      if (networkResponse.ok) {
+        await cache.put(request, networkResponse.clone());
+      }
+      return networkResponse;
+    } catch {
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  }
+
+  return fetch(request);
+};
+
+const handleApiRequest = async (request, event, url) => {
+  if (isNetworkFirstApiRequest(request, url.pathname)) {
+    return handleNetworkFirstDynamicApi(request);
+  }
+
+  if (isPublicCacheableApiRequest(request, url.pathname)) {
+    return handlePublicApiRequest(request, event);
+  }
+
+  try {
+    return await fetch(request);
+  } catch {
+    return offlineJson(503, 'Connexion indisponible. Cette ressource nécessite une connexion active.');
+  }
+};
+
+const handleStaticRequest = async (request) => {
+  const isNavigation = request.mode === 'navigate';
+  const staticCache = await caches.open(STATIC_CACHE_NAME);
+
+  if (isNavigation) {
+    try {
+      const networkResponse = await fetch(request);
+      if (networkResponse.ok) return networkResponse;
+      const fallbackIndex = await staticCache.match('/index.html');
+      return fallbackIndex || networkResponse;
+    } catch {
+      const fallbackIndex = await staticCache.match('/index.html');
+      return fallbackIndex || new Response('Offline', { status: 503 });
+    }
+  }
+
+  const cached = await staticCache.match(request);
+  if (cached) return cached;
+
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse.ok) {
+      await staticCache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch {
+    const fallbackIndex = await staticCache.match('/index.html');
+    return fallbackIndex || new Response('Offline', { status: 503 });
+  }
+};
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
-  const isDevHost = DEV_HOSTS.has(self.location.hostname);
 
-  // Skip non-GET requests
-  if (request.method !== 'GET') {
-    return;
-  }
+  if (request.method !== 'GET') return;
+  if (isDevHost()) return;
+  if (DEV_BYPASS_PATHS.some((pattern) => pattern.test(url.pathname))) return;
 
-  // In dev, bypass SW caching entirely to avoid HMR & blank screen issues
-  if (isDevHost) {
-    return;
-  }
-
-  if (isDevHost && DEV_BYPASS_PATHS.some((pattern) => pattern.test(url.pathname))) {
-    return;
-  }
-
-  // Skip cross-origin requests (except API)
   if (url.origin !== self.location.origin && !url.pathname.startsWith('/api')) {
     return;
   }
 
-  // Handle API requests
   if (url.pathname.startsWith('/api')) {
-    // Special handling for search history (offline support)
-    if (url.pathname.includes('/search-history')) {
+    if (url.pathname.includes('/search-history') && !isAuthRequest(request)) {
       event.respondWith(handleSearchHistoryRequest(request));
       return;
     }
-    event.respondWith(handleApiRequest(request));
+    event.respondWith(handleApiRequest(request, event, url));
     return;
   }
 
-  // Handle static assets
   event.respondWith(handleStaticRequest(request));
 });
 
-/**
- * Handle API requests with cache-first strategy
- */
-async function handleApiRequest(request) {
-  const cache = await caches.open(API_CACHE_NAME);
-  const cachedResponse = await cache.match(request);
-
-  if (cachedResponse) {
-    // Check if cache is still valid (within TTL)
-    const cacheDate = cachedResponse.headers.get('sw-cache-date');
-    if (cacheDate) {
-      const age = Date.now() - parseInt(cacheDate, 10);
-      const maxAge = 5 * 60 * 1000; // 5 minutes default
-      
-      if (age < maxAge) {
-        return cachedResponse;
-      }
-    } else {
-      // If no date header, assume it's valid
-      return cachedResponse;
-    }
-  }
-
-  try {
-    // Try network first
-    const networkResponse = await fetch(request);
-    
-    if (networkResponse.ok) {
-      // Clone response and add cache date
-      const responseToCache = networkResponse.clone();
-      const headers = new Headers(responseToCache.headers);
-      headers.set('sw-cache-date', Date.now().toString());
-      
-      const modifiedResponse = new Response(responseToCache.body, {
-        status: responseToCache.status,
-        statusText: responseToCache.statusText,
-        headers: headers
-      });
-      
-      // Cache successful responses
-      cache.put(request, modifiedResponse);
-    }
-    
-    return networkResponse;
-  } catch (error) {
-    // Network failed, return cached response if available
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-    
-    // Return offline response
-    return new Response(
-      JSON.stringify({ 
-        message: 'Vous êtes hors ligne. Données mises en cache affichées.',
-        offline: true 
-      }),
-      {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
-  }
-}
-
-/**
- * Handle static asset requests.
- * Navigation/document requests (SPA routes): network-first so reload on /path always
- * gets index.html from the server. Prevents serving a cached 404 from before the
- * rewrite was configured.
- * Other static assets: cache-first for performance.
- */
-async function handleStaticRequest(request) {
-  const isNavigation = request.mode === 'navigate';
-  const url = new URL(request.url);
-  const isDevHost = DEV_HOSTS.has(self.location.hostname);
-  if (isDevHost && DEV_BYPASS_PATHS.some((pattern) => pattern.test(url.pathname))) {
-    return fetch(request);
-  }
-
-  if (isNavigation) {
-    const staticCache = await caches.open(STATIC_CACHE_NAME);
-    try {
-      const networkResponse = await fetch(request);
-      if (networkResponse.ok) {
-        return networkResponse;
-      }
-      // 404/5xx: fall back to index.html so SPA can load (e.g. old cached 404)
-      const indexResponse = await staticCache.match('/index.html');
-      if (indexResponse) return indexResponse;
-      return networkResponse;
-    } catch (error) {
-      const offlinePage = await staticCache.match('/index.html');
-      if (offlinePage) return offlinePage;
-      return new Response('Offline', { status: 503 });
-    }
-  }
-
-  const cache = await caches.open(STATIC_CACHE_NAME);
-  const cachedResponse = await cache.match(request);
-  if (cachedResponse) return cachedResponse;
-
-  try {
-    const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
-      cache.put(request, networkResponse.clone());
-    }
-    return networkResponse;
-  } catch (error) {
-    const offlinePage = await cache.match('/index.html');
-    if (offlinePage) return offlinePage;
-    return new Response('Offline', { status: 503 });
-  }
-}
-
-/**
- * Handle search history requests with offline support
- */
-async function handleSearchHistoryRequest(request) {
-  const cache = await caches.open(SEARCH_HISTORY_CACHE);
-  
-  // For GET requests, try cache first, then network
-  if (request.method === 'GET') {
-    const cachedResponse = await cache.match(request);
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-    
-    try {
-      const networkResponse = await fetch(request);
-      if (networkResponse.ok) {
-        // Cache the response
-        cache.put(request, networkResponse.clone());
-      }
-      return networkResponse;
-    } catch (error) {
-      // Offline: return cached response or empty array
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return new Response(
-        JSON.stringify([]),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
-    }
-  }
-  
-  // For POST requests (adding search history), cache after network
-  if (request.method === 'POST') {
-    try {
-      const networkResponse = await fetch(request);
-      if (networkResponse.ok) {
-        // Cache the new entry
-        const data = await networkResponse.clone().json();
-        // Store in IndexedDB via message to main thread
-        // For now, just cache the response
-        cache.put(request, networkResponse.clone());
-      }
-      return networkResponse;
-    } catch (error) {
-      // Offline: store in cache for later sync
-      const clonedRequest = request.clone();
-      const body = await clonedRequest.json();
-      
-      // Store offline entry
-      const offlineEntry = {
-        ...body,
-        offline: true,
-        timestamp: Date.now()
-      };
-      
-      return new Response(
-        JSON.stringify(offlineEntry),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
-    }
-  }
-  
-  return fetch(request);
-}
-
-// Message event - handle cache invalidation
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'CLEAR_CACHE') {
-    event.waitUntil(
-      caches.keys().then((cacheNames) => {
-        return Promise.all(
-          cacheNames.map((name) => caches.delete(name))
-        );
-      })
-    );
-  }
-  
-  if (event.data && event.data.type === 'CLEAR_API_CACHE') {
-    event.waitUntil(caches.delete(API_CACHE_NAME));
-  }
-  
-  if (event.data && event.data.type === 'CLEAR_SEARCH_CACHE') {
-    event.waitUntil(caches.delete(SEARCH_HISTORY_CACHE));
-  }
-  
-  // Sync offline search history
-  if (event.data && event.data.type === 'SYNC_SEARCH_HISTORY') {
-    event.waitUntil(syncOfflineSearchHistory());
-  }
-});
-
-/**
- * Sync offline search history entries when back online
- */
-async function syncOfflineSearchHistory() {
-  // This would sync offline entries to the server
-  // Implementation depends on your backend API
-  console.log('Syncing offline search history...');
-}
-
-// Push event: show notification when PWA receives FCM (e.g. in background)
 self.addEventListener('push', (event) => {
   if (!event.data) return;
   let payload = {};
@@ -464,32 +392,45 @@ self.addEventListener('push', (event) => {
   const title = notification.title || data.title || 'HDMarket';
   const body = notification.body || data.body || '';
   const url = data.url || data.link || data.deeplink || data.path || '/';
+
   const options = {
     body: body || undefined,
-    icon: '/favicon.svg',
-    badge: '/favicon.svg',
-    data: { url: url.startsWith('http') ? url : self.location.origin + (url.startsWith('/') ? url : '/' + url) },
+    icon: DEFAULT_NOTIFICATION_ICON,
+    badge: DEFAULT_NOTIFICATION_BADGE,
+    data: {
+      url: url.startsWith('http')
+        ? url
+        : `${self.location.origin}${url.startsWith('/') ? url : `/${url}`}`
+    },
     tag: 'hdmarket-push',
     renotify: true
   };
-  event.waitUntil(
-    self.registration.showNotification(title, options)
-  );
+
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Notification click: open app at the link
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const url = event.notification?.data?.url || '/';
+
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      if (clientList.length) {
-        const client = clientList[0];
-        client.navigate(url);
-        client.focus();
-      } else if (self.clients.openWindow) {
-        self.clients.openWindow(url);
+      for (const client of clientList) {
+        if (client.url === url && 'focus' in client) {
+          return client.focus();
+        }
       }
+      if (clientList.length > 0) {
+        const client = clientList[0];
+        if ('navigate' in client) {
+          return client.navigate(url).then(() => client.focus());
+        }
+        return client.focus();
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(url);
+      }
+      return null;
     })
   );
 });
