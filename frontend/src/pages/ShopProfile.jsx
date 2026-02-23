@@ -539,6 +539,8 @@ export default function ShopProfile() {
     }
   });
   const followDisabled = followMutation.isPending || !shop?._id || !shop?.shopVerified || isOwnShop;
+  const mobileFollowLabel =
+    followMutation.isPending ? '...' : isOwnShop ? 'Ma boutique' : isFollowing ? 'Suivie' : 'Suivre';
 
   const reviewMutation = useMutation({
     mutationFn: async ({ rating, comment }) => {
@@ -629,6 +631,9 @@ export default function ShopProfile() {
   const hasFreeDelivery = Boolean(shop?.freeDeliveryEnabled);
   const ownCommentExists = Boolean(currentUserReview?.comment?.trim());
   const showReviewForm = !ownCommentExists || isEditingReview;
+  const productGridClass = isCertifiedShop
+    ? 'grid grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-3'
+    : 'grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-3';
 
   const stats = [
     {
@@ -715,35 +720,33 @@ export default function ShopProfile() {
 
   return (
     <main
-      className={`bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 ${
-        isMobile ? (isCertifiedShop ? 'pb-44' : 'pb-28') : 'pb-12'
-      }`}
+      className={`bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 ${isMobile ? 'pb-32' : 'pb-12'}`}
     >
-      <div className="mx-auto max-w-7xl px-3 py-4 sm:px-5 sm:py-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-2.5 py-4 max-[375px]:px-2 sm:px-5 sm:py-6 lg:px-8">
         <header
-          className={`sticky top-20 z-20 mb-4 rounded-2xl border bg-white/85 px-4 py-3 backdrop-blur-xl dark:bg-slate-900/85 sm:top-24 md:top-28 ${
+          className={`sticky top-20 z-20 mb-3 rounded-2xl border bg-white/85 px-3 py-2.5 backdrop-blur-xl dark:bg-slate-900/85 max-[375px]:mb-2.5 max-[375px]:px-2.5 max-[375px]:py-2 sm:top-24 sm:mb-4 sm:px-4 sm:py-3 md:top-28 ${
             isCertifiedShop
               ? 'border-emerald-200/70 dark:border-emerald-900/70'
               : 'border-slate-200/80 dark:border-slate-800'
           }`}
         >
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-2.5 max-[375px]:gap-2">
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 sm:text-[11px] sm:tracking-[0.2em]">
                 {isCertifiedShop ? 'Boutique certifiée' : 'Boutique'}
               </p>
-              <h1 className="truncate text-base font-semibold text-slate-900 dark:text-white sm:text-lg">{shop.shopName}</h1>
+              <h1 className="truncate text-[15px] font-semibold text-slate-900 dark:text-white max-[375px]:text-sm sm:text-lg">{shop.shopName}</h1>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
               {isMobile && isCertifiedShop && (
-                <span className="inline-flex min-h-9 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-2 text-[11px] font-semibold text-emerald-700">
+                <span className="inline-flex min-h-8 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-2 text-[10px] font-semibold text-emerald-700 sm:min-h-9 sm:text-[11px]">
                   Certifiée
                 </span>
               )}
               <button
                 type="button"
                 onClick={() => navigate(-1)}
-                className="min-h-11 rounded-xl border border-slate-200 px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                className="min-h-10 rounded-xl border border-slate-200 px-2.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 sm:min-h-11 sm:px-3 sm:text-sm"
               >
                 Retour
               </button>
@@ -767,11 +770,11 @@ export default function ShopProfile() {
         )}
 
         <section
-          className={`relative overflow-hidden rounded-3xl border bg-slate-900 text-white shadow-lg ${
+          className={`relative overflow-hidden rounded-[1.4rem] border bg-slate-900 text-white shadow-lg sm:rounded-3xl ${
             isCertifiedShop ? 'border-emerald-300/40' : 'border-slate-200'
           }`}
         >
-          <div className="h-36 w-full sm:h-56 lg:h-64">
+          <div className="h-28 w-full max-[375px]:h-24 sm:h-56 lg:h-64">
             {shop.shopBanner ? (
               <img
                 src={shop.shopBanner}
@@ -791,9 +794,9 @@ export default function ShopProfile() {
             />
           </div>
 
-          <div className="relative z-10 px-4 pb-5 pt-0 sm:px-6 sm:pb-6">
-            <div className="-mt-10 flex flex-col items-center gap-3 text-center sm:-mt-14 sm:flex-row sm:items-start sm:gap-4 sm:text-left">
-              <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-4 border-white/80 bg-white shadow-md sm:h-24 sm:w-24">
+          <div className="relative z-10 px-3.5 pb-4 pt-0 max-[375px]:px-3 max-[375px]:pb-3.5 sm:px-6 sm:pb-6">
+            <div className="-mt-8 flex flex-col items-center gap-2.5 text-center max-[375px]:-mt-7 max-[375px]:gap-2 sm:-mt-14 sm:flex-row sm:items-start sm:gap-4 sm:text-left">
+              <div className="h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-2xl border-4 border-white/80 bg-white shadow-md max-[375px]:h-16 max-[375px]:w-16 sm:h-24 sm:w-24">
                 {shop.shopLogo ? (
                   <img src={shop.shopLogo} alt={`Logo ${shop.shopName}`} className="h-full w-full object-cover" loading="eager" />
                 ) : (
@@ -803,32 +806,32 @@ export default function ShopProfile() {
                 )}
               </div>
 
-              <div className="min-w-0 flex-1 pt-1 sm:pt-2">
+              <div className="min-w-0 flex-1 pt-0.5 sm:pt-2">
                 <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                  <h2 className="truncate text-xl font-bold sm:text-2xl">{shop.shopName}</h2>
+                  <h2 className="truncate text-lg font-bold max-[375px]:text-base sm:text-2xl">{shop.shopName}</h2>
                   <VerifiedBadge verified={shop.shopVerified} />
                 </div>
-                <p className="mt-1 text-sm text-white/85">Gérée par {shop.ownerName}</p>
-                <p className="mt-2 line-clamp-2 text-sm text-white/80 sm:line-clamp-3">
+                <p className="mt-1 text-xs text-white/85 sm:text-sm">Gérée par {shop.ownerName}</p>
+                <p className="mt-1.5 line-clamp-2 text-xs text-white/80 sm:mt-2 sm:text-sm sm:line-clamp-3">
                   {shop.shopDescription || 'Cette boutique n\'a pas encore ajouté de description publique.'}
                 </p>
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="mt-3 grid grid-cols-3 gap-1.5 max-[375px]:gap-1 sm:mt-4 sm:gap-3">
               {stats.map((item) => (
-                <div key={item.label} className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 backdrop-blur">
-                  <div className="flex items-center gap-1 text-[11px] text-white/80">
+                <div key={item.label} className="rounded-xl border border-white/20 bg-white/10 px-2 py-1.5 backdrop-blur sm:px-3 sm:py-2">
+                  <div className="flex items-center gap-1 text-[10px] text-white/80 sm:text-[11px]">
                     {item.icon}
                     <span>{item.label}</span>
                   </div>
-                  <p className="mt-1 text-lg font-semibold leading-none">{item.value}</p>
+                  <p className="mt-1 text-base font-semibold leading-none sm:text-lg">{item.value}</p>
                 </div>
               ))}
             </div>
 
             {isCertifiedShop && (
-              <div className="mt-3 rounded-xl border border-emerald-300/70 bg-emerald-300/20 px-3 py-2 text-xs font-semibold text-emerald-50">
+              <div className="mt-2.5 rounded-xl border border-emerald-300/70 bg-emerald-300/20 px-3 py-2 text-[11px] font-semibold text-emerald-50 sm:mt-3 sm:text-xs">
                 <p className="flex items-center justify-center gap-1.5 sm:justify-start">
                   <ShieldCheck size={14} />
                   Boutique certifiée HDMarket
@@ -836,26 +839,26 @@ export default function ShopProfile() {
               </div>
             )}
 
-            <div className="mt-4 flex flex-wrap items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-1.5 sm:mt-4 sm:gap-2">
               {hasActivePromo && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-300/20 px-3 py-1 text-xs font-semibold text-amber-100">
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-300/20 px-2.5 py-1 text-[11px] font-semibold text-amber-100 sm:px-3 sm:text-xs">
                   <Sparkles size={14} />
                   {formatCount(shop.activePromoCountNow)} promo(s) active(s)
                   {Number(shop.maxPromoPercentNow || 0) > 0 ? ` · jusqu'à -${Math.round(shop.maxPromoPercentNow)}%` : ''}
                 </span>
               )}
               {hasFreeDelivery ? (
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/70 bg-emerald-300/20 px-3 py-1 text-xs font-semibold text-emerald-100">
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/70 bg-emerald-300/20 px-2.5 py-1 text-[11px] font-semibold text-emerald-100 sm:px-3 sm:text-xs">
                   <MapPin size={13} />
                   Livraison gratuite
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 rounded-full border border-sky-300/70 bg-sky-300/20 px-3 py-1 text-xs font-semibold text-sky-100">
+                <span className="inline-flex items-center gap-1 rounded-full border border-sky-300/70 bg-sky-300/20 px-2.5 py-1 text-[11px] font-semibold text-sky-100 sm:px-3 sm:text-xs">
                   <Store size={13} />
                   Retrait en boutique
                 </span>
               )}
-              <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-semibold text-white/90">
+              <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white/90 sm:px-3 sm:text-xs">
                 <Calendar size={13} />
                 Depuis {formatDate(shop.createdAt)}
               </span>
@@ -864,8 +867,8 @@ export default function ShopProfile() {
         </section>
 
         <div className="mt-5 grid gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-          <div className="space-y-6">
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 lg:hidden">
+          <div className="space-y-4 sm:space-y-6">
+            <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-5 lg:hidden">
               <div className="space-y-3">
                 <OpeningHoursCard hours={shop.shopHours} certified={isCertifiedShop} />
               </div>
@@ -891,63 +894,67 @@ export default function ShopProfile() {
                 {user && shop.phone ? (
                   <a
                     href={`tel:${shop.phone}`}
-                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                    className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 sm:min-h-12 sm:gap-2 sm:px-4 sm:text-sm"
                     aria-label="Appeler la boutique"
                   >
-                    <Phone size={16} />
-                    Appeler
+                    <Phone size={15} />
+                    <span className="max-[375px]:hidden">Appeler</span>
+                    <span className="hidden max-[375px]:inline">Appel</span>
                   </a>
                 ) : (
                   <Link
                     to="/login"
                     state={{ from: `/shop/${slug}` }}
-                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                    className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 sm:min-h-12 sm:gap-2 sm:px-4 sm:text-sm"
                     aria-label="Se connecter pour appeler"
                   >
-                    <Phone size={16} />
-                    Appeler
+                    <Phone size={15} />
+                    <span className="max-[375px]:hidden">Appeler</span>
+                    <span className="hidden max-[375px]:inline">Appel</span>
                   </Link>
                 )}
 
                 <button
                   type="button"
                   onClick={goToMessage}
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-neutral-600 px-4 text-sm font-semibold text-white transition hover:bg-neutral-700 active:scale-[0.99]"
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-neutral-600 px-2 text-xs font-semibold text-white transition hover:bg-neutral-700 active:scale-[0.99] sm:min-h-12 sm:gap-2 sm:px-4 sm:text-sm"
                   aria-label="Envoyer un message à la boutique"
                 >
-                  <MessageCircle size={16} />
-                  Message
+                  <MessageCircle size={15} />
+                  <span className="max-[375px]:hidden">Message</span>
+                  <span className="hidden max-[375px]:inline">Msg</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleDirections}
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 sm:min-h-12 sm:gap-2 sm:px-4 sm:text-sm"
                   aria-label="Ouvrir l'itinéraire"
                 >
-                  <Navigation size={16} />
-                  Itinéraire
+                  <Navigation size={15} />
+                  <span className="max-[375px]:hidden">Itinéraire</span>
+                  <span className="hidden max-[375px]:inline">GPS</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleFollowToggle}
                   disabled={followDisabled}
-                  className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition ${
+                  className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-2 text-xs font-semibold transition sm:min-h-12 sm:gap-2 sm:px-4 sm:text-sm ${
                     isFollowing
                       ? 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100'
                       : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
                   } ${followDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                   aria-label="Suivre la boutique"
                 >
-                  <Heart size={16} className={isFollowing ? 'fill-current' : ''} />
-                  {followMutation.isPending ? '...' : isOwnShop ? 'Votre boutique' : isFollowing ? 'Boutique suivie' : 'Suivre'}
+                  <Heart size={15} className={isFollowing ? 'fill-current' : ''} />
+                  {mobileFollowLabel}
                 </button>
               </div>
 
               <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-600">
                 <p className="font-semibold text-slate-700">Confiance & service</p>
-                <div className="mt-1 flex flex-wrap gap-3">
+                <div className="mt-1 flex flex-wrap gap-2.5">
                   <span className="inline-flex items-center gap-1"><ShieldCheck size={13} /> Paiement sécurisé</span>
                   <span className="inline-flex items-center gap-1"><CheckCircle size={13} /> Boutique vérifiée</span>
                   <span className="inline-flex items-center gap-1"><Clock size={13} /> Réponse en journée</span>
@@ -955,11 +962,11 @@ export default function ShopProfile() {
               </div>
             </section>
 
-            <section ref={productsRef} id="products" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" aria-label="Produits de la boutique">
+            <section ref={productsRef} id="products" className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-5" aria-label="Produits de la boutique">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h3 className="text-xl font-semibold text-slate-900">Produits</h3>
-                  <p className="mt-1 text-sm text-slate-500">
+                  <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">Produits</h3>
+                  <p className="mt-1 text-xs text-slate-500 sm:text-sm">
                     {formatCount(filteredProducts.length)} produit{filteredProducts.length > 1 ? 's' : ''} visible{filteredProducts.length > 1 ? 's' : ''}
                   </p>
                 </div>
@@ -969,7 +976,7 @@ export default function ShopProfile() {
                     const node = document.getElementById('reviews');
                     if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                  className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50 sm:min-h-11 sm:w-auto sm:text-sm"
                 >
                   Aller aux avis
                   <ArrowRight size={14} />
@@ -1021,7 +1028,7 @@ export default function ShopProfile() {
               <div className="mt-4">
                 {!productsInView && <ProductsSkeleton />}
                 {productsInView && filteredProducts.length > 0 && (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3">
+                  <div className={productGridClass}>
                     {filteredProducts.map((product) => (
                       <ProductCard key={product._id} p={product} hideMobileDiscountBadge />
                     ))}
@@ -1043,7 +1050,7 @@ export default function ShopProfile() {
               {topSellingProducts.length > 0 && (
                 <div className="mt-6 border-t border-slate-100 pt-4">
                   <p className="mb-3 text-sm font-semibold text-slate-800">Produits populaires</p>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3">
+                  <div className={productGridClass}>
                     {topSellingProducts.map((product) => (
                       <Link
                         key={`top-${product._id}`}
@@ -1068,8 +1075,8 @@ export default function ShopProfile() {
               )}
             </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" aria-label="Informations boutique">
-              <h3 className="text-lg font-semibold text-slate-900">Informations</h3>
+            <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-5" aria-label="Informations boutique">
+              <h3 className="text-base font-semibold text-slate-900 sm:text-lg">Informations</h3>
               <dl className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
                   <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Adresse</dt>
@@ -1102,18 +1109,18 @@ export default function ShopProfile() {
               </dl>
             </section>
 
-            <section ref={reviewsRef} id="reviews" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" aria-label="Avis boutique">
+            <section ref={reviewsRef} id="reviews" className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-5" aria-label="Avis boutique">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h3 className="text-xl font-semibold text-slate-900">Avis clients</h3>
-                  <p className="mt-1 text-sm text-slate-500">
+                  <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">Avis clients</h3>
+                  <p className="mt-1 text-xs text-slate-500 sm:text-sm">
                     {formatCount(ratingCount)} avis · note {formatRatingLabel(ratingAverage)}/5
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowCommentsModal(true)}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                  className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50 sm:min-h-11 sm:text-sm"
                 >
                   Voir tout
                   <ExternalLink size={14} />
@@ -1330,62 +1337,40 @@ export default function ShopProfile() {
       </div>
 
       {isMobile && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-3 backdrop-blur-xl safe-area-pb">
-          <div className="space-y-2">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2.5 py-2.5 backdrop-blur-xl safe-area-pb max-[375px]:px-2 max-[375px]:py-2">
+          <div className="space-y-1.5 sm:space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={goToMessage}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-neutral-600 text-sm font-semibold text-white"
+                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-neutral-600 text-xs font-semibold text-white sm:min-h-12 sm:gap-2 sm:text-sm"
               >
-                <MessageCircle size={16} />
-                Message
+                <MessageCircle size={15} />
+                <span className="max-[375px]:hidden">Message</span>
+                <span className="hidden max-[375px]:inline">Msg</span>
               </button>
               {user && shop.phone ? (
                 <a
                   href={`tel:${shop.phone}`}
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 text-sm font-semibold text-emerald-700"
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 text-xs font-semibold text-emerald-700 sm:min-h-12 sm:gap-2 sm:text-sm"
                 >
-                  <Phone size={16} />
-                  Appeler
+                  <Phone size={15} />
+                  <span className="max-[375px]:hidden">Appeler</span>
+                  <span className="hidden max-[375px]:inline">Appel</span>
                 </a>
               ) : (
                 <Link
                   to="/login"
                   state={{ from: `/shop/${slug}` }}
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700"
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700 sm:min-h-12 sm:gap-2 sm:text-sm"
                 >
-                  <Phone size={16} />
-                  Appeler
+                  <Phone size={15} />
+                  <span className="max-[375px]:hidden">Appeler</span>
+                  <span className="hidden max-[375px]:inline">Appel</span>
                 </Link>
               )}
             </div>
 
-            {isCertifiedShop && (
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={handleDirections}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700"
-                >
-                  <Navigation size={14} />
-                  Itinéraire
-                </button>
-                <button
-                  type="button"
-                  onClick={handleFollowToggle}
-                  disabled={followDisabled}
-                  className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border text-xs font-semibold transition ${
-                    isFollowing
-                      ? 'border-rose-200 bg-rose-50 text-rose-700'
-                      : 'border-slate-200 bg-slate-50 text-slate-700'
-                  } ${followDisabled ? 'cursor-not-allowed opacity-60' : ''}`}
-                >
-                  <Heart size={14} className={isFollowing ? 'fill-current' : ''} />
-                  {followMutation.isPending ? '...' : isOwnShop ? 'Votre boutique' : isFollowing ? 'Suivie' : 'Suivre'}
-                </button>
-              </div>
-            )}
           </div>
         </div>
       )}
