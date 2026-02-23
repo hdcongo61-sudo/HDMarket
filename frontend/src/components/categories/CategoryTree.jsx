@@ -148,7 +148,7 @@ export default function CategoryTree({
   };
 
   return (
-    <section className="rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+    <section className="ui-card ui-card-interactive ui-card-fade-in ui-card-lg p-4">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Arborescence</h2>
         <span className="text-xs text-neutral-500">{flatCount} éléments</span>

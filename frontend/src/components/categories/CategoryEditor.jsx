@@ -95,13 +95,13 @@ export default function CategoryEditor({
   };
 
   return (
-    <section className="space-y-4 rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+    <section className="ui-card ui-card-interactive ui-card-fade-in ui-card-lg space-y-4 p-4">
       <div>
         <h2 className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Éditeur catégorie</h2>
         <p className="text-xs text-neutral-500">Créer, modifier, désactiver, restaurer et préparer la vue storefront.</p>
       </div>
 
-      <div className="rounded-2xl border border-dashed border-neutral-300 p-3 dark:border-neutral-700">
+      <div className="ui-card-soft-separator rounded-2xl border border-dashed border-neutral-300 p-3 dark:border-neutral-700">
         <p className="mb-2 text-xs font-medium text-neutral-600 dark:text-neutral-300">Créer une catégorie principale</p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <input
@@ -139,7 +139,7 @@ export default function CategoryEditor({
       </div>
 
       {!selectedNode ? (
-        <p className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300">
+        <p className="ui-card-soft-separator rounded-2xl border border-neutral-200 p-4 text-sm text-neutral-600 dark:border-neutral-800 dark:text-neutral-300">
           Sélectionnez une catégorie dans l’arborescence pour éditer ses paramètres.
         </p>
       ) : (
@@ -202,7 +202,7 @@ export default function CategoryEditor({
           </div>
 
           {canCreateSubcategory ? (
-            <div className="rounded-2xl border border-dashed border-neutral-300 p-3 dark:border-neutral-700">
+            <div className="ui-card-soft-separator rounded-2xl border border-dashed border-neutral-300 p-3 dark:border-neutral-700">
               <p className="mb-2 text-xs font-medium text-neutral-600 dark:text-neutral-300">Créer une sous-catégorie</p>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <input
@@ -261,7 +261,7 @@ export default function CategoryEditor({
           </div>
 
           {preview ? (
-            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-950">
+            <div className="ui-card-soft-separator rounded-2xl border border-neutral-200 p-3 dark:border-neutral-800">
               <p className="text-xs uppercase tracking-wide text-neutral-500">Aperçu storefront</p>
               <p className="mt-1 text-sm font-semibold text-neutral-900 dark:text-neutral-100">{preview.title}</p>
               <p className="text-xs text-neutral-500">{preview.subtitle}</p>

@@ -850,7 +850,7 @@ export default function AdminOrders() {
   return (
     <div className="min-h-screen bg-neutral-50">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-8 py-6 space-y-6">
-        <section className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 sm:p-6">
+        <section className="ui-card ui-card-interactive ui-card-fade-in p-5 sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -900,7 +900,7 @@ export default function AdminOrders() {
               cancelled: 'text-red-600'
             };
             return (
-              <div key={key} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <div key={key} className="ui-card ui-card-interactive ui-card-fade-in p-5">
                 <div className="flex items-center justify-between mb-3">
                   <div className="w-11 h-11 rounded-xl bg-gray-50 flex items-center justify-center">
                     {key === 'pending' && <Clock className={`w-5 h-5 ${iconColors[key]}`} />}
@@ -928,7 +928,7 @@ export default function AdminOrders() {
             onClick={() => setCreateOpen(false)}
           />
           <div
-            className="relative w-full max-w-5xl rounded-3xl bg-white shadow-xl border border-gray-100 p-4 sm:p-6 max-h-[85vh] overflow-auto"
+            className="ui-card ui-card-lg relative w-full max-w-5xl p-4 shadow-xl sm:p-6 max-h-[85vh] overflow-auto"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-3 mb-4">
@@ -1037,14 +1037,14 @@ export default function AdminOrders() {
                   </div>
 
                   {selectedProducts.length > 0 && (
-                    <div className="mt-4 bg-gray-50 rounded-2xl border border-gray-100 p-3 space-y-2">
+                    <div className="ui-card-soft-separator mt-4 space-y-2 rounded-2xl border border-gray-100 p-3">
                       <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                         Produits sélectionnés
                       </p>
                       {selectedProducts.map(({ product, quantity }) => (
                         <div
                           key={product._id}
-                          className="flex items-center gap-3 text-sm bg-white rounded-xl border border-gray-100 px-3 py-2"
+                          className="ui-card-soft-separator flex items-center gap-3 rounded-xl border border-gray-100 px-3 py-2 text-sm"
                         >
                           <div className="flex-1">
                             <p className="font-medium text-gray-900">{product.title}</p>
@@ -1057,7 +1057,7 @@ export default function AdminOrders() {
                             min={1}
                             value={quantity}
                             onChange={(e) => updateSelectedProductQuantity(product._id, e.target.value)}
-                            className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-sm text-center"
+                            className="ui-input w-16 rounded-lg px-2 py-1 text-center text-sm"
                           />
                           <button
                             type="button"
@@ -1144,7 +1144,7 @@ export default function AdminOrders() {
             onClick={closeAssignModal}
           />
           <div
-            className="relative w-full max-w-md rounded-3xl bg-white shadow-xl border border-gray-100 p-6"
+            className="ui-card ui-card-lg relative w-full max-w-md p-6 shadow-xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-3 mb-4">
@@ -1222,7 +1222,7 @@ export default function AdminOrders() {
             onClick={() => setStatusUpdateInfo(null)}
           />
           <div
-            className="relative w-full max-w-sm rounded-3xl bg-white shadow-xl border border-gray-100 p-6 text-center"
+            className="ui-card ui-card-lg relative w-full max-w-sm p-6 text-center shadow-xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-600">
@@ -1250,7 +1250,7 @@ export default function AdminOrders() {
             onClick={() => !deleteLoading && setDeleteOrder(null)}
           />
           <div
-            className="relative w-full max-w-sm rounded-3xl bg-white shadow-xl border border-gray-100 p-6"
+            className="ui-card ui-card-lg relative w-full max-w-sm p-6 shadow-xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center gap-3 mb-4">
@@ -1289,7 +1289,7 @@ export default function AdminOrders() {
         </div>
       )}
 
-      <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sm:p-6 space-y-5">
+      <section className="ui-card ui-card-interactive ui-card-fade-in p-5 sm:p-6 space-y-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-3">
             {renderStatusTabs()}
@@ -1356,7 +1356,7 @@ export default function AdminOrders() {
                     ? Number(order.remainingAmount)
                     : Math.max(0, orderTotal - paidAmount);
                 return (
-                  <div id={`order-${order._id}`} key={order._id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3 scroll-mt-4">
+                  <div id={`order-${order._id}`} key={order._id} className="ui-card ui-card-interactive ui-card-fade-in p-4 space-y-3 scroll-mt-4">
                     <div className="flex items-center justify-between">
                       <div className="text-sm font-semibold text-gray-900">Commande #{order._id.slice(-6)}</div>
                       <span className={`inline-flex px-2 py-1 rounded-full text-[11px] font-semibold ${STATUS_CLASSES[order.status] || STATUS_CLASSES.pending}`}>
@@ -1399,7 +1399,7 @@ export default function AdminOrders() {
                         ))}
                       </div>
                     {order.deliveryCode && (
-                      <div className="rounded-xl border-2 border-neutral-200 bg-neutral-50 p-3 mb-3">
+                      <div className="ui-card-soft-separator mb-3 rounded-xl border-2 border-neutral-200 p-3">
                         <div className="flex items-center gap-2 mb-2">
                           <ShieldCheck size={14} className="text-neutral-600" />
                           <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wide">Code de livraison</p>
@@ -1421,7 +1421,7 @@ export default function AdminOrders() {
                         <p className="text-xs text-gray-500 italic">{order.trackingNote}</p>
                       )}
                     </div>
-                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600 space-y-1">
+                    <div className="ui-card-soft-separator space-y-1 rounded-xl border border-slate-100 p-3 text-xs text-slate-600">
                       <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Paiement</p>
                       <p>
                         Acompte versé:{' '}

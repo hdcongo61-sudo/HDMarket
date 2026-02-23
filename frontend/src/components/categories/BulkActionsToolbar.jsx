@@ -9,7 +9,7 @@ export default function BulkActionsToolbar({
   loading
 }) {
   return (
-    <section className="rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+    <section className="ui-card ui-card-interactive ui-card-fade-in ui-card-lg p-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Outils bulk</p>

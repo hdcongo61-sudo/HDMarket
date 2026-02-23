@@ -203,13 +203,13 @@ export default function AdminBoostManagement() {
       </div>
 
       {loading ? (
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 flex items-center gap-2 text-gray-600">
+        <div className="ui-card ui-card-interactive ui-card-fade-in p-6 flex items-center gap-2 text-gray-600">
           <Loader2 className="h-4 w-4 animate-spin" /> Chargement...
         </div>
       ) : (
         <>
           {activeTab === 'pricing' && (
-            <section className="rounded-2xl border border-gray-200 bg-white p-5 space-y-4">
+            <section className="ui-card ui-card-interactive ui-card-fade-in p-5 space-y-4">
               <h2 className="text-base font-bold text-gray-900">Tarification dynamique</h2>
               <form onSubmit={handleSubmitPricing} className="grid grid-cols-1 md:grid-cols-6 gap-3">
                 <select
@@ -355,7 +355,7 @@ export default function AdminBoostManagement() {
           )}
 
           {activeTab === 'seasonal' && (
-            <section className="rounded-2xl border border-gray-200 bg-white p-5 space-y-4">
+            <section className="ui-card ui-card-interactive ui-card-fade-in p-5 space-y-4">
               <h2 className="text-base font-bold text-gray-900">Campagnes saisonnières</h2>
               <form onSubmit={handleSubmitSeasonal} className="grid grid-cols-1 md:grid-cols-5 gap-3">
                 <input
@@ -394,7 +394,7 @@ export default function AdminBoostManagement() {
 
               <div className="space-y-2">
                 {seasonalItems.map((item) => (
-                  <article key={item.id} className="rounded-xl border border-gray-200 p-3">
+                  <article key={item.id} className="ui-card ui-card-interactive p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="font-semibold text-gray-900">{item.name}</p>
                       <span className="text-xs text-gray-500">
@@ -410,13 +410,13 @@ export default function AdminBoostManagement() {
           )}
 
           {activeTab === 'requests' && (
-            <section className="rounded-2xl border border-gray-200 bg-white p-5 space-y-3">
+            <section className="ui-card ui-card-interactive ui-card-fade-in p-5 space-y-3">
               <h2 className="text-base font-bold text-gray-900">Demandes de boost</h2>
               {!requestItems.length ? (
                 <p className="text-sm text-gray-500">Aucune demande.</p>
               ) : (
                 requestItems.map((item) => (
-                  <article key={item.id} className="rounded-xl border border-gray-200 p-3">
+                  <article key={item.id} className="ui-card ui-card-interactive p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <p className="font-semibold text-gray-900">{item.boostType}</p>
@@ -470,19 +470,19 @@ export default function AdminBoostManagement() {
           {activeTab === 'revenue' && (
             <section className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <article className="rounded-2xl border border-gray-200 bg-white p-4">
+                <article className="ui-card ui-card-interactive ui-card-fade-in p-4">
                   <p className="text-xs text-gray-500 uppercase flex items-center gap-1">
                     <TrendingUp className="h-3.5 w-3.5" /> Journalier
                   </p>
                   <p className="text-xl font-bold text-gray-900">{formatCurrency(dashboard?.revenue?.daily?.totalRevenue)}</p>
                 </article>
-                <article className="rounded-2xl border border-gray-200 bg-white p-4">
+                <article className="ui-card ui-card-interactive ui-card-fade-in p-4">
                   <p className="text-xs text-gray-500 uppercase flex items-center gap-1">
                     <CalendarClock className="h-3.5 w-3.5" /> Hebdomadaire
                   </p>
                   <p className="text-xl font-bold text-gray-900">{formatCurrency(dashboard?.revenue?.weekly?.totalRevenue)}</p>
                 </article>
-                <article className="rounded-2xl border border-gray-200 bg-white p-4">
+                <article className="ui-card ui-card-interactive ui-card-fade-in p-4">
                   <p className="text-xs text-gray-500 uppercase flex items-center gap-1">
                     <BarChart3 className="h-3.5 w-3.5" /> Mensuel
                   </p>
@@ -490,7 +490,7 @@ export default function AdminBoostManagement() {
                 </article>
               </div>
 
-              <div className="rounded-2xl border border-gray-200 bg-white p-5">
+              <div className="ui-card ui-card-interactive ui-card-fade-in p-5">
                 <h3 className="text-sm font-bold text-gray-900 mb-3">Revenus par type</h3>
                 <div className="space-y-2">
                   {topTypes.map((item) => (

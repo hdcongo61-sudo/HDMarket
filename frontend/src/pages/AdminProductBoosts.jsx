@@ -507,9 +507,9 @@ export default function AdminProductBoosts() {
     return (
       <article
         key={product._id}
-        className="group rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm hover:shadow-lg hover:border-neutral-300 dark:hover:border-neutral-600 transition-all duration-300"
+        className="ui-card ui-card-interactive ui-card-fade-in group p-5"
       >
-        <div className="mb-4 h-48 overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-700">
+        <div className="ui-media-frame mb-4 h-48 rounded-xl">
           <img
             src={imageUrl}
             alt={product.title}
@@ -556,7 +556,7 @@ export default function AdminProductBoosts() {
             )}
           </div>
           {!product.boosted && (
-            <div className="space-y-2 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
+            <div className="ui-card-soft-separator space-y-2 rounded-lg border border-gray-200 px-3 py-2 dark:border-gray-600">
               <div className="flex items-center gap-2 mb-2">
                 <Calendar className="h-4 w-4 text-neutral-600 dark:text-neutral-400 flex-shrink-0" />
                 <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Période de boost (optionnel)</span>
@@ -569,7 +569,7 @@ export default function AdminProductBoosts() {
                     value={productDateRanges[product._id]?.boostStartDate || ''}
                     onChange={(e) => handleDateRangeChange(product._id, 'boostStartDate', e.target.value)}
                     min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500"
+                    className="ui-input w-full rounded-lg px-2 py-1.5 text-xs"
                   />
                 </div>
                 <div>
@@ -579,7 +579,7 @@ export default function AdminProductBoosts() {
                     value={productDateRanges[product._id]?.boostEndDate || ''}
                     onChange={(e) => handleDateRangeChange(product._id, 'boostEndDate', e.target.value)}
                     min={productDateRanges[product._id]?.boostStartDate || new Date().toISOString().split('T')[0]}
-                    className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500"
+                    className="ui-input w-full rounded-lg px-2 py-1.5 text-xs"
                   />
                 </div>
               </div>
@@ -589,7 +589,7 @@ export default function AdminProductBoosts() {
             </div>
           )}
           {product.boosted && (product.boostStartDate || product.boostEndDate) && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-900/20 border border-neutral-200 dark:border-neutral-800">
+            <div className="ui-card-soft-separator flex items-center gap-2 rounded-lg border border-neutral-200 px-3 py-2 dark:border-neutral-800">
               <Calendar className="h-4 w-4 text-neutral-600 dark:text-neutral-400 flex-shrink-0" />
               <div className="flex-1 text-xs text-neutral-700 dark:text-neutral-300">
                 {product.boostStartDate && product.boostEndDate ? (
@@ -664,9 +664,9 @@ export default function AdminProductBoosts() {
     return (
       <article
         key={shop._id}
-        className="group rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm hover:shadow-lg hover:border-neutral-300 dark:hover:border-neutral-600 transition-all duration-300"
+        className="ui-card ui-card-interactive ui-card-fade-in group p-5"
       >
-        <div className="mb-4 h-48 overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+        <div className="ui-media-frame mb-4 flex h-48 items-center justify-center rounded-xl">
           <img
             src={logoUrl}
             alt={shop.shopName || shop.name}
@@ -717,7 +717,7 @@ export default function AdminProductBoosts() {
             )}
           </div>
           {!isShopCurrentlyBoosted(shop) && (
-            <div className="space-y-2 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
+            <div className="ui-card-soft-separator space-y-2 rounded-lg border border-gray-200 px-3 py-2 dark:border-gray-600">
               <div className="flex items-center gap-2 mb-2">
                 <Calendar className="h-4 w-4 text-neutral-600 dark:text-neutral-400 flex-shrink-0" />
                 <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Période de boost (optionnel)</span>
@@ -730,7 +730,7 @@ export default function AdminProductBoosts() {
                     value={shopDateRanges[shop._id]?.shopBoostStartDate || ''}
                     onChange={(e) => handleShopDateRangeChange(shop._id, 'shopBoostStartDate', e.target.value)}
                     min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500"
+                    className="ui-input w-full rounded-lg px-2 py-1.5 text-xs"
                   />
                 </div>
                 <div>
@@ -740,7 +740,7 @@ export default function AdminProductBoosts() {
                     value={shopDateRanges[shop._id]?.shopBoostEndDate || ''}
                     onChange={(e) => handleShopDateRangeChange(shop._id, 'shopBoostEndDate', e.target.value)}
                     min={shopDateRanges[shop._id]?.shopBoostStartDate || new Date().toISOString().split('T')[0]}
-                    className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500"
+                    className="ui-input w-full rounded-lg px-2 py-1.5 text-xs"
                   />
                 </div>
               </div>
@@ -750,7 +750,7 @@ export default function AdminProductBoosts() {
             </div>
           )}
           {isShopCurrentlyBoosted(shop) && (shop.shopBoostStartDate || shop.shopBoostEndDate) && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-900/20 border border-neutral-200 dark:border-neutral-800">
+            <div className="ui-card-soft-separator flex items-center gap-2 rounded-lg border border-neutral-200 px-3 py-2 dark:border-neutral-800">
               <Calendar className="h-4 w-4 text-neutral-600 dark:text-neutral-400 flex-shrink-0" />
               <div className="flex-1 text-xs text-neutral-700 dark:text-neutral-300">
                 {shop.shopBoostStartDate && shop.shopBoostEndDate ? (
@@ -923,7 +923,7 @@ export default function AdminProductBoosts() {
           {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 animate-pulse"
+              className="ui-card ui-card-interactive ui-card-fade-in p-6 animate-pulse"
             >
               <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-3" />
               <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-16" />
@@ -932,7 +932,7 @@ export default function AdminProductBoosts() {
         </div>
       ) : stats ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="rounded-2xl border-2 border-neutral-200 dark:border-neutral-800 bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900/20 dark:to-neutral-800/20 p-6 shadow-lg">
+          <div className="ui-card ui-card-interactive ui-card-fade-in !bg-gradient-to-br !from-neutral-50 !to-neutral-100 dark:!from-neutral-900/20 dark:!to-neutral-800/20 p-6">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2 rounded-xl bg-neutral-500 text-white">
                 <Zap className="h-5 w-5" />
@@ -950,7 +950,7 @@ export default function AdminProductBoosts() {
             </p>
           </div>
 
-          <div className="rounded-2xl border-2 border-neutral-200 dark:border-neutral-800 bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900/20 dark:to-neutral-800/20 p-6 shadow-lg">
+          <div className="ui-card ui-card-interactive ui-card-fade-in !bg-gradient-to-br !from-neutral-50 !to-neutral-100 dark:!from-neutral-900/20 dark:!to-neutral-800/20 p-6">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2 rounded-xl bg-neutral-500 text-white">
                 <Package className="h-5 w-5" />
@@ -968,7 +968,7 @@ export default function AdminProductBoosts() {
             </p>
           </div>
 
-          <div className="rounded-2xl border-2 border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 p-6 shadow-lg">
+          <div className="ui-card ui-card-interactive ui-card-fade-in border-emerald-200 dark:border-emerald-800 !bg-gradient-to-br !from-emerald-50 !to-emerald-100 dark:!from-emerald-900/20 dark:!to-emerald-800/20 p-6">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2 rounded-xl bg-emerald-500 text-white">
                 <Calendar className="h-5 w-5" />
@@ -986,7 +986,7 @@ export default function AdminProductBoosts() {
             </p>
           </div>
 
-          <div className="rounded-2xl border-2 border-amber-200 dark:border-amber-800 bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 p-6 shadow-lg">
+          <div className="ui-card ui-card-interactive ui-card-fade-in border-amber-200 dark:border-amber-800 !bg-gradient-to-br !from-amber-50 !to-amber-100 dark:!from-amber-900/20 dark:!to-amber-800/20 p-6">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2 rounded-xl bg-amber-500 text-white">
                 <Users className="h-5 w-5" />
@@ -1008,7 +1008,7 @@ export default function AdminProductBoosts() {
 
       {/* Category Statistics */}
       {stats?.boostedByCategory && stats.boostedByCategory.length > 0 && (
-        <div className="rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-lg">
+        <div className="ui-card ui-card-interactive ui-card-fade-in p-6">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
             <Tag className="h-5 w-5 text-neutral-600" />
             Top catégories boostées
@@ -1033,7 +1033,7 @@ export default function AdminProductBoosts() {
 
       {/* User Management Section */}
       {isAdmin && showUserManager && (
-        <div className="rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-lg">
+        <div className="ui-card ui-card-interactive ui-card-fade-in p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <Users className="h-5 w-5 text-neutral-600" />
@@ -1056,7 +1056,7 @@ export default function AdminProductBoosts() {
                 value={userSearchQuery}
                 onChange={(e) => setUserSearchQuery(e.target.value)}
                 placeholder="Rechercher un utilisateur..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:border-neutral-500 focus:ring-2 focus:ring-neutral-200 dark:focus:ring-neutral-900 transition-all"
+                className="ui-input w-full rounded-xl py-2.5 pl-10 pr-4"
               />
             </div>
           </div>
@@ -1119,7 +1119,7 @@ export default function AdminProductBoosts() {
                   .map((userItem) => (
                     <div
                       key={userItem._id || userItem.id}
-                      className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 hover:border-neutral-300 dark:hover:border-neutral-600 transition-colors"
+                      className="ui-card-soft-separator flex items-center justify-between rounded-xl border border-gray-200 p-3 transition-colors hover:border-neutral-300 dark:border-gray-700 dark:hover:border-neutral-600"
                     >
                       <div className="flex items-center gap-3">
                         <div className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700">
@@ -1161,7 +1161,7 @@ export default function AdminProductBoosts() {
       )}
 
       {/* Search Bar and Filter */}
-      <div className="flex flex-col gap-3 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-lg">
+      <div className="ui-card ui-card-interactive ui-card-fade-in flex flex-col gap-3 p-5">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-neutral-100 dark:bg-neutral-900/20">
             <Search className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
@@ -1170,7 +1170,7 @@ export default function AdminProductBoosts() {
             value={searchTerm}
             onChange={handleSearchTermChange}
             placeholder="Rechercher par titre, catégorie ou vendeur..."
-            className="flex-1 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-4 py-2.5 text-sm focus:border-neutral-500 focus:ring-2 focus:ring-neutral-200 dark:focus:ring-neutral-900 transition-all text-gray-900 dark:text-white placeholder-gray-400"
+            className="ui-input flex-1 rounded-xl px-4 py-2.5 text-sm"
           />
         </div>
         <div className="flex items-center justify-between pl-12">
@@ -1218,7 +1218,7 @@ export default function AdminProductBoosts() {
 
       {/* Products Section */}
       <section className="space-y-8">
-        <div className="space-y-5 rounded-2xl border-2 border-neutral-200 dark:border-neutral-800 bg-white dark:bg-gray-800 p-6 shadow-lg">
+        <div className="ui-card ui-card-interactive ui-card-fade-in space-y-5 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-neutral-500 text-white">
@@ -1254,7 +1254,7 @@ export default function AdminProductBoosts() {
           )}
           <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
             {(boostedLoading || nonBoostedLoading) ? (
-              <div className="col-span-full rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-12 text-center">
+              <div className="ui-card-soft-separator col-span-full rounded-2xl border-2 border-dashed border-gray-300 p-12 text-center dark:border-gray-700">
                 <Loader2 className="h-8 w-8 animate-spin text-neutral-600 mx-auto mb-3" />
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Chargement des produits...
@@ -1263,7 +1263,7 @@ export default function AdminProductBoosts() {
             ) : filteredProducts.length ? (
               filteredProducts.map((product) => renderProductCard(product))
             ) : (
-              <div className="col-span-full rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-12 text-center">
+              <div className="ui-card-soft-separator col-span-full rounded-2xl border-2 border-gray-200 p-12 text-center dark:border-gray-700">
                 <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
                   {productFilter === 'all' && 'Aucun produit disponible pour le moment.'}
@@ -1307,7 +1307,7 @@ export default function AdminProductBoosts() {
             {[1, 2, 3, 4].map((i) => (
               <div
                 key={i}
-                className="rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 animate-pulse"
+                className="ui-card ui-card-interactive ui-card-fade-in p-6 animate-pulse"
               >
                 <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-3" />
                 <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-16" />
@@ -1316,7 +1316,7 @@ export default function AdminProductBoosts() {
           </div>
         ) : shopStats ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="rounded-2xl border-2 border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 p-6 shadow-lg">
+            <div className="ui-card ui-card-interactive ui-card-fade-in border-emerald-200 dark:border-emerald-800 !bg-gradient-to-br !from-emerald-50 !to-emerald-100 dark:!from-emerald-900/20 dark:!to-emerald-800/20 p-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="p-2 rounded-xl bg-emerald-500 text-white">
                   <Zap className="h-5 w-5" />
@@ -1334,7 +1334,7 @@ export default function AdminProductBoosts() {
               </p>
             </div>
 
-            <div className="rounded-2xl border-2 border-neutral-200 dark:border-neutral-800 bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900/20 dark:to-neutral-800/20 p-6 shadow-lg">
+            <div className="ui-card ui-card-interactive ui-card-fade-in !bg-gradient-to-br !from-neutral-50 !to-neutral-100 dark:!from-neutral-900/20 dark:!to-neutral-800/20 p-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="p-2 rounded-xl bg-neutral-500 text-white">
                   <Store className="h-5 w-5" />
@@ -1352,7 +1352,7 @@ export default function AdminProductBoosts() {
               </p>
             </div>
 
-            <div className="rounded-2xl border-2 border-amber-200 dark:border-amber-800 bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 p-6 shadow-lg">
+            <div className="ui-card ui-card-interactive ui-card-fade-in border-amber-200 dark:border-amber-800 !bg-gradient-to-br !from-amber-50 !to-amber-100 dark:!from-amber-900/20 dark:!to-amber-800/20 p-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="p-2 rounded-xl bg-amber-500 text-white">
                   <Calendar className="h-5 w-5" />
@@ -1370,7 +1370,7 @@ export default function AdminProductBoosts() {
               </p>
             </div>
 
-            <div className="rounded-2xl border-2 border-neutral-200 dark:border-neutral-800 bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900/20 dark:to-neutral-800/20 p-6 shadow-lg">
+            <div className="ui-card ui-card-interactive ui-card-fade-in !bg-gradient-to-br !from-neutral-50 !to-neutral-100 dark:!from-neutral-900/20 dark:!to-neutral-800/20 p-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="p-2 rounded-xl bg-neutral-500 text-white">
                   <Heart className="h-5 w-5" />
@@ -1391,7 +1391,7 @@ export default function AdminProductBoosts() {
         ) : null}
 
         {/* Shop Search Bar and Filter */}
-        <div className="flex flex-col gap-3 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-lg">
+        <div className="ui-card ui-card-interactive ui-card-fade-in flex flex-col gap-3 p-5">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/20">
               <Search className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -1400,7 +1400,7 @@ export default function AdminProductBoosts() {
               value={shopSearchTerm}
               onChange={handleShopSearchTermChange}
               placeholder="Rechercher par nom de boutique ou adresse..."
-              className="flex-1 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:focus:ring-emerald-900 transition-all text-gray-900 dark:text-white placeholder-gray-400"
+              className="ui-input flex-1 rounded-xl px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-emerald-200 dark:focus:ring-emerald-900"
             />
           </div>
           <div className="flex items-center justify-between pl-12">
@@ -1447,7 +1447,7 @@ export default function AdminProductBoosts() {
         </div>
 
         {/* Shops Section */}
-        <div className="space-y-5 rounded-2xl border-2 border-emerald-200 dark:border-emerald-800 bg-white dark:bg-gray-800 p-6 shadow-lg">
+        <div className="ui-card ui-card-interactive ui-card-fade-in space-y-5 border-emerald-200 p-6 dark:border-emerald-800">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-emerald-500 text-white">
@@ -1483,7 +1483,7 @@ export default function AdminProductBoosts() {
           )}
           <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
             {(boostedShopsLoading || nonBoostedShopsLoading) ? (
-              <div className="col-span-full rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-12 text-center">
+              <div className="ui-card-soft-separator col-span-full rounded-2xl border-2 border-dashed border-gray-300 p-12 text-center dark:border-gray-700">
                 <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mx-auto mb-3" />
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Chargement des boutiques...
@@ -1492,7 +1492,7 @@ export default function AdminProductBoosts() {
             ) : filteredShops.length ? (
               filteredShops.map((shop) => renderShopCard(shop))
             ) : (
-              <div className="col-span-full rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-12 text-center">
+              <div className="ui-card-soft-separator col-span-full rounded-2xl border-2 border-gray-200 p-12 text-center dark:border-gray-700">
                 <Store className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
                   {shopFilter === 'all' && 'Aucune boutique disponible pour le moment.'}

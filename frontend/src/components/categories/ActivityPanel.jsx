@@ -17,7 +17,7 @@ export default function ActivityPanel({
   onRefresh
 }) {
   return (
-    <section className="rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+    <section className="ui-card ui-card-interactive ui-card-fade-in ui-card-lg p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Activity</h2>
@@ -62,7 +62,7 @@ export default function ActivityPanel({
         </span>
       </div>
 
-      <div className="max-h-72 overflow-y-auto rounded-2xl border border-neutral-200 dark:border-neutral-800">
+      <div className="ui-card-soft-separator max-h-72 overflow-y-auto rounded-2xl border border-neutral-200 dark:border-neutral-800">
         {loading ? (
           <p className="p-4 text-sm text-neutral-500">Chargement...</p>
         ) : (

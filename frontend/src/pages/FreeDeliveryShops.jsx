@@ -98,17 +98,21 @@ export default function FreeDeliveryShops() {
                 <Link
                   key={shop._id}
                   to={buildShopPath(shop)}
-                  className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm transition hover:bg-emerald-50/40"
+                  className="ui-card ui-card-interactive ui-card-fade-in p-4 transition hover:bg-emerald-50/40"
                 >
                   <div className="flex items-start gap-3">
                     {shop.shopLogo ? (
-                      <img
-                        src={shop.shopLogo}
-                        alt={shop.shopName}
-                        className="h-12 w-12 rounded-xl border border-emerald-100 object-cover"
-                      />
+                      <div className="ui-media-frame ui-media-frame-square h-12 w-12">
+                        <img
+                          src={shop.shopLogo}
+                          alt={shop.shopName}
+                          className="ui-media-img ui-media-img-cover"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      </div>
                     ) : (
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                      <div className="ui-media-frame ui-media-frame-square flex h-12 w-12 items-center justify-center text-emerald-700">
                         <Store className="h-5 w-5" />
                       </div>
                     )}
@@ -157,4 +161,3 @@ export default function FreeDeliveryShops() {
     </div>
   );
 }
-

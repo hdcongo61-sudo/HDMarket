@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import React, { memo, useContext, useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Heart, Star, Eye, ShoppingCart, MessageCircle, Zap, Clock, ShieldCheck, TrendingUp, Award, ChevronLeft, ChevronRight, Package, MapPin, Boxes } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
@@ -22,7 +22,7 @@ import { useAppSettings } from '../context/AppSettingsContext';
  * Mobile-first et responsive
  */
 
-export default function ProductCard({ p, hideMobileDiscountBadge = false, productLink, onProductClick }) {
+function ProductCard({ p, hideMobileDiscountBadge = false, productLink, onProductClick }) {
   const { user } = useContext(AuthContext);
   const { formatPrice } = useAppSettings();
   const { addItem, cart } = useContext(CartContext);
@@ -60,7 +60,7 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
   const shouldShowCarousel = hasMultipleImages; // Enable carousel for multiple images
   const shouldAutoCarousel = false; // Auto-carousel disabled - manual only
 
-  // Preload ALL images immediately to prevent blank slides
+  // Preload only the first images so large grids stay responsive.
   useEffect(() => {
     const preloadImage = (src, index) => {
       const img = new Image();
@@ -84,9 +84,8 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
       img.src = src;
     };
 
-    // Preload ALL images when component mounts or images change
-    // This runs for both single and multiple images to ensure immediate loading
-    productImages.forEach((image, index) => {
+    const imagesToPreload = productImages.slice(0, 2);
+    imagesToPreload.forEach((image, index) => {
       if (image && image !== 'https://via.placeholder.com/400x400') {
         preloadImage(image, index);
       } else {
@@ -217,6 +216,7 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
   const hasDiscount = typeof p.discount === 'number' && p.discount > 0;
   const promoPercent = Number(p?.promoPercent || 0);
   const hasActivePromo = Boolean(p?.hasActivePromo && promoPercent > 0);
+  const hasActiveBoost = Boolean(p?.boosted || p?.isBoosted || p?.activeBoostRequestId);
   const promoPercentLabel = Math.max(1, Math.round(promoPercent));
   const promoScopeLabel = p?.promoScope === 'product' ? 'Produit' : 'Boutique';
   const installmentAvailable = useMemo(() => {
@@ -397,7 +397,7 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
 
   return (
     <div
-      className="ui-card ui-hover-scale group relative flex h-full w-full flex-col overflow-hidden rounded-2xl transition-all duration-300"
+      className="ui-card ui-card-interactive ui-hover-scale ui-card-fade-in group relative flex h-full w-full flex-col overflow-hidden"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -409,7 +409,7 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
           trackBoostClick();
           handleProductClick?.(p);
         }}
-        className={`relative aspect-square bg-gray-100 overflow-hidden ${hasMultipleImages ? 'touch-pan-y' : ''}`}
+        className={`ui-media-frame ui-media-frame-square relative overflow-hidden ${hasMultipleImages ? 'touch-pan-y' : ''}`}
         {...(hasMultipleImages && {
           onTouchStart: handleTouchStart,
           onTouchMove: handleTouchMove,
@@ -449,7 +449,7 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
                     <img
                       src={imageSrc}
                       alt={`${p.title} - Image ${index + 1}`}
-                      className="w-full h-full object-contain"
+                      className="ui-media-img ui-media-img-contain"
                       style={{
                         opacity: 1,
                         visibility: 'visible',
@@ -463,8 +463,9 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
                         setImagesLoaded((prev) => ({ ...prev, [index]: false }));
                         if (index === 0) setImageError(true);
                       }}
-                      loading="eager"
-                      fetchpriority={index <= 1 ? "high" : "auto"}
+                      loading="lazy"
+                      decoding="async"
+                      fetchpriority="low"
                     />
                   </div>
                 );
@@ -530,10 +531,12 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
             <img
               src={imageError ? "https://via.placeholder.com/400x400?text=HDMarket" : productImages[0]}
               alt={p.title}
-              className="w-full h-full object-contain"
+              className="ui-media-img ui-media-img-contain"
               onLoad={() => setImageLoaded(true)}
               onError={() => setImageError(true)}
-              loading="eager"
+              loading="lazy"
+              decoding="async"
+              fetchpriority="low"
             />
             
             {/* Skeleton loader */}
@@ -547,6 +550,12 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
           {hasActivePromo && (
             <div className="bg-black text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded sm:rounded-md text-[9px] sm:text-[10px] font-black shadow-lg border border-white/20">
               Promo {promoScopeLabel} -{promoPercentLabel}%
+            </div>
+          )}
+          {hasActiveBoost && (
+            <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-white/95 text-neutral-900 px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-semibold shadow-md">
+              <Zap className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
+              Boost
             </div>
           )}
           {/* Badge Promotion Principal */}
@@ -789,3 +798,5 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
     </div>
   );
 }
+
+export default memo(ProductCard);

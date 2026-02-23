@@ -687,10 +687,10 @@ const OrderSummaryCard = ({ order }) => {
   return (
     <Link
       to={`/orders/detail/${order._id}`}
-      className="group block rounded-2xl border border-neutral-200 bg-white transition hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-900/80 overflow-hidden"
+      className="ui-card ui-card-interactive ui-card-fade-in group block overflow-hidden transition hover:bg-neutral-50 dark:hover:bg-neutral-900/80"
     >
       {/* Seller + Status header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/50">
+      <div className="ui-card-soft-separator flex items-center justify-between px-4 py-3 bg-gray-50/50">
         <div className="flex items-center gap-1.5 min-w-0">
           <Store className="w-4 h-4 text-gray-500 flex-shrink-0" />
           <span className="font-semibold text-gray-900 truncate">{shopName}</span>
@@ -701,9 +701,17 @@ const OrderSummaryCard = ({ order }) => {
       {/* Product summary */}
       <div className="p-4 flex gap-3">
         {firstItem?.snapshot?.image ? (
-          <img src={firstItem.snapshot.image} alt={productTitle} className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover border border-gray-200 flex-shrink-0" />
+          <div className="ui-media-frame ui-media-frame-square h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0">
+            <img
+              src={firstItem.snapshot.image}
+              alt={productTitle}
+              className="ui-media-img ui-media-img-cover"
+              loading="lazy"
+              decoding="async"
+            />
+          </div>
         ) : (
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-neutral-100 flex items-center justify-center flex-shrink-0">
+          <div className="ui-media-frame ui-media-frame-square w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center flex-shrink-0">
             <Package className="w-8 h-8 text-neutral-800" />
           </div>
         )}

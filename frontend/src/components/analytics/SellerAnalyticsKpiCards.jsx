@@ -11,7 +11,7 @@ const Card = ({ icon: Icon, label, value, subtitle, tone = 'indigo' }) => {
   const classes = toneMap[tone] || toneMap.indigo;
 
   return (
-    <div className={`rounded-2xl border p-4 ${classes}`}>
+    <div className={`ui-card ui-card-interactive ui-card-fade-in p-4 ${classes}`}>
       <div className="mb-3 inline-flex rounded-xl bg-white p-2 shadow-sm">
         <Icon className="h-4 w-4" />
       </div>

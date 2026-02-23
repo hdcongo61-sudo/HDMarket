@@ -86,7 +86,9 @@ export default function NotificationItem({
               onPointerDown={startLongPress}
               onPointerUp={cancelLongPress}
               onPointerLeave={cancelLongPress}
-              className="ui-card group relative flex items-start gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/70"
+              className={`ui-card ui-card-interactive ui-card-fade-in group relative flex items-start gap-3 px-3.5 py-3 text-left transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/70 ${
+                isUnread ? 'ui-unread-accent' : ''
+              }`}
             >
               <div className="relative mt-0.5 flex-shrink-0">
                 {avatarLetter ? (
@@ -109,7 +111,7 @@ export default function NotificationItem({
                     <p className="truncate text-sm font-semibold text-neutral-950 dark:text-neutral-100">
                       {meta.title}
                     </p>
-                    <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+                    <p className="mt-0.5 text-xs font-medium text-neutral-500 dark:text-neutral-400">
                       {timeLabel}
                     </p>
                   </div>
@@ -189,7 +191,7 @@ export default function NotificationItem({
             onClick={() => setMenuOpen(false)}
           >
             <motion.div
-              className="ui-card absolute inset-x-4 bottom-4 rounded-2xl p-2 shadow-xl"
+              className="ui-card ui-card-lg absolute inset-x-4 bottom-4 p-2 shadow-xl"
               initial={{ y: 24, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 24, opacity: 0 }}

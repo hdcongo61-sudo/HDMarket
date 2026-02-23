@@ -448,7 +448,7 @@ export default function VerifiedShops() {
               return (
                 <div
                   key={shop._id}
-                  className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                  className="ui-card ui-card-interactive ui-card-fade-in overflow-hidden"
                 >
                   {/* Shop Header */}
                   <div className="p-4 border-b border-gray-100">
@@ -460,6 +460,8 @@ export default function VerifiedShops() {
                             src={shop.shopLogo || '/api/placeholder/60/60'}
                             alt={shop.shopName}
                             className="w-12 h-12 rounded-full object-cover border-2 border-neutral-200"
+                            loading="lazy"
+                            decoding="async"
                           />
                           {/* Promotional Badge */}
                           <div className="absolute -bottom-1 -left-1 bg-gradient-to-r from-red-500 to-neutral-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full shadow-lg">

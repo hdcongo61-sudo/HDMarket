@@ -263,33 +263,33 @@ export default function AdminPromoCodes() {
         )}
 
         <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
-          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+          <div className="ui-card ui-card-interactive ui-card-fade-in p-4">
             <p className="text-xs text-gray-500">Total codes</p>
             <p className="text-2xl font-bold text-gray-900">{Number(overview.totalCodes || 0).toLocaleString('fr-FR')}</p>
           </div>
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+          <div className="ui-card ui-card-interactive ui-card-fade-in border-emerald-200 !bg-emerald-50 p-4">
             <p className="text-xs text-emerald-600">Codes actifs</p>
             <p className="text-2xl font-bold text-emerald-700">{Number(overview.activeCodes || 0).toLocaleString('fr-FR')}</p>
           </div>
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <div className="ui-card ui-card-interactive ui-card-fade-in border-amber-200 !bg-amber-50 p-4">
             <p className="text-xs text-amber-700">Flash promos</p>
             <p className="text-2xl font-bold text-amber-800">{Number(overview.flashPromoCodes || 0).toLocaleString('fr-FR')}</p>
           </div>
-          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+          <div className="ui-card ui-card-interactive ui-card-fade-in !bg-neutral-50 p-4">
             <p className="text-xs text-neutral-700">Utilisations (30j)</p>
             <p className="text-2xl font-bold text-neutral-800">{Number(overview.usageLast30Days || 0).toLocaleString('fr-FR')}</p>
           </div>
-          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+          <div className="ui-card ui-card-interactive ui-card-fade-in !bg-neutral-50 p-4">
             <p className="text-xs text-neutral-700">Commission annulée</p>
             <p className="text-xl font-bold text-neutral-800">{formatCurrency(overview.totalCommissionWaived || 0)}</p>
           </div>
-          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+          <div className="ui-card ui-card-interactive ui-card-fade-in !bg-neutral-50 p-4">
             <p className="text-xs text-neutral-700">Acquisition nouveaux vendeurs</p>
             <p className="text-xl font-bold text-neutral-800">{Number(overview.newSellerAcquisitionRate || 0).toLocaleString('fr-FR')}%</p>
           </div>
         </section>
 
-        <section className="rounded-2xl border border-gray-200 bg-white p-5">
+        <section className="ui-card ui-card-interactive ui-card-fade-in p-5">
           <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
             <Plus className="w-5 h-5 text-neutral-600" />
             {isEditing ? 'Modifier le code promo' : 'Créer un code promo'}
@@ -471,7 +471,7 @@ export default function AdminPromoCodes() {
           </form>
         </section>
 
-        <section className="rounded-2xl border border-gray-200 bg-white p-5">
+        <section className="ui-card ui-card-interactive ui-card-fade-in p-5">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
               <Search className="w-5 h-5 text-neutral-600" />
@@ -607,7 +607,7 @@ export default function AdminPromoCodes() {
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <div className="rounded-2xl border border-gray-200 bg-white p-5">
+          <div className="ui-card ui-card-interactive ui-card-fade-in p-5">
             <h3 className="text-base font-bold text-gray-900 flex items-center gap-2 mb-3">
               <BarChart3 className="w-5 h-5 text-neutral-600" />
               Top performances
@@ -635,7 +635,7 @@ export default function AdminPromoCodes() {
             )}
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-white p-5">
+          <div className="ui-card ui-card-interactive ui-card-fade-in p-5">
             <h3 className="text-base font-bold text-gray-900 mb-3">Dernières utilisations</h3>
             {usage.length === 0 ? (
               <p className="text-sm text-gray-500">Aucune utilisation récente.</p>

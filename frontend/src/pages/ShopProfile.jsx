@@ -266,14 +266,19 @@ const ProductsSkeleton = memo(function ProductsSkeleton() {
   );
 });
 
-const OpeningHoursCard = memo(function OpeningHoursCard({ hours, className = '' }) {
+const OpeningHoursCard = memo(function OpeningHoursCard({ hours, className = '', certified = false }) {
   const [expanded, setExpanded] = useState(false);
   const timeZone = getTimeZone();
 
   const summary = useMemo(() => getOpeningSummary(hours, timeZone), [hours, timeZone]);
 
   return (
-    <section className={`rounded-2xl border border-slate-200 bg-white shadow-sm ${className}`} aria-label="Horaires d'ouverture">
+    <section
+      className={`rounded-2xl border bg-white shadow-sm ${
+        certified ? 'border-emerald-200/90' : 'border-slate-200'
+      } ${className}`}
+      aria-label="Horaires d'ouverture"
+    >
       <div className="flex items-start justify-between gap-3 px-4 py-4 sm:px-5">
         <div>
           <h3 className="text-base font-semibold text-slate-900">Horaires</h3>
@@ -289,7 +294,7 @@ const OpeningHoursCard = memo(function OpeningHoursCard({ hours, className = '' 
         </span>
       </div>
 
-      <div className="border-y border-slate-100 px-4 py-3 sm:px-5">
+      <div className={`border-y px-4 py-3 sm:px-5 ${certified ? 'border-emerald-100/80' : 'border-slate-100'}`}>
         <p className="text-sm font-medium text-slate-800">{summary.statusText}</p>
       </div>
 
@@ -619,6 +624,7 @@ export default function ShopProfile() {
   const ratingAverage = Number(shop?.ratingAverage || 0);
   const ratingCount = Number(shop?.ratingCount || 0);
   const followersCount = Number(shop?.followersCount || 0);
+  const isCertifiedShop = Boolean(shop?.shopVerified);
   const hasActivePromo = Boolean(shop?.hasActivePromo && Number(shop?.activePromoCountNow || 0) > 0);
   const hasFreeDelivery = Boolean(shop?.freeDeliveryEnabled);
   const ownCommentExists = Boolean(currentUserReview?.comment?.trim());
@@ -708,15 +714,32 @@ export default function ShopProfile() {
   const phoneLabel = user && shop.phone ? shop.phone : 'Connectez-vous pour afficher le numéro';
 
   return (
-    <main className={`bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 ${isMobile ? 'pb-28' : 'pb-12'}`}>
+    <main
+      className={`bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 ${
+        isMobile ? (isCertifiedShop ? 'pb-44' : 'pb-28') : 'pb-12'
+      }`}
+    >
       <div className="mx-auto max-w-7xl px-3 py-4 sm:px-5 sm:py-6 lg:px-8">
-        <header className="sticky top-20 z-20 mb-4 rounded-2xl border border-slate-200/80 bg-white/85 px-4 py-3 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/85 sm:top-24 md:top-28">
+        <header
+          className={`sticky top-20 z-20 mb-4 rounded-2xl border bg-white/85 px-4 py-3 backdrop-blur-xl dark:bg-slate-900/85 sm:top-24 md:top-28 ${
+            isCertifiedShop
+              ? 'border-emerald-200/70 dark:border-emerald-900/70'
+              : 'border-slate-200/80 dark:border-slate-800'
+          }`}
+        >
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Boutique</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                {isCertifiedShop ? 'Boutique certifiée' : 'Boutique'}
+              </p>
               <h1 className="truncate text-base font-semibold text-slate-900 dark:text-white sm:text-lg">{shop.shopName}</h1>
             </div>
             <div className="flex items-center gap-2">
+              {isMobile && isCertifiedShop && (
+                <span className="inline-flex min-h-9 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-2 text-[11px] font-semibold text-emerald-700">
+                  Certifiée
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => navigate(-1)}
@@ -724,13 +747,15 @@ export default function ShopProfile() {
               >
                 Retour
               </button>
-              <button
-                type="button"
-                onClick={goToMessage}
-                className="min-h-11 rounded-xl bg-neutral-600 px-4 text-sm font-semibold text-white transition hover:bg-neutral-700"
-              >
-                Message
-              </button>
+              {!isMobile && (
+                <button
+                  type="button"
+                  onClick={goToMessage}
+                  className="min-h-11 rounded-xl bg-neutral-600 px-4 text-sm font-semibold text-white transition hover:bg-neutral-700"
+                >
+                  Message
+                </button>
+              )}
             </div>
           </div>
         </header>
@@ -741,8 +766,12 @@ export default function ShopProfile() {
           </div>
         )}
 
-        <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-slate-900 text-white shadow-lg">
-          <div className="h-44 w-full sm:h-56 lg:h-64">
+        <section
+          className={`relative overflow-hidden rounded-3xl border bg-slate-900 text-white shadow-lg ${
+            isCertifiedShop ? 'border-emerald-300/40' : 'border-slate-200'
+          }`}
+        >
+          <div className="h-36 w-full sm:h-56 lg:h-64">
             {shop.shopBanner ? (
               <img
                 src={shop.shopBanner}
@@ -753,11 +782,17 @@ export default function ShopProfile() {
             ) : (
               <div className="h-full w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700" />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-900/35 to-transparent" />
+            <div
+              className={`absolute inset-0 bg-gradient-to-t ${
+                isCertifiedShop
+                  ? 'from-emerald-950/90 via-slate-900/40 to-transparent'
+                  : 'from-slate-950/85 via-slate-900/35 to-transparent'
+              }`}
+            />
           </div>
 
           <div className="relative z-10 px-4 pb-5 pt-0 sm:px-6 sm:pb-6">
-            <div className="-mt-11 flex items-start gap-4 sm:-mt-14">
+            <div className="-mt-10 flex flex-col items-center gap-3 text-center sm:-mt-14 sm:flex-row sm:items-start sm:gap-4 sm:text-left">
               <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-4 border-white/80 bg-white shadow-md sm:h-24 sm:w-24">
                 {shop.shopLogo ? (
                   <img src={shop.shopLogo} alt={`Logo ${shop.shopName}`} className="h-full w-full object-cover" loading="eager" />
@@ -768,8 +803,8 @@ export default function ShopProfile() {
                 )}
               </div>
 
-              <div className="min-w-0 flex-1 pt-2">
-                <div className="flex flex-wrap items-center gap-2">
+              <div className="min-w-0 flex-1 pt-1 sm:pt-2">
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                   <h2 className="truncate text-xl font-bold sm:text-2xl">{shop.shopName}</h2>
                   <VerifiedBadge verified={shop.shopVerified} />
                 </div>
@@ -791,6 +826,15 @@ export default function ShopProfile() {
                 </div>
               ))}
             </div>
+
+            {isCertifiedShop && (
+              <div className="mt-3 rounded-xl border border-emerald-300/70 bg-emerald-300/20 px-3 py-2 text-xs font-semibold text-emerald-50">
+                <p className="flex items-center justify-center gap-1.5 sm:justify-start">
+                  <ShieldCheck size={14} />
+                  Boutique certifiée HDMarket
+                </p>
+              </div>
+            )}
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {hasActivePromo && (
@@ -819,16 +863,31 @@ export default function ShopProfile() {
           </div>
         </section>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="mt-5 grid gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-6">
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 lg:hidden">
               <div className="space-y-3">
-                <OpeningHoursCard hours={shop.shopHours} />
+                <OpeningHoursCard hours={shop.shopHours} certified={isCertifiedShop} />
               </div>
             </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" aria-label="Actions boutique">
-              <div className="grid gap-2 sm:grid-cols-2">
+            <section
+              className={`rounded-2xl border bg-white p-4 shadow-sm sm:p-5 ${
+                isCertifiedShop ? 'border-emerald-200/80' : 'border-slate-200'
+              }`}
+              aria-label="Actions boutique"
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-900">Actions rapides</h3>
+                {isCertifiedShop && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                    <ShieldCheck size={12} />
+                    Vérifiée
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
                 {user && shop.phone ? (
                   <a
                     href={`tel:${shop.phone}`}
@@ -1197,7 +1256,7 @@ export default function ShopProfile() {
 
           <aside className="hidden lg:block">
             <div className="sticky top-28 space-y-4">
-              <OpeningHoursCard hours={shop.shopHours} />
+              <OpeningHoursCard hours={shop.shopHours} certified={isCertifiedShop} />
 
               <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Contact boutique">
                 <h3 className="text-base font-semibold text-slate-900">Contacter la boutique</h3>
@@ -1272,47 +1331,63 @@ export default function ShopProfile() {
 
       {isMobile && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-3 backdrop-blur-xl safe-area-pb">
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={goToMessage}
-              className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-neutral-600 text-sm font-semibold text-white"
-            >
-              <MessageCircle size={16} />
-              Message
-            </button>
-            {user && shop.phone ? (
-              <a
-                href={`tel:${shop.phone}`}
-                className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 text-sm font-semibold text-emerald-700"
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={goToMessage}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-neutral-600 text-sm font-semibold text-white"
               >
-                <Phone size={16} />
-                Appeler
-              </a>
-            ) : (
-              <Link
-                to="/login"
-                state={{ from: `/shop/${slug}` }}
-                className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700"
-              >
-                <Phone size={16} />
-                Appeler
-              </Link>
+                <MessageCircle size={16} />
+                Message
+              </button>
+              {user && shop.phone ? (
+                <a
+                  href={`tel:${shop.phone}`}
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 text-sm font-semibold text-emerald-700"
+                >
+                  <Phone size={16} />
+                  Appeler
+                </a>
+              ) : (
+                <Link
+                  to="/login"
+                  state={{ from: `/shop/${slug}` }}
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700"
+                >
+                  <Phone size={16} />
+                  Appeler
+                </Link>
+              )}
+            </div>
+
+            {isCertifiedShop && (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleDirections}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700"
+                >
+                  <Navigation size={14} />
+                  Itinéraire
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFollowToggle}
+                  disabled={followDisabled}
+                  className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border text-xs font-semibold transition ${
+                    isFollowing
+                      ? 'border-rose-200 bg-rose-50 text-rose-700'
+                      : 'border-slate-200 bg-slate-50 text-slate-700'
+                  } ${followDisabled ? 'cursor-not-allowed opacity-60' : ''}`}
+                >
+                  <Heart size={14} className={isFollowing ? 'fill-current' : ''} />
+                  {followMutation.isPending ? '...' : isOwnShop ? 'Votre boutique' : isFollowing ? 'Suivie' : 'Suivre'}
+                </button>
+              </div>
             )}
           </div>
         </div>
-      )}
-
-      {!isMobile && (
-        <button
-          type="button"
-          onClick={goToMessage}
-          className="fixed bottom-6 right-6 z-40 inline-flex min-h-12 items-center gap-2 rounded-full bg-neutral-600 px-5 text-sm font-semibold text-white shadow-lg transition hover:bg-neutral-700"
-          aria-label="Message boutique"
-        >
-          <MessageCircle size={16} />
-          Message Shop
-        </button>
       )}
 
       {showCommentsModal && (

@@ -525,7 +525,7 @@ export default function SettingsCategoriesPage() {
   if (user?.role !== 'admin') {
     return (
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="rounded-3xl border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-700">
+        <div className="ui-card ui-card-lg ui-card-fade-in p-6 text-sm text-neutral-700 dark:text-neutral-300">
           Accès refusé. Cette page est réservée aux administrateurs.
         </div>
       </div>
@@ -561,14 +561,14 @@ export default function SettingsCategoriesPage() {
 
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 px-4 py-4 sm:px-6 lg:grid-cols-12 lg:px-8">
         <div className="space-y-4 lg:col-span-7">
-          <section className="rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+          <section className="ui-card ui-card-interactive ui-card-fade-in ui-card-lg p-4 dark:border-neutral-800 dark:bg-neutral-900">
             <label className="relative block">
               <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Rechercher catégorie, slug, path"
-                className="w-full rounded-2xl border border-neutral-300 bg-white py-2 pl-9 pr-3 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+                className="ui-input w-full rounded-2xl py-2 pl-9 pr-3 text-sm"
               />
             </label>
           </section>
@@ -585,7 +585,7 @@ export default function SettingsCategoriesPage() {
           />
 
           {loadingTree ? (
-            <div className="rounded-3xl border border-neutral-200 bg-white p-8 text-center text-sm text-neutral-500 dark:border-neutral-800 dark:bg-neutral-900">
+            <div className="ui-card ui-card-interactive ui-card-fade-in ui-card-lg p-8 text-center text-sm text-neutral-500 dark:border-neutral-800 dark:bg-neutral-900">
               Chargement catégories...
             </div>
           ) : (
@@ -625,12 +625,12 @@ export default function SettingsCategoriesPage() {
             }}
           />
 
-          <section className="rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+          <section className="ui-card ui-card-interactive ui-card-fade-in ui-card-lg p-4 dark:border-neutral-800 dark:bg-neutral-900">
             <h2 className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Preview storefront & form</h2>
             <p className="mb-3 text-xs text-neutral-500">Aperçu des catégories actives visibles pour les clients.</p>
             <div className="space-y-2">
               {previewData.map((entry) => (
-                <div key={entry.id} className="rounded-2xl border border-neutral-200 p-3 dark:border-neutral-800">
+                <div key={entry.id} className="ui-card ui-card-interactive p-3">
                   <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">{entry.name}</p>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {entry.children.map((child) => (
@@ -653,7 +653,7 @@ export default function SettingsCategoriesPage() {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+          <section className="ui-card ui-card-interactive ui-card-fade-in ui-card-lg p-4 dark:border-neutral-800 dark:bg-neutral-900">
             <h2 className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Modèle d'import catégories</h2>
             <p className="mb-3 text-xs text-neutral-500">
               Utilisez ce JSON comme base pour ajouter des catégories/sous-catégories, puis importez via le wizard.
@@ -674,12 +674,12 @@ export default function SettingsCategoriesPage() {
                 <FileJson size={14} /> Ouvrir dans import
               </button>
             </div>
-            <pre className="max-h-56 overflow-auto rounded-2xl border border-neutral-200 bg-neutral-50 p-3 text-[11px] leading-5 text-neutral-700 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300">
+            <pre className="ui-card-soft-separator max-h-56 overflow-auto rounded-2xl border border-neutral-200 p-3 text-[11px] leading-5 text-neutral-700 dark:border-neutral-800 dark:text-neutral-300">
               {importTemplateJson}
             </pre>
           </section>
 
-          <section className="rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+          <section className="ui-card ui-card-interactive ui-card-fade-in ui-card-lg p-4 dark:border-neutral-800 dark:bg-neutral-900">
             <h2 className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Exporter catégories hardcodées</h2>
             <p className="mb-3 text-xs text-neutral-500">
               Exporte toutes les catégories legacy de <code>frontend/src/data/categories.js</code> au format importable.
@@ -707,7 +707,7 @@ export default function SettingsCategoriesPage() {
                 <Copy size={14} /> Copier JSON legacy
               </button>
             </div>
-            <pre className="max-h-56 overflow-auto rounded-2xl border border-neutral-200 bg-neutral-50 p-3 text-[11px] leading-5 text-neutral-700 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300">
+            <pre className="ui-card-soft-separator max-h-56 overflow-auto rounded-2xl border border-neutral-200 p-3 text-[11px] leading-5 text-neutral-700 dark:border-neutral-800 dark:text-neutral-300">
               {legacyHardcodedJson}
             </pre>
           </section>

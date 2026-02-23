@@ -34,7 +34,7 @@ export default function ReassignProductsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
-      <div className="w-full max-w-lg rounded-3xl border border-neutral-200 bg-white p-4 shadow-2xl dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="ui-card ui-card-lg w-full max-w-lg p-4 shadow-2xl">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">Réassigner les produits</h3>
           <button type="button" onClick={onClose} className="rounded-lg px-2 py-1 text-sm text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800">
@@ -53,7 +53,7 @@ export default function ReassignProductsModal({
         <select
           value={targetId}
           onChange={(event) => setTargetId(event.target.value)}
-          className="mb-3 w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+          className="ui-input mb-3 w-full rounded-xl px-3 py-2 text-sm"
         >
           <option value="">Sélectionner</option>
           {options.map((option) => (
@@ -78,7 +78,7 @@ export default function ReassignProductsModal({
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           placeholder="Raison (audit)"
-          className="mb-3 w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+          className="ui-input mb-3 w-full rounded-xl px-3 py-2 text-sm"
         />
 
         <button
