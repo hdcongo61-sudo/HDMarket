@@ -36,9 +36,14 @@ import disputeRoutes from './routes/disputeRoutes.js';
 import boostRoutes from './routes/boostRoutes.js';
 
 import User from './models/userModel.js';
+import Order from './models/orderModel.js';
 import ChatMessage from './models/chatMessageModel.js';
 import { createNotification } from './utils/notificationService.js';
-import { setChatSocket } from './sockets/chatSocket.js';
+import {
+  setChatSocket,
+  buildOrderConversationRoom,
+  buildOrderUserRoom
+} from './sockets/chatSocket.js';
 import { registerNotificationSocket, configureSocketRedisAdapter } from './sockets/notificationSocket.js';
 import { requestTracker, getDailyRequestStats } from './middlewares/requestTracker.js';
 import { sendReviewReminders } from './utils/reviewReminder.js';
@@ -231,14 +236,65 @@ io.use(async (socket, next) => {
 
 io.on('connection', (socket) => {
   socket.join('support');
+  const socketUserId = socket?.data?.user?.id;
+  const socketRole = socket?.data?.user?.role;
+  const isGuest = String(socketUserId || '').startsWith('guest-');
+  if (!isGuest && socketUserId) {
+    socket.join(buildOrderUserRoom(socketUserId));
+  }
+  socket.data.orderConversationIds = new Set();
   socket.emit('connected', { user: socket.data.user });
+
+  socket.on('orders:conversation:join', async ({ conversationId }) => {
+    const targetId = String(conversationId || '').trim();
+    if (!targetId || isGuest) return;
+
+    try {
+      const order = await Order.findById(targetId).select('customer items.snapshot.shopId').lean();
+      if (!order) return;
+
+      const isCustomer = String(order.customer) === String(socketUserId);
+      const isSeller = Array.isArray(order.items)
+        ? order.items.some((item) => String(item?.snapshot?.shopId) === String(socketUserId))
+        : false;
+      const isAdmin = socketRole === 'admin' || socketRole === 'manager';
+
+      if (!isCustomer && !isSeller && !isAdmin) return;
+
+      const roomName = buildOrderConversationRoom(targetId);
+      socket.join(roomName);
+      socket.data.orderConversationIds.add(String(targetId));
+      socket.emit('orders:conversation:joined', { conversationId: String(targetId) });
+    } catch {
+      // Ignore join errors to avoid exposing access details.
+    }
+  });
+
+  socket.on('orders:conversation:leave', ({ conversationId }) => {
+    const targetId = String(conversationId || '').trim();
+    if (!targetId) return;
+    socket.leave(buildOrderConversationRoom(targetId));
+    socket.data.orderConversationIds?.delete(String(targetId));
+  });
+
+  socket.on('orders:typing', ({ conversationId, isTyping }) => {
+    const targetId = String(conversationId || '').trim();
+    if (!targetId || isGuest) return;
+    if (!socket.data.orderConversationIds?.has(targetId)) return;
+    socket.to(buildOrderConversationRoom(targetId)).emit('orders:typing', {
+      conversationId: targetId,
+      userId: String(socketUserId),
+      isTyping: Boolean(isTyping),
+      at: new Date().toISOString()
+    });
+  });
 
   socket.on('sendMessage', async ({ text, encryptedText, encryptionData, attachments, voiceMessage, metadata }) => {
     if (!text && !encryptedText && !attachments?.length && !voiceMessage) return;
-    const isGuest = String(socket.data.user.id || '').startsWith('guest-');
+    const isGuestSender = String(socket.data.user.id || '').startsWith('guest-');
     
     const messageData = {
-      user: isGuest ? undefined : socket.data.user.id,
+      user: isGuestSender ? undefined : socket.data.user.id,
       username: socket.data.user.name,
       from: socket.data.user.role === 'admin' ? 'support' : 'user',
       metadata: metadata || {}
@@ -283,6 +339,10 @@ io.on('connection', (socket) => {
       createdAt: message.createdAt
     };
     io.emit('message', payload);
+  });
+
+  socket.on('disconnect', () => {
+    socket.data.orderConversationIds?.clear?.();
   });
 });
 

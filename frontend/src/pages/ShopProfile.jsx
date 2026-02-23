@@ -1,30 +1,26 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import React, { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Clock,
-  MapPin,
-  Phone,
-  Star,
-  Users,
-  Edit3,
-  X,
-  Heart,
-  ShoppingCart,
-  TrendingUp,
-  Award,
-  CheckCircle,
-  MessageCircle,
-  Share2,
-  Filter,
-  Grid3x3,
-  List,
-  Sparkles,
-  Mail,
-  Globe,
+  ArrowRight,
   Calendar,
+  CheckCircle,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  ExternalLink,
+  Heart,
+  MapPin,
+  MessageCircle,
+  Navigation,
   Package,
-  Eye,
-  ThumbsUp
+  Phone,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  Store,
+  Users,
+  X
 } from 'lucide-react';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
@@ -34,7 +30,9 @@ import { buildProductPath } from '../utils/links';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import useIsMobile from '../hooks/useIsMobile';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
+import { useToast } from '../context/ToastContext';
 
+const DAY_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const DAY_LABELS = {
   monday: 'Lundi',
   tuesday: 'Mardi',
@@ -44,6 +42,16 @@ const DAY_LABELS = {
   saturday: 'Samedi',
   sunday: 'Dimanche'
 };
+const WEEKDAY_TO_KEY = {
+  monday: 'monday',
+  tuesday: 'tuesday',
+  wednesday: 'wednesday',
+  thursday: 'thursday',
+  friday: 'friday',
+  saturday: 'saturday',
+  sunday: 'sunday'
+};
+const SHOP_SNAPSHOT_PREFIX = 'hdmarket:shop-snapshot:';
 
 const numberFormatter = new Intl.NumberFormat('fr-FR');
 
@@ -53,8 +61,10 @@ const formatCount = (value) => {
   return numberFormatter.format(parsed);
 };
 
-const formatCurrency = (value) => {
-  return formatPriceWithStoredSettings(value);
+const formatRatingLabel = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return '0,0';
+  return parsed.toFixed(1).replace('.', ',');
 };
 
 const formatDate = (value) => {
@@ -64,1228 +74,1325 @@ const formatDate = (value) => {
   return parsed.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-const formatRatingLabel = (value) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return '0,0';
-  return parsed.toFixed(1).replace('.', ',');
+const formatCurrency = (value) => formatPriceWithStoredSettings(value);
+
+const normalizeTimeLabel = (value) => {
+  if (!value) return '';
+  const str = String(value).trim();
+  const match = str.match(/^(\d{1,2}):(\d{1,2})$/);
+  if (!match) return str;
+  const hours = Math.max(0, Math.min(23, Number(match[1])));
+  const minutes = Math.max(0, Math.min(59, Number(match[2])));
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 };
 
-const ratingOptions = [5, 4, 3, 2, 1];
+const toMinutes = (timeValue) => {
+  const normalized = normalizeTimeLabel(timeValue);
+  const match = normalized.match(/^(\d{2}):(\d{2})$/);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  return hour * 60 + minute;
+};
+
+const getTimeZone = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Brazzaville';
+  } catch {
+    return 'Africa/Brazzaville';
+  }
+};
+
+const getNowInTimeZone = (timeZone) => {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    weekday: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  const parts = formatter.formatToParts(new Date());
+  const weekday = String(parts.find((part) => part.type === 'weekday')?.value || '').toLowerCase();
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value || 0);
+  const minute = Number(parts.find((part) => part.type === 'minute')?.value || 0);
+  const dayKey = WEEKDAY_TO_KEY[weekday] || 'monday';
+  return { dayKey, minutes: hour * 60 + minute };
+};
+
+const getOpeningSummary = (hours, timeZone) => {
+  const normalizedHours = DAY_ORDER.map((day) => {
+    const entry = Array.isArray(hours) ? hours.find((item) => item?.day === day) : null;
+    return {
+      day,
+      dayLabel: DAY_LABELS[day],
+      closed: Boolean(entry?.closed),
+      open: normalizeTimeLabel(entry?.open || ''),
+      close: normalizeTimeLabel(entry?.close || '')
+    };
+  });
+
+  const { dayKey: todayKey, minutes: currentMinutes } = getNowInTimeZone(timeZone);
+  const todayIndex = Math.max(0, DAY_ORDER.indexOf(todayKey));
+  const today = normalizedHours[todayIndex];
+
+  let isOpen = false;
+  let closesAt = null;
+
+  if (today && !today.closed && today.open && today.close) {
+    const openMinutes = toMinutes(today.open);
+    const closeMinutes = toMinutes(today.close);
+    if (openMinutes != null && closeMinutes != null) {
+      if (closeMinutes > openMinutes) {
+        isOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+      } else if (closeMinutes < openMinutes) {
+        isOpen = currentMinutes >= openMinutes || currentMinutes < closeMinutes;
+      }
+      if (isOpen) closesAt = today.close;
+    }
+  }
+
+  let nextOpen = null;
+  if (!isOpen) {
+    for (let offset = 0; offset < 7; offset += 1) {
+      const index = (todayIndex + offset) % 7;
+      const item = normalizedHours[index];
+      if (!item || item.closed || !item.open) continue;
+      const openMinutes = toMinutes(item.open);
+      if (offset === 0 && openMinutes != null && openMinutes <= currentMinutes) continue;
+      nextOpen = { ...item, offset };
+      break;
+    }
+  }
+
+  let statusText = 'Fermé';
+  if (isOpen && closesAt) {
+    statusText = `Ouvert · Ferme à ${closesAt}`;
+  } else if (nextOpen) {
+    if (nextOpen.offset === 0) {
+      statusText = `Fermé · Ouvre à ${nextOpen.open}`;
+    } else if (nextOpen.offset === 1) {
+      statusText = `Fermé · Ouvre demain à ${nextOpen.open}`;
+    } else {
+      statusText = `Fermé · Ouvre ${nextOpen.dayLabel} à ${nextOpen.open}`;
+    }
+  }
+
+  return {
+    todayKey,
+    statusText,
+    isOpen,
+    closesAt,
+    nextOpen,
+    normalizedHours
+  };
+};
+
+const readShopSnapshot = (slug) => {
+  if (!slug || typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(`${SHOP_SNAPSHOT_PREFIX}${slug}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (!parsed.shop || typeof parsed.shop !== 'object') return null;
+    if (!parsed.shop._id) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+
+const writeShopSnapshot = (slug, payload) => {
+  if (!slug || typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(`${SHOP_SNAPSHOT_PREFIX}${slug}`, JSON.stringify(payload));
+  } catch {
+    // ignore storage quota issues
+  }
+};
+
+const useSectionInView = ({ rootMargin = '220px' } = {}) => {
+  const ref = useRef(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    if (isVisible) return undefined;
+    const node = ref.current;
+    if (!node || typeof IntersectionObserver === 'undefined') {
+      setIsVisible(true);
+      return undefined;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [isVisible, rootMargin]);
+
+  return [ref, isVisible];
+};
+
+const ShopHeaderSkeleton = memo(function ShopHeaderSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div className="h-44 animate-pulse bg-slate-200 sm:h-52" />
+      <div className="space-y-3 px-4 pb-5 pt-12 sm:px-6">
+        <div className="h-6 w-40 animate-pulse rounded bg-slate-200" />
+        <div className="h-4 w-64 animate-pulse rounded bg-slate-100" />
+        <div className="grid grid-cols-3 gap-2">
+          {[1, 2, 3].map((item) => (
+            <div key={item} className="h-16 animate-pulse rounded-xl bg-slate-100" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const ProductsSkeleton = memo(function ProductsSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div key={index} className="aspect-[0.72] animate-pulse rounded-2xl bg-slate-100" />
+      ))}
+    </div>
+  );
+});
+
+const OpeningHoursCard = memo(function OpeningHoursCard({ hours, className = '' }) {
+  const [expanded, setExpanded] = useState(false);
+  const timeZone = getTimeZone();
+
+  const summary = useMemo(() => getOpeningSummary(hours, timeZone), [hours, timeZone]);
+
+  return (
+    <section className={`rounded-2xl border border-slate-200 bg-white shadow-sm ${className}`} aria-label="Horaires d'ouverture">
+      <div className="flex items-start justify-between gap-3 px-4 py-4 sm:px-5">
+        <div>
+          <h3 className="text-base font-semibold text-slate-900">Horaires</h3>
+          <p className="mt-1 text-xs text-slate-500">Fuseau: {timeZone}</p>
+        </div>
+        <span
+          className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
+            summary.isOpen ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+          }`}
+        >
+          <span className={`h-2 w-2 rounded-full ${summary.isOpen ? 'bg-emerald-500' : 'bg-red-500'}`} />
+          {summary.isOpen ? 'Ouvert' : 'Fermé'}
+        </span>
+      </div>
+
+      <div className="border-y border-slate-100 px-4 py-3 sm:px-5">
+        <p className="text-sm font-medium text-slate-800">{summary.statusText}</p>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setExpanded((prev) => !prev)}
+        className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 sm:px-5"
+        aria-expanded={expanded}
+        aria-controls="shop-hours-weekly"
+      >
+        <span>Voir la semaine complète</span>
+        {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+      </button>
+
+      <div
+        id="shop-hours-weekly"
+        className={`grid transition-all duration-300 ease-out ${expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
+      >
+        <div className="overflow-hidden">
+          <ul className="space-y-2 px-4 pb-4 sm:px-5">
+            {summary.normalizedHours.map((entry) => {
+              const isToday = entry.day === summary.todayKey;
+              return (
+                <li
+                  key={entry.day}
+                  className={`flex items-center justify-between rounded-xl px-3 py-2 text-sm ${
+                    isToday ? 'bg-neutral-50 text-neutral-700' : 'text-slate-600'
+                  }`}
+                >
+                  <span className="font-medium">{entry.dayLabel}</span>
+                  <span>
+                    {entry.closed ? 'Fermé' : entry.open && entry.close ? `${entry.open} - ${entry.close}` : '—'}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </div>
+    </section>
+  );
+});
 
 export default function ShopProfile() {
   const { slug } = useParams();
-  const { user, updateUser } = useContext(AuthContext);
   const navigate = useNavigate();
-  const [shop, setShop] = useState(null);
-  const [products, setProducts] = useState([]);
-  const [recentReviews, setRecentReviews] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const queryClient = useQueryClient();
+  const { user, updateUser } = useContext(AuthContext);
+  const { showToast } = useToast();
+  const isMobile = useIsMobile();
+  const externalLinkProps = useDesktopExternalLink();
+
   const [activeCategory, setActiveCategory] = useState('all');
   const [promoOnly, setPromoOnly] = useState(false);
-  const [followersCount, setFollowersCount] = useState(0);
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [followLoading, setFollowLoading] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
   const [reviewForm, setReviewForm] = useState({ rating: 0, comment: '' });
-  const [reviewSubmitting, setReviewSubmitting] = useState(false);
-  const [reviewError, setReviewError] = useState('');
   const [reviewSuccess, setReviewSuccess] = useState('');
-  const [userReview, setUserReview] = useState(null);
+  const [reviewError, setReviewError] = useState('');
   const [isEditingReview, setIsEditingReview] = useState(true);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
-  const [allComments, setAllComments] = useState([]);
-  const [commentsLoading, setCommentsLoading] = useState(false);
-  const [commentsError, setCommentsError] = useState('');
-  const [topSellingProducts, setTopSellingProducts] = useState([]);
-  const [topSellingLoading, setTopSellingLoading] = useState(false);
-  const [topSellingError, setTopSellingError] = useState('');
+
+  const [productsRef, productsInView] = useSectionInView({ rootMargin: '320px' });
+  const [reviewsRef, reviewsInView] = useSectionInView({ rootMargin: '240px' });
+
+  const shopQuery = useQuery({
+    queryKey: ['shop-profile', slug],
+    enabled: Boolean(slug),
+    initialData: () => readShopSnapshot(slug),
+    initialDataUpdatedAt: 0,
+    refetchOnMount: 'always',
+    staleTime: 30 * 1000,
+    gcTime: 10 * 60 * 1000,
+    queryFn: async () => {
+      const { data } = await api.get(`/shops/${slug}`, {
+        skipCache: true,
+        headers: { 'x-skip-cache': '1' }
+      });
+      writeShopSnapshot(slug, data);
+      return data;
+    }
+  });
+
+  const shop = shopQuery.data?.shop || null;
+  const products = useMemo(() => (Array.isArray(shopQuery.data?.products) ? shopQuery.data.products : []), [shopQuery.data?.products]);
+  const recentReviews = useMemo(
+    () => (Array.isArray(shopQuery.data?.recentReviews) ? shopQuery.data.recentReviews : []),
+    [shopQuery.data?.recentReviews]
+  );
+
   const shopIdentifier = shop?.slug || shop?._id || slug;
-  const externalLinkProps = useDesktopExternalLink();
-  const isMobile = useIsMobile();
+  const userScopeId = user?._id || user?.id;
 
-  useEffect(() => {
-    let active = true;
-    const fetchShop = async () => {
-      try {
-        setLoading(true);
-        const { data } = await api.get(`/shops/${slug}`, { skipCache: true, headers: { 'x-skip-cache': '1' } });
-        if (!active) return;
-        setShop(data.shop);
-        const loadedProducts = Array.isArray(data.products) ? data.products : [];
-        setProducts(loadedProducts);
-        setRecentReviews(Array.isArray(data.recentReviews) ? data.recentReviews : []);
-        setError('');
-        
-        // Extract top selling products from loaded products
-        if (loadedProducts.length > 0) {
-          const withSales = loadedProducts
-            .filter((p) => Number(p.salesCount || 0) > 0)
-            .sort((a, b) => Number(b.salesCount || 0) - Number(a.salesCount || 0))
-            .slice(0, 5);
-          setTopSellingProducts(withSales);
-          setTopSellingLoading(false);
-        }
-      } catch (e) {
-        if (!active) return;
-        setError(e.response?.data?.message || e.message || 'Boutique introuvable.');
-        setShop(null);
-        setProducts([]);
-        setRecentReviews([]);
-        setTopSellingProducts([]);
-        setTopSellingLoading(false);
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-    fetchShop();
-    return () => {
-      active = false;
-    };
-  }, [slug, reloadKey]);
-
-  // Fetch top selling products for the shop (fetch more if needed)
-  useEffect(() => {
-    if (!shop?._id || topSellingProducts.length > 0) {
-      return;
+  const userReviewQuery = useQuery({
+    queryKey: ['shop-user-review', shopIdentifier, userScopeId],
+    enabled: Boolean(shopIdentifier && userScopeId),
+    staleTime: 15 * 1000,
+    queryFn: async () => {
+      const { data } = await api.get(`/shops/${shopIdentifier}/reviews/user`, {
+        skipCache: true,
+        headers: { 'x-skip-cache': '1' }
+      });
+      return data;
     }
-    
-    // If we already have products with sales, no need to fetch more
-    if (products.length > 0) {
-      const withSales = products
-        .filter((p) => Number(p.salesCount || 0) > 0)
-        .sort((a, b) => Number(b.salesCount || 0) - Number(a.salesCount || 0))
-        .slice(0, 5);
-      if (withSales.length > 0) {
-        setTopSellingProducts(withSales);
-        return;
-      }
-    }
-    
-    // Only fetch more if we don't have enough products with sales
-    let active = true;
-    const fetchTopSelling = async () => {
-      setTopSellingLoading(true);
-      setTopSellingError('');
-      try {
-        // Fetch more products from the shop to find top sellers
-        const { data: shopData } = await api.get(`/shops/${slug}`, {
-          params: { limit: 100 },
-          skipCache: true,
-          headers: { 'x-skip-cache': '1' }
-        });
-        if (!active) return;
-        const shopProducts = Array.isArray(shopData?.products) ? shopData.products : [];
-        
-        // Combine with already loaded products
-        const allProducts = [...products, ...shopProducts];
-        const uniqueProducts = Array.from(
-          new Map(allProducts.map((p) => [String(p._id), p])).values()
-        );
-        
-        // Filter products with salesCount > 0 and sort by salesCount
-        const withSales = uniqueProducts
-          .filter((p) => Number(p.salesCount || 0) > 0)
-          .sort((a, b) => Number(b.salesCount || 0) - Number(a.salesCount || 0))
-          .slice(0, 5);
-        
-        setTopSellingProducts(withSales);
-        
-        if (withSales.length === 0 && uniqueProducts.length > 0) {
-          setTopSellingError('Aucun produit avec des ventes enregistrées.');
-        }
-      } catch (err) {
-        if (!active) return;
-        console.error('Error fetching top selling products:', err);
-        setTopSellingError('Impossible de charger les produits les plus vendus.');
-      } finally {
-        if (active) setTopSellingLoading(false);
-      }
-    };
-    
-    // Only fetch if we have less than 5 products with sales
-    const currentWithSales = products.filter((p) => Number(p.salesCount || 0) > 0);
-    if (currentWithSales.length < 5) {
-      fetchTopSelling();
-    }
-    
-    return () => {
-      active = false;
-    };
-  }, [shop?._id, slug]);
+  });
 
-  useEffect(() => {
-    setActiveCategory('all');
-    setPromoOnly(false);
-  }, [slug]);
-
-  useEffect(() => {
-    setReviewError('');
-    setReviewSuccess('');
-  }, [slug, user]);
-
-  useEffect(() => {
-    let active = true;
-    if (!shop?._id || !user) {
-      setUserReview(null);
-      setReviewForm({ rating: 0, comment: '' });
-      return () => {
-        active = false;
-      };
-    }
-    const loadUserReview = async () => {
-      try {
-        const { data } = await api.get(`/shops/${shopIdentifier}/reviews/user`, {
-          skipCache: true,
-          headers: { 'x-skip-cache': '1' }
-        });
-        if (!active) return;
-        setUserReview(data);
-        setReviewForm({ rating: data.rating || 0, comment: data.comment || '' });
-        setIsEditingReview(!Boolean(data.comment?.trim()));
-      } catch (err) {
-        if (!active) return;
-        if (err.response?.status === 404) {
-          setUserReview(null);
-          setReviewForm({ rating: 0, comment: '' });
-          setIsEditingReview(true);
-        }
-      }
-    };
-    loadUserReview();
-    return () => {
-      active = false;
-    };
-  }, [shop?._id, slug, user, reloadKey]);
-
-  useEffect(() => {
-    if (!shop) {
-      setFollowersCount(0);
-      return;
-    }
-    setFollowersCount(Number(shop.followersCount ?? 0));
-  }, [shop?.followersCount, shop]);
-
-  useEffect(() => {
-    if (!shop?._id || !user) {
-      setIsFollowing(false);
-      return;
-    }
-    const list = Array.isArray(user.followingShops) ? user.followingShops : [];
-    const following = list.some((entry) => String(entry) === String(shop._id));
-    setIsFollowing(following);
-  }, [shop?._id, user?.followingShops]);
-
-  const categories = useMemo(() => {
-    const seen = new Set();
-    return products.reduce((acc, product) => {
-      const raw = product?.category;
-      const normalized = typeof raw === 'string' ? raw.trim() : '';
-      if (!normalized || seen.has(normalized)) {
-        return acc;
-      }
-      seen.add(normalized);
-      acc.push(normalized);
-      return acc;
-    }, []);
-  }, [products]);
-
-  const filteredProducts = useMemo(() => {
-    const byCategory = (!activeCategory || activeCategory === 'all')
-      ? products
-      : products.filter((product) => {
-      const raw = product?.category;
-      const normalized = typeof raw === 'string' ? raw.trim() : '';
-      return normalized === activeCategory;
-    });
-    if (!promoOnly) return byCategory;
-    return byCategory.filter((product) => Boolean(product?.hasActivePromo));
-  }, [activeCategory, promoOnly, products]);
-
-  const hasOwnComment = Boolean(userReview?.comment?.trim());
-  const showReviewForm = !hasOwnComment || isEditingReview;
-
-  if (loading) {
-    return (
-      <main className="max-w-5xl mx-auto px-4 py-10">
-        <p className="text-gray-600">Chargement de la boutique…</p>
-      </main>
-    );
-  }
-
-  if (error) {
-    return (
-      <main className="max-w-5xl mx-auto px-4 py-10 space-y-3">
-        <p className="text-red-600 font-semibold">{error}</p>
-        <Link to="/" className="text-neutral-600 underline">
-          Retourner à l&apos;accueil
-        </Link>
-      </main>
-    );
-  }
-
-  if (!shop) return null;
-
-  const phoneContent = shop.phone
-    ? user
-      ? shop.phone
-      : (
-        <Link to="/login" className="text-neutral-600 underline" state={{ from: `/shop/${slug}` }}>
-          Connectez-vous pour voir ce numéro
-        </Link>
-      )
-    : 'Non renseigné';
-
-  const renderedPhone = typeof phoneContent === 'string' ? (
-    <span className="text-gray-600">{phoneContent}</span>
-  ) : (
-    phoneContent
-  );
-
-  const ratingAverage = Number(shop.ratingAverage || 0);
-  const ratingCount = Number(shop.ratingCount || 0);
-  const activePromoCountNow = Number(shop.activePromoCountNow || 0);
-  const hasActivePromo = Boolean(shop.hasActivePromo && activePromoCountNow > 0);
-  const maxPromoPercentNow = Number(shop.maxPromoPercentNow || 0);
-  const hasFreeDelivery = Boolean(shop.freeDeliveryEnabled);
-  const hasPromoProductsInList = products.some((product) => Boolean(product?.hasActivePromo));
-
-  const hours = Array.isArray(shop.shopHours) ? shop.shopHours : [];
-  const todayKey = (() => {
-    const dayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    return dayKeys[new Date().getDay()] || 'monday';
-  })();
-
-  const summaryStats = [
-    { label: 'Produits disponibles', value: shop.productCount ?? products.length },
-    { label: 'Avis déposés', value: ratingCount },
-    { label: 'Abonnés', value: followersCount }
-  ];
-
-  const activeCategoryLabel = activeCategory === 'all' ? 'Tous les produits' : activeCategory;
-
-  const callAction = user && shop.phone
-    ? (
-      <a
-        href={`tel:${shop.phone}`}
-        className="group inline-flex items-center justify-center gap-2 rounded-xl bg-white/20 px-6 py-3 text-sm font-bold text-white backdrop-blur-md transition-all duration-300 hover:bg-white/30 hover:scale-105 hover:shadow-lg"
-      >
-        <Phone size={18} className="transition-transform duration-300 group-hover:scale-110" />
-        Appeler la boutique
-      </a>
-    )
-    : (
-      <Link
-        to="/login"
-        state={{ from: `/shop/${slug}` }}
-        className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-white/60 bg-white/10 px-6 py-3 text-sm font-bold text-white backdrop-blur-md transition-all duration-300 hover:border-white hover:bg-white/20 hover:scale-105"
-      >
-        <Phone size={18} />
-        Connectez-vous pour appeler
-      </Link>
-    );
-
-  const followLabel = shop?.shopVerified
-    ? isFollowing
-      ? 'Boutique suivie'
-      : 'Suivre la boutique'
-    : 'Boutique non certifiée';
-
-  const handleFollowToggle = async () => {
-    if (!shop?._id || followLoading) return;
-    if (!user) {
-      navigate('/login', { state: { from: `/shop/${slug}` } });
-      return;
-    }
-    if (!shop.shopVerified) return;
-    setFollowLoading(true);
-    try {
-      const response = isFollowing
-        ? await api.delete(`/users/shops/${shop._id}/follow`)
-        : await api.post(`/users/shops/${shop._id}/follow`);
-      setIsFollowing(!isFollowing);
-      setFollowersCount(response.data?.followersCount ?? followersCount);
-      if (typeof updateUser === 'function') {
-        const currentList = Array.isArray(user.followingShops) ? user.followingShops : [];
-        const normalized = currentList.map((entry) => String(entry));
-        const nextList = isFollowing
-          ? normalized.filter((entry) => entry !== String(shop._id))
-          : Array.from(new Set([...normalized, String(shop._id)]));
-        updateUser({ followingShops: nextList });
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setFollowLoading(false);
-    }
-  };
-
-  const followButton = (
-    <button
-      type="button"
-      onClick={handleFollowToggle}
-      disabled={followLoading || !shop?.shopVerified}
-      className={`group inline-flex items-center justify-center gap-2 rounded-xl border-2 px-6 py-3 text-sm font-bold transition-all duration-300 ${
-        isFollowing
-          ? 'border-white/60 bg-gradient-to-r from-emerald-500/30 to-teal-500/30 text-white backdrop-blur-md hover:from-emerald-500/40 hover:to-teal-500/40 hover:scale-105 hover:shadow-lg'
-          : 'border-white/60 bg-white/10 text-white backdrop-blur-md hover:bg-white/20 hover:scale-105'
-      } ${(!shop?.shopVerified || followLoading) ? 'opacity-50 cursor-not-allowed hover:scale-100' : ''}`}
-    >
-      <Heart 
-        size={18} 
-        className={`transition-all duration-300 ${isFollowing ? 'fill-white text-white' : ''} ${!followLoading ? 'group-hover:scale-110' : ''}`}
-      />
-      {followLoading ? 'Traitement...' : followLabel}
-    </button>
-  );
-
-  const loadAllComments = async () => {
-    setCommentsLoading(true);
-    setCommentsError('');
-    try {
+  const allCommentsQuery = useQuery({
+    queryKey: ['shop-reviews', shopIdentifier, 'all'],
+    enabled: Boolean(showCommentsModal && shopIdentifier),
+    staleTime: 20 * 1000,
+    queryFn: async () => {
       const { data } = await api.get(`/shops/${shopIdentifier}/reviews`, {
         params: { page: 1, limit: 50 },
         skipCache: true,
         headers: { 'x-skip-cache': '1' }
       });
-      setAllComments(Array.isArray(data.reviews) ? data.reviews : []);
-    } catch (err) {
-      setCommentsError(
-        err.response?.data?.message || err.message || 'Impossible de charger les commentaires.'
-      );
-    } finally {
-      setCommentsLoading(false);
+      return Array.isArray(data?.reviews) ? data.reviews : [];
     }
-  };
+  });
 
-  const openCommentsModal = async () => {
-    setShowCommentsModal(true);
-    await loadAllComments();
-  };
+  const currentUserReview = userReviewQuery.data || null;
 
-  const closeCommentsModal = () => {
-    setShowCommentsModal(false);
-  };
+  useEffect(() => {
+    if (currentUserReview) {
+      setReviewForm({
+        rating: Number(currentUserReview.rating || 0),
+        comment: currentUserReview.comment || ''
+      });
+      setIsEditingReview(!Boolean(currentUserReview.comment?.trim()));
+      return;
+    }
+    setReviewForm({ rating: 0, comment: '' });
+    setIsEditingReview(true);
+  }, [currentUserReview?._id, currentUserReview?.rating, currentUserReview?.comment]);
 
-  const handleReviewSubmit = async (event) => {
+  useEffect(() => {
+    setActiveCategory('all');
+    setPromoOnly(false);
+    setReviewSuccess('');
+    setReviewError('');
+  }, [slug]);
+
+  const categories = useMemo(() => {
+    const seen = new Set();
+    return products.reduce((acc, product) => {
+      const category = String(product?.category || '').trim();
+      if (!category || seen.has(category)) return acc;
+      seen.add(category);
+      acc.push(category);
+      return acc;
+    }, []);
+  }, [products]);
+
+  const filteredProducts = useMemo(() => {
+    const byCategory =
+      activeCategory === 'all'
+        ? products
+        : products.filter((product) => String(product?.category || '').trim() === activeCategory);
+    if (!promoOnly) return byCategory;
+    return byCategory.filter((product) => Boolean(product?.hasActivePromo));
+  }, [activeCategory, promoOnly, products]);
+
+  const topSellingProducts = useMemo(() => {
+    return [...products]
+      .filter((product) => Number(product?.salesCount || 0) > 0)
+      .sort((a, b) => Number(b.salesCount || 0) - Number(a.salesCount || 0))
+      .slice(0, 6);
+  }, [products]);
+
+  const hasPromoProducts = useMemo(() => products.some((product) => Boolean(product?.hasActivePromo)), [products]);
+
+  const isFollowing = useMemo(() => {
+    if (!shop?._id || !Array.isArray(user?.followingShops)) return false;
+    return user.followingShops.some((entry) => String(entry) === String(shop._id));
+  }, [shop?._id, user?.followingShops]);
+  const viewerUserId = user?._id || user?.id || null;
+  const isOwnShop = useMemo(
+    () => Boolean(viewerUserId && shop?._id && String(viewerUserId) === String(shop._id)),
+    [shop?._id, viewerUserId]
+  );
+
+  const followMutation = useMutation({
+    mutationFn: async () => {
+      if (!shop?._id) throw new Error('Boutique introuvable.');
+      if (isFollowing) {
+        const { data } = await api.delete(`/users/shops/${shop._id}/follow`);
+        return data;
+      }
+      const { data } = await api.post(`/users/shops/${shop._id}/follow`);
+      return data;
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['shop-profile', slug] });
+      const previous = queryClient.getQueryData(['shop-profile', slug]);
+      queryClient.setQueryData(['shop-profile', slug], (old) => {
+        if (!old?.shop) return old;
+        const currentFollowers = Number(old.shop.followersCount || 0);
+        const nextFollowers = isFollowing
+          ? Math.max(0, currentFollowers - 1)
+          : currentFollowers + 1;
+        return {
+          ...old,
+          shop: {
+            ...old.shop,
+            followersCount: nextFollowers
+          }
+        };
+      });
+      return { previous };
+    },
+    onError: (err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['shop-profile', slug], context.previous);
+      }
+      showToast(
+        err?.response?.data?.message || err?.message || 'Impossible de suivre cette boutique.',
+        { variant: 'error' }
+      );
+    },
+    onSuccess: (data) => {
+      if (typeof updateUser === 'function' && shop?._id) {
+        const current = Array.isArray(user?.followingShops)
+          ? user.followingShops.map((entry) => String(entry))
+          : [];
+        const next = isFollowing
+          ? current.filter((entry) => entry !== String(shop._id))
+          : Array.from(new Set([...current, String(shop._id)]));
+        updateUser({ followingShops: next });
+      }
+
+      queryClient.setQueryData(['shop-profile', slug], (old) => {
+        if (!old?.shop) return old;
+        return {
+          ...old,
+          shop: {
+            ...old.shop,
+            followersCount: Number(data?.followersCount ?? old.shop.followersCount ?? 0)
+          }
+        };
+      });
+      showToast(data?.message || (isFollowing ? 'Boutique désabonnée.' : 'Boutique suivie.'), {
+        variant: 'success'
+      });
+    }
+  });
+  const followDisabled = followMutation.isPending || !shop?._id || !shop?.shopVerified || isOwnShop;
+
+  const reviewMutation = useMutation({
+    mutationFn: async ({ rating, comment }) => {
+      const { data } = await api.post(`/shops/${shopIdentifier}/reviews`, { rating, comment });
+      return data;
+    },
+    onSuccess: (data) => {
+      setReviewSuccess('Votre avis a été enregistré.');
+      setReviewError('');
+      setIsEditingReview(!Boolean(data?.comment?.trim()));
+      queryClient.setQueryData(['shop-user-review', shopIdentifier, userScopeId], data);
+      queryClient.invalidateQueries({ queryKey: ['shop-profile', slug] });
+      queryClient.invalidateQueries({ queryKey: ['shop-reviews', shopIdentifier] });
+    },
+    onError: (err) => {
+      setReviewSuccess('');
+      setReviewError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Impossible d'enregistrer votre avis pour l'instant."
+      );
+    }
+  });
+
+  const goToMessage = useCallback(() => {
+    if (!user) {
+      navigate('/login', { state: { from: `/shop/${slug}` } });
+      return;
+    }
+    const firstProduct = products[0];
+    if (firstProduct?._id) {
+      navigate('/orders/messages', { state: { inquireProduct: firstProduct } });
+      return;
+    }
+    navigate('/orders/messages');
+  }, [navigate, products, slug, user]);
+
+  const handleDirections = useCallback(() => {
+    const query = shop?.shopAddress || shop?.shopName || 'HDMarket';
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+    if (typeof window !== 'undefined') {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  }, [shop?.shopAddress, shop?.shopName]);
+
+  const handleFollowToggle = useCallback(() => {
+    if (followMutation.isPending) return;
+    if (!shop?._id) {
+      showToast('Chargement de la boutique en cours. Réessayez dans un instant.', { variant: 'info' });
+      shopQuery.refetch();
+      return;
+    }
+    if (!user) {
+      navigate('/login', { state: { from: `/shop/${slug}` } });
+      return;
+    }
+    if (isOwnShop) {
+      showToast('Vous ne pouvez pas suivre votre propre boutique.', { variant: 'info' });
+      return;
+    }
+    if (!shop.shopVerified) {
+      showToast('Seules les boutiques certifiées peuvent être suivies.', { variant: 'info' });
+      return;
+    }
+    followMutation.mutate();
+  }, [followMutation, isOwnShop, navigate, shop?._id, shop?.shopVerified, shopQuery, showToast, slug, user]);
+
+  const handleSubmitReview = (event) => {
     event.preventDefault();
     if (!user) {
       navigate('/login', { state: { from: `/shop/${slug}` } });
       return;
     }
-    const hasRating = Boolean(reviewForm.rating);
-    const hasComment = Boolean(reviewForm.comment?.trim());
-    if (!hasRating && !hasComment) {
+    const rating = Number(reviewForm.rating || 0);
+    const comment = String(reviewForm.comment || '').trim();
+    if (!rating && !comment) {
       setReviewError('Ajoutez une note ou un commentaire pour continuer.');
       return;
     }
-    setReviewSubmitting(true);
-    setReviewError('');
-    setReviewSuccess('');
-    try {
-      const target = shopIdentifier;
-      const previousReview = userReview;
-      const { data } = await api.post(`/shops/${target}/reviews`, reviewForm);
-      setUserReview(data);
-      setReviewForm({ rating: data.rating || 0, comment: data.comment || '' });
-      setIsEditingReview(!Boolean(data.comment?.trim()));
-      setReviewSuccess('Votre avis a bien été enregistré.');
+    reviewMutation.mutate({ rating, comment });
+  };
 
-      const actor = {
-        _id: user?._id || user?.id || data?.user?._id || '',
-        name: user?.name || data?.user?.name || 'Utilisateur',
-        shopName: user?.shopName || data?.user?.shopName || null,
-        shopLogo: user?.shopLogo || data?.user?.shopLogo || null
-      };
-      const normalizedReview = {
-        ...data,
-        user: data?.user?._id ? data.user : actor
-      };
+  const ratingAverage = Number(shop?.ratingAverage || 0);
+  const ratingCount = Number(shop?.ratingCount || 0);
+  const followersCount = Number(shop?.followersCount || 0);
+  const hasActivePromo = Boolean(shop?.hasActivePromo && Number(shop?.activePromoCountNow || 0) > 0);
+  const hasFreeDelivery = Boolean(shop?.freeDeliveryEnabled);
+  const ownCommentExists = Boolean(currentUserReview?.comment?.trim());
+  const showReviewForm = !ownCommentExists || isEditingReview;
 
-      setRecentReviews((prev) => {
-        const list = Array.isArray(prev) ? prev : [];
-        const filtered = list.filter(
-          (item) => String(item?.user?._id || '') !== String(actor._id || '')
-        );
-        return [normalizedReview, ...filtered].sort(
-          (a, b) => new Date(b?.createdAt || b?.updatedAt || 0).getTime() - new Date(a?.createdAt || a?.updatedAt || 0).getTime()
-        );
-      });
-
-      setAllComments((prev) => {
-        if (!Array.isArray(prev) || prev.length === 0) return prev;
-        const filtered = prev.filter(
-          (item) => String(item?.user?._id || '') !== String(actor._id || '')
-        );
-        return [normalizedReview, ...filtered].sort(
-          (a, b) => new Date(b?.createdAt || b?.updatedAt || 0).getTime() - new Date(a?.createdAt || a?.updatedAt || 0).getTime()
-        );
-      });
-
-      setShop((prev) => {
-        if (!prev) return prev;
-        const nextRating = Number(data?.rating || 0);
-        const currentCount = Number(prev.ratingCount || 0);
-        const currentAverage = Number(prev.ratingAverage || 0);
-        const previousRating = Number(previousReview?.rating || 0);
-        const hadPrevious = Number.isFinite(previousRating) && previousRating > 0;
-
-        let nextCount = currentCount;
-        let nextAverage = currentAverage;
-
-        if (hadPrevious && currentCount > 0) {
-          nextAverage = (currentAverage * currentCount - previousRating + nextRating) / currentCount;
-        } else {
-          nextCount = currentCount + 1;
-          nextAverage = nextCount > 0 ? (currentAverage * currentCount + nextRating) / nextCount : nextRating;
-        }
-
-        return {
-          ...prev,
-          ratingAverage: Number.isFinite(nextAverage) ? Number(nextAverage.toFixed(2)) : prev.ratingAverage,
-          ratingCount: nextCount
-        };
-      });
-
-      setReloadKey((prev) => prev + 1);
-    } catch (err) {
-      setReviewError(
-        err.response?.data?.message || err.message || "Impossible d'enregistrer votre avis pour l'instant."
-      );
-    } finally {
-      setReviewSubmitting(false);
+  const stats = [
+    {
+      icon: <Package size={16} className="text-neutral-600" />,
+      label: 'Produits',
+      value: formatCount(shop?.productCount ?? products.length)
+    },
+    {
+      icon: <Star size={16} className="text-amber-500" />,
+      label: 'Note',
+      value: formatRatingLabel(ratingAverage)
+    },
+    {
+      icon: <Users size={16} className="text-sky-600" />,
+      label: 'Abonnés',
+      value: formatCount(followersCount)
     }
-  };
+  ];
 
-  const handleEditReview = (review) => {
-    setIsEditingReview(true);
-    setReviewForm({ rating: review.rating || 0, comment: review.comment || '' });
-    setReviewSuccess('');
-    setReviewError('');
-  };
+  const isOfflineSnapshot = shopQuery.isError && Boolean(shopQuery.data);
+
+  if (shopQuery.isLoading && !shop) {
+    return (
+      <main className="bg-slate-50 pb-24 dark:bg-slate-950">
+        <div className="mx-auto max-w-7xl px-3 py-6 sm:px-5 lg:px-8">
+          <ShopHeaderSkeleton />
+          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="space-y-4">
+              <div className="h-56 animate-pulse rounded-2xl bg-white" />
+              <div className="h-72 animate-pulse rounded-2xl bg-white" />
+            </div>
+            <div className="h-72 animate-pulse rounded-2xl bg-white" />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (shopQuery.isError && !shop) {
+    return (
+      <main className="bg-slate-50 pb-24 dark:bg-slate-950">
+        <div className="mx-auto max-w-4xl px-4 py-10">
+          <div className="rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
+            <p className="text-sm font-semibold text-red-700">
+              {shopQuery.error?.response?.data?.message || shopQuery.error?.message || 'Boutique introuvable.'}
+            </p>
+            <Link to="/" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-neutral-700 hover:text-neutral-900">
+              Retour à l'accueil
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (!shop) {
+    return (
+      <main className="bg-slate-50 pb-24 dark:bg-slate-950">
+        <div className="mx-auto max-w-4xl px-4 py-10">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+              Impossible d'afficher cette boutique pour le moment.
+            </p>
+            <div className="mt-4 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => shopQuery.refetch()}
+                className="inline-flex min-h-11 items-center rounded-xl bg-neutral-600 px-4 text-sm font-semibold text-white transition hover:bg-neutral-700"
+              >
+                Réessayer
+              </button>
+              <Link to="/" className="text-sm font-semibold text-neutral-700 hover:text-neutral-900 dark:text-neutral-300">
+                Retour à l'accueil
+              </Link>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  const phoneLabel = user && shop.phone ? shop.phone : 'Connectez-vous pour afficher le numéro';
 
   return (
-    <main className={`bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 py-4 sm:py-8 ${isMobile ? 'pb-24' : ''}`}>
-      <div className={`mx-auto flex max-w-7xl flex-col text-slate-900 ${isMobile ? 'gap-4 px-3' : 'gap-8 px-4 sm:px-6 lg:px-8'}`}>
-        <section className={`relative overflow-hidden bg-gradient-to-br from-slate-900 via-neutral-900 to-neutral-900 text-white shadow-2xl ${isMobile ? 'rounded-2xl' : 'rounded-[32px]'}`}>
-          {shop.shopBanner && (
-            <div className="absolute inset-0">
+    <main className={`bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 ${isMobile ? 'pb-28' : 'pb-12'}`}>
+      <div className="mx-auto max-w-7xl px-3 py-4 sm:px-5 sm:py-6 lg:px-8">
+        <header className="sticky top-20 z-20 mb-4 rounded-2xl border border-slate-200/80 bg-white/85 px-4 py-3 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/85 sm:top-24 md:top-28">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Boutique</p>
+              <h1 className="truncate text-base font-semibold text-slate-900 dark:text-white sm:text-lg">{shop.shopName}</h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="min-h-11 rounded-xl border border-slate-200 px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                Retour
+              </button>
+              <button
+                type="button"
+                onClick={goToMessage}
+                className="min-h-11 rounded-xl bg-neutral-600 px-4 text-sm font-semibold text-white transition hover:bg-neutral-700"
+              >
+                Message
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {isOfflineSnapshot && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-800">
+            Vous consultez une version hors ligne récente de cette boutique. Les données se mettront à jour dès la reconnexion.
+          </div>
+        )}
+
+        <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-slate-900 text-white shadow-lg">
+          <div className="h-44 w-full sm:h-56 lg:h-64">
+            {shop.shopBanner ? (
               <img
                 src={shop.shopBanner}
                 alt={`Bannière ${shop.shopName}`}
                 className="h-full w-full object-cover"
+                loading="eager"
               />
-              <div className="absolute inset-0 bg-slate-950/70" />
-            </div>
-          )}
-          <div
-            className="absolute inset-0 opacity-20"
-            style={{
-              backgroundImage:
-                'radial-gradient(circle at top right, rgba(255,255,255,0.3), transparent 60%), radial-gradient(circle at 20% 20%, rgba(255,255,255,0.15), transparent 45%)'
-            }}
-          />
-          <div className={`relative z-10 flex flex-col ${isMobile ? 'gap-4 px-4 py-5' : 'gap-8 px-6 py-10 md:px-10 md:py-12'}`}>
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-center gap-4 sm:flex-row sm:items-start sm:gap-5">
-                <div className={`overflow-hidden rounded-xl border border-white/40 bg-white/20 shrink-0 ${isMobile ? 'h-16 w-16' : 'h-24 w-24 rounded-2xl'}`}>
-                  {shop.shopLogo ? (
-                    <img
-                      src={shop.shopLogo}
-                      alt={`Logo ${shop.shopName}`}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-xl font-semibold uppercase tracking-wide text-white/90">
-                      {shop.shopName?.charAt(0) || 'B'}
-                    </div>
-                  )}
-                </div>
-                <div className={`flex-1 min-w-0 space-y-0.5 text-white ${isMobile ? '' : 'text-center sm:text-left'}`}>
-                  <p className={`uppercase tracking-wider text-white/80 ${isMobile ? 'text-[10px]' : 'text-xs tracking-[0.4em]'}`}>Boutique</p>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h1 className={`font-bold leading-tight text-white truncate ${isMobile ? 'text-xl' : 'text-3xl'}`}>{shop.shopName}</h1>
-                    <VerifiedBadge verified={shop.shopVerified} />
-                  </div>
-                  <p className={`text-white/80 truncate ${isMobile ? 'text-xs' : 'text-sm'}`}>Gérée par {shop.ownerName}</p>
-                  {hasActivePromo && (
-                    <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-amber-300/60 bg-amber-400/20 px-3 py-1 text-xs font-semibold text-amber-100 backdrop-blur">
-                      <Sparkles size={14} />
-                      <span>
-                        Boutique en promo ({formatCount(activePromoCountNow)})
-                        {maxPromoPercentNow > 0 ? ` • jusqu'à -${Math.round(maxPromoPercentNow)}%` : ''}
-                        {shop.nextPromoEndingAt ? ` • jusqu’au ${formatDate(shop.nextPromoEndingAt)}` : ''}
-                      </span>
-                    </div>
-                  )}
-                  {hasFreeDelivery && (
-                    <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-emerald-300/60 bg-emerald-400/20 px-3 py-1 text-xs font-semibold text-emerald-100 backdrop-blur">
-                      <MapPin size={14} />
-                      <span>
-                        Livraison gratuite
-                        {shop.freeDeliveryNote ? ` • ${shop.freeDeliveryNote}` : ''}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-              {!isMobile && (
-              <div className="flex flex-col gap-2 text-sm text-white/80">
-                <div className="flex items-center gap-1">
-                  <Clock className="h-4 w-4" />
-                  <span>Créée le {formatDate(shop.createdAt)}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <MapPin className="h-4 w-4" />
-                  <span>{shop.shopAddress || 'Adresse non renseignée'}</span>
-                </div>
-              </div>
-              )}
-            </div>
-            {isMobile && (
-              <div className="flex items-center gap-3 text-white/80 text-xs flex-wrap">
-                <div className="flex items-center gap-1 truncate min-w-0">
-                  <MapPin className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">{shop.shopAddress || 'Adresse non renseignée'}</span>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <Clock className="h-3.5 w-3.5" />
-                  <span>{formatDate(shop.createdAt)}</span>
-                </div>
-              </div>
-            )}
-            <p className={`text-white/80 ${isMobile ? 'text-xs line-clamp-2' : 'max-w-2xl text-sm'}`}>
-              {shop.shopDescription || 'Aucune description publique n’a encore été ajoutée à cette boutique.'}
-            </p>
-            <div className={`grid text-xs uppercase tracking-wider text-white/80 sm:grid-cols-3 ${isMobile ? 'grid-cols-3 gap-2' : 'gap-4 tracking-[0.2em]'}`}>
-              <div className={`rounded-xl border border-white/30 bg-white/5 text-center backdrop-blur ${isMobile ? 'px-2 py-2' : 'rounded-2xl px-4 py-3'}`}>
-                <p className={isMobile ? 'text-[9px]' : 'text-[10px]'}>Prod.</p>
-                <p className={`font-semibold ${isMobile ? 'text-sm mt-0.5' : 'text-lg mt-2'}`}>{formatCount(shop.productCount ?? products.length)}</p>
-              </div>
-              <div className={`rounded-xl border border-white/30 bg-white/5 text-center backdrop-blur ${isMobile ? 'px-2 py-2' : 'rounded-2xl px-4 py-3'}`}>
-                <p className={isMobile ? 'text-[9px]' : 'text-[10px]'}>Avis</p>
-                <p className={`font-semibold ${isMobile ? 'text-sm mt-0.5' : 'text-lg mt-2'}`}>{formatRatingLabel(ratingAverage)}</p>
-              </div>
-              <div className={`rounded-xl border border-white/30 bg-white/5 text-center backdrop-blur ${isMobile ? 'px-2 py-2' : 'rounded-2xl px-4 py-3'}`}>
-                <p className={isMobile ? 'text-[9px]' : 'text-[10px]'}>Abonnés</p>
-                <p className={`font-semibold ${isMobile ? 'text-sm mt-0.5' : 'text-lg mt-2'}`}>{formatCount(followersCount)}</p>
-              </div>
-            </div>
-            <div className={`flex flex-wrap items-center gap-2 justify-center ${isMobile ? 'flex-col' : ''}`}>
-              {callAction}
-              {followButton}
-              {!isMobile && <Link
-                to="/shops/verified"
-                className="inline-flex items-center justify-center rounded-full border border-white/60 bg-white/10 px-5 py-2 text-sm font-semibold text-white transition hover:border-white"
-              >
-                Découvrir d’autres boutiques
-              </Link>
-              }
-            </div>
-          </div>
-        </section>
-
-        {/* Premium Reviews Section */}
-        <section className={`rounded-2xl sm:rounded-3xl border border-gray-200/60 bg-gradient-to-br from-white to-gray-50/50 shadow-xl ${isMobile ? 'p-4' : 'p-8'}`}>
-          <article className={isMobile ? 'space-y-4' : 'space-y-6'}>
-            <div className={`flex items-start justify-between gap-3 ${isMobile ? 'flex-col sm:flex-row' : ''}`}>
-              <div className="flex items-center gap-3 sm:gap-4">
-                <div className={`flex items-center justify-center rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 ${isMobile ? 'h-10 w-10' : 'h-12 w-12'}`}>
-                  <Star size={isMobile ? 20 : 24} className="text-amber-600 fill-amber-600" />
-                </div>
-                <div>
-                  <h3 className={`font-bold text-gray-900 ${isMobile ? 'text-lg' : 'text-2xl'}`}>Avis & Commentaires</h3>
-                  <p className={`text-gray-500 mt-0.5 ${isMobile ? 'text-xs' : 'text-sm mt-1'}`}>
-                    {ratingCount} avis • Note moyenne {formatRatingLabel(ratingAverage)}/5
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={openCommentsModal}
-                className={`inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-100 hover:border-neutral-300 active:scale-95 w-full sm:w-auto justify-center ${isMobile ? 'text-sm py-2.5' : 'text-sm'}`}
-              >
-                <MessageCircle size={16} />
-                Voir tous les commentaires
-              </button>
-            </div>
-            
-            {/* Rating Distribution (if we have reviews) */}
-            {ratingCount > 0 && (
-              <div className={`rounded-2xl border border-gray-200 bg-white ${isMobile ? 'p-4' : 'p-6'}`}>
-                <div className={`flex items-center justify-center gap-3 ${isMobile ? 'mb-3' : 'mb-4'}`}>
-                  <div className="text-center">
-                    <div className={`font-black bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent ${isMobile ? 'text-3xl' : 'text-5xl'}`}>
-                      {formatRatingLabel(ratingAverage)}
-                    </div>
-                    <div className="flex items-center justify-center gap-1 mt-2">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Star
-                          key={star}
-                          size={20}
-                          className={star <= Math.round(ratingAverage) ? 'text-amber-400 fill-amber-400' : 'text-gray-300'}
-                        />
-                      ))}
-                    </div>
-                    <p className="text-sm text-gray-600 mt-2">{formatCount(ratingCount)} avis vérifiés</p>
-                  </div>
-                </div>
-              </div>
-            )}
-            {reviewSuccess && (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 flex items-center gap-3">
-                <CheckCircle size={20} className="text-emerald-600 flex-shrink-0" />
-                <p className="text-sm font-medium text-emerald-800">{reviewSuccess}</p>
-              </div>
-            )}
-            {showReviewForm && (
-              <form className={`space-y-5 rounded-2xl border border-gray-200 bg-white ${isMobile ? 'p-4' : 'p-6'}`} onSubmit={handleReviewSubmit}>
-                <div className="space-y-3">
-                  <label className="text-sm font-bold text-gray-900">Votre note</label>
-                  <div className={`flex items-center gap-2 ${isMobile ? 'flex-wrap' : ''}`}>
-                    {ratingOptions.map((value) => (
-                      <button
-                        type="button"
-                        key={`rating-${value}`}
-                        onClick={() => setReviewForm((prev) => ({ ...prev, rating: value }))}
-                        className={`group flex items-center gap-1.5 rounded-xl border-2 text-sm font-bold transition-all duration-200 ${
-                          isMobile ? 'px-3 py-2' : 'px-4 py-2.5'
-                        } ${
-                          reviewForm.rating === value
-                            ? 'border-amber-500 bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 scale-105 shadow-md'
-                            : 'border-gray-200 bg-white text-gray-600 hover:border-amber-300 hover:bg-amber-50'
-                        }`}
-                      >
-                        <Star 
-                          size={16} 
-                          className={reviewForm.rating === value ? 'text-amber-500 fill-amber-500' : 'text-gray-400'} 
-                        />
-                        <span>{value}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <label className="text-sm font-bold text-gray-900">Votre commentaire</label>
-                  <textarea
-                    value={reviewForm.comment}
-                    onChange={(event) =>
-                      setReviewForm((prev) => ({ ...prev, comment: event.target.value }))
-                    }
-                    rows={4}
-                    className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 transition-all duration-200 focus:border-neutral-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-neutral-100"
-                    placeholder="Partagez votre expérience avec cette boutique..."
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  {reviewError && (
-                    <div className="rounded-xl border border-red-200 bg-red-50 p-3">
-                      <p className="text-xs font-medium text-red-800">{reviewError}</p>
-                    </div>
-                  )}
-                  {!user && (
-                    <p className="text-xs text-gray-600">
-                      <Link to="/login" state={{ from: `/shop/${slug}` }} className="font-semibold text-neutral-600 hover:text-neutral-700">
-                        Connectez-vous
-                      </Link>{' '}
-                      pour laisser un commentaire.
-                    </p>
-                  )}
-                </div>
-                <button
-                  type="submit"
-                  disabled={reviewSubmitting || !user}
-                  className="w-full rounded-xl bg-gradient-to-r from-neutral-600 to-neutral-600 px-6 py-3 text-sm font-bold text-white shadow-lg transition-all duration-200 hover:from-neutral-700 hover:to-neutral-700 hover:shadow-xl hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                >
-                  {reviewSubmitting
-                    ? 'Envoi en cours…'
-                    : userReview
-                      ? 'Mettre à jour mon avis'
-                      : 'Publier mon avis'}
-                </button>
-              </form>
-            )}
-            {!showReviewForm && hasOwnComment && (
-              <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
-                <div className="flex items-center gap-3">
-                  <CheckCircle size={20} className="text-emerald-600" />
-                  <p className="text-sm font-semibold text-emerald-900">Votre commentaire est publié.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsEditingReview(true)}
-                  className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 transition-all duration-200 hover:bg-emerald-100"
-                >
-                  <Edit3 size={14} />
-                  Modifier
-                </button>
-              </div>
-            )}
-            <div className="space-y-4">
-              {recentReviews.length ? (
-                recentReviews.map((review) => {
-                  const isOwnReview =
-                    Boolean(user) &&
-                    Boolean(review.user?._id) &&
-                    String(review.user._id) === String(user?._id || user?.id);
-                  return (
-                    <div
-                      key={review._id}
-                      className="group rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-neutral-200"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3 flex-1">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-neutral-100 to-neutral-100">
-                            <span className="text-sm font-bold text-neutral-600">
-                              {(review.user?.name || review.user?.shopName || 'U').charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <div className="flex items-center gap-1">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                  <Star
-                                    key={star}
-                                    size={14}
-                                    className={star <= review.rating ? 'text-amber-400 fill-amber-400' : 'text-gray-300'}
-                                  />
-                                ))}
-                              </div>
-                              <span className="text-sm font-bold text-gray-900">
-                                {formatRatingLabel(review.rating)}
-                              </span>
-                            </div>
-                            <p className="text-xs font-semibold text-gray-700 mb-1">
-                              {review.user?.name || review.user?.shopName || 'Utilisateur'}
-                            </p>
-                            <p className="text-sm text-gray-600 leading-relaxed">
-                              {review.comment || 'Pas de commentaire fourni.'}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                          <span className="text-xs text-gray-400">{formatDate(review.createdAt)}</span>
-                          {isOwnReview && (
-                            <button
-                              type="button"
-                              onClick={() => handleEditReview(review)}
-                              className="inline-flex items-center justify-center rounded-lg p-2 text-gray-500 transition-all duration-200 hover:bg-gray-100 hover:text-neutral-600"
-                            >
-                              <Edit3 size={14} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-                  <MessageCircle size={32} className="text-gray-400 mx-auto mb-3" />
-                  <p className="text-sm font-medium text-gray-600">Aucun commentaire publié pour le moment.</p>
-                </div>
-              )}
-            </div>
-          </article>
-        </section>
-
-        {/* Premium Hours & Rating Section */}
-        <section className={`grid gap-6 ${isMobile ? '' : 'lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]'}`}>
-          <div className="space-y-6">
-            <article className={`overflow-hidden border border-gray-200/60 bg-gradient-to-br from-white to-gray-50/30 shadow-xl ${isMobile ? 'rounded-2xl' : 'rounded-3xl'}`}>
-              <div className={`flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-gradient-to-r from-neutral-50/50 via-white to-neutral-50/30 ${isMobile ? 'px-4 py-4' : 'px-6 py-5'}`}>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-100">
-                    <Clock className="h-6 w-6 text-neutral-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">Horaires d&apos;ouverture</h3>
-                    <p className="text-xs text-gray-500 mt-0.5">Planification communiquée par la boutique</p>
-                  </div>
-                </div>
-                <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-700 border border-neutral-200">
-                  Données directes
-                </span>
-              </div>
-              {hours.length ? (
-                <div className={`space-y-3 ${isMobile ? 'px-4 py-4' : 'px-6 py-5'}`}>
-                  {hours.map((entry) => {
-                    const dayLabel = DAY_LABELS[entry.day] || entry.day || 'Jour';
-                    const timeLabel = entry.closed
-                      ? 'Fermé'
-                      : entry.open && entry.close
-                        ? `${entry.open} – ${entry.close}`
-                        : 'Horaires partiels';
-                    const isToday = entry.day === todayKey;
-                    return (
-                      <div
-                        key={`${entry.day}-${entry.open}-${entry.close}`}
-                        className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 shadow-sm ${
-                          isToday ? 'border-neutral-200 bg-neutral-50/60' : 'border-slate-100 bg-white'
-                        }`}
-                      >
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold text-slate-900">{dayLabel}</p>
-                            {isToday && (
-                              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-600">
-                                Aujourd&apos;hui
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-slate-500">{timeLabel}</p>
-                        </div>
-                        <span
-                          className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
-                            entry.closed ? 'bg-neutral-100 text-neutral-600' : 'bg-emerald-100 text-emerald-700'
-                          }`}
-                        >
-                          <span
-                            className={`h-2 w-2 rounded-full ${
-                              entry.closed ? 'bg-neutral-500' : 'bg-emerald-500'
-                            }`}
-                          />
-                          {entry.closed ? 'Fermé' : 'Ouvert'}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="px-6 py-5">
-                  <p className="text-sm text-slate-500">Pas encore d’horaire organisé.</p>
-                </div>
-              )}
-            </article>
-
-            <article className={`rounded-2xl sm:rounded-3xl border border-gray-100 bg-white shadow-sm text-center ${isMobile ? 'p-4' : 'p-6'}`}>
-              <p className="text-xs uppercase tracking-[0.3em] text-gray-500">Note moyenne</p>
-              <div className="mt-3 flex items-center justify-center gap-2">
-                <Star className="h-6 w-6 text-yellow-500" />
-                <span className="text-4xl font-bold text-gray-900">{formatRatingLabel(ratingAverage)}</span>
-              </div>
-              <p className="mt-2 text-xs text-gray-500">{formatCount(ratingCount)} avis vérifiés</p>
-            </article>
-          </div>
-        </section>
-
-        {/* Top Selling Products Section */}
-        <section className={`rounded-2xl sm:rounded-3xl border border-gray-200/60 bg-gradient-to-br from-emerald-50/30 via-white to-teal-50/20 shadow-xl ${isMobile ? 'p-4' : 'p-8'}`}>
-            <div className={`flex items-center justify-between gap-4 ${isMobile ? 'mb-4 flex-col sm:flex-row items-start' : 'mb-6'}`}>
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100 shadow-md">
-                  <TrendingUp size={24} className="text-emerald-600" />
-                </div>
-                <div>
-                  <h2 className={`font-bold text-gray-900 ${isMobile ? 'text-lg' : 'text-2xl'}`}>Produits les plus vendus</h2>
-                  <p className={`text-gray-500 mt-0.5 ${isMobile ? 'text-xs' : 'text-sm mt-1'}`}>Les 5 meilleures ventes de cette boutique</p>
-                </div>
-              </div>
-              <div className="hidden sm:flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-100 to-teal-100 px-4 py-2 border border-emerald-200 shadow-sm">
-                <Award size={18} className="text-emerald-600" />
-                <span className="text-xs font-bold text-emerald-700">Top Ventes</span>
-              </div>
-            </div>
-            
-            {topSellingLoading ? (
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="animate-pulse rounded-2xl border border-gray-200 bg-gray-100 aspect-square" />
-                ))}
-              </div>
-            ) : topSellingError && topSellingProducts.length === 0 ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-center gap-3">
-                <X size={20} className="text-red-600 flex-shrink-0" />
-                <p className="text-sm font-medium text-red-800">{topSellingError}</p>
-              </div>
-            ) : topSellingProducts.length > 0 ? (
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
-                {topSellingProducts.map((product, index) => (
-                  <div
-                    key={product._id}
-                    className="group relative overflow-hidden rounded-2xl border-2 border-gray-200 bg-white shadow-sm transition-all duration-300 hover:border-emerald-300 hover:shadow-lg hover:scale-105"
-                  >
-                    {/* Rank Badge */}
-                    <div className="absolute top-2 left-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-lg ring-2 ring-white">
-                      <span className="text-sm font-black">#{index + 1}</span>
-                    </div>
-                    
-                    {/* Product Image */}
-                    <Link
-                      to={buildProductPath(product)}
-                      {...externalLinkProps}
-                      className="block aspect-square overflow-hidden bg-gray-100"
-                    >
-                      <img
-                        src={product.images?.[0] || product.image || '/api/placeholder/200/200'}
-                        alt={product.title}
-                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
-                        loading="lazy"
-                      />
-                    </Link>
-                    
-                    {/* Product Info */}
-                    <div className="p-3 space-y-2">
-                      <Link
-                        to={buildProductPath(product)}
-                        {...externalLinkProps}
-                        className="block"
-                      >
-                        <h3 className="text-xs font-bold text-gray-900 line-clamp-2 group-hover:text-emerald-600 transition-colors">
-                          {product.title}
-                        </h3>
-                      </Link>
-                      
-                      {/* Price */}
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-sm font-black text-gray-900">
-                          {formatCurrency(product.price)}
-                        </span>
-                        {product.priceBeforeDiscount && product.priceBeforeDiscount > product.price && (
-                          <span className="text-[10px] text-gray-400 line-through">
-                            {formatCurrency(product.priceBeforeDiscount)}
-                          </span>
-                        )}
-                      </div>
-                      
-                      {/* Sales Count Badge */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 border border-emerald-200">
-                          <TrendingUp size={10} className="text-emerald-600" />
-                          <span className="text-[10px] font-bold text-emerald-700">
-                            {formatCount(product.salesCount || 0)} vente{product.salesCount > 1 ? 's' : ''}
-                          </span>
-                        </div>
-                        {product.ratingAverage > 0 && (
-                          <div className="flex items-center gap-0.5">
-                            <Star size={10} className="text-amber-400 fill-amber-400" />
-                            <span className="text-[10px] font-semibold text-gray-600">
-                              {Number(product.ratingAverage).toFixed(1)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
             ) : (
-              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-                <TrendingUp size={32} className="text-gray-400 mx-auto mb-3" />
-                <p className="text-sm font-medium text-gray-600">Aucun produit vendu pour le moment.</p>
-              </div>
+              <div className="h-full w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700" />
             )}
-          </section>
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-900/35 to-transparent" />
+          </div>
 
-        {/* Premium Products Section */}
-        <section className={`rounded-2xl sm:rounded-3xl border border-gray-200/60 bg-gradient-to-br from-white to-gray-50/30 shadow-xl ${isMobile ? 'p-4' : 'p-8'}`}>
-          <div className={`flex flex-col gap-4 sm:gap-6 sm:flex-row sm:items-start sm:justify-between ${isMobile ? '' : ''}`}>
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-100">
-                <Package size={24} className="text-neutral-600" />
+          <div className="relative z-10 px-4 pb-5 pt-0 sm:px-6 sm:pb-6">
+            <div className="-mt-11 flex items-start gap-4 sm:-mt-14">
+              <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-4 border-white/80 bg-white shadow-md sm:h-24 sm:w-24">
+                {shop.shopLogo ? (
+                  <img src={shop.shopLogo} alt={`Logo ${shop.shopName}`} className="h-full w-full object-cover" loading="eager" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-slate-100 text-xl font-bold text-slate-600">
+                    {String(shop.shopName || 'B').charAt(0).toUpperCase()}
+                  </div>
+                )}
               </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Produits de la boutique</h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  {filteredProducts.length} produit{filteredProducts.length > 1 ? 's' : ''} disponible{filteredProducts.length > 1 ? 's' : ''}
+
+              <div className="min-w-0 flex-1 pt-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="truncate text-xl font-bold sm:text-2xl">{shop.shopName}</h2>
+                  <VerifiedBadge verified={shop.shopVerified} />
+                </div>
+                <p className="mt-1 text-sm text-white/85">Gérée par {shop.ownerName}</p>
+                <p className="mt-2 line-clamp-2 text-sm text-white/80 sm:line-clamp-3">
+                  {shop.shopDescription || 'Cette boutique n\'a pas encore ajouté de description publique.'}
                 </p>
               </div>
             </div>
-            {(categories.length > 0 || hasActivePromo) && (
-              <div className={`flex items-center gap-2 ${isMobile ? 'overflow-x-auto pb-2 -mx-1 hide-scrollbar flex-nowrap' : 'flex-wrap'}`}>
+
+            <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+              {stats.map((item) => (
+                <div key={item.label} className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 backdrop-blur">
+                  <div className="flex items-center gap-1 text-[11px] text-white/80">
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </div>
+                  <p className="mt-1 text-lg font-semibold leading-none">{item.value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {hasActivePromo && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-300/20 px-3 py-1 text-xs font-semibold text-amber-100">
+                  <Sparkles size={14} />
+                  {formatCount(shop.activePromoCountNow)} promo(s) active(s)
+                  {Number(shop.maxPromoPercentNow || 0) > 0 ? ` · jusqu'à -${Math.round(shop.maxPromoPercentNow)}%` : ''}
+                </span>
+              )}
+              {hasFreeDelivery ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/70 bg-emerald-300/20 px-3 py-1 text-xs font-semibold text-emerald-100">
+                  <MapPin size={13} />
+                  Livraison gratuite
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full border border-sky-300/70 bg-sky-300/20 px-3 py-1 text-xs font-semibold text-sky-100">
+                  <Store size={13} />
+                  Retrait en boutique
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-semibold text-white/90">
+                <Calendar size={13} />
+                Depuis {formatDate(shop.createdAt)}
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="space-y-6">
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 lg:hidden">
+              <div className="space-y-3">
+                <OpeningHoursCard hours={shop.shopHours} />
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" aria-label="Actions boutique">
+              <div className="grid gap-2 sm:grid-cols-2">
+                {user && shop.phone ? (
+                  <a
+                    href={`tel:${shop.phone}`}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                    aria-label="Appeler la boutique"
+                  >
+                    <Phone size={16} />
+                    Appeler
+                  </a>
+                ) : (
+                  <Link
+                    to="/login"
+                    state={{ from: `/shop/${slug}` }}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                    aria-label="Se connecter pour appeler"
+                  >
+                    <Phone size={16} />
+                    Appeler
+                  </Link>
+                )}
+
+                <button
+                  type="button"
+                  onClick={goToMessage}
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-neutral-600 px-4 text-sm font-semibold text-white transition hover:bg-neutral-700 active:scale-[0.99]"
+                  aria-label="Envoyer un message à la boutique"
+                >
+                  <MessageCircle size={16} />
+                  Message
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDirections}
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  aria-label="Ouvrir l'itinéraire"
+                >
+                  <Navigation size={16} />
+                  Itinéraire
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleFollowToggle}
+                  disabled={followDisabled}
+                  className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition ${
+                    isFollowing
+                      ? 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100'
+                      : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                  } ${followDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  aria-label="Suivre la boutique"
+                >
+                  <Heart size={16} className={isFollowing ? 'fill-current' : ''} />
+                  {followMutation.isPending ? '...' : isOwnShop ? 'Votre boutique' : isFollowing ? 'Boutique suivie' : 'Suivre'}
+                </button>
+              </div>
+
+              <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                <p className="font-semibold text-slate-700">Confiance & service</p>
+                <div className="mt-1 flex flex-wrap gap-3">
+                  <span className="inline-flex items-center gap-1"><ShieldCheck size={13} /> Paiement sécurisé</span>
+                  <span className="inline-flex items-center gap-1"><CheckCircle size={13} /> Boutique vérifiée</span>
+                  <span className="inline-flex items-center gap-1"><Clock size={13} /> Réponse en journée</span>
+                </div>
+              </div>
+            </section>
+
+            <section ref={productsRef} id="products" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" aria-label="Produits de la boutique">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-xl font-semibold text-slate-900">Produits</h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {formatCount(filteredProducts.length)} produit{filteredProducts.length > 1 ? 's' : ''} visible{filteredProducts.length > 1 ? 's' : ''}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const node = document.getElementById('reviews');
+                    if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                >
+                  Aller aux avis
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+
+              <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveCategory('all')}
+                  className={`whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold transition ${
+                    activeCategory === 'all'
+                      ? 'bg-neutral-600 text-white'
+                      : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  Tous
+                </button>
                 {hasActivePromo && (
                   <button
                     type="button"
                     onClick={() => setPromoOnly((prev) => !prev)}
-                    disabled={!hasPromoProductsInList}
-                    className={`inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-xs font-bold transition-all duration-200 shrink-0 ${
+                    disabled={!hasPromoProducts}
+                    className={`whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold transition ${
                       promoOnly
-                        ? 'border-amber-500 bg-amber-50 text-amber-700 shadow-md'
-                        : 'border-amber-200 bg-white text-amber-700 hover:border-amber-300 hover:bg-amber-50'
-                    } ${!hasPromoProductsInList ? 'opacity-50 cursor-not-allowed hover:bg-white hover:border-amber-200' : ''}`}
-                    title={hasPromoProductsInList ? 'Afficher les produits en promo' : 'Aucun produit promo sur cette page'}
+                        ? 'bg-amber-500 text-white'
+                        : 'border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                    } ${!hasPromoProducts ? 'cursor-not-allowed opacity-50' : ''}`}
                   >
-                    <Sparkles size={14} />
-                    {promoOnly ? 'Toutes les offres' : 'Voir les promos de cette boutique'}
+                    Promos
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={() => setActiveCategory('all')}
-                  className={`inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-xs font-bold transition-all duration-200 shrink-0 ${
-                    activeCategory === 'all'
-                      ? 'border-neutral-500 bg-gradient-to-r from-neutral-50 to-neutral-50 text-neutral-700 shadow-md scale-105'
-                      : 'border-gray-200 bg-white text-gray-600 hover:border-neutral-300 hover:bg-neutral-50'
-                  }`}
-                >
-                  <Grid3x3 size={14} />
-                  Tous
-                </button>
                 {categories.map((category) => (
                   <button
                     key={category}
                     type="button"
                     onClick={() => setActiveCategory(category)}
-                    className={`inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-xs font-bold transition-all duration-200 shrink-0 ${
+                    className={`whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold transition ${
                       activeCategory === category
-                        ? 'border-neutral-500 bg-gradient-to-r from-neutral-50 to-neutral-50 text-neutral-700 shadow-md scale-105'
-                        : 'border-gray-200 bg-white text-gray-600 hover:border-neutral-300 hover:bg-neutral-50'
+                        ? 'bg-neutral-600 text-white'
+                        : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     }`}
                   >
                     {category}
                   </button>
                 ))}
               </div>
-            )}
-          </div>
-          {filteredProducts.length ? (
-            <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
-              {filteredProducts.map((product) => (
-                <ProductCard key={product._id} p={product} hideMobileDiscountBadge />
-              ))}
-            </div>
-          ) : (
-            <div className="mt-6 rounded-2xl border border-dashed border-gray-300 bg-slate-50 px-6 py-12 text-center">
-              <p className="text-lg font-semibold text-gray-700">
-                {promoOnly
-                  ? 'Aucun produit promo visible pour ce filtre.'
-                  : categories.length && activeCategory !== 'all'
-                  ? `Aucun produit dans la catégorie ${activeCategory}.`
-                  : 'Aucun produit publié pour le moment.'}
-              </p>
-              <Link
-                to="/"
-                className="mt-4 inline-flex items-center justify-center rounded-full bg-neutral-600 px-6 py-2 text-sm font-semibold text-white transition hover:bg-neutral-700"
-              >
-                Retour à l’accueil
-              </Link>
-            </div>
-          )}
-        </section>
-        {/* Premium Comments Modal */}
-        {/* Mobile sticky action bar */}
-        {isMobile && shop && (
-          <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center gap-2 bg-white/95 backdrop-blur-lg border-t border-gray-200 px-4 py-3 safe-area-pb">
-            <div className="flex-1 flex gap-2">
-              {user && shop.phone ? (
-                <a
-                  href={`tel:${shop.phone}`}
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white transition active:scale-95"
-                >
-                  <Phone size={18} />
-                  Appeler
-                </a>
-              ) : (
-                <Link
-                  to="/login"
-                  state={{ from: `/shop/${slug}` }}
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border-2 border-neutral-200 bg-neutral-50 px-4 py-3 text-sm font-bold text-neutral-700 transition active:scale-95"
-                >
-                  <Phone size={18} />
-                  Appeler
-                </Link>
-              )}
-              <button
-                type="button"
-                onClick={handleFollowToggle}
-                disabled={followLoading || !shop?.shopVerified}
-                className={`flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition active:scale-95 ${
-                  isFollowing
-                    ? 'border-2 border-emerald-300 bg-emerald-50 text-emerald-700'
-                    : 'border-2 border-neutral-200 bg-neutral-50 text-neutral-700'
-                } ${(!shop?.shopVerified || followLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <Heart size={18} className={isFollowing ? 'fill-current' : ''} />
-                {followLoading ? '...' : (isFollowing ? 'Suivie' : 'Suivre')}
-              </button>
-            </div>
-          </div>
-        )}
 
-        {showCommentsModal && (
-          <div className={`fixed inset-0 z-50 flex bg-black/60 backdrop-blur-sm ${isMobile ? 'items-end justify-center' : 'items-center justify-center px-4 py-8'}`} onClick={(e) => e.target === e.currentTarget && closeCommentsModal()}>
-            <div className={`relative w-full border border-gray-200 bg-white shadow-2xl flex flex-col ${isMobile ? 'max-h-[90vh] rounded-t-3xl max-w-full' : 'max-w-4xl max-h-[90vh] rounded-3xl'}`} onClick={(e) => e.stopPropagation()}>
-              <div className={`sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-gray-200 bg-white rounded-t-3xl ${isMobile ? 'px-4 py-4' : 'px-6 py-5'}`}>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-100 to-orange-100">
-                    <MessageCircle size={20} className="text-amber-600" />
+              <div className="mt-4">
+                {!productsInView && <ProductsSkeleton />}
+                {productsInView && filteredProducts.length > 0 && (
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3">
+                    {filteredProducts.map((product) => (
+                      <ProductCard key={product._id} p={product} hideMobileDiscountBadge />
+                    ))}
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900">Tous les commentaires</h3>
-                    <p className="text-xs text-gray-500 mt-0.5">{allComments.length} commentaire{allComments.length > 1 ? 's' : ''}</p>
+                )}
+                {productsInView && filteredProducts.length === 0 && (
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center">
+                    <p className="text-sm font-medium text-slate-700">
+                      {promoOnly
+                        ? 'Aucun produit en promo dans ce filtre.'
+                        : activeCategory !== 'all'
+                          ? `Aucun produit dans la catégorie ${activeCategory}.`
+                          : 'Aucun produit publié pour le moment.'}
+                    </p>
                   </div>
+                )}
+              </div>
+
+              {topSellingProducts.length > 0 && (
+                <div className="mt-6 border-t border-slate-100 pt-4">
+                  <p className="mb-3 text-sm font-semibold text-slate-800">Produits populaires</p>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3">
+                    {topSellingProducts.map((product) => (
+                      <Link
+                        key={`top-${product._id}`}
+                        to={buildProductPath(product)}
+                        {...externalLinkProps}
+                        className="group rounded-xl border border-slate-200 bg-white p-2 transition hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-sm"
+                      >
+                        <div className="aspect-[1.2] overflow-hidden rounded-lg bg-slate-100">
+                          <img
+                            src={product.images?.[0] || product.image || ''}
+                            alt={product.title}
+                            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                            loading="lazy"
+                          />
+                        </div>
+                        <p className="mt-2 line-clamp-2 text-xs font-medium text-slate-800">{product.title}</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-900">{formatCurrency(product.price)}</p>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" aria-label="Informations boutique">
+              <h3 className="text-lg font-semibold text-slate-900">Informations</h3>
+              <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Adresse</dt>
+                  <dd className="mt-1 flex items-start gap-2 text-sm text-slate-700">
+                    <MapPin size={15} className="mt-0.5 shrink-0 text-slate-500" />
+                    <span>{shop.shopAddress || 'Adresse non renseignée'}</span>
+                  </dd>
+                </div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Téléphone</dt>
+                  <dd className="mt-1 flex items-start gap-2 text-sm text-slate-700">
+                    <Phone size={15} className="mt-0.5 shrink-0 text-slate-500" />
+                    <span>{phoneLabel}</span>
+                  </dd>
+                </div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Création</dt>
+                  <dd className="mt-1 flex items-start gap-2 text-sm text-slate-700">
+                    <Calendar size={15} className="mt-0.5 shrink-0 text-slate-500" />
+                    <span>{formatDate(shop.createdAt)}</span>
+                  </dd>
+                </div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Profil</dt>
+                  <dd className="mt-1 flex items-start gap-2 text-sm text-slate-700">
+                    <ShieldCheck size={15} className="mt-0.5 shrink-0 text-slate-500" />
+                    <span>{shop.shopVerified ? 'Boutique vérifiée' : 'Vérification en attente'}</span>
+                  </dd>
+                </div>
+              </dl>
+            </section>
+
+            <section ref={reviewsRef} id="reviews" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" aria-label="Avis boutique">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-xl font-semibold text-slate-900">Avis clients</h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {formatCount(ratingCount)} avis · note {formatRatingLabel(ratingAverage)}/5
+                  </p>
                 </div>
                 <button
                   type="button"
-                  onClick={closeCommentsModal}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition-all duration-200 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700"
-                  aria-label="Fermer"
+                  onClick={() => setShowCommentsModal(true)}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                 >
-                  <X size={20} />
+                  Voir tout
+                  <ExternalLink size={14} />
                 </button>
               </div>
-              <div className={`flex-1 overflow-y-auto space-y-4 ${isMobile ? 'px-4 py-4' : 'px-6 py-6'}`}>
-                {commentsLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
-                      <p className="text-sm font-medium text-gray-600">Chargement des commentaires…</p>
-                    </div>
-                  </div>
-                ) : commentsError ? (
-                  <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-center gap-3">
-                    <X size={20} className="text-red-600 flex-shrink-0" />
-                    <p className="text-sm font-medium text-red-800">{commentsError}</p>
-                  </div>
-                ) : !allComments.length ? (
-                  <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-                    <MessageCircle size={48} className="text-gray-400 mx-auto mb-4" />
-                    <p className="text-sm font-medium text-gray-600">Aucun commentaire pour cette boutique.</p>
-                  </div>
-                ) : (
-                  allComments.map((review) => (
-                    <div
-                      key={`modal-${review._id}`}
-                      className="group rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-neutral-200"
-                    >
-                      <div className="flex items-start gap-4">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-neutral-100 to-neutral-100 flex-shrink-0">
-                          <span className="text-base font-bold text-neutral-600">
-                            {(review.user?.name || review.user?.shopName || 'U').charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-3 mb-2">
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-bold text-gray-900">
-                                {review.user?.name || review.user?.shopName || 'Utilisateur'}
-                              </p>
-                              <div className="flex items-center gap-1">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                  <Star
-                                    key={star}
-                                    size={14}
-                                    className={star <= review.rating ? 'text-amber-400 fill-amber-400' : 'text-gray-300'}
-                                  />
-                                ))}
-                              </div>
-                              <span className="text-xs font-semibold text-gray-600">
-                                {formatRatingLabel(review.rating)}
-                              </span>
-                            </div>
-                            <span className="text-xs text-gray-400 whitespace-nowrap">{formatDate(review.createdAt)}</span>
-                          </div>
-                          <p className="text-sm text-gray-700 leading-relaxed">{review.comment || 'Pas de commentaire.'}</p>
-                        </div>
+
+              {!reviewsInView && (
+                <div className="mt-4 space-y-3">
+                  {[1, 2].map((item) => (
+                    <div key={item} className="h-20 animate-pulse rounded-xl bg-slate-100" />
+                  ))}
+                </div>
+              )}
+
+              {reviewsInView && (
+                <>
+                  {reviewSuccess && (
+                    <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
+                      {reviewSuccess}
+                    </p>
+                  )}
+
+                  {showReviewForm && (
+                    <form onSubmit={handleSubmitReview} className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <label className="text-sm font-semibold text-slate-800">Votre note</label>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {[5, 4, 3, 2, 1].map((value) => (
+                          <button
+                            key={`rate-${value}`}
+                            type="button"
+                            onClick={() => setReviewForm((prev) => ({ ...prev, rating: value }))}
+                            className={`inline-flex min-h-10 items-center gap-1 rounded-lg px-3 text-sm font-semibold transition ${
+                              Number(reviewForm.rating) === value
+                                ? 'bg-amber-500 text-white'
+                                : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            <Star size={14} className={Number(reviewForm.rating) === value ? 'fill-current' : ''} />
+                            {value}
+                          </button>
+                        ))}
                       </div>
+
+                      <label className="mt-3 block text-sm font-semibold text-slate-800">Commentaire</label>
+                      <textarea
+                        value={reviewForm.comment}
+                        onChange={(event) =>
+                          setReviewForm((prev) => ({ ...prev, comment: event.target.value }))
+                        }
+                        rows={4}
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-100"
+                        placeholder="Partagez votre expérience..."
+                      />
+
+                      {reviewError && (
+                        <p className="mt-2 text-xs font-medium text-red-600">{reviewError}</p>
+                      )}
+
+                      <button
+                        type="submit"
+                        disabled={reviewMutation.isPending || !user}
+                        className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-neutral-600 px-4 text-sm font-semibold text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {reviewMutation.isPending
+                          ? 'Envoi...'
+                          : currentUserReview
+                            ? 'Mettre à jour mon avis'
+                            : 'Publier mon avis'}
+                      </button>
+                    </form>
+                  )}
+
+                  {!showReviewForm && ownCommentExists && (
+                    <div className="mt-4 flex items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                      <p className="text-sm font-medium text-emerald-700">Votre avis est publié.</p>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingReview(true)}
+                        className="rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                      >
+                        Modifier
+                      </button>
                     </div>
-                  ))
-                )}
+                  )}
+
+                  <div className="mt-4 space-y-3">
+                    {recentReviews.length > 0 ? (
+                      recentReviews.map((review) => {
+                        const isOwn =
+                          Boolean(userScopeId) &&
+                          Boolean(review?.user?._id) &&
+                          String(review.user._id) === String(userScopeId);
+                        return (
+                          <article
+                            key={review._id}
+                            className="rounded-xl border border-slate-200 bg-white p-3 transition hover:border-slate-300 hover:shadow-sm"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-slate-900">
+                                  {review.user?.name || review.user?.shopName || 'Utilisateur'}
+                                </p>
+                                <div className="mt-1 flex items-center gap-1 text-amber-500">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <Star key={`${review._id}-s-${star}`} size={13} className={star <= Number(review.rating || 0) ? 'fill-current' : ''} />
+                                  ))}
+                                </div>
+                                <p className="mt-2 text-sm text-slate-700">{review.comment || 'Pas de commentaire.'}</p>
+                                <p className="mt-2 text-xs text-slate-500">{formatDate(review.createdAt)}</p>
+                              </div>
+                              {isOwn && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsEditingReview(true);
+                                    setReviewForm({
+                                      rating: Number(review.rating || 0),
+                                      comment: review.comment || ''
+                                    });
+                                  }}
+                                  className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                                >
+                                  Modifier
+                                </button>
+                              )}
+                            </div>
+                          </article>
+                        );
+                      })
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-600">
+                        Aucun avis publié pour le moment.
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </section>
+          </div>
+
+          <aside className="hidden lg:block">
+            <div className="sticky top-28 space-y-4">
+              <OpeningHoursCard hours={shop.shopHours} />
+
+              <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Contact boutique">
+                <h3 className="text-base font-semibold text-slate-900">Contacter la boutique</h3>
+                <p className="mt-1 text-xs text-slate-500">Actions rapides pour convertir plus vite.</p>
+
+                <div className="mt-3 grid gap-2">
+                  <button
+                    type="button"
+                    onClick={goToMessage}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-neutral-600 px-4 text-sm font-semibold text-white transition hover:bg-neutral-700"
+                  >
+                    <MessageCircle size={16} />
+                    Message boutique
+                  </button>
+
+                  {user && shop.phone ? (
+                    <a
+                      href={`tel:${shop.phone}`}
+                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                    >
+                      <Phone size={16} />
+                      Appeler
+                    </a>
+                  ) : (
+                    <Link
+                      to="/login"
+                      state={{ from: `/shop/${slug}` }}
+                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                    >
+                      <Phone size={16} />
+                      Connectez-vous pour appeler
+                    </Link>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleDirections}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    <Navigation size={16} />
+                    Itinéraire
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleFollowToggle}
+                    disabled={followDisabled}
+                    className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition ${
+                      isFollowing
+                        ? 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100'
+                        : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                    } ${followDisabled ? 'cursor-not-allowed opacity-60' : ''}`}
+                  >
+                    <Heart size={16} className={isFollowing ? 'fill-current' : ''} />
+                    {followMutation.isPending ? '...' : isOwnShop ? 'Votre boutique' : isFollowing ? 'Boutique suivie' : 'Suivre'}
+                  </button>
+                </div>
+
+                <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Confiance</p>
+                  <div className="mt-2 space-y-2 text-xs text-slate-700">
+                    <p className="flex items-center gap-2"><ShieldCheck size={13} /> Paiement sécurisé</p>
+                    <p className="flex items-center gap-2"><CheckCircle size={13} /> {shop.shopVerified ? 'Boutique vérifiée' : 'Vérification en cours'}</p>
+                    <p className="flex items-center gap-2"><Sparkles size={13} /> {hasFreeDelivery ? 'Livraison gratuite active' : 'Retrait en boutique possible'}</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      {isMobile && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-3 backdrop-blur-xl safe-area-pb">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={goToMessage}
+              className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-neutral-600 text-sm font-semibold text-white"
+            >
+              <MessageCircle size={16} />
+              Message
+            </button>
+            {user && shop.phone ? (
+              <a
+                href={`tel:${shop.phone}`}
+                className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 text-sm font-semibold text-emerald-700"
+              >
+                <Phone size={16} />
+                Appeler
+              </a>
+            ) : (
+              <Link
+                to="/login"
+                state={{ from: `/shop/${slug}` }}
+                className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700"
+              >
+                <Phone size={16} />
+                Appeler
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!isMobile && (
+        <button
+          type="button"
+          onClick={goToMessage}
+          className="fixed bottom-6 right-6 z-40 inline-flex min-h-12 items-center gap-2 rounded-full bg-neutral-600 px-5 text-sm font-semibold text-white shadow-lg transition hover:bg-neutral-700"
+          aria-label="Message boutique"
+        >
+          <MessageCircle size={16} />
+          Message Shop
+        </button>
+      )}
+
+      {showCommentsModal && (
+        <div
+          className={`fixed inset-0 z-50 flex bg-black/60 backdrop-blur-sm ${isMobile ? 'items-end' : 'items-center justify-center px-4 py-8'}`}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowCommentsModal(false);
+            }
+          }}
+        >
+          <div
+            className={`w-full overflow-hidden border border-slate-200 bg-white shadow-2xl ${
+              isMobile ? 'max-h-[90vh] rounded-t-3xl' : 'max-h-[88vh] max-w-4xl rounded-3xl'
+            }`}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 sm:px-6">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">Tous les commentaires</h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  {formatCount(allCommentsQuery.data?.length || 0)} commentaire{(allCommentsQuery.data?.length || 0) > 1 ? 's' : ''}
+                </p>
               </div>
+              <button
+                type="button"
+                onClick={() => setShowCommentsModal(false)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-100"
+                aria-label="Fermer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="max-h-[70vh] overflow-y-auto px-4 py-4 sm:px-6">
+              {allCommentsQuery.isLoading && (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((item) => (
+                    <div key={item} className="h-20 animate-pulse rounded-xl bg-slate-100" />
+                  ))}
+                </div>
+              )}
+
+              {allCommentsQuery.isError && (
+                <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+                  {allCommentsQuery.error?.response?.data?.message || 'Impossible de charger les commentaires.'}
+                </p>
+              )}
+
+              {!allCommentsQuery.isLoading && !allCommentsQuery.isError && (allCommentsQuery.data?.length || 0) === 0 && (
+                <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-10 text-center text-sm text-slate-600">
+                  Aucun commentaire pour cette boutique.
+                </p>
+              )}
+
+              {!allCommentsQuery.isLoading && !allCommentsQuery.isError && (allCommentsQuery.data?.length || 0) > 0 && (
+                <div className="space-y-3">
+                  {allCommentsQuery.data.map((review) => (
+                    <article key={`full-${review._id}`} className="rounded-xl border border-slate-200 bg-white p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            {review.user?.name || review.user?.shopName || 'Utilisateur'}
+                          </p>
+                          <div className="mt-1 flex items-center gap-1 text-amber-500">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star key={`${review._id}-full-${star}`} size={12} className={star <= Number(review.rating || 0) ? 'fill-current' : ''} />
+                            ))}
+                          </div>
+                        </div>
+                        <span className="text-xs text-slate-500">{formatDate(review.createdAt)}</span>
+                      </div>
+                      <p className="mt-2 text-sm text-slate-700">{review.comment || 'Pas de commentaire.'}</p>
+                    </article>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </main>
   );
 }

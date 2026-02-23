@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Heart, Star, Eye, ShoppingCart, MessageCircle, Zap, Clock, ShieldCheck, TrendingUp, Award, ChevronLeft, ChevronRight, Package } from 'lucide-react';
+import { Heart, Star, Eye, ShoppingCart, MessageCircle, Zap, Clock, ShieldCheck, TrendingUp, Award, ChevronLeft, ChevronRight, Package, MapPin, Boxes } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import CartContext from '../context/CartContext';
 import FavoriteContext from '../context/FavoriteContext';
@@ -228,6 +228,23 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
     const now = new Date();
     return now >= start && now <= end;
   }, [p]);
+  const wholesaleEnabled = useMemo(() => {
+    if (!p?.wholesaleEnabled) return false;
+    if (!Array.isArray(p?.wholesaleTiers)) return false;
+    return p.wholesaleTiers.some((tier) => Number(tier?.minQty || 0) > 0);
+  }, [p?.wholesaleEnabled, p?.wholesaleTiers]);
+  const wholesaleMinQty = useMemo(() => {
+    if (!wholesaleEnabled) return null;
+    const tiers = Array.isArray(p?.wholesaleTiers) ? p.wholesaleTiers : [];
+    if (!tiers.length) return null;
+    const minTierQty = tiers.reduce((min, tier) => {
+      const qty = Number(tier?.minQty || 0);
+      if (!Number.isFinite(qty) || qty <= 0) return min;
+      if (min == null) return qty;
+      return qty < min ? qty : min;
+    }, null);
+    return Number.isFinite(minTierQty) && minTierQty > 0 ? minTierQty : null;
+  }, [p?.wholesaleTiers, wholesaleEnabled]);
   const pickupOnly = p?.deliveryAvailable === false && p?.pickupAvailable !== false;
   const freeDeliveryAvailable = Boolean(
     (p?.deliveryAvailable !== false && (p?.user?.freeDeliveryEnabled || p?.shopFreeDeliveryEnabled)) ||
@@ -244,6 +261,7 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
   const commentCount = p.commentCount || 0;
   const isShopVerified = Boolean(p.user?.shopVerified ?? p.shopVerified);
   const shopLogoSrc = p.user?.shopLogo || p.shopLogo || null;
+  const productCity = useMemo(() => String(p?.user?.city || p?.city || '').trim(), [p?.user?.city, p?.city]);
 
   // Calcul de la date de publication
   const { publishedLabel, daysSince, isNew } = useMemo(() => {
@@ -558,6 +576,12 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
               Paiement en tranche
             </div>
           )}
+          {wholesaleEnabled && (
+            <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-emerald-700 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
+              <Boxes className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
+              Vente en gros{wholesaleMinQty ? ` dès ${wholesaleMinQty}` : ''}
+            </div>
+          )}
           {pickupOnly && (
             <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-slate-700 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
               <Package className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
@@ -666,9 +690,22 @@ export default function ProductCard({ p, hideMobileDiscountBadge = false, produc
           )}
         </div>
 
+        {productCity && (
+          <div className="inline-flex w-fit max-w-full items-center gap-1 rounded-full border border-neutral-200 bg-white px-2 py-0.5 text-[9px] font-semibold text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+            <MapPin className="h-2.5 w-2.5 shrink-0" />
+            <span className="truncate">{productCity}</span>
+          </div>
+        )}
+
         {installmentAvailable && (
           <div className="inline-flex w-fit items-center gap-1 rounded-full border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 text-[9px] font-semibold text-neutral-700 dark:text-neutral-200">
             Paiement en plusieurs fois disponible
+          </div>
+        )}
+        {wholesaleEnabled && (
+          <div className="inline-flex w-fit items-center gap-1 rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 text-[9px] font-semibold text-emerald-700 dark:text-emerald-300">
+            <Boxes className="h-2.5 w-2.5" />
+            Vente en gros disponible{wholesaleMinQty ? ` dès ${wholesaleMinQty} pièces` : ''}
           </div>
         )}
         {pickupOnly && (

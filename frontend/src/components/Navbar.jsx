@@ -1,11 +1,13 @@
 import React, { useContext, useState, useEffect, useCallback, useRef } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { io } from "socket.io-client";
 import AuthContext from "../context/AuthContext";
 import CartContext from "../context/CartContext";
 import FavoriteContext from "../context/FavoriteContext";
 import useAdminCounts from "../hooks/useAdminCounts";
 import useUserNotifications, { triggerNotificationsRefresh } from "../hooks/useUserNotifications";
 import api from "../services/api";
+import storage from "../utils/storage";
 import { buildProductPath, buildShopPath } from "../utils/links";
 import { getCachedSearch, setCachedSearch } from "../utils/searchCache.js";
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
@@ -195,6 +197,7 @@ export default function Navbar() {
   const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
   const shopMenuCloseRef = useRef(null);
   const categoryMenuCloseRef = useRef(null);
+  const orderUnreadSocketRef = useRef(null);
   const [isMobileLayout, setIsMobileLayout] = useState(() =>
     typeof window === 'undefined' ? false : window.innerWidth < 1024
   );
@@ -331,7 +334,10 @@ export default function Navbar() {
 
     const fetchUnreadOrderMessages = async () => {
       try {
-        const { data } = await api.get('/orders/messages/unread');
+        const { data } = await api.get('/orders/messages/unread', {
+          skipCache: true,
+          headers: { 'x-skip-cache': '1' }
+        });
         if (!cancelled) {
           setUnreadOrderMessages(data?.unreadCount || 0);
         }
@@ -350,6 +356,55 @@ export default function Navbar() {
       if (intervalId) clearInterval(intervalId);
     };
   }, [user]);
+
+  useEffect(() => {
+    if (!user?._id) {
+      if (orderUnreadSocketRef.current) {
+        orderUnreadSocketRef.current.disconnect();
+        orderUnreadSocketRef.current = null;
+      }
+      return () => {};
+    }
+
+    let cancelled = false;
+    let mountedSocket = null;
+
+    const initSocket = async () => {
+      const token = await storage.get('qm_token');
+      if (!token || cancelled) return;
+      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+      const origin = apiBase.replace(/\/api\/?$/, '');
+      const socket = io(origin, {
+        auth: { token },
+        transports: ['websocket', 'polling'],
+        reconnectionAttempts: 20,
+        reconnectionDelay: 800
+      });
+      mountedSocket = socket;
+      if (cancelled) {
+        socket.disconnect();
+        return;
+      }
+      orderUnreadSocketRef.current = socket;
+
+      socket.on('orders:unread:update', (payload) => {
+        if (String(payload?.userId || '') !== String(user?._id)) return;
+        setUnreadOrderMessages(Number(payload?.totalUnread || 0));
+      });
+    };
+
+    initSocket();
+
+    return () => {
+      cancelled = true;
+      if (mountedSocket) {
+        mountedSocket.disconnect();
+      }
+      if (orderUnreadSocketRef.current === mountedSocket) {
+        orderUnreadSocketRef.current = null;
+      }
+    };
+  }, [user?._id]);
 
   const clearShopMenuTimeout = useCallback(() => {
     if (shopMenuCloseRef.current) {

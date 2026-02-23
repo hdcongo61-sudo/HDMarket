@@ -29,6 +29,7 @@ const STORAGE_KEYS_TO_REMOVE = ['userDashboard_savedFilters'];
 
 const CHAT_KEY_PREFIX = 'hdmarket_chat_key_';
 const API_CACHE_KEY_PREFIX = 'hdmarket:api-cache:';
+const SHOP_SNAPSHOT_KEY_PREFIX = 'hdmarket:shop-snapshot:';
 
 /**
  * Clear all keys that may contain previous user's data.
@@ -53,7 +54,11 @@ export const clearUserDataOnLogout = async () => {
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (!key) continue;
-        if (key.startsWith(CHAT_KEY_PREFIX) || key.startsWith(API_CACHE_KEY_PREFIX)) {
+        if (
+          key.startsWith(CHAT_KEY_PREFIX) ||
+          key.startsWith(API_CACHE_KEY_PREFIX) ||
+          key.startsWith(SHOP_SNAPSHOT_KEY_PREFIX)
+        ) {
           keysToRemove.push(key);
         }
       }

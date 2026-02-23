@@ -40,7 +40,9 @@ const orderMessageSchema = new mongoose.Schema(
 
 // Indexes for efficient queries
 orderMessageSchema.index({ order: 1, createdAt: -1 });
+orderMessageSchema.index({ order: 1, createdAt: 1 });
 orderMessageSchema.index({ sender: 1, createdAt: -1 });
 orderMessageSchema.index({ recipient: 1, readAt: 1 });
+orderMessageSchema.index({ recipient: 1, order: 1, readAt: 1, createdAt: -1 });
 
 export default mongoose.model('OrderMessage', orderMessageSchema);

@@ -5,6 +5,7 @@ import storage from '../utils/storage';
 import indexedDB, { STORES } from '../utils/indexedDB';
 import { clearSearchCache } from '../utils/searchCache';
 import { clearUserDataOnLogout } from '../utils/clearUserDataOnLogout';
+import { queryClient } from '../lib/queryClient';
 
 const AuthContext = createContext();
 
@@ -137,6 +138,7 @@ export const AuthProvider = ({ children }) => {
     } catch {
       // ignore cache clear errors
     }
+    queryClient.clear();
     await storage.remove('qm_token');
     await storage.remove('qm_user');
     setUser(null);

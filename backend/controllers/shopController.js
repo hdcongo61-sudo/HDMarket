@@ -292,7 +292,9 @@ export const getShopProfile = asyncHandler(async (req, res) => {
       user: shop._id,
       status: 'approved'
     })
-      .select('_id title price images category condition city createdAt slug salesCount favoritesCount whatsappClicks views discount priceBeforeDiscount')
+      .select(
+        '_id title price images category condition city createdAt slug salesCount favoritesCount whatsappClicks views discount priceBeforeDiscount certified installmentEnabled installmentStartDate installmentEndDate wholesaleEnabled wholesaleTiers'
+      )
       .sort('-createdAt')
       .skip(skip)
       .limit(limit)

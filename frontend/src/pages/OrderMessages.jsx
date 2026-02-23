@@ -1,5 +1,7 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   MessageCircle,
   Package,
@@ -26,9 +28,12 @@ import {
   Check
 } from 'lucide-react';
 import api from '../services/api';
+import storage from '../utils/storage';
 import AuthContext from '../context/AuthContext';
 import OrderChat from '../components/OrderChat';
 import { buildProductPath } from '../utils/links';
+import { fetchOrderConversations, fetchOrderUnreadCount } from '../queries/orderChatApi';
+import { orderChatKeys } from '../queries/orderChatKeys';
 
 const STATUS_LABELS = {
   pending: 'En attente',
@@ -63,21 +68,182 @@ export default function OrderMessages() {
   const { user } = useContext(AuthContext);
   const location = useLocation();
   const navigate = useNavigate();
-  const [conversations, setConversations] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
-  const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all'); // all, unread, archived
-  const [totalUnread, setTotalUnread] = useState(0);
-  const [inquiryLoading, setInquiryLoading] = useState(false);
+  const socketRef = useRef(null);
+  const queryClient = useQueryClient();
+  const userScopeId = user?._id || user?.id;
+
+  const conversationsQuery = useQuery({
+    queryKey: orderChatKeys.conversations(userScopeId, {
+      page,
+      limit: PAGE_SIZE,
+      archived: activeFilter === 'archived'
+    }),
+    enabled: Boolean(userScopeId),
+    queryFn: () =>
+      fetchOrderConversations({
+        page,
+        limit: PAGE_SIZE,
+        archived: activeFilter === 'archived'
+      }),
+    staleTime: 20 * 1000,
+    placeholderData: (previousData) => previousData
+  });
+
+  const unreadQuery = useQuery({
+    queryKey: orderChatKeys.unread(userScopeId),
+    enabled: Boolean(userScopeId),
+    queryFn: fetchOrderUnreadCount,
+    staleTime: 10 * 1000
+  });
+
+  const conversations = useMemo(
+    () => (Array.isArray(conversationsQuery.data?.items) ? conversationsQuery.data.items : []),
+    [conversationsQuery.data?.items]
+  );
+  const meta = useMemo(
+    () => ({
+      total: Number(conversationsQuery.data?.total || 0),
+      totalPages: Number(conversationsQuery.data?.totalPages || 1)
+    }),
+    [conversationsQuery.data?.total, conversationsQuery.data?.totalPages]
+  );
+  const totalUnread = Number(unreadQuery.data?.unreadCount || 0);
+  const loading = conversationsQuery.isLoading;
 
   useEffect(() => {
-    loadConversations();
-    loadUnreadCount();
-  }, [page, activeFilter]);
+    if (conversationsQuery.error) {
+      setError(
+        conversationsQuery.error?.response?.data?.message ||
+          conversationsQuery.error?.message ||
+          'Impossible de charger les conversations.'
+      );
+    }
+  }, [conversationsQuery.error]);
+
+  const archiveConversationMutation = useMutation({
+    mutationFn: async (orderId) => {
+      await api.post(`/orders/${String(orderId)}/archive`);
+      return String(orderId);
+    },
+    onMutate: async (orderId) => {
+      const targetId = String(orderId);
+      await queryClient.cancelQueries({ queryKey: orderChatKeys.conversationsRoot(userScopeId) });
+      const snapshots = queryClient.getQueriesData({
+        queryKey: orderChatKeys.conversationsRoot(userScopeId)
+      });
+      queryClient.setQueriesData({ queryKey: orderChatKeys.conversationsRoot(userScopeId) }, (old) => {
+        if (!old || !Array.isArray(old.items)) return old;
+        const nextItems = old.items.filter((item) => String(item.orderId) !== targetId);
+        if (nextItems.length === old.items.length) return old;
+        return {
+          ...old,
+          items: nextItems,
+          total: Math.max(0, Number(old.total || 0) - 1)
+        };
+      });
+      return { snapshots };
+    },
+    onError: (err, _orderId, context) => {
+      context?.snapshots?.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
+      setError(err.response?.data?.message || "Impossible d'archiver.");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: orderChatKeys.conversationsRoot(userScopeId) });
+      queryClient.invalidateQueries({ queryKey: orderChatKeys.unread(userScopeId) });
+    }
+  });
+
+  const unarchiveConversationMutation = useMutation({
+    mutationFn: async (orderId) => {
+      await api.post(`/orders/${String(orderId)}/unarchive`);
+      return String(orderId);
+    },
+    onMutate: async (orderId) => {
+      const targetId = String(orderId);
+      await queryClient.cancelQueries({ queryKey: orderChatKeys.conversationsRoot(userScopeId) });
+      const snapshots = queryClient.getQueriesData({
+        queryKey: orderChatKeys.conversationsRoot(userScopeId)
+      });
+      queryClient.setQueriesData({ queryKey: orderChatKeys.conversationsRoot(userScopeId) }, (old) => {
+        if (!old || !Array.isArray(old.items)) return old;
+        const nextItems = old.items.filter((item) => String(item.orderId) !== targetId);
+        if (nextItems.length === old.items.length) return old;
+        return {
+          ...old,
+          items: nextItems,
+          total: Math.max(0, Number(old.total || 0) - 1)
+        };
+      });
+      return { snapshots };
+    },
+    onError: (err, _orderId, context) => {
+      context?.snapshots?.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
+      setError(err.response?.data?.message || "Impossible de désarchiver.");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: orderChatKeys.conversationsRoot(userScopeId) });
+      queryClient.invalidateQueries({ queryKey: orderChatKeys.unread(userScopeId) });
+    }
+  });
+
+  const deleteConversationMutation = useMutation({
+    mutationFn: async (orderId) => {
+      await api.post(`/orders/${String(orderId)}/delete`);
+      return String(orderId);
+    },
+    onMutate: async (orderId) => {
+      const targetId = String(orderId);
+      await queryClient.cancelQueries({ queryKey: orderChatKeys.conversationsRoot(userScopeId) });
+      const snapshots = queryClient.getQueriesData({
+        queryKey: orderChatKeys.conversationsRoot(userScopeId)
+      });
+      queryClient.setQueriesData({ queryKey: orderChatKeys.conversationsRoot(userScopeId) }, (old) => {
+        if (!old || !Array.isArray(old.items)) return old;
+        const nextItems = old.items.filter((item) => String(item.orderId) !== targetId);
+        if (nextItems.length === old.items.length) return old;
+        return {
+          ...old,
+          items: nextItems,
+          total: Math.max(0, Number(old.total || 0) - 1)
+        };
+      });
+      return { snapshots };
+    },
+    onError: (err, _orderId, context) => {
+      context?.snapshots?.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
+      setError(err.response?.data?.message || 'Impossible de supprimer.');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: orderChatKeys.conversationsRoot(userScopeId) });
+      queryClient.invalidateQueries({ queryKey: orderChatKeys.unread(userScopeId) });
+    }
+  });
+
+  const createInquiryMutation = useMutation({
+    mutationFn: async (productId) => {
+      const { data } = await api.post('/orders/inquiry', { productId });
+      return data;
+    },
+    onSuccess: (data) => {
+      setSelectedOrder(data);
+      queryClient.invalidateQueries({ queryKey: orderChatKeys.conversationsRoot(userScopeId) });
+      queryClient.invalidateQueries({ queryKey: orderChatKeys.unread(userScopeId) });
+    },
+    onError: (err) => {
+      setError(err.response?.data?.message || 'Impossible de démarrer la conversation.');
+    }
+  });
 
   // Alibaba-style: start a conversation with product context when coming from product page
   useEffect(() => {
@@ -86,57 +252,22 @@ export default function OrderMessages() {
 
     let cancelled = false;
     const createAndOpenInquiry = async () => {
-      setInquiryLoading(true);
       setError('');
       try {
-        const { data } = await api.post('/orders/inquiry', { productId: inquireProduct._id });
+        const data = await createInquiryMutation.mutateAsync(inquireProduct._id);
         if (cancelled) return;
         setSelectedOrder(data);
-        await loadConversations();
-        loadUnreadCount();
         navigate(location.pathname, { replace: true, state: {} });
       } catch (err) {
-        if (!cancelled) setError(err.response?.data?.message || 'Impossible de démarrer la conversation.');
+        if (!cancelled) {
+          setError(err.response?.data?.message || 'Impossible de démarrer la conversation.');
+        }
         navigate(location.pathname, { replace: true, state: {} });
-      } finally {
-        if (!cancelled) setInquiryLoading(false);
       }
     };
     createAndOpenInquiry();
     return () => { cancelled = true; };
   }, [location.state?.inquireProduct?._id, user]);
-
-  const loadConversations = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const params = new URLSearchParams();
-      params.set('page', page);
-      params.set('limit', PAGE_SIZE);
-      params.set('archived', activeFilter === 'archived' ? 'true' : 'false');
-
-      const { data } = await api.get(`/orders/messages/conversations?${params.toString()}`);
-      setConversations(Array.isArray(data.items) ? data.items : []);
-      setMeta({
-        total: data.total || 0,
-        totalPages: data.totalPages || 1
-      });
-    } catch (err) {
-      setError(err.response?.data?.message || 'Impossible de charger les conversations.');
-      setConversations([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadUnreadCount = async () => {
-    try {
-      const { data } = await api.get('/orders/messages/unread');
-      setTotalUnread(data.unreadCount ?? data.count ?? 0);
-    } catch (err) {
-      console.error('Error loading unread count:', err);
-    }
-  };
 
   const formatTimestamp = (date) => {
     if (!date) return '';
@@ -177,42 +308,31 @@ export default function OrderMessages() {
 
   const closeChat = () => {
     setSelectedOrder(null);
-    loadConversations();
-    loadUnreadCount();
+    queryClient.invalidateQueries({ queryKey: orderChatKeys.conversationsRoot(userScopeId) });
+    queryClient.invalidateQueries({ queryKey: orderChatKeys.unread(userScopeId) });
   };
 
   const handleArchive = async (orderId) => {
-    try {
-      await api.post(`/orders/${String(orderId)}/archive`);
-      setSelectedOrder(null);
-      loadConversations();
-      loadUnreadCount();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Impossible d\'archiver.');
-    }
+    if (!orderId) return;
+    setError('');
+    await archiveConversationMutation.mutateAsync(orderId).catch(() => {});
+    setSelectedOrder(null);
   };
 
   const handleUnarchive = async (orderId, e) => {
+    if (!orderId) return;
     e?.stopPropagation();
-    try {
-      await api.post(`/orders/${String(orderId)}/unarchive`);
-      setActiveFilter('all');
-      setPage(1);
-      loadUnreadCount();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Impossible de désarchiver.');
-    }
+    setError('');
+    await unarchiveConversationMutation.mutateAsync(orderId).catch(() => {});
+    setActiveFilter('all');
+    setPage(1);
   };
 
   const handleDelete = async (orderId) => {
-    try {
-      await api.post(`/orders/${String(orderId)}/delete`);
-      setSelectedOrder(null);
-      loadConversations();
-      loadUnreadCount();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Impossible de supprimer.');
-    }
+    if (!orderId) return;
+    setError('');
+    await deleteConversationMutation.mutateAsync(orderId).catch(() => {});
+    setSelectedOrder(null);
   };
 
   const buildOrderFromConversation = (conv) => {
@@ -230,6 +350,113 @@ export default function OrderMessages() {
     setSelectedOrder(buildOrderFromConversation(conversation));
     setError('');
   };
+
+  useEffect(() => {
+    if (!user?._id) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      return () => {};
+    }
+
+    let cancelled = false;
+    let mountedSocket = null;
+
+    const initSocket = async () => {
+      const token = await storage.get('qm_token');
+      if (!token || cancelled) return;
+      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+      const origin = apiBase.replace(/\/api\/?$/, '');
+      const socket = io(origin, {
+        auth: { token },
+        transports: ['websocket', 'polling'],
+        reconnectionAttempts: 20,
+        reconnectionDelay: 800
+      });
+      mountedSocket = socket;
+      if (cancelled) {
+        socket.disconnect();
+        return;
+      }
+      socketRef.current = socket;
+
+      socket.on('orders:unread:update', (payload) => {
+        if (String(payload?.userId || '') !== String(userScopeId)) return;
+        queryClient.setQueryData(orderChatKeys.unread(userScopeId), {
+          unreadCount: Number(payload?.totalUnread || 0)
+        });
+        if (payload?.conversationId) {
+          queryClient.setQueriesData(
+            { queryKey: orderChatKeys.conversationsRoot(userScopeId) },
+            (old) => {
+              if (!old || !Array.isArray(old.items)) return old;
+              return {
+                ...old,
+                items: old.items.map((conv) =>
+                  String(conv.orderId) === String(payload.conversationId)
+                    ? { ...conv, unreadCount: Number(payload?.conversationUnread || 0) }
+                    : conv
+                )
+              };
+            }
+          );
+        }
+      });
+
+      socket.on('orders:conversation:updated', (payload) => {
+        const conversationId = String(payload?.conversationId || '');
+        if (!conversationId) return;
+        const latestMessage = payload?.message || null;
+        queryClient.setQueriesData(
+          { queryKey: orderChatKeys.conversationsRoot(userScopeId) },
+          (old) => {
+            if (!old || !Array.isArray(old.items)) return old;
+            if (!old.items.some((conv) => String(conv.orderId) === conversationId)) {
+              return old;
+            }
+            return {
+              ...old,
+              items: old.items
+                .map((conv) => {
+                  if (String(conv.orderId) !== conversationId) return conv;
+                  return {
+                    ...conv,
+                    latestMessage: latestMessage
+                      ? {
+                          _id: latestMessage._id,
+                          text: latestMessage.text,
+                          sender: latestMessage.sender,
+                          createdAt: latestMessage.createdAt
+                        }
+                      : conv.latestMessage
+                  };
+                })
+                .sort((a, b) => {
+                  const aDate = a.latestMessage?.createdAt || a.createdAt;
+                  const bDate = b.latestMessage?.createdAt || b.createdAt;
+                  return new Date(bDate) - new Date(aDate);
+                })
+            };
+          }
+        );
+      });
+    };
+
+    initSocket();
+
+    return () => {
+      cancelled = true;
+      if (mountedSocket) {
+        mountedSocket.disconnect();
+      }
+      if (socketRef.current === mountedSocket) {
+        socketRef.current = null;
+      }
+    };
+  }, [queryClient, userScopeId]);
+
+  const inquiryLoading = createInquiryMutation.isPending;
 
   if ((loading && conversations.length === 0) || inquiryLoading) {
     return (
@@ -574,8 +801,8 @@ export default function OrderMessages() {
           defaultOpen
           buttonText="Contacter"
           unreadCount={0}
-          onArchive={() => handleArchive(selectedOrder._id)}
-          onDelete={() => handleDelete(selectedOrder._id)}
+          onArchive={handleArchive}
+          onDelete={handleDelete}
         />
       )}
     </div>

@@ -7,6 +7,19 @@ import Product from '../models/productModel.js';
 import { createNotification } from '../utils/notificationService.js';
 import { uploadToCloudinary } from '../utils/cloudinaryUploader.js';
 import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
+import {
+  emitOrderConversationRead,
+  emitOrderMessageCreated,
+  emitOrderMessageDeleted,
+  emitOrderMessageUpdated,
+  emitOrderUnreadUpdate
+} from '../sockets/chatSocket.js';
+import {
+  decrementOrderConversationUnread,
+  incrementOrderConversationUnread,
+  resetOrderConversationUnread,
+  setOrderUnreadTotal
+} from '../utils/orderMessageUnreadCounter.js';
 
 /**
  * Get messages for an order
@@ -36,15 +49,45 @@ export const getOrderMessages = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à accéder à cette conversation.' });
   }
 
-  const raw = await OrderMessage.find({ order: orderId })
-    .populate('sender', 'name email shopName')
-    .populate('recipient', 'name email shopName')
-    .sort({ createdAt: 1 })
-    .limit(100)
-    .lean();
+  const limitParam = Number(req.query?.limit);
+  const limit = Number.isFinite(limitParam) ? Math.max(1, Math.min(50, Math.floor(limitParam))) : 20;
+  const beforeParam = String(req.query?.before || '').trim();
+  const beforeDate = beforeParam ? new Date(beforeParam) : null;
+  const withMeta = ['1', 'true', 'yes'].includes(String(req.query?.withMeta || '').toLowerCase());
+  const hasCursorQuery = Boolean(beforeParam || Number.isFinite(limitParam) || withMeta);
+
+  let raw = [];
+  let hasMore = false;
+  let nextCursor = null;
+
+  if (hasCursorQuery) {
+    const findQuery = { order: orderId };
+    if (beforeDate && !Number.isNaN(beforeDate.getTime())) {
+      findQuery.createdAt = { $lt: beforeDate };
+    }
+
+    const rows = await OrderMessage.find(findQuery)
+      .populate('sender', 'name email shopName')
+      .populate('recipient', 'name email shopName')
+      .sort({ createdAt: -1 })
+      .limit(limit + 1)
+      .lean();
+
+    hasMore = rows.length > limit;
+    raw = (hasMore ? rows.slice(0, limit) : rows).reverse();
+    nextCursor = raw.length ? raw[0].createdAt : null;
+  } else {
+    // Legacy mode for endpoints still expecting the full visible thread payload.
+    raw = await OrderMessage.find({ order: orderId })
+      .populate('sender', 'name email shopName')
+      .populate('recipient', 'name email shopName')
+      .sort({ createdAt: 1 })
+      .limit(100)
+      .lean();
+  }
 
   // Mark messages as read for the current user
-  await OrderMessage.updateMany(
+  const markResult = await OrderMessage.updateMany(
     {
       order: orderId,
       recipient: userId,
@@ -55,6 +98,21 @@ export const getOrderMessages = asyncHandler(async (req, res) => {
     }
   );
 
+  if (Number(markResult?.modifiedCount || 0) > 0) {
+    const unreadState = await resetOrderConversationUnread(userId, orderId);
+    emitOrderConversationRead({
+      conversationId: orderId,
+      userId: String(userId),
+      readAt: new Date().toISOString()
+    });
+    emitOrderUnreadUpdate({
+      userId: String(userId),
+      conversationId: String(orderId),
+      totalUnread: unreadState.totalUnread,
+      conversationUnread: unreadState.conversationUnread
+    });
+  }
+
   // Normalize so every message has _id and sender/recipient._id for consistent display (customer/seller/admin)
   const messages = raw.map((m) => ({
     ...m,
@@ -62,6 +120,15 @@ export const getOrderMessages = asyncHandler(async (req, res) => {
     sender: m.sender ? { ...m.sender, _id: m.sender._id } : m.sender,
     recipient: m.recipient ? { ...m.recipient, _id: m.recipient._id } : m.recipient
   }));
+
+  if (hasCursorQuery || withMeta) {
+    return res.json({
+      items: messages,
+      hasMore,
+      nextCursor
+    });
+  }
+
   res.json(messages);
 });
 
@@ -263,6 +330,14 @@ export const sendOrderMessage = asyncHandler(async (req, res) => {
     allowSelf: false
   });
 
+  const unreadState = await incrementOrderConversationUnread(recipient._id, orderId, 1);
+  emitOrderUnreadUpdate({
+    userId: String(recipient._id),
+    conversationId: String(orderId),
+    totalUnread: unreadState.totalUnread,
+    conversationUnread: unreadState.conversationUnread
+  });
+
   // Return plain object with explicit _id so both GET and POST have same shape for sender/admin
   const payload = populated ? {
     ...populated,
@@ -270,6 +345,14 @@ export const sendOrderMessage = asyncHandler(async (req, res) => {
     sender: populated.sender ? { _id: populated.sender._id, name: populated.sender.name, email: populated.sender.email, shopName: populated.sender.shopName } : null,
     recipient: populated.recipient ? { _id: populated.recipient._id, name: populated.recipient.name, email: populated.recipient.email, shopName: populated.recipient.shopName } : null
   } : populated;
+
+  emitOrderMessageCreated({
+    conversationId: orderId,
+    message: payload,
+    senderId: String(userId),
+    recipientId: String(recipient._id)
+  });
+
   res.status(201).json(payload);
 });
 
@@ -299,6 +382,11 @@ export const getUnreadCount = asyncHandler(async (req, res) => {
 
   const visibleOrderIds = await Order.find(orderQuery).select('_id').lean().then((orders) => orders.map((o) => o._id));
   if (visibleOrderIds.length === 0) {
+    await setOrderUnreadTotal(userId, 0);
+    emitOrderUnreadUpdate({
+      userId: String(userId),
+      totalUnread: 0
+    });
     return res.json({ unreadCount: 0 });
   }
 
@@ -306,6 +394,13 @@ export const getUnreadCount = asyncHandler(async (req, res) => {
     order: { $in: visibleOrderIds },
     recipient: userId,
     readAt: null
+  });
+
+  await setOrderUnreadTotal(userId, count);
+
+  emitOrderUnreadUpdate({
+    userId: String(userId),
+    totalUnread: Number(count || 0)
   });
 
   res.json({ unreadCount: count });
@@ -461,53 +556,96 @@ export const getAllOrderConversations = asyncHandler(async (req, res) => {
   );
   const ordersWithConversation = allOrders.filter((o) => orderIdsWithMessages.has(String(o._id)));
 
-  // Get latest message and unread count for each order
-  const conversations = await Promise.all(
-    ordersWithConversation.map(async (order) => {
-      // Get latest message
-      const latestMessage = await OrderMessage.findOne({ order: order._id })
-        .populate('sender', 'name email shopName')
-        .sort({ createdAt: -1 })
-        .lean();
+  const latestRows = await OrderMessage.aggregate([
+    { $match: { order: { $in: orderIds } } },
+    { $sort: { createdAt: -1 } },
+    {
+      $group: {
+        _id: '$order',
+        latestMessage: { $first: '$$ROOT' }
+      }
+    }
+  ]);
 
-      // Get unread count for current user
-      const unreadCount = await OrderMessage.countDocuments({
-        order: order._id,
-        recipient: userId,
-        readAt: null
-      });
-
-      // Get first product info for display
-      const firstItem = order.items?.[0];
-      const customer = order.customer;
-      const productInfo = {
-        title: firstItem?.snapshot?.title || 'Produit',
-        image: firstItem?.snapshot?.image || null,
-        shopName: firstItem?.snapshot?.shopName || null,
-        shopId: firstItem?.snapshot?.shopId || null,
-        slug: firstItem?.snapshot?.slug || null
-      };
-
-      return {
-        orderId: order._id,
-        orderCode: order.deliveryCode,
-        status: order.status,
-        isInquiry: Boolean(order.isInquiry),
-        createdAt: order.createdAt,
-        customerId: customer?._id || order.customer,
-        customerName: customer?.name || null,
-        sellerId: firstItem?.snapshot?.shopId || null,
-        productInfo,
-        latestMessage: latestMessage ? {
-          _id: latestMessage._id,
-          text: latestMessage.text,
-          sender: latestMessage.sender,
-          createdAt: latestMessage.createdAt
-        } : null,
-        unreadCount
-      };
-    })
+  const latestByOrder = new Map(latestRows.map((row) => [String(row?._id), row?.latestMessage || null]));
+  const senderIds = Array.from(
+    new Set(
+      latestRows
+        .map((row) => row?.latestMessage?.sender)
+        .filter((id) => mongoose.Types.ObjectId.isValid(id))
+        .map((id) => String(id))
+    )
   );
+  const senders = senderIds.length
+    ? await User.find({ _id: { $in: senderIds } }).select('name email shopName').lean()
+    : [];
+  const senderById = new Map(senders.map((sender) => [String(sender._id), sender]));
+
+  const unreadByOrder = new Map();
+  if (mongoose.Types.ObjectId.isValid(userId)) {
+    const unreadRows = await OrderMessage.aggregate([
+      {
+        $match: {
+          order: { $in: orderIds },
+          recipient: new mongoose.Types.ObjectId(String(userId)),
+          readAt: null
+        }
+      },
+      {
+        $group: {
+          _id: '$order',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    unreadRows.forEach((row) => unreadByOrder.set(String(row._id), Number(row.count || 0)));
+  }
+
+  // Build conversation DTOs
+  const conversations = ordersWithConversation.map((order) => {
+    const latestMessage = latestByOrder.get(String(order._id));
+    const sender = latestMessage?.sender ? senderById.get(String(latestMessage.sender)) : null;
+    const unreadCount = unreadByOrder.get(String(order._id)) || 0;
+
+    // Get first product info for display
+    const firstItem = order.items?.[0];
+    const customer = order.customer;
+    const productInfo = {
+      title: firstItem?.snapshot?.title || 'Produit',
+      image: firstItem?.snapshot?.image || null,
+      shopName: firstItem?.snapshot?.shopName || null,
+      shopId: firstItem?.snapshot?.shopId || null,
+      slug: firstItem?.snapshot?.slug || null
+    };
+
+    return {
+      orderId: order._id,
+      orderCode: order.deliveryCode,
+      status: order.status,
+      isInquiry: Boolean(order.isInquiry),
+      createdAt: order.createdAt,
+      customerId: customer?._id || order.customer,
+      customerName: customer?.name || null,
+      sellerId: firstItem?.snapshot?.shopId || null,
+      productInfo,
+      latestMessage: latestMessage
+        ? {
+            _id: latestMessage._id,
+            text: latestMessage.text,
+            sender: sender
+              ? {
+                  _id: sender._id,
+                  name: sender.name,
+                  email: sender.email,
+                  shopName: sender.shopName
+                }
+              : latestMessage.sender,
+            createdAt: latestMessage.createdAt
+          }
+        : null,
+      unreadCount
+    };
+  });
 
   // Sort by latest message date (most recent first)
   conversations.sort((a, b) => {
@@ -612,7 +750,12 @@ export const addOrderMessageReaction = asyncHandler(async (req, res) => {
   });
   
   await message.save();
-  
+
+  emitOrderMessageUpdated({
+    conversationId: message.order,
+    message
+  });
+
   res.json(message);
 });
 
@@ -654,7 +797,12 @@ export const removeOrderMessageReaction = asyncHandler(async (req, res) => {
   );
   
   await message.save();
-  
+
+  emitOrderMessageUpdated({
+    conversationId: message.order,
+    message
+  });
+
   res.json(message);
 });
 
@@ -696,7 +844,26 @@ export const deleteOrderMessage = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Vous ne pouvez supprimer que vos propres messages.' });
   }
 
+  const recipientId = String(message.recipient || '');
+  const wasUnreadForRecipient = Boolean(message.readAt == null && recipientId);
+
   await OrderMessage.deleteOne({ _id: messageId, order: orderId });
+
+  if (wasUnreadForRecipient) {
+    const unreadState = await decrementOrderConversationUnread(recipientId, orderId, 1);
+    emitOrderUnreadUpdate({
+      userId: recipientId,
+      conversationId: String(orderId),
+      totalUnread: unreadState.totalUnread,
+      conversationUnread: unreadState.conversationUnread
+    });
+  }
+
+  emitOrderMessageDeleted({
+    conversationId: orderId,
+    messageId
+  });
+
   res.status(200).json({ deleted: true, messageId });
 });
 
@@ -746,6 +913,11 @@ export const updateOrderMessage = asyncHandler(async (req, res) => {
     .populate('sender', 'name email shopName')
     .populate('recipient', 'name email shopName')
     .lean();
+
+  emitOrderMessageUpdated({
+    conversationId: orderId,
+    message: populated
+  });
 
   res.json(populated);
 });

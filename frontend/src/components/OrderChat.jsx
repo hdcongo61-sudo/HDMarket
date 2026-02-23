@@ -1,5 +1,7 @@
-import React, { useContext, useEffect, useRef, useState, useMemo } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { io } from 'socket.io-client';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   MessageCircle,
   Send,
@@ -34,8 +36,11 @@ import {
 } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import api from '../services/api';
+import storage from '../utils/storage';
 import { buildProductPath } from '../utils/links';
 import { encrypt, decrypt, getSharedSecret } from '../utils/chatEncryption.js';
+import { orderChatKeys } from '../queries/orderChatKeys';
+import { fetchOrderMessagePage } from '../queries/orderChatApi';
 
 const formatTimestamp = (value) => {
   const date = new Date(value);
@@ -75,6 +80,59 @@ const normalizeMessage = (msg) => {
   };
 };
 
+const sortMessagesChronologically = (list = []) =>
+  [...list].sort((a, b) => new Date(a?.createdAt || 0) - new Date(b?.createdAt || 0));
+
+const messagePriorityScore = (msg) => {
+  if (!msg) return 0;
+  let score = 0;
+  if (!msg.pending) score += 4;
+  if (msg.readAt) score += 2;
+  if (msg.updatedAt) score += 1;
+  if (msg.attachments?.length) score += 1;
+  if (msg.reactions?.length) score += 1;
+  if (msg.text) score += 1;
+  return score;
+};
+
+const mergeMessageVersion = (existing, incoming) => ({
+  ...existing,
+  ...incoming,
+  sender: incoming?.sender ?? existing?.sender,
+  recipient: incoming?.recipient ?? existing?.recipient
+});
+
+const dedupeMessagesById = (messages = []) => {
+  const byId = new Map();
+  const uniqueNoId = [];
+
+  messages.forEach((raw, index) => {
+    const msg = normalizeMessage(raw);
+    if (!msg) return;
+
+    const resolvedId = msg?._id ?? msg?.id;
+    if (resolvedId == null || resolvedId === '') {
+      uniqueNoId.push({
+        ...msg,
+        _fallbackKey: `${msg?.createdAt || 'no-date'}-${msg?.sender?._id || 'no-sender'}-${index}`
+      });
+      return;
+    }
+
+    const key = String(resolvedId);
+    const existing = byId.get(key);
+    if (!existing) {
+      byId.set(key, msg);
+      return;
+    }
+
+    const keepIncoming = messagePriorityScore(msg) >= messagePriorityScore(existing);
+    byId.set(key, keepIncoming ? mergeMessageVersion(existing, msg) : mergeMessageVersion(msg, existing));
+  });
+
+  return sortMessagesChronologically([...byId.values(), ...uniqueNoId]);
+};
+
 // Group messages by date
 const groupMessagesByDate = (messages) => {
   const groups = {};
@@ -96,12 +154,14 @@ const QUICK_REPLIES = [
   'Pouvez-vous me rappeler ?'
 ];
 
+const CHAT_PAGE_SIZE = 20;
+
 export default function OrderChat({ order, onClose, unreadCount = 0, buttonText = 'Contacter le vendeur', defaultOpen = false, onArchive, onDelete }) {
   const { user } = useContext(AuthContext);
+  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
   const [error, setError] = useState('');
   const [messageText, setMessageText] = useState('');
   const [showQuickReplies, setShowQuickReplies] = useState(false);
@@ -128,12 +188,14 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
   const [deleting, setDeleting] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const socketRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const shouldAutoScrollRef = useRef(true);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const recordingIntervalRef = useRef(null);
   const audioChunksRef = useRef([]);
-  const initialLoadDoneRef = useRef(false);
 
   // Get seller info from order
   const seller = order?.items?.[0]?.snapshot?.shopId
@@ -158,15 +220,122 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
   const isAdmin = user?.role === 'admin' || user?.role === 'manager';
 
   const orderId = order?._id != null ? String(order._id) : (order?.id != null ? String(order.id) : null);
+  const userScopeId = user?._id || user?.id;
+  const messageQueryKey = useMemo(
+    () => orderChatKeys.messages(userScopeId, orderId),
+    [orderId, userScopeId]
+  );
+
+  const upsertMessageInPages = useCallback((old, incoming) => {
+    const normalized = normalizeMessage(incoming);
+    if (!normalized) return old;
+    const current = old && Array.isArray(old.pages) ? old : { pages: [], pageParams: [] };
+    if (current.pages.length === 0) {
+      return {
+        pages: [{ items: [normalized], hasMore: false, nextCursor: null }],
+        pageParams: [null]
+      };
+    }
+
+    const existsSomewhere = current.pages.some((page) =>
+      (Array.isArray(page?.items) ? page.items : []).some(
+        (m) => String(m?._id) === String(normalized._id)
+      )
+    );
+    const nextPages = current.pages.map((page, pageIndex) => {
+      const pageItems = Array.isArray(page?.items) ? page.items : [];
+      const itemIndex = pageItems.findIndex((m) => String(m?._id) === String(normalized._id));
+      if (itemIndex >= 0) {
+        const merged = [...pageItems];
+        merged[itemIndex] = { ...merged[itemIndex], ...normalized };
+        return { ...page, items: dedupeMessagesById(merged) };
+      }
+      if (!existsSomewhere && pageIndex === 0) {
+        return { ...page, items: dedupeMessagesById([...pageItems, normalized]) };
+      }
+      return page;
+    });
+
+    return {
+      ...current,
+      pages: nextPages
+    };
+  }, []);
+
+  const removeMessageInPages = useCallback((old, messageId) => {
+    if (!messageId) return old;
+    const current = old && Array.isArray(old.pages) ? old : { pages: [], pageParams: [] };
+    return {
+      ...current,
+      pages: current.pages.map((page) => ({
+        ...page,
+        items: (Array.isArray(page?.items) ? page.items : []).filter(
+          (msg) => String(msg?._id) !== String(messageId)
+        )
+      }))
+    };
+  }, []);
+
+  const patchMessageInPages = useCallback((old, matcher, patcher) => {
+    const current = old && Array.isArray(old.pages) ? old : { pages: [], pageParams: [] };
+    return {
+      ...current,
+      pages: current.pages.map((page) => ({
+        ...page,
+        items: (Array.isArray(page?.items) ? page.items : []).map((msg) =>
+          matcher(msg) ? patcher(msg) : msg
+        )
+      }))
+    };
+  }, []);
+
+  const messagesQuery = useInfiniteQuery({
+    queryKey: messageQueryKey,
+    enabled: Boolean(isOpen && orderId && userScopeId),
+    initialPageParam: null,
+    queryFn: ({ pageParam }) =>
+      fetchOrderMessagePage({
+        orderId,
+        before: pageParam,
+        limit: CHAT_PAGE_SIZE
+      }),
+    getNextPageParam: (lastPage) =>
+      lastPage?.hasMore && lastPage?.nextCursor ? lastPage.nextCursor : undefined,
+    staleTime: 8 * 1000,
+    refetchOnWindowFocus: false,
+    refetchInterval: isOpen && !socketConnected ? 12 * 1000 : false
+  });
+
+  const queryMessages = useMemo(() => {
+    const pages = Array.isArray(messagesQuery.data?.pages) ? messagesQuery.data.pages : [];
+    const flattened = pages.flatMap((page) => (Array.isArray(page?.items) ? page.items : []));
+    return dedupeMessagesById(flattened);
+  }, [messagesQuery.data?.pages]);
 
   useEffect(() => {
-    if (isOpen && orderId) {
-      initialLoadDoneRef.current = false;
-      loadMessages();
-      const interval = setInterval(loadMessages, 2500);
-      return () => clearInterval(interval);
+    setMessages((prev) => {
+      const decryptedById = new Map(
+        prev
+          .filter((item) => item?.isDecrypted && item?._id)
+          .map((item) => [String(item._id), item])
+      );
+      return dedupeMessagesById(
+        queryMessages.map((item) => {
+          const existing = decryptedById.get(String(item?._id || ''));
+          if (existing && item?.encryptedText) {
+            return { ...item, text: existing.text, isDecrypted: true };
+          }
+          return item;
+        })
+      );
+    });
+  }, [queryMessages]);
+
+  useEffect(() => {
+    if (messagesQuery.error) {
+      setError(messagesQuery.error?.response?.data?.message || 'Impossible de charger les messages.');
     }
-  }, [isOpen, orderId]);
+  }, [messagesQuery.error]);
 
   // Decrypt messages when encryption is enabled
   useEffect(() => {
@@ -198,7 +367,17 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
   }, [encryptionEnabled, encryptionKey, messages.length]);
 
   useEffect(() => {
-    scrollToBottom();
+    const container = messagesContainerRef.current;
+    if (!container) {
+      scrollToBottom();
+      return;
+    }
+    const nearBottom =
+      container.scrollHeight - (container.scrollTop + container.clientHeight) < 120;
+    if (shouldAutoScrollRef.current || nearBottom) {
+      scrollToBottom();
+      shouldAutoScrollRef.current = false;
+    }
   }, [messages]);
 
   useEffect(() => {
@@ -231,48 +410,69 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
     });
   }, [messages, searchQuery]);
 
-  const loadMessages = async () => {
-    if (!orderId) return;
-    const isInitialLoad = !initialLoadDoneRef.current;
-    try {
-      if (isInitialLoad) setLoading(true);
-      const { data } = await api.get(`/orders/${orderId}/messages`);
-      const list = Array.isArray(data) ? data : [];
-      const fromApi = list.map(normalizeMessage);
-      setMessages((prev) => {
-        const pending = prev.filter((m) => m.pending);
-        if (pending.length === 0) return fromApi;
-        const apiIds = new Set(fromApi.map((m) => String(m._id)));
-        const stillPending = pending.filter((m) => !apiIds.has(String(m._id)));
-        const merged = [...fromApi, ...stillPending];
-        merged.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
-        return merged;
-      });
-      setError('');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Impossible de charger les messages.');
-    } finally {
-      if (isInitialLoad) {
-        setLoading(false);
-        initialLoadDoneRef.current = true;
+  const sendMessageMutation = useMutation({
+    mutationFn: async ({ payload }) => {
+      const { data } = await api.post(`/orders/${orderId}/messages`, payload);
+      return normalizeMessage({ ...data, createdAt: data?.createdAt ?? new Date().toISOString() });
+    },
+    onMutate: async ({ optimisticMessage }) => {
+      await queryClient.cancelQueries({ queryKey: messageQueryKey });
+      const previous = queryClient.getQueryData(messageQueryKey);
+      queryClient.setQueryData(messageQueryKey, (old) => upsertMessageInPages(old, optimisticMessage));
+      return { previous, tempId: optimisticMessage?._id };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(messageQueryKey, context.previous);
       }
+      queryClient.setQueryData(messageQueryKey, (old) =>
+        upsertMessageInPages(old, {
+          ...variables.optimisticMessage,
+          pending: false,
+          failed: true,
+          failedAt: new Date().toISOString()
+        })
+      );
+      const data = err.response?.data;
+      const msg = data?.message || "Impossible d'envoyer le message.";
+      const details = data?.details;
+      const full = details?.length ? `${msg} (${details.join('; ')})` : msg;
+      setError(full);
+      setMessageText(variables?.rawText || '');
+    },
+    onSuccess: (serverMessage, _variables, context) => {
+      queryClient.setQueryData(messageQueryKey, (old) => {
+        let next = old;
+        if (context?.tempId) {
+          next = removeMessageInPages(next, context.tempId);
+        }
+        return upsertMessageInPages(next, serverMessage);
+      });
+      setAttachments([]);
+      shouldAutoScrollRef.current = true;
+      scrollToBottom();
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: orderChatKeys.conversationsRoot(userScopeId) });
+      queryClient.invalidateQueries({ queryKey: orderChatKeys.unread(userScopeId) });
     }
-  };
+  });
 
-  const sendMessage = async (e, messageAttachments = null, voiceMsg = null) => {
+  const sending = sendMessageMutation.isPending;
+
+  const sendMessage = async (e, messageAttachments = null, voiceMsg = null, overrideText = null) => {
     e?.preventDefault();
-    const hasText = messageText.trim();
+    const draftText = overrideText != null ? String(overrideText) : messageText;
+    const hasText = draftText.trim();
     const hasAttachments = messageAttachments?.length || attachments.length;
     const hasVoice = voiceMsg;
-    
     if (!hasText && !hasAttachments && !hasVoice) return;
     if (sending) return;
 
-    let text = messageText.trim();
+    let text = draftText.trim();
     let encryptedText = null;
     let encryptionData = null;
-    
-    // Encrypt message if encryption is enabled
+
     if (encryptionEnabled && encryptionKey && text) {
       try {
         const encrypted = await encrypt(text, encryptionKey);
@@ -288,90 +488,73 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
           })()
         };
         text = '[Message chiffré]';
-      } catch (error) {
-        console.error('Encryption error:', error);
+      } catch (encryptionError) {
+        console.error('Encryption error:', encryptionError);
       }
+    }
+
+    const toId = (val) => {
+      if (val == null) return null;
+      if (typeof val === 'string') return val;
+      if (typeof val === 'object' && val?._id) return String(val._id);
+      return String(val);
+    };
+
+    let recipientId = null;
+    if (isAdmin) {
+      const customerId = toId(order?.customer?._id ?? order?.customer);
+      recipientId = customerId && customerId === String(user?._id) ? toId(seller?._id) : customerId;
+    } else if (isCustomer) {
+      recipientId = toId(seller?._id);
+    } else if (isSeller) {
+      recipientId = toId(order?.customer?._id ?? order?.customer);
+    }
+
+    const optimisticMessage = {
+      _id: `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      text: encryptionEnabled && encryptedText ? '[Message chiffré]' : text,
+      sender: { _id: user?._id, name: user?.name, shopName: user?.shopName },
+      recipient: recipientId ? { _id: recipientId } : null,
+      createdAt: new Date().toISOString(),
+      pending: true,
+      isDecrypted: !encryptionEnabled,
+      attachments: messageAttachments?.length
+        ? messageAttachments
+        : attachments.length
+          ? [...attachments]
+          : undefined,
+      voiceMessage: voiceMsg || undefined,
+      retryPayload: {
+        text,
+        attachments: messageAttachments?.length ? messageAttachments : attachments.length ? [...attachments] : [],
+        voiceMessage: voiceMsg || null
+      }
+    };
+
+    const payload = {
+      text: encryptionEnabled && encryptedText ? null : text,
+      encryptedText: encryptionEnabled && encryptedText ? encryptedText : null,
+      encryptionData: encryptionEnabled && encryptionData ? encryptionData : null,
+      attachments: messageAttachments?.length ? messageAttachments : attachments.length ? attachments : null,
+      voiceMessage: voiceMsg || null,
+      recipientId
+    };
+    if (payload.text == null && !payload.encryptedText && !payload.attachments && !payload.voiceMessage) {
+      payload.text = text?.trim() || '[Message chiffré]';
     }
 
     setMessageText('');
-    setSending(true);
     setError('');
     setShowQuickReplies(false);
+    shouldAutoScrollRef.current = true;
 
-    const tempId = `pending-${Date.now()}`;
-    const optimisticMessage = {
-      _id: tempId,
-      text: encryptionEnabled && encryptedText ? '[Message chiffré]' : text,
-      sender: { _id: user?._id, name: user?.name, shopName: user?.shopName },
-      recipient: null,
-      createdAt: new Date().toISOString(),
-      pending: true,
-      isDecrypted: !encryptionEnabled
-    };
-    if (messageAttachments?.length) optimisticMessage.attachments = messageAttachments;
-    else if (attachments.length) optimisticMessage.attachments = [...attachments];
-    if (voiceMsg) optimisticMessage.voiceMessage = voiceMsg;
-    setMessages((prev) => [...prev, normalizeMessage(optimisticMessage)]);
-    scrollToBottom();
-
-    try {
-      // Determine recipient based on user role (normalize to string; API may return populated objects or raw id)
-      const toId = (val) => {
-        if (val == null) return null;
-        if (typeof val === 'string') return val;
-        if (typeof val === 'object' && val?._id) return String(val._id);
-        return String(val);
-      };
-      let recipientId = null;
-      if (isAdmin) {
-        // Admin: if order customer is current user (e.g. admin opened inquiry from product page), message the seller; else message the customer
-        const customerId = toId(order?.customer?._id ?? order?.customer);
-        if (customerId && customerId === String(user?._id)) {
-          recipientId = toId(seller?._id);
-        } else {
-          recipientId = customerId;
-        }
-      } else if (isCustomer) {
-        recipientId = toId(seller?._id);
-      } else if (isSeller) {
-        recipientId = toId(order?.customer?._id ?? order?.customer);
-      }
-
-      const payload = {
-        text: encryptionEnabled && encryptedText ? null : text,
-        encryptedText: encryptionEnabled && encryptedText ? encryptedText : null,
-        encryptionData: encryptionEnabled && encryptionData ? encryptionData : null,
-        attachments: messageAttachments?.length ? messageAttachments : (attachments.length ? attachments : null),
-        voiceMessage: voiceMsg || null,
-        recipientId
-      };
-      // Ensure at least one content field for validation
-      if (payload.text == null && !payload.encryptedText && !payload.attachments && !payload.voiceMessage) {
-        payload.text = text?.trim() || '[Message chiffré]';
-      }
-
-      const { data } = await api.post(`/orders/${orderId}/messages`, payload);
-      const normalized = data ? normalizeMessage({ ...data, createdAt: data.createdAt ?? new Date().toISOString() }) : data;
-      setMessages((prev) => {
-        const withoutPending = prev.filter((m) => m._id !== tempId && !m.pending);
-        return [...withoutPending, normalized];
-      });
-      setAttachments([]);
-      scrollToBottom();
-    } catch (err) {
-      setMessages((prev) => prev.filter((m) => m._id !== tempId && !m.pending));
-      const data = err.response?.data;
-      const msg = data?.message || "Impossible d'envoyer le message.";
-      const details = data?.details;
-      const full = details?.length ? `${msg} (${details.join('; ')})` : msg;
-      setError(full);
-      setMessageText(text); // Restore text on error
-      if (process.env.NODE_ENV !== 'production') {
-        console.error('OrderChat send error:', { status: err.response?.status, data });
-      }
-    } finally {
-      setSending(false);
-    }
+    await sendMessageMutation
+      .mutateAsync({
+        payload,
+        optimisticMessage,
+        rawText: text
+      })
+      .catch(() => {});
   };
 
   const handleFileSelect = async (e) => {
@@ -506,28 +689,81 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
     }
   };
 
+  const addReactionMutation = useMutation({
+    mutationFn: async ({ messageId, emoji }) => {
+      const { data } = await api.post(`/orders/messages/${messageId}/reactions`, { emoji });
+      return normalizeMessage(data);
+    },
+    onMutate: async ({ messageId, emoji }) => {
+      await queryClient.cancelQueries({ queryKey: messageQueryKey });
+      const previous = queryClient.getQueryData(messageQueryKey);
+      queryClient.setQueryData(messageQueryKey, (old) =>
+        patchMessageInPages(
+          old,
+          (m) => String(m?._id) === String(messageId),
+          (m) => {
+            const filtered = Array.isArray(m?.reactions)
+              ? m.reactions.filter((r) => String(r.userId) !== String(user?._id))
+              : [];
+            return {
+              ...m,
+              reactions: [...filtered, { userId: user?._id, emoji }]
+            };
+          }
+        )
+      );
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(messageQueryKey, context.previous);
+      }
+    },
+    onSuccess: (message) => {
+      queryClient.setQueryData(messageQueryKey, (old) => upsertMessageInPages(old, message));
+    }
+  });
+
+  const removeReactionMutation = useMutation({
+    mutationFn: async ({ messageId }) => {
+      const { data } = await api.delete(`/orders/messages/${messageId}/reactions`);
+      return normalizeMessage(data);
+    },
+    onMutate: async ({ messageId }) => {
+      await queryClient.cancelQueries({ queryKey: messageQueryKey });
+      const previous = queryClient.getQueryData(messageQueryKey);
+      queryClient.setQueryData(messageQueryKey, (old) =>
+        patchMessageInPages(
+          old,
+          (m) => String(m?._id) === String(messageId),
+          (m) => ({
+            ...m,
+            reactions: Array.isArray(m?.reactions)
+              ? m.reactions.filter((r) => String(r.userId) !== String(user?._id))
+              : []
+          })
+        )
+      );
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(messageQueryKey, context.previous);
+      }
+    },
+    onSuccess: (message) => {
+      queryClient.setQueryData(messageQueryKey, (old) => upsertMessageInPages(old, message));
+    }
+  });
+
   const handleAddReaction = async (messageId, emoji) => {
     if (!messageId || !emoji) return;
-    
-    try {
-      await api.post(`/orders/messages/${messageId}/reactions`, { emoji });
-      // Reload messages to get updated reactions
-      loadMessages();
-    } catch (error) {
-      console.error('Error adding reaction:', error);
-    }
+    await addReactionMutation.mutateAsync({ messageId, emoji }).catch(() => {});
   };
 
   const handleRemoveReaction = async (messageId) => {
     if (!messageId) return;
-    
-    try {
-      await api.delete(`/orders/messages/${messageId}/reactions`);
-      // Reload messages to get updated reactions
-      loadMessages();
-    } catch (error) {
-      console.error('Error removing reaction:', error);
-    }
+    await removeReactionMutation.mutateAsync({ messageId }).catch(() => {});
   };
 
   const [deletingMessageId, setDeletingMessageId] = useState(null);
@@ -535,20 +771,33 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
   const [editingText, setEditingText] = useState('');
   const [savingEditId, setSavingEditId] = useState(null);
 
+  const deleteMessageMutation = useMutation({
+    mutationFn: async ({ messageId }) => {
+      await api.delete(`/orders/${orderId}/messages/${messageId}`);
+      return { messageId };
+    },
+    onMutate: async ({ messageId }) => {
+      await queryClient.cancelQueries({ queryKey: messageQueryKey });
+      const previous = queryClient.getQueryData(messageQueryKey);
+      queryClient.setQueryData(messageQueryKey, (old) => removeMessageInPages(old, messageId));
+      return { previous };
+    },
+    onError: (err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(messageQueryKey, context.previous);
+      }
+      const msg = err.response?.data?.message || 'Impossible de supprimer le message.';
+      setError(msg);
+    }
+  });
+
   const handleDeleteMessage = async (messageId) => {
     if (!messageId || !orderId) return;
     if (!window.confirm('Supprimer ce message pour tout le monde ?')) return;
     setDeletingMessageId(messageId);
     setError('');
-    try {
-      await api.delete(`/orders/${orderId}/messages/${messageId}`);
-      setMessages((prev) => prev.filter((m) => String(m._id) !== String(messageId)));
-    } catch (err) {
-      const msg = err.response?.data?.message || 'Impossible de supprimer le message.';
-      setError(msg);
-    } finally {
-      setDeletingMessageId(null);
-    }
+    await deleteMessageMutation.mutateAsync({ messageId }).catch(() => {});
+    setDeletingMessageId(null);
   };
 
   const canEditMessage = (msg) => {
@@ -570,6 +819,36 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
     setEditingText('');
   };
 
+  const updateMessageMutation = useMutation({
+    mutationFn: async ({ messageId, text }) => {
+      const { data } = await api.patch(`/orders/${orderId}/messages/${messageId}`, { text });
+      return normalizeMessage(data);
+    },
+    onMutate: async ({ messageId, text }) => {
+      await queryClient.cancelQueries({ queryKey: messageQueryKey });
+      const previous = queryClient.getQueryData(messageQueryKey);
+      queryClient.setQueryData(messageQueryKey, (old) =>
+        patchMessageInPages(
+          old,
+          (m) => String(m?._id) === String(messageId),
+          (m) => ({ ...m, text, updatedAt: new Date().toISOString() })
+        )
+      );
+      return { previous };
+    },
+    onError: (err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(messageQueryKey, context.previous);
+      }
+      const msg = err.response?.data?.message || 'Impossible de modifier le message.';
+      setError(msg);
+    },
+    onSuccess: (message) => {
+      queryClient.setQueryData(messageQueryKey, (old) => upsertMessageInPages(old, message));
+      handleCancelEdit();
+    }
+  });
+
   const handleSaveEdit = async () => {
     if (editingMessageId == null) return;
     const trimmed = editingText.trim();
@@ -579,19 +858,22 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
     }
     setSavingEditId(editingMessageId);
     setError('');
-    try {
-      const { data } = await api.patch(`/orders/${orderId}/messages/${editingMessageId}`, { text: trimmed });
-      const normalized = normalizeMessage(data);
-      setMessages((prev) =>
-        prev.map((m) => (String(m._id) === String(editingMessageId) ? normalized : m))
-      );
-      handleCancelEdit();
-    } catch (err) {
-      const msg = err.response?.data?.message || 'Impossible de modifier le message.';
-      setError(msg);
-    } finally {
-      setSavingEditId(null);
-    }
+    await updateMessageMutation
+      .mutateAsync({ messageId: editingMessageId, text: trimmed })
+      .catch(() => {});
+    setSavingEditId(null);
+  };
+
+  const handleRetryMessage = async (message) => {
+    if (!message?.failed || !message?.retryPayload) return;
+    const retryText = message.retryPayload.text || '';
+    const retryAttachments = Array.isArray(message.retryPayload.attachments)
+      ? message.retryPayload.attachments
+      : null;
+    const retryVoice = message.retryPayload.voiceMessage || null;
+
+    queryClient.setQueryData(messageQueryKey, (old) => removeMessageInPages(old, message._id));
+    await sendMessage(null, retryAttachments, retryVoice, retryText);
   };
 
   const sendQuickReply = (text) => {
@@ -602,11 +884,178 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
     }, 100);
   };
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  };
+  }, []);
+
+  const hasMoreMessages = Boolean(messagesQuery.hasNextPage);
+  const loadingOlderMessages = Boolean(messagesQuery.isFetchingNextPage);
+  const loading = Boolean(messagesQuery.isLoading);
+
+  const loadOlderMessages = useCallback(async () => {
+    if (loadingOlderMessages || !hasMoreMessages) return;
+    const container = messagesContainerRef.current;
+    const previousHeight = container?.scrollHeight || 0;
+    await messagesQuery.fetchNextPage();
+    requestAnimationFrame(() => {
+      const nextContainer = messagesContainerRef.current;
+      if (!nextContainer) return;
+      const heightDiff = nextContainer.scrollHeight - previousHeight;
+      if (heightDiff > 0) {
+        nextContainer.scrollTop = nextContainer.scrollTop + heightDiff;
+      }
+    });
+  }, [hasMoreMessages, loadingOlderMessages, messagesQuery]);
+
+  const handleMessagesScroll = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const nearBottom = container.scrollHeight - (container.scrollTop + container.clientHeight) < 120;
+    shouldAutoScrollRef.current = nearBottom;
+    if (container.scrollTop < 80) {
+      loadOlderMessages();
+    }
+  }, [loadOlderMessages]);
+
+  const emitTyping = useCallback((isTyping) => {
+    if (!socketRef.current?.connected || !orderId) return;
+    socketRef.current.emit('orders:typing', {
+      conversationId: String(orderId),
+      isTyping: Boolean(isTyping)
+    });
+  }, [orderId]);
+
+  const handleDraftChange = useCallback((value) => {
+    setMessageText(value);
+    emitTyping(Boolean(String(value || '').trim()));
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    typingTimeoutRef.current = setTimeout(() => {
+      emitTyping(false);
+    }, 1100);
+  }, [emitTyping]);
+
+  useEffect(() => () => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen || !orderId || !user?._id) return () => {};
+    let cancelled = false;
+    let mountedSocket = null;
+
+    const initializeSocket = async () => {
+      const token = await storage.get('qm_token');
+      if (!token || cancelled) return;
+      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+      const origin = apiBase.replace(/\/api\/?$/, '');
+      const socket = io(origin, {
+        auth: { token },
+        transports: ['websocket', 'polling'],
+        reconnectionAttempts: 20,
+        reconnectionDelay: 700
+      });
+      mountedSocket = socket;
+      if (cancelled) {
+        socket.disconnect();
+        return;
+      }
+      socketRef.current = socket;
+
+      socket.on('connect', () => {
+        setSocketConnected(true);
+        socket.emit('orders:conversation:join', { conversationId: String(orderId) });
+      });
+      socket.on('disconnect', () => {
+        setSocketConnected(false);
+      });
+
+      socket.on('orders:message:new', (payload) => {
+        if (String(payload?.conversationId) !== String(orderId)) return;
+        if (!payload?.message) return;
+        const container = messagesContainerRef.current;
+        const nearBottom = container
+          ? container.scrollHeight - (container.scrollTop + container.clientHeight) < 120
+          : true;
+        shouldAutoScrollRef.current = nearBottom || String(payload.message?.sender?._id) === String(user?._id);
+        queryClient.setQueryData(messageQueryKey, (old) => upsertMessageInPages(old, payload.message));
+      });
+
+      socket.on('orders:message:updated', (payload) => {
+        if (String(payload?.conversationId) !== String(orderId)) return;
+        const incoming = normalizeMessage(payload?.message);
+        if (!incoming?._id) return;
+        queryClient.setQueryData(messageQueryKey, (old) => upsertMessageInPages(old, incoming));
+      });
+
+      socket.on('orders:message:deleted', (payload) => {
+        if (String(payload?.conversationId) !== String(orderId)) return;
+        const messageId = String(payload?.messageId || '');
+        if (!messageId) return;
+        queryClient.setQueryData(messageQueryKey, (old) => removeMessageInPages(old, messageId));
+      });
+
+      socket.on('orders:conversation:read', (payload) => {
+        if (String(payload?.conversationId) !== String(orderId)) return;
+        const readerId = String(payload?.userId || '');
+        if (!readerId || readerId === String(user?._id)) return;
+        queryClient.setQueryData(messageQueryKey, (old) =>
+          patchMessageInPages(
+            old,
+            (m) => {
+              const isOwnSent = String(m?.sender?._id) === String(user?._id);
+              const recipientMatches = String(m?.recipient?._id) === readerId;
+              return isOwnSent && recipientMatches;
+            },
+            (m) => ({ ...m, readAt: payload?.readAt || new Date().toISOString() })
+          )
+        );
+      });
+
+      socket.on('orders:typing', (payload) => {
+        if (String(payload?.conversationId) !== String(orderId)) return;
+        if (String(payload?.userId || '') === String(user?._id)) return;
+        const currentlyTyping = Boolean(payload?.isTyping);
+        setTypingIndicator(currentlyTyping);
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        if (currentlyTyping) {
+          typingTimeoutRef.current = setTimeout(() => setTypingIndicator(false), 1600);
+        }
+      });
+    };
+
+    initializeSocket();
+
+    return () => {
+      cancelled = true;
+      emitTyping(false);
+      if (mountedSocket) {
+        mountedSocket.emit('orders:conversation:leave', { conversationId: String(orderId) });
+        mountedSocket.disconnect();
+      }
+      if (socketRef.current === mountedSocket) {
+        socketRef.current = null;
+      }
+      setSocketConnected(false);
+      setTypingIndicator(false);
+    };
+  }, [
+    emitTyping,
+    isOpen,
+    messageQueryKey,
+    orderId,
+    patchMessageInPages,
+    queryClient,
+    removeMessageInPages,
+    upsertMessageInPages,
+    user?._id
+  ]);
 
   if (!isOpen) {
     return (
@@ -743,10 +1192,9 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                             if (!orderId) return;
                             setArchiving(true);
                             try {
-                              await api.post(`/orders/${orderId}/archive`);
+                              await onArchive(orderId);
                               setShowChatMenu(false);
                               setIsOpen(false);
-                              onArchive();
                               onClose?.();
                             } catch (err) {
                               setError(err.response?.data?.message || 'Impossible d\'archiver.');
@@ -768,10 +1216,9 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                             if (!orderId) return;
                             setDeleting(true);
                             try {
-                              await api.post(`/orders/${orderId}/delete`);
+                              await onDelete(orderId);
                               setShowChatMenu(false);
                               setIsOpen(false);
-                              onDelete();
                               onClose?.();
                             } catch (err) {
                               setError(err.response?.data?.message || 'Impossible de supprimer.');
@@ -880,8 +1327,17 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
         {/* Messages — neutral background, bubbles */}
         <div
           ref={messagesContainerRef}
+          onScroll={handleMessagesScroll}
           className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/80 dark:bg-gray-900/80 min-h-0"
         >
+          {loadingOlderMessages && (
+            <div className="flex items-center justify-center py-1">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-gray-500 shadow-sm dark:bg-gray-800 dark:text-gray-300">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Chargement des anciens messages…
+              </span>
+            </div>
+          )}
           {/* Client name inside chat (when admin/seller) */}
           {showClientLabel && clientName && (
             <div className="flex justify-center mb-2">
@@ -946,7 +1402,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
                     return (
                       <div
-                        key={message._id ?? message.id ?? `msg-${index}`}
+                        key={`${String(message._id ?? message.id ?? message._fallbackKey ?? 'msg')}-${String(message.createdAt || '')}-${index}`}
                         className={`flex items-end gap-2 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
                       >
                         {/* Avatar for received messages */}
@@ -1073,6 +1529,25 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                               message.isDecrypted ? message.text : message.text || '[Message chiffré]'
                             )}
                           </p>
+
+                          {message.failed && (
+                            <div className={`mt-2 flex items-center gap-2 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
+                              <span className={`text-[10px] ${isOwnMessage ? 'text-amber-100' : 'text-amber-600 dark:text-amber-400'}`}>
+                                Envoi échoué
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleRetryMessage(message)}
+                                className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${
+                                  isOwnMessage
+                                    ? 'bg-white/20 text-white hover:bg-white/30'
+                                    : 'bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-300'
+                                }`}
+                              >
+                                Réessayer
+                              </button>
+                            </div>
+                          )}
                           
                           {/* Reactions */}
                           {message.reactions && message.reactions.length > 0 && (
@@ -1346,7 +1821,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
               <textarea
                 ref={inputRef}
                 value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
+                onChange={(e) => handleDraftChange(e.target.value)}
                 placeholder={isRecording ? `Enregistrement... ${recordingTime}s` : "Tapez votre message..."}
                 rows={1}
                 maxLength={1000}

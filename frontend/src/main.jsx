@@ -1,5 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import { QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import './index.css';
 import { AuthProvider } from './context/AuthContext';
@@ -7,22 +8,25 @@ import { CartProvider } from './context/CartContext';
 import { FavoriteProvider } from './context/FavoriteContext';
 import { ToastProvider } from './context/ToastContext';
 import { AppSettingsProvider } from './context/AppSettingsContext';
+import { queryClient } from './lib/queryClient';
 import { registerServiceWorker, unregisterServiceWorker } from './utils/serviceWorker';
 
 const root = createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <AuthProvider>
-      <AppSettingsProvider>
-        <CartProvider>
-          <FavoriteProvider>
-            <ToastProvider>
-              <App />
-            </ToastProvider>
-          </FavoriteProvider>
-        </CartProvider>
-      </AppSettingsProvider>
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <AppSettingsProvider>
+          <CartProvider>
+            <FavoriteProvider>
+              <ToastProvider>
+                <App />
+              </ToastProvider>
+            </FavoriteProvider>
+          </CartProvider>
+        </AppSettingsProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   </React.StrictMode>
 );
 
