@@ -612,6 +612,67 @@ export const updateAdminCity = asyncHandler(async (req, res) => {
   res.json(city);
 });
 
+export const deleteAdminCity = asyncHandler(async (req, res) => {
+  const city = await City.findById(req.params.id);
+  if (!city) {
+    return res.status(404).json({ message: 'Ville introuvable.' });
+  }
+
+  const linkedCommunesCount = await Commune.countDocuments({ cityId: city._id });
+  if (linkedCommunesCount > 0) {
+    return res.status(409).json({
+      message: 'Impossible de supprimer cette ville tant que des communes y sont rattachées.'
+    });
+  }
+
+  const totalCities = await City.countDocuments({});
+  if (totalCities <= 1) {
+    return res.status(400).json({ message: 'Impossible de supprimer la dernière ville.' });
+  }
+
+  let replacementCity = null;
+  if (city.isDefault) {
+    replacementCity =
+      (await City.findOne({ _id: { $ne: city._id }, isActive: true }).sort({ order: 1, name: 1 })) ||
+      (await City.findOne({ _id: { $ne: city._id } }).sort({ order: 1, name: 1 }));
+
+    if (!replacementCity) {
+      return res.status(400).json({ message: 'Aucune ville de remplacement disponible.' });
+    }
+
+    replacementCity.isDefault = true;
+    replacementCity.updatedBy = req.user.id;
+    await replacementCity.save();
+    await ensureSingleDefaultCity(replacementCity._id, req.user.id);
+  }
+
+  await city.deleteOne();
+
+  if (replacementCity?.name) {
+    await Promise.all([
+      User.updateMany(
+        { preferredCity: city.name },
+        { $set: { preferredCity: replacementCity.name } }
+      ),
+      User.updateMany({ city: city.name }, { $set: { city: replacementCity.name } }),
+      Product.updateMany({ city: city.name }, { $set: { city: replacementCity.name } })
+    ]);
+  }
+
+  invalidateAllSettingsCaches();
+  res.json({
+    message: 'Ville supprimée.',
+    deletedId: city._id,
+    replacementCity: replacementCity
+      ? {
+          _id: replacementCity._id,
+          name: replacementCity.name,
+          isDefault: replacementCity.isDefault
+        }
+      : null
+  });
+});
+
 export const listAdminCommunes = asyncHandler(async (req, res) => {
   const communes = await Commune.find({})
     .populate('cityId', 'name')
@@ -706,6 +767,20 @@ export const updateAdminCommune = asyncHandler(async (req, res) => {
   await commune.save();
   invalidateAllSettingsCaches();
   res.json(commune);
+});
+
+export const deleteAdminCommune = asyncHandler(async (req, res) => {
+  const commune = await Commune.findById(req.params.id);
+  if (!commune) {
+    return res.status(404).json({ message: 'Commune introuvable.' });
+  }
+
+  await commune.deleteOne();
+  invalidateAllSettingsCaches();
+  res.json({
+    message: 'Commune supprimée.',
+    deletedId: commune._id
+  });
 });
 
 export const ensureDefaultSettingsBootstrap = async () => {

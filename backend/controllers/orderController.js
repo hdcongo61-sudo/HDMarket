@@ -966,7 +966,7 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
 
 export const adminListOrders = asyncHandler(async (req, res) => {
   const { status, search = '', page = 1, limit = 20, orderId: orderIdParam } = req.query;
-  const filter = {};
+  const filter = { isDraft: false };
 
   if (orderIdParam && mongoose.Types.ObjectId.isValid(orderIdParam)) {
     filter._id = new mongoose.Types.ObjectId(orderIdParam);
@@ -1343,7 +1343,7 @@ export const adminDeleteOrder = asyncHandler(async (req, res) => {
 
 /** Build filter for admin list/stats (matches adminListOrders) */
 const buildAdminOrderFilter = async (status, search) => {
-  const filter = {};
+  const filter = { isDraft: false };
   if (status && ORDER_STATUS.includes(status)) {
     filter.status = status;
   }

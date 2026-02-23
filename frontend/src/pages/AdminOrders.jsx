@@ -4,7 +4,7 @@ import api from '../services/api';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import { buildProductPath } from '../utils/links';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
-import { CheckCircle, Search, Package, User, MapPin, Truck, Clock, ClipboardList, Plus, RefreshCcw, ArrowLeft, X, AlertCircle, ShieldCheck, Download, FileSpreadsheet, Trash2 } from 'lucide-react';
+import { CheckCircle, Search, Package, User, MapPin, Truck, Clock, ClipboardList, Plus, RefreshCcw, ArrowLeft, X, AlertCircle, ShieldCheck, FileSpreadsheet, Trash2 } from 'lucide-react';
 import OrderChat from '../components/OrderChat';
 import AuthContext from '../context/AuthContext';
 
@@ -26,6 +26,43 @@ const STATUS_CLASSES = {
 
 const CITY_OPTIONS = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
 const ORDERS_PER_PAGE = 12;
+const STATUS_TABS = [
+  { key: 'all', label: 'Toutes', icon: ClipboardList },
+  { key: 'pending', label: 'En attente', icon: Clock },
+  { key: 'confirmed', label: 'Confirmées', icon: Package },
+  { key: 'delivering', label: 'En livraison', icon: Truck },
+  { key: 'delivered', label: 'Livrées', icon: CheckCircle },
+  { key: 'cancelled', label: 'Annulées', icon: X }
+];
+
+const getOrderId = (value) => {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object') return String(value._id || '');
+  return String(value);
+};
+
+const normalizeOrderForUi = (order) => {
+  if (!order || typeof order !== 'object') return null;
+  const normalizedId = getOrderId(order);
+  if (!normalizedId) return null;
+  return {
+    ...order,
+    _id: normalizedId
+  };
+};
+
+const dedupeOrdersById = (list = []) => {
+  const map = new Map();
+  list.forEach((entry) => {
+    const normalized = normalizeOrderForUi(entry);
+    if (!normalized) return;
+    if (!map.has(normalized._id)) {
+      map.set(normalized._id, normalized);
+    }
+  });
+  return Array.from(map.values());
+};
 
 export default function AdminOrders() {
   const { user } = useContext(AuthContext);
@@ -133,7 +170,7 @@ export default function AdminOrders() {
       if (searchValue) params.append('search', searchValue);
       
       const { data } = await api.get(`/orders/admin?${params.toString()}`);
-      const allOrders = Array.isArray(data) ? data : data?.items || [];
+      const allOrders = dedupeOrdersById(Array.isArray(data) ? data : data?.items || []);
 
       // Prepare data for Excel
       const excelData = allOrders.map((order) => {
@@ -530,23 +567,17 @@ export default function AdminOrders() {
       if (searchValue) params.append('search', searchValue);
       if (orderIdFromUrl) params.set('orderId', orderIdFromUrl);
       const { data } = await api.get(`/orders/admin?${params.toString()}`);
-      const items = Array.isArray(data) ? data : data?.items || [];
-      // Deduplicate orders by _id to prevent any duplicate display issues
-      const seenIds = new Set();
-      const uniqueOrders = items.filter((order) => {
-        if (!order?._id || seenIds.has(order._id)) return false;
-        seenIds.add(order._id);
-        return true;
-      });
+      const rawItems = Array.isArray(data) ? data : data?.items || [];
+      const uniqueOrders = dedupeOrdersById(rawItems);
       setOrders(uniqueOrders);
-      
+
       // Load unread message counts
-      const orderIds = items.map((order) => order._id);
+      const orderIds = uniqueOrders.map((order) => order._id);
       const unreadCounts = await loadUnreadCounts(orderIds);
       setOrderUnreadCounts(unreadCounts);
-      
+
       setMeta({
-        total: data?.total ?? items.length,
+        total: data?.total ?? uniqueOrders.length,
         totalPages: data?.totalPages ?? 1
       });
       if (data?.page && data.page !== page) {
@@ -559,7 +590,7 @@ export default function AdminOrders() {
     } finally {
       setOrdersLoading(false);
     }
-  }, [statusFilter, searchValue, page, orderIdFromUrl]);
+  }, [statusFilter, searchValue, page, orderIdFromUrl, loadUnreadCounts]);
 
   const loadCustomers = useCallback(
     async (query = '') => {
@@ -605,7 +636,7 @@ export default function AdminOrders() {
 
   useEffect(() => {
     if (ordersLoading || !orderIdFromUrl) return;
-    const found = orders.some((o) => o._id === orderIdFromUrl);
+    const found = orders.some((o) => getOrderId(o) === orderIdFromUrl);
     if (!found) return;
     const el = document.getElementById(`order-${orderIdFromUrl}`);
     if (el) {
@@ -630,10 +661,12 @@ export default function AdminOrders() {
   }, [statusFilter, searchValue]);
 
   const handleUpdateOrder = async (orderId, payload) => {
-    const currentOrder = orders.find((order) => order._id === orderId);
+    const targetOrderId = getOrderId(orderId);
+    const currentOrder = orders.find((order) => getOrderId(order) === targetOrderId);
     try {
-      const { data } = await api.patch(`/orders/admin/${orderId}`, payload);
-      const updatedOrder = data;
+      const { data } = await api.patch(`/orders/admin/${targetOrderId}`, payload);
+      const updatedOrder = normalizeOrderForUi(data);
+      if (!updatedOrder) return null;
       const previousStatus = currentOrder?.status;
       const nextStatus = updatedOrder?.status || previousStatus;
       const removeFromView = statusFilter !== 'all' && nextStatus && statusFilter !== nextStatus;
@@ -641,17 +674,12 @@ export default function AdminOrders() {
       setOrders((prev) => {
         if (!Array.isArray(prev)) return prev;
         if (removeFromView) {
-          return prev.filter((order) => order._id !== orderId);
+          return prev.filter((order) => getOrderId(order) !== targetOrderId);
         }
-        // Replace the existing order, ensuring no duplicates
-        const updated = prev.map((order) => (order._id === orderId ? updatedOrder : order));
-        // Extra safety: deduplicate by _id
-        const seenIds = new Set();
-        return updated.filter((order) => {
-          if (!order?._id || seenIds.has(order._id)) return false;
-          seenIds.add(order._id);
-          return true;
-        });
+        const merged = prev.map((order) =>
+          getOrderId(order) === targetOrderId ? { ...order, ...updatedOrder } : order
+        );
+        return dedupeOrdersById(merged);
       });
 
       if (removeFromView) {
@@ -680,7 +708,7 @@ export default function AdminOrders() {
           };
         });
         setStatusUpdateInfo({
-          orderId,
+          orderId: targetOrderId,
           status: nextStatus
         });
       }
@@ -692,17 +720,18 @@ export default function AdminOrders() {
   };
 
   const handleDeleteOrder = async (orderId) => {
-    if (!orderId) return;
+    const targetOrderId = getOrderId(orderId);
+    if (!targetOrderId) return;
     setDeleteLoading(true);
     try {
-      await api.delete(`/orders/admin/${orderId}`);
-      setOrders((prev) => prev.filter((o) => o._id !== orderId));
+      await api.delete(`/orders/admin/${targetOrderId}`);
+      setOrders((prev) => prev.filter((o) => getOrderId(o) !== targetOrderId));
       setMeta((prev) => ({
         ...prev,
         total: Math.max(0, (prev.total || 0) - 1),
         totalPages: Math.max(1, Math.ceil(Math.max(0, (prev.total || 0) - 1) / ORDERS_PER_PAGE))
       }));
-      const deletedOrder = orders.find((o) => o._id === orderId);
+      const deletedOrder = orders.find((o) => getOrderId(o) === targetOrderId);
       if (deletedOrder?.status && stats?.statusCounts) {
         setStats((prev) => ({
           ...prev,
@@ -783,39 +812,33 @@ export default function AdminOrders() {
   }, [deleteOrder]);
 
   const renderStatusTabs = () => (
-    <div className="flex flex-wrap gap-2">
-      {['all', 'pending', 'confirmed', 'delivering', 'delivered', 'cancelled'].map((key) => {
-        const pendingCount = key === 'pending' ? (stats?.statusCounts?.pending || 0) : 0;
-        const statusCount = stats?.statusCounts?.[key] || 0;
+    <div
+      className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 md:flex-wrap md:overflow-visible md:pb-0 md:mx-0 md:px-0"
+      style={{ WebkitOverflowScrolling: 'touch' }}
+    >
+      {STATUS_TABS.map((tab) => {
+        const key = tab.key;
         const isActive = statusFilter === key;
+        const Icon = tab.icon;
+        const count = key === 'all' ? (stats?.total || 0) : (stats?.statusCounts?.[key] || 0);
         return (
           <button
             key={key}
             type="button"
             onClick={() => setStatusFilter(key)}
-            className={`px-4 py-2 text-xs font-semibold rounded-3xl border-2 transition-all duration-200 active:scale-95 flex items-center gap-2 shadow-sm ${
-              isActive 
-                ? 'bg-gradient-to-r from-neutral-600 to-neutral-600 text-white border-neutral-600 shadow-lg' 
-                : 'bg-white text-gray-700 border-gray-200 hover:border-neutral-300 hover:bg-neutral-50'
+            className={`group relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 min-h-[44px] flex-shrink-0 ${
+              isActive
+                ? 'bg-neutral-900 text-white shadow-lg scale-[1.02]'
+                : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
             }`}
           >
-            <span>{key === 'all' ? 'Toutes' : STATUS_LABELS[key]}</span>
-            {key === 'pending' && pendingCount > 0 && (
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                isActive
-                  ? 'bg-white/30 text-white' 
-                  : 'bg-neutral-600 text-white'
+            <Icon className="w-4 h-4" />
+            <span>{tab.label}</span>
+            {count > 0 && (
+              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                isActive ? 'bg-white/20 text-white' : 'bg-neutral-100 text-neutral-700'
               }`}>
-                {pendingCount}
-              </span>
-            )}
-            {key !== 'all' && key !== 'pending' && statusCount > 0 && (
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                isActive
-                  ? 'bg-white/30 text-white' 
-                  : 'bg-neutral-600 text-white'
-              }`}>
-                {statusCount}
+                {count}
               </span>
             )}
           </button>
@@ -825,70 +848,78 @@ export default function AdminOrders() {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-8 py-6 space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <ClipboardList className="w-6 h-6 text-neutral-600" />
-          Gestion des commandes
-        </h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={openCreateModal}
-            className="inline-flex items-center gap-2 rounded-full bg-neutral-600 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700"
-          >
-            <Plus className="h-4 w-4" />
-            Créer une commande
-          </button>
-          <Link
-            to="/admin"
-            className="text-sm text-neutral-600 hover:text-neutral-500 flex items-center gap-1"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Retour au tableau de bord
-          </Link>
-        </div>
-      </div>
+    <div className="min-h-screen bg-neutral-50">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-8 py-6 space-y-6">
+        <section className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <ClipboardList className="w-6 h-6 text-neutral-700" />
+                Gestion des commandes
+              </h1>
+              <p className="mt-1 text-sm text-gray-500">
+                Suivi global, affectation des livreurs et mise à jour des statuts.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={openCreateModal}
+                className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral-800"
+              >
+                <Plus className="h-4 w-4" />
+                Créer une commande
+              </button>
+              <button
+                type="button"
+                onClick={exportToExcel}
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                Export Excel
+              </button>
+              <Link
+                to="/admin"
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Retour admin
+              </Link>
+            </div>
+          </div>
+        </section>
 
-      {/* Stats - Improved Design */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        {['pending', 'confirmed', 'delivering', 'delivered', 'cancelled'].map((key) => {
-          const count = statsLoading ? 0 : stats?.statusCounts?.[key] || 0;
-          const bgColors = {
-            pending: 'bg-gradient-to-br from-gray-50 to-gray-100',
-            confirmed: 'bg-gradient-to-br from-amber-50 to-yellow-100',
-            delivering: 'bg-gradient-to-br from-neutral-50 to-neutral-100',
-            delivered: 'bg-gradient-to-br from-emerald-50 to-green-100',
-            cancelled: 'bg-gradient-to-br from-red-50 to-neutral-100'
-          };
-          const iconColors = {
-            pending: 'text-gray-600',
-            confirmed: 'text-amber-600',
-            delivering: 'text-neutral-600',
-            delivered: 'text-emerald-600',
-            cancelled: 'text-red-600'
-          };
-          return (
-            <div key={key} className={`${bgColors[key]} border-2 border-transparent rounded-3xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105`}>
-              <div className="flex items-center justify-between mb-3">
-                <div className={`w-12 h-12 rounded-2xl ${bgColors[key]} flex items-center justify-center shadow-md`}>
-                  {key === 'pending' && <Clock className={`w-6 h-6 ${iconColors[key]}`} />}
-                  {key === 'confirmed' && <Package className={`w-6 h-6 ${iconColors[key]}`} />}
-                  {key === 'delivering' && <Truck className={`w-6 h-6 ${iconColors[key]}`} />}
-                  {key === 'delivered' && <CheckCircle className={`w-6 h-6 ${iconColors[key]}`} />}
-                  {key === 'cancelled' && <X className={`w-6 h-6 ${iconColors[key]}`} />}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {['pending', 'confirmed', 'delivering', 'delivered', 'cancelled'].map((key) => {
+            const count = statsLoading ? 0 : stats?.statusCounts?.[key] || 0;
+            const iconColors = {
+              pending: 'text-gray-600',
+              confirmed: 'text-amber-600',
+              delivering: 'text-neutral-600',
+              delivered: 'text-emerald-600',
+              cancelled: 'text-red-600'
+            };
+            return (
+              <div key={key} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-11 h-11 rounded-xl bg-gray-50 flex items-center justify-center">
+                    {key === 'pending' && <Clock className={`w-5 h-5 ${iconColors[key]}`} />}
+                    {key === 'confirmed' && <Package className={`w-5 h-5 ${iconColors[key]}`} />}
+                    {key === 'delivering' && <Truck className={`w-5 h-5 ${iconColors[key]}`} />}
+                    {key === 'delivered' && <CheckCircle className={`w-5 h-5 ${iconColors[key]}`} />}
+                    {key === 'cancelled' && <X className={`w-5 h-5 ${iconColors[key]}`} />}
+                  </div>
                 </div>
-              </div>
-              <div>
-                <p className="text-xs uppercase font-bold text-gray-600 mb-1 tracking-wide">{STATUS_LABELS[key]}</p>
-                <p className={`text-3xl font-black ${iconColors[key]}`}>
+                <p className="text-xs uppercase font-semibold text-gray-500 mb-1 tracking-wide">
+                  {STATUS_LABELS[key]}
+                </p>
+                <p className={`text-3xl font-bold ${iconColors[key]}`}>
                   {statsLoading ? '...' : count.toLocaleString('fr-FR')}
                 </p>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
 
       {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
@@ -1258,8 +1289,7 @@ export default function AdminOrders() {
         </div>
       )}
 
-      {/* Toolbar - Improved Design */}
-      <section className="bg-gradient-to-br from-white to-gray-50 rounded-3xl border-2 border-gray-200 shadow-xl p-5 sm:p-6 space-y-5">
+      <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sm:p-6 space-y-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-3">
             {renderStatusTabs()}
@@ -1272,7 +1302,7 @@ export default function AdminOrders() {
                 placeholder="Rechercher par produit, client, adresse..."
                 value={searchDraft}
                 onChange={(e) => setSearchDraft(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-3xl border-2 border-gray-200 bg-white text-sm font-medium text-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 transition-all duration-200"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 transition-all duration-200"
                 title="Rechercher par nom de produit, nom du client, email, téléphone, adresse de livraison ou note de suivi"
               />
             </div>
@@ -1280,13 +1310,17 @@ export default function AdminOrders() {
               type="button"
               onClick={loadOrders}
               disabled={ordersLoading}
-              className="inline-flex items-center justify-center gap-2 rounded-3xl bg-gray-100 border-2 border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 transition-all duration-200 active:scale-95 shadow-sm disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-100 border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 transition-all duration-200 active:scale-95 shadow-sm disabled:opacity-60"
             >
               <RefreshCcw className={`w-4 h-4 ${ordersLoading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Actualiser</span>
             </button>
           </div>
         </div>
+
+        <p className="text-xs text-gray-500">
+          {meta.total} commande{meta.total > 1 ? 's' : ''} trouvée{meta.total > 1 ? 's' : ''}.
+        </p>
 
         {ordersError && <p className="text-sm text-red-600">{ordersError}</p>}
 
@@ -1739,6 +1773,7 @@ export default function AdminOrders() {
           </>
         )}
       </section>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import React, { useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api from '../services/api';
 import {
@@ -131,6 +131,12 @@ const STATUS_TABS = [
 ];
 
 const PAGE_SIZE = 6;
+
+const normalizeStatusFilter = (value) => {
+  if (!value) return 'all';
+  const safe = String(value).trim();
+  return Object.prototype.hasOwnProperty.call(STATUS_LABELS, safe) ? safe : 'all';
+};
 
 const ORDER_FLOW = [
   {
@@ -782,10 +788,14 @@ export default function UserOrders() {
   const { addItem } = useContext(CartContext);
   const navigate = useNavigate();
   const isMobile = useIsMobile(768);
+  const [activeStatus, setActiveStatus] = useState(() => normalizeStatusFilter(statusParam));
 
-  const activeStatus = useMemo(() => {
-    if (!statusParam) return 'all';
-    return Object.keys(STATUS_LABELS).includes(statusParam) ? statusParam : 'all';
+  useEffect(() => {
+    const normalizedStatus = normalizeStatusFilter(statusParam);
+    setActiveStatus((currentStatus) =>
+      currentStatus === normalizedStatus ? currentStatus : normalizedStatus
+    );
+    setPage(1);
   }, [statusParam]);
 
   // Online/Offline detection
@@ -904,10 +914,6 @@ export default function UserOrders() {
     setTouchStart(null);
     setTouchEnd(null);
   };
-
-  useEffect(() => {
-    setPage(1);
-  }, [activeStatus]);
 
   // Load order statistics and available shops
   useEffect(() => {
@@ -1353,22 +1359,26 @@ export default function UserOrders() {
           >
             {STATUS_TABS.map((tab) => {
               const isActive = tab.key === activeStatus;
-              const to = tab.key === 'all' ? '/orders' : `/orders/${tab.key}`;
               const Icon = tab.icon;
               const count = tab.key === 'all' ? stats.total : stats.byStatus[tab.key] || 0;
 
               return (
-                <Link
+                <button
                   key={tab.key}
-                  to={to}
+                  type="button"
+                  onClick={() => {
+                    if (tab.key === activeStatus) return;
+                    setActiveStatus(tab.key);
+                    setPage(1);
+                  }}
                   className={`group relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 min-h-[44px] ${
                     isActive
                       ? 'bg-neutral-900 text-white shadow-lg scale-105'
                       : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
                   } ${isMobile ? 'flex-shrink-0 snap-start' : ''}`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{tab.label}</span>
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span>{tab.label}</span>
                   {count > 0 && (
                     <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                       isActive
@@ -1378,7 +1388,7 @@ export default function UserOrders() {
                       {count}
                     </span>
                   )}
-                </Link>
+                </button>
               );
             })}
           </div>

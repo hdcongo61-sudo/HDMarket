@@ -1121,32 +1121,37 @@ const loadDiscountProducts = async () => {
           </label>
         )}
 
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-bold text-gray-900">{t('home.wholesaleTitle', 'Vente en gros')}</h2>
-            <Link to="/products?wholesaleOnly=true" className="text-xs font-semibold text-neutral-800">
+        <section className="isolate rounded-2xl border border-emerald-100 bg-gradient-to-b from-white via-white to-emerald-50/60 p-3 max-[375px]:p-2.5 shadow-sm">
+          <div className="mb-3 max-[375px]:mb-2.5 flex items-start justify-between gap-3 max-[375px]:gap-2">
+            <div>
+              <h2 className="text-sm max-[375px]:text-[13px] font-bold text-gray-900">{t('home.wholesaleTitle', 'Vente en gros')}</h2>
+              <p className="mt-0.5 text-[11px] max-[375px]:text-[10px] text-neutral-600">
+                {t('home.wholesaleSubtitle', 'Prix adaptés aux achats en quantité.')}
+              </p>
+            </div>
+            <Link to="/products?wholesaleOnly=true" className="shrink-0 text-xs max-[375px]:text-[11px] font-semibold text-neutral-800">
               {t('home.viewAll', 'Voir tout')}
             </Link>
           </div>
           {wholesaleLoading && !wholesaleProducts.length ? (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3 max-[375px]:grid-cols-1 max-[375px]:gap-2.5">
               {Array.from({ length: 4 }).map((_, index) => (
                 <div key={`wholesale-skeleton-${index}`} className="h-48 animate-pulse rounded-xl bg-gray-200" />
               ))}
             </div>
           ) : wholesaleProducts.length > 0 ? (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3 max-[375px]:grid-cols-1 max-[375px]:gap-2.5">
               {wholesaleProducts.slice(0, 4).map((product) => {
                 const minQty = Number(product?.wholesaleMinQty || product?.wholesaleTiers?.[0]?.minQty || 2);
                 return (
-                  <div key={`wholesale-mobile-${product._id}`} className="space-y-1">
+                  <div key={`wholesale-mobile-${product._id}`} className="overflow-hidden rounded-xl border border-emerald-100 bg-white p-1 max-[375px]:p-0.5 shadow-sm">
                     <ProductCard p={product} productLink={buildHomeProductLink(product)} />
-                    <div className="px-1">
-                      <span className="inline-flex items-center rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[10px] font-semibold text-neutral-700">
+                    <div className="mt-1 rounded-lg border border-neutral-200 bg-neutral-50 px-2 py-1.5 max-[375px]:px-1.5 max-[375px]:py-1">
+                      <span className="inline-flex items-center rounded-full border border-neutral-200 bg-white px-2 py-0.5 text-[10px] max-[375px]:text-[9px] font-semibold text-neutral-700">
                         Vente en gros
                       </span>
-                      <p className="mt-1 text-[11px] text-gray-600">
-                        À partir de <span className="font-semibold">{minQty}</span> unités
+                      <p className="mt-1 text-[11px] max-[375px]:text-[10px] leading-snug text-gray-600">
+                        Commande minimum: <span className="font-semibold text-neutral-800">{minQty}</span> unités
                       </p>
                     </div>
                   </div>
@@ -1160,27 +1165,34 @@ const loadDiscountProducts = async () => {
           )}
         </section>
 
-        <section ref={installmentSectionRef}>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-bold text-gray-900">
-              {t('home.installmentProducts', 'Produits disponibles en paiement par tranche')}
-            </h2>
-            <Link to="/products?installmentOnly=true" className="text-xs font-semibold text-neutral-800">
+        <section ref={installmentSectionRef} className="isolate rounded-2xl border border-sky-100 bg-gradient-to-b from-white via-white to-sky-50/60 p-3 max-[375px]:p-2.5 shadow-sm">
+          <div className="mb-3 max-[375px]:mb-2.5 flex items-start justify-between gap-3 max-[375px]:gap-2">
+            <div>
+              <h2 className="text-sm max-[375px]:text-[13px] font-bold text-gray-900">
+                {t('home.installmentProducts', 'Produits disponibles en paiement par tranche')}
+              </h2>
+              <p className="mt-0.5 text-[11px] max-[375px]:text-[10px] text-neutral-600">
+                {t('home.installmentSubtitle', 'Payez progressivement avec plus de flexibilité.')}
+              </p>
+            </div>
+            <Link to="/products?installmentOnly=true" className="shrink-0 text-xs max-[375px]:text-[11px] font-semibold text-neutral-800">
               Voir tout
             </Link>
           </div>
           {installmentLoading && !installmentProducts.length ? (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3 max-[375px]:grid-cols-1 max-[375px]:gap-2.5">
               {Array.from({ length: 4 }).map((_, index) => (
                 <div key={`installment-skeleton-${index}`} className="h-48 animate-pulse rounded-xl bg-gray-200" />
               ))}
             </div>
           ) : (installmentProducts.length || highlights.installmentProducts?.length) > 0 ? (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3 max-[375px]:grid-cols-1 max-[375px]:gap-2.5">
               {(installmentProducts.length ? installmentProducts : highlights.installmentProducts)
                 .slice(0, 4)
                 .map((product) => (
-                  <ProductCard key={`installment-mobile-${product._id}`} p={product} productLink={buildHomeProductLink(product)} />
+                  <div key={`installment-mobile-${product._id}`} className="overflow-hidden rounded-xl border border-sky-100 bg-white p-1 max-[375px]:p-0.5 shadow-sm">
+                    <ProductCard p={product} productLink={buildHomeProductLink(product)} />
+                  </div>
                 ))}
             </div>
           ) : (
@@ -1749,74 +1761,88 @@ const loadDiscountProducts = async () => {
           )}
         </section>
 
-        <section className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-gray-900">{t('home.wholesaleTitle', 'Vente en gros')}</h2>
-            <Link to="/products?wholesaleOnly=true" className="text-xs font-semibold text-neutral-800">
-              {t('home.viewAll', 'Voir tout')}
-            </Link>
-          </div>
-          {wholesaleLoading && !wholesaleProducts.length ? (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <div key={`wholesale-desktop-skeleton-${index}`} className="h-56 animate-pulse rounded-xl bg-gray-200" />
-              ))}
+        <div className="grid grid-cols-1 2xl:grid-cols-2 gap-5">
+          <section className="isolate rounded-2xl border border-emerald-100 bg-gradient-to-br from-white via-white to-emerald-50/70 shadow-sm p-4">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h2 className="text-base font-bold text-gray-900">{t('home.wholesaleTitle', 'Vente en gros')}</h2>
+                <p className="mt-0.5 text-xs text-neutral-600">
+                  {t('home.wholesaleSubtitle', 'Prix adaptés aux achats en quantité.')}
+                </p>
+              </div>
+              <Link to="/products?wholesaleOnly=true" className="shrink-0 text-xs font-semibold text-neutral-800">
+                {t('home.viewAll', 'Voir tout')}
+              </Link>
             </div>
-          ) : wholesaleProducts.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              {wholesaleProducts.slice(0, 4).map((product) => {
-                const minQty = Number(product?.wholesaleMinQty || product?.wholesaleTiers?.[0]?.minQty || 2);
-                return (
-                  <div key={`wholesale-desktop-${product._id}`} className="space-y-2">
-                    <ProductCard p={product} productLink={buildHomeProductLink(product)} />
-                    <div className="px-1">
-                      <span className="inline-flex items-center rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[11px] font-semibold text-neutral-700">
-                        Vente en gros
-                      </span>
-                      <p className="mt-1 text-xs text-gray-600">
-                        À partir de <span className="font-semibold">{minQty}</span> unités
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500">
-              {t('home.noWholesaleProducts', 'Aucun produit en vente en gros actuellement.')}
-            </p>
-          )}
-        </section>
-
-        <section ref={installmentSectionRef} className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-gray-900">
-              {t('home.installmentProducts', 'Produits disponibles en paiement par tranche')}
-            </h2>
-            <Link to="/products?installmentOnly=true" className="text-xs font-semibold text-neutral-800">
-              Voir tout
-            </Link>
-          </div>
-          {installmentLoading && !installmentProducts.length ? (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <div key={`installment-desktop-skeleton-${index}`} className="h-56 animate-pulse rounded-xl bg-gray-200" />
-              ))}
-            </div>
-          ) : (installmentProducts.length || highlights.installmentProducts?.length) > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              {(installmentProducts.length ? installmentProducts : highlights.installmentProducts)
-                .slice(0, 4)
-                .map((product) => (
-                  <ProductCard key={`installment-desktop-${product._id}`} p={product} productLink={buildHomeProductLink(product)} />
+            {wholesaleLoading && !wholesaleProducts.length ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={`wholesale-desktop-skeleton-${index}`} className="h-56 animate-pulse rounded-xl bg-gray-200" />
                 ))}
+              </div>
+            ) : wholesaleProducts.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {wholesaleProducts.slice(0, 4).map((product) => {
+                  const minQty = Number(product?.wholesaleMinQty || product?.wholesaleTiers?.[0]?.minQty || 2);
+                  return (
+                    <div key={`wholesale-desktop-${product._id}`} className="overflow-hidden rounded-xl border border-emerald-100 bg-white p-1.5 shadow-sm">
+                      <ProductCard p={product} productLink={buildHomeProductLink(product)} />
+                      <div className="mt-1.5 rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-2">
+                        <span className="inline-flex items-center rounded-full border border-neutral-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-neutral-700">
+                          Vente en gros
+                        </span>
+                        <p className="mt-1 text-xs text-gray-600">
+                          Commande minimum: <span className="font-semibold text-neutral-800">{minQty}</span> unités
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">
+                {t('home.noWholesaleProducts', 'Aucun produit en vente en gros actuellement.')}
+              </p>
+            )}
+          </section>
+
+          <section ref={installmentSectionRef} className="isolate rounded-2xl border border-sky-100 bg-gradient-to-br from-white via-white to-sky-50/70 shadow-sm p-4">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h2 className="text-base font-bold text-gray-900">
+                  {t('home.installmentProducts', 'Produits disponibles en paiement par tranche')}
+                </h2>
+                <p className="mt-0.5 text-xs text-neutral-600">
+                  {t('home.installmentSubtitle', 'Payez progressivement avec plus de flexibilité.')}
+                </p>
+              </div>
+              <Link to="/products?installmentOnly=true" className="shrink-0 text-xs font-semibold text-neutral-800">
+                Voir tout
+              </Link>
             </div>
-          ) : (
-            <p className="text-sm text-gray-500">
-              {t('home.noInstallmentProducts', 'Aucun produit en tranche disponible actuellement.')}
-            </p>
-          )}
-        </section>
+            {installmentLoading && !installmentProducts.length ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={`installment-desktop-skeleton-${index}`} className="h-56 animate-pulse rounded-xl bg-gray-200" />
+                ))}
+              </div>
+            ) : (installmentProducts.length || highlights.installmentProducts?.length) > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {(installmentProducts.length ? installmentProducts : highlights.installmentProducts)
+                  .slice(0, 4)
+                  .map((product) => (
+                    <div key={`installment-desktop-${product._id}`} className="overflow-hidden rounded-xl border border-sky-100 bg-white p-1.5 shadow-sm">
+                      <ProductCard p={product} productLink={buildHomeProductLink(product)} />
+                    </div>
+                  ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">
+                {t('home.noInstallmentProducts', 'Aucun produit en tranche disponible actuellement.')}
+              </p>
+            )}
+          </section>
+        </div>
 
         {/* Découvrir plus: quick-links to dedicated pages */}
         <section className="hidden lg:block">

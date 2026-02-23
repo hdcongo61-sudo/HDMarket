@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   ClipboardList,
@@ -125,6 +125,12 @@ const STATUS_TABS = [
 ];
 
 const PAGE_SIZE = 6;
+
+const normalizeStatusFilter = (value) => {
+  if (!value) return 'all';
+  const safe = String(value).trim();
+  return Object.prototype.hasOwnProperty.call(STATUS_LABELS, safe) ? safe : 'all';
+};
 
 const ORDER_FLOW = [
   {
@@ -794,11 +800,7 @@ export default function SellerOrders() {
   const [installmentAnalyticsLoading, setInstallmentAnalyticsLoading] = useState(false);
   const [orderUnreadCounts, setOrderUnreadCounts] = useState({});
   const { status: statusParam } = useParams();
-
-  const activeStatus = useMemo(() => {
-    if (!statusParam) return 'all';
-    return Object.keys(STATUS_LABELS).includes(statusParam) ? statusParam : 'all';
-  }, [statusParam]);
+  const [activeStatus, setActiveStatus] = useState(() => normalizeStatusFilter(statusParam));
 
   const refreshOrders = useCallback(async () => {
     setReloadToken((value) => value + 1);
@@ -809,8 +811,12 @@ export default function SellerOrders() {
   });
 
   useEffect(() => {
+    const normalizedStatus = normalizeStatusFilter(statusParam);
+    setActiveStatus((currentStatus) =>
+      currentStatus === normalizedStatus ? currentStatus : normalizedStatus
+    );
     setPage(1);
-  }, [activeStatus]);
+  }, [statusParam]);
 
   // Load order statistics
   useEffect(() => {
@@ -1193,14 +1199,18 @@ export default function SellerOrders() {
           <div className="flex flex-wrap gap-2">
             {STATUS_TABS.map((tab) => {
               const isActive = tab.key === activeStatus;
-              const to = tab.key === 'all' ? '/seller/orders' : `/seller/orders/${tab.key}`;
               const Icon = tab.icon;
               const count = tab.key === 'all' ? stats.total : stats.byStatus[tab.key] || 0;
               
               return (
-                <Link
+                <button
                   key={tab.key}
-                  to={to}
+                  type="button"
+                  onClick={() => {
+                    if (tab.key === activeStatus) return;
+                    setActiveStatus(tab.key);
+                    setPage(1);
+                  }}
                   className={`group relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                     isActive
                       ? 'bg-neutral-900 text-white shadow-lg scale-105'
@@ -1218,7 +1228,7 @@ export default function SellerOrders() {
                       {count}
                     </span>
                   )}
-                </Link>
+                </button>
               );
             })}
           </div>

@@ -89,6 +89,47 @@ const sortCommunes = (list = []) =>
     return String(a?.name || '').localeCompare(String(b?.name || ''), 'fr', { sensitivity: 'base' });
   });
 
+const parseBooleanSetting = (value) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'oui', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'non', 'off', ''].includes(normalized)) return false;
+  }
+  return false;
+};
+
+const parseNumberSetting = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const normalizeFeesPayload = (payload = {}) =>
+  FEE_FIELDS.reduce((acc, field) => {
+    const rawValue = payload?.[field.key];
+    acc[field.key] = field.type === 'boolean' ? parseBooleanSetting(rawValue) : parseNumberSetting(rawValue);
+    return acc;
+  }, {});
+
+const resolveCityName = (cityId, sourceCities = []) => {
+  const normalizedId = String(cityId || '').trim();
+  if (!normalizedId) return '';
+  const match = (sourceCities || []).find((city) => String(city?._id || '') === normalizedId);
+  return match?.name || '';
+};
+
+const normalizeCommuneWithCities = (commune, sourceCities = []) => {
+  const rawCity = commune?.cityId;
+  const normalizedCityId = String(rawCity?._id || rawCity || '').trim();
+  const cityName = rawCity?.name || commune?.cityName || resolveCityName(normalizedCityId, sourceCities) || '';
+  return {
+    ...commune,
+    cityId: normalizedCityId,
+    cityName
+  };
+};
+
 export default function AdminSystemSettings() {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -115,42 +156,20 @@ export default function AdminSystemSettings() {
   const [savingLanguages, setSavingLanguages] = useState(false);
   const [currencyRateDrafts, setCurrencyRateDrafts] = useState({});
   const [savingCurrencyCode, setSavingCurrencyCode] = useState('');
+  const [deletingCityId, setDeletingCityId] = useState('');
+  const [deletingCommuneId, setDeletingCommuneId] = useState('');
 
   const emitSettingsRefresh = useCallback(() => {
     if (typeof window === 'undefined') return;
     window.dispatchEvent(new Event('hdmarket:settings-refresh'));
   }, []);
 
-  const resolveCityName = useCallback((cityId, sourceCities = cities) => {
-    const normalizedId = String(cityId || '').trim();
-    if (!normalizedId) return '';
-    const match = (sourceCities || []).find((city) => String(city?._id || '') === normalizedId);
-    return match?.name || '';
-  }, [cities]);
-
-  const normalizeCommuneWithCities = useCallback(
-    (commune, sourceCities = cities) => {
-      const rawCity = commune?.cityId;
-      const normalizedCityId = String(rawCity?._id || rawCity || '').trim();
-      const cityName =
-        rawCity?.name ||
-        commune?.cityName ||
-        resolveCityName(normalizedCityId, sourceCities) ||
-        '';
-      return {
-        ...commune,
-        cityId: normalizedCityId,
-        cityName
-      };
-    },
-    [cities, resolveCityName]
-  );
-
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
       const { data } = await api.get('/admin/settings');
-      setFees(data?.feesAndRules || {});
+      const feeSource = data?.feesAndRules || data?.app || data?.fees || {};
+      setFees(normalizeFeesPayload(feeSource));
       setCurrencies(Array.isArray(data?.currencies) ? data.currencies : []);
       const nextCities = sortCities(Array.isArray(data?.cities) ? data.cities : []);
       const nextCommunesRaw = Array.isArray(data?.communes) ? data.communes : [];
@@ -169,7 +188,7 @@ export default function AdminSystemSettings() {
     } finally {
       setLoading(false);
     }
-  }, [normalizeCommuneWithCities, showToast]);
+  }, [showToast]);
 
   useEffect(() => {
     loadSettings();
@@ -341,6 +360,54 @@ export default function AdminSystemSettings() {
     }
   };
 
+  const deleteCity = async (city) => {
+    const cityId = String(city?._id || '');
+    if (!cityId) return;
+    const linkedCommunes = communes.filter(
+      (entry) => String(entry?.cityId || '') === cityId
+    ).length;
+    if (linkedCommunes > 0) {
+      showToast('Supprimez d\'abord les communes rattachées à cette ville.', { variant: 'error' });
+      return;
+    }
+    const accepted = window.confirm(`Supprimer la ville "${city?.name || ''}" ?`);
+    if (!accepted) return;
+
+    const previousCities = cities;
+    setDeletingCityId(cityId);
+    setCities((prev) => prev.filter((entry) => String(entry?._id || '') !== cityId));
+    try {
+      const { data } = await api.delete(`/admin/cities/${cityId}`);
+      const replacementCityId = String(data?.replacementCity?._id || '');
+      if (replacementCityId) {
+        setCities((prev) =>
+          sortCities(
+            prev.map((entry) => ({
+              ...entry,
+              isDefault: String(entry?._id || '') === replacementCityId
+            }))
+          )
+        );
+      }
+      if (communeForm.cityId === cityId) {
+        const fallbackCityId = String(
+          cities.find((entry) => String(entry?._id || '') !== cityId)?._id || ''
+        );
+        setCommuneForm((prev) => ({ ...prev, cityId: fallbackCityId }));
+      }
+      if (editingCommuneDraft.cityId === cityId) {
+        setEditingCommuneDraft((prev) => ({ ...prev, cityId: '' }));
+      }
+      showToast('Ville supprimée.', { variant: 'success' });
+      emitSettingsRefresh();
+    } catch (error) {
+      setCities(previousCities);
+      showToast(error.response?.data?.message || 'Erreur suppression ville.', { variant: 'error' });
+    } finally {
+      setDeletingCityId('');
+    }
+  };
+
   const createCommune = async (event) => {
     event.preventDefault();
     if (!communeForm.cityId) {
@@ -440,6 +507,30 @@ export default function AdminSystemSettings() {
     } catch (error) {
       setCommunes(previousCommunes);
       showToast(error.response?.data?.message || 'Erreur mise a jour commune.', { variant: 'error' });
+    }
+  };
+
+  const deleteCommune = async (commune) => {
+    const communeId = String(commune?._id || '');
+    if (!communeId) return;
+    const accepted = window.confirm(`Supprimer la commune "${commune?.name || ''}" ?`);
+    if (!accepted) return;
+
+    const previousCommunes = communes;
+    setDeletingCommuneId(communeId);
+    setCommunes((prev) => prev.filter((entry) => String(entry?._id || '') !== communeId));
+    if (editingCommuneId === communeId) {
+      cancelCommuneEdit();
+    }
+    try {
+      await api.delete(`/admin/communes/${communeId}`);
+      showToast('Commune supprimée.', { variant: 'success' });
+      emitSettingsRefresh();
+    } catch (error) {
+      setCommunes(previousCommunes);
+      showToast(error.response?.data?.message || 'Erreur suppression commune.', { variant: 'error' });
+    } finally {
+      setDeletingCommuneId('');
     }
   };
 
@@ -937,6 +1028,7 @@ export default function AdminSystemSettings() {
                   <button
                     type="button"
                     onClick={() => patchCity(item._id, { isDefault: true })}
+                    disabled={deletingCityId === String(item._id)}
                     className={`rounded-md px-2 py-1 text-xs font-medium ${
                       item.isDefault
                         ? 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-200'
@@ -948,6 +1040,7 @@ export default function AdminSystemSettings() {
                   <button
                     type="button"
                     onClick={() => patchCity(item._id, { isActive: !item.isActive })}
+                    disabled={deletingCityId === String(item._id)}
                     className={`rounded-md px-2 py-1 text-xs font-medium ${
                       item.isActive
                         ? 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-200'
@@ -955,6 +1048,15 @@ export default function AdminSystemSettings() {
                     }`}
                   >
                     {item.isActive ? 'Actif' : 'Inactif'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteCity(item)}
+                    disabled={deletingCityId === String(item._id)}
+                    className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 disabled:opacity-60 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200"
+                  >
+                    <Trash2 size={12} />
+                    {deletingCityId === String(item._id) ? 'Suppression...' : 'Supprimer'}
                   </button>
                 </div>
               </div>
@@ -1121,6 +1223,7 @@ export default function AdminSystemSettings() {
                             isActive: !item.isActive
                           })
                         }
+                        disabled={deletingCommuneId === String(item._id)}
                         className={`rounded-md px-2 py-1 text-xs font-medium ${
                           item.isActive
                             ? 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-200'
@@ -1132,9 +1235,19 @@ export default function AdminSystemSettings() {
                       <button
                         type="button"
                         onClick={() => startCommuneEdit(item)}
+                        disabled={deletingCommuneId === String(item._id)}
                         className="rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-neutral-800 dark:text-neutral-200"
                       >
                         Changer politique
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteCommune(item)}
+                        disabled={deletingCommuneId === String(item._id)}
+                        className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 disabled:opacity-60 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200"
+                      >
+                        <Trash2 size={12} />
+                        {deletingCommuneId === String(item._id) ? 'Suppression...' : 'Supprimer'}
                       </button>
                     </div>
                   )}

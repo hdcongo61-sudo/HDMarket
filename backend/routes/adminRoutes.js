@@ -157,9 +157,11 @@ import {
   listAdminCities,
   createAdminCity,
   updateAdminCity,
+  deleteAdminCity,
   listAdminCommunes,
   createAdminCommune,
-  updateAdminCommune
+  updateAdminCommune,
+  deleteAdminCommune
 } from '../controllers/settingsController.js';
 
 const router = express.Router();
@@ -395,6 +397,13 @@ router.patch(
   validate(schemas.adminCityUpdate),
   updateAdminCity
 );
+router.delete(
+  '/cities/:id',
+  protect,
+  requireRole(['admin']),
+  validate(schemas.idParam, 'params'),
+  deleteAdminCity
+);
 router.get('/communes', protect, requireRole(['admin']), listAdminCommunes);
 router.post(
   '/communes',
@@ -410,6 +419,13 @@ router.patch(
   validate(schemas.idParam, 'params'),
   validate(schemas.adminCommuneUpdate),
   updateAdminCommune
+);
+router.delete(
+  '/communes/:id',
+  protect,
+  requireRole(['admin']),
+  validate(schemas.idParam, 'params'),
+  deleteAdminCommune
 );
 
 // Complaint access - admin, manager, or canManageComplaints

@@ -51,6 +51,15 @@ export default function SwipeActions({
     closeActions();
   };
 
+  const renderedChildren =
+    typeof children === 'function'
+      ? children({
+          openSide,
+          isActionsOpen: openSide !== 'none',
+          closeActions
+        })
+      : children;
+
   return (
     <div className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2">
@@ -94,7 +103,7 @@ export default function SwipeActions({
           }
         }}
       >
-        {children}
+        {renderedChildren}
       </motion.div>
     </div>
   );
