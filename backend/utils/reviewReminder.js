@@ -3,19 +3,28 @@ import Rating from '../models/ratingModel.js';
 import Comment from '../models/commentModel.js';
 import Notification from '../models/notificationModel.js';
 import { createNotification } from './notificationService.js';
+import { getRuntimeConfig } from '../services/configService.js';
+
+const getReviewReminderDelayHours = async () => {
+  const envFallback = Math.max(1, Number(process.env.ORDER_REVIEW_REMINDER_AFTER_HOURS || 1));
+  const value = await getRuntimeConfig('review_reminder_after_hours', { fallback: envFallback });
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return envFallback;
+  return Math.max(1, parsed);
+};
 
 /**
- * Check for delivered orders that are 1 hour old and send review reminders
+ * Check for delivered orders that reached configured delay and send review reminders
  * to buyers who haven't reviewed the products yet
  */
 export const sendReviewReminders = async () => {
   try {
-    // Find orders delivered more than 1 hour ago
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const reminderDelayHours = await getReviewReminderDelayHours();
+    const thresholdDate = new Date(Date.now() - reminderDelayHours * 60 * 60 * 1000);
     
     const deliveredOrders = await Order.find({
       status: 'delivered',
-      deliveredAt: { $exists: true, $lte: oneHourAgo },
+      deliveredAt: { $exists: true, $lte: thresholdDate },
       isDraft: false
     })
       .populate('customer', 'name email')
@@ -149,9 +158,10 @@ export const checkOrderReviewReminder = async (orderId) => {
       return { needsReminder: false, reason: 'Order not delivered' };
     }
 
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    if (order.deliveredAt > oneHourAgo) {
-      return { needsReminder: false, reason: 'Less than 1 hour since delivery' };
+    const reminderDelayHours = await getReviewReminderDelayHours();
+    const thresholdDate = new Date(Date.now() - reminderDelayHours * 60 * 60 * 1000);
+    if (order.deliveredAt > thresholdDate) {
+      return { needsReminder: false, reason: `Less than ${reminderDelayHours} hour(s) since delivery` };
     }
 
     if (!order.customer || !order.items || order.items.length === 0) {

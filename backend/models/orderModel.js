@@ -115,6 +115,26 @@ const deliveryProofImageSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const orderAdminNoteSchema = new mongoose.Schema(
+  {
+    note: { type: String, trim: true, default: '' },
+    actor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    createdAt: { type: Date, default: Date.now }
+  },
+  { _id: false }
+);
+
+const orderTimelineEventSchema = new mongoose.Schema(
+  {
+    type: { type: String, trim: true, default: 'system' },
+    label: { type: String, trim: true, default: '' },
+    actor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+    at: { type: Date, default: Date.now }
+  },
+  { _id: false }
+);
+
 const orderSchema = new mongoose.Schema(
   {
     items: {
@@ -246,7 +266,50 @@ const orderSchema = new mongoose.Schema(
     },
     archivedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     deletedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-    cancellationWindowSkippedAt: { type: Date } // When buyer confirms they won't cancel, allows seller to process immediately
+    cancellationWindowSkippedAt: { type: Date }, // When buyer confirms they won't cancel, allows seller to process immediately
+
+    // Admin order command center fields (non-breaking extension)
+    expectedDeliveryDate: { type: Date, default: null },
+    delayStatus: {
+      type: String,
+      enum: ['on_time', 'delayed', 'resolved', 'overridden'],
+      default: 'on_time'
+    },
+    delaySeverity: {
+      type: String,
+      enum: ['none', 'slight', 'moderate', 'critical'],
+      default: 'none'
+    },
+    delayDetectedAt: { type: Date, default: null },
+    delayDays: { type: Number, default: 0, min: 0 },
+    delayOverride: {
+      by: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      at: { type: Date, default: null },
+      note: { type: String, trim: true, default: '' }
+    },
+    reviewRequested: { type: Boolean, default: false },
+    reviewGiven: { type: Boolean, default: false },
+    confirmationGiven: { type: Boolean, default: false },
+    reminderSentCount: { type: Number, default: 0, min: 0 },
+    lastReminderDate: { type: Date, default: null },
+    reminderState: {
+      sellerReminderSentAt: { type: Date, default: null },
+      buyerConfirmationReminderSentAt: { type: Date, default: null },
+      reviewReminderSentAt: { type: Date, default: null },
+      experienceReminderSentAt: { type: Date, default: null },
+      escalationReminderSentAt: { type: Date, default: null },
+      delayReminderSentAt: { type: Date, default: null },
+      manualReminderSentAt: { type: Date, default: null }
+    },
+    adminPriority: {
+      type: String,
+      enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+      default: 'LOW'
+    },
+    adminRiskScore: { type: Number, default: 0, min: 0, max: 100 },
+    statusStuckSince: { type: Date, default: Date.now },
+    adminNotes: { type: [orderAdminNoteSchema], default: [] },
+    timeline: { type: [orderTimelineEventSchema], default: [] }
   },
   { timestamps: true }
 );
@@ -264,5 +327,26 @@ orderSchema.index({ paymentTransactionCode: 1 });
 orderSchema.index({ 'draftPayments.transactionCode': 1 });
 orderSchema.index({ 'installmentPlan.schedule.transactionProof.transactionCode': 1 });
 orderSchema.index({ deliveryStatus: 1, updatedAt: -1 });
+orderSchema.index({ delayStatus: 1, delaySeverity: 1, updatedAt: -1 });
+orderSchema.index({ expectedDeliveryDate: 1, status: 1 });
+orderSchema.index({ adminPriority: 1, adminRiskScore: -1, updatedAt: -1 });
+orderSchema.index({ statusStuckSince: 1, status: 1 });
+orderSchema.index({ reviewGiven: 1, confirmationGiven: 1, deliveredAt: -1 });
+
+orderSchema.pre('save', function orderStatusTracking(next) {
+  if (this.isModified('status')) {
+    this.statusStuckSince = new Date();
+  }
+  if (!this.expectedDeliveryDate && this.deliveryDate) {
+    this.expectedDeliveryDate = this.deliveryDate;
+  }
+  if (!this.confirmationGiven) {
+    const status = String(this.status || '');
+    if (['confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(status) || this.clientDeliveryConfirmedAt) {
+      this.confirmationGiven = true;
+    }
+  }
+  next();
+});
 
 export default mongoose.model('Order', orderSchema);

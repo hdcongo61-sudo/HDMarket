@@ -2,6 +2,7 @@ import Order from '../models/orderModel.js';
 import Product from '../models/productModel.js';
 import { createNotification } from './notificationService.js';
 import { addDays } from './installmentUtils.js';
+import { getRuntimeConfig } from '../services/configService.js';
 
 const ACTIVE_INSTALLMENT_STATUSES = [
   'pending_installment',
@@ -24,7 +25,10 @@ const getNextDueDate = (schedule = []) => {
 
 export const processInstallmentReminders = async () => {
   const now = new Date();
-  const reminderLimit = addDays(now, 3);
+  const envFallback = Math.max(1, Number(process.env.INSTALLMENT_REMINDER_LEAD_DAYS || 3));
+  const configValue = await getRuntimeConfig('installment_reminder_lead_days', { fallback: envFallback });
+  const reminderLeadDays = Math.max(1, Number.isFinite(Number(configValue)) ? Number(configValue) : envFallback);
+  const reminderLimit = addDays(now, reminderLeadDays);
 
   const orders = await Order.find({
     paymentType: 'installment',
@@ -184,4 +188,3 @@ export const processInstallmentReminders = async () => {
     suspendedProducts
   };
 };
-

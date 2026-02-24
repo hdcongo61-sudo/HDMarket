@@ -4,13 +4,14 @@ import PromoCode from '../models/promoCodeModel.js';
 import PromoCodeUsage from '../models/promoCodeUsageModel.js';
 import Product from '../models/productModel.js';
 import Payment from '../models/paymentModel.js';
-import { 
+import {
   calculateCommissionBreakdown,
   generateRandomPromoCode,
   normalizePromoCode,
   serializePromoCodeSummary
 } from '../utils/promoCodeUtils.js';
 import { findPromoCodeByCode, previewPromoForSeller } from '../utils/promoCodeService.js';
+import { getRuntimeConfig } from '../services/configService.js';
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
@@ -417,8 +418,20 @@ export const validatePromoCodeForSeller = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Forbidden' });
   }
 
+  const configuredCommissionRate = Number(
+    await getRuntimeConfig('commission_rate', { fallback: 3 })
+  );
+  const commissionRate = Number.isFinite(configuredCommissionRate)
+    ? configuredCommissionRate
+    : 3;
+
   const [promoPreview, eligibility] = await Promise.all([
-    previewPromoForSeller({ code, sellerId: userId, productPrice: product.price }),
+    previewPromoForSeller({
+      code,
+      sellerId: userId,
+      productPrice: product.price,
+      commissionRate
+    }),
     calculateSellerPromoEligibilityScore(userId)
   ]);
 
@@ -691,7 +704,13 @@ export const previewPromoCommission = asyncHandler(async (req, res) => {
     ? await PromoCode.findOne({ code: normalized }).select('code discountType discountValue').lean()
     : null;
 
-  const commission = calculateCommissionBreakdown({ productPrice, promo });
+  const configuredCommissionRate = Number(
+    await getRuntimeConfig('commission_rate', { fallback: 3 })
+  );
+  const commissionRate = Number.isFinite(configuredCommissionRate)
+    ? configuredCommissionRate
+    : 3;
+  const commission = calculateCommissionBreakdown({ productPrice, promo, commissionRate });
 
   res.json({
     code: normalized || null,

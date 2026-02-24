@@ -1,7 +1,7 @@
-import AppSetting from '../models/appSettingModel.js';
 import Currency from '../models/currencyModel.js';
 import City from '../models/cityModel.js';
 import Commune from '../models/communeModel.js';
+import { getManyRuntimeConfigs, getRuntimeConfig } from '../services/configService.js';
 
 const CACHE_TTL_MS = 60 * 1000;
 const resolverCache = new Map();
@@ -82,12 +82,9 @@ export const getSettingValue = async (key, fallback = undefined) => {
   const cached = getCachedValue(cacheKey);
   if (cached !== null) return cached;
 
-  const record = await AppSetting.findOne({ key }).lean();
-  const resolved = normalizeSettingValue(
-    key,
-    record?.value ?? (fallback !== undefined ? fallback : DEFAULT_APP_SETTINGS[key])
-  );
-  return setCachedValue(cacheKey, resolved);
+  const fallbackValue = fallback !== undefined ? fallback : DEFAULT_APP_SETTINGS[key];
+  const resolved = await getRuntimeConfig(key, { fallback: fallbackValue });
+  return setCachedValue(cacheKey, normalizeSettingValue(key, resolved));
 };
 
 export const getSettingsValues = async (keys = []) => {
@@ -107,10 +104,12 @@ export const getSettingsValues = async (keys = []) => {
   });
 
   if (toFetch.length) {
-    const records = await AppSetting.find({ key: { $in: toFetch } }).lean();
-    const byKey = new Map(records.map((item) => [item.key, item.value]));
+    const fetched = await getManyRuntimeConfigs(toFetch);
     toFetch.forEach((key) => {
-      const resolved = normalizeSettingValue(key, byKey.has(key) ? byKey.get(key) : DEFAULT_APP_SETTINGS[key]);
+      const raw = Object.prototype.hasOwnProperty.call(fetched, key)
+        ? fetched[key]
+        : DEFAULT_APP_SETTINGS[key];
+      const resolved = normalizeSettingValue(key, raw);
       result[key] = setCachedValue(`setting:${key}`, resolved);
     });
   }

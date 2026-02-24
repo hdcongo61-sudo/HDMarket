@@ -71,7 +71,7 @@ export default function AdminProductBoosts() {
   const [productFilter, setProductFilter] = useState('all'); // 'all', 'boosted', 'non-boosted'
   const [shopFilter, setShopFilter] = useState('all'); // 'all', 'boosted', 'non-boosted'
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'founder';
 
   const handleSearchTermChange = (event) => {
     setSearchTerm(event.target.value);

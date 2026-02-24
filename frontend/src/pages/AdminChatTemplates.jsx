@@ -91,7 +91,7 @@ const nodeTypeLabel = (type) => {
 
 export default function AdminChatTemplates() {
   const { user } = useContext(AuthContext);
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'founder';
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);

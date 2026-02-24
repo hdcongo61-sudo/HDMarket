@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-export const COMMISSION_RATE = 0.03;
+export const DEFAULT_COMMISSION_RATE_PERCENT = 3;
 
 export const roundCurrency = (value) => Number(Number(value || 0).toFixed(2));
 
@@ -93,8 +93,19 @@ export const validatePromoCodeRecord = ({ promo, sellerId, at = new Date() }) =>
   return { valid: true, reason: 'ok', message: 'Code promo valide.' };
 };
 
-export const calculateCommissionBreakdown = ({ productPrice, promo = null }) => {
-  const baseAmount = roundCurrency(Number(productPrice || 0) * COMMISSION_RATE);
+const normalizeCommissionRateRatio = (commissionRatePercent = DEFAULT_COMMISSION_RATE_PERCENT) => {
+  const parsed = Number(commissionRatePercent);
+  if (!Number.isFinite(parsed) || parsed < 0) return DEFAULT_COMMISSION_RATE_PERCENT / 100;
+  return parsed / 100;
+};
+
+export const calculateCommissionBreakdown = ({
+  productPrice,
+  promo = null,
+  commissionRate = DEFAULT_COMMISSION_RATE_PERCENT
+}) => {
+  const rateRatio = normalizeCommissionRateRatio(commissionRate);
+  const baseAmount = roundCurrency(Number(productPrice || 0) * rateRatio);
 
   if (!promo) {
     return {

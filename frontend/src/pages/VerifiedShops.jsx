@@ -35,7 +35,7 @@ const CITY_LIST = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
 
 export default function VerifiedShops() {
   const { user } = useContext(AuthContext);
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'founder';
   const [selectedCity, setSelectedCity] = useState('');
   const [shops, setShops] = useState([]);
   const hasAppliedDefaultCity = useRef(false);

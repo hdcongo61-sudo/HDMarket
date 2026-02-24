@@ -20,28 +20,31 @@ import {
   ChevronRight,
   AlertCircle,
   Ticket,
-  FolderTree
+  FolderTree,
+  Crown
 } from 'lucide-react';
+import { hasAnyPermission } from '../utils/permissions';
 
 const buildNavItems = (t) => [
-  { to: '/admin', end: true, label: t('nav.adminDashboard', 'Tableau de bord'), icon: LayoutDashboard, show: (u) => u?.role === 'admin' || u?.role === 'manager' },
-  { to: '/admin/orders', label: t('nav.orders', 'Commandes'), icon: ClipboardList, show: (u) => u?.role === 'admin' || u?.role === 'manager' },
-  { to: '/admin/payments', label: t('nav.payments', 'Paiements'), icon: DollarSign, show: (u) => u?.role === 'admin' || u?.role === 'manager' },
-  { to: '/admin/users', label: t('nav.users', 'Utilisateurs'), icon: Users, show: (u) => u?.role === 'admin' },
-  { to: '/admin/products', label: t('nav.products', 'Produits'), icon: Package, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.canManageProducts },
-  { to: '/admin/delivery-guys', label: t('nav.deliveryGuys', 'Livreurs'), icon: Truck, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.canManageDelivery },
-  { to: '/admin/complaints', label: t('nav.complaints', 'Réclamations'), icon: AlertCircle, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.canManageComplaints },
-  { to: '/admin/chat-templates', label: t('nav.chatTemplates', 'Modèles de chat'), icon: MessageSquare, show: (u) => u?.role === 'admin' || u?.canManageChatTemplates },
-  { to: '/admin/promo-codes', label: t('nav.promoCodes', 'Codes promo'), icon: Ticket, show: (u) => u?.role === 'admin' },
-  { to: '/admin/settings', label: t('nav.appSettings', 'Paramètres app'), icon: SlidersHorizontal, show: (u) => u?.role === 'admin' },
-  { to: '/admin/system-settings', label: t('nav.systemSettings', 'Paramètres système'), icon: SlidersHorizontal, show: (u) => u?.role === 'admin' },
-  { to: '/admin/settings/categories', label: t('nav.categories', 'Catégories'), icon: FolderTree, show: (u) => u?.role === 'admin' },
-  { to: '/admin/feedback', label: t('nav.feedback', 'Avis amélioration'), icon: MessageSquare, show: (u) => u?.role === 'admin' || u?.canReadFeedback },
-  { to: '/admin/payment-verification', label: t('nav.verifyPayments', 'Vérifier paiements'), icon: CheckCircle, show: (u) => u?.role === 'admin' || u?.canVerifyPayments },
-  { to: '/admin/product-boosts', label: t('nav.productBoosts', 'Boost produits'), icon: Sparkles, show: (u) => u?.role === 'admin' || u?.canManageBoosts },
-  { to: '/admin/boost-management', label: t('nav.boostPricing', 'Tarification boost'), icon: Sparkles, show: (u) => u?.role === 'admin' || u?.canManageBoosts },
-  { to: '/admin/payment-verifiers', label: t('nav.paymentVerifiers', 'Vérificateurs'), icon: Shield, show: (u) => u?.role === 'admin' },
-  { to: '/admin/reports', label: t('nav.reports', 'Rapports'), icon: FileText, show: (u) => u?.role === 'admin' }
+  { to: '/admin', end: true, label: t('nav.adminDashboard', 'Tableau de bord'), icon: LayoutDashboard, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || hasAnyPermission(u, ['view_admin_dashboard']) },
+  { to: '/admin/orders', label: t('nav.orders', 'Commandes'), icon: ClipboardList, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || hasAnyPermission(u, ['manage_orders']) },
+  { to: '/admin/payments', label: t('nav.payments', 'Paiements'), icon: DollarSign, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || hasAnyPermission(u, ['verify_payments']) },
+  { to: '/admin/users', label: t('nav.users', 'Utilisateurs'), icon: Users, show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_users']) },
+  { to: '/admin/products', label: t('nav.products', 'Produits'), icon: Package, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageProducts || hasAnyPermission(u, ['manage_products']) },
+  { to: '/admin/delivery-guys', label: t('nav.deliveryGuys', 'Livreurs'), icon: Truck, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageDelivery || hasAnyPermission(u, ['manage_delivery']) },
+  { to: '/admin/complaints', label: t('nav.complaints', 'Réclamations'), icon: AlertCircle, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageComplaints || hasAnyPermission(u, ['manage_complaints']) },
+  { to: '/admin/chat-templates', label: t('nav.chatTemplates', 'Modèles de chat'), icon: MessageSquare, show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canManageChatTemplates || hasAnyPermission(u, ['manage_chat_templates']) },
+  { to: '/admin/promo-codes', label: t('nav.promoCodes', 'Codes promo'), icon: Ticket, show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
+  { to: '/admin/settings', label: t('nav.appSettings', 'Paramètres app'), icon: SlidersHorizontal, show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
+  { to: '/admin/system-settings', label: t('nav.systemSettings', 'Paramètres système'), icon: SlidersHorizontal, show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
+  { to: '/admin/settings/categories', label: t('nav.categories', 'Catégories'), icon: FolderTree, show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
+  { to: '/admin/feedback', label: t('nav.feedback', 'Avis amélioration'), icon: MessageSquare, show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canReadFeedback || hasAnyPermission(u, ['read_feedback']) },
+  { to: '/admin/payment-verification', label: t('nav.verifyPayments', 'Vérifier paiements'), icon: CheckCircle, show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canVerifyPayments || hasAnyPermission(u, ['verify_payments']) },
+  { to: '/admin/product-boosts', label: t('nav.productBoosts', 'Boost produits'), icon: Sparkles, show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canManageBoosts || hasAnyPermission(u, ['manage_boosts']) },
+  { to: '/admin/boost-management', label: t('nav.boostPricing', 'Tarification boost'), icon: Sparkles, show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canManageBoosts || hasAnyPermission(u, ['manage_boosts']) },
+  { to: '/admin/payment-verifiers', label: t('nav.paymentVerifiers', 'Vérificateurs'), icon: Shield, show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_permissions']) },
+  { to: '/admin/reports', label: t('nav.reports', 'Rapports'), icon: FileText, show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['view_logs']) },
+  { to: '/admin/founder-intelligence', label: t('nav.founderIntelligence', 'Founder Intelligence'), icon: Crown, show: (u) => u?.role === 'founder' }
 ];
 
 export default function AdminLayout() {
@@ -49,6 +52,7 @@ export default function AdminLayout() {
   const { t } = useAppSettings();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const isManager = user?.role === 'manager';
+  const isFounder = user?.role === 'founder';
 
   const navItems = buildNavItems(t);
   const visibleItems = navItems.filter((item) => item.show(user));
@@ -69,7 +73,11 @@ export default function AdminLayout() {
                   <BarChart3 size={18} className="text-white" />
                 </div>
                 <span className="font-bold text-gray-900 truncate text-sm">
-                  {isManager ? t('nav.management', 'Gestion') : t('nav.admin', 'Admin')}
+                  {isFounder
+                    ? t('nav.founder', 'Founder')
+                    : isManager
+                    ? t('nav.management', 'Gestion')
+                    : t('nav.admin', 'Admin')}
                 </span>
               </div>
             )}

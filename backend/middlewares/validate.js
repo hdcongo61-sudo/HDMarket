@@ -37,18 +37,28 @@ export const schemas = {
     country: Joi.string().valid('République du Congo').optional()
   }),
   registerSendCode: Joi.object({
-    phone: Joi.string().min(5).max(30).required()
-  }),
+    email: Joi.string().email(),
+    phone: Joi.string().min(5).max(30)
+  }).or('email', 'phone'),
   login: Joi.object({
     phone: Joi.string().min(5).max(30).required(),
     password: Joi.string().min(6).required(),
   }),
   passwordForgot: Joi.object({
-    phone: Joi.string().min(5).max(30).required()
-  }),
+    email: Joi.string().email(),
+    phone: Joi.string().min(5).max(30)
+  }).or('email', 'phone'),
   passwordReset: Joi.object({
-    phone: Joi.string().min(5).max(30).required(),
+    email: Joi.string().email(),
+    phone: Joi.string().min(5).max(30),
     verificationCode: Joi.string().min(3).max(10).required(),
+    newPassword: Joi.string().min(6).max(100).required()
+  }).or('email', 'phone'),
+  passwordForgotLink: Joi.object({
+    email: Joi.string().email().required()
+  }),
+  passwordResetToken: Joi.object({
+    token: Joi.string().min(10).required(),
     newPassword: Joi.string().min(6).max(100).required()
   }),
   passwordChange: Joi.object({
@@ -94,6 +104,7 @@ export const schemas = {
   productUpdate: Joi.object({
     title: Joi.string().min(2).max(120),
     description: Joi.string().min(5).max(5000),
+    price: Joi.number().min(0),
     category: Joi.string().min(2).max(60),
     categoryId: Joi.string().hex().length(24).allow('', null),
     subcategoryId: Joi.string().hex().length(24).allow('', null),
@@ -692,6 +703,10 @@ export const schemas = {
   adminUserRole: Joi.object({
     role: Joi.string().valid('user', 'manager').required()
   }),
+  adminDirectPasswordUpdate: Joi.object({
+    newPassword: Joi.string().min(6).max(100).required(),
+    forceLogout: Joi.boolean().default(true)
+  }),
   complaintStatusUpdate: Joi.object({
     status: Joi.string().valid('pending', 'in_review', 'resolved').required(),
     note: Joi.string().max(500).allow('', null)
@@ -868,6 +883,77 @@ export const schemas = {
     fixedFee: Joi.number().min(0),
     order: Joi.number().integer().min(0)
   }).min(1),
+  adminRuntimeSettingKeyParam: Joi.object({
+    key: Joi.string()
+      .trim()
+      .pattern(/^[a-zA-Z0-9_.:-]+$/)
+      .min(2)
+      .max(120)
+      .required()
+  }),
+  adminRuntimeSettingUpdate: Joi.object({
+    value: Joi.alternatives().try(
+      Joi.string(),
+      Joi.number(),
+      Joi.boolean(),
+      Joi.array(),
+      Joi.object()
+    ).required(),
+    description: Joi.string().max(300).allow('', null),
+    environment: Joi.string().valid('all', 'production', 'staging', 'dev', 'development', 'prod').optional()
+  }),
+  adminRuntimeSettingBulkUpdate: Joi.object({
+    environment: Joi.string().valid('all', 'production', 'staging', 'dev', 'development', 'prod').optional(),
+    items: Joi.array()
+      .items(
+        Joi.object({
+          key: Joi.string()
+            .trim()
+            .pattern(/^[a-zA-Z0-9_.:-]+$/)
+            .min(2)
+            .max(120)
+            .required(),
+          value: Joi.alternatives().try(
+            Joi.string(),
+            Joi.number(),
+            Joi.boolean(),
+            Joi.array(),
+            Joi.object()
+          ).required(),
+          description: Joi.string().max(300).allow('', null)
+        })
+      )
+      .min(1)
+      .max(100)
+      .required()
+  }),
+  adminFeatureFlagParam: Joi.object({
+    featureName: Joi.string()
+      .trim()
+      .pattern(/^[a-zA-Z0-9_.:-]+$/)
+      .min(2)
+      .max(120)
+      .required()
+  }),
+  adminFeatureFlagUpdate: Joi.object({
+    enabled: Joi.boolean().required(),
+    rolesAllowed: Joi.array().items(Joi.string().trim().min(2).max(40)).max(20).default([]),
+    rolloutPercentage: Joi.number().min(0).max(100).default(100),
+    description: Joi.string().max(300).allow('', null),
+    environment: Joi.string().valid('all', 'production', 'staging', 'dev', 'development', 'prod').optional()
+  }),
+  adminConfigRefresh: Joi.object({
+    keys: Joi.array()
+      .items(
+        Joi.string()
+          .trim()
+          .pattern(/^[a-zA-Z0-9_.:-]+$/)
+          .min(2)
+          .max(120)
+      )
+      .max(200)
+      .default([])
+  }),
   pushTokenRegister: Joi.object({
     token: Joi.string().trim().required(),
     platform: Joi.string().valid('ios', 'android', 'web', 'unknown').optional(),

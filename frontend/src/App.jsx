@@ -69,6 +69,7 @@ import AdminPromoCodes from './pages/AdminPromoCodes';
 import AdminBoostManagement from './pages/AdminBoostManagement';
 import SettingsCategoriesPage from './pages/SettingsCategoriesPage';
 import AdminLayout from './components/AdminLayout';
+import FounderIntelligence from './pages/FounderIntelligence';
 import CertifiedProducts from './pages/CertifiedProducts';
 import Suggestions from './pages/Suggestions';
 import AdvancedSearch from './pages/AdvancedSearch';
@@ -78,6 +79,7 @@ import AnalyticsTracker from './components/AnalyticsTracker';
 import ShopConversionRequest from './pages/ShopConversionRequest';
 import PendingActionHandler from './components/PendingActionHandler';
 import { useAppSettings } from './context/AppSettingsContext';
+import { hasAnyPermission } from './utils/permissions';
 
 function LegacyOrderRouteResolver() {
   const { legacyValue = '' } = useParams();
@@ -423,13 +425,21 @@ function AppContent() {
           <Route
             path="/admin"
             element={
-              <ProtectedRoute
-                allowAccess={(u) =>
-                  u?.role === 'admin' ||
-                  u?.role === 'manager' ||
-                  u?.canManageComplaints === true ||
-                  u?.canManageDelivery === true ||
-                  u?.canManageProducts === true ||
+                <ProtectedRoute
+                  allowAccess={(u) =>
+                    u?.role === 'admin' ||
+                    u?.role === 'founder' ||
+                    u?.role === 'manager' ||
+                    hasAnyPermission(u, [
+                      'view_admin_dashboard',
+                      'manage_users',
+                      'manage_orders',
+                      'manage_sellers',
+                      'manage_settings'
+                    ]) ||
+                    u?.canManageComplaints === true ||
+                    u?.canManageDelivery === true ||
+                    u?.canManageProducts === true ||
                   u?.canManageBoosts === true ||
                   u?.canManageChatTemplates === true ||
                   u?.canReadFeedback === true ||
@@ -447,7 +457,7 @@ function AppContent() {
             <Route
               path="complaints"
               element={
-                <ProtectedRoute allowAccess={(u) => u?.role === 'admin' || u?.role === 'manager' || u?.canManageComplaints === true}>
+                <ProtectedRoute allowAccess={(u) => u?.role === 'admin' || u?.role === 'founder' || u?.role === 'manager' || u?.canManageComplaints === true || hasAnyPermission(u, ['manage_complaints'])}>
                   <AdminComplaints />
                 </ProtectedRoute>
               }
@@ -456,7 +466,7 @@ function AppContent() {
             <Route
               path="products"
               element={
-                <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.role === 'manager' || user?.canManageProducts === true}>
+                <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.role === 'founder' || user?.role === 'manager' || user?.canManageProducts === true || hasAnyPermission(user, ['manage_products'])}>
                   <AdminProducts />
                 </ProtectedRoute>
               }
@@ -464,7 +474,7 @@ function AppContent() {
             <Route
               path="product-boosts"
               element={
-                <ProtectedRoute allowAccess={(user) => user.role === 'admin' || user.canManageBoosts === true}>
+                <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.role === 'founder' || user?.canManageBoosts === true || hasAnyPermission(user, ['manage_boosts'])}>
                   <AdminProductBoosts />
                 </ProtectedRoute>
               }
@@ -472,7 +482,7 @@ function AppContent() {
             <Route
               path="boost-management"
               element={
-                <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.canManageBoosts === true}>
+                <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.role === 'founder' || user?.canManageBoosts === true || hasAnyPermission(user, ['manage_boosts'])}>
                   <AdminBoostManagement />
                 </ProtectedRoute>
               }
@@ -480,7 +490,7 @@ function AppContent() {
             <Route
               path="feedback"
               element={
-                <ProtectedRoute allowAccess={(user) => user.role === 'admin' || user.canReadFeedback === true}>
+                <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.role === 'founder' || user?.canReadFeedback === true || hasAnyPermission(user, ['read_feedback'])}>
                   <AdminFeedback />
                 </ProtectedRoute>
               }
@@ -488,7 +498,7 @@ function AppContent() {
             <Route
               path="payment-verification"
               element={
-                <ProtectedRoute allowAccess={(user) => user.role === 'admin' || user.canVerifyPayments === true}>
+                <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.role === 'founder' || user?.canVerifyPayments === true || hasAnyPermission(user, ['verify_payments'])}>
                   <PaymentVerification />
                 </ProtectedRoute>
               }
@@ -496,7 +506,7 @@ function AppContent() {
             <Route
               path="chat-templates"
               element={
-                <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.canManageChatTemplates === true}>
+                <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.role === 'founder' || user?.canManageChatTemplates === true || hasAnyPermission(user, ['manage_chat_templates'])}>
                   <AdminChatTemplates />
                 </ProtectedRoute>
               }
@@ -504,7 +514,7 @@ function AppContent() {
             <Route
               path="payment-verifiers"
               element={
-                <ProtectedRoute roles={['admin']}>
+                <ProtectedRoute roles={['admin', 'founder']} permissions={['manage_permissions']}>
                   <AdminPaymentVerifiers />
                 </ProtectedRoute>
               }
@@ -512,7 +522,7 @@ function AppContent() {
             <Route
               path="reports"
               element={
-                <ProtectedRoute roles={['admin']}>
+                <ProtectedRoute roles={['admin', 'founder']} permissions={['view_logs']}>
                   <AdminReports />
                 </ProtectedRoute>
               }
@@ -520,7 +530,7 @@ function AppContent() {
             <Route
               path="settings"
               element={
-                <ProtectedRoute roles={['admin']}>
+                <ProtectedRoute roles={['admin', 'founder']} permissions={['manage_settings']}>
                   <AdminAppSettings />
                 </ProtectedRoute>
               }
@@ -528,7 +538,7 @@ function AppContent() {
             <Route
               path="system-settings"
               element={
-                <ProtectedRoute roles={['admin']}>
+                <ProtectedRoute roles={['admin', 'founder']}>
                   <AdminSystemSettings />
                 </ProtectedRoute>
               }
@@ -536,7 +546,7 @@ function AppContent() {
             <Route
               path="settings/categories"
               element={
-                <ProtectedRoute roles={['admin']}>
+                <ProtectedRoute roles={['admin', 'founder']} permissions={['manage_settings']}>
                   <SettingsCategoriesPage />
                 </ProtectedRoute>
               }
@@ -544,15 +554,23 @@ function AppContent() {
             <Route
               path="users"
               element={
-                <ProtectedRoute roles={['admin']}>
+                <ProtectedRoute roles={['admin', 'founder']} permissions={['manage_users']}>
                   <AdminUsers />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="founder-intelligence"
+              element={
+                <ProtectedRoute roles={['founder']}>
+                  <FounderIntelligence />
                 </ProtectedRoute>
               }
             />
             <Route
               path="promo-codes"
               element={
-                <ProtectedRoute roles={['admin']}>
+                <ProtectedRoute roles={['admin', 'founder']} permissions={['manage_settings']}>
                   <AdminPromoCodes />
                 </ProtectedRoute>
               }

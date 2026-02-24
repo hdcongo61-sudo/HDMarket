@@ -196,7 +196,7 @@ const categoryOptions = categoryGroups.flatMap((group) =>
 
 export default function AdminProducts() {
   const { user } = useContext(AuthContext);
-  const isAdminUser = user?.role === 'admin';
+  const isAdminUser = user?.role === 'admin' || user?.role === 'founder';
   const canManageProducts = user?.role === 'admin' || user?.role === 'manager' || user?.canManageProducts;
   const [products, setProducts] = useState([]);
   const [stats, setStats] = useState(null);

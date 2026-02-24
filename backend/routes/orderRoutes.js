@@ -1,6 +1,6 @@
 import express from 'express';
 import { protect } from '../middlewares/authMiddleware.js';
-import { requireRole } from '../middlewares/roleMiddleware.js';
+import { requireAnyPermission, requireRole } from '../middlewares/roleMiddleware.js';
 import { validate, schemas } from '../middlewares/validate.js';
 import { cacheMiddleware } from '../utils/cache.js';
 import {
@@ -33,6 +33,16 @@ import {
   createInquiryOrder
 } from '../controllers/orderController.js';
 import {
+  adminApplyOrderAction,
+  adminOrderAlerts,
+  adminOrderCommandCenter,
+  adminOrderTimeline,
+  adminRunDelayDetection,
+  adminRunReminderSweep,
+  adminSellerPerformance,
+  adminUserRisk
+} from '../controllers/adminOrderCommandCenterController.js';
+import {
   checkoutInstallmentOrder,
   getInstallmentEligibility,
   sellerConfirmInstallmentSale,
@@ -64,8 +74,17 @@ router.use(protect);
 
 const adminRouter = express.Router();
 adminRouter.use(requireRole(['admin', 'manager']));
+adminRouter.use(requireAnyPermission(['manage_orders']));
 
 adminRouter.get('/stats', adminOrderStats);
+adminRouter.get('/command-center', adminOrderCommandCenter);
+adminRouter.get('/alerts', adminOrderAlerts);
+adminRouter.get('/seller-performance', adminSellerPerformance);
+adminRouter.get('/user-risk', adminUserRisk);
+adminRouter.get('/:id/timeline', validate(schemas.idParam, 'params'), adminOrderTimeline);
+adminRouter.post('/:id/actions', validate(schemas.idParam, 'params'), adminApplyOrderAction);
+adminRouter.post('/automation/detect-delays', adminRunDelayDetection);
+adminRouter.post('/automation/reminder-sweep', adminRunReminderSweep);
 adminRouter.get('/customers', adminSearchCustomers);
 adminRouter.get('/products', adminSearchProducts);
 adminRouter.get('/', adminListOrders);

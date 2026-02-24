@@ -24,7 +24,7 @@ const formatDateTime = (value) =>
 
 export default function AdminFeedback() {
   const { user } = useContext(AuthContext);
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'founder';
 
   const [items, setItems] = useState([]);
   const [statusFilter, setStatusFilter] = useState('unread');

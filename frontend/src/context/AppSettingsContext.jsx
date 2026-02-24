@@ -4,6 +4,7 @@ import storage from '../utils/storage';
 import AuthContext from './AuthContext';
 import { formatPriceWithCurrency } from '../utils/priceFormatter';
 import { I18N_NAMESPACES, getNestedTranslation, loadLanguageResources } from '../i18n';
+import { subscribeToSettingsRefresh } from '../utils/settingsRefresh';
 
 const STORAGE_KEYS = {
   language: 'hd_pref_language',
@@ -11,7 +12,6 @@ const STORAGE_KEYS = {
   city: 'hd_pref_city',
   theme: 'hd_pref_theme'
 };
-const SETTINGS_REFRESH_EVENT = 'hdmarket:settings-refresh';
 
 const FALLBACK_CURRENCY = {
   code: 'XAF',
@@ -62,6 +62,9 @@ export const AppSettingsProvider = ({ children }) => {
   const [savingPreferences, setSavingPreferences] = useState(false);
   const [publicSettings, setPublicSettings] = useState({
     app: {},
+    runtime: {},
+    featureFlags: {},
+    ui: {},
     defaultLanguage: 'fr',
     languages: [{ code: 'fr', name: 'Français', isActive: true }],
     defaultCurrency: null,
@@ -95,6 +98,9 @@ export const AppSettingsProvider = ({ children }) => {
 
     const safe = {
       app: payload.app || {},
+      runtime: payload.runtime || {},
+      featureFlags: payload.featureFlags || {},
+      ui: payload.ui || {},
       defaultLanguage: payload.defaultLanguage || 'fr',
       languages:
         normalizedLanguages.length > 0
@@ -115,14 +121,18 @@ export const AppSettingsProvider = ({ children }) => {
       const { data } = await api.get('/settings/public', { skipCache: true });
       return normalizePublicPayload(data || {});
     } catch {
-      const [currenciesResult, citiesResult, communesResult] = await Promise.allSettled([
+      const [currenciesResult, citiesResult, communesResult, runtimeResult] = await Promise.allSettled([
         api.get('/settings/currencies', { skipCache: true }),
         api.get('/settings/cities', { skipCache: true }),
-        api.get('/settings/communes', { skipCache: true })
+        api.get('/settings/communes', { skipCache: true }),
+        api.get('/settings/runtime', { skipCache: true })
       ]);
 
       const fallbackPayload = {
         app: {},
+        runtime: {},
+        featureFlags: {},
+        ui: {},
         defaultLanguage: 'fr',
         languages: [{ code: 'fr', name: 'Français', isActive: true }],
         currencies:
@@ -138,12 +148,17 @@ export const AppSettingsProvider = ({ children }) => {
             ? communesResult.value.data
             : [FALLBACK_COMMUNE]
       };
+      if (runtimeResult.status === 'fulfilled' && runtimeResult.value?.data) {
+        const runtimeResponse = runtimeResult.value.data;
+        fallbackPayload.runtime = runtimeResponse?.values || {};
+        fallbackPayload.featureFlags = runtimeResponse?.featureFlags || {};
+        fallbackPayload.ui = runtimeResponse?.byCategory?.ui || {};
+      }
       return normalizePublicPayload(fallbackPayload);
     }
   }, [normalizePublicPayload]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return () => {};
     let refreshing = false;
     const handleRefresh = async () => {
       if (refreshing) return;
@@ -154,10 +169,7 @@ export const AppSettingsProvider = ({ children }) => {
         refreshing = false;
       }
     };
-    window.addEventListener(SETTINGS_REFRESH_EVENT, handleRefresh);
-    return () => {
-      window.removeEventListener(SETTINGS_REFRESH_EVENT, handleRefresh);
-    };
+    return subscribeToSettingsRefresh(handleRefresh);
   }, [loadPublicSettings]);
 
   useEffect(() => {
@@ -334,6 +346,9 @@ export const AppSettingsProvider = ({ children }) => {
       loading,
       savingPreferences,
       app: publicSettings.app || {},
+      runtime: publicSettings.runtime || {},
+      featureFlags: publicSettings.featureFlags || {},
+      ui: publicSettings.ui || {},
       languages: activeLanguages,
       currencies: activeCurrencies,
       cities: activeCities,
@@ -353,12 +368,17 @@ export const AppSettingsProvider = ({ children }) => {
       setCurrency: (value) => persistPreferences({ preferredCurrency: value }),
       setCity: (value) => persistPreferences({ preferredCity: value }),
       setTheme: (value) => persistPreferences({ theme: value }),
-      updatePreferences: persistPreferences
+      updatePreferences: persistPreferences,
+      isFeatureEnabled: (featureName) =>
+        Boolean(publicSettings.featureFlags?.[featureName]?.enabled)
     }),
     [
       loading,
       savingPreferences,
       publicSettings.app,
+      publicSettings.runtime,
+      publicSettings.featureFlags,
+      publicSettings.ui,
       publicSettings.defaultLanguage,
       publicSettings.defaultCurrency,
       publicSettings.defaultCity,

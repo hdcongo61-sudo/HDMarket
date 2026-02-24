@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import VerificationCode from '../models/verificationCodeModel.js';
 import nodemailer from 'nodemailer';
+import { getRuntimeConfig } from '../services/configService.js';
 
 // Email configuration
 const getEmailConfig = () => {
@@ -210,7 +211,9 @@ export const checkVerificationCode = async (email, code, type = 'registration') 
   }
 
   // Check if too many attempts
-  if (verification.attempts >= 5) {
+  const configuredMaxAttempts = await getRuntimeConfig('max_login_attempts', { fallback: 5 });
+  const maxAttempts = Math.max(1, Number.isFinite(Number(configuredMaxAttempts)) ? Number(configuredMaxAttempts) : 5);
+  if (verification.attempts >= maxAttempts) {
     await VerificationCode.updateOne(
       { _id: verification._id },
       { used: true }

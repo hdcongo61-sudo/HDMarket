@@ -2,6 +2,12 @@ import asyncHandler from 'express-async-handler';
 import jwt from 'jsonwebtoken';
 import User from '../models/userModel.js';
 import { sanitizeShopHours } from '../utils/shopHours.js';
+import { resolvePermissionsForUser } from '../services/rbacService.js';
+import { blacklistToken } from '../services/sessionSecurityService.js';
+import {
+  consumePasswordResetToken,
+  issuePasswordResetLinkForUser
+} from '../services/passwordResetService.js';
 import {
   buildPhoneCandidates,
   checkVerificationCode,
@@ -12,6 +18,43 @@ import {
 
 const genToken = (user) =>
   jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+
+const buildAuthResponse = (user, token) => ({
+  _id: user._id,
+  name: user.name,
+  email: user.email,
+  phone: user.phone,
+  phoneVerified: Boolean(user.phoneVerified),
+  role: user.role,
+  permissions: resolvePermissionsForUser(user),
+  accountType: user.accountType,
+  shopVerified: Boolean(user.shopVerified),
+  shopName: user.shopName || null,
+  shopAddress: user.shopAddress || null,
+  shopLogo: user.shopLogo || null,
+  followersCount: Number(user.followersCount || 0),
+  followingShops: Array.isArray(user.followingShops) ? user.followingShops : [],
+  canReadFeedback: Boolean(user.canReadFeedback),
+  canVerifyPayments: Boolean(user.canVerifyPayments),
+  canManageBoosts: Boolean(user.canManageBoosts),
+  canManageComplaints: Boolean(user.canManageComplaints),
+  canManageProducts: Boolean(user.canManageProducts),
+  canManageDelivery: Boolean(user.canManageDelivery),
+  canManageChatTemplates: Boolean(user.canManageChatTemplates),
+  canManageHelpCenter: Boolean(user.canManageHelpCenter),
+  country: user.country,
+  address: user.address || '',
+  city: user.city,
+  commune: user.commune || '',
+  preferredLanguage: user.preferredLanguage || 'fr',
+  preferredCurrency: user.preferredCurrency || 'XAF',
+  preferredCity: user.preferredCity || user.city || '',
+  theme: user.theme || 'system',
+  gender: user.gender,
+  shopDescription: user.shopDescription || '',
+  shopHours: sanitizeShopHours(user.shopHours || []),
+  token
+});
 
 export const register = asyncHandler(async (req, res) => {
   const {
@@ -96,41 +139,7 @@ export const register = asyncHandler(async (req, res) => {
     gender
   });
   const token = genToken(user);
-  res.status(201).json({
-    _id: user._id,
-    name: user.name,
-    email: user.email,
-    phone: user.phone,
-    phoneVerified: Boolean(user.phoneVerified),
-    role: user.role,
-    accountType: user.accountType,
-    shopVerified: Boolean(user.shopVerified),
-    shopName: user.shopName || null,
-    shopAddress: user.shopAddress || null,
-    shopLogo: user.shopLogo || null,
-    followersCount: Number(user.followersCount || 0),
-    followingShops: Array.isArray(user.followingShops) ? user.followingShops : [],
-    canReadFeedback: Boolean(user.canReadFeedback),
-    canVerifyPayments: Boolean(user.canVerifyPayments),
-    canManageBoosts: Boolean(user.canManageBoosts),
-    canManageComplaints: Boolean(user.canManageComplaints),
-    canManageProducts: Boolean(user.canManageProducts),
-    canManageDelivery: Boolean(user.canManageDelivery),
-    canManageChatTemplates: Boolean(user.canManageChatTemplates),
-    canManageHelpCenter: Boolean(user.canManageHelpCenter),
-    country: user.country,
-    address: user.address || '',
-    city: user.city,
-    commune: user.commune || '',
-    preferredLanguage: user.preferredLanguage || 'fr',
-    preferredCurrency: user.preferredCurrency || 'XAF',
-    preferredCity: user.preferredCity || user.city || '',
-    theme: user.theme || 'system',
-    gender: user.gender,
-    shopDescription: user.shopDescription || '',
-    shopHours: sanitizeShopHours(user.shopHours || []),
-    token
-  });
+  res.status(201).json(buildAuthResponse(user, token));
 });
 
 export const login = asyncHandler(async (req, res) => {
@@ -153,42 +162,22 @@ export const login = asyncHandler(async (req, res) => {
       code: 'ACCOUNT_BLOCKED'
     });
   }
+  if (!user.isActive) {
+    return res.status(403).json({
+      message: 'Votre compte est désactivé. Contactez le support.',
+      code: 'ACCOUNT_INACTIVE'
+    });
+  }
+  if (user.isLocked) {
+    const reason = user.lockReason ? ` Motif : ${user.lockReason}` : '';
+    return res.status(403).json({
+      message: `Votre compte est verrouillé.${reason}`,
+      reason: user.lockReason || '',
+      code: 'ACCOUNT_LOCKED'
+    });
+  }
   const token = genToken(user);
-  res.json({
-    _id: user._id,
-    name: user.name,
-    email: user.email,
-    phone: user.phone,
-    phoneVerified: Boolean(user.phoneVerified),
-    role: user.role,
-    accountType: user.accountType,
-    shopVerified: Boolean(user.shopVerified),
-    shopName: user.shopName || null,
-    shopAddress: user.shopAddress || null,
-    canReadFeedback: Boolean(user.canReadFeedback),
-    canVerifyPayments: Boolean(user.canVerifyPayments),
-    canManageBoosts: Boolean(user.canManageBoosts),
-    canManageComplaints: Boolean(user.canManageComplaints),
-    canManageProducts: Boolean(user.canManageProducts),
-    canManageDelivery: Boolean(user.canManageDelivery),
-    canManageChatTemplates: Boolean(user.canManageChatTemplates),
-    canManageHelpCenter: Boolean(user.canManageHelpCenter),
-    shopLogo: user.shopLogo || null,
-    followersCount: Number(user.followersCount || 0),
-    followingShops: Array.isArray(user.followingShops) ? user.followingShops : [],
-    country: user.country,
-    address: user.address || '',
-    city: user.city,
-    commune: user.commune || '',
-    preferredLanguage: user.preferredLanguage || 'fr',
-    preferredCurrency: user.preferredCurrency || 'XAF',
-    preferredCity: user.preferredCity || user.city || '',
-    theme: user.theme || 'system',
-    gender: user.gender,
-    shopDescription: user.shopDescription || '',
-    shopHours: sanitizeShopHours(user.shopHours || []),
-    token
-  });
+  res.json(buildAuthResponse(user, token));
 });
 
 export const sendRegisterCode = asyncHandler(async (req, res) => {
@@ -238,17 +227,21 @@ export const sendRegisterCode = asyncHandler(async (req, res) => {
 });
 
 export const sendPasswordResetCode = asyncHandler(async (req, res) => {
-  const { email } = req.body;
+  const { email, phone } = req.body || {};
+  let normalizedEmail = String(email || '').toLowerCase().trim();
+  if (!normalizedEmail && phone) {
+    const phoneCandidates = buildPhoneCandidates(phone);
+    const byPhone = await User.findOne({ phone: { $in: phoneCandidates } }).select('email');
+    normalizedEmail = String(byPhone?.email || '').toLowerCase().trim();
+  }
   // In production: skip sending verification email to facilitate testing
   const isProduction = process.env.NODE_ENV === 'production';
   if (isProduction) {
-    if (!email || !email.trim()) {
-      return res.status(400).json({ message: 'Adresse email manquante.' });
-    }
-    const normalizedEmail = email.toLowerCase().trim();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(normalizedEmail)) {
-      return res.status(400).json({ message: 'Adresse email invalide.' });
+    if (normalizedEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(normalizedEmail)) {
+        return res.status(400).json({ message: 'Adresse email invalide.' });
+      }
     }
     return res.json({ message: 'En production, utilisez directement le formulaire de réinitialisation avec un code quelconque pour tester.' });
   }
@@ -259,11 +252,10 @@ export const sendPasswordResetCode = asyncHandler(async (req, res) => {
     });
   }
   
-  if (!email || !email.trim()) {
+  if (!normalizedEmail) {
     return res.status(400).json({ message: 'Adresse email manquante.' });
   }
-  
-  const normalizedEmail = email.toLowerCase().trim();
+
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(normalizedEmail)) {
     return res.status(400).json({ message: 'Adresse email invalide.' });
@@ -277,7 +269,13 @@ export const sendPasswordResetCode = asyncHandler(async (req, res) => {
 });
 
 export const resetPassword = asyncHandler(async (req, res) => {
-  const { email, verificationCode, newPassword } = req.body;
+  const { email, phone, verificationCode, newPassword } = req.body || {};
+  let normalizedEmail = String(email || '').toLowerCase().trim();
+  if (!normalizedEmail && phone) {
+    const phoneCandidates = buildPhoneCandidates(phone);
+    const byPhone = await User.findOne({ phone: { $in: phoneCandidates } }).select('email');
+    normalizedEmail = String(byPhone?.email || '').toLowerCase().trim();
+  }
   // In production: skip email verification check to facilitate testing
   const isProduction = process.env.NODE_ENV === 'production';
   if (!isProduction && !isEmailConfigured()) {
@@ -286,11 +284,10 @@ export const resetPassword = asyncHandler(async (req, res) => {
     });
   }
   
-  if (!email || !email.trim()) {
+  if (!normalizedEmail) {
     return res.status(400).json({ message: 'Adresse email manquante.' });
   }
-  
-  const normalizedEmail = email.toLowerCase().trim();
+
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(normalizedEmail)) {
     return res.status(400).json({ message: 'Adresse email invalide.' });
@@ -313,6 +310,68 @@ export const resetPassword = asyncHandler(async (req, res) => {
   
   user.password = newPassword;
   user.phoneVerified = true; // Keep for backward compatibility
+  user.passwordResetToken = null;
+  user.passwordResetExpires = null;
+  user.sessionsInvalidatedAt = new Date();
   await user.save();
   res.json({ message: 'Mot de passe mis à jour.' });
+});
+
+export const requestPasswordResetLink = asyncHandler(async (req, res) => {
+  const { email } = req.body || {};
+  if (!email || !String(email).trim()) {
+    return res.status(400).json({ message: 'Adresse email manquante.' });
+  }
+
+  const normalizedEmail = String(email).toLowerCase().trim();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(normalizedEmail)) {
+    return res.status(400).json({ message: 'Adresse email invalide.' });
+  }
+
+  const user = await User.findOne({ email: normalizedEmail });
+  if (user) {
+    try {
+      await issuePasswordResetLinkForUser({
+        user,
+        triggeredBy: 'user',
+        performedBy: user._id,
+        req
+      });
+    } catch (error) {
+      if (error?.status) {
+        return res.status(error.status).json({ message: error.message });
+      }
+      throw error;
+    }
+  }
+  res.json({ message: 'Si un compte existe, un lien de réinitialisation a été envoyé.' });
+});
+
+export const resetPasswordWithToken = asyncHandler(async (req, res) => {
+  const { token, newPassword } = req.body || {};
+  if (!token || !String(token).trim()) {
+    return res.status(400).json({ message: 'Token manquant.' });
+  }
+  if (!newPassword || String(newPassword).length < 6) {
+    return res.status(400).json({ message: 'Le mot de passe doit contenir au moins 6 caractères.' });
+  }
+
+  const updatedUser = await consumePasswordResetToken({ token, newPassword, req });
+  if (!updatedUser) {
+    return res.status(400).json({ message: 'Token invalide ou expiré.' });
+  }
+  res.json({ message: 'Mot de passe réinitialisé avec succès.' });
+});
+
+export const logoutSession = asyncHandler(async (req, res) => {
+  const token = String(req.authToken || '').trim();
+  if (!token) {
+    return res.status(400).json({ message: 'Token de session manquant.' });
+  }
+  await blacklistToken(token, {
+    exp: req.authDecoded?.exp,
+    reason: 'user_logout'
+  });
+  res.json({ success: true });
 });

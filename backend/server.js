@@ -34,6 +34,7 @@ import deviceRoutes from './routes/deviceRoutes.js';
 import marketplacePromoCodeRoutes from './routes/marketplacePromoCodeRoutes.js';
 import disputeRoutes from './routes/disputeRoutes.js';
 import boostRoutes from './routes/boostRoutes.js';
+import founderRoutes from './routes/founderRoutes.js';
 
 import User from './models/userModel.js';
 import Order from './models/orderModel.js';
@@ -52,12 +53,33 @@ import { expireBoostRequests } from './utils/boostService.js';
 import { startCacheSnapshotScheduler } from './utils/cache.js';
 import { ensureDefaultSettingsBootstrap } from './controllers/settingsController.js';
 import { initRedis, closeRedis } from './config/redisClient.js';
+import { getRuntimeConfig, preloadRuntimeConfigCache } from './services/configService.js';
+import { maintenanceModeMiddleware } from './middlewares/maintenanceModeMiddleware.js';
 import { initNotificationQueue, closeNotificationQueue } from './queues/notificationQueue.js';
 import { initNotificationWorker, closeNotificationWorker } from './workers/notificationWorker.js';
+import {
+  closeOrderAutomationQueue,
+  ensureOrderAutomationSchedules,
+  initOrderAutomationQueue
+} from './queues/orderAutomationQueue.js';
+import { closeOrderAutomationWorker, initOrderAutomationWorker } from './workers/orderAutomationWorker.js';
+import {
+  closeRealtimeAnalyticsQueue,
+  ensureRealtimeAnalyticsSchedules,
+  initRealtimeAnalyticsQueue
+} from './queues/realtimeAnalyticsQueue.js';
+import {
+  closeRealtimeAnalyticsWorker,
+  initRealtimeAnalyticsWorker
+} from './workers/realtimeAnalyticsWorker.js';
+import { isTokenBlacklisted, wasSessionInvalidated } from './services/sessionSecurityService.js';
 
 connectDB();
 initRedis().catch(() => {
   // Redis is optional; cache layer keeps a memory fallback.
+});
+preloadRuntimeConfigCache().catch(() => {
+  // Runtime config service keeps lazy fallback if preload fails.
 });
 startCacheSnapshotScheduler();
 initNotificationQueue().catch(() => {
@@ -66,6 +88,24 @@ initNotificationQueue().catch(() => {
 initNotificationWorker().catch(() => {
   // Worker fallback is handled inside notification service.
 });
+const orderAutomationEnabled = String(process.env.ORDER_AUTOMATION_ENABLED || 'true') !== 'false';
+const realtimeAnalyticsEnabled = String(process.env.REALTIME_ANALYTICS_ENABLED || 'true') !== 'false';
+if (orderAutomationEnabled) {
+  initOrderAutomationQueue().catch(() => {
+    // Optional automation queue; system continues with manual fallback.
+  });
+  initOrderAutomationWorker().catch(() => {
+    // Optional automation worker.
+  });
+}
+if (realtimeAnalyticsEnabled) {
+  initRealtimeAnalyticsQueue().catch(() => {
+    // Optional analytics queue.
+  });
+  initRealtimeAnalyticsWorker().catch(() => {
+    // Optional analytics worker.
+  });
+}
 
 // const logCloudinaryEnv = () => {
 //   if (process.env.NODE_ENV === 'production') return;
@@ -133,7 +173,13 @@ app.use(requestTracker);
 // Rate limit global (skip long-lived streams + allow higher burst during dev)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 min
-  max: Number(process.env.RATE_LIMIT_MAX ?? 3000),
+  max: async () => {
+    const fallback = Number(process.env.RATE_LIMIT_MAX ?? 3000);
+    const configured = await getRuntimeConfig('api_rate_limit_max', { fallback });
+    const parsed = Number(configured);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.max(100, parsed);
+  },
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'Trop de requêtes, veuillez réessayer plus tard.' },
@@ -162,6 +208,8 @@ app.get('/api/health/requests', (req, res) => {
   });
 });
 
+app.use(maintenanceModeMiddleware);
+
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/payments', paymentRoutes);
@@ -183,6 +231,7 @@ app.use('/api/devices', deviceRoutes);
 app.use('/api/marketplace-promo-codes', marketplacePromoCodeRoutes);
 app.use('/api/disputes', disputeRoutes);
 app.use('/api/boosts', boostRoutes);
+app.use('/api/founder', founderRoutes);
 
 // Global error handler
 // eslint-disable-next-line no-unused-vars
@@ -218,9 +267,14 @@ io.use(async (socket, next) => {
     return next();
   }
   try {
+    if (await isTokenBlacklisted(token)) {
+      return next(new Error('Token blacklisted'));
+    }
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select('name role isBlocked blockedReason');
-    if (!user || user.isBlocked) {
+    const user = await User.findById(decoded.id).select(
+      'name role isBlocked blockedReason isActive isLocked sessionsInvalidatedAt'
+    );
+    if (!user || user.isBlocked || !user.isActive || user.isLocked || wasSessionInvalidated(user, decoded)) {
       return next(new Error('Not authorized'));
     }
     socket.data.user = {
@@ -383,7 +437,26 @@ httpServer.listen(port, () => {
     }
   };
   
-  // Schedule review reminder checks every hour
+  if (orderAutomationEnabled) {
+    ensureOrderAutomationSchedules()
+      .then(() => {
+        console.log('[order-automation] recurring schedules registered');
+      })
+      .catch((error) => {
+        console.error('[order-automation] failed to register schedules:', error?.message || error);
+      });
+  }
+  if (realtimeAnalyticsEnabled) {
+    ensureRealtimeAnalyticsSchedules()
+      .then(() => {
+        console.log('[realtime-analytics] recurring schedules registered');
+      })
+      .catch((error) => {
+        console.error('[realtime-analytics] failed to register schedules:', error?.message || error);
+      });
+  }
+
+  // Schedule review reminder checks every hour (legacy scheduler fallback)
   // Check for delivered orders that are 1+ hour old and send review reminders
   const REVIEW_REMINDER_INTERVAL = 60 * 60 * 1000; // 1 hour
   const INSTALLMENT_REMINDER_INTERVAL = 60 * 60 * 1000; // 1 hour
@@ -408,20 +481,21 @@ httpServer.listen(port, () => {
     }
   };
   
-  // Run immediately on startup (with a 5 minute delay to let server stabilize)
-  setTimeout(runReviewReminders, 5 * 60 * 1000);
-  
-  // Then run every hour
-  setInterval(runReviewReminders, REVIEW_REMINDER_INTERVAL);
+  if (!orderAutomationEnabled) {
+    // Run immediately on startup (with a 5 minute delay to let server stabilize)
+    setTimeout(runReviewReminders, 5 * 60 * 1000);
+    // Then run every hour
+    setInterval(runReviewReminders, REVIEW_REMINDER_INTERVAL);
 
-  notifyBackoffice({
-    title: 'Scheduler démarré',
-    message: 'Review reminder scheduler started (runs every hour).',
-    metadata: {
-      scheduler: 'review_reminder',
-      intervalMinutes: 60
-    }
-  });
+    notifyBackoffice({
+      title: 'Scheduler démarré',
+      message: 'Review reminder scheduler started (runs every hour).',
+      metadata: {
+        scheduler: 'review_reminder',
+        intervalMinutes: 60
+      }
+    });
+  }
 
   const runInstallmentReminders = async () => {
     try {
@@ -472,6 +546,10 @@ httpServer.listen(port, () => {
 
 const gracefulShutdown = async () => {
   try {
+    await closeRealtimeAnalyticsWorker();
+    await closeRealtimeAnalyticsQueue();
+    await closeOrderAutomationWorker();
+    await closeOrderAutomationQueue();
     await closeNotificationWorker();
     await closeNotificationQueue();
     await closeRedis();

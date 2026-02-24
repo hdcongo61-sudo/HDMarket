@@ -7,6 +7,11 @@ import User from '../models/userModel.js';
 import Product from '../models/productModel.js';
 import { invalidateSettingsCache } from '../utils/cache.js';
 import {
+  ensureRuntimeConfigBootstrap,
+  getPublicRuntimeConfig,
+  setRuntimeConfig
+} from '../services/configService.js';
+import {
   DEFAULT_APP_SETTINGS,
   SETTING_KEYS,
   getActiveCommunes,
@@ -69,8 +74,29 @@ const getSafeFeeSettings = async () =>
 
 export const getPublicSettings = asyncHandler(async (req, res) => {
   try {
-    const payload = await resolvePublicSettings();
-    res.json(payload);
+    const [payload, runtimePayload] = await Promise.all([
+      resolvePublicSettings(),
+      getPublicRuntimeConfig({
+        role: req.user?.role,
+        userId: req.user?.id,
+        sessionId: req.headers?.['x-session-id'],
+        deviceId: req.headers?.['x-device-id']
+      })
+    ]);
+    res.json({
+      ...payload,
+      runtime: runtimePayload?.values || {},
+      featureFlags: runtimePayload?.featureFlags || {},
+      ui:
+        runtimePayload?.byCategory?.ui ||
+        {
+          app_name: 'HDMarket',
+          ui_primary_color: '#171717',
+          ui_banner_message: '',
+          ui_announcement_text: '',
+          footer_text: 'HDMarket'
+        }
+    });
   } catch (error) {
     console.error('getPublicSettings fallback used:', error?.message || error);
     res.json({
@@ -143,7 +169,21 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
           deliveryPolicy: 'DEFAULT_RULE',
           fixedFee: 0
         }
-      ]
+      ],
+      runtime: {
+        app_name: 'HDMarket',
+        ui_primary_color: '#171717',
+        maintenance_mode: false,
+        maintenance_message: 'Maintenance en cours. Merci de réessayer plus tard.'
+      },
+      featureFlags: {},
+      ui: {
+        app_name: 'HDMarket',
+        ui_primary_color: '#171717',
+        ui_banner_message: '',
+        ui_announcement_text: '',
+        footer_text: 'HDMarket'
+      }
     });
   }
 });
@@ -343,6 +383,19 @@ export const updateAdminSetting = asyncHandler(async (req, res) => {
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
+
+  // Keep runtime config service in sync for all "Fees & Rules" keys.
+  try {
+    await setRuntimeConfig(key, value, {
+      updatedBy: req.user.id,
+      syncLegacyAlias: true
+    });
+  } catch (error) {
+    if (error?.statusCode) {
+      return res.status(error.statusCode).json({ message: error.message || 'Valeur setting invalide.' });
+    }
+    throw error;
+  }
 
   invalidateAllSettingsCaches();
   res.json({ message: 'Paramètre mis à jour.', key, value });
@@ -784,6 +837,8 @@ export const deleteAdminCommune = asyncHandler(async (req, res) => {
 });
 
 export const ensureDefaultSettingsBootstrap = async () => {
+  await ensureRuntimeConfigBootstrap();
+
   const bootstrapOperations = [];
   Object.entries(DEFAULT_APP_SETTINGS).forEach(([key, value]) => {
     bootstrapOperations.push(

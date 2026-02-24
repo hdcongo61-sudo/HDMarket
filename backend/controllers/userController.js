@@ -32,6 +32,7 @@ import {
   isEmailConfigured,
   sendVerificationCode
 } from '../utils/firebaseVerification.js';
+import { resolvePermissionsForUser } from '../services/rbacService.js';
 
 const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   product_comment: true,
@@ -93,6 +94,7 @@ const sanitizeUser = (user) => ({
   phone: user.phone,
   phoneVerified: Boolean(user.phoneVerified),
   role: user.role,
+  permissions: resolvePermissionsForUser(user),
   accountType: user.accountType,
   country: user.country,
   address: user.address,

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Ban, CheckCircle2, RefreshCw, Search, ShieldAlert, MessageSquareOff, ShoppingCartIcon, HeartOff, ImageOff, X, Calendar, ChevronDown, Package, EyeOff, History, Store, CheckCircle, XCircle, DollarSign, Hash, CreditCard, FileImage, User, AlertCircle } from 'lucide-react';
 import { buildShopPath } from '../utils/links';
@@ -6,6 +6,8 @@ import api from '../services/api';
 import useIsMobile from '../hooks/useIsMobile';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
+import AuthContext from '../context/AuthContext';
+import { hasAnyPermission } from '../utils/permissions';
 
 const RESTRICTION_TYPES = [
   { key: 'canComment', label: 'Commentaires', icon: MessageSquareOff, color: 'orange', shopOnly: false },
@@ -23,7 +25,10 @@ const accountTypeLabels = {
 
 const roleLabels = {
   user: 'Utilisateur',
-  admin: 'Administrateur'
+  admin: 'Administrateur',
+  manager: 'Gestionnaire',
+  founder: 'Fondateur',
+  seller: 'Vendeur'
 };
 
 const formatNumber = (value) => {
@@ -40,6 +45,17 @@ const formatDate = (value) => {
   if (Number.isNaN(date.getTime())) return '—';
   return date.toLocaleDateString();
 };
+
+const normalizeUserRow = (item = {}) => ({
+  ...item,
+  id: item.id || item._id || '',
+  _id: item._id || item.id || '',
+  role: String(item.role || 'user').toLowerCase(),
+  isLocked: Boolean(item.isLocked),
+  isActive: typeof item.isActive === 'boolean' ? item.isActive : !item.isBlocked,
+  lockReason: item.lockReason || '',
+  lockedAt: item.lockedAt || null
+});
 
 const USERS_PER_PAGE = 15;
 const accountFilterOptions = [
@@ -69,10 +85,12 @@ const conversionFilterOptions = [
 ];
 
 export default function AdminUsers() {
+  const { user: authUser } = useContext(AuthContext);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [actionError, setActionError] = useState('');
+  const [actionSuccess, setActionSuccess] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [accountTypeFilter, setAccountTypeFilter] = useState('all');
@@ -84,7 +102,19 @@ export default function AdminUsers() {
   const [verifyingShopId, setVerifyingShopId] = useState('');
   const [togglingChatTemplateUserId, setTogglingChatTemplateUserId] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [securityActionKey, setSecurityActionKey] = useState('');
   const isMobileView = useIsMobile(1023);
+  const isFounder = authUser?.role === 'founder';
+  const canManageUsers = hasAnyPermission(authUser, ['manage_users']);
+  const canManagePermissions = hasAnyPermission(authUser, ['manage_permissions']);
+  const canManageSellers = hasAnyPermission(authUser, ['manage_sellers']);
+  const canManageOrders = hasAnyPermission(authUser, ['manage_orders']);
+  const canAssignRoles = hasAnyPermission(authUser, ['assign_roles']);
+  const canRevokeRoles = hasAnyPermission(authUser, ['revoke_roles']);
+  const canResetPasswords = hasAnyPermission(authUser, ['reset_passwords']);
+  const canForceLogout = hasAnyPermission(authUser, ['force_logout']);
+  const canLockAccounts = hasAnyPermission(authUser, ['lock_accounts']);
+  const canViewLogs = hasAnyPermission(authUser, ['view_logs']);
 
   // Restriction modal state
   const [restrictionModal, setRestrictionModal] = useState({ open: false, user: null });
@@ -106,7 +136,7 @@ export default function AdminUsers() {
   const [ordersTotalPages, setOrdersTotalPages] = useState(0);
 
   // Audit log modal state
-  const [auditModal, setAuditModal] = useState({ open: false, user: null });
+  const [auditModal, setAuditModal] = useState({ open: false, user: null, mode: 'user' });
   const [auditLogs, setAuditLogs] = useState([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditPage, setAuditPage] = useState(1);
@@ -134,7 +164,7 @@ export default function AdminUsers() {
           signal: controller.signal
         });
         if (isMounted) {
-          setUsers(Array.isArray(data) ? data : []);
+          setUsers(Array.isArray(data) ? data.map(normalizeUserRow) : []);
         }
       } catch (e) {
         if (!isMounted || e.name === 'CanceledError' || e.name === 'AbortError') return;
@@ -228,6 +258,12 @@ export default function AdminUsers() {
   }, [accountTypeFilter, statusFilter, restrictionFilter, conversionFilter, searchTerm]);
 
   useEffect(() => {
+    if (!actionSuccess) return;
+    const timer = setTimeout(() => setActionSuccess(''), 5000);
+    return () => clearTimeout(timer);
+  }, [actionSuccess]);
+
+  useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(displayedUsers.length / USERS_PER_PAGE));
     setPage((prev) => Math.min(prev, totalPages));
   }, [displayedUsers.length]);
@@ -257,15 +293,16 @@ export default function AdminUsers() {
     setSearchTerm('');
   };
 
-  const upsertUser = (nextUser) => {
+  const upsertUser = useCallback((nextUser) => {
+    const normalizedNext = normalizeUserRow(nextUser);
     setUsers((prev) => {
-      const exists = prev.some((user) => user.id === nextUser.id);
+      const exists = prev.some((user) => user.id === normalizedNext.id);
       if (exists) {
-        return prev.map((user) => (user.id === nextUser.id ? nextUser : user));
+        return prev.map((user) => (user.id === normalizedNext.id ? normalizedNext : user));
       }
-      return [nextUser, ...prev];
+      return [normalizedNext, ...prev];
     });
-  };
+  }, []);
 
   const handleBlock = async (user) => {
     const defaultReason = user.blockedReason || '';
@@ -308,6 +345,10 @@ export default function AdminUsers() {
   };
 
   const openConversionModal = (user) => {
+    if (!canManageSellers) {
+      setActionError("Vous n'avez pas la permission de gérer les boutiques.");
+      return;
+    }
     const request = conversionRequests.find((r) => r.user?._id === user.id || r.user === user.id);
     setConversionModal({ open: true, user, request });
   };
@@ -317,6 +358,10 @@ export default function AdminUsers() {
   };
 
   const handleApproveConversion = async (requestId) => {
+    if (!canManageSellers) {
+      setActionError("Vous n'avez pas la permission de gérer les boutiques.");
+      return;
+    }
     setConversionLoading(true);
     setActionError('');
     try {
@@ -336,6 +381,10 @@ export default function AdminUsers() {
   };
 
   const handleRejectConversion = async (requestId) => {
+    if (!canManageSellers) {
+      setActionError("Vous n'avez pas la permission de gérer les boutiques.");
+      return;
+    }
     const reason = window.prompt('Raison du rejet (facultatif) :', '');
     if (reason === null) return;
     setConversionLoading(true);
@@ -359,6 +408,10 @@ export default function AdminUsers() {
   };
 
   const handleConvertToShop = async (user) => {
+    if (!canManageSellers) {
+      setActionError("Vous n'avez pas la permission de gérer les boutiques.");
+      return;
+    }
     const shopName = window.prompt('Nom de la boutique :', user.shopName || '');
     if (shopName === null) return;
     if (!shopName.trim()) {
@@ -394,6 +447,10 @@ export default function AdminUsers() {
   };
 
   const handleConvertToParticulier = async (user) => {
+    if (!canManageSellers) {
+      setActionError("Vous n'avez pas la permission de gérer les boutiques.");
+      return;
+    }
     const confirmed = window.confirm(
       `Êtes-vous sûr de vouloir reconvertir "${user.name}" (${user.shopName || 'Boutique'}) en compte particulier ?\n\nCette action supprimera les informations de la boutique.`
     );
@@ -419,6 +476,10 @@ export default function AdminUsers() {
   };
 
   const toggleShopVerification = useCallback(async (id, nextValue) => {
+    if (!canManageSellers) {
+      setActionError("Vous n'avez pas la permission de gérer les boutiques.");
+      return;
+    }
     setVerifyingShopId(id);
     setActionError('');
     try {
@@ -436,12 +497,16 @@ export default function AdminUsers() {
     } finally {
       setVerifyingShopId('');
     }
-  }, []);
+  }, [canManageSellers]);
 
   const handleToggleChatTemplateAccess = async (user) => {
     if (!user?.id) return;
-    if (user.role === 'admin') {
-      setActionError("Impossible de modifier les permissions d'un administrateur.");
+    if (!canManagePermissions) {
+      setActionError("Vous n'avez pas la permission de modifier les accès.");
+      return;
+    }
+    if (['admin', 'founder'].includes(user.role)) {
+      setActionError("Impossible de modifier les permissions d'un administrateur ou fondateur.");
       return;
     }
     setActionError('');
@@ -473,8 +538,180 @@ export default function AdminUsers() {
     setRefreshKey((value) => value + 1);
   };
 
+  const canActOnTargetUser = useCallback((targetUser) => {
+    const targetRole = String(targetUser?.role || '').toLowerCase();
+    const actorRole = String(authUser?.role || '').toLowerCase();
+    if (!targetRole || !actorRole) return false;
+    if (actorRole === 'founder') return targetRole !== 'founder';
+    if (actorRole === 'admin') return targetRole !== 'admin' && targetRole !== 'founder';
+    return false;
+  }, [authUser?.role]);
+
+  const runSecurityAction = useCallback(async ({ key, request, onSuccess }) => {
+    setActionError('');
+    setActionSuccess('');
+    setSecurityActionKey(key);
+    try {
+      const response = await request();
+      const successMessage = String(response?.data?.message || '').trim();
+      if (successMessage) {
+        setActionSuccess(successMessage);
+      }
+      if (typeof onSuccess === 'function') {
+        onSuccess(response);
+      }
+      return response;
+    } catch (e) {
+      setActionSuccess('');
+      setActionError(
+        e.response?.data?.message ||
+          e.message ||
+          'Action sécurité impossible pour le moment.'
+      );
+      return null;
+    } finally {
+      setSecurityActionKey('');
+    }
+  }, []);
+
+  const handlePromoteAdmin = async (user) => {
+    if (!user?.id) return;
+    await runSecurityAction({
+      key: `promote:${user.id}`,
+      request: () => api.post(`/founder/promote-admin/${user.id}`),
+      onSuccess: (response) => {
+        const nextUser = response?.data?.user;
+        if (nextUser) upsertUser(nextUser);
+      }
+    });
+  };
+
+  const handleRevokeAdmin = async (user) => {
+    if (!user?.id) return;
+    await runSecurityAction({
+      key: `revoke:${user.id}`,
+      request: () => api.post(`/founder/revoke-admin/${user.id}`),
+      onSuccess: (response) => {
+        const nextUser = response?.data?.user;
+        if (nextUser) upsertUser(nextUser);
+      }
+    });
+  };
+
+  const handleForcePasswordReset = async (user) => {
+    if (!user?.id) return;
+    const mode = window.prompt(
+      'Choisir la méthode:\n1 = Envoyer un lien par email\n2 = Définir le mot de passe directement',
+      '1'
+    );
+    if (mode === null) return;
+
+    if (String(mode).trim() === '2') {
+      const newPassword = window.prompt('Nouveau mot de passe (minimum 6 caractères):', '');
+      if (newPassword === null) return;
+      if (String(newPassword).length < 6) {
+        setActionError('Le mot de passe doit contenir au moins 6 caractères.');
+        return;
+      }
+      const confirmPassword = window.prompt('Confirmez le nouveau mot de passe:', '');
+      if (confirmPassword === null) return;
+      if (String(confirmPassword) !== String(newPassword)) {
+        setActionError('La confirmation du mot de passe ne correspond pas.');
+        return;
+      }
+
+      await runSecurityAction({
+        key: `set-password:${user.id}`,
+        request: () =>
+          api.post(`/admin/users/${user.id}/set-password`, {
+            newPassword,
+            forceLogout: true
+          }),
+        onSuccess: (result) => {
+          const nextUser = result?.data?.user;
+          if (nextUser) upsertUser(nextUser);
+        }
+      });
+      return;
+    }
+
+    const endpoint = isFounder
+      ? `/founder/force-reset-password/${user.id}`
+      : `/admin/users/${user.id}/force-password-reset`;
+    const response = await runSecurityAction({
+      key: `reset:${user.id}`,
+      request: () => api.post(endpoint)
+    });
+    const resetLink = String(response?.data?.resetLink || '').trim();
+    if (!resetLink) return;
+    try {
+      if (typeof navigator !== 'undefined' && navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(resetLink);
+        setActionSuccess((prev) =>
+          prev ? `${prev} Le lien a été copié.` : 'Lien de réinitialisation copié.'
+        );
+        return;
+      }
+    } catch {
+      // Fallback handled below with prompt.
+    }
+    window.prompt('Copiez ce lien de réinitialisation manuel :', resetLink);
+  };
+
+  const handleForceLogout = async (user) => {
+    if (!user?.id) return;
+    const endpoint = isFounder
+      ? `/founder/force-logout/${user.id}`
+      : `/admin/users/${user.id}/force-logout`;
+    await runSecurityAction({
+      key: `logout:${user.id}`,
+      request: () => api.post(endpoint),
+      onSuccess: (response) => {
+        const nextUser = response?.data?.user;
+        if (nextUser) upsertUser(nextUser);
+      }
+    });
+  };
+
+  const handleLockAccount = async (user) => {
+    if (!user?.id) return;
+    const defaultReason = user?.lockReason || '';
+    const reason = window.prompt('Motif du verrouillage (facultatif) :', defaultReason);
+    if (reason === null) return;
+    const endpoint = isFounder
+      ? `/founder/lock-user/${user.id}`
+      : `/admin/users/${user.id}/lock-account`;
+    await runSecurityAction({
+      key: `lock:${user.id}`,
+      request: () => api.post(endpoint, { reason: reason || '' }),
+      onSuccess: (response) => {
+        const nextUser = response?.data?.user;
+        if (nextUser) upsertUser(nextUser);
+      }
+    });
+  };
+
+  const handleUnlockAccount = async (user) => {
+    if (!user?.id) return;
+    const endpoint = isFounder
+      ? `/founder/unlock-user/${user.id}`
+      : `/admin/users/${user.id}/unlock-account`;
+    await runSecurityAction({
+      key: `unlock:${user.id}`,
+      request: () => api.post(endpoint),
+      onSuccess: (response) => {
+        const nextUser = response?.data?.user;
+        if (nextUser) upsertUser(nextUser);
+      }
+    });
+  };
+
   // Restriction handlers
   const openRestrictionModal = useCallback((user, restrictionType) => {
+    if (!canManageUsers) {
+      setActionError("Vous n'avez pas la permission de gérer les utilisateurs.");
+      return;
+    }
     const currentRestriction = user.restrictions?.[restrictionType] || {};
     setRestrictionForm({
       type: restrictionType,
@@ -486,7 +723,7 @@ export default function AdminUsers() {
     setActionError('');
     setRestrictionModal({ open: true, user });
     setRestrictionMenuOpen(null);
-  }, []);
+  }, [canManageUsers]);
 
   const closeRestrictionModal = useCallback(() => {
     setRestrictionModal({ open: false, user: null });
@@ -494,6 +731,10 @@ export default function AdminUsers() {
   }, []);
 
   const handleApplyRestriction = async () => {
+    if (!canManageUsers) {
+      setActionError("Vous n'avez pas la permission de gérer les utilisateurs.");
+      return;
+    }
     if (!restrictionModal.user || !restrictionForm.type) return;
     setRestrictionLoading(true);
     setActionError('');
@@ -506,7 +747,7 @@ export default function AdminUsers() {
       });
       // Refresh user data
       const { data } = await api.get('/admin/users', { params: { limit: 100, search: searchTerm || undefined, accountType: accountTypeFilter !== 'all' ? accountTypeFilter : undefined } });
-      setUsers(Array.isArray(data) ? data : []);
+      setUsers(Array.isArray(data) ? data.map(normalizeUserRow) : []);
       closeRestrictionModal();
     } catch (e) {
       setActionError(e.response?.data?.message || e.message || 'Erreur lors de l\'application de la restriction.');
@@ -516,12 +757,16 @@ export default function AdminUsers() {
   };
 
   const handleRemoveRestriction = async (userId, restrictionType) => {
+    if (!canManageUsers) {
+      setActionError("Vous n'avez pas la permission de gérer les utilisateurs.");
+      return;
+    }
     setRestrictionLoading(true);
     setActionError('');
     try {
       await api.delete(`/admin/users/${userId}/restrictions/${restrictionType}`);
       const { data } = await api.get('/admin/users', { params: { limit: 100, search: searchTerm || undefined, accountType: accountTypeFilter !== 'all' ? accountTypeFilter : undefined } });
-      setUsers(Array.isArray(data) ? data : []);
+      setUsers(Array.isArray(data) ? data.map(normalizeUserRow) : []);
     } catch (e) {
       setActionError(e.response?.data?.message || e.message || 'Erreur lors de la suppression de la restriction.');
     } finally {
@@ -531,6 +776,10 @@ export default function AdminUsers() {
 
   // Received orders handlers
   const openOrdersModal = useCallback(async (user) => {
+    if (!canManageOrders) {
+      setActionError("Vous n'avez pas la permission de gérer les commandes.");
+      return;
+    }
     setOrdersModal({ open: true, user });
     setOrdersLoading(true);
     setOrdersPage(1);
@@ -543,7 +792,7 @@ export default function AdminUsers() {
     } finally {
       setOrdersLoading(false);
     }
-  }, []);
+  }, [canManageOrders]);
 
   const closeOrdersModal = useCallback(() => {
     setOrdersModal({ open: false, user: null });
@@ -567,7 +816,11 @@ export default function AdminUsers() {
 
   // Audit log handlers
   const openAuditModal = useCallback(async (user) => {
-    setAuditModal({ open: true, user });
+    if (!canViewLogs) {
+      setActionError("Vous n'avez pas la permission de consulter les logs.");
+      return;
+    }
+    setAuditModal({ open: true, user, mode: 'user' });
     setAuditLoading(true);
     setAuditPage(1);
     try {
@@ -579,21 +832,48 @@ export default function AdminUsers() {
     } finally {
       setAuditLoading(false);
     }
-  }, []);
+  }, [canViewLogs]);
+
+  const openFounderAuditModal = useCallback(async () => {
+    if (!isFounder || !canViewLogs) {
+      setActionError("Vous n'avez pas la permission de consulter le timeline founder.");
+      return;
+    }
+    setAuditModal({ open: true, user: null, mode: 'founder' });
+    setAuditLoading(true);
+    setAuditPage(1);
+    try {
+      const { data } = await api.get('/founder/audit-logs', { params: { page: 1, limit: 20 } });
+      setAuditLogs(Array.isArray(data.items) ? data.items : []);
+      setAuditTotalPages(Number(data.pages || 1));
+    } catch (e) {
+      setActionError(e.response?.data?.message || 'Erreur lors du chargement du timeline founder.');
+    } finally {
+      setAuditLoading(false);
+    }
+  }, [canViewLogs, isFounder]);
 
   const closeAuditModal = useCallback(() => {
-    setAuditModal({ open: false, user: null });
+    setAuditModal({ open: false, user: null, mode: 'user' });
     setAuditLogs([]);
   }, []);
 
   const loadAuditPage = async (newPage) => {
-    if (!auditModal.user) return;
+    if (!auditModal.user && auditModal.mode !== 'founder') return;
     setAuditLoading(true);
     try {
-      const { data } = await api.get(`/admin/users/${auditModal.user.id}/audit-logs`, { params: { page: newPage, limit: 10 } });
-      setAuditLogs(data.logs || []);
+      if (auditModal.mode === 'founder') {
+        const { data } = await api.get('/founder/audit-logs', {
+          params: { page: newPage, limit: 20 }
+        });
+        setAuditLogs(Array.isArray(data.items) ? data.items : []);
+        setAuditTotalPages(Number(data.pages || 1));
+      } else {
+        const { data } = await api.get(`/admin/users/${auditModal.user.id}/audit-logs`, { params: { page: newPage, limit: 10 } });
+        setAuditLogs(data.logs || []);
+        setAuditTotalPages(data.totalPages || 0);
+      }
       setAuditPage(newPage);
-      setAuditTotalPages(data.totalPages || 0);
     } catch (e) {
       setActionError(e.response?.data?.message || 'Erreur lors du chargement de l\'historique.');
     } finally {
@@ -610,21 +890,39 @@ export default function AdminUsers() {
       shop_verified: 'Boutique vérifiée',
       shop_unverified: 'Vérification retirée',
       role_changed: 'Rôle modifié',
+      role_promoted_admin: 'Promotion admin',
+      role_revoked_admin: 'Révocation admin',
       account_type_changed: 'Type de compte modifié',
       account_type_changed_to_shop: 'Converti en boutique',
-      account_type_changed_to_person: 'Reconverti en particulier'
+      account_type_changed_to_person: 'Reconverti en particulier',
+      account_locked: 'Compte verrouillé',
+      account_unlocked: 'Compte déverrouillé',
+      force_logout_user: 'Force logout',
+      force_password_reset: 'Reset mot de passe forcé',
+      admin_trigger_password_reset: 'Reset mot de passe admin',
+      admin_set_password_direct: 'Mot de passe défini (direct)',
+      password_reset_link_sent: 'Lien reset envoyé',
+      password_reset_completed: 'Mot de passe réinitialisé'
     };
     return labels[action] || action;
   };
 
   const getActionColor = (action) => {
-    if (action.includes('blocked') || action.includes('applied') || action === 'shop_unverified') {
+    const key = String(action || '');
+    if (!key) return 'bg-neutral-100 text-neutral-700';
+    if (key.includes('blocked') || key.includes('applied') || key === 'shop_unverified' || key === 'account_locked') {
       return 'bg-red-100 text-red-700';
     }
-    if (action.includes('unblocked') || action.includes('removed') || action === 'shop_verified') {
+    if (key.includes('unblocked') || key.includes('removed') || key === 'shop_verified' || key === 'account_unlocked') {
       return 'bg-green-100 text-green-700';
     }
-    if (action.includes('account_type_changed')) {
+    if (key.includes('role_')) {
+      return 'bg-indigo-100 text-indigo-700';
+    }
+    if (key.includes('reset') || key.includes('logout')) {
+      return 'bg-amber-100 text-amber-700';
+    }
+    if (key.includes('account_type_changed')) {
       return 'bg-neutral-100 text-neutral-700';
     }
     return 'bg-neutral-100 text-neutral-700';
@@ -636,6 +934,101 @@ export default function AdminUsers() {
     return RESTRICTION_TYPES.filter((rt) => user.restrictions[rt.key]?.isActive).length;
   };
 
+  const renderSecurityActions = useCallback((user, compact = false) => {
+    const targetRole = String(user?.role || '').toLowerCase();
+    const canTarget = canActOnTargetUser(user);
+    const isTargetLocked = Boolean(user?.isLocked);
+    const classes = compact
+      ? 'inline-flex items-center gap-1 rounded-lg border px-2 py-1.5 text-xs font-semibold disabled:opacity-50'
+      : 'inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50';
+
+    return (
+      <>
+        {isFounder && targetRole !== 'founder' && targetRole !== 'admin' && (canAssignRoles || canManagePermissions) && (
+          <button
+            type="button"
+            onClick={() => handlePromoteAdmin(user)}
+            disabled={!canTarget || securityActionKey === `promote:${user.id}`}
+            className={`${classes} border-indigo-300 text-indigo-700 hover:bg-indigo-50`}
+          >
+            Promote admin
+          </button>
+        )}
+        {isFounder && targetRole === 'admin' && (canRevokeRoles || canManagePermissions) && (
+          <button
+            type="button"
+            onClick={() => handleRevokeAdmin(user)}
+            disabled={!canTarget || securityActionKey === `revoke:${user.id}`}
+            className={`${classes} border-purple-300 text-purple-700 hover:bg-purple-50`}
+          >
+            Revoke admin
+          </button>
+        )}
+        {canLockAccounts && (
+          isTargetLocked ? (
+            <button
+              type="button"
+              onClick={() => handleUnlockAccount(user)}
+              disabled={!canTarget || securityActionKey === `unlock:${user.id}`}
+              className={`${classes} border-green-300 text-green-700 hover:bg-green-50`}
+            >
+              Déverrouiller
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleLockAccount(user)}
+              disabled={!canTarget || securityActionKey === `lock:${user.id}`}
+              className={`${classes} border-red-300 text-red-700 hover:bg-red-50`}
+            >
+              Verrouiller
+            </button>
+          )
+        )}
+        {canResetPasswords && (
+          <button
+            type="button"
+            onClick={() => handleForcePasswordReset(user)}
+            disabled={
+              !canTarget ||
+              securityActionKey === `reset:${user.id}` ||
+              securityActionKey === `set-password:${user.id}`
+            }
+            className={`${classes} border-amber-300 text-amber-700 hover:bg-amber-50`}
+          >
+            Modifier mdp
+          </button>
+        )}
+        {canForceLogout && (
+          <button
+            type="button"
+            onClick={() => handleForceLogout(user)}
+            disabled={!canTarget || securityActionKey === `logout:${user.id}`}
+            className={`${classes} border-neutral-300 text-neutral-700 hover:bg-neutral-100`}
+          >
+            Force logout
+          </button>
+        )}
+      </>
+    );
+  }, [
+    canActOnTargetUser,
+    canAssignRoles,
+    canForceLogout,
+    canLockAccounts,
+    canManagePermissions,
+    canResetPasswords,
+    canRevokeRoles,
+    handleForceLogout,
+    handleForcePasswordReset,
+    handleLockAccount,
+    handlePromoteAdmin,
+    handleRevokeAdmin,
+    handleUnlockAccount,
+    isFounder,
+    securityActionKey
+  ]);
+
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 space-y-6">
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -646,6 +1039,16 @@ export default function AdminUsers() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
+          {isFounder && canViewLogs && (
+            <button
+              type="button"
+              onClick={openFounderAuditModal}
+              className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
+            >
+              <History size={16} />
+              Timeline founder
+            </button>
+          )}
           <Link
             to="/admin"
             className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100"
@@ -844,6 +1247,7 @@ export default function AdminUsers() {
 
         {error && <p className="text-sm text-red-600">{error}</p>}
         {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+        {actionSuccess && <p className="text-sm text-green-700">{actionSuccess}</p>}
 
         {isMobileView ? (
           <div className="space-y-4">
@@ -888,6 +1292,12 @@ export default function AdminUsers() {
                           Actif
                         </span>
                       )}
+                      {user.isLocked ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-700">
+                          <ShieldAlert size={12} />
+                          Verrouillé
+                        </span>
+                      ) : null}
                     </div>
                     <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
                       <div className="space-y-0.5">
@@ -899,7 +1309,7 @@ export default function AdminUsers() {
                       <button
                         type="button"
                         onClick={() => handleToggleChatTemplateAccess(user)}
-                        disabled={user.role === 'admin' || togglingChatTemplateUserId === user.id}
+                        disabled={!canManagePermissions || ['admin', 'founder'].includes(user.role) || togglingChatTemplateUserId === user.id}
                         className={`rounded-full px-3 py-1 text-[11px] font-semibold transition disabled:opacity-50 ${
                           user.canManageChatTemplates
                             ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
@@ -916,8 +1326,13 @@ export default function AdminUsers() {
                     {isBlocked ? (
                       <div className="text-xs text-gray-500 space-y-1">
                         <p>Depuis le {formatDate(user.blockedAt)}</p>
-                        {user.blockedReason ? <p className="italic">Motif : {user.blockedReason}</p> : null}
-                      </div>
+                              {user.blockedReason ? <p className="italic">Motif : {user.blockedReason}</p> : null}
+                            </div>
+                          ) : null}
+                    {user.isLocked ? (
+                      <p className="text-xs text-amber-700">
+                        Verrouillage: {formatDate(user.lockedAt)} {user.lockReason ? `· ${user.lockReason}` : ''}
+                      </p>
                     ) : null}
                     {/* Active restrictions badges */}
                     {getActiveRestrictionsCount(user) > 0 && (
@@ -938,7 +1353,7 @@ export default function AdminUsers() {
                         <button
                           type="button"
                           onClick={() => handleUnblock(user)}
-                          disabled={pendingUserId === user.id}
+                          disabled={!canLockAccounts || !canActOnTargetUser(user) || pendingUserId === user.id}
                           className="flex-1 min-w-[100px] rounded-lg border border-green-500 px-3 py-2 text-xs font-semibold text-green-600 hover:bg-green-50 disabled:opacity-50"
                         >
                           Réactiver
@@ -947,7 +1362,7 @@ export default function AdminUsers() {
                         <button
                           type="button"
                           onClick={() => handleBlock(user)}
-                          disabled={pendingUserId === user.id}
+                          disabled={!canLockAccounts || !canActOnTargetUser(user) || pendingUserId === user.id}
                           className="flex-1 min-w-[100px] rounded-lg border border-red-500 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
                         >
                           Suspendre
@@ -958,6 +1373,7 @@ export default function AdminUsers() {
                         <button
                           type="button"
                           onClick={() => setRestrictionMenuOpen(restrictionMenuOpen === user.id ? null : user.id)}
+                          disabled={!canManageUsers}
                           className="inline-flex items-center gap-1 rounded-lg border border-amber-500 px-3 py-2 text-xs font-semibold text-amber-600 hover:bg-amber-50"
                         >
                           <ShieldAlert size={14} />
@@ -1001,7 +1417,7 @@ export default function AdminUsers() {
                         <button
                           type="button"
                           onClick={() => handleConvertToShop(user)}
-                          disabled={convertingUserId === user.id}
+                          disabled={!canManageSellers || convertingUserId === user.id}
                           className="inline-flex items-center gap-1 rounded-lg border border-teal-500 px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-50 disabled:opacity-50"
                         >
                           <Store size={14} />
@@ -1013,7 +1429,7 @@ export default function AdminUsers() {
                         <button
                           type="button"
                           onClick={() => toggleShopVerification(user.id, !user.shopVerified)}
-                          disabled={verifyingShopId === user.id}
+                          disabled={!canManageSellers || verifyingShopId === user.id}
                           className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold text-white disabled:opacity-50 ${
                             user.shopVerified ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-600 hover:bg-emerald-700'
                           }`}
@@ -1027,6 +1443,7 @@ export default function AdminUsers() {
                         <button
                           type="button"
                           onClick={() => openOrdersModal(user)}
+                          disabled={!canManageOrders}
                           className="inline-flex items-center gap-1 rounded-lg border border-neutral-500 px-3 py-2 text-xs font-semibold text-neutral-600 hover:bg-neutral-50"
                         >
                           <Package size={14} />
@@ -1034,14 +1451,17 @@ export default function AdminUsers() {
                         </button>
                       )}
                       {/* Audit log button */}
-                      <button
-                        type="button"
-                        onClick={() => openAuditModal(user)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50"
-                      >
-                        <History size={14} />
-                        Historique
-                      </button>
+                      {renderSecurityActions(user)}
+                      {canViewLogs && (
+                        <button
+                          type="button"
+                          onClick={() => openAuditModal(user)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                        >
+                          <History size={14} />
+                          Historique
+                        </button>
+                      )}
                     </div>
                   </article>
                 );
@@ -1132,6 +1552,11 @@ export default function AdminUsers() {
                                   Motif : {user.blockedReason}
                                 </span>
                               ) : null}
+                              {user.isLocked ? (
+                                <span className="text-xs text-amber-700">
+                                  Verrouillé {user.lockReason ? `· ${user.lockReason}` : ''}
+                                </span>
+                              ) : null}
                             </div>
                           ) : (
                             <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-600">
@@ -1144,15 +1569,15 @@ export default function AdminUsers() {
                           <button
                             type="button"
                             onClick={() => handleToggleChatTemplateAccess(user)}
-                            disabled={user.role === 'admin' || togglingChatTemplateUserId === user.id}
+                            disabled={!canManagePermissions || ['admin', 'founder'].includes(user.role) || togglingChatTemplateUserId === user.id}
                             className={`inline-flex min-w-[128px] items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
                               user.canManageChatTemplates
                                 ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
                                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                             }`}
                             title={
-                              user.role === 'admin'
-                                ? 'Permission toujours active pour un administrateur'
+                              ['admin', 'founder'].includes(user.role)
+                                ? 'Permission toujours active pour un administrateur/fondateur'
                                 : 'Basculer l’accès à la gestion des templates chat'
                             }
                           >
@@ -1169,7 +1594,7 @@ export default function AdminUsers() {
                               <button
                                 type="button"
                                 onClick={() => handleUnblock(user)}
-                                disabled={pendingUserId === user.id}
+                                disabled={!canLockAccounts || !canActOnTargetUser(user) || pendingUserId === user.id}
                                 className="rounded-lg border border-green-500 px-3 py-1.5 text-xs font-semibold text-green-600 hover:bg-green-50 disabled:opacity-50"
                               >
                                 Réactiver
@@ -1178,7 +1603,7 @@ export default function AdminUsers() {
                               <button
                                 type="button"
                                 onClick={() => handleBlock(user)}
-                                disabled={pendingUserId === user.id}
+                                disabled={!canLockAccounts || !canActOnTargetUser(user) || pendingUserId === user.id}
                                 className="rounded-lg border border-red-500 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
                               >
                                 Suspendre
@@ -1200,7 +1625,7 @@ export default function AdminUsers() {
                               <button
                                 type="button"
                                 onClick={() => handleConvertToShop(user)}
-                                disabled={convertingUserId === user.id}
+                                disabled={!canManageSellers || convertingUserId === user.id}
                                 className="rounded-lg border border-teal-500 px-3 py-1.5 text-xs font-semibold text-teal-700 hover:bg-teal-50 disabled:opacity-50"
                               >
                                 <Store size={14} className="inline mr-1" />
@@ -1212,7 +1637,7 @@ export default function AdminUsers() {
                               <button
                                 type="button"
                                 onClick={() => handleConvertToParticulier(user)}
-                                disabled={convertingUserId === user.id}
+                                disabled={!canManageSellers || convertingUserId === user.id}
                                 className="rounded-lg border border-orange-500 px-3 py-1.5 text-xs font-semibold text-orange-600 hover:bg-orange-50 disabled:opacity-50"
                               >
                                 <User size={14} className="inline mr-1" />
@@ -1224,7 +1649,7 @@ export default function AdminUsers() {
                               <button
                                 type="button"
                                 onClick={() => toggleShopVerification(user.id, !user.shopVerified)}
-                                disabled={verifyingShopId === user.id}
+                                disabled={!canManageSellers || verifyingShopId === user.id}
                                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50 ${
                                   user.shopVerified ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-600 hover:bg-emerald-700'
                                 }`}
@@ -1238,6 +1663,7 @@ export default function AdminUsers() {
                               <button
                                 type="button"
                                 onClick={() => setRestrictionMenuOpen(restrictionMenuOpen === user.id ? null : user.id)}
+                                disabled={!canManageUsers}
                                 className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1.5 text-xs font-semibold hover:bg-amber-50 ${
                                   getActiveRestrictionsCount(user) > 0 ? 'border-amber-500 text-amber-600 bg-amber-50' : 'border-gray-300 text-gray-600'
                                 }`}
@@ -1273,20 +1699,24 @@ export default function AdminUsers() {
                               <button
                                 type="button"
                                 onClick={() => openOrdersModal(user)}
+                                disabled={!canManageOrders}
                                 className="inline-flex items-center gap-1 rounded-lg border border-neutral-400 px-2 py-1.5 text-xs font-semibold text-neutral-600 hover:bg-neutral-50"
                                 title="Commandes reçues"
                               >
                                 <Package size={12} />
                               </button>
                             )}
-                            <button
-                              type="button"
-                              onClick={() => openAuditModal(user)}
-                              className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
-                              title="Historique des actions"
-                            >
-                              <History size={12} />
-                            </button>
+                            {canViewLogs && (
+                              <button
+                                type="button"
+                                onClick={() => openAuditModal(user)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                                title="Historique des actions"
+                              >
+                                <History size={12} />
+                              </button>
+                            )}
+                            {renderSecurityActions(user, true)}
                             <Link
                               to={`/admin/users/${user.id}/stats`}
                               className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
@@ -1759,7 +2189,7 @@ export default function AdminUsers() {
                 <button
                   type="button"
                   onClick={() => handleRejectConversion(conversionModal.request._id)}
-                  disabled={conversionLoading}
+                  disabled={!canManageSellers || conversionLoading}
                   className="px-4 py-2 text-sm font-semibold text-red-600 border border-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                 >
                   <XCircle size={16} className="inline mr-1" />
@@ -1768,7 +2198,7 @@ export default function AdminUsers() {
                 <button
                   type="button"
                   onClick={() => handleApproveConversion(conversionModal.request._id)}
-                  disabled={conversionLoading}
+                  disabled={!canManageSellers || conversionLoading}
                   className="px-4 py-2 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50"
                 >
                   <CheckCircle size={16} className="inline mr-1" />
@@ -1781,13 +2211,19 @@ export default function AdminUsers() {
       )}
 
       {/* Audit Log Modal */}
-      {auditModal.open && auditModal.user && (
+      {auditModal.open && (auditModal.user || auditModal.mode === 'founder') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={closeAuditModal}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b px-4 py-3 flex-shrink-0">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Historique des actions</h3>
-                <p className="text-xs text-gray-500">{auditModal.user.name} ({auditModal.user.email})</p>
+                <h3 className="text-lg font-bold text-gray-900">
+                  {auditModal.mode === 'founder' ? 'Timeline global (Founder)' : 'Historique des actions'}
+                </h3>
+                {auditModal.mode === 'founder' ? (
+                  <p className="text-xs text-gray-500">Journal global des actions sensibles</p>
+                ) : (
+                  <p className="text-xs text-gray-500">{auditModal.user.name} ({auditModal.user.email})</p>
+                )}
               </div>
               <button type="button" onClick={closeAuditModal} className="text-gray-400 hover:text-gray-600">
                 <X size={20} />
@@ -1801,37 +2237,51 @@ export default function AdminUsers() {
               ) : (
                 <div className="space-y-3">
                   {auditLogs.map((log) => (
-                    <div key={log.id} className="rounded-xl border border-gray-100 p-3 hover:bg-gray-50">
+                    <div key={log.id || log._id} className="rounded-xl border border-gray-100 p-3 hover:bg-gray-50">
+                      {(() => {
+                        const actionKey = log.action || log.actionType || '';
+                        const details = log.details || {};
+                        const previousValue = log.previousValue || {};
+                        const nextValue = log.newValue || {};
+                        const actor = log.performedBy || details.performedBy || null;
+                        const targetUser = log.targetUser || null;
+                        return (
+                          <>
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <div className="flex items-center gap-2">
-                          <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getActionColor(log.action)}`}>
-                            {getActionLabel(log.action)}
+                          <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getActionColor(actionKey)}`}>
+                            {getActionLabel(actionKey)}
                           </span>
                         </div>
                         <span className="text-xs text-gray-400">{formatDate(log.createdAt)}</span>
                       </div>
                       <div className="text-xs text-gray-600 space-y-1">
-                        {log.performedBy && (
+                        {actor && (
                           <p>
-                            <span className="font-semibold">Par:</span> {log.performedBy.name} ({log.performedBy.email})
+                            <span className="font-semibold">Par:</span> {actor.name} ({actor.email})
                           </p>
                         )}
-                        {log.details?.restrictionType && (
+                        {targetUser && (
                           <p>
-                            <span className="font-semibold">Restriction:</span> {log.details.restrictionLabel || log.details.restrictionType}
+                            <span className="font-semibold">Cible:</span> {targetUser.name} ({targetUser.email})
                           </p>
                         )}
-                        {log.details?.reason && (
+                        {details?.restrictionType && (
+                          <p>
+                            <span className="font-semibold">Restriction:</span> {details.restrictionLabel || details.restrictionType}
+                          </p>
+                        )}
+                        {(details?.reason || nextValue?.lockReason) && (
                           <p className="italic text-gray-500">
-                            <span className="font-semibold not-italic">Raison:</span> {log.details.reason}
+                            <span className="font-semibold not-italic">Raison:</span> {details.reason || nextValue.lockReason}
                           </p>
                         )}
-                        {log.details?.previousRole && (
+                        {(details?.previousRole || previousValue?.role) && (
                           <p>
-                            <span className="font-semibold">Rôle:</span> {log.details.previousRole} → {log.details.newRole}
+                            <span className="font-semibold">Rôle:</span> {details.previousRole || previousValue.role} → {details.newRole || nextValue.role}
                           </p>
                         )}
-                        {log.details?.previousType && (
+                        {details?.previousType && (
                           <p>
                             <span className="font-semibold">Type de compte:</span> {log.details.previousType === 'shop' ? 'Boutique' : 'Particulier'} → {log.details.newType === 'shop' ? 'Boutique' : 'Particulier'}
                           </p>
@@ -1856,12 +2306,20 @@ export default function AdminUsers() {
                             <span className="font-semibold">Fin:</span> {formatDate(log.details.endDate)}
                           </p>
                         )}
-                        {log.ipAddress && (
+                        {(log.ipAddress || log.ip) && (
                           <p className="text-gray-400">
-                            <span className="font-semibold">IP:</span> {log.ipAddress}
+                            <span className="font-semibold">IP:</span> {log.ipAddress || log.ip}
+                          </p>
+                        )}
+                        {log.device && (
+                          <p className="text-gray-400">
+                            <span className="font-semibold">Device:</span> {log.device}
                           </p>
                         )}
                       </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>

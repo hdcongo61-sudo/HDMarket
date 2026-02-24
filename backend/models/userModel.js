@@ -10,7 +10,18 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true },
     phone: { type: String, required: true, unique: true },
     phoneVerified: { type: Boolean, default: false },
-    role: { type: String, enum: ['user', 'admin', 'manager'], default: 'user' },
+    role: { type: String, enum: ['user', 'admin', 'manager', 'founder'], default: 'user' },
+    permissions: { type: [String], default: [], index: true },
+    isActive: { type: Boolean, default: true, index: true },
+    isLocked: { type: Boolean, default: false, index: true },
+    lockReason: { type: String, default: '', trim: true },
+    lockedAt: { type: Date, default: null },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    lastModifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    passwordResetToken: { type: String, default: null, index: true },
+    passwordResetExpires: { type: Date, default: null, index: true },
+    sessionsInvalidatedAt: { type: Date, default: null, index: true },
     canReadFeedback: { type: Boolean, default: false },
     canVerifyPayments: { type: Boolean, default: false },
     canManageBoosts: { type: Boolean, default: false },
@@ -193,6 +204,15 @@ userSchema.pre('validate', async function (next) {
 });
 
 userSchema.pre('save', async function (next) {
+  if (this.isModified('role') && this.role === 'founder') {
+    const existingFounder = await this.constructor.countDocuments({
+      role: 'founder',
+      _id: { $ne: this._id }
+    });
+    if (existingFounder > 0) {
+      return next(new Error('Un seul compte fondateur est autorisé.'));
+    }
+  }
   if (!this.isModified('password')) return next();
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);

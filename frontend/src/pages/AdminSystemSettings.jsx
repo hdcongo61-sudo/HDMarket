@@ -1,8 +1,10 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, CircleHelp, Globe2, Landmark, Languages, MapPin, Plus, Save, Trash2, Truck } from 'lucide-react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
+import AuthContext from '../context/AuthContext';
+import { emitSettingsRefresh } from '../utils/settingsRefresh';
 
 const FEE_FIELDS = [
   { key: 'commissionRate', label: 'Taux commission (%)', type: 'number', step: 0.1 },
@@ -37,6 +39,27 @@ const FEE_FIELDS = [
   { key: 'maxDisputesPerMonth', label: 'Max litiges / mois', type: 'number', step: 1 },
   { key: 'maxUploadImages', label: 'Max images upload', type: 'number', step: 1 }
 ];
+
+const FEE_RUNTIME_KEY_MAP = {
+  commissionRate: 'commission_rate',
+  boostEnabled: 'enable_boost',
+  installmentMinPercent: 'installmentMinPercent',
+  installmentMaxDuration: 'installmentMaxDuration',
+  shopConversionAmount: 'shopConversionAmount',
+  analyticsViewWeight: 'analyticsViewWeight',
+  analyticsConversionWeight: 'analyticsConversionWeight',
+  analyticsRevenueWeight: 'analyticsRevenueWeight',
+  analyticsRefundPenalty: 'analyticsRefundPenalty',
+  disputeWindowHours: 'dispute_window_hours',
+  deliveryOTPExpirationMinutes: 'otp_expiration_minutes',
+  maxDisputesPerMonth: 'dispute_client_monthly_limit',
+  maxUploadImages: 'max_image_upload'
+};
+
+const RUNTIME_FEE_KEY_MAP = Object.entries(FEE_RUNTIME_KEY_MAP).reduce((acc, [feeKey, runtimeKey]) => {
+  acc[runtimeKey] = feeKey;
+  return acc;
+}, {});
 
 const emptyCurrencyForm = {
   code: '',
@@ -112,6 +135,19 @@ const normalizeFeesPayload = (payload = {}) =>
     return acc;
   }, {});
 
+const resolveFeeValueFromRuntime = (feeKey, runtimeItems = [], fallbackValue = undefined) => {
+  const runtimeKey = FEE_RUNTIME_KEY_MAP[feeKey] || feeKey;
+  const candidates = [runtimeKey, feeKey];
+  const runtimeMatch = (runtimeItems || []).find((item) =>
+    candidates.includes(String(item?.key || ''))
+  );
+  if (!runtimeMatch) return fallbackValue;
+  const raw = runtimeMatch?.value;
+  const field = FEE_FIELDS.find((entry) => entry.key === feeKey);
+  if (!field) return raw;
+  return field.type === 'boolean' ? parseBooleanSetting(raw) : parseNumberSetting(raw);
+};
+
 const resolveCityName = (cityId, sourceCities = []) => {
   const normalizedId = String(cityId || '').trim();
   if (!normalizedId) return '';
@@ -132,6 +168,8 @@ const normalizeCommuneWithCities = (commune, sourceCities = []) => {
 
 export default function AdminSystemSettings() {
   const { showToast } = useToast();
+  const { user } = useContext(AuthContext);
+  const isFounder = user?.role === 'founder';
   const [loading, setLoading] = useState(true);
   const [fees, setFees] = useState({});
   const [savingFeeKey, setSavingFeeKey] = useState('');
@@ -158,18 +196,40 @@ export default function AdminSystemSettings() {
   const [savingCurrencyCode, setSavingCurrencyCode] = useState('');
   const [deletingCityId, setDeletingCityId] = useState('');
   const [deletingCommuneId, setDeletingCommuneId] = useState('');
-
-  const emitSettingsRefresh = useCallback(() => {
-    if (typeof window === 'undefined') return;
-    window.dispatchEvent(new Event('hdmarket:settings-refresh'));
-  }, []);
+  const [runtimeSettings, setRuntimeSettings] = useState([]);
+  const [runtimeDrafts, setRuntimeDrafts] = useState({});
+  const [runtimeSavingKey, setRuntimeSavingKey] = useState('');
+  const [featureFlags, setFeatureFlags] = useState([]);
+  const [featureSavingName, setFeatureSavingName] = useState('');
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/admin/settings');
+      const [settingsResponse, runtimeResponse, featureFlagsResponse] = await Promise.all([
+        api.get('/admin/settings'),
+        api
+          .get('/admin/config/runtime', {
+            params: {
+              includeHidden: isFounder ? 'true' : 'false',
+              environment: 'all'
+            }
+          })
+          .catch(() => ({ data: { items: [] } })),
+        api
+          .get('/admin/config/feature-flags', {
+            params: { environment: 'all' }
+          })
+          .catch(() => ({ data: { items: [] } }))
+      ]);
+      const data = settingsResponse?.data || {};
       const feeSource = data?.feesAndRules || data?.app || data?.fees || {};
-      setFees(normalizeFeesPayload(feeSource));
+      const runtimeItems = Array.isArray(runtimeResponse?.data?.items) ? runtimeResponse.data.items : [];
+      const nextFees = normalizeFeesPayload(feeSource);
+      const mergedFees = Object.keys(nextFees).reduce((acc, key) => {
+        acc[key] = resolveFeeValueFromRuntime(key, runtimeItems, nextFees[key]);
+        return acc;
+      }, {});
+      setFees(mergedFees);
       setCurrencies(Array.isArray(data?.currencies) ? data.currencies : []);
       const nextCities = sortCities(Array.isArray(data?.cities) ? data.cities : []);
       const nextCommunesRaw = Array.isArray(data?.communes) ? data.communes : [];
@@ -181,6 +241,23 @@ export default function AdminSystemSettings() {
       const langs = Array.isArray(data?.languages?.languages) ? data.languages.languages : [];
       setLanguages(langs);
       setDefaultLanguage(data?.languages?.defaultLanguage || langs[0]?.code || 'fr');
+
+      setRuntimeSettings(runtimeItems);
+      setRuntimeDrafts(
+        runtimeItems.reduce((acc, item) => {
+          if (item?.valueType === 'array' || item?.valueType === 'json') {
+            acc[item.key] = JSON.stringify(item.value ?? (item.valueType === 'array' ? [] : {}), null, 2);
+          } else {
+            acc[item.key] = item.value;
+          }
+          return acc;
+        }, {})
+      );
+
+      const featureItems = Array.isArray(featureFlagsResponse?.data?.items)
+        ? featureFlagsResponse.data.items
+        : [];
+      setFeatureFlags(featureItems);
     } catch (error) {
       showToast(error.response?.data?.message || 'Erreur chargement des parametres.', {
         variant: 'error'
@@ -188,7 +265,7 @@ export default function AdminSystemSettings() {
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, [showToast, isFounder]);
 
   useEffect(() => {
     loadSettings();
@@ -218,11 +295,142 @@ export default function AdminSystemSettings() {
     setSavingFeeKey(key);
     try {
       await api.patch(`/admin/settings/${key}`, { value: fees[key] });
+      const mappedRuntimeKey = FEE_RUNTIME_KEY_MAP[key] || key;
+      const possibleRuntimeKeys = [mappedRuntimeKey, key];
+      setRuntimeSettings((prev) =>
+        prev.map((entry) =>
+          possibleRuntimeKeys.includes(String(entry?.key || ''))
+            ? { ...entry, value: fees[key], updatedAt: new Date().toISOString() }
+            : entry
+        )
+      );
+      setRuntimeDrafts((prev) => ({
+        ...prev,
+        ...possibleRuntimeKeys.reduce((acc, runtimeKey) => {
+          if (Object.prototype.hasOwnProperty.call(prev, runtimeKey)) {
+            acc[runtimeKey] = fees[key];
+          }
+          return acc;
+        }, {})
+      }));
       showToast('Parametre enregistre.', { variant: 'success' });
+      emitSettingsRefresh();
     } catch (error) {
       showToast(error.response?.data?.message || 'Erreur enregistrement parametre.', { variant: 'error' });
     } finally {
       setSavingFeeKey('');
+    }
+  };
+
+  const runtimeSettingsByCategory = useMemo(() => {
+    return (runtimeSettings || []).reduce((acc, item) => {
+      const category = String(item?.category || 'general');
+      if (!acc[category]) acc[category] = [];
+      acc[category].push(item);
+      return acc;
+    }, {});
+  }, [runtimeSettings]);
+
+  const saveRuntimeSetting = async (setting) => {
+    const key = String(setting?.key || '');
+    if (!key) return;
+    let value = runtimeDrafts[key];
+    if (setting?.valueType === 'number') {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) {
+        showToast('Valeur invalide pour ce paramètre numérique.', { variant: 'error' });
+        return;
+      }
+      value = parsed;
+    } else if (setting?.valueType === 'boolean') {
+      value = Boolean(value);
+    } else if (setting?.valueType === 'array' || setting?.valueType === 'json') {
+      try {
+        const fallbackJson = setting?.valueType === 'array' ? '[]' : '{}';
+        const rawJson = String(value ?? fallbackJson);
+        value = JSON.parse(rawJson || fallbackJson);
+      } catch {
+        showToast('JSON invalide pour ce paramètre.', { variant: 'error' });
+        return;
+      }
+    } else {
+      value = String(value ?? '');
+    }
+
+    setRuntimeSavingKey(key);
+    try {
+      const { data } = await api.patch(`/admin/config/runtime/${encodeURIComponent(key)}`, {
+        value,
+        environment: 'all'
+      });
+      const updatedValue = data?.item?.value ?? value;
+      setRuntimeSettings((prev) =>
+        prev.map((entry) =>
+          String(entry?.key) === key
+            ? {
+                ...entry,
+                value: updatedValue,
+                updatedAt: new Date().toISOString()
+              }
+            : entry
+        )
+      );
+      setRuntimeDrafts((prev) => ({
+        ...prev,
+        [key]:
+          setting?.valueType === 'array' || setting?.valueType === 'json'
+            ? JSON.stringify(updatedValue, null, 2)
+            : updatedValue
+      }));
+      const linkedFeeKey = RUNTIME_FEE_KEY_MAP[key] || (FEE_RUNTIME_KEY_MAP[key] ? key : '');
+      if (linkedFeeKey && FEE_FIELDS.some((field) => field.key === linkedFeeKey)) {
+        const feeField = FEE_FIELDS.find((field) => field.key === linkedFeeKey);
+        const normalizedFeeValue =
+          feeField?.type === 'boolean'
+            ? parseBooleanSetting(updatedValue)
+            : parseNumberSetting(updatedValue);
+        setFees((prev) => ({
+          ...prev,
+          [linkedFeeKey]: normalizedFeeValue
+        }));
+      }
+      showToast('Configuration enregistrée.', { variant: 'success' });
+      emitSettingsRefresh();
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Erreur mise à jour configuration.', {
+        variant: 'error'
+      });
+    } finally {
+      setRuntimeSavingKey('');
+    }
+  };
+
+  const patchFeatureFlag = async (featureName, patch) => {
+    const name = String(featureName || '');
+    if (!name) return;
+    const previous = featureFlags;
+    setFeatureFlags((prev) =>
+      prev.map((entry) => (String(entry?.featureName) === name ? { ...entry, ...patch } : entry))
+    );
+    setFeatureSavingName(name);
+    try {
+      const { data } = await api.patch(`/admin/config/feature-flags/${encodeURIComponent(name)}`, {
+        ...patch,
+        environment: 'all'
+      });
+      const updated = data?.item || {};
+      setFeatureFlags((prev) =>
+        prev.map((entry) => (String(entry?.featureName) === name ? { ...entry, ...updated } : entry))
+      );
+      showToast('Feature flag mise à jour.', { variant: 'success' });
+      emitSettingsRefresh();
+    } catch (error) {
+      setFeatureFlags(previous);
+      showToast(error.response?.data?.message || 'Erreur mise à jour feature flag.', {
+        variant: 'error'
+      });
+    } finally {
+      setFeatureSavingName('');
     }
   };
 
@@ -234,6 +442,7 @@ export default function AdminSystemSettings() {
       showToast('Devise creee.', { variant: 'success' });
       setCurrencyForm(emptyCurrencyForm);
       await loadSettings();
+      emitSettingsRefresh();
     } catch (error) {
       showToast(error.response?.data?.message || 'Erreur creation devise.', { variant: 'error' });
     } finally {
@@ -245,6 +454,7 @@ export default function AdminSystemSettings() {
     try {
       await api.patch(`/admin/currencies/${code}`, patch);
       await loadSettings();
+      emitSettingsRefresh();
       return true;
     } catch (error) {
       showToast(error.response?.data?.message || 'Erreur mise a jour devise.', { variant: 'error' });
@@ -653,6 +863,7 @@ export default function AdminSystemSettings() {
       });
       showToast('Langues enregistrees.', { variant: 'success' });
       await loadSettings();
+      emitSettingsRefresh();
     } catch (error) {
       showToast(error.response?.data?.message || 'Erreur enregistrement langues.', { variant: 'error' });
     } finally {
@@ -748,6 +959,12 @@ export default function AdminSystemSettings() {
                         </span>
                       ) : null}
                     </div>
+                    <p className="mt-1 text-[10px] text-gray-400 dark:text-neutral-500">
+                      source key:{' '}
+                      <code className="rounded bg-gray-100 px-1 py-0.5 font-mono text-[10px] text-gray-500 dark:bg-neutral-800 dark:text-neutral-300">
+                        {FEE_RUNTIME_KEY_MAP[field.key] || field.key}
+                      </code>
+                    </p>
                   </div>
                   {field.type === 'boolean' ? (
                     <select
@@ -783,6 +1000,221 @@ export default function AdminSystemSettings() {
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900 lg:col-span-2">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Globe2 size={16} />
+              <h2 className="text-sm font-semibold">Configuration Runtime (SaaS)</h2>
+            </div>
+            <span className="rounded-full border border-gray-200 bg-gray-50 px-2 py-1 text-[11px] font-medium text-gray-600 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-300">
+              Environnement: all
+            </span>
+          </div>
+
+          {!runtimeSettings.length ? (
+            <p className="text-sm text-gray-500">Aucun paramètre runtime trouvé.</p>
+          ) : (
+            <div className="space-y-4">
+              {Object.entries(runtimeSettingsByCategory).map(([category, items]) => (
+                <div key={category} className="rounded-xl border border-gray-200 p-3 dark:border-neutral-700">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-neutral-400">
+                    {category.replace(/_/g, ' ')}
+                  </p>
+                  <div className="space-y-3">
+                    {(items || []).map((item) => {
+                      const key = String(item?.key || '');
+                      const draftValue = runtimeDrafts[key];
+                      const isSaving = runtimeSavingKey === key;
+
+                      return (
+                        <div
+                          key={key}
+                          className="rounded-lg border border-gray-100 bg-gray-50/60 p-2.5 dark:border-neutral-800 dark:bg-neutral-950/40"
+                        >
+                          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <p className="text-xs font-semibold text-gray-900 dark:text-neutral-100">{key}</p>
+                              <p className="text-[11px] text-gray-500 dark:text-neutral-400">
+                                {item?.description || 'Sans description'}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {item?.isPublic ? (
+                                <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-200">
+                                  public
+                                </span>
+                              ) : null}
+                              <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-semibold text-gray-600 dark:bg-neutral-800 dark:text-neutral-300">
+                                {item?.valueType || typeof item?.value}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            {item?.valueType === 'boolean' ? (
+                              <select
+                                value={draftValue ? 'true' : 'false'}
+                                onChange={(event) =>
+                                  setRuntimeDrafts((prev) => ({
+                                    ...prev,
+                                    [key]: event.target.value === 'true'
+                                  }))
+                                }
+                                className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+                              >
+                                <option value="true">true</option>
+                                <option value="false">false</option>
+                              </select>
+                            ) : item?.valueType === 'number' ? (
+                              <input
+                                type="number"
+                                value={draftValue ?? 0}
+                                onChange={(event) =>
+                                  setRuntimeDrafts((prev) => ({
+                                    ...prev,
+                                    [key]: event.target.value
+                                  }))
+                                }
+                                className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+                              />
+                            ) : item?.valueType === 'array' || item?.valueType === 'json' ? (
+                              <textarea
+                                value={String(draftValue || '')}
+                                onChange={(event) =>
+                                  setRuntimeDrafts((prev) => ({
+                                    ...prev,
+                                    [key]: event.target.value
+                                  }))
+                                }
+                                rows={3}
+                                className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-mono dark:border-neutral-700 dark:bg-neutral-950"
+                              />
+                            ) : (
+                              <input
+                                type="text"
+                                value={String(draftValue ?? '')}
+                                onChange={(event) =>
+                                  setRuntimeDrafts((prev) => ({
+                                    ...prev,
+                                    [key]: event.target.value
+                                  }))
+                                }
+                                className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+                              />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => saveRuntimeSetting(item)}
+                              disabled={isSaving}
+                              className="inline-flex items-center justify-center gap-1 rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-1.5 text-xs font-semibold text-neutral-700 disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900/30 dark:text-neutral-200"
+                            >
+                              <Save size={12} />
+                              {isSaving ? '...' : 'Enregistrer'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900 lg:col-span-2">
+          <div className="mb-4 flex items-center gap-2">
+            <Globe2 size={16} />
+            <h2 className="text-sm font-semibold">Feature Flags</h2>
+          </div>
+
+          {!featureFlags.length ? (
+            <p className="text-sm text-gray-500">Aucune feature flag configurée.</p>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2">
+              {featureFlags.map((flag) => {
+                const featureName = String(flag?.featureName || '');
+                const saving = featureSavingName === featureName;
+                const rolesAllowed = Array.isArray(flag?.rolesAllowed) ? flag.rolesAllowed : [];
+                return (
+                  <div
+                    key={featureName}
+                    className="rounded-xl border border-gray-200 p-3 text-sm dark:border-neutral-700"
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="font-semibold">{featureName}</p>
+                      <span className="text-xs text-gray-500">{flag?.environment || 'all'}</span>
+                    </div>
+                    <p className="mb-3 text-xs text-gray-500 dark:text-neutral-400">
+                      {flag?.description || 'Sans description'}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          patchFeatureFlag(featureName, {
+                            enabled: !flag?.enabled,
+                            rolloutPercentage: Number(flag?.rolloutPercentage ?? 100),
+                            rolesAllowed
+                          })
+                        }
+                        disabled={saving}
+                        className={`rounded-md px-2 py-1 text-xs font-semibold ${
+                          flag?.enabled
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200'
+                            : 'bg-gray-100 text-gray-700 dark:bg-neutral-800 dark:text-neutral-200'
+                        }`}
+                      >
+                        {flag?.enabled ? 'Enabled' : 'Disabled'}
+                      </button>
+
+                      <label className="text-xs text-gray-600 dark:text-neutral-300">
+                        Rollout %
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={Number(flag?.rolloutPercentage ?? 100)}
+                        onChange={(event) =>
+                          setFeatureFlags((prev) =>
+                            prev.map((entry) =>
+                              String(entry?.featureName) === featureName
+                                ? {
+                                    ...entry,
+                                    rolloutPercentage: Math.max(
+                                      0,
+                                      Math.min(100, Number(event.target.value || 0))
+                                    )
+                                  }
+                                : entry
+                            )
+                          )
+                        }
+                        className="w-20 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-950"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          patchFeatureFlag(featureName, {
+                            enabled: Boolean(flag?.enabled),
+                            rolloutPercentage: Number(flag?.rolloutPercentage ?? 100),
+                            rolesAllowed
+                          })
+                        }
+                        disabled={saving}
+                        className="rounded-md border border-neutral-300 bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700 disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900/30 dark:text-neutral-200"
+                      >
+                        {saving ? '...' : 'Sauver'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>

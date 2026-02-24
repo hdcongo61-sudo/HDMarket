@@ -6,6 +6,7 @@ import { createNotification } from '../utils/notificationService.js';
 import { invalidateProductCache } from '../utils/cache.js';
 import { calculateCommissionBreakdown, normalizePromoCode } from '../utils/promoCodeUtils.js';
 import { consumePromoCodeForSeller, previewPromoForSeller } from '../utils/promoCodeService.js';
+import { getRuntimeConfig } from '../services/configService.js';
 import {
   isTransactionCodeAlreadyUsed,
   normalizeTransactionCode,
@@ -37,13 +38,20 @@ export const createPayment = asyncHandler(async (req, res) => {
 
   const sellerId = req.user.id;
   const normalizedPromo = normalizePromoCode(promoCode);
+  const configuredCommissionRate = Number(
+    await getRuntimeConfig('commission_rate', { fallback: 3 })
+  );
+  const commissionRate = Number.isFinite(configuredCommissionRate)
+    ? configuredCommissionRate
+    : 3;
 
   let promoPreview = null;
   if (normalizedPromo) {
     promoPreview = await previewPromoForSeller({
       code: normalizedPromo,
       sellerId,
-      productPrice: product.price
+      productPrice: product.price,
+      commissionRate
     });
     if (!promoPreview.valid) {
       return res.status(400).json({
@@ -53,7 +61,9 @@ export const createPayment = asyncHandler(async (req, res) => {
     }
   }
 
-  let commission = promoPreview?.commission || calculateCommissionBreakdown({ productPrice: product.price });
+  let commission =
+    promoPreview?.commission ||
+    calculateCommissionBreakdown({ productPrice: product.price, commissionRate });
   let received = +(+(amount || 0)).toFixed(2);
 
   const normalizedTransaction = normalizeTransactionCode(transactionNumber);
@@ -106,6 +116,7 @@ export const createPayment = asyncHandler(async (req, res) => {
         code: normalizedPromo,
         sellerId,
         product,
+        commissionRate,
         paymentId: payment._id,
         ipAddress: req.ip || null,
         userAgent: req.headers['user-agent'] || null

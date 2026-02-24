@@ -31,6 +31,8 @@ import {
   invalidateSellerCache,
   invalidateUserCache
 } from '../utils/cache.js';
+import { buildAdminOrderFilter as buildAdvancedAdminOrderFilter } from '../services/adminOrderAutomationService.js';
+import { getRuntimeConfig } from '../services/configService.js';
 
 const ORDER_STATUS = [
   'pending_payment',
@@ -54,10 +56,13 @@ const ORDER_STATUS = [
 ];
 
 const INSTALLMENT_SALE_STATUS_FILTERS = new Set(['confirmed', 'delivering', 'delivered', 'cancelled']);
-const DELIVERY_PROOF_RESUBMISSION_LIMIT = Math.max(
-  1,
-  Number(process.env.DELIVERY_PROOF_RESUBMISSION_LIMIT || 3)
-);
+const getDeliveryProofResubmissionLimit = async () => {
+  const fallback = Math.max(1, Number(process.env.DELIVERY_PROOF_RESUBMISSION_LIMIT || 3));
+  const configured = await getRuntimeConfig('delivery_proof_resubmission_limit', { fallback });
+  const parsed = Number(configured);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(1, parsed);
+};
 
 const formatSmsAmount = (value) =>
   Number(value || 0).toLocaleString('fr-FR', {
@@ -965,36 +970,37 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
 });
 
 export const adminListOrders = asyncHandler(async (req, res) => {
-  const { status, search = '', page = 1, limit = 20, orderId: orderIdParam } = req.query;
-  const filter = { isDraft: false };
+  const {
+    status,
+    search = '',
+    page = 1,
+    limit = 20,
+    orderId: orderIdParam,
+    city,
+    shop,
+    shopId,
+    dateFrom,
+    dateTo,
+    deliveryMode,
+    paymentType,
+    delayed,
+    priority
+  } = req.query || {};
 
-  if (orderIdParam && mongoose.Types.ObjectId.isValid(orderIdParam)) {
-    filter._id = new mongoose.Types.ObjectId(orderIdParam);
-  }
-
-  if (status && ORDER_STATUS.includes(status)) {
-    filter.status = status;
-  }
-
-  if (search.trim()) {
-    const regex = new RegExp(search.trim(), 'i');
-    const customerIds = await User.find({
-      $or: [{ name: regex }, { email: regex }, { phone: regex }]
-    })
-      .limit(50)
-      .select('_id');
-
-    filter.$or = [
-      { 'items.snapshot.title': regex }, // Recherche par nom de produit
-      { 'items.snapshot.shopName': regex }, // Recherche par nom de boutique
-      { trackingNote: regex },
-      { deliveryAddress: regex },
-      { deliveryCode: regex } // Recherche par code de livraison
-    ];
-    if (customerIds.length) {
-      filter.$or.push({ customer: { $in: customerIds.map((c) => c._id) } });
-    }
-  }
+  const filter = await buildAdvancedAdminOrderFilter({
+    status,
+    search,
+    orderId: orderIdParam,
+    city,
+    shop,
+    shopId,
+    dateFrom,
+    dateTo,
+    deliveryMode,
+    paymentType,
+    delayed,
+    priority
+  });
 
   const pageNumber = Math.max(1, Number(page) || 1);
   const pageSize = Math.max(1, Math.min(Number(limit) || 20, 100));
@@ -1341,36 +1347,8 @@ export const adminDeleteOrder = asyncHandler(async (req, res) => {
   res.json({ message: 'Commande supprimée.' });
 });
 
-/** Build filter for admin list/stats (matches adminListOrders) */
-const buildAdminOrderFilter = async (status, search) => {
-  const filter = { isDraft: false };
-  if (status && ORDER_STATUS.includes(status)) {
-    filter.status = status;
-  }
-  if (search && String(search).trim()) {
-    const regex = new RegExp(String(search).trim(), 'i');
-    const customerIds = await User.find({
-      $or: [{ name: regex }, { email: regex }, { phone: regex }]
-    })
-      .limit(50)
-      .select('_id');
-    filter.$or = [
-      { 'items.snapshot.title': regex },
-      { 'items.snapshot.shopName': regex },
-      { trackingNote: regex },
-      { deliveryAddress: regex },
-      { deliveryCode: regex }
-    ];
-    if (customerIds.length) {
-      filter.$or.push({ customer: { $in: customerIds.map((c) => c._id) } });
-    }
-  }
-  return filter;
-};
-
 export const adminOrderStats = asyncHandler(async (req, res) => {
-  const { search = '' } = req.query || {};
-  const matchStage = await buildAdminOrderFilter(null, search);
+  const matchStage = await buildAdvancedAdminOrderFilter(req.query || {});
   const pipeline = Object.keys(matchStage).length ? [{ $match: matchStage }] : [];
 
   const [statusAgg, recentAgg] = await Promise.all([
@@ -2044,6 +2022,7 @@ export const sellerGetOrder = asyncHandler(async (req, res) => {
 export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user?.id || req.user?._id;
+  const deliveryProofResubmissionLimit = await getDeliveryProofResubmissionLimit();
   if (!ensureObjectId(id)) {
     return res.status(400).json({ message: 'Commande inconnue.' });
   }
@@ -2078,9 +2057,9 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
   if (order.deliveryStatus === 'verified') {
     return res.status(409).json({ message: 'La livraison est déjà confirmée par le client.' });
   }
-  if (order.deliveryProofAttemptCount >= DELIVERY_PROOF_RESUBMISSION_LIMIT) {
+  if (order.deliveryProofAttemptCount >= deliveryProofResubmissionLimit) {
     return res.status(429).json({
-      message: `Limite atteinte: ${DELIVERY_PROOF_RESUBMISSION_LIMIT} soumissions de preuve maximum.`,
+      message: `Limite atteinte: ${deliveryProofResubmissionLimit} soumissions de preuve maximum.`,
       code: 'DELIVERY_PROOF_LIMIT'
     });
   }

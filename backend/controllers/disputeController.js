@@ -10,13 +10,67 @@ import Order from '../models/orderModel.js';
 import OrderMessage from '../models/orderMessageModel.js';
 import User from '../models/userModel.js';
 import { createNotification } from '../utils/notificationService.js';
+import { getManyRuntimeConfigs } from '../services/configService.js';
 
 const ORDER_DISPUTE_STATUS = 'dispute_opened';
-const DISPUTE_WINDOW_HOURS = Math.max(24, Number(process.env.DISPUTE_WINDOW_HOURS || 72));
-const SELLER_RESPONSE_HOURS = Math.max(12, Number(process.env.DISPUTE_SELLER_RESPONSE_HOURS || 48));
-const CLIENT_MONTHLY_LIMIT = Math.max(1, Number(process.env.DISPUTE_CLIENT_MONTHLY_LIMIT || 5));
-const CLIENT_SUSPICIOUS_THRESHOLD = Math.max(3, Number(process.env.DISPUTE_SUSPICIOUS_CLIENT_THRESHOLD || 4));
-const SELLER_SUSPICIOUS_THRESHOLD = Math.max(6, Number(process.env.DISPUTE_SUSPICIOUS_SELLER_THRESHOLD || 10));
+const DISPUTE_CONFIG_DEFAULTS = Object.freeze({
+  disputeWindowHours: Math.max(24, Number(process.env.DISPUTE_WINDOW_HOURS || 72)),
+  sellerResponseHours: Math.max(12, Number(process.env.DISPUTE_SELLER_RESPONSE_HOURS || 48)),
+  clientMonthlyLimit: Math.max(1, Number(process.env.DISPUTE_CLIENT_MONTHLY_LIMIT || 5)),
+  clientSuspiciousThreshold: Math.max(3, Number(process.env.DISPUTE_SUSPICIOUS_CLIENT_THRESHOLD || 4)),
+  sellerSuspiciousThreshold: Math.max(6, Number(process.env.DISPUTE_SUSPICIOUS_SELLER_THRESHOLD || 10)),
+  deadlineReminderHours: Math.max(1, Number(process.env.DISPUTE_DEADLINE_REMINDER_HOURS || 6))
+});
+
+const toDisputeNumber = (value, fallback, min = 1) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, parsed);
+};
+
+const getDisputeConfigThresholds = async () => {
+  const raw = await getManyRuntimeConfigs([
+    'dispute_window_hours',
+    'dispute_seller_response_hours',
+    'dispute_client_monthly_limit',
+    'dispute_suspicious_client_threshold',
+    'dispute_suspicious_seller_threshold',
+    'dispute_deadline_reminder_hours'
+  ]);
+
+  return {
+    disputeWindowHours: toDisputeNumber(
+      raw.dispute_window_hours,
+      DISPUTE_CONFIG_DEFAULTS.disputeWindowHours,
+      24
+    ),
+    sellerResponseHours: toDisputeNumber(
+      raw.dispute_seller_response_hours,
+      DISPUTE_CONFIG_DEFAULTS.sellerResponseHours,
+      12
+    ),
+    clientMonthlyLimit: toDisputeNumber(
+      raw.dispute_client_monthly_limit,
+      DISPUTE_CONFIG_DEFAULTS.clientMonthlyLimit,
+      1
+    ),
+    clientSuspiciousThreshold: toDisputeNumber(
+      raw.dispute_suspicious_client_threshold,
+      DISPUTE_CONFIG_DEFAULTS.clientSuspiciousThreshold,
+      3
+    ),
+    sellerSuspiciousThreshold: toDisputeNumber(
+      raw.dispute_suspicious_seller_threshold,
+      DISPUTE_CONFIG_DEFAULTS.sellerSuspiciousThreshold,
+      6
+    ),
+    deadlineReminderHours: toDisputeNumber(
+      raw.dispute_deadline_reminder_hours,
+      DISPUTE_CONFIG_DEFAULTS.deadlineReminderHours,
+      1
+    )
+  };
+};
 
 const toPublicFile = (file) => ({
   filename: file?.filename || '',
@@ -77,7 +131,7 @@ const computeClientSuccessRate = async (clientId) => {
   return Number((wonByClient / totalResolved).toFixed(4));
 };
 
-const buildAbuseSignals = async ({ clientId, sellerId, now = new Date() }) => {
+const buildAbuseSignals = async ({ clientId, sellerId, now = new Date(), thresholds = DISPUTE_CONFIG_DEFAULTS }) => {
   const { start, end } = monthRange(now);
   const [clientMonthlyCount, sellerMonthlyCount, clientSuccessRate] = await Promise.all([
     Dispute.countDocuments({ clientId, createdAt: { $gte: start, $lt: end } }),
@@ -86,10 +140,10 @@ const buildAbuseSignals = async ({ clientId, sellerId, now = new Date() }) => {
   ]);
 
   const reasons = [];
-  if (clientMonthlyCount >= CLIENT_SUSPICIOUS_THRESHOLD) {
+  if (clientMonthlyCount >= Number(thresholds.clientSuspiciousThreshold || 0)) {
     reasons.push('client_high_frequency');
   }
-  if (sellerMonthlyCount >= SELLER_SUSPICIOUS_THRESHOLD) {
+  if (sellerMonthlyCount >= Number(thresholds.sellerSuspiciousThreshold || 0)) {
     reasons.push('seller_high_frequency');
   }
   if (clientMonthlyCount >= 3 && clientSuccessRate < 0.2) {
@@ -148,9 +202,12 @@ const sendDisputeCreatedNotifications = async ({ dispute, actorId }) => {
   await Promise.allSettled(notifications);
 };
 
-const processDisputeDeadlines = async () => {
+const processDisputeDeadlines = async (thresholds = null) => {
+  const resolvedThresholds = thresholds || (await getDisputeConfigThresholds());
   const now = new Date();
-  const reminderThreshold = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+  const reminderThreshold = new Date(
+    now.getTime() + Number(resolvedThresholds.deadlineReminderHours || 0) * 60 * 60 * 1000
+  );
 
   const dueSoon = await Dispute.find({
     status: 'OPEN',
@@ -236,7 +293,8 @@ const serializeDispute = (disputeDoc) => {
 };
 
 export const createDispute = asyncHandler(async (req, res) => {
-  await processDisputeDeadlines();
+  const thresholds = await getDisputeConfigThresholds();
+  await processDisputeDeadlines(thresholds);
 
   const userId = req.user.id;
   const { orderId, reason, description } = req.body;
@@ -260,9 +318,9 @@ export const createDispute = asyncHandler(async (req, res) => {
     clientId: userId,
     createdAt: { $gte: start, $lt: end }
   });
-  if (monthlyCount >= CLIENT_MONTHLY_LIMIT) {
+  if (monthlyCount >= Number(thresholds.clientMonthlyLimit || 0)) {
     return res.status(429).json({
-      message: `Limite atteinte: ${CLIENT_MONTHLY_LIMIT} litiges max par mois.`,
+      message: `Limite atteinte: ${Number(thresholds.clientMonthlyLimit || 0)} litiges max par mois.`,
       code: 'DISPUTE_MONTHLY_LIMIT'
     });
   }
@@ -289,10 +347,12 @@ export const createDispute = asyncHandler(async (req, res) => {
   }
 
   const deliveredAt = order.deliveredAt ? new Date(order.deliveredAt) : new Date(order.updatedAt || order.createdAt);
-  const disputeWindowEndsAt = new Date(deliveredAt.getTime() + DISPUTE_WINDOW_HOURS * 60 * 60 * 1000);
+  const disputeWindowEndsAt = new Date(
+    deliveredAt.getTime() + Number(thresholds.disputeWindowHours || 0) * 60 * 60 * 1000
+  );
   if (now > disputeWindowEndsAt) {
     return res.status(400).json({
-      message: `Le délai de litige est dépassé (${DISPUTE_WINDOW_HOURS}h après livraison).`,
+      message: `Le délai de litige est dépassé (${Number(thresholds.disputeWindowHours || 0)}h après livraison).`,
       deliveredAt,
       disputeWindowEndsAt
     });
@@ -303,8 +363,8 @@ export const createDispute = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Impossible de déterminer le vendeur pour cette commande.' });
   }
 
-  const abuseSignals = await buildAbuseSignals({ clientId: userId, sellerId, now });
-  const sellerDeadline = new Date(now.getTime() + SELLER_RESPONSE_HOURS * 60 * 60 * 1000);
+  const abuseSignals = await buildAbuseSignals({ clientId: userId, sellerId, now, thresholds });
+  const sellerDeadline = new Date(now.getTime() + Number(thresholds.sellerResponseHours || 0) * 60 * 60 * 1000);
 
   const session = await mongoose.startSession();
   let createdDispute;

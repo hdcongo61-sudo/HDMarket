@@ -1972,6 +1972,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
   const {
     title,
     description,
+    price,
     category,
     categoryId,
     subcategoryId,
@@ -1994,6 +1995,16 @@ export const updateProduct = asyncHandler(async (req, res) => {
   } = req.body;
   if (title) product.title = title;
   if (description) product.description = description;
+
+  let nextBasePrice = Number(product.priceBeforeDiscount ?? product.price ?? 0);
+  const hasPricePayload = price !== undefined;
+  if (hasPricePayload) {
+    const parsedPrice = Number(price);
+    if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
+      return res.status(400).json({ message: 'Invalid price value' });
+    }
+    nextBasePrice = parsedPrice;
+  }
 
   const categoryPayloadProvided =
     category !== undefined || categoryId !== undefined || subcategoryId !== undefined;
@@ -2021,7 +2032,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
     if (Number.isNaN(parsed) || parsed < 0 || parsed >= 100) {
       return res.status(400).json({ message: 'Discount must be between 0 and 100' });
     }
-    const basePrice = product.priceBeforeDiscount ?? product.price;
+    const basePrice = nextBasePrice;
     if (parsed > 0) {
       product.priceBeforeDiscount = basePrice;
       product.price = Number((basePrice * (1 - parsed / 100)).toFixed(2));
@@ -2033,6 +2044,14 @@ export const updateProduct = asyncHandler(async (req, res) => {
       product.price = basePrice;
       product.priceBeforeDiscount = undefined;
       product.discount = 0;
+    }
+  } else if (hasPricePayload) {
+    if (Number(product.discount || 0) > 0) {
+      product.priceBeforeDiscount = nextBasePrice;
+      product.price = Number((nextBasePrice * (1 - Number(product.discount || 0) / 100)).toFixed(2));
+    } else {
+      product.price = nextBasePrice;
+      product.priceBeforeDiscount = undefined;
     }
   }
 

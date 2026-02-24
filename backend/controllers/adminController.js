@@ -16,6 +16,7 @@ import {
   getCacheStats as getCacheEngineStats,
   getCacheSnapshotHistory
 } from '../utils/cache.js';
+import { createAuditLogEntry } from '../services/auditLogService.js';
 
 const monthKey = (year, month) => `${year}-${String(month).padStart(2, '0')}`;
 
@@ -66,8 +67,8 @@ const monthKey = (year, month) => `${year}-${String(month).padStart(2, '0')}`;
   };
 
 const ensureAdminRole = (req) => {
-  if (req.user?.role !== 'admin') {
-    const error = new Error('Seuls les administrateurs peuvent accéder à cette ressource.');
+  if (req.user?.role !== 'admin' && req.user?.role !== 'founder') {
+    const error = new Error('Seuls les administrateurs autorisés peuvent accéder à cette ressource.');
     error.status = 403;
     throw error;
   }
@@ -1080,8 +1081,8 @@ export const blockUser = asyncHandler(async (req, res) => {
   const user = await User.findById(id);
   if (!user) return res.status(404).json({ message: 'Utilisateur introuvable.' });
 
-  if (user.role === 'admin') {
-    return res.status(400).json({ message: 'Impossible de suspendre un administrateur.' });
+  if (['admin', 'founder'].includes(user.role)) {
+    return res.status(400).json({ message: 'Impossible de suspendre un administrateur ou fondateur.' });
   }
 
   if (req.user?.id && user._id.equals(req.user.id)) {
@@ -1220,8 +1221,8 @@ export const updateUserRole = asyncHandler(async (req, res) => {
   const user = await User.findById(id);
   if (!user) return res.status(404).json({ message: 'Utilisateur introuvable.' });
 
-  if (user.role === 'admin') {
-    return res.status(400).json({ message: "Impossible de modifier le rôle d'un administrateur." });
+  if (['admin', 'founder'].includes(user.role)) {
+    return res.status(400).json({ message: "Impossible de modifier le rôle d'un administrateur ou fondateur." });
   }
 
   const previousRole = user.role;
@@ -1240,6 +1241,14 @@ export const updateUserRole = asyncHandler(async (req, res) => {
       newRole: role
     },
     ipAddress: req.ip || req.connection?.remoteAddress
+  });
+  await createAuditLogEntry({
+    performedBy: req.user.id,
+    targetUser: user._id,
+    actionType: 'role_changed',
+    previousValue: { role: previousRole },
+    newValue: { role },
+    req
   });
 
   const populated = await user.populate('shopVerifiedBy', 'name email');
@@ -1355,8 +1364,8 @@ export const toggleBoostManager = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Utilisateur introuvable.' });
   }
   
-  if (user.role === 'admin') {
-    return res.status(400).json({ message: 'Impossible de modifier les permissions d\'un administrateur.' });
+  if (['admin', 'founder'].includes(user.role)) {
+    return res.status(400).json({ message: 'Impossible de modifier les permissions d\'un administrateur ou fondateur.' });
   }
   
   user.canManageBoosts = !user.canManageBoosts;
@@ -1388,8 +1397,8 @@ export const togglePaymentVerifier = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Utilisateur introuvable.' });
   }
 
-  if (user.role === 'admin') {
-    return res.status(400).json({ message: 'Impossible de modifier les permissions d\'un administrateur.' });
+  if (['admin', 'founder'].includes(user.role)) {
+    return res.status(400).json({ message: 'Impossible de modifier les permissions d\'un administrateur ou fondateur.' });
   }
 
   // Toggle the permission
@@ -1436,8 +1445,8 @@ export const toggleComplaintManager = asyncHandler(async (req, res) => {
   if (!user) {
     return res.status(404).json({ message: 'Utilisateur introuvable.' });
   }
-  if (user.role === 'admin') {
-    return res.status(400).json({ message: 'Impossible de modifier les permissions d\'un administrateur.' });
+  if (['admin', 'founder'].includes(user.role)) {
+    return res.status(400).json({ message: 'Impossible de modifier les permissions d\'un administrateur ou fondateur.' });
   }
   user.canManageComplaints = !user.canManageComplaints;
   await user.save();
@@ -1481,8 +1490,8 @@ export const toggleProductManager = asyncHandler(async (req, res) => {
   if (!user) {
     return res.status(404).json({ message: 'Utilisateur introuvable.' });
   }
-  if (user.role === 'admin') {
-    return res.status(400).json({ message: 'Impossible de modifier les permissions d\'un administrateur.' });
+  if (['admin', 'founder'].includes(user.role)) {
+    return res.status(400).json({ message: 'Impossible de modifier les permissions d\'un administrateur ou fondateur.' });
   }
   user.canManageProducts = !user.canManageProducts;
   await user.save();
@@ -1527,8 +1536,8 @@ export const toggleDeliveryManager = asyncHandler(async (req, res) => {
   if (!user) {
     return res.status(404).json({ message: 'Utilisateur introuvable.' });
   }
-  if (user.role === 'admin') {
-    return res.status(400).json({ message: 'Impossible de modifier les permissions d\'un administrateur.' });
+  if (['admin', 'founder'].includes(user.role)) {
+    return res.status(400).json({ message: 'Impossible de modifier les permissions d\'un administrateur ou fondateur.' });
   }
   user.canManageDelivery = !user.canManageDelivery;
   await user.save();
@@ -1591,8 +1600,8 @@ export const toggleChatTemplateManager = asyncHandler(async (req, res) => {
   if (!user) {
     return res.status(404).json({ message: 'Utilisateur introuvable.' });
   }
-  if (user.role === 'admin') {
-    return res.status(400).json({ message: "Impossible de modifier les permissions d'un administrateur." });
+  if (['admin', 'founder'].includes(user.role)) {
+    return res.status(400).json({ message: "Impossible de modifier les permissions d'un administrateur ou fondateur." });
   }
 
   const wasGranted = Boolean(user.canManageChatTemplates);
@@ -1653,8 +1662,8 @@ export const toggleHelpCenterEditor = asyncHandler(async (req, res) => {
   if (!user) {
     return res.status(404).json({ message: 'Utilisateur introuvable.' });
   }
-  if (user.role === 'admin') {
-    return res.status(400).json({ message: 'Impossible de modifier les permissions d\'un administrateur.' });
+  if (['admin', 'founder'].includes(user.role)) {
+    return res.status(400).json({ message: 'Impossible de modifier les permissions d\'un administrateur ou fondateur.' });
   }
 
   user.canManageHelpCenter = !user.canManageHelpCenter;
@@ -1782,8 +1791,8 @@ export const setUserRestriction = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Utilisateur introuvable.' });
   }
 
-  if (user.role === 'admin') {
-    return res.status(400).json({ message: 'Impossible de restreindre un administrateur.' });
+  if (['admin', 'founder'].includes(user.role)) {
+    return res.status(400).json({ message: 'Impossible de restreindre un administrateur ou fondateur.' });
   }
 
   if (req.user?.id && user._id.equals(req.user.id)) {

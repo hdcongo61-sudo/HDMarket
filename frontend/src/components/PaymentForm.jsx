@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import api, { verifyTransactionCodeAvailability } from '../services/api';
+import { useAppSettings } from '../context/AppSettingsContext';
 import {
   CreditCard,
   CheckCircle,
@@ -38,7 +39,25 @@ const statusColor = (status) => {
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
 export default function PaymentForm({ product, onSubmitted }) {
-  const expected = useMemo(() => Math.round(product.price * 0.03 * 100) / 100, [product.price]);
+  const { runtime, app } = useAppSettings();
+  const commissionRatePercent = useMemo(() => {
+    const candidates = [runtime?.commission_rate, runtime?.commissionRate, app?.commissionRate, 3];
+    for (const candidate of candidates) {
+      const parsed = Number(candidate);
+      if (Number.isFinite(parsed) && parsed >= 0) {
+        return parsed;
+      }
+    }
+    return 3;
+  }, [app?.commissionRate, runtime?.commissionRate, runtime?.commission_rate]);
+  const commissionRateLabel = useMemo(() => {
+    const rounded = Number(commissionRatePercent.toFixed(2));
+    return Number.isInteger(rounded) ? String(rounded) : String(rounded).replace(/\.?0+$/, '');
+  }, [commissionRatePercent]);
+  const expected = useMemo(
+    () => Math.round(product.price * (commissionRatePercent / 100) * 100) / 100,
+    [commissionRatePercent, product.price]
+  );
 
   const [form, setForm] = useState({
     payerName: '',
@@ -282,7 +301,7 @@ export default function PaymentForm({ product, onSubmitted }) {
             </div>
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-gray-500">Commission (base 3%):</span>
+                <span className="text-gray-500">Commission (base {commissionRateLabel}%):</span>
                 <span className="font-medium text-gray-900">{formatCurrency(paidCommissionBase)}</span>
               </div>
               <div className="flex justify-between">
@@ -329,7 +348,7 @@ export default function PaymentForm({ product, onSubmitted }) {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-semibold text-neutral-900 text-sm">Commission de publication</h3>
-              <p className="text-neutral-700 text-xs">Base 3% du prix du produit</p>
+              <p className="text-neutral-700 text-xs">Base {commissionRateLabel}% du prix du produit</p>
             </div>
             <div className="text-right">
               <div className="text-2xl font-bold text-neutral-600">{formatCurrency(commissionDue)}</div>

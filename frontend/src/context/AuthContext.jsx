@@ -6,8 +6,32 @@ import indexedDB, { STORES } from '../utils/indexedDB';
 import { clearSearchCache } from '../utils/searchCache';
 import { clearUserDataOnLogout } from '../utils/clearUserDataOnLogout';
 import { queryClient } from '../lib/queryClient';
+import { normalizePermissions } from '../utils/permissions';
 
 const AuthContext = createContext();
+
+const withResolvedCapabilities = (rawUser = {}) => {
+  const role = String(rawUser?.role || '').toLowerCase();
+  const isFounder = role === 'founder';
+  const permissions = normalizePermissions(rawUser?.permissions);
+  const permissionSet = new Set(permissions);
+  const hasPermission = (permission) => isFounder || permissionSet.has(permission);
+
+  return {
+    ...rawUser,
+    permissions,
+    canReadFeedback: Boolean(rawUser?.canReadFeedback) || hasPermission('read_feedback'),
+    canVerifyPayments: Boolean(rawUser?.canVerifyPayments) || hasPermission('verify_payments'),
+    canManageBoosts: Boolean(rawUser?.canManageBoosts) || hasPermission('manage_boosts'),
+    canManageComplaints: Boolean(rawUser?.canManageComplaints) || hasPermission('manage_complaints'),
+    canManageProducts: Boolean(rawUser?.canManageProducts) || hasPermission('manage_products'),
+    canManageDelivery: Boolean(rawUser?.canManageDelivery) || hasPermission('manage_delivery'),
+    canManageChatTemplates:
+      Boolean(rawUser?.canManageChatTemplates) || hasPermission('manage_chat_templates'),
+    canManageHelpCenter:
+      Boolean(rawUser?.canManageHelpCenter) || hasPermission('manage_help_center')
+  };
+};
 
 const isJwtExpired = (payload) => {
   const exp = Number(payload?.exp || 0);
@@ -30,26 +54,18 @@ const readPersistedUser = async () => {
     const stored = await storage.get('qm_user');
     const parsed = stored || {};
     
-    const normalized = {
+    const normalized = withResolvedCapabilities({
       ...parsed,
       shopHours: Array.isArray(parsed.shopHours) ? parsed.shopHours : [],
       shopVerified: Boolean(parsed.shopVerified),
       phoneVerified: Boolean(parsed.phoneVerified),
       followingShops: Array.isArray(parsed.followingShops) ? parsed.followingShops : [],
-      canReadFeedback: Boolean(parsed.canReadFeedback),
-      canVerifyPayments: Boolean(parsed.canVerifyPayments),
-      canManageBoosts: Boolean(parsed.canManageBoosts),
-      canManageComplaints: Boolean(parsed.canManageComplaints),
-      canManageProducts: Boolean(parsed.canManageProducts),
-      canManageDelivery: Boolean(parsed.canManageDelivery),
-      canManageChatTemplates: Boolean(parsed.canManageChatTemplates),
-      canManageHelpCenter: Boolean(parsed.canManageHelpCenter),
       preferredLanguage: parsed.preferredLanguage || 'fr',
       preferredCurrency: parsed.preferredCurrency || 'XAF',
       preferredCity: parsed.preferredCity || parsed.city || '',
       commune: parsed.commune || '',
       theme: ['light', 'dark', 'system'].includes(parsed.theme) ? parsed.theme : 'system'
-    };
+    });
     return { id: payload.id, role: payload.role, token, ...normalized };
   } catch {
     await storage.remove('qm_token');
@@ -79,7 +95,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (data) => {
     await storage.set('qm_token', data.token);
-    const userData = {
+    const userData = withResolvedCapabilities({
       id: data._id,
       role: data.role,
       token: data.token,
@@ -96,14 +112,7 @@ export const AuthProvider = ({ children }) => {
       shopHours: Array.isArray(data.shopHours) ? data.shopHours : [],
       shopVerified: Boolean(data.shopVerified),
       followingShops: Array.isArray(data.followingShops) ? data.followingShops : [],
-      canReadFeedback: Boolean(data.canReadFeedback),
-      canVerifyPayments: Boolean(data.canVerifyPayments),
-      canManageBoosts: Boolean(data.canManageBoosts),
-      canManageComplaints: Boolean(data.canManageComplaints),
-      canManageProducts: Boolean(data.canManageProducts),
-      canManageDelivery: Boolean(data.canManageDelivery),
-      canManageChatTemplates: Boolean(data.canManageChatTemplates),
-      canManageHelpCenter: Boolean(data.canManageHelpCenter),
+      permissions: data.permissions,
       country: data.country || 'République du Congo',
       address: data.address || '',
       city: data.city || '',
@@ -113,7 +122,7 @@ export const AuthProvider = ({ children }) => {
       preferredCity: data.preferredCity || data.city || '',
       theme: ['light', 'dark', 'system'].includes(data.theme) ? data.theme : 'system',
       gender: data.gender || ''
-    };
+    });
     await persistUser(userData);
     setUser(userData);
   };
@@ -121,6 +130,11 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       if (user?.token) {
+        try {
+          await api.post('/auth/logout');
+        } catch {
+          // ignore logout auth API errors
+        }
         try {
           await api.post('/users/logout-cache');
         } catch {
@@ -173,7 +187,7 @@ export const AuthProvider = ({ children }) => {
   const updateUser = async (patch) => {
     setUser((prev) => {
       if (!prev) return prev;
-      const next = { ...prev, ...patch };
+      const next = withResolvedCapabilities({ ...prev, ...patch });
       persistUser(next);
       return next;
     });

@@ -1,6 +1,7 @@
-import React, { useContext, useEffect, useState, useRef, useCallback } from 'react';
+import React, { useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
+import { useAppSettings } from '../context/AppSettingsContext';
 import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2, ChevronDown, ChevronUp, RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Plus } from 'lucide-react';
 import categoryGroups from '../data/categories';
 import ProductCard from './ProductCard';
@@ -26,6 +27,7 @@ const DeleteIcon = ({ className = '' }) => (
 
 export default function ProductForm(props) {
   const { onCreated, onUpdated, initialValues, productId, submitLabel } = props;
+  const { runtime, app } = useAppSettings();
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -97,6 +99,20 @@ export default function ProductForm(props) {
   const ASPECT_PRESETS = { '1:1': 1, '4:3': 4/3, '16:9': 16/9 };
   const [showPreview, setShowPreview] = useState(false);
   const isMobile = useIsMobile(768);
+  const commissionRatePercent = useMemo(() => {
+    const candidates = [runtime?.commission_rate, runtime?.commissionRate, app?.commissionRate, 3];
+    for (const candidate of candidates) {
+      const parsed = Number(candidate);
+      if (Number.isFinite(parsed) && parsed >= 0) {
+        return parsed;
+      }
+    }
+    return 3;
+  }, [app?.commissionRate, runtime?.commissionRate, runtime?.commission_rate]);
+  const commissionRateLabel = useMemo(() => {
+    const rounded = Number(commissionRatePercent.toFixed(2));
+    return Number.isInteger(rounded) ? String(rounded) : String(rounded).replace(/\.?0+$/, '');
+  }, [commissionRatePercent]);
   const [expandedSections, setExpandedSections] = useState({
     info: true,
     images: true,
@@ -980,7 +996,7 @@ export default function ProductForm(props) {
 
   const calculateCommission = () => {
     const price = parseFloat(form.price) || 0;
-    return Math.round(price * 0.03);
+    return Math.round((price * commissionRatePercent) / 100);
   };
 
   cropMoveRef.current = handleCropMouseMove;
@@ -1014,7 +1030,10 @@ export default function ProductForm(props) {
     setForm({
       title: initialValues.title || '',
       description: initialValues.description || '',
-      price: initialValues.price || '',
+      price:
+        initialValues.priceBeforeDiscount !== undefined && initialValues.priceBeforeDiscount !== null
+          ? initialValues.priceBeforeDiscount
+          : initialValues.price || '',
       category: initialValues.category || '',
       condition: initialValues.condition || 'new',
       operator: initialValues.operator || 'MTN',
@@ -2071,7 +2090,7 @@ export default function ProductForm(props) {
                 <div className="space-y-2">
                   <h3 className="font-semibold text-amber-800 text-sm">Commission de publication</h3>
                   <p className="text-amber-700 text-sm">
-                    Pour valider votre annonce, envoyez <span className="font-bold">{formatPriceWithStoredSettings(calculateCommission())}</span> (3% du prix). Vous pouvez aussi utiliser un code promo dans la section paiement de <span className="font-semibold">/my</span>.
+                    Pour valider votre annonce, envoyez <span className="font-bold">{formatPriceWithStoredSettings(calculateCommission())}</span> ({commissionRateLabel}% du prix). Vous pouvez aussi utiliser un code promo dans la section paiement de <span className="font-semibold">/my</span>.
                   </p>
                   <div className="flex items-center space-x-2 text-xs text-amber-600">
                     <CheckCircle2 className="w-4 h-4" />

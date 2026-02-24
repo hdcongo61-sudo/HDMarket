@@ -429,7 +429,7 @@ const loadDiscountProducts = async () => {
   // === EFFETS DE CHARGEMENT ===
   useEffect(() => {
     initialPageRef.current = 1;
-    setPage(1);
+    setPage((prev) => (prev === 1 ? prev : 1));
   }, [sort, category, installmentOnlyFilter, nearMeOnlyFilter]);
 
   useEffect(() => {
@@ -443,22 +443,19 @@ const loadDiscountProducts = async () => {
   }, [hasUserCity, nearMeOnlyFilter]);
 
   useEffect(() => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        const targetPage = page === 1 ? null : String(page);
-        const currentInUrl = prev.get('page');
-        if (currentInUrl === targetPage) return prev;
-        if (page === 1) {
-          next.delete('page');
-        } else {
-          next.set('page', String(page));
-        }
-        return next;
-      },
-      { replace: page === initialPageRef.current }
-    );
-  }, [page, setSearchParams]);
+    const targetPage = page === 1 ? null : String(page);
+    const currentInUrl = searchParams.get('page');
+    if (currentInUrl === targetPage) return;
+
+    const next = new URLSearchParams(searchParams);
+    if (targetPage == null) {
+      next.delete('page');
+    } else {
+      next.set('page', targetPage);
+    }
+
+    setSearchParams(next, { replace: page === initialPageRef.current });
+  }, [page, searchParams, setSearchParams]);
 
   useEffect(() => {
     const validPage = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1;

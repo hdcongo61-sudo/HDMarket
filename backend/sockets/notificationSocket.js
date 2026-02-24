@@ -1,20 +1,19 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/userModel.js';
 import { initRedis, getRedisClient, isRedisReady } from '../config/redisClient.js';
+import { isTokenBlacklisted, wasSessionInvalidated } from '../services/sessionSecurityService.js';
+import {
+  getPresenceConstants,
+  registerPresenceConnection,
+  touchPresenceConnection,
+  unregisterPresenceConnection
+} from '../services/presenceService.js';
 
-const ENV = String(process.env.CACHE_ENV || process.env.NODE_ENV || 'dev')
-  .toLowerCase()
-  .startsWith('prod')
-  ? 'prod'
-  : 'dev';
-const ONLINE_TTL_SECONDS = Math.max(30, Number(process.env.NOTIFICATION_ONLINE_TTL_SECONDS || 90));
-const ONLINE_PREFIX = `${ENV}:notifications:online:user:`;
-const HEARTBEAT_MS = Math.max(10_000, Math.min(ONLINE_TTL_SECONDS * 500, 30_000));
+const HEARTBEAT_MS = Math.max(10_000, Number(process.env.PRESENCE_HEARTBEAT_MS || 25_000));
 
 let notificationNamespace = null;
-const localPresence = new Map(); // userId -> count
-
-const onlineKey = (userId) => `${ONLINE_PREFIX}${String(userId)}`;
+const localPresence = new Map();
+const presenceConstants = getPresenceConstants();
 
 const getTokenFromSocket = (socket) =>
   socket?.handshake?.auth?.token ||
@@ -27,42 +26,18 @@ const withRedis = async () => {
   return initRedis();
 };
 
-const setOnline = async (userId) => {
-  const client = await withRedis();
-  if (!client) return;
-  await client.set(onlineKey(userId), '1', { EX: ONLINE_TTL_SECONDS });
-};
-
-const clearOnline = async (userId) => {
-  const client = await withRedis();
-  if (!client) return;
-  await client.del(onlineKey(userId));
-};
-
-const incLocalPresence = (userId) => {
-  const key = String(userId);
-  const current = Number(localPresence.get(key) || 0);
-  localPresence.set(key, current + 1);
-};
-
-const decLocalPresence = (userId) => {
-  const key = String(userId);
-  const current = Number(localPresence.get(key) || 0);
-  if (current <= 1) {
-    localPresence.delete(key);
-  } else {
-    localPresence.set(key, current - 1);
-  }
-};
-
 export const isUserOnline = async (userId) => {
   const key = String(userId || '');
   if (!key) return false;
   if (Number(localPresence.get(key) || 0) > 0) return true;
   const client = await withRedis();
   if (!client) return false;
-  const exists = await client.exists(onlineKey(key));
-  return Number(exists || 0) > 0;
+  try {
+    const exists = await client.sIsMember(presenceConstants.keys.onlineUsers, key);
+    return Boolean(exists);
+  } catch {
+    return false;
+  }
 };
 
 export const emitSocketNotification = (userId, payload = {}) => {
@@ -84,13 +59,20 @@ export const registerNotificationSocket = (io) => {
     if (!token) return next(new Error('NOT_AUTHENTICATED'));
 
     try {
+      if (await isTokenBlacklisted(token)) return next(new Error('TOKEN_BLACKLISTED'));
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.id).select('_id role isBlocked');
-      if (!user || user.isBlocked) return next(new Error('NOT_AUTHORIZED'));
+      const user = await User.findById(decoded.id).select(
+        '_id role accountType city isBlocked isActive isLocked sessionsInvalidatedAt'
+      );
+      if (!user || user.isBlocked || !user.isActive || user.isLocked || wasSessionInvalidated(user, decoded)) {
+        return next(new Error('NOT_AUTHORIZED'));
+      }
 
       socket.data.user = {
         id: String(user._id),
-        role: user.role
+        role: user.role,
+        accountType: user.accountType || 'person',
+        city: user.city || ''
       };
       return next();
     } catch {
@@ -105,22 +87,69 @@ export const registerNotificationSocket = (io) => {
       return;
     }
 
-    incLocalPresence(userId);
+    const localKey = String(userId);
+    localPresence.set(localKey, Number(localPresence.get(localKey) || 0) + 1);
     socket.join(`user:${userId}`);
-    void setOnline(userId);
+    const userRole = socket?.data?.user?.role || 'user';
+    const accountType = socket?.data?.user?.accountType || 'person';
+    const city = socket?.data?.user?.city || '';
+    const userAgent = socket?.handshake?.headers?.['user-agent'] || '';
+    const forwardedFor = socket?.handshake?.headers?.['x-forwarded-for'];
+    const ip = String(forwardedFor || socket?.handshake?.address || '').split(',')[0].trim();
+    socket.data.presenceNamespace = '/notifications';
+    const presenceRegistrationPromise = registerPresenceConnection({
+      userId,
+      role: userRole,
+      accountType,
+      socketId: socket.id,
+      namespace: '/notifications',
+      userAgent,
+      ip,
+      city
+    }).then((result) => {
+      socket.data.presenceSessionId = result?.sessionId || '';
+      return result;
+    });
 
     const heartbeat = setInterval(() => {
-      void setOnline(userId);
+      void touchPresenceConnection({
+        userId,
+        role: userRole,
+        accountType,
+        socketId: socket.id,
+        namespace: '/notifications'
+      });
     }, HEARTBEAT_MS);
 
+    let cleanedUp = false;
     const cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
       clearInterval(heartbeat);
-      decLocalPresence(userId);
-      if (!localPresence.has(String(userId))) {
-        void clearOnline(userId);
-      }
+      const current = Number(localPresence.get(localKey) || 0);
+      if (current <= 1) localPresence.delete(localKey);
+      else localPresence.set(localKey, current - 1);
+      void Promise.resolve(presenceRegistrationPromise)
+        .catch(() => null)
+        .then((registrationResult) => {
+          return unregisterPresenceConnection({
+            userId,
+            socketId: socket.id,
+            namespace: socket.data.presenceNamespace || '/notifications',
+            sessionId: socket.data.presenceSessionId || registrationResult?.sessionId || ''
+          });
+        });
     };
 
+    socket.on('presence:heartbeat', () => {
+      void touchPresenceConnection({
+        userId,
+        role: userRole,
+        accountType,
+        socketId: socket.id,
+        namespace: '/notifications'
+      });
+    });
     socket.on('disconnect', cleanup);
     socket.on('error', cleanup);
   });

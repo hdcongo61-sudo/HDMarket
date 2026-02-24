@@ -36,8 +36,14 @@ export const findPromoCodeByCode = async (code, options = {}) => {
   return query;
 };
 
-export const previewPromoForSeller = async ({ code, sellerId, productPrice, now = new Date() }) => {
-  const baseCommission = calculateCommissionBreakdown({ productPrice });
+export const previewPromoForSeller = async ({
+  code,
+  sellerId,
+  productPrice,
+  now = new Date(),
+  commissionRate = 3
+}) => {
+  const baseCommission = calculateCommissionBreakdown({ productPrice, commissionRate });
   const normalized = normalizePromoCode(code);
   if (!normalized) {
     return {
@@ -62,7 +68,7 @@ export const previewPromoForSeller = async ({ code, sellerId, productPrice, now 
     };
   }
 
-  const commission = calculateCommissionBreakdown({ productPrice, promo });
+  const commission = calculateCommissionBreakdown({ productPrice, promo, commissionRate });
 
   return {
     valid: true,
@@ -80,13 +86,14 @@ export const consumePromoCodeForSeller = async ({
   code,
   sellerId,
   product,
+  commissionRate = 3,
   paymentId = null,
   ipAddress = null,
   userAgent = null,
   session = null
 }) => {
   const productPrice = Number(product?.price || 0);
-  const baseCommission = calculateCommissionBreakdown({ productPrice });
+  const baseCommission = calculateCommissionBreakdown({ productPrice, commissionRate });
   const normalized = normalizePromoCode(code);
 
   if (!normalized) {
@@ -128,12 +135,13 @@ export const consumePromoCodeForSeller = async ({
       code: normalized,
       sellerId: sellerObjectId,
       productPrice,
-      now
+      now,
+      commissionRate
     });
     throw buildPromoError(preview.message || 'Code invalide ou expiré.', 400, preview.reason || 'promo_invalid');
   }
 
-  const commission = calculateCommissionBreakdown({ productPrice, promo });
+  const commission = calculateCommissionBreakdown({ productPrice, promo, commissionRate });
 
   try {
     await PromoCodeUsage.create(

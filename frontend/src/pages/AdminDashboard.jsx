@@ -46,7 +46,10 @@ import {
   Calendar,
   MapPin,
   Phone,
-  Mail
+  Mail,
+  Wifi,
+  Crown,
+  ArrowUpRight
 } from 'lucide-react';
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('fr-FR');
@@ -129,6 +132,81 @@ const paymentStatusStyles = {
   rejected: 'bg-red-100 text-red-800'
 };
 
+const ORDER_STATUS_LABELS = {
+  pending_payment: 'Paiement',
+  paid: 'Payées',
+  ready_for_pickup: 'Prêtes au retrait',
+  picked_up_confirmed: 'Retraits confirmés',
+  ready_for_delivery: 'Prêtes à livrer',
+  out_for_delivery: 'En livraison',
+  delivery_proof_submitted: 'Preuve soumise',
+  confirmed_by_client: 'Confirmées client',
+  pending: 'En attente',
+  pending_installment: 'Vente à confirmer',
+  installment_active: 'Tranches actives',
+  overdue_installment: 'Tranches en retard',
+  dispute_opened: 'Litige ouvert',
+  confirmed: 'Confirmées',
+  delivering: 'En livraison',
+  delivered: 'Livrées',
+  completed: 'Paiement terminé',
+  cancelled: 'Annulées'
+};
+
+const REMINDER_STATUS_FILTER_OPTIONS = [
+  { value: 'all', label: 'Toutes actives' },
+  { value: 'pending_payment', label: 'Paiement' },
+  { value: 'paid', label: 'Payées' },
+  { value: 'ready_for_pickup', label: 'Prêtes au retrait' },
+  { value: 'picked_up_confirmed', label: 'Retraits confirmés' },
+  { value: 'ready_for_delivery', label: 'Prêtes à livrer' },
+  { value: 'out_for_delivery', label: 'En livraison' },
+  { value: 'delivery_proof_submitted', label: 'Preuve soumise' },
+  { value: 'confirmed_by_client', label: 'Confirmées client' },
+  { value: 'pending', label: 'En attente' },
+  { value: 'pending_installment', label: 'Vente à confirmer' },
+  { value: 'installment_active', label: 'Tranches actives' },
+  { value: 'overdue_installment', label: 'Tranches en retard' },
+  { value: 'dispute_opened', label: 'Litige ouvert' },
+  { value: 'confirmed', label: 'Confirmées' },
+  { value: 'delivering', label: 'En livraison' }
+];
+
+const REMINDER_PAYMENT_TYPE_FILTER_OPTIONS = [
+  { value: '', label: 'Paiement (tous)' },
+  { value: 'full', label: 'Comptant' },
+  { value: 'installment', label: 'Paiement par tranche' }
+];
+
+const REMINDER_DELIVERY_MODE_FILTER_OPTIONS = [
+  { value: '', label: 'Mode livraison (tous)' },
+  { value: 'DELIVERY', label: 'Livraison' },
+  { value: 'PICKUP', label: 'Récupérer en boutique' }
+];
+
+const ORDER_STATUS_SUMMARY_OPTIONS = [
+  { value: 'pending_payment', label: 'Paiement' },
+  { value: 'paid', label: 'Payées' },
+  { value: 'ready_for_pickup', label: 'Prêtes au retrait' },
+  { value: 'picked_up_confirmed', label: 'Retraits confirmés' },
+  { value: 'ready_for_delivery', label: 'Prêtes à livrer' },
+  { value: 'out_for_delivery', label: 'En livraison' },
+  { value: 'delivery_proof_submitted', label: 'Preuve soumise' },
+  { value: 'confirmed_by_client', label: 'Confirmées client' },
+  { value: 'pending', label: 'En attente' },
+  { value: 'pending_installment', label: 'Vente à confirmer' },
+  { value: 'installment_active', label: 'Tranches actives' },
+  { value: 'overdue_installment', label: 'Tranches en retard' },
+  { value: 'dispute_opened', label: 'Litige ouvert' },
+  { value: 'confirmed', label: 'Confirmées' },
+  { value: 'delivering', label: 'En livraison (legacy)' },
+  { value: 'delivered', label: 'Livrées' },
+  { value: 'completed', label: 'Paiement terminé' },
+  { value: 'cancelled', label: 'Annulées' }
+];
+
+const REMINDER_FINAL_STATUSES = new Set(['delivered', 'completed', 'cancelled']);
+
 const getPaymentSortValue = (payment, prioritizeUpdated = false) => {
   const candidates = prioritizeUpdated
     ? [payment?.updatedAt, payment?.createdAt, payment?.product?.updatedAt, payment?.product?.createdAt]
@@ -197,6 +275,11 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState('');
+  const [founderMini, setFounderMini] = useState(null);
+  const [founderMiniLoading, setFounderMiniLoading] = useState(false);
+  const [founderMiniError, setFounderMiniError] = useState('');
+  const [onlineStats, setOnlineStats] = useState(null);
+  const [onlineStatsLoading, setOnlineStatsLoading] = useState(false);
   const [cacheStats, setCacheStats] = useState(null);
   const [cacheStatsLoading, setCacheStatsLoading] = useState(false);
   const [cacheStatsError, setCacheStatsError] = useState('');
@@ -242,6 +325,9 @@ export default function AdminDashboard() {
   const externalLinkProps = useDesktopExternalLink();
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [reminderOrders, setReminderOrders] = useState([]);
+  const [reminderStatusFilter, setReminderStatusFilter] = useState('all');
+  const [reminderPaymentTypeFilter, setReminderPaymentTypeFilter] = useState('');
+  const [reminderDeliveryModeFilter, setReminderDeliveryModeFilter] = useState('');
   const [remindersLoading, setRemindersLoading] = useState(false);
   const [remindersError, setRemindersError] = useState('');
   const [reminderActioningId, setReminderActioningId] = useState('');
@@ -258,15 +344,22 @@ export default function AdminDashboard() {
   const { showToast } = useToast();
 
   const { user: authUser } = useContext(AuthContext);
-  const isAdmin = authUser?.role === 'admin';
+  const isAdmin = authUser?.role === 'admin' || authUser?.role === 'founder';
   const isManager = authUser?.role === 'manager';
-  const canAccessBackOffice = isAdmin || isManager;
+  const isFounder = authUser?.role === 'founder';
+  const canAccessBackOffice = isAdmin || isManager || isFounder;
   const canViewStats = isAdmin;
   const canManageUsers = isAdmin;
   const canManagePayments = isAdmin || isManager;
   const canManageComplaints = isAdmin || isManager;
-  const pageTitle = isManager ? 'Espace gestionnaire' : 'Tableau de bord administrateur';
-  const pageSubtitle = isManager
+  const pageTitle = isFounder
+    ? 'Founder command center'
+    : isManager
+    ? 'Espace gestionnaire'
+    : 'Tableau de bord administrateur';
+  const pageSubtitle = isFounder
+    ? 'Vue exécutive temps réel et intelligence croissance.'
+    : isManager
     ? 'Validez les preuves de paiement et contrôlez la mise en ligne des annonces.'
     : 'Visualisez les indicateurs clés de la plateforme et gérez la validation des paiements.';
   const availableTabs = useMemo(() => {
@@ -340,6 +433,36 @@ export default function AdminDashboard() {
     }
   }, []);
 
+  const loadOnlineStats = useCallback(async () => {
+    setOnlineStatsLoading(true);
+    try {
+      const { data } = await api.get('/admin/online-stats');
+      setOnlineStats(data || null);
+    } catch {
+      // Keep previous online snapshot on transient failures.
+    } finally {
+      setOnlineStatsLoading(false);
+    }
+  }, []);
+
+  const loadFounderMini = useCallback(async ({ forceRefresh = false } = {}) => {
+    if (!isFounder) return;
+    setFounderMiniLoading(true);
+    try {
+      const { data } = await api.get('/founder/intelligence', {
+        params: forceRefresh ? { refresh: 'true' } : undefined
+      });
+      setFounderMini(data || null);
+      setFounderMiniError('');
+    } catch (e) {
+      setFounderMiniError(
+        e.response?.data?.message || e.message || 'Impossible de charger la synthèse founder.'
+      );
+    } finally {
+      setFounderMiniLoading(false);
+    }
+  }, [isFounder]);
+
   const loadSalesTrends = useCallback(async () => {
     setSalesTrendsLoading(true);
     try {
@@ -407,21 +530,31 @@ export default function AdminDashboard() {
     setRemindersLoading(true);
     setRemindersError('');
     try {
-      const [pendingRes, confirmedRes, deliveringRes] = await Promise.all([
-        api.get('/orders/admin', { params: { status: 'pending', limit: 30 } }),
-        api.get('/orders/admin', { params: { status: 'confirmed', limit: 30 } }),
-        api.get('/orders/admin', { params: { status: 'delivering', limit: 30 } })
-      ]);
-      const pendingItems = Array.isArray(pendingRes.data)
-        ? pendingRes.data
-        : pendingRes.data?.items || [];
-      const confirmedItems = Array.isArray(confirmedRes.data)
-        ? confirmedRes.data
-        : confirmedRes.data?.items || [];
-      const deliveringItems = Array.isArray(deliveringRes.data)
-        ? deliveringRes.data
-        : deliveringRes.data?.items || [];
-      const merged = [...pendingItems, ...confirmedItems, ...deliveringItems].sort(
+      const params = {
+        limit: 120
+      };
+      if (reminderStatusFilter !== 'all') {
+        params.status = reminderStatusFilter;
+      }
+      if (reminderPaymentTypeFilter) {
+        params.paymentType = reminderPaymentTypeFilter;
+      }
+      if (reminderDeliveryModeFilter) {
+        params.deliveryMode = reminderDeliveryModeFilter;
+      }
+
+      const { data } = await api.get('/orders/admin', { params });
+      const items = Array.isArray(data) ? data : data?.items || [];
+      const deduped = Array.from(
+        new Map(
+          items
+            .filter((order) => order && order._id)
+            .map((order) => [String(order._id), order])
+        ).values()
+      );
+      const merged = deduped
+        .filter((order) => !REMINDER_FINAL_STATUSES.has(String(order?.status || '')))
+        .sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       setReminderOrders(merged);
@@ -434,6 +567,12 @@ export default function AdminDashboard() {
     } finally {
       setRemindersLoading(false);
     }
+  }, [reminderStatusFilter, reminderPaymentTypeFilter, reminderDeliveryModeFilter]);
+
+  const resetReminderFilters = useCallback(() => {
+    setReminderStatusFilter('all');
+    setReminderPaymentTypeFilter('');
+    setReminderDeliveryModeFilter('');
   }, []);
 
   const handleSendReminder = useCallback(
@@ -643,6 +782,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!canViewStats) return;
     loadStats();
+    loadOnlineStats();
     loadCacheStats();
     loadSalesTrends();
     loadOrderHeatmap();
@@ -650,6 +790,7 @@ export default function AdminDashboard() {
     loadCohortAnalysis();
   }, [
     loadStats,
+    loadOnlineStats,
     loadCacheStats,
     loadSalesTrends,
     loadOrderHeatmap,
@@ -657,6 +798,23 @@ export default function AdminDashboard() {
     loadCohortAnalysis,
     canViewStats
   ]);
+
+  useEffect(() => {
+    if (!isFounder) return undefined;
+    loadFounderMini();
+    const timer = setInterval(() => {
+      loadFounderMini();
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [isFounder, loadFounderMini]);
+
+  useEffect(() => {
+    if (!canViewStats) return undefined;
+    const timer = setInterval(() => {
+      loadOnlineStats();
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [canViewStats, loadOnlineStats]);
 
   useEffect(() => {
     if (!canManagePayments) return;
@@ -943,6 +1101,7 @@ export default function AdminDashboard() {
       if (canViewStats) {
         tasks.push(
           loadStats(),
+          loadOnlineStats(),
           loadCacheStats(),
           loadSalesTrends(),
           loadOrderHeatmap(),
@@ -953,6 +1112,7 @@ export default function AdminDashboard() {
       if (canManagePayments) tasks.push(loadPayments());
       if (canManageUsers) tasks.push(loadUsers());
       if (canManageComplaints) tasks.push(loadComplaints());
+      if (isFounder) tasks.push(loadFounderMini({ forceRefresh: true }));
       tasks.push(loadReminderOrders());
       await Promise.all(tasks);
       showToast('Données actualisées.', { variant: 'success' });
@@ -963,6 +1123,7 @@ export default function AdminDashboard() {
     }
   }, [
     loadStats,
+    loadOnlineStats,
     loadCacheStats,
     loadSalesTrends,
     loadOrderHeatmap,
@@ -976,6 +1137,8 @@ export default function AdminDashboard() {
     canManageUsers,
     canViewStats,
     canManageComplaints,
+    isFounder,
+    loadFounderMini,
     showToast
   ]);
 
@@ -1006,6 +1169,8 @@ export default function AdminDashboard() {
   const totalProductCount = stats?.products?.total || 0;
   const orderStats = stats?.orders || {};
   const orderByStatus = orderStats.byStatus || {};
+  const orderStatusCount = (...statuses) =>
+    statuses.reduce((sum, status) => sum + Number(orderByStatus?.[status]?.count || 0), 0);
   const cityStats = Array.isArray(stats?.demographics?.cities) ? stats.demographics.cities : [];
   const genderStats = Array.isArray(stats?.demographics?.genders) ? stats.demographics.genders : [];
   const productCityStats = Array.isArray(stats?.demographics?.productCities)
@@ -1071,14 +1236,7 @@ export default function AdminDashboard() {
 
   const renderReminderOrderCard = (order) => {
     const items = Array.isArray(order.items) ? order.items : [];
-    const statusLabel =
-      order.status === 'pending'
-        ? 'En attente'
-        : order.status === 'confirmed'
-        ? 'Confirmée'
-        : order.status === 'delivering'
-        ? 'En cours de livraison'
-        : 'Livrée';
+    const statusLabel = ORDER_STATUS_LABELS[order.status] || order.status || 'Inconnu';
     const sellersMap = new Map();
     items.forEach((item) => {
       const shopId =
@@ -1112,9 +1270,21 @@ export default function AdminDashboard() {
               {order.customer?.name || 'Client'} · {order.deliveryCity}
             </p>
           </div>
-          <span className="inline-flex items-center rounded-full bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700">
-            {statusLabel}
-          </span>
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            <span className="inline-flex items-center rounded-full bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700">
+              {statusLabel}
+            </span>
+            {order.paymentType === 'installment' && (
+              <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700 border border-amber-200">
+                Tranches
+              </span>
+            )}
+            {order.deliveryMode === 'PICKUP' && (
+              <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 border border-blue-200">
+                Retrait boutique
+              </span>
+            )}
+          </div>
         </div>
         {sellers.length > 0 && (
           <div className="text-xs text-gray-600 space-y-1">
@@ -1217,6 +1387,61 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {isFounder && (
+        <section className="rounded-3xl border border-gray-200/70 bg-white p-4 shadow-sm sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-neutral-900 text-white">
+                <Crown size={18} />
+              </span>
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Mini widget founder</h2>
+                <p className="text-xs text-gray-500">
+                  Synthèse live des métriques exécutives
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/admin/founder-intelligence"
+              className="inline-flex min-h-[40px] items-center rounded-xl border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              Ouvrir la vue complète
+            </Link>
+          </div>
+          {founderMiniError ? (
+            <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              {founderMiniError}
+            </p>
+          ) : null}
+          <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <SectionStatCard
+              label="Revenue / actif"
+              value={formatCurrency(founderMini?.kpis?.revenuePerActiveUser)}
+              helper={founderMiniLoading ? 'Mise à jour…' : `AOV ${formatCurrency(founderMini?.kpis?.averageOrderValue)}`}
+              icon={TrendingUp}
+            />
+            <SectionStatCard
+              label="Rétention 30j"
+              value={`${Number(founderMini?.kpis?.retention30Day || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`}
+              helper={`7j ${Number(founderMini?.kpis?.retention7Day || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`}
+              icon={Users}
+            />
+            <SectionStatCard
+              label="Churn détecté"
+              value={`${Number(founderMini?.kpis?.churnDetectionRate || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`}
+              helper={`${formatNumber(founderMini?.kpis?.highValueUsers)} utilisateurs forte valeur`}
+              icon={AlertCircle}
+            />
+            <SectionStatCard
+              label="Croissance hebdo"
+              value={`${Number(founderMini?.kpis?.growthVelocity?.weekly || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`}
+              helper={`Daily ${Number(founderMini?.kpis?.growthVelocity?.daily || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`}
+              icon={ArrowUpRight}
+            />
+          </div>
+        </section>
+      )}
+
       {canViewStats && shouldShowSection('overview') && (
         <>
           <section className="space-y-6">
@@ -1249,58 +1474,91 @@ export default function AdminDashboard() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              title="Utilisateurs inscrits"
-              value={formatNumber(stats?.users?.total)}
-              subtitle={`${formatNumber(stats?.users?.newLast30Days)} nouveaux sur 30 jours`}
-              icon={Users}
-              trend={stats?.users?.newLast30Days > 0 ? 1 : -1}
-            />
-            <StatCard
-              title="Boutiques actives"
-              value={formatNumber(stats?.users?.shops)}
-              subtitle={`${formatNumber(stats?.users?.admins)} administrateurs`}
-              icon={Store}
-            />
-            <StatCard
-              title="Annonces actives"
-              value={formatNumber(stats?.products?.total)}
-              subtitle={`${formatNumber(stats?.products?.approved)} publiées`}
-              icon={Package}
-            />
-            <StatCard
-              title="Annonces en attente"
-              value={formatNumber(stats?.products?.pending)}
-              subtitle={`${formatNumber(stats?.products?.rejected)} rejetées`}
-              icon={Clock}
-            />
-            <StatCard
-              title="Paiements en attente"
-              value={formatNumber(stats?.payments?.waiting)}
-              subtitle={`${formatNumber(stats?.payments?.verified)} validés`}
-              icon={DollarSign}
-            />
-            <StatCard
-              title="Commentaires"
-              value={formatNumber(stats?.engagement?.comments)}
-              subtitle={`${formatNumber(stats?.engagement?.ratings)} évaluations`}
-              icon={MessageSquare}
-            />
-            <StatCard
-              title="CA total"
-              value={formatCurrency(stats?.payments?.revenue)}
-              subtitle={`${formatCurrency(stats?.payments?.revenueLast30Days)} sur 30 jours`}
-              highlight
-              icon={TrendingUp}
-              trend={stats?.payments?.revenueLast30Days > 0 ? 1 : -1}
-            />
-            <StatCard
-              title="Favoris enregistrés"
-              value={formatNumber(stats?.engagement?.favorites)}
-              subtitle="Total cumulé"
-              icon={ShoppingCart}
-            />
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+              <StatCard
+                title="Utilisateurs en ligne"
+                value={formatNumber(onlineStats?.totalOnline)}
+                subtitle={
+                  onlineStatsLoading
+                    ? 'Mise à jour…'
+                    : `DAU ${formatNumber(onlineStats?.dau)} · Pic ${formatNumber(onlineStats?.peakToday)}`
+                }
+                icon={Wifi}
+                highlight
+              />
+              <StatCard
+                title="Acheteurs en ligne"
+                value={formatNumber(onlineStats?.usersOnline)}
+                subtitle={`WAU ${formatNumber(onlineStats?.weeklyActiveUsers)}`}
+                icon={Users}
+              />
+              <StatCard
+                title="Vendeurs en ligne"
+                value={formatNumber(onlineStats?.sellersOnline)}
+                subtitle="Sessions boutiques"
+                icon={Store}
+              />
+              <StatCard
+                title="Admins en ligne"
+                value={formatNumber(onlineStats?.adminsOnline)}
+                subtitle="Surveillance temps réel"
+                icon={Shield}
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+              <StatCard
+                title="Utilisateurs inscrits"
+                value={formatNumber(stats?.users?.total)}
+                subtitle={`${formatNumber(stats?.users?.newLast30Days)} nouveaux sur 30 jours`}
+                icon={Users}
+                trend={stats?.users?.newLast30Days > 0 ? 1 : -1}
+              />
+              <StatCard
+                title="Boutiques actives"
+                value={formatNumber(stats?.users?.shops)}
+                subtitle={`${formatNumber(stats?.users?.admins)} administrateurs`}
+                icon={Store}
+              />
+              <StatCard
+                title="Annonces actives"
+                value={formatNumber(stats?.products?.total)}
+                subtitle={`${formatNumber(stats?.products?.approved)} publiées`}
+                icon={Package}
+              />
+              <StatCard
+                title="Annonces en attente"
+                value={formatNumber(stats?.products?.pending)}
+                subtitle={`${formatNumber(stats?.products?.rejected)} rejetées`}
+                icon={Clock}
+              />
+              <StatCard
+                title="Paiements en attente"
+                value={formatNumber(stats?.payments?.waiting)}
+                subtitle={`${formatNumber(stats?.payments?.verified)} validés`}
+                icon={DollarSign}
+              />
+              <StatCard
+                title="Commentaires"
+                value={formatNumber(stats?.engagement?.comments)}
+                subtitle={`${formatNumber(stats?.engagement?.ratings)} évaluations`}
+                icon={MessageSquare}
+              />
+              <StatCard
+                title="CA total"
+                value={formatCurrency(stats?.payments?.revenue)}
+                subtitle={`${formatCurrency(stats?.payments?.revenueLast30Days)} sur 30 jours`}
+                highlight
+                icon={TrendingUp}
+                trend={stats?.payments?.revenueLast30Days > 0 ? 1 : -1}
+              />
+              <StatCard
+                title="Favoris enregistrés"
+                value={formatNumber(stats?.engagement?.favorites)}
+                subtitle="Total cumulé"
+                icon={ShoppingCart}
+              />
+            </div>
           </div>
         )}
           </section>
@@ -1416,56 +1674,97 @@ export default function AdminDashboard() {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-                <StatCard
-                  title="Commandes totales"
-                  value={formatNumber(orderStats.total || 0)}
-                  subtitle="Toutes les commandes"
-                  icon={FileText}
-                />
-                <StatCard
-                  title="En attente"
-                  value={formatNumber(orderByStatus.pending?.count || 0)}
-                  subtitle="À valider"
-                  icon={Clock}
-                />
-                <StatCard
-                  title="Confirmées"
-                  value={formatNumber(orderByStatus.confirmed?.count || 0)}
-                  subtitle="À préparer"
-                  icon={CheckCircle}
-                />
-                <StatCard
-                  title="En cours de livraison"
-                  value={formatNumber(orderByStatus.delivering?.count || 0)}
-                  subtitle="Expédiées"
-                  icon={Package}
-                />
-                <StatCard
-                  title="Livrées"
-                  value={formatNumber(orderByStatus.delivered?.count || 0)}
-                  subtitle="Terminées"
-                  icon={CheckCircle}
-                />
-                <StatCard
-                  title="Montant total"
-                  value={formatCurrency(orderStats.totalAmount || 0)}
-                  subtitle="Volume commandes"
-                  highlight
-                  icon={TrendingUp}
-                />
-                <StatCard
-                  title="Acomptes encaissés"
-                  value={formatCurrency(orderStats.paidAmount || 0)}
-                  subtitle="Paiements reçus"
-                  icon={DollarSign}
-                />
-                <StatCard
-                  title="Reste à payer"
-                  value={formatCurrency(orderStats.remainingAmount || 0)}
-                  subtitle="Soldes ouverts"
-                  icon={AlertCircle}
-                />
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                  <StatCard
+                    title="Commandes totales"
+                    value={formatNumber(orderStats.total || 0)}
+                    subtitle="Toutes les commandes"
+                    icon={FileText}
+                  />
+                  <StatCard
+                    title="Paiement"
+                    value={formatNumber(orderStatusCount('pending_payment'))}
+                    subtitle="En attente de paiement"
+                    icon={Clock}
+                  />
+                  <StatCard
+                    title="En attente validation"
+                    value={formatNumber(orderStatusCount('pending', 'pending_installment'))}
+                    subtitle="Préparation requise"
+                    icon={CheckCircle}
+                  />
+                  <StatCard
+                    title="Prêtes au retrait"
+                    value={formatNumber(orderStatusCount('ready_for_pickup', 'picked_up_confirmed'))}
+                    subtitle="Boutique / retrait"
+                    icon={Package}
+                  />
+                  <StatCard
+                    title="Prêtes à livrer"
+                    value={formatNumber(orderStatusCount('ready_for_delivery', 'confirmed'))}
+                    subtitle="Avant expédition"
+                    icon={Package}
+                  />
+                  <StatCard
+                    title="En livraison"
+                    value={formatNumber(orderStatusCount('out_for_delivery', 'delivering', 'delivery_proof_submitted'))}
+                    subtitle="Transport en cours"
+                    icon={Package}
+                  />
+                  <StatCard
+                    title="Livrées"
+                    value={formatNumber(orderStatusCount('delivered', 'confirmed_by_client'))}
+                    subtitle="Terminées"
+                    icon={CheckCircle}
+                  />
+                  <StatCard
+                    title="Annulées"
+                    value={formatNumber(orderStatusCount('cancelled'))}
+                    subtitle="Commandes fermées"
+                    icon={X}
+                  />
+                  <StatCard
+                    title="Montant total"
+                    value={formatCurrency(orderStats.totalAmount || 0)}
+                    subtitle="Volume commandes"
+                    highlight
+                    icon={TrendingUp}
+                  />
+                  <StatCard
+                    title="Acomptes encaissés"
+                    value={formatCurrency(orderStats.paidAmount || 0)}
+                    subtitle="Paiements reçus"
+                    icon={DollarSign}
+                  />
+                  <StatCard
+                    title="Reste a payer"
+                    value={formatCurrency(orderStats.remainingAmount || 0)}
+                    subtitle="Soldes ouverts"
+                    icon={AlertCircle}
+                  />
+                </div>
+                <div className="rounded-2xl border border-gray-200/60 bg-white p-4 shadow-sm">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-gray-900">Répartition par statut backend</p>
+                    <p className="text-xs text-gray-500">Même mapping que /admin/orders</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                    {ORDER_STATUS_SUMMARY_OPTIONS.map((statusItem) => (
+                      <div
+                        key={statusItem.value}
+                        className="rounded-xl border border-gray-100 bg-gray-50/80 px-3 py-2"
+                      >
+                        <p className="truncate text-[11px] font-medium text-gray-600">
+                          {statusItem.label}
+                        </p>
+                        <p className="mt-1 text-base font-bold text-gray-900">
+                          {formatNumber(orderStatusCount(statusItem.value))}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
           </section>
@@ -1603,8 +1902,11 @@ export default function AdminDashboard() {
                   <div>
                     <p className="text-xs uppercase tracking-wide text-gray-500">Relances commandes</p>
                     <h3 className="text-lg font-semibold text-gray-900">
-                      Commandes en attente, confirmées &amp; en cours de livraison
+                      Suivi des statuts alignés sur /admin/orders
                     </h3>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Les statuts livrés, paiement terminé et annulé sont exclus automatiquement.
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -1614,6 +1916,147 @@ export default function AdminDashboard() {
                   >
                     X
                   </button>
+                </div>
+
+                <div className="mb-4 rounded-2xl border border-gray-200 bg-gray-50/80 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+                      Filtres commandes
+                    </p>
+                    <button
+                      type="button"
+                      onClick={resetReminderFilters}
+                      className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-100"
+                    >
+                      <RefreshCw size={12} />
+                      Réinitialiser
+                    </button>
+                  </div>
+                  <div className="space-y-2 sm:hidden">
+                    <div>
+                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                        Statut
+                      </p>
+                      <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
+                        {REMINDER_STATUS_FILTER_OPTIONS.map((statusOption) => {
+                          const isActive = reminderStatusFilter === statusOption.value;
+                          return (
+                            <button
+                              key={statusOption.value}
+                              type="button"
+                              onClick={() => setReminderStatusFilter(statusOption.value)}
+                              aria-pressed={isActive}
+                              className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                                isActive
+                                  ? 'border-neutral-700 bg-neutral-700 text-white'
+                                  : 'border-gray-200 bg-white text-gray-700'
+                              }`}
+                            >
+                              {statusOption.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                        Paiement
+                      </p>
+                      <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
+                        {REMINDER_PAYMENT_TYPE_FILTER_OPTIONS.map((paymentOption) => {
+                          const optionValue = paymentOption.value || '';
+                          const isActive = reminderPaymentTypeFilter === optionValue;
+                          return (
+                            <button
+                              key={optionValue || 'all'}
+                              type="button"
+                              onClick={() =>
+                                setReminderPaymentTypeFilter((prev) =>
+                                  prev === optionValue ? '' : optionValue
+                                )
+                              }
+                              aria-pressed={isActive}
+                              className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                                isActive
+                                  ? 'border-neutral-700 bg-neutral-700 text-white'
+                                  : 'border-gray-200 bg-white text-gray-700'
+                              }`}
+                            >
+                              {paymentOption.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                        Livraison
+                      </p>
+                      <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
+                        {REMINDER_DELIVERY_MODE_FILTER_OPTIONS.map((deliveryOption) => {
+                          const optionValue = deliveryOption.value || '';
+                          const isActive = reminderDeliveryModeFilter === optionValue;
+                          return (
+                            <button
+                              key={optionValue || 'all'}
+                              type="button"
+                              onClick={() =>
+                                setReminderDeliveryModeFilter((prev) =>
+                                  prev === optionValue ? '' : optionValue
+                                )
+                              }
+                              aria-pressed={isActive}
+                              className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                                isActive
+                                  ? 'border-neutral-700 bg-neutral-700 text-white'
+                                  : 'border-gray-200 bg-white text-gray-700'
+                              }`}
+                            >
+                              {deliveryOption.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="hidden grid-cols-1 gap-2 sm:grid sm:grid-cols-3">
+                    <select
+                      value={reminderStatusFilter}
+                      onChange={(event) => setReminderStatusFilter(event.target.value)}
+                      className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-neutral-500"
+                    >
+                      {REMINDER_STATUS_FILTER_OPTIONS.map((statusOption) => (
+                        <option key={statusOption.value} value={statusOption.value}>
+                          {statusOption.label}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={reminderPaymentTypeFilter}
+                      onChange={(event) => setReminderPaymentTypeFilter(event.target.value)}
+                      className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-neutral-500"
+                    >
+                      {REMINDER_PAYMENT_TYPE_FILTER_OPTIONS.map((paymentOption) => (
+                        <option key={paymentOption.value || 'all'} value={paymentOption.value}>
+                          {paymentOption.label}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={reminderDeliveryModeFilter}
+                      onChange={(event) => setReminderDeliveryModeFilter(event.target.value)}
+                      className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-neutral-500"
+                    >
+                      {REMINDER_DELIVERY_MODE_FILTER_OPTIONS.map((deliveryOption) => (
+                        <option key={deliveryOption.value || 'all'} value={deliveryOption.value}>
+                          {deliveryOption.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 {remindersLoading ? (

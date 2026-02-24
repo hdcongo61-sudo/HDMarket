@@ -5,7 +5,7 @@ import AuthContext from '../context/AuthContext';
 
 export default function AdminDeliveryGuys() {
   const { user } = useContext(AuthContext);
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'founder';
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

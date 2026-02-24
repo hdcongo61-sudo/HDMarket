@@ -134,13 +134,19 @@ export default function Navbar() {
   const [unreadOrderMessages, setUnreadOrderMessages] = useState(0);
 
   const isAdmin = user?.role === "admin";
+  const isFounder = user?.role === 'founder';
   const isManager = user?.role === "manager";
-  const canAccessBackOffice = isAdmin || isManager;
+  const isAdminLike = isAdmin || isFounder;
+  const canAccessBackOffice = isAdminLike || isManager;
   const canManageDelivery = Boolean(user?.canManageDelivery);
   const canManageProducts = Boolean(user?.canManageProducts);
   const canManageChatTemplates = Boolean(user?.canManageChatTemplates);
   const canVerifyPayments = Boolean(user?.canVerifyPayments);
-  const adminLinkLabel = isManager ? t('nav.management', 'Gestion') : t('nav.admin', 'Admin');
+  const adminLinkLabel = isManager
+    ? t('nav.management', 'Gestion')
+    : isFounder
+      ? t('nav.founder', 'Founder')
+      : t('nav.admin', 'Admin');
 
   // Enable admin counts for admins, managers, and users with payment verification access
   const shouldLoadAdminCounts = canAccessBackOffice || canVerifyPayments;
@@ -291,7 +297,7 @@ export default function Navbar() {
   }, [user]);
 
   useEffect(() => {
-    if (!user || isAdmin) {
+    if (!user || isAdminLike) {
       setSellerOrders(0);
       return () => {};
     }
@@ -321,7 +327,7 @@ export default function Navbar() {
       cancelled = true;
       if (intervalId) clearInterval(intervalId);
     };
-  }, [user, isAdmin]);
+  }, [user, isAdminLike]);
 
   useEffect(() => {
     if (!user) {
@@ -3037,7 +3043,7 @@ export default function Navbar() {
                           <span className="text-sm font-semibold">{t('nav.deliveryGuys', 'Livreurs')}</span>
                         </Link>
                       )}
-                      {(user?.role === 'admin' || canManageChatTemplates) && (
+                      {(isAdminLike || canManageChatTemplates) && (
                         <Link
                           to="/admin/chat-templates"
                           className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -3046,7 +3052,7 @@ export default function Navbar() {
                           <span className="text-sm font-semibold">{t('nav.chatTemplates', 'Chat templates')}</span>
                         </Link>
                       )}
-                      {user?.role === 'admin' && (
+                      {isAdminLike && (
                         <Link
                           to="/admin/settings"
                           className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -3055,7 +3061,7 @@ export default function Navbar() {
                           <span className="text-sm font-semibold">{t('nav.appSettings', 'App Settings')}</span>
                         </Link>
                       )}
-                      {(isAdmin || user?.canReadFeedback) && (
+                      {(isAdminLike || user?.canReadFeedback) && (
                         <Link
                           to="/admin/feedback"
                           className="relative flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -3069,7 +3075,7 @@ export default function Navbar() {
                           )}
                         </Link>
                       )}
-                      {(isAdmin || user?.canVerifyPayments) && (
+                      {(isAdminLike || user?.canVerifyPayments) && (
                         <Link
                           to="/admin/payment-verification"
                           className="relative flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -3092,7 +3098,7 @@ export default function Navbar() {
                           <span className="text-sm font-semibold">{t('nav.handleComplaints', 'Traiter les réclamations')}</span>
                         </Link>
                       )}
-                      {!isAdmin && user?.canManageBoosts && (
+                      {!isAdminLike && user?.canManageBoosts && (
                         <Link
                           to="/admin/product-boosts"
                           className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -3101,7 +3107,7 @@ export default function Navbar() {
                           <span className="text-sm font-semibold">{t('nav.productBoosts', 'Boost produits')}</span>
                         </Link>
                       )}
-                      {isAdmin && (
+                      {isAdminLike && (
                         <Link
                           to="/admin/payment-verifiers"
                           className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -3110,7 +3116,7 @@ export default function Navbar() {
                           <span className="text-sm font-semibold">{t('nav.paymentVerifiers', 'Vérificateurs paiements')}</span>
                         </Link>
                       )}
-                      {isAdmin && (
+                      {isAdminLike && (
                         <Link
                           to="/admin/product-boosts"
                           className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -3119,7 +3125,7 @@ export default function Navbar() {
                           <span className="text-sm font-semibold">{t('nav.productBoosts', 'Boost produits')}</span>
                         </Link>
                       )}
-                      {isAdmin && (
+                      {isAdminLike && (
                         <Link
                           to="/admin/reports"
                           className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -3695,7 +3701,7 @@ export default function Navbar() {
                       {t('nav.adminOrders', 'Commandes admin')}
                     </NavLink>
                   )}
-                  {(isAdmin || user?.canReadFeedback) && (
+                  {(isAdminLike || user?.canReadFeedback) && (
                     <NavLink
                       to="/admin/feedback"
                       onClick={() => setIsMenuOpen(false)}
@@ -3710,7 +3716,7 @@ export default function Navbar() {
                       )}
                     </NavLink>
                   )}
-                  {(isAdmin || user?.canVerifyPayments) && (
+                  {(isAdminLike || user?.canVerifyPayments) && (
                     <NavLink
                       to="/admin/payment-verification"
                       onClick={() => setIsMenuOpen(false)}
@@ -3745,7 +3751,7 @@ export default function Navbar() {
                       {t('nav.chatTemplates', 'Chat templates')}
                     </NavLink>
                   )}
-                  {!isAdmin && user?.canManageBoosts && (
+                  {!isAdminLike && user?.canManageBoosts && (
                     <NavLink
                       to="/admin/product-boosts"
                       onClick={() => setIsMenuOpen(false)}
@@ -3755,7 +3761,7 @@ export default function Navbar() {
                       {t('nav.productBoosts', 'Boost produits')}
                     </NavLink>
                   )}
-                  {isAdmin && (
+                  {isAdminLike && (
                     <NavLink
                       to="/admin/payment-verifiers"
                       onClick={() => setIsMenuOpen(false)}
@@ -3765,7 +3771,7 @@ export default function Navbar() {
                       {t('nav.paymentVerifiers', 'Vérificateurs paiements')}
                     </NavLink>
                   )}
-                  {isAdmin && (
+                  {isAdminLike && (
                     <NavLink
                       to="/admin/product-boosts"
                       onClick={() => setIsMenuOpen(false)}
@@ -3775,7 +3781,7 @@ export default function Navbar() {
                       {t('nav.productBoosts', 'Boost produits')}
                     </NavLink>
                   )}
-                  {isAdmin && (
+                  {isAdminLike && (
                     <NavLink
                       to="/admin/reports"
                       onClick={() => setIsMenuOpen(false)}
@@ -3824,7 +3830,7 @@ export default function Navbar() {
                       </span>
                     )}
                   </NavLink>
-                      {user?.role === 'admin' && (
+                      {isAdminLike && (
                         <>
                           <NavLink
                             to="/admin/promo-codes"

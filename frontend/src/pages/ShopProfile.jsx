@@ -14,11 +14,15 @@ import {
   MessageCircle,
   Navigation,
   Package,
+  Pencil,
   Phone,
+  Rocket,
+  Share2,
   ShieldCheck,
   Sparkles,
   Star,
   Store,
+  TrendingUp,
   Users,
   X
 } from 'lucide-react';
@@ -75,6 +79,16 @@ const formatDate = (value) => {
 };
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
+
+const coerceFlag = (value) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return ['true', '1', 'yes', 'oui', 'verified', 'certified'].includes(normalized);
+  }
+  return false;
+};
 
 const normalizeTimeLabel = (value) => {
   if (!value) return '';
@@ -266,7 +280,12 @@ const ProductsSkeleton = memo(function ProductsSkeleton() {
   );
 });
 
-const OpeningHoursCard = memo(function OpeningHoursCard({ hours, className = '', certified = false }) {
+const OpeningHoursCard = memo(function OpeningHoursCard({
+  hours,
+  className = '',
+  certified = false,
+  compact = false
+}) {
   const [expanded, setExpanded] = useState(false);
   const timeZone = getTimeZone();
 
@@ -274,39 +293,43 @@ const OpeningHoursCard = memo(function OpeningHoursCard({ hours, className = '',
 
   return (
     <section
-      className={`rounded-2xl border bg-white shadow-sm ${
+      className={`${compact ? 'rounded-xl' : 'rounded-2xl'} border bg-white shadow-sm ${
         certified ? 'border-emerald-200/90' : 'border-slate-200'
       } ${className}`}
       aria-label="Horaires d'ouverture"
     >
-      <div className="flex items-start justify-between gap-3 px-4 py-4 sm:px-5">
+      <div className={`flex items-start justify-between gap-2.5 ${compact ? 'px-3 py-3' : 'px-4 py-4 sm:px-5'}`}>
         <div>
-          <h3 className="text-base font-semibold text-slate-900">Horaires</h3>
-          <p className="mt-1 text-xs text-slate-500">Fuseau: {timeZone}</p>
+          <h3 className={`${compact ? 'text-sm' : 'text-base'} font-semibold text-slate-900`}>Horaires</h3>
+          <p className={`mt-1 ${compact ? 'text-[11px]' : 'text-xs'} text-slate-500`}>Fuseau: {timeZone}</p>
         </div>
         <span
-          className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
+          className={`inline-flex items-center ${compact ? 'gap-1.5 px-2.5 py-0.5 text-[11px]' : 'gap-2 px-3 py-1 text-xs'} rounded-full font-semibold ${
             summary.isOpen ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
           }`}
         >
-          <span className={`h-2 w-2 rounded-full ${summary.isOpen ? 'bg-emerald-500' : 'bg-red-500'}`} />
+          <span className={`${compact ? 'h-1.5 w-1.5' : 'h-2 w-2'} rounded-full ${summary.isOpen ? 'bg-emerald-500' : 'bg-red-500'}`} />
           {summary.isOpen ? 'Ouvert' : 'Fermé'}
         </span>
       </div>
 
-      <div className={`border-y px-4 py-3 sm:px-5 ${certified ? 'border-emerald-100/80' : 'border-slate-100'}`}>
-        <p className="text-sm font-medium text-slate-800">{summary.statusText}</p>
+      <div
+        className={`border-y ${compact ? 'px-3 py-2' : 'px-4 py-3 sm:px-5'} ${
+          certified ? 'border-emerald-100/80' : 'border-slate-100'
+        }`}
+      >
+        <p className={`${compact ? 'text-xs' : 'text-sm'} font-medium text-slate-800`}>{summary.statusText}</p>
       </div>
 
       <button
         type="button"
         onClick={() => setExpanded((prev) => !prev)}
-        className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 sm:px-5"
+        className={`flex w-full items-center justify-between ${compact ? 'px-3 py-2.5 text-xs' : 'px-4 py-3 text-sm sm:px-5'} font-medium text-slate-700 transition-colors hover:bg-slate-50`}
         aria-expanded={expanded}
         aria-controls="shop-hours-weekly"
       >
         <span>Voir la semaine complète</span>
-        {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        {expanded ? <ChevronUp size={compact ? 14 : 16} /> : <ChevronDown size={compact ? 14 : 16} />}
       </button>
 
       <div
@@ -314,13 +337,13 @@ const OpeningHoursCard = memo(function OpeningHoursCard({ hours, className = '',
         className={`grid transition-all duration-300 ease-out ${expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
       >
         <div className="overflow-hidden">
-          <ul className="space-y-2 px-4 pb-4 sm:px-5">
+          <ul className={`space-y-2 ${compact ? 'px-3 pb-3' : 'px-4 pb-4 sm:px-5'}`}>
             {summary.normalizedHours.map((entry) => {
               const isToday = entry.day === summary.todayKey;
               return (
                 <li
                   key={entry.day}
-                  className={`flex items-center justify-between rounded-xl px-3 py-2 text-sm ${
+                  className={`flex items-center justify-between rounded-xl ${compact ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-2 text-sm'} ${
                     isToday ? 'bg-neutral-50 text-neutral-700' : 'text-slate-600'
                   }`}
                 >
@@ -382,6 +405,19 @@ export default function ShopProfile() {
     () => (Array.isArray(shopQuery.data?.recentReviews) ? shopQuery.data.recentReviews : []),
     [shopQuery.data?.recentReviews]
   );
+  const shopVerifiedFlag =
+    coerceFlag(shop?.shopVerified) ||
+    coerceFlag(shop?.verified) ||
+    coerceFlag(shop?.isVerified) ||
+    coerceFlag(shop?.verificationStatus);
+
+  useEffect(() => {
+    const canonicalSlug = String(shop?.slug || '').trim();
+    const routeSlug = String(slug || '').trim();
+    const looksLikeObjectId = /^[a-f0-9]{24}$/i.test(routeSlug);
+    if (!looksLikeObjectId || !canonicalSlug || canonicalSlug === routeSlug) return;
+    navigate(`/shop/${canonicalSlug}`, { replace: true });
+  }, [navigate, shop?.slug, slug]);
 
   const shopIdentifier = shop?.slug || shop?._id || slug;
   const userScopeId = user?._id || user?.id;
@@ -444,6 +480,15 @@ export default function ShopProfile() {
       acc.push(category);
       return acc;
     }, []);
+  }, [products]);
+
+  const categoryCounts = useMemo(() => {
+    return products.reduce((acc, product) => {
+      const category = String(product?.category || '').trim();
+      if (!category) return acc;
+      acc[category] = Number(acc[category] || 0) + 1;
+      return acc;
+    }, {});
   }, [products]);
 
   const filteredProducts = useMemo(() => {
@@ -538,7 +583,7 @@ export default function ShopProfile() {
       });
     }
   });
-  const followDisabled = followMutation.isPending || !shop?._id || !shop?.shopVerified || isOwnShop;
+  const followDisabled = followMutation.isPending || !shop?._id || !shopVerifiedFlag || isOwnShop;
   const mobileFollowLabel =
     followMutation.isPending ? '...' : isOwnShop ? 'Ma boutique' : isFollowing ? 'Suivie' : 'Suivre';
 
@@ -586,6 +631,41 @@ export default function ShopProfile() {
     }
   }, [shop?.shopAddress, shop?.shopName]);
 
+  const handleShareShop = useCallback(async () => {
+    const title = shop?.shopName || 'Boutique HDMarket';
+    const text = `Découvrez ${title} sur HDMarket`;
+    const url =
+      typeof window !== 'undefined'
+        ? window.location.href
+        : `https://hdmarket.app/shop/${slug}`;
+
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+        await navigator.share({ title, text, url });
+        return;
+      }
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        showToast('Lien boutique copié.', { variant: 'success' });
+        return;
+      }
+      showToast('Partage indisponible sur cet appareil.', { variant: 'info' });
+    } catch {
+      // user canceled native share
+    }
+  }, [shop?.shopName, showToast, slug]);
+
+  const handlePrimaryAction = useCallback(() => {
+    if (isOwnShop) {
+      navigate('/profile');
+      return;
+    }
+    const node = document.getElementById('products');
+    if (node) {
+      node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [isOwnShop, navigate]);
+
   const handleFollowToggle = useCallback(() => {
     if (followMutation.isPending) return;
     if (!shop?._id) {
@@ -601,12 +681,12 @@ export default function ShopProfile() {
       showToast('Vous ne pouvez pas suivre votre propre boutique.', { variant: 'info' });
       return;
     }
-    if (!shop.shopVerified) {
+    if (!shopVerifiedFlag) {
       showToast('Seules les boutiques certifiées peuvent être suivies.', { variant: 'info' });
       return;
     }
     followMutation.mutate();
-  }, [followMutation, isOwnShop, navigate, shop?._id, shop?.shopVerified, shopQuery, showToast, slug, user]);
+  }, [followMutation, isOwnShop, navigate, shop?._id, shopQuery, shopVerifiedFlag, showToast, slug, user]);
 
   const handleSubmitReview = (event) => {
     event.preventDefault();
@@ -626,14 +706,57 @@ export default function ShopProfile() {
   const ratingAverage = Number(shop?.ratingAverage || 0);
   const ratingCount = Number(shop?.ratingCount || 0);
   const followersCount = Number(shop?.followersCount || 0);
-  const isCertifiedShop = Boolean(shop?.shopVerified);
+  const shopTimeZone = useMemo(() => getTimeZone(), []);
+  const openingSummary = useMemo(
+    () => getOpeningSummary(shop?.shopHours || [], shopTimeZone),
+    [shop?.shopHours, shopTimeZone]
+  );
+  const hasVerifiedSellerInProducts = useMemo(
+    () =>
+      products.some((product) =>
+        coerceFlag(
+          product?.user?.shopVerified ??
+            product?.shopVerified ??
+            product?.verified ??
+            product?.isVerified
+        )
+      ),
+    [products]
+  );
+  const isCertifiedShop = useMemo(
+    () =>
+      shopVerifiedFlag ||
+      hasVerifiedSellerInProducts,
+    [
+      hasVerifiedSellerInProducts,
+      shopVerifiedFlag
+    ]
+  );
+  const useCompactProductCards = Boolean(isMobile);
   const hasActivePromo = Boolean(shop?.hasActivePromo && Number(shop?.activePromoCountNow || 0) > 0);
   const hasFreeDelivery = Boolean(shop?.freeDeliveryEnabled);
+  const completedOrders = useMemo(
+    () =>
+      products.reduce((total, product) => {
+        const count = Number(product?.salesCount || 0);
+        return total + (Number.isFinite(count) && count > 0 ? count : 0);
+      }, 0),
+    [products]
+  );
+  const yearsActiveLabel = useMemo(() => {
+    if (!shop?.createdAt) return 'Nouveau';
+    const createdAt = new Date(shop.createdAt);
+    if (Number.isNaN(createdAt.getTime())) return 'Nouveau';
+    const today = new Date();
+    const yearDiff = today.getFullYear() - createdAt.getFullYear();
+    return yearDiff <= 0 ? 'Nouveau' : `${yearDiff} an${yearDiff > 1 ? 's' : ''}`;
+  }, [shop?.createdAt]);
+  const customerSatisfaction = ratingCount > 0 ? `${Math.round((ratingAverage / 5) * 100)}%` : 'Nouveau';
   const ownCommentExists = Boolean(currentUserReview?.comment?.trim());
   const showReviewForm = !ownCommentExists || isEditingReview;
-  const productGridClass = isCertifiedShop
-    ? 'grid grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-3'
-    : 'grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-3';
+  const productGridClass = useCompactProductCards
+    ? 'grid grid-cols-2 gap-2 max-[375px]:gap-1.5'
+    : 'grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-3';
 
   const stats = [
     {
@@ -642,9 +765,14 @@ export default function ShopProfile() {
       value: formatCount(shop?.productCount ?? products.length)
     },
     {
+      icon: <TrendingUp size={16} className="text-indigo-600" />,
+      label: 'Commandes',
+      value: formatCount(completedOrders)
+    },
+    {
       icon: <Star size={16} className="text-amber-500" />,
-      label: 'Note',
-      value: formatRatingLabel(ratingAverage)
+      label: 'Avis',
+      value: formatCount(ratingCount)
     },
     {
       icon: <Users size={16} className="text-sky-600" />,
@@ -809,7 +937,23 @@ export default function ShopProfile() {
               <div className="min-w-0 flex-1 pt-0.5 sm:pt-2">
                 <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                   <h2 className="truncate text-lg font-bold max-[375px]:text-base sm:text-2xl">{shop.shopName}</h2>
-                  <VerifiedBadge verified={shop.shopVerified} />
+                  <VerifiedBadge verified={isCertifiedShop} />
+                </div>
+                <div className="mt-1 flex flex-wrap items-center justify-center gap-1.5 sm:justify-start">
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                      openingSummary.isOpen
+                        ? 'bg-emerald-300/25 text-emerald-100'
+                        : 'bg-rose-300/25 text-rose-100'
+                    }`}
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${openingSummary.isOpen ? 'bg-emerald-300' : 'bg-rose-300'}`} />
+                    {openingSummary.statusText}
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold text-white/90">
+                    <Star size={11} className={ratingAverage > 0 ? 'fill-current' : ''} />
+                    {formatRatingLabel(ratingAverage)} · {formatCount(ratingCount)} avis
+                  </span>
                 </div>
                 <p className="mt-1 text-xs text-white/85 sm:text-sm">Gérée par {shop.ownerName}</p>
                 <p className="mt-1.5 line-clamp-2 text-xs text-white/80 sm:mt-2 sm:text-sm sm:line-clamp-3">
@@ -818,7 +962,7 @@ export default function ShopProfile() {
               </div>
             </div>
 
-            <div className="mt-3 grid grid-cols-3 gap-1.5 max-[375px]:gap-1 sm:mt-4 sm:gap-3">
+            <div className="mt-3 grid grid-cols-2 gap-1.5 max-[375px]:gap-1 sm:mt-4 sm:grid-cols-4 sm:gap-3">
               {stats.map((item) => (
                 <div key={item.label} className="rounded-xl border border-white/20 bg-white/10 px-2 py-1.5 backdrop-blur sm:px-3 sm:py-2">
                   <div className="flex items-center gap-1 text-[10px] text-white/80 sm:text-[11px]">
@@ -862,6 +1006,14 @@ export default function ShopProfile() {
                 <Calendar size={13} />
                 Depuis {formatDate(shop.createdAt)}
               </span>
+              <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white/90 sm:px-3 sm:text-xs">
+                <Clock size={13} />
+                Ancienneté: {yearsActiveLabel}
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white/90 sm:px-3 sm:text-xs">
+                <TrendingUp size={13} />
+                Satisfaction: {customerSatisfaction}
+              </span>
             </div>
           </div>
         </section>
@@ -870,7 +1022,7 @@ export default function ShopProfile() {
           <div className="space-y-4 sm:space-y-6">
             <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-5 lg:hidden">
               <div className="space-y-3">
-                <OpeningHoursCard hours={shop.shopHours} certified={isCertifiedShop} />
+                <OpeningHoursCard hours={shop.shopHours} certified={isCertifiedShop} compact={isMobile} />
               </div>
             </section>
 
@@ -881,12 +1033,40 @@ export default function ShopProfile() {
               aria-label="Actions boutique"
             >
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-slate-900">Actions rapides</h3>
+                <h3 className="text-sm font-semibold text-slate-900">Actions</h3>
                 {isCertifiedShop && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
                     <ShieldCheck size={12} />
                     Vérifiée
                   </span>
+                )}
+              </div>
+
+              <div className="mb-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handlePrimaryAction}
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-neutral-900 px-2 text-xs font-semibold text-white transition hover:bg-black sm:min-h-12 sm:text-sm"
+                >
+                  {isOwnShop ? <Pencil size={15} /> : <Store size={15} />}
+                  {isOwnShop ? 'Modifier profil' : 'Voir produits'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleShareShop}
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 sm:min-h-12 sm:text-sm"
+                >
+                  <Share2 size={15} />
+                  Partager
+                </button>
+                {isOwnShop && (
+                  <Link
+                    to="/seller/boosts"
+                    className="col-span-2 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 sm:min-h-12 sm:text-sm"
+                  >
+                    <Rocket size={15} />
+                    Booster ma boutique
+                  </Link>
                 )}
               </div>
 
@@ -956,8 +1136,9 @@ export default function ShopProfile() {
                 <p className="font-semibold text-slate-700">Confiance & service</p>
                 <div className="mt-1 flex flex-wrap gap-2.5">
                   <span className="inline-flex items-center gap-1"><ShieldCheck size={13} /> Paiement sécurisé</span>
-                  <span className="inline-flex items-center gap-1"><CheckCircle size={13} /> Boutique vérifiée</span>
+                  <span className="inline-flex items-center gap-1"><CheckCircle size={13} /> {isCertifiedShop ? 'Boutique vérifiée' : 'Vérification en cours'}</span>
                   <span className="inline-flex items-center gap-1"><Clock size={13} /> Réponse en journée</span>
+                  <span className="inline-flex items-center gap-1"><TrendingUp size={13} /> Satisfaction {customerSatisfaction}</span>
                 </div>
               </div>
             </section>
@@ -983,46 +1164,93 @@ export default function ShopProfile() {
                 </button>
               </div>
 
-              <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-                <button
-                  type="button"
-                  onClick={() => setActiveCategory('all')}
-                  className={`whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold transition ${
-                    activeCategory === 'all'
-                      ? 'bg-neutral-600 text-white'
-                      : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  Tous
-                </button>
-                {hasActivePromo && (
+              <div className="mt-4 rounded-2xl border border-slate-200/90 bg-slate-50/70 p-2.5 sm:border-transparent sm:bg-transparent sm:p-0">
+                <div className="mb-2 flex items-center justify-between px-0.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-[11px]">
+                    Filtrer par catégorie
+                  </p>
                   <button
                     type="button"
-                    onClick={() => setPromoOnly((prev) => !prev)}
-                    disabled={!hasPromoProducts}
-                    className={`whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold transition ${
-                      promoOnly
-                        ? 'bg-amber-500 text-white'
-                        : 'border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
-                    } ${!hasPromoProducts ? 'cursor-not-allowed opacity-50' : ''}`}
+                    onClick={() => {
+                      setActiveCategory('all');
+                      setPromoOnly(false);
+                    }}
+                    className="text-[11px] font-semibold text-slate-500 transition hover:text-slate-700"
                   >
-                    Promos
+                    Réinitialiser
                   </button>
-                )}
-                {categories.map((category) => (
-                  <button
-                    key={category}
-                    type="button"
-                    onClick={() => setActiveCategory(category)}
-                    className={`whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold transition ${
-                      activeCategory === category
-                        ? 'bg-neutral-600 text-white'
-                        : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    {category}
-                  </button>
-                ))}
+                </div>
+
+                <div className="-mx-0.5 overflow-x-auto px-0.5 pb-1">
+                  <div className="flex w-max items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveCategory('all')}
+                      aria-pressed={activeCategory === 'all'}
+                      className={`inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-xs font-semibold transition sm:min-h-9 sm:rounded-full ${
+                        activeCategory === 'all'
+                          ? 'bg-neutral-900 text-white shadow-sm'
+                          : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      Tous
+                      <span
+                        className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                          activeCategory === 'all'
+                            ? 'bg-white/20 text-white'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        {formatCount(products.length)}
+                      </span>
+                    </button>
+
+                    {hasActivePromo && (
+                      <button
+                        type="button"
+                        onClick={() => setPromoOnly((prev) => !prev)}
+                        disabled={!hasPromoProducts}
+                        aria-pressed={promoOnly}
+                        className={`inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-xs font-semibold transition sm:min-h-9 sm:rounded-full ${
+                          promoOnly
+                            ? 'bg-amber-500 text-white shadow-sm'
+                            : 'border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                        } ${!hasPromoProducts ? 'cursor-not-allowed opacity-50' : ''}`}
+                      >
+                        <Sparkles size={12} />
+                        Promos
+                      </button>
+                    )}
+
+                    {categories.map((category) => {
+                      const isActive = activeCategory === category;
+                      return (
+                        <button
+                          key={category}
+                          type="button"
+                          onClick={() => setActiveCategory(category)}
+                          aria-pressed={isActive}
+                          className={`inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-xs font-semibold transition sm:min-h-9 sm:rounded-full ${
+                            isActive
+                              ? 'bg-neutral-900 text-white shadow-sm'
+                              : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span>{category}</span>
+                          <span
+                            className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                              isActive
+                                ? 'bg-white/20 text-white'
+                                : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            {formatCount(categoryCounts[category] || 0)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               <div className="mt-4">
@@ -1030,7 +1258,12 @@ export default function ShopProfile() {
                 {productsInView && filteredProducts.length > 0 && (
                   <div className={productGridClass}>
                     {filteredProducts.map((product) => (
-                      <ProductCard key={product._id} p={product} hideMobileDiscountBadge />
+                      <ProductCard
+                        key={`${product._id}-${useCompactProductCards ? 'compact' : 'regular'}`}
+                        p={product}
+                        hideMobileDiscountBadge
+                        compactMobile={useCompactProductCards}
+                      />
                     ))}
                   </div>
                 )}
@@ -1103,10 +1336,34 @@ export default function ShopProfile() {
                   <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Profil</dt>
                   <dd className="mt-1 flex items-start gap-2 text-sm text-slate-700">
                     <ShieldCheck size={15} className="mt-0.5 shrink-0 text-slate-500" />
-                    <span>{shop.shopVerified ? 'Boutique vérifiée' : 'Vérification en attente'}</span>
+                    <span>{isCertifiedShop ? 'Boutique vérifiée' : 'Vérification en attente'}</span>
                   </dd>
                 </div>
               </dl>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-5" aria-label="Politiques boutique">
+              <h3 className="text-base font-semibold text-slate-900 sm:text-lg">Politiques boutique</h3>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                  <p className="font-semibold text-slate-800">Livraison</p>
+                  <p className="mt-1">{hasFreeDelivery ? 'Livraison gratuite active selon zone.' : 'Retrait en boutique ou livraison standard.'}</p>
+                </div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                  <p className="font-semibold text-slate-800">Paiement</p>
+                  <p className="mt-1">Paiement sécurisé sur HDMarket.</p>
+                </div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                  <p className="font-semibold text-slate-800">Service client</p>
+                  <p className="mt-1">Réponse en journée avec suivi des messages.</p>
+                </div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                  <p className="font-semibold text-slate-800">Confiance</p>
+                  <p className="mt-1">
+                    {isCertifiedShop ? 'Boutique certifiée HDMarket.' : 'Boutique en cours de vérification.'}
+                  </p>
+                </div>
+              </div>
             </section>
 
             <section ref={reviewsRef} id="reviews" className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-5" aria-label="Avis boutique">
@@ -1272,6 +1529,15 @@ export default function ShopProfile() {
                 <div className="mt-3 grid gap-2">
                   <button
                     type="button"
+                    onClick={handlePrimaryAction}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-neutral-900 px-4 text-sm font-semibold text-white transition hover:bg-black"
+                  >
+                    {isOwnShop ? <Pencil size={16} /> : <Store size={16} />}
+                    {isOwnShop ? 'Modifier profil boutique' : 'Voir produits boutique'}
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={goToMessage}
                     className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-neutral-600 px-4 text-sm font-semibold text-white transition hover:bg-neutral-700"
                   >
@@ -1295,6 +1561,25 @@ export default function ShopProfile() {
                     >
                       <Phone size={16} />
                       Connectez-vous pour appeler
+                    </Link>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleShareShop}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    <Share2 size={16} />
+                    Partager
+                  </button>
+
+                  {isOwnShop && (
+                    <Link
+                      to="/seller/boosts"
+                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 text-sm font-semibold text-amber-700 transition hover:bg-amber-100"
+                    >
+                      <Rocket size={16} />
+                      Booster ma boutique
                     </Link>
                   )}
 
@@ -1326,8 +1611,10 @@ export default function ShopProfile() {
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Confiance</p>
                   <div className="mt-2 space-y-2 text-xs text-slate-700">
                     <p className="flex items-center gap-2"><ShieldCheck size={13} /> Paiement sécurisé</p>
-                    <p className="flex items-center gap-2"><CheckCircle size={13} /> {shop.shopVerified ? 'Boutique vérifiée' : 'Vérification en cours'}</p>
+                    <p className="flex items-center gap-2"><CheckCircle size={13} /> {isCertifiedShop ? 'Boutique vérifiée' : 'Vérification en cours'}</p>
                     <p className="flex items-center gap-2"><Sparkles size={13} /> {hasFreeDelivery ? 'Livraison gratuite active' : 'Retrait en boutique possible'}</p>
+                    <p className="flex items-center gap-2"><TrendingUp size={13} /> Satisfaction {customerSatisfaction}</p>
+                    <p className="flex items-center gap-2"><Clock size={13} /> Ancienneté {yearsActiveLabel}</p>
                   </div>
                 </div>
               </section>
@@ -1339,6 +1626,24 @@ export default function ShopProfile() {
       {isMobile && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2.5 py-2.5 backdrop-blur-xl safe-area-pb max-[375px]:px-2 max-[375px]:py-2">
           <div className="space-y-1.5 sm:space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={handlePrimaryAction}
+                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-neutral-900 text-xs font-semibold text-white sm:min-h-12 sm:gap-2 sm:text-sm"
+              >
+                {isOwnShop ? <Pencil size={15} /> : <Store size={15} />}
+                <span>{isOwnShop ? 'Modifier' : 'Produits'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleShareShop}
+                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 sm:min-h-12 sm:gap-2 sm:text-sm"
+              >
+                <Share2 size={15} />
+                Partager
+              </button>
+            </div>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"

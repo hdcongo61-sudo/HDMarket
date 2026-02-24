@@ -1,8 +1,9 @@
 import React, { useContext } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
+import { hasAnyPermission } from '../utils/permissions';
 
-export default function ProtectedRoute({ children, role, roles, allowAccess }) {
+export default function ProtectedRoute({ children, role, roles, permissions, allowAccess }) {
   const location = useLocation();
   const { user, loading } = useContext(AuthContext);
   if (loading) {
@@ -25,8 +26,21 @@ export default function ProtectedRoute({ children, role, roles, allowAccess }) {
   // Otherwise, check roles
   const allowedRoles =
     (Array.isArray(roles) && roles.length ? roles : null) || (role ? [role] : null);
+  const normalizedUserRole = String(user?.role || '').toLowerCase();
+  const normalizedAllowedRoles = allowedRoles?.map((item) => String(item || '').toLowerCase()) || null;
+  const founderAsAdminAllowed =
+    normalizedUserRole === 'founder' && Array.isArray(normalizedAllowedRoles)
+      ? normalizedAllowedRoles.includes('admin')
+      : false;
 
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  if (
+    normalizedAllowedRoles &&
+    !normalizedAllowedRoles.includes(normalizedUserRole) &&
+    !founderAsAdminAllowed
+  ) {
+    return <Navigate to="/" replace />;
+  }
+  if (permissions && !hasAnyPermission(user, permissions)) {
     return <Navigate to="/" replace />;
   }
   return children;

@@ -1,15 +1,21 @@
-import React, { useContext, useEffect, useMemo } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Palette, UserCircle } from 'lucide-react';
+import { ArrowLeft, Palette, RefreshCcw, UserCircle } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import LanguageSwitcher from '../components/settings/LanguageSwitcher';
 import CurrencySelector from '../components/settings/CurrencySelector';
 import CitySelector from '../components/settings/CitySelector';
+import { useToast } from '../context/ToastContext';
+import { unregisterServiceWorker } from '../utils/serviceWorker';
 
 export default function UserSettings() {
   const { user } = useContext(AuthContext);
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const { theme, setTheme, formatPrice, savingPreferences, t, refreshSettings } = useAppSettings();
+  const [clearingPwaCache, setClearingPwaCache] = useState(false);
   const themeOptions = useMemo(
     () => [
       { value: 'system', label: t('settings.theme.system', 'Systeme') },
@@ -24,6 +30,63 @@ export default function UserSettings() {
   useEffect(() => {
     refreshSettings();
   }, [refreshSettings]);
+
+  const handleClearPwaCache = useCallback(async () => {
+    if (clearingPwaCache) return;
+    const shouldContinue =
+      typeof window === 'undefined'
+        ? true
+        : window.confirm(
+            t(
+              'settings.cache.confirm',
+              'Cette action vide le cache PWA (hors ligne) et recharge l’application. Continuer ?'
+            )
+          );
+    if (!shouldContinue) return;
+
+    setClearingPwaCache(true);
+    try {
+      queryClient.clear();
+
+      if (typeof window !== 'undefined') {
+        const removableKeys = ['cached_orders', 'hdmarket:cache-keys'];
+        const removablePrefixes = ['hdmarket:api-cache:', 'hdmarket:shop-snapshot:', 'hdmarket:search-cache:'];
+        removableKeys.forEach((key) => {
+          try {
+            localStorage.removeItem(key);
+          } catch {
+            // ignore storage errors
+          }
+        });
+        try {
+          const keysToRemove = [];
+          for (let i = 0; i < localStorage.length; i += 1) {
+            const key = localStorage.key(i);
+            if (!key) continue;
+            if (removablePrefixes.some((prefix) => key.startsWith(prefix))) {
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach((key) => localStorage.removeItem(key));
+        } catch {
+          // ignore storage errors
+        }
+      }
+
+      await unregisterServiceWorker();
+      showToast(t('settings.cache.cleared', 'Cache PWA vidé. Rechargement...'), { variant: 'success' });
+      if (typeof window !== 'undefined') {
+        window.setTimeout(() => window.location.reload(), 650);
+      }
+    } catch (error) {
+      showToast(
+        t('settings.cache.error', 'Impossible de vider le cache PWA pour le moment.'),
+        { variant: 'error' }
+      );
+    } finally {
+      setClearingPwaCache(false);
+    }
+  }, [clearingPwaCache, queryClient, showToast, t]);
 
   return (
     <div className="ui-page min-h-screen">
@@ -90,6 +153,29 @@ export default function UserSettings() {
               </option>
             ))}
           </select>
+        </section>
+
+        <section className="ui-card space-y-4 px-4 py-5">
+          <div className="flex items-center gap-2">
+            <RefreshCcw size={16} className="text-gray-500 dark:text-neutral-300" />
+            <h2 className="text-sm font-semibold">{t('settings.cache.title', 'Maintenance cache')}</h2>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-neutral-400">
+            {t(
+              'settings.cache.description',
+              'Corrige les données PWA obsolètes en vidant le cache hors ligne et en rechargeant l’application.'
+            )}
+          </p>
+          <button
+            type="button"
+            onClick={handleClearPwaCache}
+            disabled={clearingPwaCache}
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {clearingPwaCache
+              ? t('settings.cache.clearing', 'Nettoyage en cours...')
+              : t('settings.cache.action', 'Vider le cache PWA')}
+          </button>
         </section>
       </div>
     </div>

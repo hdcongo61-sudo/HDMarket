@@ -2,38 +2,93 @@ import React, { useCallback, useContext, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
-import { buildProductPath } from '../utils/links';
+import { buildProductPath, buildShopPath } from '../utils/links';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { CheckCircle, Search, Package, User, MapPin, Truck, Clock, ClipboardList, Plus, RefreshCcw, ArrowLeft, X, AlertCircle, ShieldCheck, FileSpreadsheet, Trash2 } from 'lucide-react';
 import OrderChat from '../components/OrderChat';
 import AuthContext from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 const STATUS_LABELS = {
+  pending_payment: 'Paiement',
+  paid: 'Payées',
+  ready_for_pickup: 'Prêtes au retrait',
+  picked_up_confirmed: 'Retraits confirmés',
+  ready_for_delivery: 'Prêtes à livrer',
+  out_for_delivery: 'En livraison',
+  delivery_proof_submitted: 'Preuve soumise',
+  confirmed_by_client: 'Confirmées client',
   pending: 'En attente',
-  confirmed: 'Confirmée',
-  delivering: 'En cours de livraison',
-  delivered: 'Livrée',
-  cancelled: 'Annulée'
+  pending_installment: 'Vente à confirmer',
+  installment_active: 'Tranches actives',
+  overdue_installment: 'Tranches en retard',
+  dispute_opened: 'Litige ouvert',
+  confirmed: 'Confirmées',
+  delivering: 'En livraison',
+  delivered: 'Livrées',
+  completed: 'Paiement terminé',
+  cancelled: 'Annulées'
 };
 
 const STATUS_CLASSES = {
+  pending_payment: 'bg-amber-100 text-amber-800',
+  paid: 'bg-emerald-100 text-emerald-800',
+  ready_for_pickup: 'bg-sky-100 text-sky-800',
+  picked_up_confirmed: 'bg-cyan-100 text-cyan-800',
+  ready_for_delivery: 'bg-indigo-100 text-indigo-800',
+  out_for_delivery: 'bg-blue-100 text-blue-800',
+  delivery_proof_submitted: 'bg-violet-100 text-violet-800',
+  confirmed_by_client: 'bg-teal-100 text-teal-800',
   pending: 'bg-gray-100 text-gray-700',
+  pending_installment: 'bg-orange-100 text-orange-800',
+  installment_active: 'bg-lime-100 text-lime-800',
+  overdue_installment: 'bg-rose-100 text-rose-800',
+  dispute_opened: 'bg-fuchsia-100 text-fuchsia-800',
   confirmed: 'bg-yellow-100 text-yellow-800',
   delivering: 'bg-neutral-100 text-neutral-800',
   delivered: 'bg-green-100 text-green-800',
+  completed: 'bg-emerald-100 text-emerald-800',
   cancelled: 'bg-red-100 text-red-800'
 };
 
 const CITY_OPTIONS = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
 const ORDERS_PER_PAGE = 12;
+const ALERT_PRIORITY_CLASSES = {
+  LOW: 'bg-slate-100 text-slate-700',
+  MEDIUM: 'bg-amber-100 text-amber-800',
+  HIGH: 'bg-orange-100 text-orange-800',
+  CRITICAL: 'bg-red-100 text-red-800'
+};
+const ADMIN_ONLY_ACTIONS = new Set(['force_mark_delivered', 'force_delivered', 'force_close_order', 'force_close']);
+const ALERT_TYPE_LABELS = {
+  delayed_order: 'Retard',
+  high_value_at_risk: 'Montant élevé',
+  repeated_seller_delay: 'Risque vendeur',
+  repeated_buyer_no_confirmation: 'Risque acheteur',
+  status_stuck: 'Statut bloqué'
+};
 const STATUS_TABS = [
   { key: 'all', label: 'Toutes', icon: ClipboardList },
+  { key: 'pending_payment', label: 'Paiement', icon: Clock },
+  { key: 'paid', label: 'Payées', icon: CheckCircle },
+  { key: 'ready_for_pickup', label: 'Prêtes au retrait', icon: Package },
+  { key: 'picked_up_confirmed', label: 'Retraits confirmés', icon: CheckCircle },
+  { key: 'ready_for_delivery', label: 'Prêtes à livrer', icon: Truck },
+  { key: 'out_for_delivery', label: 'En livraison', icon: Truck },
+  { key: 'delivery_proof_submitted', label: 'Preuve soumise', icon: ShieldCheck },
+  { key: 'confirmed_by_client', label: 'Confirmées client', icon: CheckCircle },
   { key: 'pending', label: 'En attente', icon: Clock },
+  { key: 'pending_installment', label: 'Vente à confirmer', icon: Clock },
+  { key: 'installment_active', label: 'Tranches actives', icon: Package },
+  { key: 'overdue_installment', label: 'Tranches en retard', icon: AlertCircle },
+  { key: 'dispute_opened', label: 'Litige ouvert', icon: AlertCircle },
   { key: 'confirmed', label: 'Confirmées', icon: Package },
   { key: 'delivering', label: 'En livraison', icon: Truck },
   { key: 'delivered', label: 'Livrées', icon: CheckCircle },
+  { key: 'completed', label: 'Paiement terminé', icon: CheckCircle },
   { key: 'cancelled', label: 'Annulées', icon: X }
 ];
+const MOBILE_QUICK_STATUS_KEYS = ['all', 'pending_payment', 'paid', 'out_for_delivery', 'delivered', 'cancelled'];
 
 const getOrderId = (value) => {
   if (!value) return '';
@@ -64,8 +119,38 @@ const dedupeOrdersById = (list = []) => {
   return Array.from(map.values());
 };
 
+const extractOrderSellers = (order) => {
+  const items = Array.isArray(order?.items)
+    ? order.items
+    : order?.productSnapshot
+    ? [{ snapshot: order.productSnapshot, product: order.product }]
+    : [];
+
+  const sellers = new Map();
+  items.forEach((item, index) => {
+    const rawSellerId =
+      item?.snapshot?.shopId ||
+      item?.product?.user?._id ||
+      item?.product?.user ||
+      '';
+    const sellerId = rawSellerId ? String(rawSellerId) : '';
+    const sellerName =
+      item?.snapshot?.shopName ||
+      item?.product?.user?.shopName ||
+      item?.product?.user?.name ||
+      `Boutique ${index + 1}`;
+    const sellerKey = sellerId || `${sellerName}-${index}`;
+    if (!sellers.has(sellerKey)) {
+      sellers.set(sellerKey, { sellerId, sellerName });
+    }
+  });
+  return Array.from(sellers.values());
+};
+
 export default function AdminOrders() {
   const { user } = useContext(AuthContext);
+  const { showToast } = useToast();
+  const isAdminUser = user?.role === 'admin' || user?.role === 'founder';
   const [searchParams, setSearchParams] = useSearchParams();
   const orderIdFromUrl = searchParams.get('orderId') || '';
   const externalLinkProps = useDesktopExternalLink();
@@ -78,8 +163,42 @@ export default function AdminOrders() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchDraft, setSearchDraft] = useState('');
   const [searchValue, setSearchValue] = useState('');
+  const [cityFilter, setCityFilter] = useState('');
+  const [shopFilter, setShopFilter] = useState('');
+  const [dateFromFilter, setDateFromFilter] = useState('');
+  const [dateToFilter, setDateToFilter] = useState('');
+  const [deliveryModeFilter, setDeliveryModeFilter] = useState('');
+  const [paymentTypeFilter, setPaymentTypeFilter] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('');
+  const [delayedOnly, setDelayedOnly] = useState(false);
+  const [advancedFilterOpen, setAdvancedFilterOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
+  const [commandCenter, setCommandCenter] = useState(null);
+  const [commandCenterLoading, setCommandCenterLoading] = useState(false);
+  const [alertsData, setAlertsData] = useState({
+    total: 0,
+    byPriority: { LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0 },
+    items: []
+  });
+  const [alertsLoading, setAlertsLoading] = useState(false);
+  const [timelineOpen, setTimelineOpen] = useState(false);
+  const [timelineOrder, setTimelineOrder] = useState(null);
+  const [timelineData, setTimelineData] = useState(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineError, setTimelineError] = useState('');
+  const [actionModalOpen, setActionModalOpen] = useState(false);
+  const [actionOrder, setActionOrder] = useState(null);
+  const [actionType, setActionType] = useState('add_admin_note');
+  const [actionNote, setActionNote] = useState('');
+  const [actionReminderType, setActionReminderType] = useState('manual');
+  const [actionDelaySeverity, setActionDelaySeverity] = useState('none');
+  const [actionSaving, setActionSaving] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [viewOrderOpen, setViewOrderOpen] = useState(false);
+  const [viewOrderData, setViewOrderData] = useState(null);
+  const [viewOrderLoading, setViewOrderLoading] = useState(false);
+  const [viewOrderError, setViewOrderError] = useState('');
 
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState('');
@@ -145,6 +264,42 @@ export default function AdminOrders() {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
 
+  const buildAdminQueryParams = useCallback(
+    ({ includePagination = false, maxLimit = null, includeOrderId = false } = {}) => {
+      const params = new URLSearchParams();
+      if (includePagination) {
+        params.set('page', String(page));
+        params.set('limit', String(maxLimit || ORDERS_PER_PAGE));
+      }
+      if (statusFilter !== 'all') params.set('status', statusFilter);
+      if (searchValue) params.set('search', searchValue);
+      if (includeOrderId && orderIdFromUrl) params.set('orderId', orderIdFromUrl);
+      if (cityFilter) params.set('city', cityFilter);
+      if (shopFilter.trim()) params.set('shop', shopFilter.trim());
+      if (dateFromFilter) params.set('dateFrom', dateFromFilter);
+      if (dateToFilter) params.set('dateTo', dateToFilter);
+      if (deliveryModeFilter) params.set('deliveryMode', deliveryModeFilter);
+      if (paymentTypeFilter) params.set('paymentType', paymentTypeFilter);
+      if (priorityFilter) params.set('priority', priorityFilter);
+      if (delayedOnly) params.set('delayed', 'true');
+      return params;
+    },
+    [
+      page,
+      statusFilter,
+      searchValue,
+      orderIdFromUrl,
+      cityFilter,
+      shopFilter,
+      dateFromFilter,
+      dateToFilter,
+      deliveryModeFilter,
+      paymentTypeFilter,
+      priorityFilter,
+      delayedOnly
+    ]
+  );
+
   const exportToExcel = async () => {
     try {
       // Dynamically import xlsx library
@@ -164,10 +319,8 @@ export default function AdminOrders() {
       }
       
       // Fetch all orders (without pagination)
-      const params = new URLSearchParams();
-      params.set('limit', '10000'); // Large limit to get all orders
-      if (statusFilter !== 'all') params.append('status', statusFilter);
-      if (searchValue) params.append('search', searchValue);
+      const params = buildAdminQueryParams({ includePagination: true, maxLimit: 10000 });
+      params.set('page', '1');
       
       const { data } = await api.get(`/orders/admin?${params.toString()}`);
       const allOrders = dedupeOrdersById(Array.isArray(data) ? data : data?.items || []);
@@ -504,7 +657,7 @@ export default function AdminOrders() {
   const loadStats = useCallback(async () => {
     setStatsLoading(true);
     try {
-      const params = searchValue ? { search: searchValue } : {};
+      const params = Object.fromEntries(buildAdminQueryParams().entries());
       const { data } = await api.get('/orders/admin/stats', { params });
       setStats(data);
     } catch (error) {
@@ -512,7 +665,43 @@ export default function AdminOrders() {
     } finally {
       setStatsLoading(false);
     }
-  }, [searchValue]);
+  }, [buildAdminQueryParams]);
+
+  const loadCommandCenter = useCallback(async () => {
+    setCommandCenterLoading(true);
+    try {
+      const params = Object.fromEntries(buildAdminQueryParams().entries());
+      const { data } = await api.get('/orders/admin/command-center', { params });
+      setCommandCenter(data || null);
+    } catch (error) {
+      console.error('Erreur centre de commande:', error);
+      setCommandCenter(null);
+    } finally {
+      setCommandCenterLoading(false);
+    }
+  }, [buildAdminQueryParams]);
+
+  const loadAlerts = useCallback(async () => {
+    setAlertsLoading(true);
+    try {
+      const params = Object.fromEntries(buildAdminQueryParams().entries());
+      const { data } = await api.get('/orders/admin/alerts', { params });
+      setAlertsData({
+        total: Number(data?.total || 0),
+        byPriority: data?.byPriority || { LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0 },
+        items: Array.isArray(data?.items) ? data.items : []
+      });
+    } catch (error) {
+      console.error('Erreur alertes commandes:', error);
+      setAlertsData({
+        total: 0,
+        byPriority: { LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0 },
+        items: []
+      });
+    } finally {
+      setAlertsLoading(false);
+    }
+  }, [buildAdminQueryParams]);
 
   const loadDeliveryGuys = useCallback(async () => {
     setDeliveryGuysLoading(true);
@@ -560,12 +749,7 @@ export default function AdminOrders() {
     setOrdersLoading(true);
     setOrdersError('');
     try {
-      const params = new URLSearchParams();
-      params.set('page', page);
-      params.set('limit', ORDERS_PER_PAGE);
-      if (statusFilter !== 'all') params.append('status', statusFilter);
-      if (searchValue) params.append('search', searchValue);
-      if (orderIdFromUrl) params.set('orderId', orderIdFromUrl);
+      const params = buildAdminQueryParams({ includePagination: true, includeOrderId: true });
       const { data } = await api.get(`/orders/admin?${params.toString()}`);
       const rawItems = Array.isArray(data) ? data : data?.items || [];
       const uniqueOrders = dedupeOrdersById(rawItems);
@@ -590,7 +774,7 @@ export default function AdminOrders() {
     } finally {
       setOrdersLoading(false);
     }
-  }, [statusFilter, searchValue, page, orderIdFromUrl, loadUnreadCounts]);
+  }, [page, loadUnreadCounts, buildAdminQueryParams]);
 
   const loadCustomers = useCallback(
     async (query = '') => {
@@ -620,9 +804,153 @@ export default function AdminOrders() {
     []
   );
 
+  const refreshCommandCenterData = useCallback(async () => {
+    await Promise.all([loadOrders(), loadStats(), loadCommandCenter(), loadAlerts()]);
+  }, [loadOrders, loadStats, loadCommandCenter, loadAlerts]);
+
+  const focusOrder = useCallback(
+    (orderId) => {
+      const normalized = getOrderId(orderId);
+      if (!normalized) return;
+      setPage(1);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set('orderId', normalized);
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
+  const openOrderPreviewModal = useCallback(
+    async (order) => {
+      const targetOrderId = getOrderId(order?._id || order);
+      if (!targetOrderId) return;
+
+      setViewOrderOpen(true);
+      setViewOrderError('');
+
+      const existing = orders.find((entry) => getOrderId(entry) === targetOrderId) || null;
+      if (existing) {
+        setViewOrderData(existing);
+        setViewOrderLoading(false);
+        return;
+      }
+
+      setViewOrderData(null);
+      setViewOrderLoading(true);
+      try {
+        const params = new URLSearchParams();
+        params.set('orderId', targetOrderId);
+        params.set('page', '1');
+        params.set('limit', '1');
+        const { data } = await api.get(`/orders/admin?${params.toString()}`);
+        const found = dedupeOrdersById(Array.isArray(data) ? data : data?.items || [])[0] || null;
+        if (!found) {
+          setViewOrderError('Commande introuvable.');
+          return;
+        }
+        setViewOrderData(found);
+      } catch (error) {
+        setViewOrderError(error.response?.data?.message || 'Impossible de charger cette commande.');
+      } finally {
+        setViewOrderLoading(false);
+      }
+    },
+    [orders]
+  );
+
+  const openTimelineDrawer = useCallback(async (order) => {
+    const targetOrderId = getOrderId(order?._id || order);
+    if (!targetOrderId) return;
+    setTimelineOpen(true);
+    setTimelineOrder(order && typeof order === 'object' ? order : null);
+    setTimelineError('');
+    setTimelineLoading(true);
+    try {
+      const { data } = await api.get(`/orders/admin/${targetOrderId}/timeline`);
+      setTimelineData(data || null);
+    } catch (error) {
+      setTimelineData(null);
+      setTimelineError(error.response?.data?.message || 'Impossible de charger la timeline.');
+    } finally {
+      setTimelineLoading(false);
+    }
+  }, []);
+
+  const openActionModal = useCallback(
+    (order, presetAction = 'add_admin_note') => {
+      if (!order?._id) return;
+      setActionOrder(order);
+      setActionType(presetAction);
+      setActionNote('');
+      setActionReminderType('manual');
+      setActionDelaySeverity('none');
+      setActionError('');
+      setActionModalOpen(true);
+    },
+    []
+  );
+
+  const submitAdminAction = useCallback(
+    async (event) => {
+      event.preventDefault();
+      if (!actionOrder?._id) return;
+      if (!isAdminUser && ADMIN_ONLY_ACTIONS.has(actionType)) {
+        setActionError('Seuls les administrateurs peuvent forcer la livraison ou la fermeture.');
+        return;
+      }
+      setActionSaving(true);
+      setActionError('');
+      try {
+        await api.post(`/orders/admin/${actionOrder._id}/actions`, {
+          action: actionType,
+          note: actionNote.trim(),
+          reminderType: actionReminderType,
+          delaySeverity: actionDelaySeverity
+        });
+        showToast('Action admin appliquée.', { variant: 'success' });
+        setActionModalOpen(false);
+        await refreshCommandCenterData();
+        if (timelineOpen) {
+          await openTimelineDrawer(actionOrder);
+        }
+      } catch (error) {
+        const message = error.response?.data?.message || 'Impossible d’appliquer cette action.';
+        setActionError(message);
+        showToast(message, { variant: 'error' });
+      } finally {
+        setActionSaving(false);
+      }
+    },
+    [
+      actionOrder,
+      actionType,
+      actionNote,
+      actionReminderType,
+      actionDelaySeverity,
+      isAdminUser,
+      showToast,
+      refreshCommandCenterData,
+      timelineOpen,
+      openTimelineDrawer
+    ]
+  );
+
   useEffect(() => {
     loadStats();
   }, [loadStats]);
+
+  useEffect(() => {
+    loadCommandCenter();
+  }, [loadCommandCenter]);
+
+  useEffect(() => {
+    loadAlerts();
+  }, [loadAlerts]);
 
   useEffect(() => {
     loadCustomers();
@@ -658,7 +986,18 @@ export default function AdminOrders() {
 
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, searchValue]);
+  }, [
+    statusFilter,
+    searchValue,
+    cityFilter,
+    shopFilter,
+    dateFromFilter,
+    dateToFilter,
+    deliveryModeFilter,
+    paymentTypeFilter,
+    priorityFilter,
+    delayedOnly
+  ]);
 
   const handleUpdateOrder = async (orderId, payload) => {
     const targetOrderId = getOrderId(orderId);
@@ -712,6 +1051,10 @@ export default function AdminOrders() {
           status: nextStatus
         });
       }
+      if (payload?.status || payload?.deliveryGuyId) {
+        void loadCommandCenter();
+        void loadAlerts();
+      }
       return updatedOrder;
     } catch (error) {
       alert(error.response?.data?.message || 'Impossible de mettre à jour la commande.');
@@ -742,7 +1085,7 @@ export default function AdminOrders() {
         }));
       }
       setDeleteOrder(null);
-      await loadStats();
+      await Promise.all([loadStats(), loadCommandCenter(), loadAlerts()]);
     } catch (error) {
       alert(error.response?.data?.message || 'Impossible de supprimer la commande.');
     } finally {
@@ -776,7 +1119,7 @@ export default function AdminOrders() {
         trackingNote: ''
       });
       setCreateOpen(false);
-      await Promise.all([loadOrders(), loadStats()]);
+      await refreshCommandCenterData();
     } catch (error) {
       setCreateError(error.response?.data?.message || "Impossible de créer la commande.");
     } finally {
@@ -806,6 +1149,20 @@ export default function AdminOrders() {
       setAssignSaving(false);
     }
   }, [assignOpen]);
+
+  useEffect(() => {
+    if (!actionModalOpen) {
+      setActionSaving(false);
+      setActionError('');
+    }
+  }, [actionModalOpen]);
+
+  useEffect(() => {
+    if (!viewOrderOpen) {
+      setViewOrderLoading(false);
+      setViewOrderError('');
+    }
+  }, [viewOrderOpen]);
 
   useEffect(() => {
     if (!deleteOrder) return;
@@ -846,6 +1203,79 @@ export default function AdminOrders() {
       })}
     </div>
   );
+
+  const renderMobileStatusPicker = () => (
+    <div className="space-y-2 md:hidden">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+          Statut des commandes
+        </p>
+        <span className="text-xs font-semibold text-gray-500">
+          {statusFilter === 'all'
+            ? 'Toutes'
+            : STATUS_LABELS[statusFilter] || statusFilter}
+        </span>
+      </div>
+      <select
+        value={statusFilter}
+        onChange={(event) => setStatusFilter(event.target.value)}
+        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 focus:ring-2 focus:ring-neutral-500 focus:border-transparent min-h-[44px]"
+      >
+        {STATUS_TABS.map((tab) => {
+          const count = tab.key === 'all' ? (stats?.total || 0) : (stats?.statusCounts?.[tab.key] || 0);
+          return (
+            <option key={`mobile-status-${tab.key}`} value={tab.key}>
+              {tab.label} ({count})
+            </option>
+          );
+        })}
+      </select>
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+        {MOBILE_QUICK_STATUS_KEYS.map((key) => {
+          const isActive = statusFilter === key;
+          return (
+            <button
+              key={`mobile-quick-${key}`}
+              type="button"
+              onClick={() => setStatusFilter(key)}
+              className={`inline-flex min-h-[36px] items-center rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap ${
+                isActive
+                  ? 'bg-neutral-900 text-white'
+                  : 'bg-white border border-gray-200 text-gray-700'
+              }`}
+            >
+              {key === 'all' ? 'Toutes' : STATUS_LABELS[key] || key}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const previewOrderItems = viewOrderData ? getOrderItems(viewOrderData) : [];
+  const previewComputedTotal = previewOrderItems.reduce((sum, item) => {
+    const price = Number(item.snapshot?.price || item.product?.price || 0);
+    const qty = Number(item.quantity || 1);
+    return sum + price * qty;
+  }, 0);
+  const previewOrderTotal = Number(viewOrderData?.totalAmount ?? previewComputedTotal);
+  const previewPaidAmount = Number(viewOrderData?.paidAmount || 0);
+  const previewRemainingAmount =
+    viewOrderData?.remainingAmount != null
+      ? Number(viewOrderData.remainingAmount)
+      : Math.max(0, previewOrderTotal - previewPaidAmount);
+
+  const availableAdminActions = [
+    { value: 'add_admin_note', label: 'Ajouter une note admin' },
+    { value: 'trigger_manual_reminder', label: 'Déclencher un rappel manuel' },
+    { value: 'override_delay_status', label: 'Override statut de retard' },
+    ...(isAdminUser
+      ? [
+          { value: 'force_mark_delivered', label: 'Forcer marquage livré' },
+          { value: 'force_close_order', label: 'Forcer clôture commande' }
+        ]
+      : [])
+  ];
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -920,6 +1350,112 @@ export default function AdminOrders() {
             );
           })}
         </div>
+
+        <section className="ui-card ui-card-interactive ui-card-fade-in p-5 sm:p-6 space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Command Center</h2>
+              <p className="text-sm text-gray-500">Vue globale des opérations, retards et risques.</p>
+            </div>
+            <button
+              type="button"
+              onClick={refreshCommandCenterData}
+              disabled={ordersLoading || statsLoading || commandCenterLoading || alertsLoading}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+            >
+              <RefreshCcw className={`h-4 w-4 ${(ordersLoading || commandCenterLoading || alertsLoading) ? 'animate-spin' : ''}`} />
+              Rafraîchir le centre
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {[
+              { key: 'total', label: 'Total', value: commandCenter?.metrics?.total },
+              { key: 'totalActive', label: 'Actives', value: commandCenter?.metrics?.totalActive },
+              { key: 'inProgress', label: 'En cours', value: commandCenter?.metrics?.inProgress },
+              { key: 'delayed', label: 'Retard', value: commandCenter?.metrics?.delayed },
+              { key: 'pendingConfirmation', label: 'En attente client', value: commandCenter?.metrics?.pendingConfirmation },
+              { key: 'awaitingReview', label: 'Sans avis', value: commandCenter?.metrics?.awaitingReview },
+              { key: 'delivered', label: 'Livrées', value: commandCenter?.metrics?.delivered },
+              { key: 'cancelled', label: 'Annulées', value: commandCenter?.metrics?.cancelled },
+              { key: 'dispute', label: 'Litiges', value: commandCenter?.metrics?.dispute },
+              { key: 'criticalAlerts', label: 'Alertes critiques', value: alertsData?.byPriority?.CRITICAL }
+            ].map((metric) => (
+              <div key={metric.key} className="rounded-2xl border border-gray-100 bg-white/95 px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{metric.label}</p>
+                <p className="mt-1 text-xl font-bold text-gray-900">
+                  {commandCenterLoading && metric.key !== 'criticalAlerts'
+                    ? '...'
+                    : Number(metric.value || 0).toLocaleString('fr-FR')}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="ui-card ui-card-interactive ui-card-fade-in p-5 sm:p-6 space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-amber-600" />
+                Alertes opérationnelles
+              </h2>
+              <p className="text-sm text-gray-500">
+                {alertsData.total} alerte{alertsData.total > 1 ? 's' : ''} détectée{alertsData.total > 1 ? 's' : ''}.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].map((level) => (
+                <span key={level} className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${ALERT_PRIORITY_CLASSES[level]}`}>
+                  {level}: {Number(alertsData?.byPriority?.[level] || 0)}
+                </span>
+              ))}
+            </div>
+          </div>
+          {alertsLoading ? (
+            <p className="text-sm text-gray-500">Chargement des alertes…</p>
+          ) : alertsData.items.length === 0 ? (
+            <p className="text-sm text-gray-500">Aucune alerte pour les filtres actuels.</p>
+          ) : (
+            <div className="space-y-2">
+              {alertsData.items.slice(0, 8).map((alertItem) => (
+                <div key={alertItem.id} className="rounded-2xl border border-gray-100 bg-white px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${ALERT_PRIORITY_CLASSES[String(alertItem.priority || 'LOW').toUpperCase()] || ALERT_PRIORITY_CLASSES.LOW}`}>
+                          {String(alertItem.priority || 'LOW').toUpperCase()}
+                        </span>
+                        <span className="text-xs font-semibold text-gray-500">
+                          {ALERT_TYPE_LABELS[alertItem.type] || 'Alerte'}
+                        </span>
+                      </div>
+                      <p className="text-sm font-semibold text-gray-900">{alertItem.title}</p>
+                      <p className="text-xs text-gray-600">{alertItem.message}</p>
+                    </div>
+                    {alertItem.orderId ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openOrderPreviewModal(alertItem.orderId)}
+                          className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                        >
+                          Voir commande
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openTimelineDrawer(alertItem.orderId)}
+                          className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                        >
+                          Timeline
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
 
       {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
@@ -1243,6 +1779,141 @@ export default function AdminOrders() {
         </div>
       )}
 
+      {viewOrderOpen && (
+        <div className="fixed inset-0 z-[58] flex items-center justify-center px-4 py-6">
+          <div
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => setViewOrderOpen(false)}
+          />
+          <div
+            className="ui-card ui-card-lg relative w-full max-w-2xl max-h-[85vh] overflow-auto p-4 shadow-xl sm:p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Aperçu commande</p>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {viewOrderData?._id ? `#${viewOrderData._id.slice(-6)}` : 'Chargement...'}
+                </h3>
+                {viewOrderData?.status && (
+                  <span className={`mt-2 inline-flex rounded-full px-2 py-1 text-xs font-semibold ${STATUS_CLASSES[viewOrderData.status] || STATUS_CLASSES.pending}`}>
+                    {STATUS_LABELS[viewOrderData.status] || viewOrderData.status}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewOrderOpen(false)}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                aria-label="Fermer aperçu commande"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {viewOrderLoading ? (
+              <p className="text-sm text-gray-500">Chargement de la commande…</p>
+            ) : viewOrderError ? (
+              <p className="text-sm text-red-600">{viewOrderError}</p>
+            ) : !viewOrderData ? (
+              <p className="text-sm text-gray-500">Aucune donnée de commande.</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Client</p>
+                    <p className="mt-1 text-sm font-semibold text-gray-900">{viewOrderData.customer?.name || 'Client'}</p>
+                    <p className="text-xs text-gray-600">{viewOrderData.customer?.phone || '—'}</p>
+                    <p className="text-xs text-gray-600">{viewOrderData.customer?.email || '—'}</p>
+                  </div>
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Livraison</p>
+                    <p className="mt-1 text-sm text-gray-800">{viewOrderData.deliveryAddress || 'Adresse non renseignée'}</p>
+                    <p className="text-xs text-gray-600">{viewOrderData.deliveryCity || 'Ville non renseignée'}</p>
+                    {viewOrderData.deliveryCode ? (
+                      <p className="mt-1 text-xs font-semibold text-neutral-700">Code: {viewOrderData.deliveryCode}</p>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-gray-100 bg-white p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Articles</p>
+                  <div className="mt-2 space-y-2">
+                    {previewOrderItems.map((item, index) => (
+                      <div
+                        key={`${viewOrderData._id}-${item.product || item.snapshot?.title || index}`}
+                        className="rounded-lg border border-gray-100 px-3 py-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-gray-900">{item.snapshot?.title || 'Produit'}</p>
+                          <p className="text-xs text-gray-600">
+                            x{Number(item.quantity || 1)} · {formatCurrency(item.snapshot?.price || 0)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    {previewOrderItems.length === 0 && (
+                      <p className="text-xs text-gray-500">Aucun article sur cette commande.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm text-gray-700">
+                  <p>
+                    Total: <span className="font-semibold text-gray-900">{formatCurrency(previewOrderTotal)}</span>
+                  </p>
+                  <p>
+                    Acompte: <span className="font-semibold text-gray-900">{formatCurrency(previewPaidAmount)}</span>
+                  </p>
+                  <p>
+                    Reste: <span className="font-semibold text-gray-900">{formatCurrency(previewRemainingAmount)}</span>
+                  </p>
+                  <p className="mt-1 text-xs text-gray-600">
+                    Créée le{' '}
+                    {viewOrderData.createdAt
+                      ? new Date(viewOrderData.createdAt).toLocaleString('fr-FR')
+                      : 'Date inconnue'}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      focusOrder(viewOrderData._id);
+                      setViewOrderOpen(false);
+                    }}
+                    className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    Aller dans la liste
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await openTimelineDrawer(viewOrderData);
+                      setViewOrderOpen(false);
+                    }}
+                    className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    Ouvrir timeline
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      openActionModal(viewOrderData);
+                      setViewOrderOpen(false);
+                    }}
+                    className="rounded-xl bg-neutral-900 px-3 py-2 text-sm font-semibold text-white hover:bg-neutral-800"
+                  >
+                    Action admin
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {deleteOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
           <div
@@ -1289,33 +1960,379 @@ export default function AdminOrders() {
         </div>
       )}
 
-      <section className="ui-card ui-card-interactive ui-card-fade-in p-5 sm:p-6 space-y-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
+      {actionModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 py-6">
+          <div
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => !actionSaving && setActionModalOpen(false)}
+          />
+          <div
+            className="ui-card ui-card-lg relative w-full max-w-lg p-5 shadow-xl sm:p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Action admin</p>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Commande #{actionOrder?._id?.slice(-6)}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => !actionSaving && setActionModalOpen(false)}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                aria-label="Fermer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {!isAdminUser && (
+              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                Compte manager: actions de forçage désactivées.
+              </div>
+            )}
+            <form className="space-y-3" onSubmit={submitAdminAction}>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Type d’action</label>
+                <select
+                  value={actionType}
+                  onChange={(e) => setActionType(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                  disabled={actionSaving}
+                >
+                  {availableAdminActions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {actionType === 'trigger_manual_reminder' && (
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Type de rappel</label>
+                  <select
+                    value={actionReminderType}
+                    onChange={(e) => setActionReminderType(e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                    disabled={actionSaving}
+                  >
+                    <option value="manual">Manual</option>
+                    <option value="seller">Seller</option>
+                    <option value="buyer_confirmation">Buyer confirmation</option>
+                    <option value="review">Review</option>
+                    <option value="experience">Experience</option>
+                    <option value="escalation">Escalation</option>
+                  </select>
+                </div>
+              )}
+              {actionType === 'override_delay_status' && (
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Sévérité retard</label>
+                  <select
+                    value={actionDelaySeverity}
+                    onChange={(e) => setActionDelaySeverity(e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                    disabled={actionSaving}
+                  >
+                    <option value="none">none</option>
+                    <option value="slight">slight</option>
+                    <option value="moderate">moderate</option>
+                    <option value="critical">critical</option>
+                  </select>
+                </div>
+              )}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Note (optionnel)</label>
+                <textarea
+                  rows={3}
+                  value={actionNote}
+                  onChange={(e) => setActionNote(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                  placeholder="Contexte de l’action"
+                  disabled={actionSaving}
+                />
+              </div>
+              {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => !actionSaving && setActionModalOpen(false)}
+                  disabled={actionSaving}
+                  className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionSaving}
+                  className="rounded-xl bg-neutral-900 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-60"
+                >
+                  {actionSaving ? 'Application...' : 'Appliquer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {timelineOpen && (
+        <div className="fixed inset-0 z-[55]">
+          <div
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px]"
+            onClick={() => setTimelineOpen(false)}
+          />
+          <aside className="absolute right-0 top-0 h-full w-full max-w-xl overflow-y-auto border-l border-gray-200 bg-white p-4 shadow-2xl sm:p-6">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Timeline commande</p>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  #{(timelineData?.orderId || timelineOrder?._id || '').slice(-6)}
+                </h3>
+                <p className="mt-1 text-xs text-gray-500">
+                  Statut: {timelineData?.status || timelineOrder?.status || '—'} · Retard: {timelineData?.delaySeverity || 'none'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTimelineOpen(false)}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                aria-label="Fermer timeline"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="mb-4 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => openActionModal(timelineOrder || { _id: timelineData?.orderId }, 'add_admin_note')}
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Ajouter note
+              </button>
+              <button
+                type="button"
+                onClick={() => openActionModal(timelineOrder || { _id: timelineData?.orderId }, 'trigger_manual_reminder')}
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Rappel manuel
+              </button>
+              <button
+                type="button"
+                onClick={() => openActionModal(timelineOrder || { _id: timelineData?.orderId }, 'override_delay_status')}
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Override retard
+              </button>
+              <button
+                type="button"
+                disabled={!isAdminUser}
+                onClick={() => openActionModal(timelineOrder || { _id: timelineData?.orderId }, 'force_close_order')}
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                title={!isAdminUser ? 'Action réservée aux admins.' : ''}
+              >
+                Forcer clôture
+              </button>
+            </div>
+            {timelineLoading ? (
+              <p className="text-sm text-gray-500">Chargement timeline…</p>
+            ) : timelineError ? (
+              <p className="text-sm text-red-600">{timelineError}</p>
+            ) : (
+              <div className="space-y-3">
+                {(timelineData?.events || []).map((eventItem) => (
+                  <div key={eventItem.id} className="rounded-2xl border border-gray-100 bg-gray-50/70 px-3 py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-gray-900">{eventItem.label}</p>
+                      <span className="text-[11px] text-gray-500">
+                        {new Date(eventItem.at).toLocaleString('fr-FR')}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">{eventItem.type}</p>
+                  </div>
+                ))}
+                {Array.isArray(timelineData?.adminNotes) && timelineData.adminNotes.length > 0 && (
+                  <div className="rounded-2xl border border-gray-100 bg-white px-3 py-3">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Notes admin</p>
+                    <div className="space-y-2">
+                      {timelineData.adminNotes
+                        .slice()
+                        .reverse()
+                        .slice(0, 8)
+                        .map((noteItem, index) => (
+                          <div key={`note-${index}`} className="rounded-xl border border-gray-100 px-3 py-2">
+                            <p className="text-sm text-gray-800">{noteItem.note}</p>
+                            <p className="mt-1 text-[11px] text-gray-500">
+                              {noteItem.createdAt ? new Date(noteItem.createdAt).toLocaleString('fr-FR') : 'Date inconnue'}
+                            </p>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </aside>
+        </div>
+      )}
+
+      <section className="ui-card ui-card-interactive ui-card-fade-in p-4 sm:p-6 space-y-5">
+        <div className="flex flex-col gap-4">
+          {renderMobileStatusPicker()}
+          <div className="hidden md:flex md:items-center md:justify-between">
             {renderStatusTabs()}
           </div>
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1 sm:flex-initial sm:min-w-[300px]">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative w-full lg:max-w-xl">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Rechercher par produit, client, adresse..."
                 value={searchDraft}
                 onChange={(e) => setSearchDraft(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 transition-all duration-200"
+                className="w-full min-h-[44px] pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 transition-all duration-200"
                 title="Rechercher par nom de produit, nom du client, email, téléphone, adresse de livraison ou note de suivi"
               />
             </div>
+            <div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:items-center">
+              <button
+                type="button"
+                onClick={() => setAdvancedFilterOpen((prev) => !prev)}
+                className={`inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all ${
+                  advancedFilterOpen
+                    ? 'border-neutral-500 bg-neutral-100 text-neutral-800'
+                    : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <AlertCircle className="w-4 h-4" />
+                Filtres
+              </button>
+              <button
+                type="button"
+                onClick={refreshCommandCenterData}
+                disabled={ordersLoading || commandCenterLoading || alertsLoading}
+                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-gray-100 border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 transition-all duration-200 active:scale-95 shadow-sm disabled:opacity-60"
+              >
+                <RefreshCcw className={`w-4 h-4 ${(ordersLoading || commandCenterLoading || alertsLoading) ? 'animate-spin' : ''}`} />
+                <span>Actualiser</span>
+              </button>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={loadOrders}
-              disabled={ordersLoading}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-100 border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 transition-all duration-200 active:scale-95 shadow-sm disabled:opacity-60"
+              onClick={() =>
+                setPaymentTypeFilter((prev) => (prev === 'installment' ? '' : 'installment'))
+              }
+              className={`inline-flex min-h-[38px] items-center rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                paymentTypeFilter === 'installment'
+                  ? 'border border-neutral-700 bg-neutral-700 text-white'
+                  : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+              }`}
             >
-              <RefreshCcw className={`w-4 h-4 ${ordersLoading ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Actualiser</span>
+              Paiement par tranche
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setDeliveryModeFilter((prev) => (prev === 'PICKUP' ? '' : 'PICKUP'))
+              }
+              className={`inline-flex min-h-[38px] items-center rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                deliveryModeFilter === 'PICKUP'
+                  ? 'border border-neutral-700 bg-neutral-700 text-white'
+                  : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              Récupérer en boutique
             </button>
           </div>
+          {advancedFilterOpen && (
+            <div className="grid grid-cols-1 gap-3 rounded-2xl border border-gray-100 bg-gray-50/80 p-3 sm:grid-cols-2 xl:grid-cols-4">
+              <select
+                value={cityFilter}
+                onChange={(e) => setCityFilter(e.target.value)}
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+              >
+                <option value="">Toutes les villes</option>
+                {CITY_OPTIONS.map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                value={shopFilter}
+                onChange={(e) => setShopFilter(e.target.value)}
+                placeholder="Boutique (nom ou ID)"
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+              />
+              <select
+                value={deliveryModeFilter}
+                onChange={(e) => setDeliveryModeFilter(e.target.value)}
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+              >
+                <option value="">Mode livraison (tous)</option>
+                <option value="DELIVERY">Livraison</option>
+                <option value="PICKUP">Récupérer en boutique</option>
+              </select>
+              <select
+                value={paymentTypeFilter}
+                onChange={(e) => setPaymentTypeFilter(e.target.value)}
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+              >
+                <option value="">Paiement (tous)</option>
+                <option value="full">Comptant</option>
+                <option value="installment">Paiement par tranche</option>
+              </select>
+              <select
+                value={priorityFilter}
+                onChange={(e) => setPriorityFilter(e.target.value)}
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+              >
+                <option value="">Priorité (toutes)</option>
+                <option value="LOW">LOW</option>
+                <option value="MEDIUM">MEDIUM</option>
+                <option value="HIGH">HIGH</option>
+                <option value="CRITICAL">CRITICAL</option>
+              </select>
+              <input
+                type="date"
+                value={dateFromFilter}
+                onChange={(e) => setDateFromFilter(e.target.value)}
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+              />
+              <input
+                type="date"
+                value={dateToFilter}
+                onChange={(e) => setDateToFilter(e.target.value)}
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+              />
+              <label className="inline-flex min-h-[42px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={delayedOnly}
+                  onChange={(e) => setDelayedOnly(e.target.checked)}
+                />
+                Retards seulement
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setCityFilter('');
+                  setShopFilter('');
+                  setDateFromFilter('');
+                  setDateToFilter('');
+                  setDeliveryModeFilter('');
+                  setPaymentTypeFilter('');
+                  setPriorityFilter('');
+                  setDelayedOnly(false);
+                }}
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
+              >
+                Réinitialiser
+              </button>
+            </div>
+          )}
         </div>
 
         <p className="text-xs text-gray-500">
@@ -1344,6 +2361,7 @@ export default function AdminOrders() {
                         }
                       ]
                     : [];
+                const sellerEntries = extractOrderSellers(order);
                 const computedTotal = orderItems.reduce((sum, item) => {
                   const price = Number(item.snapshot?.price || item.product?.price || 0);
                   const qty = Number(item.quantity || 1);
@@ -1380,6 +2398,30 @@ export default function AdminOrders() {
                       </p>
                       <p className="text-xs text-gray-500">{order.customer?.phone}</p>
                       <p className="text-xs text-gray-500">{order.customer?.email}</p>
+                    </div>
+                    <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-wide text-gray-500">Vendeur(s)</p>
+                      <div className="mt-1 space-y-1">
+                        {sellerEntries.map((seller, index) =>
+                          seller.sellerId ? (
+                            <Link
+                              key={`${order._id}-seller-${seller.sellerId}-${index}`}
+                              to={buildShopPath({ _id: seller.sellerId })}
+                              {...externalLinkProps}
+                              className="block text-xs font-semibold text-neutral-700 hover:text-neutral-500"
+                            >
+                              {seller.sellerName}
+                            </Link>
+                          ) : (
+                            <span
+                              key={`${order._id}-seller-name-${seller.sellerName}-${index}`}
+                              className="block text-xs font-semibold text-neutral-700"
+                            >
+                              {seller.sellerName}
+                            </span>
+                          )
+                        )}
+                      </div>
                     </div>
                       <div className="space-y-2 text-sm text-gray-700">
                         {orderItems.map((item) => (
@@ -1483,6 +2525,24 @@ export default function AdminOrders() {
                           unreadCount={orderUnreadCounts[order._id] || 0}
                         />
                       </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openTimelineDrawer(order)}
+                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                        >
+                          <Clock size={12} />
+                          Timeline
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openActionModal(order)}
+                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                        >
+                          <AlertCircle size={12} />
+                          Action admin
+                        </button>
+                      </div>
                       {order.status === 'confirmed' && (
                         <button
                           type="button"
@@ -1529,6 +2589,7 @@ export default function AdminOrders() {
                   <tr>
                     <th className="px-3 py-2 text-left font-semibold text-gray-600">Commande</th>
                     <th className="px-3 py-2 text-left font-semibold text-gray-600">Client</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-600">Vendeur(s)</th>
                     <th className="px-3 py-2 text-left font-semibold text-gray-600">Livraison</th>
                     <th className="px-3 py-2 text-left font-semibold text-gray-600">Statut</th>
                     <th className="px-3 py-2 text-left font-semibold text-gray-600">Actions</th>
@@ -1548,6 +2609,7 @@ export default function AdminOrders() {
                             }
                           ]
                         : [];
+                    const sellerEntries = extractOrderSellers(order);
                     const computedTotal = orderItems.reduce((sum, item) => {
                       const price = Number(item.snapshot?.price || item.product?.price || 0);
                       const qty = Number(item.quantity || 1);
@@ -1614,6 +2676,29 @@ export default function AdminOrders() {
                             <div>
                               Transaction: {order.paymentTransactionCode || 'Non renseigné'}
                             </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-xs text-gray-700 align-top">
+                          <div className="space-y-1">
+                            {sellerEntries.map((seller, index) =>
+                              seller.sellerId ? (
+                                <Link
+                                  key={`${order._id}-seller-link-${seller.sellerId}-${index}`}
+                                  to={buildShopPath({ _id: seller.sellerId })}
+                                  {...externalLinkProps}
+                                  className="block font-semibold text-neutral-700 hover:text-neutral-500"
+                                >
+                                  {seller.sellerName}
+                                </Link>
+                              ) : (
+                                <span
+                                  key={`${order._id}-seller-text-${seller.sellerName}-${index}`}
+                                  className="block font-semibold text-neutral-700"
+                                >
+                                  {seller.sellerName}
+                                </span>
+                              )
+                            )}
                           </div>
                         </td>
                         <td className="px-3 py-3 text-xs text-gray-600">
@@ -1683,6 +2768,24 @@ export default function AdminOrders() {
                               buttonText="Contacte l'acheteur"
                               unreadCount={orderUnreadCounts[order._id] || 0}
                             />
+                          </div>
+                          <div className="grid grid-cols-2 gap-1">
+                            <button
+                              type="button"
+                              onClick={() => openTimelineDrawer(order)}
+                              className="inline-flex items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-50"
+                            >
+                              <Clock size={11} />
+                              Timeline
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openActionModal(order)}
+                              className="inline-flex items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-50"
+                            >
+                              <AlertCircle size={11} />
+                              Action
+                            </button>
                           </div>
                           {order.status === 'confirmed' && (
                             <button

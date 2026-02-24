@@ -19,6 +19,18 @@ export const registerServiceWorker = async () => {
       });
       
       console.log('Service Worker registered:', registration);
+      // Ensure new SW takes control immediately so users don't stay on stale UI bundles.
+      let hasReloadedForControllerChange = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (hasReloadedForControllerChange) return;
+        hasReloadedForControllerChange = true;
+        window.location.reload();
+      });
+
+      const activateWaitingWorker = (worker) => {
+        if (!worker) return;
+        worker.postMessage({ type: 'SKIP_WAITING' });
+      };
 
       const firebaseConfig = {
         apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
@@ -51,6 +63,7 @@ export const registerServiceWorker = async () => {
       };
 
       postFirebaseConfig();
+      if (registration.waiting) activateWaitingWorker(registration.waiting);
       
       // Check for updates
       registration.addEventListener('updatefound', () => {
@@ -61,10 +74,12 @@ export const registerServiceWorker = async () => {
               // New service worker available
               console.log('New service worker available');
               postFirebaseConfig();
+              activateWaitingWorker(registration.waiting || newWorker);
             }
           });
         }
       });
+      registration.update().catch(() => {});
       
       return registration;
     } catch (error) {
