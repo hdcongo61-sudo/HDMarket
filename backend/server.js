@@ -47,6 +47,13 @@ import {
 } from './sockets/chatSocket.js';
 import { registerNotificationSocket, configureSocketRedisAdapter } from './sockets/notificationSocket.js';
 import { requestTracker, getDailyRequestStats } from './middlewares/requestTracker.js';
+import { requestContextMiddleware } from './middlewares/requestContext.js';
+import {
+  requestTimeoutMiddleware,
+  slowRequestLogger,
+  requestReliabilityConfig
+} from './middlewares/requestReliability.js';
+import { globalErrorHandler, notFoundApiHandler } from './middlewares/globalErrorHandler.js';
 import { sendReviewReminders } from './utils/reviewReminder.js';
 import { processInstallmentReminders } from './utils/installmentReminder.js';
 import { expireBoostRequests } from './utils/boostService.js';
@@ -159,7 +166,9 @@ const corsOptions = {
     'Cache-Control',
     'Pragma',
     'Accept',
-    "x-skip-cache"
+    'x-skip-cache',
+    'x-request-id',
+    'x-correlation-id'
   ],
   optionsSuccessStatus: 200
 };
@@ -168,7 +177,9 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions)); // Handle preflight requests
 
+app.use(requestContextMiddleware);
 app.use(requestTracker);
+app.use(slowRequestLogger);
 
 // Rate limit global (skip long-lived streams + allow higher burst during dev)
 const limiter = rateLimit({
@@ -182,7 +193,14 @@ const limiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  message: { message: 'Trop de requêtes, veuillez réessayer plus tard.' },
+  handler: (req, res, _next, options) => {
+    res.status(options.statusCode || 429).json({
+      success: false,
+      message: 'Trop de requêtes, veuillez réessayer plus tard.',
+      code: 'RATE_LIMIT_ERROR',
+      requestId: res.locals?.requestId || req.requestId || 'unknown'
+    });
+  },
   skip: (req) =>
     req.originalUrl?.startsWith('/api/users/notifications/stream') ||
     (process.env.NODE_ENV === 'development' && req.ip === '::1')
@@ -194,6 +212,7 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(requestTimeoutMiddleware);
 
 // Static for local uploads
 const __filename = fileURLToPath(import.meta.url);
@@ -201,6 +220,22 @@ const __dirname = path.dirname(__filename);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/', (req, res) => res.json({ ok: true, name: 'HDMarket API' }));
+app.get('/api/health', (req, res) => {
+  const memory = process.memoryUsage();
+  res.json({
+    ok: true,
+    uptimeSec: Math.round(process.uptime()),
+    timestamp: new Date().toISOString(),
+    requestTimeoutMs: requestReliabilityConfig.requestTimeoutMs,
+    uploadRequestTimeoutMs: requestReliabilityConfig.uploadRequestTimeoutMs,
+    slowRequestThresholdMs: requestReliabilityConfig.slowRequestThresholdMs,
+    memory: {
+      rss: memory.rss,
+      heapTotal: memory.heapTotal,
+      heapUsed: memory.heapUsed
+    }
+  });
+});
 app.get('/api/health/requests', (req, res) => {
   res.json({
     success: true,
@@ -232,15 +267,19 @@ app.use('/api/marketplace-promo-codes', marketplacePromoCodeRoutes);
 app.use('/api/disputes', disputeRoutes);
 app.use('/api/boosts', boostRoutes);
 app.use('/api/founder', founderRoutes);
+app.use('/api/*', notFoundApiHandler);
 
-// Global error handler
-// eslint-disable-next-line no-unused-vars
-app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(err.status || 500).json({ message: err.message || 'Server error' });
-});
+app.use(globalErrorHandler);
 
 const httpServer = http.createServer(app);
+const keepAliveTimeoutMs = Number(process.env.HTTP_KEEP_ALIVE_TIMEOUT_MS || 65_000);
+const headersTimeoutMs = Number(process.env.HTTP_HEADERS_TIMEOUT_MS || 66_000);
+if (Number.isFinite(keepAliveTimeoutMs) && keepAliveTimeoutMs > 0) {
+  httpServer.keepAliveTimeout = Math.round(keepAliveTimeoutMs);
+}
+if (Number.isFinite(headersTimeoutMs) && headersTimeoutMs > 0) {
+  httpServer.headersTimeout = Math.round(headersTimeoutMs);
+}
 const socketCors = {
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true
@@ -403,6 +442,27 @@ io.on('connection', (socket) => {
 const port = process.env.PORT || 5010;
 httpServer.listen(port, () => {
   console.log(`Server running on port ${port}`);
+  const keepAliveEnabled = String(process.env.RENDER_KEEP_ALIVE_ENABLED || 'false') === 'true';
+  const keepAliveIntervalMs = Number(process.env.RENDER_KEEP_ALIVE_INTERVAL_MS || 10 * 60 * 1000);
+  const keepAliveBaseUrl = String(
+    process.env.KEEP_ALIVE_URL || process.env.RENDER_EXTERNAL_URL || ''
+  ).replace(/\/$/, '');
+  if (
+    keepAliveEnabled &&
+    keepAliveBaseUrl &&
+    Number.isFinite(keepAliveIntervalMs) &&
+    keepAliveIntervalMs >= 60_000 &&
+    typeof fetch === 'function'
+  ) {
+    const pingUrl = `${keepAliveBaseUrl}/api/health`;
+    const runKeepAlivePing = () => {
+      fetch(pingUrl, { method: 'GET', headers: { 'x-hdmarket-probe': '1' } }).catch(() => {
+        // noop: keep-alive is best-effort.
+      });
+    };
+    setTimeout(runKeepAlivePing, 15_000);
+    setInterval(runKeepAlivePing, Math.round(keepAliveIntervalMs));
+  }
   ensureDefaultSettingsBootstrap().catch((error) => {
     console.error('Settings bootstrap failed:', error);
   });
@@ -564,4 +624,12 @@ process.on('SIGINT', () => {
 
 process.on('SIGTERM', () => {
   gracefulShutdown().finally(() => process.exit(0));
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('[uncaughtException]', error);
 });

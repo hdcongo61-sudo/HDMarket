@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 const ToastContext = createContext({ showToast: () => {} });
 
@@ -16,6 +16,7 @@ const VARIANT_ICON_BG = {
 
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
+  const lastGlobalErrorToastRef = useRef({ key: '', at: 0 });
 
   const removeToast = useCallback((id) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
@@ -53,15 +54,32 @@ export const ToastProvider = ({ children }) => {
   );
 
   useEffect(() => {
-    const handleNetworkError = (event) => {
-      const message =
-        event?.detail?.message ||
-        'Il semble que vous soyez hors ligne. Connectez-vous à Internet pour continuer.';
-      showToast(message, { variant: 'error' });
+    if (typeof window === 'undefined') return undefined;
+    const handleGlobalError = (event) => {
+      const message = String(
+        event?.detail?.message || 'Une erreur est survenue. Veuillez réessayer.'
+      ).trim();
+      if (!message) return;
+      const code = String(event?.detail?.code || 'GLOBAL_ERROR');
+      const requestId = String(event?.detail?.requestId || '').trim();
+      const throttleKey = `${code}:${message}`;
+      const now = Date.now();
+      const previous = lastGlobalErrorToastRef.current;
+      if (previous.key === throttleKey && now - previous.at < 6000) {
+        return;
+      }
+      lastGlobalErrorToastRef.current = { key: throttleKey, at: now };
+      const suffix = requestId ? ` (ref: ${requestId.slice(0, 12)})` : '';
+      showToast(`${message}${suffix}`, { variant: 'error' });
     };
-    window.addEventListener('hdmarket:network-error', handleNetworkError);
+
+    window.addEventListener('hdmarket:api-error', handleGlobalError);
+    window.addEventListener('hdmarket:query-error', handleGlobalError);
+    window.addEventListener('hdmarket:ui-error', handleGlobalError);
     return () => {
-      window.removeEventListener('hdmarket:network-error', handleNetworkError);
+      window.removeEventListener('hdmarket:api-error', handleGlobalError);
+      window.removeEventListener('hdmarket:query-error', handleGlobalError);
+      window.removeEventListener('hdmarket:ui-error', handleGlobalError);
     };
   }, [showToast]);
 

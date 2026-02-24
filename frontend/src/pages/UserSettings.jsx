@@ -9,6 +9,9 @@ import CurrencySelector from '../components/settings/CurrencySelector';
 import CitySelector from '../components/settings/CitySelector';
 import { useToast } from '../context/ToastContext';
 import { unregisterServiceWorker } from '../utils/serviceWorker';
+import { clearAllCache } from '../services/api';
+import indexedDB, { STORES } from '../utils/indexedDB';
+import { clearSearchCache } from '../utils/searchCache';
 
 export default function UserSettings() {
   const { user } = useContext(AuthContext);
@@ -16,6 +19,7 @@ export default function UserSettings() {
   const { showToast } = useToast();
   const { theme, setTheme, formatPrice, savingPreferences, t, refreshSettings } = useAppSettings();
   const [clearingPwaCache, setClearingPwaCache] = useState(false);
+  const [hardRefreshing, setHardRefreshing] = useState(false);
   const themeOptions = useMemo(
     () => [
       { value: 'system', label: t('settings.theme.system', 'Systeme') },
@@ -39,7 +43,7 @@ export default function UserSettings() {
         : window.confirm(
             t(
               'settings.cache.confirm',
-              'Cette action vide le cache PWA (hors ligne) et recharge l’application. Continuer ?'
+              'Cette action vide tout le cache utilisateur (PWA + donnees locales) puis recharge l’application. Continuer ?'
             )
           );
     if (!shouldContinue) return;
@@ -47,10 +51,31 @@ export default function UserSettings() {
     setClearingPwaCache(true);
     try {
       queryClient.clear();
+      await clearAllCache();
+      await clearSearchCache();
+      await Promise.all([
+        indexedDB.clear(STORES.CACHE),
+        indexedDB.clear(STORES.PRODUCTS),
+        indexedDB.clear(STORES.SEARCH_RESULTS),
+        indexedDB.clear(STORES.SHOP_DATA)
+      ]);
 
       if (typeof window !== 'undefined') {
-        const removableKeys = ['cached_orders', 'hdmarket:cache-keys'];
-        const removablePrefixes = ['hdmarket:api-cache:', 'hdmarket:shop-snapshot:', 'hdmarket:search-cache:'];
+        const removableKeys = [
+          'cached_orders',
+          'hdmarket:cache-keys',
+          'hdmarket:recent-product-views',
+          'hdmarket_saved_searches',
+          'hdmarket_custom_nav_items',
+          'hdmarket_chat_hidden',
+          'hdmarket_chat_button_collapsed'
+        ];
+        const removablePrefixes = [
+          'hdmarket:api-cache:',
+          'hdmarket:shop-snapshot:',
+          'hdmarket:search-cache:',
+          'hdmarket_chat_key_'
+        ];
         removableKeys.forEach((key) => {
           try {
             localStorage.removeItem(key);
@@ -71,12 +96,21 @@ export default function UserSettings() {
         } catch {
           // ignore storage errors
         }
+        try {
+          sessionStorage.clear();
+        } catch {
+          // ignore storage errors
+        }
       }
 
       await unregisterServiceWorker();
-      showToast(t('settings.cache.cleared', 'Cache PWA vidé. Rechargement...'), { variant: 'success' });
+      showToast(t('settings.cache.cleared', 'Cache utilisateur vide. Rechargement...'), { variant: 'success' });
       if (typeof window !== 'undefined') {
-        window.setTimeout(() => window.location.reload(), 650);
+        window.setTimeout(() => {
+          const url = new URL(window.location.href);
+          url.searchParams.set('refresh', String(Date.now()));
+          window.location.replace(url.toString());
+        }, 650);
       }
     } catch (error) {
       showToast(
@@ -87,6 +121,18 @@ export default function UserSettings() {
       setClearingPwaCache(false);
     }
   }, [clearingPwaCache, queryClient, showToast, t]);
+
+  const handleHardRefresh = useCallback(() => {
+    if (hardRefreshing) return;
+    setHardRefreshing(true);
+    if (typeof window === 'undefined') {
+      setHardRefreshing(false);
+      return;
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set('refresh', String(Date.now()));
+    window.location.replace(url.toString());
+  }, [hardRefreshing]);
 
   return (
     <div className="ui-page min-h-screen">
@@ -163,7 +209,7 @@ export default function UserSettings() {
           <p className="text-xs text-gray-500 dark:text-neutral-400">
             {t(
               'settings.cache.description',
-              'Corrige les données PWA obsolètes en vidant le cache hors ligne et en rechargeant l’application.'
+              'Supprime les caches locaux (PWA, IndexedDB, donnees temporaires) ou force un rechargement immediat.'
             )}
           </p>
           <button
@@ -174,7 +220,17 @@ export default function UserSettings() {
           >
             {clearingPwaCache
               ? t('settings.cache.clearing', 'Nettoyage en cours...')
-              : t('settings.cache.action', 'Vider le cache PWA')}
+              : t('settings.cache.action', 'Vider tout le cache utilisateur')}
+          </button>
+          <button
+            type="button"
+            onClick={handleHardRefresh}
+            disabled={hardRefreshing || clearingPwaCache}
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {hardRefreshing
+              ? t('settings.cache.refreshing', 'Actualisation...')
+              : t('settings.cache.hardRefresh', 'Hard refresh (forcer)')}
           </button>
         </section>
       </div>

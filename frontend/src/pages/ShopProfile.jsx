@@ -272,7 +272,7 @@ const ShopHeaderSkeleton = memo(function ShopHeaderSkeleton() {
 
 const ProductsSkeleton = memo(function ProductsSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3">
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-3">
       {Array.from({ length: 6 }).map((_, index) => (
         <div key={index} className="aspect-[0.72] animate-pulse rounded-2xl bg-slate-100" />
       ))}
@@ -298,7 +298,11 @@ const OpeningHoursCard = memo(function OpeningHoursCard({
       } ${className}`}
       aria-label="Horaires d'ouverture"
     >
-      <div className={`flex items-start justify-between gap-2.5 ${compact ? 'px-3 py-3' : 'px-4 py-4 sm:px-5'}`}>
+      <div
+        className={`flex items-start justify-between gap-2.5 ${
+          compact ? 'px-3 py-2.5 max-[375px]:px-2.5 max-[375px]:py-2' : 'px-4 py-4 sm:px-5'
+        }`}
+      >
         <div>
           <h3 className={`${compact ? 'text-sm' : 'text-base'} font-semibold text-slate-900`}>Horaires</h3>
           <p className={`mt-1 ${compact ? 'text-[11px]' : 'text-xs'} text-slate-500`}>Fuseau: {timeZone}</p>
@@ -314,7 +318,7 @@ const OpeningHoursCard = memo(function OpeningHoursCard({
       </div>
 
       <div
-        className={`border-y ${compact ? 'px-3 py-2' : 'px-4 py-3 sm:px-5'} ${
+        className={`border-y ${compact ? 'px-3 py-2 max-[375px]:px-2.5 max-[375px]:py-1.5' : 'px-4 py-3 sm:px-5'} ${
           certified ? 'border-emerald-100/80' : 'border-slate-100'
         }`}
       >
@@ -324,7 +328,9 @@ const OpeningHoursCard = memo(function OpeningHoursCard({
       <button
         type="button"
         onClick={() => setExpanded((prev) => !prev)}
-        className={`flex w-full items-center justify-between ${compact ? 'px-3 py-2.5 text-xs' : 'px-4 py-3 text-sm sm:px-5'} font-medium text-slate-700 transition-colors hover:bg-slate-50`}
+        className={`flex w-full items-center justify-between ${
+          compact ? 'px-3 py-2 text-xs max-[375px]:px-2.5' : 'px-4 py-3 text-sm sm:px-5'
+        } font-medium text-slate-700 transition-colors hover:bg-slate-50`}
         aria-expanded={expanded}
         aria-controls="shop-hours-weekly"
       >
@@ -337,13 +343,15 @@ const OpeningHoursCard = memo(function OpeningHoursCard({
         className={`grid transition-all duration-300 ease-out ${expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
       >
         <div className="overflow-hidden">
-          <ul className={`space-y-2 ${compact ? 'px-3 pb-3' : 'px-4 pb-4 sm:px-5'}`}>
+          <ul className={`space-y-2 ${compact ? 'px-3 pb-3 max-[375px]:px-2.5 max-[375px]:pb-2.5' : 'px-4 pb-4 sm:px-5'}`}>
             {summary.normalizedHours.map((entry) => {
               const isToday = entry.day === summary.todayKey;
               return (
                 <li
                   key={entry.day}
-                  className={`flex items-center justify-between rounded-xl ${compact ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-2 text-sm'} ${
+                  className={`flex items-center justify-between rounded-xl ${
+                    compact ? 'px-2.5 py-1.5 text-xs max-[375px]:px-2 max-[375px]:py-1 max-[375px]:text-[11px]' : 'px-3 py-2 text-sm'
+                  } ${
                     isToday ? 'bg-neutral-50 text-neutral-700' : 'text-slate-600'
                   }`}
                 >
@@ -755,8 +763,8 @@ export default function ShopProfile() {
   const ownCommentExists = Boolean(currentUserReview?.comment?.trim());
   const showReviewForm = !ownCommentExists || isEditingReview;
   const productGridClass = useCompactProductCards
-    ? 'grid grid-cols-2 gap-2 max-[375px]:gap-1.5'
-    : 'grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-3';
+    ? 'grid grid-cols-2 gap-2 max-[420px]:gap-1.5 sm:gap-3'
+    : 'grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3';
 
   const stats = [
     {
@@ -782,6 +790,7 @@ export default function ShopProfile() {
   ];
 
   const isOfflineSnapshot = shopQuery.isError && Boolean(shopQuery.data);
+  const isNetworkErrorWithoutResponse = Boolean(shopQuery.isError && !shop && !shopQuery.error?.response);
 
   if (shopQuery.isLoading && !shop) {
     return (
@@ -792,6 +801,37 @@ export default function ShopProfile() {
             <div className="space-y-4">
               <div className="h-56 animate-pulse rounded-2xl bg-white" />
               <div className="h-72 animate-pulse rounded-2xl bg-white" />
+            </div>
+            <div className="h-72 animate-pulse rounded-2xl bg-white" />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (isNetworkErrorWithoutResponse) {
+    return (
+      <main className="bg-slate-50 pb-24 dark:bg-slate-950">
+        <div className="mx-auto max-w-7xl px-3 py-6 sm:px-5 lg:px-8">
+          <ShopHeaderSkeleton />
+          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="space-y-4">
+              <div className="h-56 animate-pulse rounded-2xl bg-white" />
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
+                Connexion en cours au serveur. Réessayez dans quelques secondes.
+                <div className="mt-3 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => shopQuery.refetch()}
+                    className="inline-flex min-h-10 items-center rounded-xl bg-neutral-600 px-3 text-xs font-semibold text-white transition hover:bg-neutral-700 sm:text-sm"
+                  >
+                    Réessayer
+                  </button>
+                  <Link to="/" className="text-xs font-semibold text-neutral-700 hover:text-neutral-900 sm:text-sm">
+                    Retour à l'accueil
+                  </Link>
+                </div>
+              </div>
             </div>
             <div className="h-72 animate-pulse rounded-2xl bg-white" />
           </div>
@@ -1020,20 +1060,26 @@ export default function ShopProfile() {
 
         <div className="mt-5 grid gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-4 sm:space-y-6">
-            <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-5 lg:hidden">
-              <div className="space-y-3">
-                <OpeningHoursCard hours={shop.shopHours} certified={isCertifiedShop} compact={isMobile} />
-              </div>
+            <section className="lg:hidden" aria-label="Horaires boutique">
+              <OpeningHoursCard
+                hours={shop.shopHours}
+                certified={isCertifiedShop}
+                compact={isMobile}
+                className="shadow-sm"
+              />
             </section>
 
             <section
-              className={`rounded-2xl border bg-white p-4 shadow-sm sm:p-5 ${
+              className={`rounded-2xl border bg-white p-3.5 shadow-sm max-[375px]:p-3 sm:p-5 ${
                 isCertifiedShop ? 'border-emerald-200/80' : 'border-slate-200'
               }`}
               aria-label="Actions boutique"
             >
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-slate-900">Actions</h3>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900 sm:text-base">Actions rapides</h3>
+                  <p className="mt-0.5 text-[11px] text-slate-500 sm:text-xs">Appeler, message, itinéraire et suivi.</p>
+                </div>
                 {isCertifiedShop && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
                     <ShieldCheck size={12} />
@@ -1042,11 +1088,11 @@ export default function ShopProfile() {
                 )}
               </div>
 
-              <div className="mb-3 grid grid-cols-2 gap-2">
+              <div className="mb-3 grid grid-cols-2 gap-2 max-[420px]:grid-cols-1">
                 <button
                   type="button"
                   onClick={handlePrimaryAction}
-                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-neutral-900 px-2 text-xs font-semibold text-white transition hover:bg-black sm:min-h-12 sm:text-sm"
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-neutral-900 px-3 text-[13px] font-semibold text-white transition hover:bg-black sm:min-h-12 sm:text-sm"
                 >
                   {isOwnShop ? <Pencil size={15} /> : <Store size={15} />}
                   {isOwnShop ? 'Modifier profil' : 'Voir produits'}
@@ -1054,7 +1100,7 @@ export default function ShopProfile() {
                 <button
                   type="button"
                   onClick={handleShareShop}
-                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 sm:min-h-12 sm:text-sm"
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50 sm:min-h-12 sm:text-sm"
                 >
                   <Share2 size={15} />
                   Partager
@@ -1062,7 +1108,7 @@ export default function ShopProfile() {
                 {isOwnShop && (
                   <Link
                     to="/seller/boosts"
-                    className="col-span-2 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 sm:min-h-12 sm:text-sm"
+                    className="col-span-2 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 text-[13px] font-semibold text-amber-700 transition hover:bg-amber-100 max-[420px]:col-span-1 sm:min-h-12 sm:text-sm"
                   >
                     <Rocket size={15} />
                     Booster ma boutique
@@ -1070,11 +1116,11 @@ export default function ShopProfile() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-2 max-[420px]:grid-cols-1 sm:grid-cols-2">
                 {user && shop.phone ? (
                   <a
                     href={`tel:${shop.phone}`}
-                    className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 sm:min-h-12 sm:gap-2 sm:px-4 sm:text-sm"
+                    className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-[13px] font-semibold text-emerald-700 transition hover:bg-emerald-100 sm:min-h-12 sm:gap-2 sm:px-4 sm:text-sm"
                     aria-label="Appeler la boutique"
                   >
                     <Phone size={15} />
@@ -1085,7 +1131,7 @@ export default function ShopProfile() {
                   <Link
                     to="/login"
                     state={{ from: `/shop/${slug}` }}
-                    className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 sm:min-h-12 sm:gap-2 sm:px-4 sm:text-sm"
+                    className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-100 sm:min-h-12 sm:gap-2 sm:px-4 sm:text-sm"
                     aria-label="Se connecter pour appeler"
                   >
                     <Phone size={15} />
@@ -1097,7 +1143,7 @@ export default function ShopProfile() {
                 <button
                   type="button"
                   onClick={goToMessage}
-                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-neutral-600 px-2 text-xs font-semibold text-white transition hover:bg-neutral-700 active:scale-[0.99] sm:min-h-12 sm:gap-2 sm:px-4 sm:text-sm"
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-neutral-600 px-3 text-[13px] font-semibold text-white transition hover:bg-neutral-700 active:scale-[0.99] sm:min-h-12 sm:gap-2 sm:px-4 sm:text-sm"
                   aria-label="Envoyer un message à la boutique"
                 >
                   <MessageCircle size={15} />
@@ -1108,7 +1154,7 @@ export default function ShopProfile() {
                 <button
                   type="button"
                   onClick={handleDirections}
-                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 sm:min-h-12 sm:gap-2 sm:px-4 sm:text-sm"
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50 sm:min-h-12 sm:gap-2 sm:px-4 sm:text-sm"
                   aria-label="Ouvrir l'itinéraire"
                 >
                   <Navigation size={15} />
@@ -1120,7 +1166,7 @@ export default function ShopProfile() {
                   type="button"
                   onClick={handleFollowToggle}
                   disabled={followDisabled}
-                  className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-2 text-xs font-semibold transition sm:min-h-12 sm:gap-2 sm:px-4 sm:text-sm ${
+                  className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3 text-[13px] font-semibold transition sm:min-h-12 sm:gap-2 sm:px-4 sm:text-sm ${
                     isFollowing
                       ? 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100'
                       : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
@@ -1143,8 +1189,13 @@ export default function ShopProfile() {
               </div>
             </section>
 
-            <section ref={productsRef} id="products" className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-5" aria-label="Produits de la boutique">
-              <div className="flex flex-wrap items-start justify-between gap-3">
+            <section
+              ref={productsRef}
+              id="products"
+              className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm max-[375px]:p-3 sm:p-5"
+              aria-label="Produits de la boutique"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-2.5 sm:gap-3">
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">Produits</h3>
                   <p className="mt-1 text-xs text-slate-500 sm:text-sm">
@@ -1181,13 +1232,13 @@ export default function ShopProfile() {
                   </button>
                 </div>
 
-                <div className="-mx-0.5 overflow-x-auto px-0.5 pb-1">
-                  <div className="flex w-max items-center gap-2">
+                <div className="-mx-1 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  <div className="flex w-max snap-x snap-mandatory items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setActiveCategory('all')}
                       aria-pressed={activeCategory === 'all'}
-                      className={`inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-xs font-semibold transition sm:min-h-9 sm:rounded-full ${
+                      className={`inline-flex min-h-10 snap-start items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-xs font-semibold transition sm:min-h-9 sm:rounded-full ${
                         activeCategory === 'all'
                           ? 'bg-neutral-900 text-white shadow-sm'
                           : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
@@ -1211,7 +1262,7 @@ export default function ShopProfile() {
                         onClick={() => setPromoOnly((prev) => !prev)}
                         disabled={!hasPromoProducts}
                         aria-pressed={promoOnly}
-                        className={`inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-xs font-semibold transition sm:min-h-9 sm:rounded-full ${
+                        className={`inline-flex min-h-10 snap-start items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-xs font-semibold transition sm:min-h-9 sm:rounded-full ${
                           promoOnly
                             ? 'bg-amber-500 text-white shadow-sm'
                             : 'border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
@@ -1230,7 +1281,7 @@ export default function ShopProfile() {
                           type="button"
                           onClick={() => setActiveCategory(category)}
                           aria-pressed={isActive}
-                          className={`inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-xs font-semibold transition sm:min-h-9 sm:rounded-full ${
+                          className={`inline-flex min-h-10 snap-start items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-xs font-semibold transition sm:min-h-9 sm:rounded-full ${
                             isActive
                               ? 'bg-neutral-900 text-white shadow-sm'
                               : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'

@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import { hasAnyPermission } from '../utils/permissions';
@@ -6,10 +6,44 @@ import { hasAnyPermission } from '../utils/permissions';
 export default function ProtectedRoute({ children, role, roles, permissions, allowAccess }) {
   const location = useLocation();
   const { user, loading } = useContext(AuthContext);
-  if (loading) {
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (!loading) {
+      setLoadingTimedOut(false);
+      return undefined;
+    }
+    const timer = setTimeout(() => setLoadingTimedOut(true), 8000);
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  if (loading && !loadingTimedOut) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-sm font-semibold text-gray-500">Chargement...</div>
+      </div>
+    );
+  }
+  if (loading && loadingTimedOut) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm">
+          <p className="text-sm font-semibold text-slate-800">Chargement plus long que prévu.</p>
+          <p className="mt-1 text-xs text-slate-600">
+            Vérifiez votre connexion puis réessayez.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.location.reload();
+              }
+            }}
+            className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-neutral-900 px-4 text-sm font-semibold text-white"
+          >
+            Réessayer
+          </button>
+        </div>
       </div>
     );
   }

@@ -5,6 +5,7 @@ import api from './services/api';
 import Navbar from './components/Navbar';
 import SplashScreen from './components/SplashScreen';
 import AppLoader from './components/AppLoader';
+import NetworkStatusBanner from './components/NetworkStatusBanner';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -102,6 +103,7 @@ function AppContent() {
   const [splashDismissed, setSplashDismissed] = useState(false);
   const [bootLoading, setBootLoading] = useState(true);
   const [routeLoading, setRouteLoading] = useState(false);
+  const [loaderTimedOut, setLoaderTimedOut] = useState(false);
   const firstRouteRef = useRef(true);
 
   useEffect(() => {
@@ -135,6 +137,15 @@ function AppContent() {
 
   const showLoader = !showSplash && (bootLoading || routeLoading);
 
+  useEffect(() => {
+    if (!showLoader) {
+      setLoaderTimedOut(false);
+      return undefined;
+    }
+    const timer = setTimeout(() => setLoaderTimedOut(true), 8000);
+    return () => clearTimeout(timer);
+  }, [showLoader]);
+
   if (showSplash) {
     return (
       <SplashScreen
@@ -148,11 +159,21 @@ function AppContent() {
   return (
     <>
       <PendingActionHandler />
-      <AppLoader visible={showLoader} />
+      <AppLoader
+        visible={showLoader}
+        timedOut={loaderTimedOut}
+        onRetry={() => {
+          setLoaderTimedOut(false);
+          if (typeof window !== 'undefined') {
+            window.location.reload();
+          }
+        }}
+      />
       <PushNotificationsManager />
       <AnalyticsTracker />
       <ScrollToTop />
       <Navbar />
+      <NetworkStatusBanner />
       <main
         className="pt-20 sm:pt-24 md:pt-32 pb-24 md:pb-0 main-content"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 5rem)' }}

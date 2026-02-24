@@ -10,23 +10,26 @@ import { ToastProvider } from './context/ToastContext';
 import { AppSettingsProvider } from './context/AppSettingsContext';
 import { queryClient } from './lib/queryClient';
 import { registerServiceWorker, unregisterServiceWorker } from './utils/serviceWorker';
+import GlobalErrorBoundary from './components/GlobalErrorBoundary';
 
 const root = createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <AppSettingsProvider>
-          <CartProvider>
-            <FavoriteProvider>
-              <ToastProvider>
-                <App />
-              </ToastProvider>
-            </FavoriteProvider>
-          </CartProvider>
-        </AppSettingsProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <GlobalErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <AppSettingsProvider>
+            <CartProvider>
+              <FavoriteProvider>
+                <ToastProvider>
+                  <App />
+                </ToastProvider>
+              </FavoriteProvider>
+            </CartProvider>
+          </AppSettingsProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </GlobalErrorBoundary>
   </React.StrictMode>
 );
 

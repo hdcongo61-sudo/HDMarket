@@ -1,11 +1,14 @@
 import axios from 'axios';
-import { Capacitor } from '@capacitor/core';
 import storage from '../utils/storage.js';
 import indexedDB, { STORES } from '../utils/indexedDB.js';
+
+const API_TIMEOUT_MS = Math.max(4000, Number(import.meta.env.VITE_API_TIMEOUT_MS || 12000));
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || `http://localhost:5001/api`,
   withCredentials: true,
+  timeout: API_TIMEOUT_MS,
+  transitional: { clarifyTimeoutError: true }
 });
 
 // Cache configuration
@@ -55,6 +58,44 @@ const USER_SCOPED_CACHE_PREFIXES = [
 
 // Enable caching for all platforms (not just native)
 const isCacheEnabled = () => typeof window !== 'undefined';
+
+const resolveRequestId = (error) =>
+  String(
+    error?.requestId ||
+      error?.response?.data?.requestId ||
+      error?.response?.headers?.['x-request-id'] ||
+      error?.response?.headers?.['X-Request-Id'] ||
+      ''
+  ).trim();
+
+const resolveApiErrorMessage = (error, fallback = 'Une erreur est survenue.') =>
+  error?.response?.data?.message || error?.userMessage || error?.message || fallback;
+
+const clearAbortTimer = (config = {}) => {
+  if (!config.__abortTimer) return;
+  clearTimeout(config.__abortTimer);
+  config.__abortTimer = null;
+};
+
+const dispatchGlobalApiError = (error, config = {}) => {
+  if (typeof window === 'undefined' || config?.silentGlobalError || error?.name === 'CanceledError') {
+    return;
+  }
+  const message = resolveApiErrorMessage(error, 'Une erreur est survenue. Veuillez réessayer.');
+  const requestId = resolveRequestId(error);
+  const status = Number(error?.response?.status || 0);
+  const code = String(error?.response?.data?.code || error?.code || 'API_ERROR');
+  window.dispatchEvent(
+    new CustomEvent('hdmarket:api-error', {
+      detail: {
+        message,
+        requestId,
+        status,
+        code
+      }
+    })
+  );
+};
 
 const normalizeUrl = (config) => {
   const raw = config.url || '';
@@ -294,8 +335,30 @@ const shouldCacheRequest = (config) => {
 
 api.interceptors.request.use(async (config) => {
   config.headers = config.headers || {};
+  config.__requestStartAt = Date.now();
+  const contentType = String(config.headers['Content-Type'] || config.headers['content-type'] || '').toLowerCase();
+  if (contentType.includes('multipart/form-data') && Number(config.timeout || 0) < 60_000) {
+    config.timeout = 60_000;
+  }
+  if (!config.signal && typeof AbortController !== 'undefined') {
+    const controller = new AbortController();
+    config.signal = controller.signal;
+    config.__abortController = controller;
+    const timeoutMs = Math.max(1000, Number(config.timeout || API_TIMEOUT_MS));
+    config.__abortTimer = setTimeout(() => controller.abort('REQUEST_ABORT_TIMEOUT'), timeoutMs + 200);
+  }
   const token = await storage.get('qm_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  const method = String(config.method || 'get').toLowerCase();
+  if (
+    ['post', 'put', 'patch', 'delete'].includes(method) &&
+    !config.headers['Idempotency-Key'] &&
+    !config.headers['x-idempotency-key']
+  ) {
+    config.headers['Idempotency-Key'] = `hdm-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 10)}`;
+  }
   if (shouldCacheRequest(config)) {
     const normalized = normalizeUrl(config);
     const key = buildCacheKey(config);
@@ -318,13 +381,13 @@ api.interceptors.request.use(async (config) => {
 });
 
 // Retry config for network errors (no response = connection/timeout/CORS)
-const NETWORK_ERROR_MAX_RETRIES = 2;
-const NETWORK_ERROR_DELAY_MS = 1200;
-const NETWORK_ERROR_TOAST_THROTTLE_MS = 15000; // max one toast per 15s
-let lastNetworkErrorToastAt = 0;
+const NETWORK_ERROR_MAX_RETRIES = 1;
+const NETWORK_ERROR_DELAY_MS = 700;
+const RETRYABLE_METHODS = new Set(['get', 'head', 'options']);
 
 api.interceptors.response.use(
   async (response) => {
+    clearAbortTimer(response.config || {});
     if (shouldCacheRequest(response.config)) {
       const key = response.config.__cacheKey || buildCacheKey(response.config);
       const normalized = response.config.__normalizedUrl || normalizeUrl(response.config);
@@ -336,34 +399,65 @@ api.interceptors.response.use(
   },
   async (error) => {
     const config = error.config || {};
+    clearAbortTimer(config);
     const retryCount = config.__retryCount ?? 0;
+    const method = String(config.method || 'get').toLowerCase();
     const isNetworkError = !error.response;
+    const isTimeoutError =
+      error.code === 'ECONNABORTED' ||
+      error.name === 'AbortError' ||
+      (error.code === 'ERR_CANCELED' && Boolean(config.__abortController)) ||
+      /timeout/i.test(String(error.message || ''));
+    const isRetryableStatus = [502, 503, 504].includes(Number(error?.response?.status || 0));
+    error.requestDurationMs = Math.max(0, Date.now() - Number(config.__requestStartAt || Date.now()));
 
-    if (isNetworkError && retryCount < NETWORK_ERROR_MAX_RETRIES) {
+    if (isTimeoutError) {
+      error.isTimeout = true;
+      error.userMessage = 'Le serveur met trop de temps à répondre. Réessayez.';
+      if (!error.response) {
+        error.message = error.userMessage;
+      }
+    } else if (isNetworkError) {
+      error.userMessage = 'Connexion indisponible. Vérifiez internet puis réessayez.';
+      error.message = error.userMessage;
+    }
+    if (!error.response && error.userMessage) {
+      error.response = {
+        status: 0,
+        statusText: 'NETWORK_ERROR',
+        data: { message: error.userMessage },
+        headers: {},
+        config
+      };
+    }
+    const requestId = resolveRequestId(error);
+    if (requestId) {
+      error.requestId = requestId;
+    }
+
+    const canRetry = RETRYABLE_METHODS.has(method);
+    if ((isNetworkError || isRetryableStatus) && canRetry && retryCount < NETWORK_ERROR_MAX_RETRIES) {
       config.__retryCount = retryCount + 1;
       const delay = NETWORK_ERROR_DELAY_MS * (retryCount + 1);
       await new Promise((r) => setTimeout(r, delay));
       return api.request(config);
     }
 
-    if (isNetworkError && typeof window !== 'undefined') {
-      const now = Date.now();
-      if (now - lastNetworkErrorToastAt >= NETWORK_ERROR_TOAST_THROTTLE_MS) {
-        lastNetworkErrorToastAt = now;
-        const message =
-          'Impossible de joindre le serveur. Vérifiez votre connexion internet et réessayez.';
-        window.dispatchEvent(
-          new CustomEvent('hdmarket:network-error', {
-            detail: { message },
-            bubbles: true,
-            cancelable: false
-          })
-        );
-      }
-    }
+    dispatchGlobalApiError(error, config);
     return Promise.reject(error);
   }
 );
+
+export const isApiTimeoutError = (error) =>
+  Boolean(
+    error?.isTimeout ||
+      error?.code === 'ECONNABORTED' ||
+      error?.name === 'AbortError' ||
+      /timeout/i.test(String(error?.message || ''))
+  );
+
+export const getApiErrorMessage = (error, fallback = 'Une erreur est survenue.') =>
+  resolveApiErrorMessage(error, fallback);
 
 const normalizeTransactionCode = (value) => String(value || '').replace(/\D/g, '').trim();
 

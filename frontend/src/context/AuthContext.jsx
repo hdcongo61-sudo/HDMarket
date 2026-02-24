@@ -80,10 +80,28 @@ export const AuthProvider = ({ children }) => {
 
   // Load persisted user on mount
   useEffect(() => {
-    readPersistedUser().then((userData) => {
-      setUser(userData);
+    let mounted = true;
+    let resolved = false;
+    const timeout = setTimeout(() => {
+      if (!mounted || resolved) return;
       setLoading(false);
-    });
+    }, 8000);
+
+    readPersistedUser()
+      .then((userData) => {
+        if (!mounted) return;
+        setUser(userData);
+      })
+      .finally(() => {
+        resolved = true;
+        clearTimeout(timeout);
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+      clearTimeout(timeout);
+    };
   }, []);
 
   const persistUser = async (data) => {
