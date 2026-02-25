@@ -54,7 +54,6 @@ import DraftOrders from './pages/DraftOrders';
 import usePreventNewTabOnMobile from './hooks/usePreventNewTabOnMobile';
 import ScrollToTop from './components/ScrollToTop';
 import ChatBox from './components/ChatBox';
-import MobileScrollToTopButton from './components/MobileScrollToTopButton';
 import AdminChatTemplates from './pages/AdminChatTemplates';
 import AdminProductBoosts from './pages/AdminProductBoosts';
 import AdminProducts from './pages/AdminProducts';
@@ -184,7 +183,7 @@ function AppContent() {
       <Navbar />
       <NetworkStatusBanner />
       <main
-        className="pt-20 sm:pt-24 md:pt-32 pb-24 md:pb-0 main-content"
+        className="pt-20 sm:pt-24 md:pt-32 pb-24 md:pb-0 main-content no-ios-callout"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 5rem)' }}
       >
         <AnimatePresence mode="wait" initial={false}>
@@ -620,7 +619,6 @@ function AppContent() {
       </main>
       <Footer />
       {chatEnabled ? <ChatBox /> : null}
-      <MobileScrollToTopButton />
     </>
   );
 }

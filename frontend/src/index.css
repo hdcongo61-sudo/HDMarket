@@ -218,6 +218,30 @@ body.menu-open .verified-shops-header {
   pointer-events: none;
 }
 
+/* Prevent iOS long-press callout (Rechercher/Annuler) on app cards/images in mobile/PWA.
+   Keep text selection available on form fields and explicit opt-in blocks. */
+@media (hover: none) and (pointer: coarse) {
+  .no-ios-callout,
+  .no-ios-callout *:not(input):not(textarea):not([contenteditable="true"]):not(.allow-text-select) {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .no-ios-callout input,
+  .no-ios-callout textarea,
+  .no-ios-callout [contenteditable="true"],
+  .no-ios-callout .allow-text-select {
+    -webkit-touch-callout: default;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  .no-ios-callout img {
+    -webkit-user-drag: none;
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    APPLE COMPONENT UTILITIES
    ═══════════════════════════════════════════════════════════════════════════ */
