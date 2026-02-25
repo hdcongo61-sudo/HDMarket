@@ -124,7 +124,7 @@ const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 export default function Navbar() {
   const navigate = useNavigate();
   const { user, logout } = useContext(AuthContext);
-  const { theme, setTheme, t } = useAppSettings();
+  const { theme, setTheme, t, cities } = useAppSettings();
   const { cart } = useContext(CartContext);
   const { favorites } = useContext(FavoriteContext);
   const cartCount = cart?.totals?.quantity || 0;
@@ -605,10 +605,24 @@ export default function Navbar() {
 
   // Bottom bar swipe gesture handlers
   const handleBottomBarTouchStart = (e) => {
+    if (!e.touches?.length) return;
     setBottomBarTouchStart(e.touches[0].clientY);
+
+    // Resolve target id synchronously; currentTarget may be null inside async callback.
+    const currentTarget = e.currentTarget;
+    const targetNode = e.target instanceof Element ? e.target.closest('[data-item-id]') : null;
+    const itemId =
+      currentTarget?.dataset?.itemId ||
+      targetNode?.dataset?.itemId ||
+      null;
+
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+
     // Long press detection
     const timer = setTimeout(() => {
-      const itemId = e.currentTarget.dataset.itemId;
       if (itemId) {
         setShowQuickActions(itemId);
         triggerHaptic('medium');
@@ -1255,6 +1269,19 @@ export default function Navbar() {
     });
   };
 
+  const filterCityOptions = Array.from(
+    new Set(
+      [
+        ...(Array.isArray(cities)
+          ? cities
+              .map((item) => String(typeof item === 'string' ? item : item?.name || '').trim())
+              .filter(Boolean)
+          : []),
+        String(filters.city || '').trim()
+      ].filter(Boolean)
+    )
+  );
+
   const hasActiveFilters = filters.category || filters.minPrice || filters.maxPrice || filters.city || filters.shopVerified || filters.condition;
 
   // Skeleton loader component
@@ -1370,10 +1397,11 @@ export default function Navbar() {
               className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0A0A0A] focus:border-[#0A0A0A]"
             >
               <option value="">{t('nav.allCities', 'Toutes les villes')}</option>
-              <option value="Brazzaville">Brazzaville</option>
-              <option value="Pointe-Noire">Pointe-Noire</option>
-              <option value="Ouesso">Ouesso</option>
-              <option value="Oyo">Oyo</option>
+              {filterCityOptions.map((cityName) => (
+                <option key={cityName} value={cityName}>
+                  {cityName}
+                </option>
+              ))}
             </select>
           </div>
 

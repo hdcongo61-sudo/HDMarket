@@ -49,7 +49,10 @@ export const adminApplyOrderAction = asyncHandler(async (req, res) => {
     'force_close'
   ]);
 
-  if (adminOnlyActions.has(requestedAction) && req.user?.role !== 'admin') {
+  if (
+    adminOnlyActions.has(requestedAction) &&
+    !['admin', 'founder'].includes(String(req.user?.role || ''))
+  ) {
     return res.status(403).json({
       message: 'Only admins can force-close or force-mark delivered.'
     });

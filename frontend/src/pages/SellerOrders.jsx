@@ -1110,7 +1110,7 @@ export default function SellerOrders() {
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {(user?.role === 'admin' || user?.role === 'manager') && (
+        {(user?.role === 'admin' || user?.role === 'founder' || user?.role === 'manager') && (
           <div className="mb-4">
             <Link
               to="/admin/orders"

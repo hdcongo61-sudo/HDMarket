@@ -21,7 +21,10 @@ export const createPayment = asyncHandler(async (req, res) => {
 
   const product = await Product.findById(productId);
   if (!product) return res.status(404).json({ message: 'Product not found' });
-  if (product.user.toString() !== req.user.id && req.user.role !== 'admin')
+  if (
+    product.user.toString() !== req.user.id &&
+    !['admin', 'founder'].includes(String(req.user.role || ''))
+  )
     return res.status(403).json({ message: 'Forbidden' });
 
   const existingPayment = await Payment.findOne({
@@ -149,7 +152,7 @@ export const createPayment = asyncHandler(async (req, res) => {
 
   try {
     const [moderators, waitingCount] = await Promise.all([
-      User.find({ role: { $in: ['admin', 'manager'] } })
+      User.find({ role: { $in: ['admin', 'founder', 'manager'] } })
         .select('_id')
         .lean(),
       Payment.countDocuments({ status: 'waiting' })

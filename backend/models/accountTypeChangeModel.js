@@ -15,7 +15,8 @@ const accountTypeChangeSchema = new mongoose.Schema(
     newShopData: {
       shopName: { type: String, default: null },
       shopAddress: { type: String, default: null },
-      shopLogo: { type: String, default: null }
+      shopLogo: { type: String, default: null },
+      shopVerified: { type: Boolean, default: false }
     },
     reason: { type: String, trim: true, maxlength: 500, default: '' }
   },

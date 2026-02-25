@@ -149,7 +149,7 @@ const notificationMeta = (alert, t) => {
 const buildOrderNotificationPath = (alert, user) => {
   const orderId = String(alert?.metadata?.orderId || '').trim();
   if (!orderId) return '';
-  if (user?.role === 'admin' || user?.role === 'manager') {
+  if (user?.role === 'admin' || user?.role === 'founder' || user?.role === 'manager') {
     return `/admin/orders?orderId=${encodeURIComponent(orderId)}`;
   }
   if (SELLER_ORDER_NOTIFICATION_TYPES.has(alert?.type)) {
@@ -160,7 +160,7 @@ const buildOrderNotificationPath = (alert, user) => {
 
 const buildDisputeNotificationPath = (alert, user) => {
   if (!DISPUTE_TYPES.has(alert?.type)) return '';
-  if (user?.role === 'admin' || user?.role === 'manager' || user?.canManageComplaints) {
+  if (user?.role === 'admin' || user?.role === 'founder' || user?.role === 'manager' || user?.canManageComplaints) {
     return '/admin/complaints';
   }
   if (user?.accountType === 'shop' || user?.role === 'seller') {
@@ -175,7 +175,7 @@ const getNotificationActions = (alert, user, t) => {
   if (orderPath) actions.push({ to: orderPath, label: t('notifications.viewOrder', 'Voir commande') });
   const disputePath = buildDisputeNotificationPath(alert, user);
   if (disputePath) actions.push({ to: disputePath, label: t('notifications.viewDispute', 'Voir litige') });
-  if (alert?.type === 'payment_pending' && (user?.role === 'admin' || user?.role === 'manager')) {
+  if (alert?.type === 'payment_pending' && (user?.role === 'admin' || user?.role === 'founder' || user?.role === 'manager')) {
     actions.push({ to: '/admin/payment-verification', label: t('notifications.verifyPayment', 'Vérifier paiement') });
   }
   if (alert?.product) actions.push({ to: buildProductPath(alert.product), label: t('notifications.viewProduct', 'Voir produit') });

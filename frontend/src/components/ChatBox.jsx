@@ -78,12 +78,12 @@ const getNodeLink = (node, user) => {
   if (entityType === 'product') return `/product/${entityId}`;
   if (entityType === 'shop') return `/shop/${entityId}`;
   if (entityType === 'dispute') {
-    if (user?.role === 'admin' || user?.role === 'manager' || user?.canManageComplaints) return '/admin/complaints';
+    if (user?.role === 'admin' || user?.role === 'founder' || user?.role === 'manager' || user?.canManageComplaints) return '/admin/complaints';
     if (user?.accountType === 'shop') return '/seller/disputes';
     return '/reclamations';
   }
   if (entityType === 'payment') {
-    if (user?.role === 'admin' || user?.role === 'manager' || user?.canVerifyPayments) return '/admin/payment-verification';
+    if (user?.role === 'admin' || user?.role === 'founder' || user?.role === 'manager' || user?.canVerifyPayments) return '/admin/payment-verification';
     return '/orders';
   }
   if (entityType === 'external_link') return entityId;

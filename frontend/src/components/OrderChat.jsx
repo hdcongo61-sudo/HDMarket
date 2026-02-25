@@ -217,7 +217,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
   const isCustomer = user?._id && order?.customer?._id && String(user._id) === String(order.customer._id);
   const isSeller = seller && user?._id && String(user._id) === String(seller._id);
-  const isAdmin = user?.role === 'admin' || user?.role === 'manager';
+  const isAdmin = user?.role === 'admin' || user?.role === 'founder' || user?.role === 'manager';
 
   const orderId = order?._id != null ? String(order._id) : (order?.id != null ? String(order.id) : null);
   const userScopeId = user?._id || user?.id;

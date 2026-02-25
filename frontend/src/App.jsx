@@ -200,7 +200,7 @@ function AppContent() {
           <Route
             path="/settings/categories"
             element={
-              <ProtectedRoute roles={['admin']}>
+              <ProtectedRoute roles={['admin', 'founder']}>
                 <SettingsCategoriesPage />
               </ProtectedRoute>
             }

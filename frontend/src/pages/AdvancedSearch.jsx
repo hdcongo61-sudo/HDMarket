@@ -75,13 +75,17 @@ export default function AdvancedSearch() {
   const [error, setError] = useState('');
   const [totalPages, setTotalPages] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
-  const cityOptions = useMemo(
-    () =>
-      Array.isArray(cities) && cities.length
-        ? cities.map((item) => item.name).filter(Boolean)
-        : ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'],
-    [cities]
-  );
+  const cityOptions = useMemo(() => {
+    const dynamicCities = Array.isArray(cities)
+      ? cities
+          .map((item) => String(typeof item === 'string' ? item : item?.name || '').trim())
+          .filter(Boolean)
+      : [];
+    if (city && !dynamicCities.includes(city)) {
+      dynamicCities.push(city);
+    }
+    return Array.from(new Set(dynamicCities));
+  }, [cities, city]);
 
   // Build query params from filters
   const buildQueryParams = useCallback(() => {

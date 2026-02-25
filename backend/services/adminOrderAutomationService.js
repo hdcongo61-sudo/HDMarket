@@ -251,7 +251,7 @@ const resolveActorId = ({ explicitActorId = null, fallbackActorId = null, recipi
 };
 
 const getAdminAndManagerIds = async () => {
-  const recipients = await User.find({ role: { $in: ['admin', 'manager'] } }).select('_id').lean();
+  const recipients = await User.find({ role: { $in: ['admin', 'founder', 'manager'] } }).select('_id').lean();
   return recipients.map((entry) => String(entry._id));
 };
 

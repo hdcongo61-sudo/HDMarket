@@ -707,7 +707,7 @@ export const toggleShopBoost = asyncHandler(async (req, res) => {
   }
   
   // Check permissions
-  const isAdmin = req.user.role === 'admin';
+  const isAdmin = ['admin', 'founder'].includes(String(req.user.role || ''));
   const canManageBoosts = req.user.canManageBoosts === true;
   if (!isAdmin && !canManageBoosts) {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à gérer les boosts.' });
@@ -807,7 +807,7 @@ export const toggleShopBoost = asyncHandler(async (req, res) => {
 });
 
 export const getShopBoostStatistics = asyncHandler(async (req, res) => {
-  const isAdmin = req.user.role === 'admin';
+  const isAdmin = ['admin', 'founder'].includes(String(req.user.role || ''));
   const canManageBoosts = req.user.canManageBoosts === true;
   if (!isAdmin && !canManageBoosts) {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à voir les statistiques de boost.' });

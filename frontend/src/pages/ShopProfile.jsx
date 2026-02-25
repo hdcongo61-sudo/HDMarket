@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowRight,
@@ -132,6 +132,30 @@ const getNowInTimeZone = (timeZone) => {
   const minute = Number(parts.find((part) => part.type === 'minute')?.value || 0);
   const dayKey = WEEKDAY_TO_KEY[weekday] || 'monday';
   return { dayKey, minutes: hour * 60 + minute };
+};
+
+const getViewportMetrics = () => {
+  if (typeof window === 'undefined') {
+    return {
+      effectiveWidth: 1280,
+      innerWidth: 1280,
+      clientWidth: 1280,
+      visualWidth: 1280
+    };
+  }
+  const innerWidth = Number(window.innerWidth || 0);
+  const clientWidth = Number(document?.documentElement?.clientWidth || 0);
+  const visualWidth = Number(window.visualViewport?.width || 0);
+  const candidates = [innerWidth, clientWidth, visualWidth].filter(
+    (value) => Number.isFinite(value) && value > 0
+  );
+  const effectiveWidth = candidates.length > 0 ? Math.min(...candidates) : innerWidth || 0;
+  return {
+    effectiveWidth,
+    innerWidth,
+    clientWidth,
+    visualWidth
+  };
 };
 
 const getOpeningSummary = (hours, timeZone) => {
@@ -300,15 +324,15 @@ const OpeningHoursCard = memo(function OpeningHoursCard({
     >
       <div
         className={`flex items-start justify-between gap-2.5 ${
-          compact ? 'px-3 py-2.5 max-[375px]:px-2.5 max-[375px]:py-2' : 'px-4 py-4 sm:px-5'
+          compact ? 'px-2.5 py-2 max-[375px]:px-2 max-[375px]:py-1.5' : 'px-4 py-4 sm:px-5'
         }`}
       >
         <div>
-          <h3 className={`${compact ? 'text-sm' : 'text-base'} font-semibold text-slate-900`}>Horaires</h3>
-          <p className={`mt-1 ${compact ? 'text-[11px]' : 'text-xs'} text-slate-500`}>Fuseau: {timeZone}</p>
+          <h3 className={`${compact ? 'text-[13px]' : 'text-base'} font-semibold text-slate-900`}>Horaires</h3>
+          <p className={`mt-0.5 ${compact ? 'text-[10px]' : 'text-xs'} text-slate-500`}>Fuseau: {timeZone}</p>
         </div>
         <span
-          className={`inline-flex items-center ${compact ? 'gap-1.5 px-2.5 py-0.5 text-[11px]' : 'gap-2 px-3 py-1 text-xs'} rounded-full font-semibold ${
+          className={`inline-flex items-center ${compact ? 'gap-1 px-2 py-0.5 text-[10px]' : 'gap-2 px-3 py-1 text-xs'} rounded-full font-semibold ${
             summary.isOpen ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
           }`}
         >
@@ -318,18 +342,18 @@ const OpeningHoursCard = memo(function OpeningHoursCard({
       </div>
 
       <div
-        className={`border-y ${compact ? 'px-3 py-2 max-[375px]:px-2.5 max-[375px]:py-1.5' : 'px-4 py-3 sm:px-5'} ${
+        className={`border-y ${compact ? 'px-2.5 py-1.5 max-[375px]:px-2 max-[375px]:py-1.5' : 'px-4 py-3 sm:px-5'} ${
           certified ? 'border-emerald-100/80' : 'border-slate-100'
         }`}
       >
-        <p className={`${compact ? 'text-xs' : 'text-sm'} font-medium text-slate-800`}>{summary.statusText}</p>
+        <p className={`${compact ? 'text-[11px]' : 'text-sm'} font-medium text-slate-800`}>{summary.statusText}</p>
       </div>
 
       <button
         type="button"
         onClick={() => setExpanded((prev) => !prev)}
         className={`flex w-full items-center justify-between ${
-          compact ? 'px-3 py-2 text-xs max-[375px]:px-2.5' : 'px-4 py-3 text-sm sm:px-5'
+          compact ? 'px-2.5 py-1.5 text-[11px] max-[375px]:px-2' : 'px-4 py-3 text-sm sm:px-5'
         } font-medium text-slate-700 transition-colors hover:bg-slate-50`}
         aria-expanded={expanded}
         aria-controls="shop-hours-weekly"
@@ -343,14 +367,14 @@ const OpeningHoursCard = memo(function OpeningHoursCard({
         className={`grid transition-all duration-300 ease-out ${expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
       >
         <div className="overflow-hidden">
-          <ul className={`space-y-2 ${compact ? 'px-3 pb-3 max-[375px]:px-2.5 max-[375px]:pb-2.5' : 'px-4 pb-4 sm:px-5'}`}>
+          <ul className={`space-y-1.5 ${compact ? 'px-2.5 pb-2.5 max-[375px]:px-2 max-[375px]:pb-2' : 'px-4 pb-4 sm:px-5'}`}>
             {summary.normalizedHours.map((entry) => {
               const isToday = entry.day === summary.todayKey;
               return (
                 <li
                   key={entry.day}
                   className={`flex items-center justify-between rounded-xl ${
-                    compact ? 'px-2.5 py-1.5 text-xs max-[375px]:px-2 max-[375px]:py-1 max-[375px]:text-[11px]' : 'px-3 py-2 text-sm'
+                    compact ? 'px-2 py-1 text-[11px] max-[375px]:px-1.5 max-[375px]:py-1 max-[375px]:text-[10px]' : 'px-3 py-2 text-sm'
                   } ${
                     isToday ? 'bg-neutral-50 text-neutral-700' : 'text-slate-600'
                   }`}
@@ -371,11 +395,14 @@ const OpeningHoursCard = memo(function OpeningHoursCard({
 
 export default function ShopProfile() {
   const { slug } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, updateUser } = useContext(AuthContext);
   const { showToast } = useToast();
   const isMobile = useIsMobile();
+  const [viewportMetrics, setViewportMetrics] = useState(() => getViewportMetrics());
+  const viewportWidth = viewportMetrics.effectiveWidth;
   const externalLinkProps = useDesktopExternalLink();
 
   const [activeCategory, setActiveCategory] = useState('all');
@@ -385,9 +412,69 @@ export default function ShopProfile() {
   const [reviewError, setReviewError] = useState('');
   const [isEditingReview, setIsEditingReview] = useState(true);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [showDebugDetails, setShowDebugDetails] = useState(true);
+  const [productGridRuntime, setProductGridRuntime] = useState({
+    cssColumns: 0,
+    cssTemplate: '',
+    containerWidth: 0,
+    firstCardWidth: 0,
+    gap: '',
+    itemCount: 0
+  });
+  const [layoutContainerWidth, setLayoutContainerWidth] = useState(0);
 
   const [productsRef, productsInView] = useSectionInView({ rootMargin: '320px' });
   const [reviewsRef, reviewsInView] = useSectionInView({ rootMargin: '240px' });
+  const productGridDebugRef = useRef(null);
+  const pageContainerRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const updateViewportWidth = () => setViewportMetrics(getViewportMetrics());
+    updateViewportWidth();
+    window.addEventListener('resize', updateViewportWidth);
+    window.addEventListener('orientationchange', updateViewportWidth);
+    window.visualViewport?.addEventListener?.('resize', updateViewportWidth);
+    window.visualViewport?.addEventListener?.('scroll', updateViewportWidth);
+    return () => {
+      window.removeEventListener('resize', updateViewportWidth);
+      window.removeEventListener('orientationchange', updateViewportWidth);
+      window.visualViewport?.removeEventListener?.('resize', updateViewportWidth);
+      window.visualViewport?.removeEventListener?.('scroll', updateViewportWidth);
+    };
+  }, []);
+
+  const isMobileUserAgent = useMemo(() => {
+    if (typeof navigator === 'undefined') return false;
+    const userAgent = String(navigator.userAgent || '');
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(userAgent);
+  }, []);
+  const useMobileLayout = isMobile || (isMobileUserAgent && viewportWidth <= 1024);
+  const shopDebugEnabled = useMemo(() => {
+    if (searchParams.get('debug') === '1') return true;
+    if (typeof window === 'undefined') return false;
+    return String(window.localStorage?.getItem('hdmarket_debug_shop_profile') || '') === '1';
+  }, [searchParams]);
+  const debugBreakpointState = useMemo(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return {
+        max375: false,
+        max420: false,
+        max640: false,
+        max767: false,
+        min640: false,
+        min1024: false
+      };
+    }
+    return {
+      max375: window.matchMedia('(max-width: 375px)').matches,
+      max420: window.matchMedia('(max-width: 420px)').matches,
+      max640: window.matchMedia('(max-width: 640px)').matches,
+      max767: window.matchMedia('(max-width: 767px)').matches,
+      min640: window.matchMedia('(min-width: 640px)').matches,
+      min1024: window.matchMedia('(min-width: 1024px)').matches
+    };
+  }, [viewportWidth]);
 
   const shopQuery = useQuery({
     queryKey: ['shop-profile', slug],
@@ -418,6 +505,15 @@ export default function ShopProfile() {
     coerceFlag(shop?.verified) ||
     coerceFlag(shop?.isVerified) ||
     coerceFlag(shop?.verificationStatus);
+  const shopVerificationSignals = useMemo(
+    () => ({
+      shopVerified: shop?.shopVerified,
+      verified: shop?.verified,
+      isVerified: shop?.isVerified,
+      verificationStatus: shop?.verificationStatus
+    }),
+    [shop?.isVerified, shop?.shopVerified, shop?.verificationStatus, shop?.verified]
+  );
 
   useEffect(() => {
     const canonicalSlug = String(shop?.slug || '').trim();
@@ -740,7 +836,7 @@ export default function ShopProfile() {
       shopVerifiedFlag
     ]
   );
-  const useCompactProductCards = Boolean(isMobile);
+  const useCompactProductCards = Boolean(useMobileLayout);
   const hasActivePromo = Boolean(shop?.hasActivePromo && Number(shop?.activePromoCountNow || 0) > 0);
   const hasFreeDelivery = Boolean(shop?.freeDeliveryEnabled);
   const completedOrders = useMemo(
@@ -762,9 +858,21 @@ export default function ShopProfile() {
   const customerSatisfaction = ratingCount > 0 ? `${Math.round((ratingAverage / 5) * 100)}%` : 'Nouveau';
   const ownCommentExists = Boolean(currentUserReview?.comment?.trim());
   const showReviewForm = !ownCommentExists || isEditingReview;
+  const sectionCardClass = useMobileLayout
+    ? 'shop-panel rounded-xl p-2.5 max-[375px]:p-2'
+    : 'shop-panel rounded-2xl p-3.5 sm:p-5';
+  const actionButtonClass = useMobileLayout
+    ? 'inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl px-2.5 text-xs font-semibold transition'
+    : 'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-3 text-[13px] font-semibold transition sm:min-h-12 sm:gap-2 sm:px-4 sm:text-sm';
+  const compactHeaderClass = useMobileLayout
+    ? 'shop-glass-head sticky top-20 z-20 mb-3 rounded-xl px-2.5 py-2 max-[375px]:mb-2.5 max-[375px]:px-2 max-[375px]:py-1.5'
+    : 'shop-glass-head sticky top-20 z-20 mb-3 rounded-2xl px-3 py-2.5 max-[375px]:mb-2.5 max-[375px]:px-2.5 max-[375px]:py-2 sm:top-24 sm:mb-4 sm:px-4 sm:py-3 md:top-28';
+  const sectionStackClass = useMobileLayout ? 'space-y-4' : 'space-y-4 sm:space-y-6';
   const productGridClass = useCompactProductCards
-    ? 'grid grid-cols-2 gap-2 max-[420px]:gap-1.5 sm:gap-3'
+    ? 'mx-auto grid w-full grid-cols-2 gap-2 max-[420px]:gap-1.5 sm:gap-3'
     : 'grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3';
+  const productGridStyle = useCompactProductCards ? { maxWidth: '380px' } : undefined;
+  const shouldRenderProductsGrid = productsInView || shopDebugEnabled;
 
   const stats = [
     {
@@ -791,6 +899,160 @@ export default function ShopProfile() {
 
   const isOfflineSnapshot = shopQuery.isError && Boolean(shopQuery.data);
   const isNetworkErrorWithoutResponse = Boolean(shopQuery.isError && !shop && !shopQuery.error?.response);
+  const debugPayload = useMemo(
+    () => ({
+      routeSlug: slug || '',
+      canonicalSlug: shop?.slug || '',
+      shopId: shop?._id || '',
+      viewportWidth,
+      viewportInnerWidth: viewportMetrics.innerWidth,
+      viewportClientWidth: viewportMetrics.clientWidth,
+      viewportVisualWidth: viewportMetrics.visualWidth,
+      isMobileHook: isMobile,
+      isMobileUserAgent,
+      useMobileLayout,
+      useCompactProductCards,
+      productGridClass,
+      productsCount: products.length,
+      isCertifiedShop,
+      shopVerifiedFlag,
+      hasVerifiedSellerInProducts,
+      productGridRuntime,
+      layoutContainerWidth,
+      breakpoints: debugBreakpointState,
+      verificationSignals: shopVerificationSignals
+    }),
+    [
+      debugBreakpointState,
+      hasVerifiedSellerInProducts,
+      isCertifiedShop,
+      isMobile,
+      isMobileUserAgent,
+      layoutContainerWidth,
+      productGridClass,
+      productGridRuntime,
+      products.length,
+      shop?._id,
+      shop?.slug,
+      shopVerificationSignals,
+      shopVerifiedFlag,
+      slug,
+      useCompactProductCards,
+      useMobileLayout,
+      viewportMetrics.clientWidth,
+      viewportMetrics.innerWidth,
+      viewportMetrics.visualWidth,
+      viewportWidth
+    ]
+  );
+
+  useEffect(() => {
+    if (!shopDebugEnabled || typeof window === 'undefined') return undefined;
+    const container = pageContainerRef.current;
+    if (!container) return undefined;
+
+    const updateWidth = () => {
+      const nextWidth = Number(container.getBoundingClientRect().width || 0);
+      setLayoutContainerWidth((prev) => (Math.round(prev) === Math.round(nextWidth) ? prev : nextWidth));
+    };
+
+    updateWidth();
+    const resizeObserver =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => {
+            updateWidth();
+          })
+        : null;
+    if (resizeObserver) resizeObserver.observe(container);
+    window.addEventListener('resize', updateWidth);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', updateWidth);
+    };
+  }, [shopDebugEnabled, useMobileLayout]);
+
+  useEffect(() => {
+    if (!shopDebugEnabled || typeof window === 'undefined') return undefined;
+    let rafId = null;
+    const node = productGridDebugRef.current;
+
+    const measureGrid = () => {
+      if (!productGridDebugRef.current) return;
+      if (rafId) window.cancelAnimationFrame(rafId);
+      rafId = window.requestAnimationFrame(() => {
+        const grid = productGridDebugRef.current;
+        if (!grid) return;
+        const styles = window.getComputedStyle(grid);
+        const template = String(styles.gridTemplateColumns || '').trim();
+        const cssColumns = template ? template.split(/\s+/).filter(Boolean).length : 0;
+        const firstCardWidth = Number(grid.firstElementChild?.getBoundingClientRect?.().width || 0);
+        const nextState = {
+          cssColumns,
+          cssTemplate: template,
+          containerWidth: Number(grid.getBoundingClientRect().width || 0),
+          firstCardWidth,
+          gap: String(styles.columnGap || styles.gap || ''),
+          itemCount: Number(grid.childElementCount || 0)
+        };
+        setProductGridRuntime((prev) => {
+          if (
+            prev.cssColumns === nextState.cssColumns &&
+            prev.cssTemplate === nextState.cssTemplate &&
+            prev.containerWidth === nextState.containerWidth &&
+            prev.firstCardWidth === nextState.firstCardWidth &&
+            prev.gap === nextState.gap &&
+            prev.itemCount === nextState.itemCount
+          ) {
+            return prev;
+          }
+          return nextState;
+        });
+      });
+    };
+
+    measureGrid();
+    const resizeObserver =
+      node && typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => {
+            measureGrid();
+          })
+        : null;
+    if (node && resizeObserver) resizeObserver.observe(node);
+    window.addEventListener('resize', measureGrid);
+
+    return () => {
+      if (rafId) window.cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', measureGrid);
+      resizeObserver?.disconnect();
+    };
+  }, [
+    activeCategory,
+    filteredProducts.length,
+    productGridClass,
+    promoOnly,
+    shopDebugEnabled,
+    useCompactProductCards
+  ]);
+
+  useEffect(() => {
+    if (!shopDebugEnabled) return;
+    // eslint-disable-next-line no-console
+    console.info('[ShopProfile][debug]', debugPayload);
+  }, [debugPayload, shopDebugEnabled]);
+
+  const handleCopyDebugPayload = useCallback(async () => {
+    if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+      showToast('Copie indisponible sur cet appareil.', { variant: 'info' });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(debugPayload, null, 2));
+      showToast('Debug shop copié dans le presse-papiers.', { variant: 'success' });
+    } catch {
+      showToast('Impossible de copier le debug.', { variant: 'error' });
+    }
+  }, [debugPayload, showToast]);
 
   if (shopQuery.isLoading && !shop) {
     return (
@@ -888,16 +1150,18 @@ export default function ShopProfile() {
 
   return (
     <main
-      className={`bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 ${isMobile ? 'pb-32' : 'pb-12'}`}
+      className={`shop-shell text-slate-900 dark:text-slate-100 ${useMobileLayout ? 'pb-32' : 'pb-12'}`}
     >
-      <div className="mx-auto max-w-7xl px-2.5 py-4 max-[375px]:px-2 sm:px-5 sm:py-6 lg:px-8">
-        <header
-          className={`sticky top-20 z-20 mb-3 rounded-2xl border bg-white/85 px-3 py-2.5 backdrop-blur-xl dark:bg-slate-900/85 max-[375px]:mb-2.5 max-[375px]:px-2.5 max-[375px]:py-2 sm:top-24 sm:mb-4 sm:px-4 sm:py-3 md:top-28 ${
-            isCertifiedShop
-              ? 'border-emerald-200/70 dark:border-emerald-900/70'
-              : 'border-slate-200/80 dark:border-slate-800'
-          }`}
-        >
+      <div
+        ref={pageContainerRef}
+        className={
+          useMobileLayout
+            ? 'mx-auto w-full px-2.5 py-3 max-[375px]:px-2'
+            : 'mx-auto w-full max-w-7xl px-2.5 py-4 max-[375px]:px-2 sm:px-5 sm:py-6 lg:px-8'
+        }
+        style={useMobileLayout ? { maxWidth: '430px' } : undefined}
+      >
+        <header className={compactHeaderClass}>
           <div className="flex items-center justify-between gap-2.5 max-[375px]:gap-2">
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 sm:text-[11px] sm:tracking-[0.2em]">
@@ -906,7 +1170,7 @@ export default function ShopProfile() {
               <h1 className="truncate text-[15px] font-semibold text-slate-900 dark:text-white max-[375px]:text-sm sm:text-lg">{shop.shopName}</h1>
             </div>
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-              {isMobile && isCertifiedShop && (
+              {useMobileLayout && isCertifiedShop && (
                 <span className="inline-flex min-h-8 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-2 text-[10px] font-semibold text-emerald-700 sm:min-h-9 sm:text-[11px]">
                   Certifiée
                 </span>
@@ -918,7 +1182,7 @@ export default function ShopProfile() {
               >
                 Retour
               </button>
-              {!isMobile && (
+              {!useMobileLayout && (
                 <button
                   type="button"
                   onClick={goToMessage}
@@ -937,12 +1201,8 @@ export default function ShopProfile() {
           </div>
         )}
 
-        <section
-          className={`relative overflow-hidden rounded-[1.4rem] border bg-slate-900 text-white shadow-lg sm:rounded-3xl ${
-            isCertifiedShop ? 'border-emerald-300/40' : 'border-slate-200'
-          }`}
-        >
-          <div className="h-28 w-full max-[375px]:h-24 sm:h-56 lg:h-64">
+        <section className="shop-panel relative overflow-hidden rounded-[1.4rem] text-white sm:rounded-3xl">
+          <div className="h-32 w-full max-[375px]:h-28 sm:h-56 lg:h-64">
             {shop.shopBanner ? (
               <img
                 src={shop.shopBanner}
@@ -953,18 +1213,12 @@ export default function ShopProfile() {
             ) : (
               <div className="h-full w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700" />
             )}
-            <div
-              className={`absolute inset-0 bg-gradient-to-t ${
-                isCertifiedShop
-                  ? 'from-emerald-950/90 via-slate-900/40 to-transparent'
-                  : 'from-slate-950/85 via-slate-900/35 to-transparent'
-              }`}
-            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/88 via-slate-900/35 to-transparent" />
           </div>
 
           <div className="relative z-10 px-3.5 pb-4 pt-0 max-[375px]:px-3 max-[375px]:pb-3.5 sm:px-6 sm:pb-6">
-            <div className="-mt-8 flex flex-col items-center gap-2.5 text-center max-[375px]:-mt-7 max-[375px]:gap-2 sm:-mt-14 sm:flex-row sm:items-start sm:gap-4 sm:text-left">
-              <div className="h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-2xl border-4 border-white/80 bg-white shadow-md max-[375px]:h-16 max-[375px]:w-16 sm:h-24 sm:w-24">
+            <div className="-mt-10 flex flex-col items-center gap-2.5 text-center max-[375px]:-mt-9 max-[375px]:gap-2 sm:-mt-14 sm:flex-row sm:items-start sm:gap-4 sm:text-left">
+              <div className="h-[4.75rem] w-[4.75rem] shrink-0 overflow-hidden rounded-2xl border-4 border-white/85 bg-white shadow-md max-[375px]:h-16 max-[375px]:w-16 sm:h-24 sm:w-24">
                 {shop.shopLogo ? (
                   <img src={shop.shopLogo} alt={`Logo ${shop.shopName}`} className="h-full w-full object-cover" loading="eager" />
                 ) : (
@@ -1004,7 +1258,7 @@ export default function ShopProfile() {
 
             <div className="mt-3 grid grid-cols-2 gap-1.5 max-[375px]:gap-1 sm:mt-4 sm:grid-cols-4 sm:gap-3">
               {stats.map((item) => (
-                <div key={item.label} className="rounded-xl border border-white/20 bg-white/10 px-2 py-1.5 backdrop-blur sm:px-3 sm:py-2">
+                <div key={item.label} className="rounded-xl border border-white/18 bg-white/12 px-2 py-1.5 backdrop-blur sm:px-3 sm:py-2">
                   <div className="flex items-center gap-1 text-[10px] text-white/80 sm:text-[11px]">
                     {item.icon}
                     <span>{item.label}</span>
@@ -1058,41 +1312,36 @@ export default function ShopProfile() {
           </div>
         </section>
 
-        <div className="mt-5 grid gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-          <div className="space-y-4 sm:space-y-6">
+        <div className={useMobileLayout ? 'mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]' : 'mt-5 grid gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_340px]'}>
+          <div className={sectionStackClass}>
             <section className="lg:hidden" aria-label="Horaires boutique">
               <OpeningHoursCard
                 hours={shop.shopHours}
                 certified={isCertifiedShop}
-                compact={isMobile}
+                compact={useMobileLayout}
                 className="shadow-sm"
               />
             </section>
 
-            <section
-              className={`rounded-2xl border bg-white p-3.5 shadow-sm max-[375px]:p-3 sm:p-5 ${
-                isCertifiedShop ? 'border-emerald-200/80' : 'border-slate-200'
-              }`}
-              aria-label="Actions boutique"
-            >
+            <section className={sectionCardClass} aria-label="Actions boutique">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-900 sm:text-base">Actions rapides</h3>
-                  <p className="mt-0.5 text-[11px] text-slate-500 sm:text-xs">Appeler, message, itinéraire et suivi.</p>
+                  <h3 className={useMobileLayout ? 'text-[15px] font-semibold text-slate-900' : 'text-sm font-semibold text-slate-900 sm:text-base'}>Actions rapides</h3>
+                  <p className={useMobileLayout ? 'mt-0.5 text-[10px] text-slate-500' : 'mt-0.5 text-[11px] text-slate-500 sm:text-xs'}>Appeler, message, itinéraire et suivi.</p>
                 </div>
                 {isCertifiedShop && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                  <span className={useMobileLayout ? 'inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700' : 'inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700'}>
                     <ShieldCheck size={12} />
                     Vérifiée
                   </span>
                 )}
               </div>
 
-              <div className="mb-3 grid grid-cols-2 gap-2 max-[420px]:grid-cols-1">
+              <div className={useMobileLayout ? 'mb-2.5 grid grid-cols-2 gap-1.5 max-[360px]:grid-cols-1' : 'mb-3 grid grid-cols-2 gap-2 max-[420px]:grid-cols-1'}>
                 <button
                   type="button"
                   onClick={handlePrimaryAction}
-                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-neutral-900 px-3 text-[13px] font-semibold text-white transition hover:bg-black sm:min-h-12 sm:text-sm"
+                  className={`${actionButtonClass} bg-neutral-900 text-white hover:bg-black`}
                 >
                   {isOwnShop ? <Pencil size={15} /> : <Store size={15} />}
                   {isOwnShop ? 'Modifier profil' : 'Voir produits'}
@@ -1100,7 +1349,7 @@ export default function ShopProfile() {
                 <button
                   type="button"
                   onClick={handleShareShop}
-                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50 sm:min-h-12 sm:text-sm"
+                  className={`${actionButtonClass} border border-slate-200 bg-white text-slate-700 hover:bg-slate-50`}
                 >
                   <Share2 size={15} />
                   Partager
@@ -1108,7 +1357,7 @@ export default function ShopProfile() {
                 {isOwnShop && (
                   <Link
                     to="/seller/boosts"
-                    className="col-span-2 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 text-[13px] font-semibold text-amber-700 transition hover:bg-amber-100 max-[420px]:col-span-1 sm:min-h-12 sm:text-sm"
+                    className={`${useMobileLayout ? 'col-span-2 max-[360px]:col-span-1' : 'col-span-2 max-[420px]:col-span-1'} ${actionButtonClass} border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100`}
                   >
                     <Rocket size={15} />
                     Booster ma boutique
@@ -1116,11 +1365,11 @@ export default function ShopProfile() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-2 max-[420px]:grid-cols-1 sm:grid-cols-2">
+              <div className={useMobileLayout ? 'grid grid-cols-2 gap-1.5 max-[360px]:grid-cols-1' : 'grid grid-cols-2 gap-2 max-[420px]:grid-cols-1 sm:grid-cols-2'}>
                 {user && shop.phone ? (
                   <a
                     href={`tel:${shop.phone}`}
-                    className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-[13px] font-semibold text-emerald-700 transition hover:bg-emerald-100 sm:min-h-12 sm:gap-2 sm:px-4 sm:text-sm"
+                    className={`${actionButtonClass} border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100`}
                     aria-label="Appeler la boutique"
                   >
                     <Phone size={15} />
@@ -1131,7 +1380,7 @@ export default function ShopProfile() {
                   <Link
                     to="/login"
                     state={{ from: `/shop/${slug}` }}
-                    className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-100 sm:min-h-12 sm:gap-2 sm:px-4 sm:text-sm"
+                    className={`${actionButtonClass} border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100`}
                     aria-label="Se connecter pour appeler"
                   >
                     <Phone size={15} />
@@ -1143,7 +1392,7 @@ export default function ShopProfile() {
                 <button
                   type="button"
                   onClick={goToMessage}
-                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-neutral-600 px-3 text-[13px] font-semibold text-white transition hover:bg-neutral-700 active:scale-[0.99] sm:min-h-12 sm:gap-2 sm:px-4 sm:text-sm"
+                  className={`${actionButtonClass} bg-neutral-600 text-white hover:bg-neutral-700 active:scale-[0.99]`}
                   aria-label="Envoyer un message à la boutique"
                 >
                   <MessageCircle size={15} />
@@ -1154,7 +1403,7 @@ export default function ShopProfile() {
                 <button
                   type="button"
                   onClick={handleDirections}
-                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50 sm:min-h-12 sm:gap-2 sm:px-4 sm:text-sm"
+                  className={`${actionButtonClass} border border-slate-200 bg-white text-slate-700 hover:bg-slate-50`}
                   aria-label="Ouvrir l'itinéraire"
                 >
                   <Navigation size={15} />
@@ -1166,7 +1415,7 @@ export default function ShopProfile() {
                   type="button"
                   onClick={handleFollowToggle}
                   disabled={followDisabled}
-                  className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3 text-[13px] font-semibold transition sm:min-h-12 sm:gap-2 sm:px-4 sm:text-sm ${
+                  className={`${actionButtonClass} border ${
                     isFollowing
                       ? 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100'
                       : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
@@ -1178,9 +1427,9 @@ export default function ShopProfile() {
                 </button>
               </div>
 
-              <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              <div className={useMobileLayout ? 'shop-separator mt-2.5 rounded-xl border border-slate-200/70 bg-slate-50/70 px-2.5 py-2 text-[11px] text-slate-600' : 'shop-separator mt-3 rounded-xl border border-slate-200/70 bg-slate-50/70 px-3 py-2 text-xs text-slate-600'}>
                 <p className="font-semibold text-slate-700">Confiance & service</p>
-                <div className="mt-1 flex flex-wrap gap-2.5">
+                <div className={useMobileLayout ? 'mt-1 grid grid-cols-2 gap-1.5 max-[360px]:grid-cols-1' : 'mt-1 flex flex-wrap gap-2.5'}>
                   <span className="inline-flex items-center gap-1"><ShieldCheck size={13} /> Paiement sécurisé</span>
                   <span className="inline-flex items-center gap-1"><CheckCircle size={13} /> {isCertifiedShop ? 'Boutique vérifiée' : 'Vérification en cours'}</span>
                   <span className="inline-flex items-center gap-1"><Clock size={13} /> Réponse en journée</span>
@@ -1192,13 +1441,13 @@ export default function ShopProfile() {
             <section
               ref={productsRef}
               id="products"
-              className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm max-[375px]:p-3 sm:p-5"
+              className={sectionCardClass}
               aria-label="Produits de la boutique"
             >
-              <div className="flex flex-wrap items-start justify-between gap-2.5 sm:gap-3">
+              <div className={useMobileLayout ? 'flex flex-wrap items-start justify-between gap-2' : 'flex flex-wrap items-start justify-between gap-2.5 sm:gap-3'}>
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">Produits</h3>
-                  <p className="mt-1 text-xs text-slate-500 sm:text-sm">
+                  <h3 className={useMobileLayout ? 'text-[15px] font-semibold text-slate-900' : 'text-lg font-semibold text-slate-900 sm:text-xl'}>Produits</h3>
+                  <p className={useMobileLayout ? 'mt-0.5 text-[11px] text-slate-500' : 'mt-1 text-xs text-slate-500 sm:text-sm'}>
                     {formatCount(filteredProducts.length)} produit{filteredProducts.length > 1 ? 's' : ''} visible{filteredProducts.length > 1 ? 's' : ''}
                   </p>
                 </div>
@@ -1208,16 +1457,16 @@ export default function ShopProfile() {
                     const node = document.getElementById('reviews');
                     if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }}
-                  className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50 sm:min-h-11 sm:w-auto sm:text-sm"
+                  className={useMobileLayout ? 'inline-flex min-h-9 w-auto items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-2.5 text-[11px] font-medium text-slate-700 transition hover:bg-slate-50' : 'inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50 sm:min-h-11 sm:w-auto sm:text-sm'}
                 >
                   Aller aux avis
                   <ArrowRight size={14} />
                 </button>
               </div>
 
-              <div className="mt-4 rounded-2xl border border-slate-200/90 bg-slate-50/70 p-2.5 sm:border-transparent sm:bg-transparent sm:p-0">
+              <div className={useMobileLayout ? 'mt-3 rounded-xl border border-slate-200/80 bg-white/80 p-2 shadow-sm' : 'mt-4 rounded-2xl border border-slate-200/80 bg-white/80 p-2.5 shadow-sm sm:border-transparent sm:bg-transparent sm:p-0 sm:shadow-none'}>
                 <div className="mb-2 flex items-center justify-between px-0.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-[11px]">
+                  <p className={useMobileLayout ? 'text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500' : 'text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-[11px]'}>
                     Filtrer par catégorie
                   </p>
                   <button
@@ -1238,10 +1487,10 @@ export default function ShopProfile() {
                       type="button"
                       onClick={() => setActiveCategory('all')}
                       aria-pressed={activeCategory === 'all'}
-                      className={`inline-flex min-h-10 snap-start items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-xs font-semibold transition sm:min-h-9 sm:rounded-full ${
+                      className={`inline-flex ${useMobileLayout ? 'min-h-9 rounded-lg px-2.5 text-[11px]' : 'min-h-10 rounded-xl px-3 text-xs sm:min-h-9 sm:rounded-full'} snap-start items-center gap-1.5 whitespace-nowrap font-semibold transition ${
                         activeCategory === 'all'
-                          ? 'bg-neutral-900 text-white shadow-sm'
-                          : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                          ? 'bg-slate-900 text-white shadow-sm'
+                          : 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                       }`}
                     >
                       Tous
@@ -1262,10 +1511,10 @@ export default function ShopProfile() {
                         onClick={() => setPromoOnly((prev) => !prev)}
                         disabled={!hasPromoProducts}
                         aria-pressed={promoOnly}
-                        className={`inline-flex min-h-10 snap-start items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-xs font-semibold transition sm:min-h-9 sm:rounded-full ${
+                        className={`inline-flex ${useMobileLayout ? 'min-h-9 rounded-lg px-2.5 text-[11px]' : 'min-h-10 rounded-xl px-3 text-xs sm:min-h-9 sm:rounded-full'} snap-start items-center gap-1.5 whitespace-nowrap font-semibold transition ${
                           promoOnly
                             ? 'bg-amber-500 text-white shadow-sm'
-                            : 'border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                            : 'border border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-300 hover:bg-amber-100'
                         } ${!hasPromoProducts ? 'cursor-not-allowed opacity-50' : ''}`}
                       >
                         <Sparkles size={12} />
@@ -1281,10 +1530,10 @@ export default function ShopProfile() {
                           type="button"
                           onClick={() => setActiveCategory(category)}
                           aria-pressed={isActive}
-                          className={`inline-flex min-h-10 snap-start items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-xs font-semibold transition sm:min-h-9 sm:rounded-full ${
+                          className={`inline-flex ${useMobileLayout ? 'min-h-9 rounded-lg px-2.5 text-[11px]' : 'min-h-10 rounded-xl px-3 text-xs sm:min-h-9 sm:rounded-full'} snap-start items-center gap-1.5 whitespace-nowrap font-semibold transition ${
                             isActive
-                              ? 'bg-neutral-900 text-white shadow-sm'
-                              : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                              ? 'bg-slate-900 text-white shadow-sm'
+                              : 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                           }`}
                         >
                           <span>{category}</span>
@@ -1305,20 +1554,21 @@ export default function ShopProfile() {
               </div>
 
               <div className="mt-4">
-                {!productsInView && <ProductsSkeleton />}
-                {productsInView && filteredProducts.length > 0 && (
-                  <div className={productGridClass}>
+                {!shouldRenderProductsGrid && <ProductsSkeleton />}
+                {shouldRenderProductsGrid && filteredProducts.length > 0 && (
+                  <div ref={productGridDebugRef} className={productGridClass} style={productGridStyle}>
                     {filteredProducts.map((product) => (
                       <ProductCard
                         key={`${product._id}-${useCompactProductCards ? 'compact' : 'regular'}`}
                         p={product}
                         hideMobileDiscountBadge
                         compactMobile={useCompactProductCards}
+                        shopProfileCompact={useCompactProductCards}
                       />
                     ))}
                   </div>
                 )}
-                {productsInView && filteredProducts.length === 0 && (
+                {shouldRenderProductsGrid && filteredProducts.length === 0 && (
                   <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center">
                     <p className="text-sm font-medium text-slate-700">
                       {promoOnly
@@ -1332,9 +1582,9 @@ export default function ShopProfile() {
               </div>
 
               {topSellingProducts.length > 0 && (
-                <div className="mt-6 border-t border-slate-100 pt-4">
+                <div className="shop-separator mt-6 pt-4">
                   <p className="mb-3 text-sm font-semibold text-slate-800">Produits populaires</p>
-                  <div className={productGridClass}>
+                  <div className={productGridClass} style={productGridStyle}>
                     {topSellingProducts.map((product) => (
                       <Link
                         key={`top-${product._id}`}
@@ -1359,7 +1609,7 @@ export default function ShopProfile() {
               )}
             </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-5" aria-label="Informations boutique">
+            <section className="shop-panel rounded-2xl p-3.5 sm:p-5" aria-label="Informations boutique">
               <h3 className="text-base font-semibold text-slate-900 sm:text-lg">Informations</h3>
               <dl className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
@@ -1393,7 +1643,7 @@ export default function ShopProfile() {
               </dl>
             </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-5" aria-label="Politiques boutique">
+            <section className="shop-panel rounded-2xl p-3.5 sm:p-5" aria-label="Politiques boutique">
               <h3 className="text-base font-semibold text-slate-900 sm:text-lg">Politiques boutique</h3>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-700">
@@ -1417,7 +1667,7 @@ export default function ShopProfile() {
               </div>
             </section>
 
-            <section ref={reviewsRef} id="reviews" className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-5" aria-label="Avis boutique">
+            <section ref={reviewsRef} id="reviews" className="shop-panel rounded-2xl p-3.5 sm:p-5" aria-label="Avis boutique">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">Avis clients</h3>
@@ -1573,7 +1823,7 @@ export default function ShopProfile() {
             <div className="sticky top-28 space-y-4">
               <OpeningHoursCard hours={shop.shopHours} certified={isCertifiedShop} />
 
-              <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Contact boutique">
+              <section className="shop-panel rounded-2xl p-4" aria-label="Contact boutique">
                 <h3 className="text-base font-semibold text-slate-900">Contacter la boutique</h3>
                 <p className="mt-1 text-xs text-slate-500">Actions rapides pour convertir plus vite.</p>
 
@@ -1658,7 +1908,7 @@ export default function ShopProfile() {
                   </button>
                 </div>
 
-                <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                <div className="shop-separator mt-4 rounded-xl border border-slate-200/70 bg-slate-50/70 p-3">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Confiance</p>
                   <div className="mt-2 space-y-2 text-xs text-slate-700">
                     <p className="flex items-center gap-2"><ShieldCheck size={13} /> Paiement sécurisé</p>
@@ -1674,8 +1924,8 @@ export default function ShopProfile() {
         </div>
       </div>
 
-      {isMobile && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2.5 py-2.5 backdrop-blur-xl safe-area-pb max-[375px]:px-2 max-[375px]:py-2">
+      {useMobileLayout && (
+        <div className="shop-glass-head fixed inset-x-0 bottom-0 z-40 border-t px-2.5 py-2.5 safe-area-pb max-[375px]:px-2 max-[375px]:py-2">
           <div className="space-y-1.5 sm:space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -1733,7 +1983,7 @@ export default function ShopProfile() {
 
       {showCommentsModal && (
         <div
-          className={`fixed inset-0 z-50 flex bg-black/60 backdrop-blur-sm ${isMobile ? 'items-end' : 'items-center justify-center px-4 py-8'}`}
+          className={`fixed inset-0 z-50 flex bg-black/60 backdrop-blur-sm ${useMobileLayout ? 'items-end' : 'items-center justify-center px-4 py-8'}`}
           onClick={(event) => {
             if (event.target === event.currentTarget) {
               setShowCommentsModal(false);
@@ -1742,7 +1992,7 @@ export default function ShopProfile() {
         >
           <div
             className={`w-full overflow-hidden border border-slate-200 bg-white shadow-2xl ${
-              isMobile ? 'max-h-[90vh] rounded-t-3xl' : 'max-h-[88vh] max-w-4xl rounded-3xl'
+              useMobileLayout ? 'max-h-[90vh] rounded-t-3xl' : 'max-h-[88vh] max-w-4xl rounded-3xl'
             }`}
           >
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 sm:px-6">
@@ -1807,6 +2057,65 @@ export default function ShopProfile() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {shopDebugEnabled && (
+        <div className="fixed bottom-3 left-2 right-2 z-[70] rounded-xl border border-amber-300 bg-amber-50/95 p-2 text-[11px] text-amber-900 shadow-lg backdrop-blur sm:bottom-4 sm:left-auto sm:right-4 sm:w-[360px]">
+          <div className="mb-1.5 flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setShowDebugDetails((prev) => !prev)}
+              className="inline-flex min-h-8 items-center rounded-lg border border-amber-300 bg-white px-2.5 font-semibold"
+            >
+              Debug shop layout {showDebugDetails ? '▲' : '▼'}
+            </button>
+            <button
+              type="button"
+              onClick={handleCopyDebugPayload}
+              className="inline-flex min-h-8 items-center rounded-lg border border-amber-300 bg-white px-2.5 font-semibold"
+            >
+              Copier JSON
+            </button>
+          </div>
+          {showDebugDetails && (
+            <div className="space-y-1 font-mono leading-tight">
+              <p>slug route: {debugPayload.routeSlug || '-'}</p>
+              <p>slug canon: {debugPayload.canonicalSlug || '-'}</p>
+              <p>shopId: {debugPayload.shopId || '-'}</p>
+              <p>width: {debugPayload.viewportWidth}px</p>
+              <p>
+                width raw (inner/client/visual): {Math.round(debugPayload.viewportInnerWidth)} / {Math.round(debugPayload.viewportClientWidth)} / {Math.round(debugPayload.viewportVisualWidth)}
+              </p>
+              <p>mobileHook: {String(debugPayload.isMobileHook)}</p>
+              <p>uaMobile: {String(debugPayload.isMobileUserAgent)}</p>
+              <p>mobileLayout: {String(debugPayload.useMobileLayout)}</p>
+              <p>compactCards: {String(debugPayload.useCompactProductCards)}</p>
+              <p>grid: {debugPayload.productGridClass}</p>
+              <p>products: {debugPayload.productsCount}</p>
+              <p>isCertifiedShop: {String(debugPayload.isCertifiedShop)}</p>
+              <p>shopVerifiedFlag: {String(debugPayload.shopVerifiedFlag)}</p>
+              <p>hasVerifiedInProducts: {String(debugPayload.hasVerifiedSellerInProducts)}</p>
+              <p>
+                bp 375/420/640/767: {String(debugPayload.breakpoints.max375)} / {String(debugPayload.breakpoints.max420)} / {String(debugPayload.breakpoints.max640)} / {String(debugPayload.breakpoints.max767)}
+              </p>
+              <p>
+                grid runtime cols/items: {debugPayload.productGridRuntime.cssColumns} / {debugPayload.productGridRuntime.itemCount}
+              </p>
+              <p>layout container: {Math.round(debugPayload.layoutContainerWidth)}px</p>
+              <p>
+                grid runtime size: {Math.round(debugPayload.productGridRuntime.containerWidth)}px / card {Math.round(debugPayload.productGridRuntime.firstCardWidth)}px
+              </p>
+              <p>grid runtime gap: {debugPayload.productGridRuntime.gap || '-'}</p>
+              <p>grid runtime template: {debugPayload.productGridRuntime.cssTemplate || '-'}</p>
+              <p>
+                verify raw: {String(debugPayload.verificationSignals.shopVerified)} | {String(debugPayload.verificationSignals.verified)} | {String(debugPayload.verificationSignals.isVerified)} | {String(debugPayload.verificationSignals.verificationStatus)}
+              </p>
+              <p className="pt-1 text-[10px]">
+                Tip: `?debug=1` or `localStorage.hdmarket_debug_shop_profile = '1'`
+              </p>
+            </div>
+          )}
         </div>
       )}
     </main>

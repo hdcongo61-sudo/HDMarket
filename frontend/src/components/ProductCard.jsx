@@ -22,7 +22,14 @@ import { useAppSettings } from '../context/AppSettingsContext';
  * Mobile-first et responsive
  */
 
-function ProductCard({ p, hideMobileDiscountBadge = false, productLink, onProductClick, compactMobile = false }) {
+function ProductCard({
+  p,
+  hideMobileDiscountBadge = false,
+  productLink,
+  onProductClick,
+  compactMobile = false,
+  shopProfileCompact = false
+}) {
   const { user } = useContext(AuthContext);
   const { formatPrice } = useAppSettings();
   const { addItem, cart } = useContext(CartContext);
@@ -40,7 +47,9 @@ function ProductCard({ p, hideMobileDiscountBadge = false, productLink, onProduc
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [imagesLoaded, setImagesLoaded] = useState({});
   const isMobile = useIsMobile();
-  const useCompactMobile = Boolean(compactMobile && isMobile);
+  // ShopProfile already decides when compact mode must be enforced.
+  const useCompactMobile = Boolean(compactMobile);
+  const isShopProfileCompact = Boolean(useCompactMobile && shopProfileCompact);
   
   const inCart = Boolean(user && cart?.items?.some((item) => item.product?._id === p._id));
   const { toggleFavorite, isFavorite } = useContext(FavoriteContext);
@@ -60,7 +69,10 @@ function ProductCard({ p, hideMobileDiscountBadge = false, productLink, onProduc
   const hasMultipleImages = productImages.length > 1;
   const shouldShowCarousel = hasMultipleImages; // Enable carousel for multiple images
   const shouldAutoCarousel = false; // Auto-carousel disabled - manual only
-  const mediaFrameClass = useCompactMobile
+  const hideDenseMobileBadges = Boolean(isShopProfileCompact || (useCompactMobile && hideMobileDiscountBadge));
+  const mediaFrameClass = isShopProfileCompact
+    ? `ui-media-frame relative overflow-hidden aspect-[3/2] ${hasMultipleImages ? 'touch-pan-y' : ''}`
+    : useCompactMobile
     ? `ui-media-frame relative overflow-hidden aspect-[4/3] ${hasMultipleImages ? 'touch-pan-y' : ''}`
     : `ui-media-frame ui-media-frame-square relative overflow-hidden ${hasMultipleImages ? 'touch-pan-y' : ''}`;
 
@@ -404,7 +416,9 @@ function ProductCard({ p, hideMobileDiscountBadge = false, productLink, onProduc
 
   return (
     <div
-      className="ui-card ui-card-interactive ui-hover-scale ui-card-fade-in group relative flex h-full w-full flex-col overflow-hidden"
+      className={`ui-card ui-card-interactive ui-hover-scale ui-card-fade-in group relative flex h-full w-full flex-col overflow-hidden ${
+        isShopProfileCompact ? '!rounded-xl' : ''
+      }`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -560,9 +574,10 @@ function ProductCard({ p, hideMobileDiscountBadge = false, productLink, onProduc
         )}
 
         {/* 🔖 BADGES PROMOTIONNELS TAOBAO STYLE */}
-        <div className="absolute top-1.5 sm:top-2 left-1.5 sm:left-2 z-20 flex flex-col gap-1 sm:gap-1.5">
+        {!isShopProfileCompact && (
+          <div className="absolute top-1.5 sm:top-2 left-1.5 sm:left-2 z-20 flex flex-col gap-1 sm:gap-1.5">
           {/* Badge Promo code (boutique/produit) */}
-          {hasActivePromo && (
+          {hasActivePromo && !hideDenseMobileBadges && (
             <div className="bg-black text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded sm:rounded-md text-[9px] sm:text-[10px] font-black shadow-lg border border-white/20">
               Promo {promoScopeLabel} -{promoPercentLabel}%
             </div>
@@ -574,7 +589,7 @@ function ProductCard({ p, hideMobileDiscountBadge = false, productLink, onProduc
             </div>
           )}
           {/* Badge Promotion Principal */}
-          {hasDiscount && (
+          {hasDiscount && !hideDenseMobileBadges && (
             <div className="bg-neutral-900 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded sm:rounded-md text-[9px] sm:text-[10px] font-black shadow-lg border border-white/20">
               -{p.discount}%
             </div>
@@ -588,7 +603,7 @@ function ProductCard({ p, hideMobileDiscountBadge = false, productLink, onProduc
           )}
 
           {/* Badge Certifié */}
-          {p.certified && (
+          {p.certified && (!useCompactMobile || hideDenseMobileBadges || (!hasActivePromo && !hasDiscount)) && (
             <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-neutral-900 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
               <ShieldCheck className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
               Certifié
@@ -612,32 +627,35 @@ function ProductCard({ p, hideMobileDiscountBadge = false, productLink, onProduc
               Retrait boutique
             </div>
           )}
-          {freeDeliveryAvailable && (
+          {freeDeliveryAvailable && !hideDenseMobileBadges && (
             <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-neutral-900 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
               <ShieldCheck className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
               Livraison gratuite
             </div>
           )}
-        </div>
+          </div>
+        )}
 
         {/* ❤️ BOUTON FAVORI */}
-        <button
-          type="button"
-          onClick={(event) => handleFavoriteToggle(event)}
-          className="absolute top-1.5 sm:top-2 right-1.5 sm:right-2 z-30 bg-white/95 backdrop-blur-sm min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 p-2 sm:p-1.5 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 tap-feedback flex items-center justify-center group/fav"
-          aria-label={isInFavorites ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-        >
-          <Heart
-            size={14}
-            className={`sm:w-4 sm:h-4 transition-all duration-300 ${
-              isInFavorites 
-                ? 'text-neutral-700 dark:text-neutral-200 transform scale-110' 
-                : 'text-gray-600 group-hover/fav:text-neutral-900 dark:group-hover/fav:text-neutral-100'
-            }`}
-            strokeWidth={2}
-            fill={isInFavorites ? 'currentColor' : 'none'}
-          />
-        </button>
+        {!isShopProfileCompact && (
+          <button
+            type="button"
+            onClick={(event) => handleFavoriteToggle(event)}
+            className="absolute top-1.5 sm:top-2 right-1.5 sm:right-2 z-30 bg-white/95 backdrop-blur-sm min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 p-2 sm:p-1.5 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 tap-feedback flex items-center justify-center group/fav"
+            aria-label={isInFavorites ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+          >
+            <Heart
+              size={14}
+              className={`sm:w-4 sm:h-4 transition-all duration-300 ${
+                isInFavorites
+                  ? 'text-neutral-700 dark:text-neutral-200 transform scale-110'
+                  : 'text-gray-600 group-hover/fav:text-neutral-900 dark:group-hover/fav:text-neutral-100'
+              }`}
+              strokeWidth={2}
+              fill={isInFavorites ? 'currentColor' : 'none'}
+            />
+          </button>
+        )}
 
         {/* 📊 INDICATEURS DE VENTE TAOBAO STYLE */}
         {!useCompactMobile && (
@@ -672,15 +690,19 @@ function ProductCard({ p, hideMobileDiscountBadge = false, productLink, onProduc
       {/* 📦 INFOS PRODUIT TAOBAO STYLE */}
       <div
         className={`flex-1 flex flex-col min-h-0 ${
-          useCompactMobile
-            ? 'px-1.5 py-1.5 space-y-1'
-            : 'px-2 sm:px-3 py-2 sm:py-3 space-y-1.5 sm:space-y-2'
+          isShopProfileCompact
+            ? 'px-1.5 py-1.5 space-y-0.5'
+            : useCompactMobile
+              ? 'px-1.5 py-1.5 space-y-1'
+              : 'px-2 sm:px-3 py-2 sm:py-3 space-y-1.5 sm:space-y-2'
         }`}
       >
         {/* Titre du produit */}
         <h3
           className={`font-bold text-gray-900 line-clamp-2 leading-tight ${
-            useCompactMobile
+            isShopProfileCompact
+              ? 'text-[10px] line-clamp-1'
+              : useCompactMobile
               ? 'text-[11px] min-h-[1.5rem]'
               : 'text-xs sm:text-sm min-h-[2rem] sm:min-h-[2.5rem]'
           }`}
@@ -689,8 +711,8 @@ function ProductCard({ p, hideMobileDiscountBadge = false, productLink, onProduc
         </h3>
 
         {/* Prix avec réduction */}
-        <div className={`flex items-baseline flex-wrap ${useCompactMobile ? 'gap-1' : 'gap-1.5 sm:gap-2'}`}>
-          <span className={`${useCompactMobile ? 'text-[11px]' : 'text-base sm:text-lg'} font-black text-neutral-950 dark:text-white`}>
+        <div className={`flex items-baseline flex-wrap ${isShopProfileCompact ? 'gap-0.5' : useCompactMobile ? 'gap-1' : 'gap-1.5 sm:gap-2'}`}>
+          <span className={`${isShopProfileCompact ? 'text-[12px]' : useCompactMobile ? 'text-[11px]' : 'text-base sm:text-lg'} font-black text-neutral-950 dark:text-white`}>
             {discountedPrice}
           </span>
           {originalPrice && (
@@ -735,7 +757,7 @@ function ProductCard({ p, hideMobileDiscountBadge = false, productLink, onProduc
         {productCity && (
           <div
             className={`inline-flex w-fit max-w-full items-center gap-1 rounded-full border border-neutral-200 bg-white px-2 py-0.5 font-semibold text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 ${
-              useCompactMobile ? 'text-[8px]' : 'text-[9px]'
+              isShopProfileCompact ? 'text-[8px]' : useCompactMobile ? 'text-[8px]' : 'text-[9px]'
             }`}
           >
             <MapPin className="h-2.5 w-2.5 shrink-0" />
@@ -799,7 +821,7 @@ function ProductCard({ p, hideMobileDiscountBadge = false, productLink, onProduc
 
         {/* 🛒 BOUTON AJOUTER AU PANIER */}
         {!isOwner && (
-          <div className={`${useCompactMobile ? 'pt-1.5' : 'pt-2'} border-t border-gray-100 dark:border-neutral-800`}>
+          <div className={`${isShopProfileCompact ? 'pt-1' : useCompactMobile ? 'pt-1.5' : 'pt-2'} border-t border-gray-100 dark:border-neutral-800`}>
             <button
               type="button"
               onClick={(e) => {
@@ -809,7 +831,9 @@ function ProductCard({ p, hideMobileDiscountBadge = false, productLink, onProduc
               }}
               disabled={adding || inCart}
               className={`w-full inline-flex items-center justify-center ${
-                useCompactMobile
+                isShopProfileCompact
+                  ? 'gap-1 px-2 py-1 rounded-lg text-[9px]'
+                  : useCompactMobile
                   ? 'gap-1 px-2 py-1 rounded-xl text-[9px]'
                   : 'gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl sm:rounded-3xl text-[10px] sm:text-xs'
               } font-semibold transition-all duration-200 active:scale-95 shadow-sm ${
@@ -822,17 +846,17 @@ function ProductCard({ p, hideMobileDiscountBadge = false, productLink, onProduc
             >
               <ShoppingCart size={12} className="sm:w-4 sm:h-4" />
               <span>
-                {inCart ? 'Déjà au panier' : adding ? 'Ajout...' : useCompactMobile ? 'Panier' : 'Ajouter au panier'}
+                {inCart ? 'Déjà' : adding ? 'Ajout...' : useCompactMobile ? 'Panier' : 'Ajouter au panier'}
               </span>
             </button>
           </div>
         )}
 
         {/* Messages de feedback */}
-        {feedback && (
+        {feedback && !isShopProfileCompact && (
           <p className="text-[10px] text-neutral-700 dark:text-neutral-200 font-semibold">{feedback}</p>
         )}
-        {addError && (
+        {addError && !isShopProfileCompact && (
           <p className="text-[10px] text-neutral-950 dark:text-white">{addError}</p>
         )}
       </div>

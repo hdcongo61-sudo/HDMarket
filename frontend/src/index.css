@@ -572,3 +572,44 @@ body.menu-open .verified-shops-header {
 .status-pending-dot { animation: pendingPulse 1.25s ease-in-out infinite; }
 .status-delivery-icon { animation: truckMove 1.4s ease-in-out infinite; }
 .status-completed-icon { animation: successBounce 0.5s ease-out; }
+
+/* Shop Profile v2 */
+.shop-shell {
+  background:
+    radial-gradient(1200px 260px at 50% -80px, rgba(15, 23, 42, 0.08) 0%, rgba(15, 23, 42, 0) 65%),
+    linear-gradient(180deg, #f8fafc 0%, #f5f7fb 45%, #f3f4f8 100%);
+}
+.dark .shop-shell {
+  background:
+    radial-gradient(1200px 260px at 50% -80px, rgba(148, 163, 184, 0.08) 0%, rgba(148, 163, 184, 0) 70%),
+    linear-gradient(180deg, #020617 0%, #020817 45%, #030712 100%);
+}
+
+.shop-glass-head {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+}
+.dark .shop-glass-head {
+  border-color: rgba(71, 85, 105, 0.5);
+  background: rgba(15, 23, 42, 0.72);
+  box-shadow: 0 12px 30px rgba(2, 6, 23, 0.45);
+}
+
+.shop-panel {
+  border-radius: 1.2rem;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+.dark .shop-panel {
+  border-color: rgba(71, 85, 105, 0.55);
+  background: rgba(15, 23, 42, 0.84);
+  box-shadow: 0 14px 28px rgba(2, 6, 23, 0.4);
+}
+
+.shop-separator {
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+}

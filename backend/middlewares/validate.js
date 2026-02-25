@@ -444,12 +444,12 @@ export const schemas = {
     accountType: Joi.string().valid('person', 'shop').required(),
     shopName: Joi.when('accountType', {
       is: 'shop',
-      then: Joi.string().min(2).max(120).required(),
+      then: Joi.string().trim().min(2).max(120).optional(),
       otherwise: Joi.forbidden()
     }),
     shopAddress: Joi.when('accountType', {
       is: 'shop',
-      then: Joi.string().min(4).max(200).required(),
+      then: Joi.string().trim().min(4).max(200).optional(),
       otherwise: Joi.forbidden()
     }),
     shopLogo: Joi.string().max(500).allow('', null)

@@ -645,7 +645,7 @@ export default function OrderMessages() {
               const hasUnread = conversation.unreadCount > 0;
 
               // Determine if user is customer or seller for display
-              const isAdmin = user?.role === 'admin' || user?.role === 'manager';
+              const isAdmin = user?.role === 'admin' || user?.role === 'founder' || user?.role === 'manager';
               const isCustomer = conversation.customerId && String(conversation.customerId) === String(user?._id);
               const isSeller = conversation.sellerId && String(conversation.sellerId) === String(user?._id);
 

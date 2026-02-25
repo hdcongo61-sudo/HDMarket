@@ -42,7 +42,10 @@ export const getHelpCenter = asyncHandler(async (req, res) => {
 });
 
 export const updateHelpCenter = asyncHandler(async (req, res) => {
-  if (req.user?.role !== 'admin' && req.user?.canManageHelpCenter !== true) {
+  if (
+    !['admin', 'founder'].includes(String(req.user?.role || '')) &&
+    req.user?.canManageHelpCenter !== true
+  ) {
     return res
       .status(403)
       .json({ message: 'Vous n\'avez pas les droits pour modifier ces informations.' });
@@ -77,7 +80,10 @@ export const updateHelpCenter = asyncHandler(async (req, res) => {
 });
 
 export const addHelpCenterCondition = asyncHandler(async (req, res) => {
-  if (req.user?.role !== 'admin' && req.user?.canManageHelpCenter !== true) {
+  if (
+    !['admin', 'founder'].includes(String(req.user?.role || '')) &&
+    req.user?.canManageHelpCenter !== true
+  ) {
     return res
       .status(403)
       .json({ message: 'Vous n\'avez pas les droits pour modifier ces informations.' });
@@ -119,7 +125,10 @@ export const addHelpCenterCondition = asyncHandler(async (req, res) => {
 });
 
 export const updateHelpCenterCondition = asyncHandler(async (req, res) => {
-  if (req.user?.role !== 'admin' && req.user?.canManageHelpCenter !== true) {
+  if (
+    !['admin', 'founder'].includes(String(req.user?.role || '')) &&
+    req.user?.canManageHelpCenter !== true
+  ) {
     return res
       .status(403)
       .json({ message: 'Vous n\'avez pas les droits pour modifier ces informations.' });
@@ -169,7 +178,10 @@ export const updateHelpCenterCondition = asyncHandler(async (req, res) => {
 });
 
 export const deleteHelpCenterCondition = asyncHandler(async (req, res) => {
-  if (req.user?.role !== 'admin' && req.user?.canManageHelpCenter !== true) {
+  if (
+    !['admin', 'founder'].includes(String(req.user?.role || '')) &&
+    req.user?.canManageHelpCenter !== true
+  ) {
     return res
       .status(403)
       .json({ message: 'Vous n\'avez pas les droits pour modifier ces informations.' });

@@ -389,7 +389,7 @@ io.on('connection', (socket) => {
     const messageData = {
       user: isGuestSender ? undefined : socket.data.user.id,
       username: socket.data.user.name,
-      from: socket.data.user.role === 'admin' ? 'support' : 'user',
+      from: (socket.data.user.role === 'admin' || socket.data.user.role === 'founder') ? 'support' : 'user',
       metadata: metadata || {}
     };
     

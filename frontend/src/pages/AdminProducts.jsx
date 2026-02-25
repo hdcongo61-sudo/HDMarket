@@ -197,7 +197,11 @@ const categoryOptions = categoryGroups.flatMap((group) =>
 export default function AdminProducts() {
   const { user } = useContext(AuthContext);
   const isAdminUser = user?.role === 'admin' || user?.role === 'founder';
-  const canManageProducts = user?.role === 'admin' || user?.role === 'manager' || user?.canManageProducts;
+  const canManageProducts =
+    user?.role === 'admin' ||
+    user?.role === 'founder' ||
+    user?.role === 'manager' ||
+    user?.canManageProducts;
   const [products, setProducts] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -461,7 +465,9 @@ export default function AdminProducts() {
       const { data } = await api.get(
         `/admin/users?search=${encodeURIComponent(userSearchQuery.trim())}&limit=10`
       );
-      const users = Array.isArray(data) ? data.filter((u) => u.role !== 'admin') : [];
+      const users = Array.isArray(data)
+        ? data.filter((u) => u.role !== 'admin' && u.role !== 'founder')
+        : [];
       setFoundUsers(users);
     } catch (err) {
       console.error('Search users error:', err);

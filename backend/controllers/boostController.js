@@ -80,7 +80,7 @@ const ensureSellerEligible = async (userId) => {
     error.status = 404;
     throw error;
   }
-  if (['admin', 'manager'].includes(String(seller.role || ''))) {
+  if (['admin', 'founder', 'manager'].includes(String(seller.role || ''))) {
     const error = new Error('Ce compte ne peut pas soumettre de demande de boost vendeur.');
     error.status = 403;
     throw error;

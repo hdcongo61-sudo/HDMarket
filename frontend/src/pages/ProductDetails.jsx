@@ -92,7 +92,7 @@ export default function ProductDetails() {
   const [isReviewsModalOpen, setIsReviewsModalOpen] = useState(false);
   const isMobileView = useIsMobile();
   const externalLinkProps = useDesktopExternalLink();
-  const isAdminUser = user?.role === 'admin';
+  const isAdminUser = user?.role === 'admin' || user?.role === 'founder';
   const [sellerExpanded, setSellerExpanded] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     description: false,
@@ -621,7 +621,7 @@ export default function ProductDetails() {
 
   // 🗑️ SUPPRESSION D'UN COMMENTAIRE (ADMIN)
   const handleDeleteComment = async (commentId) => {
-    if (!user || user.role !== 'admin') return;
+    if (!user || !['admin', 'founder'].includes(String(user.role || ''))) return;
     if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce commentaire ? Cette action supprimera également toutes les réponses associées.')) {
       return;
     }
@@ -3222,7 +3222,7 @@ function CommentThread({
   onDelete,
   deletingCommentId
 }) {
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'founder';
   return (
     <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-lg hover:shadow-md transition-shadow">
       {/* Commentaire principal */}

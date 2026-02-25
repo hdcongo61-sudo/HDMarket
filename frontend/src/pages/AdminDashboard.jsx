@@ -2662,7 +2662,7 @@ export default function AdminDashboard() {
                   <p className="text-sm font-medium text-gray-900">{user.name}</p>
                   <p className="text-xs text-gray-500">{user.email}</p>
                   <p className="text-xs text-gray-400">
-                    {user.role === 'admin' ? 'Admin · ' : ''}
+                    {user.role === 'admin' ? 'Admin · ' : user.role === 'founder' ? 'Founder · ' : ''}
                     {user.accountType === 'shop' ? 'Boutique' : 'Particulier'} · {formatDate(user.createdAt)}
                   </p>
                 </li>
@@ -2868,7 +2868,7 @@ export default function AdminDashboard() {
             ) : paginatedUsers.length ? (
               paginatedUsers.map((user) => {
                 const isManagerRole = user.role === 'manager';
-                const isAdminRole = user.role === 'admin';
+                const isAdminRole = user.role === 'admin' || user.role === 'founder';
                 const isSelf = authUser?.id === user.id;
                 const nextRole = isManagerRole ? 'user' : 'manager';
                 return (
@@ -3070,7 +3070,7 @@ export default function AdminDashboard() {
                 ) : paginatedUsers.length ? (
                   paginatedUsers.map((user) => {
                     const isManagerRole = user.role === 'manager';
-                    const isAdminRole = user.role === 'admin';
+                    const isAdminRole = user.role === 'admin' || user.role === 'founder';
                     const isSelf = authUser?.id === user.id;
                     const nextRole = isManagerRole ? 'user' : 'manager';
                     return (

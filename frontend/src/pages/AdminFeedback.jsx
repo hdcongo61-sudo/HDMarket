@@ -310,7 +310,7 @@ export default function AdminFeedback() {
     setSearchingUsers(true);
     try {
       const { data } = await api.get(`/admin/users?search=${encodeURIComponent(userSearchQuery.trim())}&limit=10`);
-      const users = Array.isArray(data) ? data.filter(u => u.role !== 'admin') : [];
+      const users = Array.isArray(data) ? data.filter(u => u.role !== 'admin' && u.role !== 'founder') : [];
       console.log('Search results:', users);
       console.log('First user structure:', users[0]);
       setFoundUsers(users);

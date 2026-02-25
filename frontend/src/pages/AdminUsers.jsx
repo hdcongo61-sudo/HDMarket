@@ -452,7 +452,7 @@ export default function AdminUsers() {
       return;
     }
     const confirmed = window.confirm(
-      `Êtes-vous sûr de vouloir reconvertir "${user.name}" (${user.shopName || 'Boutique'}) en compte particulier ?\n\nCette action supprimera les informations de la boutique.`
+      `Êtes-vous sûr de vouloir reconvertir "${user.name}" (${user.shopName || 'Boutique'}) en compte particulier ?\n\nLes informations de boutique seront conservées pour une reconversion ultérieure.`
     );
     if (!confirmed) return;
     setConvertingUserId(user.id);

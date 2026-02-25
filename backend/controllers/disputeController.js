@@ -646,7 +646,10 @@ export const getDisputeDetails = asyncHandler(async (req, res) => {
     String(dispute.clientId?._id || dispute.clientId) === String(req.user.id) ||
     String(dispute.sellerId?._id || dispute.sellerId) === String(req.user.id);
   const isAdmin =
-    req.user.role === 'admin' || req.user.role === 'manager' || req.user.canManageComplaints === true;
+    req.user.role === 'admin' ||
+    req.user.role === 'founder' ||
+    req.user.role === 'manager' ||
+    req.user.canManageComplaints === true;
   if (!isParticipant && !isAdmin) {
     return res.status(403).json({ message: 'Accès refusé.' });
   }

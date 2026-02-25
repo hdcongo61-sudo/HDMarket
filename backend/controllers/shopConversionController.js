@@ -132,7 +132,7 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
   // Notify all admins about the new conversion request
   try {
     const admins = await User.find({
-      role: { $in: ['admin', 'manager'] }
+      role: { $in: ['admin', 'founder', 'manager'] }
     })
       .select('_id')
       .lean();

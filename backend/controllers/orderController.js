@@ -2259,7 +2259,8 @@ export const getOrderDeliveryLogs = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
 
-  const isAdmin = req.user?.role === 'admin' || req.user?.role === 'manager';
+  const isAdmin =
+    req.user?.role === 'admin' || req.user?.role === 'founder' || req.user?.role === 'manager';
   const isCustomer = String(order.customer) === String(userId);
   const isSeller = Array.isArray(order.items)
     ? order.items.some((item) => String(item?.snapshot?.shopId || '') === String(userId))

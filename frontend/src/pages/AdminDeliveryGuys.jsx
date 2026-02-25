@@ -171,7 +171,7 @@ export default function AdminDeliveryGuys() {
       const { data } = await api.get(
         `/admin/users?search=${encodeURIComponent(userSearchQuery.trim())}&limit=10`
       );
-      const users = Array.isArray(data) ? data.filter((u) => u.role !== 'admin') : [];
+      const users = Array.isArray(data) ? data.filter((u) => u.role !== 'admin' && u.role !== 'founder') : [];
       setFoundUsers(users);
     } catch (err) {
       console.error('Search users error:', err);

@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import api from '../services/api';
+import { useAppSettings } from '../context/AppSettingsContext';
 import { buildShopPath, buildProductPath } from '../utils/links';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import {
@@ -31,23 +32,31 @@ import {
 } from 'lucide-react';
 import VerifiedBadge from '../components/VerifiedBadge';
 
-const CITY_LIST = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
-
 export default function VerifiedShops() {
   const { user } = useContext(AuthContext);
+  const { cities: configuredCities } = useAppSettings();
   const isAdmin = user?.role === 'admin' || user?.role === 'founder';
   const [selectedCity, setSelectedCity] = useState('');
   const [shops, setShops] = useState([]);
   const hasAppliedDefaultCity = useRef(false);
+  const cityOptions = useMemo(() => {
+    const cityNames = Array.isArray(configuredCities)
+      ? configuredCities
+          .map((entry) => String(entry?.name || '').trim())
+          .filter(Boolean)
+      : [];
+    return Array.from(new Set(cityNames));
+  }, [configuredCities]);
 
   // Default to connected user's city once when available
   useEffect(() => {
     if (hasAppliedDefaultCity.current) return;
-    if (user?.city && CITY_LIST.includes(user.city)) {
-      setSelectedCity(user.city);
+    const userCity = String(user?.city || '').trim();
+    if (userCity && cityOptions.includes(userCity)) {
+      setSelectedCity(userCity);
       hasAppliedDefaultCity.current = true;
     }
-  }, [user?.city]);
+  }, [cityOptions, user?.city]);
   const [pendingShops, setPendingShops] = useState([]);
   const bestReviewedShop = useMemo(() => {
     if (!shops.length) return null;
@@ -365,7 +374,7 @@ export default function VerifiedShops() {
             >
               Toutes
             </button>
-            {CITY_LIST.map((city) => (
+            {cityOptions.map((city) => (
               <button
                 key={city}
                 type="button"

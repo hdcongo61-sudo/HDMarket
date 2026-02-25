@@ -944,6 +944,10 @@ export const updateUserAccountType = asyncHandler(async (req, res) => {
   ensureAdminRole(req);
   const { id } = req.params;
   const { accountType, shopName, shopAddress, shopLogo, reason } = req.body;
+  const providedShopName = typeof shopName === 'string' ? shopName.trim() : '';
+  const providedShopAddress = typeof shopAddress === 'string' ? shopAddress.trim() : '';
+  const hasShopNameInput = typeof shopName !== 'undefined';
+  const hasShopAddressInput = typeof shopAddress !== 'undefined';
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
@@ -964,9 +968,13 @@ export const updateUserAccountType = asyncHandler(async (req, res) => {
   // Check if there's an actual change
   if (previousType === accountType) {
     // Allow updating shop details even if accountType hasn't changed
-    if (accountType === 'shop' && (shopName || shopAddress)) {
-      user.shopName = shopName || user.shopName;
-      user.shopAddress = shopAddress || user.shopAddress;
+    if (accountType === 'shop' && (hasShopNameInput || hasShopAddressInput || typeof shopLogo !== 'undefined')) {
+      if (hasShopNameInput && providedShopName) {
+        user.shopName = providedShopName;
+      }
+      if (hasShopAddressInput && providedShopAddress) {
+        user.shopAddress = providedShopAddress;
+      }
       if (typeof shopLogo !== 'undefined') {
         user.shopLogo = shopLogo || '';
       }
@@ -984,28 +992,41 @@ export const updateUserAccountType = asyncHandler(async (req, res) => {
   }
 
   if (accountType === 'shop') {
-    if (!shopName || !shopAddress) {
+    const restoredShopName = providedShopName || String(user.shopName || '').trim();
+    const restoredShopAddress = providedShopAddress || String(user.shopAddress || '').trim();
+    if (!restoredShopName || !restoredShopAddress) {
       return res
         .status(400)
-        .json({ message: "Veuillez renseigner le nom et l'adresse de la boutique." });
+        .json({ message: "Informations boutique manquantes. Veuillez renseigner le nom et l'adresse de la boutique." });
     }
     user.accountType = 'shop';
-    user.shopName = shopName;
-    user.shopAddress = shopAddress;
+    user.shopName = restoredShopName;
+    user.shopAddress = restoredShopAddress;
     if (typeof shopLogo !== 'undefined') {
       user.shopLogo = shopLogo || '';
     }
-    user.shopVerified = false;
-    user.shopVerifiedBy = null;
-    user.shopVerifiedAt = null;
+    // Restore previous verification snapshot for reconverted shops.
+    const snapshot = user.shopVerificationSnapshot || {};
+    if (snapshot.verified) {
+      user.shopVerified = true;
+      user.shopVerifiedBy = snapshot.verifiedBy || null;
+      user.shopVerifiedAt = snapshot.verifiedAt || null;
+    } else {
+      user.shopVerified = false;
+      user.shopVerifiedBy = null;
+      user.shopVerifiedAt = null;
+    }
   } else if (accountType === 'person') {
     user.accountType = 'person';
-    // Keep all shop information and data when reconverting to particulier
-    // Only reset verification status since it's shop-specific
+    // Keep all shop information and store verification snapshot for future reconversion.
+    user.shopVerificationSnapshot = {
+      verified: Boolean(user.shopVerified),
+      verifiedBy: user.shopVerifiedBy || null,
+      verifiedAt: user.shopVerifiedAt || null
+    };
     user.shopVerified = false;
     user.shopVerifiedBy = null;
     user.shopVerifiedAt = null;
-    // shopName, shopAddress, shopLogo, shopDescription, shopHours, shopBanner are preserved
   } else {
     return res.status(400).json({ message: 'Type de compte invalide.' });
   }
@@ -1025,9 +1046,10 @@ export const updateUserAccountType = asyncHandler(async (req, res) => {
       newType: accountType,
       previousShopData,
       newShopData: {
-        shopName: accountType === 'shop' ? shopName : (user.shopName || null),
-        shopAddress: accountType === 'shop' ? shopAddress : (user.shopAddress || null),
-        shopLogo: accountType === 'shop' ? (shopLogo || '') : (user.shopLogo || null),
+        shopName: user.shopName || null,
+        shopAddress: user.shopAddress || null,
+        shopLogo: user.shopLogo || null,
+        shopVerified: Boolean(user.shopVerified),
         shopDescription: user.shopDescription || null,
         shopBanner: user.shopBanner || null
       },
@@ -1049,10 +1071,11 @@ export const updateUserAccountType = asyncHandler(async (req, res) => {
         userEmail: user.email,
         previousType,
         newType: accountType,
-        shopName: accountType === 'shop' ? shopName : (user.shopName || null),
-        shopAddress: accountType === 'shop' ? shopAddress : (user.shopAddress || null),
-        shopLogo: accountType === 'shop' ? (shopLogo || null) : (user.shopLogo || null),
-        shopDescription: accountType === 'shop' ? (user.shopDescription || null) : (user.shopDescription || null),
+        shopName: user.shopName || null,
+        shopAddress: user.shopAddress || null,
+        shopLogo: user.shopLogo || null,
+        shopVerified: Boolean(user.shopVerified),
+        shopDescription: user.shopDescription || null,
         reason: reason || ''
       },
       ipAddress: req.ip || req.connection?.remoteAddress

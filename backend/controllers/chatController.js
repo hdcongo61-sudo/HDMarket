@@ -55,7 +55,7 @@ const getAudienceTokens = (user) => {
   if (role) tokens.add(role);
   if (accountType) tokens.add(accountType);
 
-  if (role === 'admin') tokens.add('admin');
+  if (role === 'admin' || role === 'founder') tokens.add('admin');
   if (role === 'manager') tokens.add('manager');
 
   if (accountType === 'shop') {
@@ -285,7 +285,7 @@ const rankRootTemplates = (templates = [], context = {}) => {
     if (hasPendingOrders && /(commande|livraison|order|pickup|retard)/i.test(text)) score += 70;
     if (/installment|tranche|payment|paiement|refund|remboursement/i.test(notifType) && /(paiement|payment|tranche|refund)/i.test(text)) score += 45;
     if (accountType === 'shop' && /(vendeur|boutique|shop|boost|promo)/i.test(text)) score += 35;
-    if ((role === 'admin' || role === 'manager') && /(admin|système|system|configuration)/i.test(text)) score += 30;
+    if ((role === 'admin' || role === 'founder' || role === 'manager') && /(admin|système|system|configuration)/i.test(text)) score += 30;
 
     return score;
   };

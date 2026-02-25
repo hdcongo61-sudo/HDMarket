@@ -10,32 +10,36 @@ export default function CityProducts() {
   const { cities } = useAppSettings();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const queryCity = String(searchParams.get('city') || '').trim();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [cityHighlights, setCityHighlights] = useState({});
   const cacheRef = useRef(new Map());
   const externalLinkProps = useDesktopExternalLink();
-  const cityOptions = useMemo(
-    () =>
-      Array.isArray(cities) && cities.length
-        ? cities.map((item) => item.name).filter(Boolean)
-        : ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'],
-    [cities]
-  );
   const [selectedCity, setSelectedCity] = useState(() => searchParams.get('city') || '');
+  const cityOptions = useMemo(() => {
+    const dynamicCities = Array.isArray(cities)
+      ? cities
+          .map((item) => String(typeof item === 'string' ? item : item?.name || '').trim())
+          .filter(Boolean)
+      : [];
+    const merged = [...dynamicCities];
+    if (queryCity) merged.push(queryCity);
+    if (selectedCity) merged.push(selectedCity);
+    return Array.from(new Set(merged));
+  }, [cities, queryCity, selectedCity]);
 
   useEffect(() => {
     if (!cityOptions.length) return;
     if (!selectedCity || !cityOptions.includes(selectedCity)) {
-      const queryCity = searchParams.get('city');
       if (queryCity && cityOptions.includes(queryCity)) {
         setSelectedCity(queryCity);
       } else {
         setSelectedCity(cityOptions[0]);
       }
     }
-  }, [cityOptions, searchParams, selectedCity]);
+  }, [cityOptions, queryCity, selectedCity]);
 
   useEffect(() => {
     const controller = new AbortController();

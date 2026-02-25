@@ -18,16 +18,24 @@ const FALLBACK_NETWORKS = [
 
 export default function BoostRequestForm({ products = [], defaultCity = '', onSubmitted }) {
   const { cities, formatPrice } = useAppSettings();
+  const normalizedDefaultCity = String(defaultCity || '').trim();
   const cityOptions = useMemo(
-    () =>
-      Array.isArray(cities) && cities.length
-        ? cities.map((item) => item.name).filter(Boolean)
-        : ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'],
-    [cities]
+    () => {
+      const names = Array.isArray(cities)
+        ? cities
+            .map((item) => String(item?.name || '').trim())
+            .filter(Boolean)
+        : [];
+      if (normalizedDefaultCity && !names.includes(normalizedDefaultCity)) {
+        names.unshift(normalizedDefaultCity);
+      }
+      return Array.from(new Set(names));
+    },
+    [cities, normalizedDefaultCity]
   );
   const [boostType, setBoostType] = useState('PRODUCT_BOOST');
   const [duration, setDuration] = useState(7);
-  const [city, setCity] = useState(defaultCity || cityOptions[0] || 'Brazzaville');
+  const [city, setCity] = useState(normalizedDefaultCity || cityOptions[0] || '');
   const [selectedProductIds, setSelectedProductIds] = useState([]);
   const [paymentOperator, setPaymentOperator] = useState('');
   const [paymentSenderName, setPaymentSenderName] = useState('');
@@ -69,9 +77,9 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
   useEffect(() => {
     if (!cityOptions.length) return;
     if (!city || !cityOptions.includes(city)) {
-      setCity(defaultCity && cityOptions.includes(defaultCity) ? defaultCity : cityOptions[0]);
+      setCity(normalizedDefaultCity && cityOptions.includes(normalizedDefaultCity) ? normalizedDefaultCity : cityOptions[0]);
     }
-  }, [city, cityOptions, defaultCity]);
+  }, [city, cityOptions, normalizedDefaultCity]);
 
   useEffect(() => {
     if (!paymentOperator && activeNetworks.length > 0) {
@@ -118,6 +126,10 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
     }
     if (requiresProducts && selectedProductIds.length === 0) {
       setSubmitError('Sélectionnez au moins un produit.');
+      return;
+    }
+    if (requiresCity && !String(city || '').trim()) {
+      setSubmitError('Aucune ville active n’est configurée pour ce boost local.');
       return;
     }
     if (!String(paymentOperator || '').trim()) {
@@ -212,6 +224,7 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
               onChange={(e) => setCity(e.target.value)}
               className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-neutral-500 focus:ring-2 focus:ring-neutral-100"
             >
+              {cityOptions.length === 0 && <option value="">Aucune ville configurée</option>}
               {cityOptions.map((item) => (
                 <option key={item} value={item}>
                   {item}

@@ -4,14 +4,17 @@ import User from '../models/userModel.js';
 import { createNotification } from '../utils/notificationService.js';
 
 const ensureAdminOnly = (req, res) => {
-  if (req.user?.role !== 'admin') {
+  if (!['admin', 'founder'].includes(String(req.user?.role || ''))) {
     res.status(403);
     throw new Error('Acces reserve aux administrateurs.');
   }
 };
 
 const ensureCanReadFeedback = (req, res) => {
-  if (req.user?.role !== 'admin' && !req.user?.canReadFeedback) {
+  if (
+    !['admin', 'founder'].includes(String(req.user?.role || '')) &&
+    !req.user?.canReadFeedback
+  ) {
     res.status(403);
     throw new Error('Acces reserve aux lecteurs d\'avis autorises.');
   }
@@ -34,7 +37,7 @@ export const createImprovementFeedback = asyncHandler(async (req, res) => {
 
   // Notify admins and users with feedback read access
   const recipients = await User.find({
-    $or: [{ role: 'admin' }, { canReadFeedback: true }]
+    $or: [{ role: { $in: ['admin', 'founder'] } }, { canReadFeedback: true }]
   })
     .select('_id')
     .lean();
@@ -202,7 +205,7 @@ export const toggleFeedbackReader = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Utilisateur introuvable.' });
   }
 
-  if (user.role === 'admin') {
+  if (['admin', 'founder'].includes(String(user.role || ''))) {
     return res.status(400).json({ message: 'Les administrateurs ont deja acces aux avis.' });
   }
 

@@ -987,14 +987,8 @@ export const updateProfile = asyncHandler(async (req, res) => {
       user.freeDeliveryEnabled = Boolean(freeDeliveryEnabled);
     }
   } else {
-    user.shopName = undefined;
-    user.shopAddress = undefined;
-    user.shopLogo = undefined;
-    user.shopBanner = undefined;
-    user.shopDescription = '';
-    user.shopHours = [];
-    user.freeDeliveryEnabled = false;
-    user.freeDeliveryNote = '';
+    // Preserve shop data while account is in "person" mode so admin reconversion can restore it instantly.
+    // Do not mutate shop fields here.
   }
 
   await user.save();

@@ -44,7 +44,7 @@ export default function EditProduct() {
         const { data } = await api.get(`/products/${slug}`);
         if (!active) return;
         const ownerId = data.user?._id || data.user;
-        if (user?.role !== 'admin' && ownerId && String(ownerId) !== user?.id) {
+        if (user?.role !== 'admin' && user?.role !== 'founder' && ownerId && String(ownerId) !== user?.id) {
           setError("Vous n'êtes pas autorisé à modifier cette annonce.");
           return;
         }

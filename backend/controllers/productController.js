@@ -1931,7 +1931,8 @@ export const getProductById = asyncHandler(async (req, res) => {
   await ensureProductSlug(product);
   if (!product) return res.status(404).json({ message: 'Not found' });
   const isModerator =
-    ['admin', 'manager'].includes(req.user.role) || req.user.canManageProducts === true;
+    ['admin', 'founder', 'manager'].includes(req.user.role) ||
+    req.user.canManageProducts === true;
 
   if (product.status === 'disabled' && product.user.toString() !== req.user.id && !isModerator) {
     return res.status(403).json({ message: 'Forbidden' });
@@ -1944,7 +1945,10 @@ export const updateProduct = asyncHandler(async (req, res) => {
   const product = await Product.findOne(query);
   await ensureProductSlug(product);
   if (!product) return res.status(404).json({ message: 'Not found' });
-  if (product.user.toString() !== req.user.id && req.user.role !== 'admin')
+  if (
+    product.user.toString() !== req.user.id &&
+    !['admin', 'founder'].includes(String(req.user.role || ''))
+  )
     return res.status(403).json({ message: 'Forbidden' });
   const updatedFields = Object.keys(req.body || {});
 
@@ -2328,7 +2332,10 @@ export const deleteProduct = asyncHandler(async (req, res) => {
   const product = await Product.findOne(query);
   await ensureProductSlug(product);
   if (!product) return res.status(404).json({ message: 'Not found' });
-  if (product.user.toString() !== req.user.id && req.user.role !== 'admin')
+  if (
+    product.user.toString() !== req.user.id &&
+    !['admin', 'founder'].includes(String(req.user.role || ''))
+  )
     return res.status(403).json({ message: 'Forbidden' });
 
   await logProductAction({
@@ -2352,7 +2359,8 @@ export const disableProduct = asyncHandler(async (req, res) => {
   await ensureProductSlug(product);
   if (!product) return res.status(404).json({ message: 'Not found' });
   const isModerator =
-    ['admin', 'manager'].includes(req.user.role) || req.user.canManageProducts === true;
+    ['admin', 'founder', 'manager'].includes(req.user.role) ||
+    req.user.canManageProducts === true;
   if (product.user.toString() !== req.user.id && !isModerator)
     return res.status(403).json({ message: 'Forbidden' });
 
@@ -2387,7 +2395,8 @@ export const enableProduct = asyncHandler(async (req, res) => {
   await ensureProductSlug(product);
   if (!product) return res.status(404).json({ message: 'Not found' });
   const isModerator =
-    ['admin', 'manager'].includes(req.user.role) || req.user.canManageProducts === true;
+    ['admin', 'founder', 'manager'].includes(req.user.role) ||
+    req.user.canManageProducts === true;
   if (product.user.toString() !== req.user.id && !isModerator)
     return res.status(403).json({ message: 'Forbidden' });
 
@@ -2706,7 +2715,7 @@ export const toggleProductBoost = asyncHandler(async (req, res) => {
   }
   
   // Check permissions
-  const isAdmin = req.user.role === 'admin';
+  const isAdmin = ['admin', 'founder'].includes(String(req.user.role || ''));
   const canManageBoosts = req.user.canManageBoosts === true;
   if (!isAdmin && !canManageBoosts) {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à gérer les boosts.' });
@@ -2811,7 +2820,7 @@ export const toggleProductBoost = asyncHandler(async (req, res) => {
 });
 
 export const getBoostStatistics = asyncHandler(async (req, res) => {
-  const isAdmin = req.user.role === 'admin';
+  const isAdmin = ['admin', 'founder'].includes(String(req.user.role || ''));
   const canManageBoosts = req.user.canManageBoosts === true;
   if (!isAdmin && !canManageBoosts) {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à voir les statistiques de boost.' });
@@ -2880,6 +2889,7 @@ export const getBoostStatistics = asyncHandler(async (req, res) => {
 export const certifyProduct = asyncHandler(async (req, res) => {
   const canCertify =
     req.user.role === 'admin' ||
+    req.user.role === 'founder' ||
     req.user.role === 'manager' ||
     req.user.canManageProducts === true;
   if (!canCertify) {
@@ -2958,7 +2968,7 @@ export const getProductAnalytics = asyncHandler(async (req, res) => {
 
   // Check if user owns the product or is admin/manager
   const isOwner = String(product.user) === String(req.user.id);
-  const isAdmin = ['admin', 'manager'].includes(req.user.role);
+  const isAdmin = ['admin', 'founder', 'manager'].includes(req.user.role);
   
   if (!isOwner && !isAdmin) {
     return res.status(403).json({ message: 'Accès non autorisé.' });

@@ -17,7 +17,7 @@ const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 
 const ensureAdmin = (req) => {
-  if (req.user?.role !== 'admin') {
+  if (!['admin', 'founder'].includes(String(req.user?.role || ''))) {
     const error = new Error('Seuls les administrateurs peuvent gérer les codes promo.');
     error.status = 403;
     throw error;
@@ -414,7 +414,10 @@ export const validatePromoCodeForSeller = asyncHandler(async (req, res) => {
   if (!product) {
     return res.status(404).json({ message: 'Produit introuvable.' });
   }
-  if (String(product.user) !== String(userId) && req.user?.role !== 'admin') {
+  if (
+    String(product.user) !== String(userId) &&
+    !['admin', 'founder'].includes(String(req.user?.role || ''))
+  ) {
     return res.status(403).json({ message: 'Forbidden' });
   }
 

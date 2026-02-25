@@ -143,9 +143,9 @@ export default function HelpPage() {
   const [editorLoading, setEditorLoading] = useState(false);
   const [editorActionUserId, setEditorActionUserId] = useState('');
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'founder';
   const canUseRichEditor = useMemo(
-    () => user?.role === 'admin' || user?.canManageHelpCenter === true,
+    () => user?.role === 'admin' || user?.role === 'founder' || user?.canManageHelpCenter === true,
     [user?.role, user?.canManageHelpCenter]
   );
 
@@ -276,7 +276,10 @@ export default function HelpPage() {
         });
         if (!active) return;
         const candidates = (Array.isArray(data) ? data : [])
-          .filter((candidate) => candidate?.id && candidate.role !== 'admin')
+          .filter(
+            (candidate) =>
+              candidate?.id && candidate.role !== 'admin' && candidate.role !== 'founder'
+          )
           .map((candidate) => ({
             id: candidate.id,
             name: candidate.name || 'Utilisateur',

@@ -18,7 +18,7 @@ const isBoutiqueOwner = (user) =>
 
 const ensureClientRole = (user) => {
   const role = String(user?.role || '');
-  return !['admin', 'manager'].includes(role);
+  return !['admin', 'founder', 'manager'].includes(role);
 };
 
 const parseDate = (value, fieldName) => {

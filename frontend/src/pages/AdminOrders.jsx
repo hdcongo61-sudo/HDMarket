@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
@@ -8,6 +8,7 @@ import { CheckCircle, Search, Package, User, MapPin, Truck, Clock, ClipboardList
 import OrderChat from '../components/OrderChat';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement',
@@ -51,7 +52,6 @@ const STATUS_CLASSES = {
   cancelled: 'bg-red-100 text-red-800'
 };
 
-const CITY_OPTIONS = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
 const ORDERS_PER_PAGE = 12;
 const ALERT_PRIORITY_CLASSES = {
   LOW: 'bg-slate-100 text-slate-700',
@@ -150,7 +150,17 @@ const extractOrderSellers = (order) => {
 export default function AdminOrders() {
   const { user } = useContext(AuthContext);
   const { showToast } = useToast();
+  const { cities: configuredCities } = useAppSettings();
   const isAdminUser = user?.role === 'admin' || user?.role === 'founder';
+  const cityOptions = useMemo(() => {
+    const names = Array.isArray(configuredCities)
+      ? configuredCities
+          .map((entry) => String(entry?.name || '').trim())
+          .filter(Boolean)
+      : [];
+    return Array.from(new Set(names));
+  }, [configuredCities]);
+  const defaultDeliveryCity = cityOptions[0] || '';
   const [searchParams, setSearchParams] = useSearchParams();
   const orderIdFromUrl = searchParams.get('orderId') || '';
   const externalLinkProps = useDesktopExternalLink();
@@ -227,9 +237,22 @@ export default function AdminOrders() {
 
   const [newOrder, setNewOrder] = useState({
     deliveryAddress: '',
-    deliveryCity: 'Brazzaville',
+    deliveryCity: defaultDeliveryCity,
     trackingNote: ''
   });
+  const orderCityOptions = useMemo(() => {
+    const options = [...cityOptions];
+    const selectedCustomerCity = String(selectedCustomer?.city || '').trim();
+    const currentDeliveryCity = String(newOrder.deliveryCity || '').trim();
+    if (selectedCustomerCity && !options.includes(selectedCustomerCity)) options.push(selectedCustomerCity);
+    if (currentDeliveryCity && !options.includes(currentDeliveryCity)) options.push(currentDeliveryCity);
+    return options;
+  }, [cityOptions, newOrder.deliveryCity, selectedCustomer?.city]);
+  const filterCityOptions = useMemo(() => {
+    if (!cityFilter) return cityOptions;
+    if (cityOptions.includes(cityFilter)) return cityOptions;
+    return [...cityOptions, cityFilter];
+  }, [cityFilter, cityOptions]);
 
   const openCreateModal = useCallback(() => {
     setStatusUpdateInfo(null);
@@ -1115,7 +1138,7 @@ export default function AdminOrders() {
       setSelectedProducts([]);
       setNewOrder({
         deliveryAddress: '',
-        deliveryCity: 'Brazzaville',
+        deliveryCity: defaultDeliveryCity,
         trackingNote: ''
       });
       setCreateOpen(false);
@@ -1132,9 +1155,17 @@ export default function AdminOrders() {
     setNewOrder((prev) => ({
       ...prev,
       deliveryAddress: selectedCustomer.address || prev.deliveryAddress || '',
-      deliveryCity: selectedCustomer.city || prev.deliveryCity || 'Brazzaville'
+      deliveryCity: selectedCustomer.city || prev.deliveryCity || defaultDeliveryCity
     }));
-  }, [selectedCustomer]);
+  }, [defaultDeliveryCity, selectedCustomer]);
+
+  useEffect(() => {
+    if (!cityOptions.length) return;
+    setNewOrder((prev) => {
+      if (prev.deliveryCity && cityOptions.includes(prev.deliveryCity)) return prev;
+      return { ...prev, deliveryCity: defaultDeliveryCity };
+    });
+  }, [cityOptions, defaultDeliveryCity]);
 
   useEffect(() => {
     if (!createOpen) {
@@ -1633,7 +1664,10 @@ export default function AdminOrders() {
                     value={newOrder.deliveryCity}
                     onChange={(e) => setNewOrder((prev) => ({ ...prev, deliveryCity: e.target.value }))}
                   >
-                    {CITY_OPTIONS.map((city) => (
+                    {orderCityOptions.length === 0 && (
+                      <option value="">Aucune ville configurée</option>
+                    )}
+                    {orderCityOptions.map((city) => (
                       <option key={city} value={city}>
                         {city}
                       </option>
@@ -2253,7 +2287,7 @@ export default function AdminOrders() {
                 className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
               >
                 <option value="">Toutes les villes</option>
-                {CITY_OPTIONS.map((city) => (
+                {filterCityOptions.map((city) => (
                   <option key={city} value={city}>
                     {city}
                   </option>

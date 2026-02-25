@@ -43,7 +43,8 @@ export const getOrderMessages = asyncHandler(async (req, res) => {
   const isSeller = order.items?.some(
     (item) => String(item?.snapshot?.shopId) === String(userId)
   );
-  const isAdmin = req.user?.role === 'admin' || req.user?.role === 'manager';
+  const isAdmin =
+    req.user?.role === 'admin' || req.user?.role === 'founder' || req.user?.role === 'manager';
 
   if (!isCustomer && !isSeller && !isAdmin) {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à accéder à cette conversation.' });
@@ -176,7 +177,8 @@ export const sendOrderMessage = asyncHandler(async (req, res) => {
   const isSeller = order.items?.some(
     (item) => String(item?.snapshot?.shopId) === String(userId)
   );
-  const isAdmin = req.user?.role === 'admin' || req.user?.role === 'manager';
+  const isAdmin =
+    req.user?.role === 'admin' || req.user?.role === 'founder' || req.user?.role === 'manager';
 
   if (!isCustomer && !isSeller && !isAdmin) {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à envoyer un message pour cette commande.' });
@@ -362,7 +364,8 @@ export const sendOrderMessage = asyncHandler(async (req, res) => {
  */
 export const getUnreadCount = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
-  const isAdmin = req.user?.role === 'admin' || req.user?.role === 'manager';
+  const isAdmin =
+    req.user?.role === 'admin' || req.user?.role === 'founder' || req.user?.role === 'manager';
 
   const orderQuery = {
     $and: [
@@ -422,7 +425,8 @@ export const archiveOrderConversation = asyncHandler(async (req, res) => {
   const isSeller = order.items?.some(
     (item) => String(item?.snapshot?.shopId) === String(userId)
   );
-  const isAdmin = req.user?.role === 'admin' || req.user?.role === 'manager';
+  const isAdmin =
+    req.user?.role === 'admin' || req.user?.role === 'founder' || req.user?.role === 'manager';
   if (!isCustomer && !isSeller && !isAdmin) {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à archiver cette conversation.' });
   }
@@ -452,7 +456,8 @@ export const unarchiveOrderConversation = asyncHandler(async (req, res) => {
   const isSeller = order.items?.some(
     (item) => String(item?.snapshot?.shopId) === String(userId)
   );
-  const isAdmin = req.user?.role === 'admin' || req.user?.role === 'manager';
+  const isAdmin =
+    req.user?.role === 'admin' || req.user?.role === 'founder' || req.user?.role === 'manager';
   if (!isCustomer && !isSeller && !isAdmin) {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à désarchiver cette conversation.' });
   }
@@ -481,7 +486,8 @@ export const deleteOrderConversation = asyncHandler(async (req, res) => {
   const isSeller = order.items?.some(
     (item) => String(item?.snapshot?.shopId) === String(userId)
   );
-  const isAdmin = req.user?.role === 'admin' || req.user?.role === 'manager';
+  const isAdmin =
+    req.user?.role === 'admin' || req.user?.role === 'founder' || req.user?.role === 'manager';
   if (!isCustomer && !isSeller && !isAdmin) {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à supprimer cette conversation.' });
   }
@@ -512,7 +518,8 @@ export const getAllOrderConversations = asyncHandler(async (req, res) => {
   const showArchived = String(archived).toLowerCase() === 'true';
 
   // If admin, get all orders
-  const isAdmin = req.user?.role === 'admin' || req.user?.role === 'manager';
+  const isAdmin =
+    req.user?.role === 'admin' || req.user?.role === 'founder' || req.user?.role === 'manager';
   let query = {
     $and: [
       { $or: [{ isDraft: false }, { isInquiry: true }] }
@@ -732,7 +739,8 @@ export const addOrderMessageReaction = asyncHandler(async (req, res) => {
   const isSeller = order.items?.some(
     (item) => String(item?.snapshot?.shopId) === String(userId)
   );
-  const isAdmin = req.user?.role === 'admin' || req.user?.role === 'manager';
+  const isAdmin =
+    req.user?.role === 'admin' || req.user?.role === 'founder' || req.user?.role === 'manager';
 
   if (!isCustomer && !isSeller && !isAdmin) {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à réagir à ce message.' });
@@ -785,7 +793,8 @@ export const removeOrderMessageReaction = asyncHandler(async (req, res) => {
   const isSeller = order.items?.some(
     (item) => String(item?.snapshot?.shopId) === String(userId)
   );
-  const isAdmin = req.user?.role === 'admin' || req.user?.role === 'manager';
+  const isAdmin =
+    req.user?.role === 'admin' || req.user?.role === 'founder' || req.user?.role === 'manager';
 
   if (!isCustomer && !isSeller && !isAdmin) {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à modifier ce message.' });
@@ -828,7 +837,8 @@ export const deleteOrderMessage = asyncHandler(async (req, res) => {
   const isSeller = order.items?.some(
     (item) => String(item?.snapshot?.shopId) === String(userId)
   );
-  const isAdmin = req.user?.role === 'admin' || req.user?.role === 'manager';
+  const isAdmin =
+    req.user?.role === 'admin' || req.user?.role === 'founder' || req.user?.role === 'manager';
 
   if (!isCustomer && !isSeller && !isAdmin) {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à supprimer ce message.' });

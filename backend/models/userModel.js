@@ -47,6 +47,11 @@ const userSchema = new mongoose.Schema(
     shopLogo: { type: String },
     shopBanner: { type: String },
     shopVerified: { type: Boolean, default: false },
+    shopVerificationSnapshot: {
+      verified: { type: Boolean, default: false },
+      verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      verifiedAt: { type: Date, default: null }
+    },
     shopDescription: { type: String, trim: true, default: '' },
     shopHours: {
       type: [

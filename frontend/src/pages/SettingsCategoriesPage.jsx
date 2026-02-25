@@ -268,12 +268,12 @@ export default function SettingsCategoriesPage() {
   }, [search]);
 
   useEffect(() => {
-    if (user?.role !== 'admin') return;
+    if (user?.role !== 'admin' && user?.role !== 'founder') return;
     loadTree();
   }, [user?.role, loadTree]);
 
   useEffect(() => {
-    if (user?.role !== 'admin') return;
+    if (user?.role !== 'admin' && user?.role !== 'founder') return;
     loadActivity();
   }, [user?.role, loadActivity]);
 
@@ -522,7 +522,7 @@ export default function SettingsCategoriesPage() {
     }
   };
 
-  if (user?.role !== 'admin') {
+  if (user?.role !== 'admin' && user?.role !== 'founder') {
     return (
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="ui-card ui-card-lg ui-card-fade-in p-6 text-sm text-neutral-700 dark:text-neutral-300">

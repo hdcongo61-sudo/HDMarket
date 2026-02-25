@@ -1114,6 +1114,7 @@ export default function AdminProductBoosts() {
                     (u) =>
                       !u.isBlocked &&
                       u.role !== 'admin' &&
+                      u.role !== 'founder' &&
                       !boostManagers.some((m) => m._id === u._id || m._id === u.id)
                   )
                   .map((userItem) => (
@@ -1148,6 +1149,7 @@ export default function AdminProductBoosts() {
                   (u) =>
                     !u.isBlocked &&
                     u.role !== 'admin' &&
+                    u.role !== 'founder' &&
                     !boostManagers.some((m) => m._id === u._id || m._id === u.id)
                 ).length === 0 && (
                   <div className="text-center py-8 text-gray-500 dark:text-gray-400">
