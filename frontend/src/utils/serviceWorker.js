@@ -7,6 +7,9 @@ const isLocalHost = () => {
   return ['localhost', '127.0.0.1'].includes(window.location.hostname);
 };
 
+const shouldLogSwDebug =
+  import.meta.env?.DEV === true && String(import.meta.env.VITE_DEBUG_SW) === 'true';
+
 export const registerServiceWorker = async () => {
   if (isLocalHost()) {
     await unregisterServiceWorker();
@@ -18,7 +21,9 @@ export const registerServiceWorker = async () => {
         scope: '/'
       });
       
-      console.log('Service Worker registered:', registration);
+      if (shouldLogSwDebug) {
+        console.log('Service Worker registered:', registration);
+      }
       // Ensure new SW takes control immediately so users don't stay on stale UI bundles.
       let hasReloadedForControllerChange = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -72,7 +77,9 @@ export const registerServiceWorker = async () => {
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
               // New service worker available
-              console.log('New service worker available');
+              if (shouldLogSwDebug) {
+                console.log('New service worker available');
+              }
               postFirebaseConfig();
               activateWaitingWorker(registration.waiting || newWorker);
             }
@@ -99,7 +106,9 @@ export const unregisterServiceWorker = async () => {
         const keys = await window.caches.keys();
         await Promise.all(keys.map((key) => window.caches.delete(key)));
       }
-      console.log('Service Worker unregistered');
+      if (shouldLogSwDebug) {
+        console.log('Service Worker unregistered');
+      }
     } catch (error) {
       console.error('Service Worker unregistration failed:', error);
     }

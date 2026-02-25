@@ -6,6 +6,7 @@ import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import api from '../services/api';
 
 const isDev = import.meta.env?.DEV === true;
+const debugPush = isDev && String(import.meta.env?.VITE_DEBUG_PUSH) === 'true';
 const PUSH_TOKEN_RETRY_DELAY_MS = 3000;
 const PUSH_TOKEN_MAX_RETRIES = 2;
 
@@ -73,10 +74,10 @@ export default function usePushNotifications(user) {
           // backward-compatible fallback
           await api.post('/users/push-tokens', payload);
         }
-        if (isDev) console.log('[HDMarket] Push token registered', platform);
+        if (debugPush) console.log('[HDMarket] Push token registered', platform);
         return true;
       } catch (err) {
-        if (isDev) console.warn('[HDMarket] Push token API error:', err?.response?.status ?? err.message);
+        if (debugPush) console.warn('[HDMarket] Push token API error:', err?.response?.status ?? err.message);
         if (active && retryCount < PUSH_TOKEN_MAX_RETRIES) {
           setTimeout(() => sendTokenToServer(tokenValue, platform, retryCount + 1), PUSH_TOKEN_RETRY_DELAY_MS);
         }
@@ -91,7 +92,7 @@ export default function usePushNotifications(user) {
         if (permission.receive !== 'granted') {
           const request = await PushNotifications.requestPermissions();
           if (request.receive !== 'granted') {
-            if (isDev) console.warn('[HDMarket] Push: permission not granted');
+            if (debugPush) console.warn('[HDMarket] Push: permission not granted');
             return;
           }
         }
@@ -99,7 +100,7 @@ export default function usePushNotifications(user) {
       };
 
       register().catch((err) => {
-        if (isDev) console.warn('[HDMarket] Push register error:', err);
+        if (debugPush) console.warn('[HDMarket] Push register error:', err);
       });
 
       const registrationListener = PushNotifications.addListener('registration', async (token) => {
@@ -108,7 +109,7 @@ export default function usePushNotifications(user) {
       });
 
       const registrationErrorListener = PushNotifications.addListener('registrationError', (err) => {
-        if (isDev) console.warn('[HDMarket] Push registrationError:', err);
+        if (debugPush) console.warn('[HDMarket] Push registrationError:', err);
       });
 
       const receivedListener = PushNotifications.addListener('pushNotificationReceived', (notification) => {
@@ -137,7 +138,7 @@ export default function usePushNotifications(user) {
     (async function registerWebPush() {
       if (typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator)) return;
       if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-        if (isDev) console.warn('[HDMarket] Web push: Firebase config missing');
+        if (debugPush) console.warn('[HDMarket] Web push: Firebase config missing');
         return;
       }
 
@@ -146,12 +147,12 @@ export default function usePushNotifications(user) {
         try {
           permission = await Notification.requestPermission();
         } catch (e) {
-          if (isDev) console.warn('[HDMarket] Web push: requestPermission failed', e);
+          if (debugPush) console.warn('[HDMarket] Web push: requestPermission failed', e);
           return;
         }
       }
       if (permission !== 'granted') {
-        if (isDev) console.warn('[HDMarket] Web push: permission not granted');
+        if (debugPush) console.warn('[HDMarket] Web push: permission not granted');
         return;
       }
 
@@ -174,7 +175,7 @@ export default function usePushNotifications(user) {
         });
         webPushUnsubscribeRef.current = unsubscribe;
       } catch (err) {
-        if (isDev) console.warn('[HDMarket] Web push registration error:', err?.message ?? err);
+        if (debugPush) console.warn('[HDMarket] Web push registration error:', err?.message ?? err);
       }
     })();
 
