@@ -17,6 +17,7 @@ import AdminPayments from './pages/AdminPayments';
 import AdminUsers from './pages/AdminUsers';
 import AdminOrders from './pages/AdminOrders';
 import AdminDeliveryGuys from './pages/AdminDeliveryGuys';
+import AdminDeliveryRequests from './pages/AdminDeliveryRequests';
 import TopDeals from './pages/TopDeals';
 import TopRanking from './pages/TopRanking';
 import TopFavorites from './pages/TopFavorites';
@@ -98,7 +99,7 @@ function LegacyOrderRouteResolver() {
 function AppContent() {
   const location = useLocation();
   const { pathname } = location;
-  const { isFeatureEnabled } = useAppSettings();
+  const { isFeatureEnabled, getRuntimeValue } = useAppSettings();
   const [splashConfig, setSplashConfig] = useState(null);
   const [splashDismissed, setSplashDismissed] = useState(false);
   const [bootLoading, setBootLoading] = useState(true);
@@ -144,6 +145,13 @@ function AppContent() {
   const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
     defaultValue: true
   });
+  const platformDeliveryEnabled =
+    ['true', '1', 'yes', 'on'].includes(
+      String(getRuntimeValue('enable_platform_delivery', false)).trim().toLowerCase()
+    ) &&
+    !['false', '0', 'no', 'off'].includes(
+      String(getRuntimeValue('enable_delivery_requests', true)).trim().toLowerCase()
+    );
 
   useEffect(() => {
     if (!showLoader) {
@@ -469,7 +477,8 @@ function AppContent() {
                       'manage_users',
                       'manage_orders',
                       'manage_sellers',
-                      'manage_settings'
+                      'manage_settings',
+                      'manage_delivery'
                     ]) ||
                     u?.canManageComplaints === true ||
                     u?.canManageDelivery === true ||
@@ -487,7 +496,14 @@ function AppContent() {
             <Route index element={<AdminDashboard />} />
             <Route path="payments" element={<AdminPayments />} />
             <Route path="orders" element={<AdminOrders />} />
-            <Route path="delivery-guys" element={<AdminDeliveryGuys />} />
+            <Route
+              path="delivery-guys"
+              element={platformDeliveryEnabled ? <AdminDeliveryGuys /> : <Navigate to="/admin" replace />}
+            />
+            <Route
+              path="delivery-requests"
+              element={platformDeliveryEnabled ? <AdminDeliveryRequests /> : <Navigate to="/admin" replace />}
+            />
             <Route
               path="complaints"
               element={

@@ -1034,9 +1034,11 @@ export default function ProductDetails() {
   const ratingCount = product?.ratingCount || 0;
   const commentCount = product?.commentCount || 0;
   const totalViews = Number(product?.viewsCount ?? product?.views ?? 0);
+  const totalOrdersQty = Number(product?.salesCount || 0);
   const todayViews = Number(product?.todayViewsCount || 0);
   const uniqueViewers = Number(product?.uniqueViewsCount || 0);
   const formattedTotalViews = totalViews.toLocaleString('fr-FR');
+  const formattedTotalOrdersQty = totalOrdersQty.toLocaleString('fr-FR');
   const formattedTodayViews = todayViews.toLocaleString('fr-FR');
   const formattedUniqueViewers = uniqueViewers.toLocaleString('fr-FR');
   const rawStockValue = Number(
@@ -1545,6 +1547,10 @@ export default function ProductDetails() {
         <span className="text-gray-300">|</span>
         <span className="flex items-center gap-1">
           <Eye size={14} /> {formattedTotalViews}
+        </span>
+        <span className="text-gray-300">|</span>
+        <span className="flex items-center gap-1">
+          <ShoppingCart size={14} /> {formattedTotalOrdersQty}
         </span>
         <span className="text-gray-300">|</span>
         <span className="flex items-center gap-1">
@@ -2453,6 +2459,11 @@ export default function ProductDetails() {
                   <Eye size={16} className="text-neutral-800" />
                   <span className="font-semibold text-gray-700">{formattedTotalViews}</span>
                   <span className="text-gray-500">vues</span>
+                </div>
+                <div className="flex items-center gap-2 bg-neutral-50 px-3 py-2 rounded-xl border border-neutral-200">
+                  <ShoppingCart size={16} className="text-neutral-800" />
+                  <span className="font-semibold text-gray-700">{formattedTotalOrdersQty}</span>
+                  <span className="text-gray-500">commandes</span>
                 </div>
                 <div className="flex items-center gap-2 bg-neutral-50 px-3 py-2 rounded-xl border border-neutral-100">
                   <Heart size={16} className="text-neutral-500" fill="currentColor" />

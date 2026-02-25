@@ -83,6 +83,91 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     min: 0,
     max: 10
   },
+  enable_platform_delivery: {
+    category: 'delivery_platform',
+    description: 'Activer la livraison opérée par la plateforme.',
+    valueType: 'boolean',
+    defaultValue: false,
+    isPublic: true
+  },
+  enable_delivery_requests: {
+    category: 'delivery_platform',
+    description: 'Activer les demandes de livraison plateforme depuis les vendeurs.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  delivery_manager_roles: {
+    category: 'delivery_platform',
+    description: 'Rôles autorisés à traiter les demandes de livraison plateforme.',
+    valueType: 'array',
+    defaultValue: ['DELIVERY_MANAGER', 'ADMIN', 'FOUNDER'],
+    isPublic: false
+  },
+  delivery_commune_filters_enabled: {
+    category: 'delivery_platform',
+    description: 'Active les filtres opérationnels par commune/ville pour la logistique.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: false
+  },
+  delivery_default_price_mode: {
+    category: 'delivery_platform',
+    description: 'Mode de résolution du prix de livraison plateforme.',
+    valueType: 'string',
+    defaultValue: 'HYBRID',
+    isPublic: true,
+    allowedValues: ['ADMIN_RULES', 'SELLER_DEFINED', 'BUYER_DEFINED', 'HYBRID']
+  },
+  delivery_price_admin_by_commune: {
+    category: 'delivery_platform',
+    description:
+      'Règles admin de prix livraison par commune (clé source->destination ou default).',
+    valueType: 'json',
+    defaultValue: {},
+    isPublic: false
+  },
+  delivery_request_expire_hours: {
+    category: 'delivery_platform',
+    description: 'Durée de validité max d’une demande de livraison (heures).',
+    valueType: 'number',
+    defaultValue: 24,
+    isPublic: false,
+    min: 1,
+    max: 168
+  },
+  delivery_max_active_requests_per_shop: {
+    category: 'delivery_platform',
+    description: 'Nombre max de demandes livraison actives simultanées par boutique.',
+    valueType: 'number',
+    defaultValue: 20,
+    isPublic: false,
+    min: 1,
+    max: 500
+  },
+  delivery_auto_reminder_enabled: {
+    category: 'delivery_platform',
+    description: 'Active les rappels auto pour demandes livraison en attente.',
+    valueType: 'boolean',
+    defaultValue: false,
+    isPublic: false
+  },
+  delivery_auto_reminder_hours: {
+    category: 'delivery_platform',
+    description: 'Délai en heures avant rappel auto d’une demande livraison.',
+    valueType: 'number',
+    defaultValue: 4,
+    isPublic: false,
+    min: 1,
+    max: 72
+  },
+  delivery_require_invoice_attachment: {
+    category: 'delivery_platform',
+    description: 'Exiger une URL de facture lors d’une demande livraison plateforme.',
+    valueType: 'boolean',
+    defaultValue: false,
+    isPublic: true
+  },
   order_reminder_interval_hours: {
     category: 'order_automation',
     description: 'Intervalle minimum entre deux relances d’une même commande (heures).',

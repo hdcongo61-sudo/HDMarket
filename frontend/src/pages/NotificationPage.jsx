@@ -51,6 +51,14 @@ const DISPUTE_TYPES = new Set([
   'dispute_resolved'
 ]);
 const DELIVERY_TYPES = new Set(['order_delivering', 'order_delivered']);
+const PLATFORM_DELIVERY_TYPES = new Set([
+  'delivery_request_created',
+  'delivery_request_accepted',
+  'delivery_request_rejected',
+  'delivery_request_assigned',
+  'delivery_request_in_progress',
+  'delivery_request_delivered'
+]);
 const ADMIN_TYPES = new Set(['admin_broadcast']);
 const SYSTEM_TYPES = new Set([
   'account_restriction',
@@ -71,6 +79,12 @@ const TYPE_PRIORITY = Object.freeze({
   order_reminder: 82,
   order_delivering: 80,
   order_delivered: 78,
+  delivery_request_created: 79,
+  delivery_request_accepted: 81,
+  delivery_request_rejected: 83,
+  delivery_request_assigned: 80,
+  delivery_request_in_progress: 79,
+  delivery_request_delivered: 78,
   dispute_seller_responded: 76,
   dispute_under_review: 75,
   dispute_resolved: 74,
@@ -115,7 +129,7 @@ const resolveCategory = (alert) => {
   const type = alert?.type || '';
   if (ORDER_TYPES.has(type)) return 'orders';
   if (DISPUTE_TYPES.has(type)) return 'dispute';
-  if (DELIVERY_TYPES.has(type)) return 'delivery';
+  if (DELIVERY_TYPES.has(type) || PLATFORM_DELIVERY_TYPES.has(type)) return 'delivery';
   if (ADMIN_TYPES.has(type)) return 'admin';
   if (SYSTEM_TYPES.has(type)) return 'system';
   if (BOOST_TYPES.has(type)) return 'boost';
@@ -126,7 +140,9 @@ const resolveCategory = (alert) => {
 const notificationMeta = (alert, t) => {
   const type = alert?.type || '';
   if (ORDER_TYPES.has(type)) return { title: t('notifications.orderUpdate', 'Mise à jour commande'), icon: <Package className="h-4 w-4" /> };
-  if (DELIVERY_TYPES.has(type)) return { title: t('notifications.deliveryUpdate', 'Mise à jour livraison'), icon: <Truck className="h-4 w-4" /> };
+  if (DELIVERY_TYPES.has(type) || PLATFORM_DELIVERY_TYPES.has(type)) {
+    return { title: t('notifications.deliveryUpdate', 'Mise à jour livraison'), icon: <Truck className="h-4 w-4" /> };
+  }
   if (DISPUTE_TYPES.has(type)) return { title: t('notifications.disputeUpdate', 'Mise à jour litige'), icon: <Gavel className="h-4 w-4" /> };
   if (type === 'payment_pending') return { title: t('notifications.paymentPending', 'Paiement en attente'), icon: <CreditCard className="h-4 w-4" /> };
   if (type === 'order_message') return { title: t('notifications.orderMessage', 'Message commande'), icon: <MessageSquare className="h-4 w-4" /> };

@@ -32,6 +32,7 @@ import {
   deleteDraftOrder,
   createInquiryOrder
 } from '../controllers/orderController.js';
+import { requestPlatformDeliveryForOrder } from '../controllers/deliveryRequestController.js';
 import {
   adminApplyOrderAction,
   adminOrderAlerts,
@@ -166,6 +167,12 @@ router.post(
   clientConfirmDelivery
 );
 router.get('/:id/delivery-logs', validate(schemas.idParam, 'params'), getOrderDeliveryLogs);
+router.post(
+  '/:id/request-delivery',
+  validate(schemas.idParam, 'params'),
+  validate(schemas.orderRequestDelivery),
+  requestPlatformDeliveryForOrder
+);
 router.patch(
   '/:id/status',
   validate(schemas.idParam, 'params'),

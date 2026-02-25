@@ -48,6 +48,9 @@ import {
   Phone,
   Mail,
   Wifi,
+  Smartphone,
+  Tablet,
+  Monitor,
   Crown,
   ArrowUpRight
 } from 'lucide-react';
@@ -1166,6 +1169,40 @@ export default function AdminDashboard() {
   }, [remindersOpen, loadReminderOrders]);
 
   const totalUserCount = stats?.users?.total || 0;
+  const deviceDistribution = onlineStats?.deviceDistribution || {};
+  const deviceCounts = {
+    mobile: Number(deviceDistribution?.mobile || 0),
+    tablet: Number(deviceDistribution?.tablet || 0),
+    desktop: Number(deviceDistribution?.desktop || 0)
+  };
+  const totalDeviceSessions =
+    deviceCounts.mobile + deviceCounts.tablet + deviceCounts.desktop;
+  const deviceStatsCards = [
+    {
+      key: 'mobile',
+      label: 'Mobile',
+      count: deviceCounts.mobile,
+      percent: formatPercent(deviceCounts.mobile, totalDeviceSessions),
+      icon: Smartphone,
+      color: 'bg-blue-500'
+    },
+    {
+      key: 'tablet',
+      label: 'iPad / Tablette',
+      count: deviceCounts.tablet,
+      percent: formatPercent(deviceCounts.tablet, totalDeviceSessions),
+      icon: Tablet,
+      color: 'bg-emerald-500'
+    },
+    {
+      key: 'desktop',
+      label: 'PC',
+      count: deviceCounts.desktop,
+      percent: formatPercent(deviceCounts.desktop, totalDeviceSessions),
+      icon: Monitor,
+      color: 'bg-violet-500'
+    }
+  ];
   const totalProductCount = stats?.products?.total || 0;
   const orderStats = stats?.orders || {};
   const orderByStatus = orderStats.byStatus || {};
@@ -1505,6 +1542,43 @@ export default function AdminDashboard() {
                 subtitle="Surveillance temps réel"
                 icon={Shield}
               />
+            </div>
+            <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">Type d’appareil connecté</h3>
+                  <p className="text-xs text-gray-500">
+                    Répartition des sessions actives (mobile, tablette, PC)
+                  </p>
+                </div>
+                <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700">
+                  {formatNumber(totalDeviceSessions)} sessions
+                </span>
+              </div>
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {deviceStatsCards.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <div
+                      key={item.key}
+                      className="rounded-xl border border-gray-200 bg-gray-50/70 px-3 py-3"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-flex h-8 w-8 items-center justify-center rounded-lg text-white ${item.color}`}
+                        >
+                          <Icon size={16} />
+                        </span>
+                        <span className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+                          {item.label}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-xl font-bold text-gray-900">{formatNumber(item.count)}</p>
+                      <p className="text-xs text-gray-500">{item.percent}</p>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
               <StatCard

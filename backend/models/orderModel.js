@@ -182,6 +182,26 @@ const orderSchema = new mongoose.Schema(
       enum: ['PICKUP', 'DELIVERY'],
       default: 'DELIVERY'
     },
+    platformDeliveryMode: {
+      type: String,
+      enum: ['NONE', 'SELLER_DELIVERY', 'PLATFORM_DELIVERY'],
+      default: 'NONE'
+    },
+    platformDeliveryRequestId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'DeliveryRequest',
+      default: null
+    },
+    platformDeliveryStatus: {
+      type: String,
+      enum: ['NONE', 'REQUESTED', 'ACCEPTED', 'REJECTED', 'IN_PROGRESS', 'DELIVERED', 'CANCELED'],
+      default: 'NONE'
+    },
+    platformDeliveryPriceSource: {
+      type: String,
+      enum: ['SHOP_FREE', 'ADMIN_RULE', 'SELLER', 'BUYER', 'NONE'],
+      default: 'NONE'
+    },
     deliveryFeeSource: {
       type: String,
       enum: ['COMMUNE_FREE', 'COMMUNE_FIXED', 'SHOP_FREE', 'PRODUCT_FEE', 'PICKUP'],
@@ -319,6 +339,8 @@ orderSchema.index({ customer: 1, createdAt: -1 });
 orderSchema.index({ customer: 1, isDraft: 1, createdAt: -1 });
 orderSchema.index({ paymentType: 1, status: 1, createdAt: -1 });
 orderSchema.index({ deliveryMode: 1, deliveryFeeSource: 1, createdAt: -1 });
+orderSchema.index({ platformDeliveryStatus: 1, updatedAt: -1 });
+orderSchema.index({ platformDeliveryRequestId: 1 }, { sparse: true });
 orderSchema.index({ 'shippingAddressSnapshot.cityId': 1, 'shippingAddressSnapshot.communeId': 1, createdAt: -1 });
 orderSchema.index({ 'items.snapshot.shopId': 1, createdAt: -1, status: 1 });
 orderSchema.index({ 'items.product': 1, createdAt: -1, status: 1 });

@@ -11,6 +11,7 @@ import storage from "../utils/storage";
 import { buildProductPath, buildShopPath } from "../utils/links";
 import { getCachedSearch, setCachedSearch } from "../utils/searchCache.js";
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
+import { hasAnyPermission } from "../utils/permissions";
 import { useAppSettings } from "../context/AppSettingsContext";
 import categoryGroups from "../data/categories";
 import {
@@ -120,15 +121,30 @@ const highlightText = (text, query) => {
 };
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
+const isTruthyFlag = (value) => {
+  if (value === true || value === 1) return true;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on';
+  }
+  return false;
+};
 
 export default function Navbar() {
   const navigate = useNavigate();
   const { user, logout } = useContext(AuthContext);
-  const { theme, setTheme, t, cities, isFeatureEnabled } = useAppSettings();
+  const { theme, setTheme, t, cities, isFeatureEnabled, getRuntimeValue } = useAppSettings();
   const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
     defaultValue: true
   });
   const chatEnabled = isFeatureEnabled('enable_chat', { defaultValue: true });
+  const platformDeliveryEnabled =
+    ['true', '1', 'yes', 'on'].includes(
+      String(getRuntimeValue('enable_platform_delivery', false)).trim().toLowerCase()
+    ) &&
+    !['false', '0', 'no', 'off'].includes(
+      String(getRuntimeValue('enable_delivery_requests', true)).trim().toLowerCase()
+    );
   const { cart } = useContext(CartContext);
   const { favorites } = useContext(FavoriteContext);
   const cartCount = cart?.totals?.quantity || 0;
@@ -137,23 +153,28 @@ export default function Navbar() {
   const [sellerOrders, setSellerOrders] = useState(0);
   const [unreadOrderMessages, setUnreadOrderMessages] = useState(0);
 
-  const isAdmin = user?.role === "admin";
-  const isFounder = user?.role === 'founder';
-  const isManager = user?.role === "manager";
+  const normalizedRole = String(user?.role || '').trim().toLowerCase();
+  const isAdmin = normalizedRole === 'admin';
+  const isFounder = normalizedRole === 'founder';
+  const isManager = normalizedRole === 'manager';
   const isAdminLike = isAdmin || isFounder;
   const canAccessBackOffice = isAdminLike || isManager;
-  const canManageDelivery = Boolean(user?.canManageDelivery);
-  const canManageProducts = Boolean(user?.canManageProducts);
-  const canManageChatTemplates = Boolean(user?.canManageChatTemplates);
-  const canVerifyPayments = Boolean(user?.canVerifyPayments);
+  const canManageDelivery = isTruthyFlag(user?.canManageDelivery);
+  const canManageProducts = isTruthyFlag(user?.canManageProducts);
+  const canManageChatTemplates = isTruthyFlag(user?.canManageChatTemplates);
+  const canReadFeedback = isTruthyFlag(user?.canReadFeedback);
+  const canVerifyPayments = isTruthyFlag(user?.canVerifyPayments);
+  const canManageComplaints = isTruthyFlag(user?.canManageComplaints);
+  const canManageBoosts = isTruthyFlag(user?.canManageBoosts);
+  const canViewAdminDashboard = hasAnyPermission(user, ['view_admin_dashboard']);
   const adminLinkLabel = isManager
     ? t('nav.management', 'Gestion')
     : isFounder
       ? t('nav.founder', 'Founder')
       : t('nav.admin', 'Admin');
 
-  // Enable admin counts for admins, managers, and users with payment verification access
-  const shouldLoadAdminCounts = canAccessBackOffice || canVerifyPayments;
+  // /admin/stats backend rule is permission-based (view_admin_dashboard)
+  const shouldLoadAdminCounts = canViewAdminDashboard;
   const { counts } = useAdminCounts(shouldLoadAdminCounts);
   const waitingPayments = counts.waitingPayments || 0;
   const unreadFeedback = counts.unreadFeedback || 0;
@@ -233,6 +254,8 @@ export default function Navbar() {
   const [bottomBarTouchStart, setBottomBarTouchStart] = useState(null);
   const [longPressTimer, setLongPressTimer] = useState(null);
   const [showQuickActions, setShowQuickActions] = useState(null); // ID of item showing quick actions
+  // Disabled on mobile/PWA: long-press quick actions were creating accidental floating popups.
+  const enableBottomBarQuickActions = false;
   const [customNavItems, setCustomNavItems] = useState(null); // Will be loaded from localStorage
   // Default app logos (PWA assets) when no custom logo from API
   const defaultAppLogo = '/favicon.svg';
@@ -619,6 +642,7 @@ export default function Navbar() {
   const handleBottomBarTouchStart = (e) => {
     if (!e.touches?.length) return;
     setBottomBarTouchStart(e.touches[0].clientY);
+    if (!enableBottomBarQuickActions) return;
 
     // Resolve target id synchronously; currentTarget may be null inside async callback.
     const currentTarget = e.currentTarget;
@@ -669,6 +693,12 @@ export default function Navbar() {
     }
     setBottomBarTouchStart(null);
   };
+
+  useEffect(() => {
+    if (!enableBottomBarQuickActions && showQuickActions !== null) {
+      setShowQuickActions(null);
+    }
+  }, [enableBottomBarQuickActions, showQuickActions]);
 
   // Save custom navigation items
   const saveCustomNavItems = (items) => {
@@ -3076,13 +3106,22 @@ export default function Navbar() {
                           <span className="text-sm font-semibold">{t('nav.products', 'Produits')}</span>
                         </Link>
                       )}
-                      {(canAccessBackOffice || canManageDelivery) && (
+                      {platformDeliveryEnabled && (canAccessBackOffice || canManageDelivery) && (
                         <Link
                           to="/admin/delivery-guys"
                           className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                         >
                           <Truck size={16} />
                           <span className="text-sm font-semibold">{t('nav.deliveryGuys', 'Livreurs')}</span>
+                        </Link>
+                      )}
+                      {platformDeliveryEnabled && (canAccessBackOffice || canManageDelivery) && (
+                        <Link
+                          to="/admin/delivery-requests"
+                          className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                        >
+                          <ClipboardList size={16} />
+                          <span className="text-sm font-semibold">{t('nav.deliveryRequests', 'Demandes livraison')}</span>
                         </Link>
                       )}
                       {(isAdminLike || canManageChatTemplates) && (
@@ -3103,7 +3142,7 @@ export default function Navbar() {
                           <span className="text-sm font-semibold">{t('nav.appSettings', 'App Settings')}</span>
                         </Link>
                       )}
-                      {(isAdminLike || user?.canReadFeedback) && (
+                      {(isAdminLike || canReadFeedback) && (
                         <Link
                           to="/admin/feedback"
                           className="relative flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -3117,7 +3156,7 @@ export default function Navbar() {
                           )}
                         </Link>
                       )}
-                      {(isAdminLike || user?.canVerifyPayments) && (
+                      {(isAdminLike || canVerifyPayments) && (
                         <Link
                           to="/admin/payment-verification"
                           className="relative flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -3131,7 +3170,7 @@ export default function Navbar() {
                           )}
                         </Link>
                       )}
-                      {(canAccessBackOffice || user?.canManageComplaints) && (
+                      {(canAccessBackOffice || canManageComplaints) && (
                         <Link
                           to="/admin/complaints"
                           className="relative flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -3140,7 +3179,7 @@ export default function Navbar() {
                           <span className="text-sm font-semibold">{t('nav.handleComplaints', 'Traiter les réclamations')}</span>
                         </Link>
                       )}
-                      {!isAdminLike && user?.canManageBoosts && (
+                      {!isAdminLike && canManageBoosts && (
                         <Link
                           to="/admin/product-boosts"
                           className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -3747,7 +3786,7 @@ export default function Navbar() {
                       {t('nav.adminOrders', 'Commandes admin')}
                     </NavLink>
                   )}
-                  {(isAdminLike || user?.canReadFeedback) && (
+                  {(isAdminLike || canReadFeedback) && (
                     <NavLink
                       to="/admin/feedback"
                       onClick={() => setIsMenuOpen(false)}
@@ -3762,7 +3801,7 @@ export default function Navbar() {
                       )}
                     </NavLink>
                   )}
-                  {(isAdminLike || user?.canVerifyPayments) && (
+                  {(isAdminLike || canVerifyPayments) && (
                     <NavLink
                       to="/admin/payment-verification"
                       onClick={() => setIsMenuOpen(false)}
@@ -3777,7 +3816,7 @@ export default function Navbar() {
                       )}
                     </NavLink>
                   )}
-                  {(canAccessBackOffice || user?.canManageComplaints) && (
+                  {(canAccessBackOffice || canManageComplaints) && (
                     <NavLink
                       to="/admin/complaints"
                       onClick={() => setIsMenuOpen(false)}
@@ -3797,7 +3836,7 @@ export default function Navbar() {
                       {t('nav.chatTemplates', 'Chat templates')}
                     </NavLink>
                   )}
-                  {!isAdminLike && user?.canManageBoosts && (
+                  {!isAdminLike && canManageBoosts && (
                     <NavLink
                       to="/admin/product-boosts"
                       onClick={() => setIsMenuOpen(false)}
@@ -3847,7 +3886,7 @@ export default function Navbar() {
                       {t('nav.products', 'Produits')}
                     </NavLink>
                   )}
-                  {(canAccessBackOffice || canManageDelivery) && (
+                  {platformDeliveryEnabled && (canAccessBackOffice || canManageDelivery) && (
                     <NavLink
                       to="/admin/delivery-guys"
                       onClick={() => setIsMenuOpen(false)}
@@ -3855,6 +3894,16 @@ export default function Navbar() {
                     >
                       <Truck size={20} />
                       {t('nav.deliveryGuys', 'Livreurs')}
+                    </NavLink>
+                  )}
+                  {platformDeliveryEnabled && (canAccessBackOffice || canManageDelivery) && (
+                    <NavLink
+                      to="/admin/delivery-requests"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <ClipboardList size={20} />
+                      {t('nav.deliveryRequests', 'Demandes livraison')}
                     </NavLink>
                   )}
                 </>
@@ -4046,7 +4095,7 @@ export default function Navbar() {
                       <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-black dark:bg-neutral-400 rounded-full" />
                     )}
                     {/* Quick Actions Menu */}
-                    {showQuickActions === item.id && (
+                    {enableBottomBarQuickActions && showQuickActions === item.id && (
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-2 min-w-[150px] z-50">
                         {getQuickActions(item.id).map((action, idx) => (
                           <button
@@ -4121,7 +4170,7 @@ export default function Navbar() {
                         <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-black dark:bg-neutral-400 rounded-full" />
                       )}
                       {/* Quick Actions Menu */}
-                      {showQuickActions === item.id && (
+                      {enableBottomBarQuickActions && showQuickActions === item.id && (
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-2 min-w-[150px] z-50">
                           {getQuickActions(item.id).map((action, idx) => (
                             <button
@@ -4223,7 +4272,7 @@ export default function Navbar() {
                               <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-0.5 h-0.5 bg-black dark:bg-neutral-400 rounded-full" />
                             )}
                             {/* Quick Actions Menu */}
-                            {showQuickActions === item.id && (
+                            {enableBottomBarQuickActions && showQuickActions === item.id && (
                               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-2 min-w-[150px] z-50">
                                 {getQuickActions(item.id).map((action, idx) => (
                                   <button

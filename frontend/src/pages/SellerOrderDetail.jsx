@@ -21,7 +21,8 @@ import {
   CreditCard,
   Receipt,
   ShieldCheck,
-  ClipboardList
+  ClipboardList,
+  Loader2
 } from 'lucide-react';
 import { buildProductPath } from '../utils/links';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
@@ -35,6 +36,7 @@ import InstallmentReminder from '../components/orders/InstallmentReminder';
 import { OrderDetailSkeleton } from '../components/orders/OrderSkeletons';
 import { useToast } from '../context/ToastContext';
 import AuthContext from '../context/AuthContext';
+import { useAppSettings } from '../context/AppSettingsContext';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { getPickupShopAddress, isPickupOrder as resolvePickupOrder } from '../utils/pickupAddress';
 
@@ -236,6 +238,7 @@ export default function SellerOrderDetail() {
   const { orderId } = useParams();
   const { showToast } = useToast();
   const { user } = useContext(AuthContext);
+  const { getRuntimeValue } = useAppSettings();
   const externalLinkProps = useDesktopExternalLink();
 
   const [order, setOrder] = useState(null);
@@ -251,6 +254,11 @@ export default function SellerOrderDetail() {
   const [showDeliveryProofForm, setShowDeliveryProofForm] = useState(false);
   const [saleConfirmationLoading, setSaleConfirmationLoading] = useState(false);
   const [paymentValidationLoadingIndex, setPaymentValidationLoadingIndex] = useState(-1);
+  const [requestPlatformDeliveryLoading, setRequestPlatformDeliveryLoading] = useState(false);
+  const [requestPlatformDeliveryOpen, setRequestPlatformDeliveryOpen] = useState(false);
+  const [requestPlatformDeliveryNote, setRequestPlatformDeliveryNote] = useState('');
+  const [requestPlatformDeliveryInvoiceUrl, setRequestPlatformDeliveryInvoiceUrl] = useState('');
+  const [requestPlatformDeliveryError, setRequestPlatformDeliveryError] = useState('');
 
   const normalizeFileUrl = useCallback((url) => {
     if (!url) return '';
@@ -381,6 +389,31 @@ export default function SellerOrderDetail() {
     }
   };
 
+  const handleRequestPlatformDelivery = async () => {
+    if (!order?._id) return;
+    setRequestPlatformDeliveryLoading(true);
+    setRequestPlatformDeliveryError('');
+    try {
+      const payload = {
+        note: String(requestPlatformDeliveryNote || '').trim(),
+        pickupInstructions: String(requestPlatformDeliveryNote || '').trim(),
+        invoiceUrl: String(requestPlatformDeliveryInvoiceUrl || '').trim()
+      };
+      const { data } = await api.post(`/orders/${order._id}/request-delivery`, payload);
+      showToast(data?.message || 'Demande de livraison envoyée.', { variant: 'success' });
+      setRequestPlatformDeliveryOpen(false);
+      setRequestPlatformDeliveryNote('');
+      setRequestPlatformDeliveryInvoiceUrl('');
+      await loadOrder();
+    } catch (err) {
+      const message = err.response?.data?.message || 'Impossible de demander la livraison plateforme.';
+      setRequestPlatformDeliveryError(message);
+      showToast(message, { variant: 'error' });
+    } finally {
+      setRequestPlatformDeliveryLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!order) {
       if (showDeliveryProofForm) setShowDeliveryProofForm(false);
@@ -473,6 +506,23 @@ export default function SellerOrderDetail() {
     !['submitted', 'verified'].includes(order.deliveryStatus);
   const canShowDeliveryProofForm = canRequestDeliveryProof && showDeliveryProofForm;
   const sellerCity = String(user?.city || '').trim();
+  const platformDeliveryEnabled =
+    ['true', '1', 'yes', 'on'].includes(
+      String(getRuntimeValue('enable_platform_delivery', false)).trim().toLowerCase()
+    ) &&
+    !['false', '0', 'no', 'off'].includes(
+      String(getRuntimeValue('enable_delivery_requests', true)).trim().toLowerCase()
+    );
+  const requireInvoiceForPlatformDelivery =
+    ['true', '1', 'yes', 'on'].includes(
+      String(getRuntimeValue('delivery_require_invoice_attachment', false)).trim().toLowerCase()
+    );
+  const platformDeliveryStatus = String(order.platformDeliveryStatus || 'NONE').toUpperCase();
+  const canRequestPlatformDelivery =
+    platformDeliveryEnabled &&
+    !isPickupOrder &&
+    !['REQUESTED', 'ACCEPTED', 'IN_PROGRESS', 'DELIVERED'].includes(platformDeliveryStatus) &&
+    !['cancelled', 'completed'].includes(order.status);
   const buyerCity = String(order.customer?.city || order.deliveryCity || '').trim();
   const cityMismatch =
     Boolean(sellerCity && buyerCity) && sellerCity.toLowerCase() !== buyerCity.toLowerCase();
@@ -1138,6 +1188,91 @@ export default function SellerOrderDetail() {
                 {statusUpdateError.id === order._id && <p className="text-xs text-red-600">{statusUpdateError.message}</p>}
               </div>
             )}
+
+            {platformDeliveryEnabled && !isPickupOrder ? (
+              <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-blue-700" />
+                    <h4 className="text-sm font-bold text-blue-900 uppercase tracking-wide">
+                      Livraison plateforme
+                    </h4>
+                  </div>
+                  <span className="inline-flex items-center rounded-full border border-blue-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-blue-700">
+                    {platformDeliveryStatus}
+                  </span>
+                </div>
+
+                {canRequestPlatformDelivery ? (
+                  <>
+                    {!requestPlatformDeliveryOpen ? (
+                      <button
+                        type="button"
+                        onClick={() => setRequestPlatformDeliveryOpen(true)}
+                        className="inline-flex items-center gap-2 rounded-xl border border-blue-300 bg-white px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                      >
+                        <Truck size={12} />
+                        Request platform delivery
+                      </button>
+                    ) : (
+                      <div className="space-y-2">
+                        <input
+                          value={requestPlatformDeliveryInvoiceUrl}
+                          onChange={(e) => setRequestPlatformDeliveryInvoiceUrl(e.target.value)}
+                          placeholder="URL facture (optionnel)"
+                          className="w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-gray-800"
+                        />
+                        <textarea
+                          value={requestPlatformDeliveryNote}
+                          onChange={(e) => setRequestPlatformDeliveryNote(e.target.value)}
+                          placeholder="Instructions de récupération (optionnel)"
+                          rows={3}
+                          className="w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-gray-800"
+                        />
+                        {requireInvoiceForPlatformDelivery ? (
+                          <p className="text-[11px] text-blue-700">
+                            La configuration actuelle exige une URL de facture.
+                          </p>
+                        ) : null}
+                        {requestPlatformDeliveryError ? (
+                          <p className="text-xs text-red-600">{requestPlatformDeliveryError}</p>
+                        ) : null}
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={handleRequestPlatformDelivery}
+                            disabled={requestPlatformDeliveryLoading}
+                            className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
+                          >
+                            {requestPlatformDeliveryLoading ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <CheckCircle className="w-3.5 h-3.5" />
+                            )}
+                            Envoyer la demande
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRequestPlatformDeliveryOpen(false);
+                              setRequestPlatformDeliveryError('');
+                            }}
+                            disabled={requestPlatformDeliveryLoading}
+                            className="inline-flex items-center gap-2 rounded-xl border border-blue-300 bg-white px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                          >
+                            Annuler
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-xs text-blue-800">
+                    Demande déjà créée ou indisponible pour ce statut de commande.
+                  </p>
+                )}
+              </div>
+            ) : null}
 
             {order.status === 'cancelled' && (
               <div className="rounded-2xl border-2 border-red-200 bg-red-50 p-5 space-y-3">

@@ -591,6 +591,20 @@ export const schemas = {
   deliveryConfirm: Joi.object({
     confirm: Joi.boolean().default(true)
   }),
+  orderRequestDelivery: Joi.object({
+    note: Joi.string().trim().max(1000).allow('', null),
+    pickupInstructions: Joi.string().trim().max(1000).allow('', null),
+    invoiceUrl: Joi.string().uri().max(1000).allow('', null),
+    deliveryPrice: Joi.number().min(0).allow(null),
+    resubmit: Joi.boolean().default(false),
+    pickup: Joi.object({
+      cityId: Joi.string().hex().length(24).allow('', null),
+      communeId: Joi.string().hex().length(24).allow('', null),
+      cityName: Joi.string().trim().max(120).allow('', null),
+      communeName: Joi.string().trim().max(120).allow('', null),
+      address: Joi.string().trim().max(300).allow('', null)
+    }).allow(null)
+  }),
   orderStatusUpdate: Joi.object({
     status: Joi.string()
       .valid(
@@ -707,15 +721,51 @@ export const schemas = {
     cancellationReason: Joi.string().max(500).allow('', null)
   }).min(1),
   deliveryGuyCreate: Joi.object({
-    name: Joi.string().min(2).max(80).required(),
+    userId: Joi.string().hex().length(24).allow('', null),
+    fullName: Joi.string().min(2).max(120),
+    name: Joi.string().min(2).max(120),
     phone: Joi.string().max(30).allow('', null),
-    active: Joi.boolean().optional()
+    cityId: Joi.string().hex().length(24).allow('', null),
+    communes: Joi.array().items(Joi.string().hex().length(24)).max(50).default([]),
+    isActive: Joi.boolean().optional(),
+    active: Joi.boolean().optional(),
+    vehicleType: Joi.string().valid('bike', 'motorcycle', 'car', 'van', 'truck', 'other', '').optional(),
+    notes: Joi.string().max(500).allow('', null)
   }),
   deliveryGuyUpdate: Joi.object({
-    name: Joi.string().min(2).max(80),
+    userId: Joi.string().hex().length(24).allow('', null),
+    fullName: Joi.string().min(2).max(120),
+    name: Joi.string().min(2).max(120),
     phone: Joi.string().max(30).allow('', null),
-    active: Joi.boolean()
+    cityId: Joi.string().hex().length(24).allow('', null),
+    communes: Joi.array().items(Joi.string().hex().length(24)).max(50),
+    isActive: Joi.boolean(),
+    active: Joi.boolean(),
+    vehicleType: Joi.string().valid('bike', 'motorcycle', 'car', 'van', 'truck', 'other', ''),
+    notes: Joi.string().max(500).allow('', null)
   }).min(1),
+  adminDeliveryRequestsListQuery: Joi.object({
+    status: Joi.string().trim().max(40).allow('', null),
+    pickupCommune: Joi.string().trim().allow('', null),
+    dropoffCommune: Joi.string().trim().allow('', null),
+    city: Joi.string().trim().allow('', null),
+    dateFrom: Joi.date().iso().allow('', null),
+    dateTo: Joi.date().iso().allow('', null),
+    shop: Joi.string().trim().allow('', null),
+    priceMin: Joi.number().min(0).allow('', null),
+    priceMax: Joi.number().min(0).allow('', null),
+    page: Joi.number().integer().min(1).max(100000).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(20)
+  }),
+  adminDeliveryRequestAccept: Joi.object({
+    deliveryGuyId: Joi.string().hex().length(24).allow('', null)
+  }),
+  adminDeliveryRequestReject: Joi.object({
+    reason: Joi.string().trim().min(2).max(1000).required()
+  }),
+  adminDeliveryRequestAssign: Joi.object({
+    deliveryGuyId: Joi.string().hex().length(24).required()
+  }),
   adminUserRole: Joi.object({
     role: Joi.string().valid('user', 'manager').required()
   }),
@@ -761,6 +811,12 @@ export const schemas = {
     order_created: Joi.boolean(),
     order_received: Joi.boolean(),
     order_reminder: Joi.boolean(),
+    delivery_request_created: Joi.boolean(),
+    delivery_request_accepted: Joi.boolean(),
+    delivery_request_rejected: Joi.boolean(),
+    delivery_request_assigned: Joi.boolean(),
+    delivery_request_in_progress: Joi.boolean(),
+    delivery_request_delivered: Joi.boolean(),
     order_delivering: Joi.boolean(),
     order_delivered: Joi.boolean(),
     installment_due_reminder: Joi.boolean(),

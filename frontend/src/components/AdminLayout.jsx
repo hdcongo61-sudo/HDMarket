@@ -25,13 +25,14 @@ import {
 } from 'lucide-react';
 import { hasAnyPermission } from '../utils/permissions';
 
-const buildNavItems = (t) => [
+const buildNavItems = (t, platformDeliveryEnabled) => [
   { to: '/admin', end: true, label: t('nav.adminDashboard', 'Tableau de bord'), icon: LayoutDashboard, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || hasAnyPermission(u, ['view_admin_dashboard']) },
   { to: '/admin/orders', label: t('nav.orders', 'Commandes'), icon: ClipboardList, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || hasAnyPermission(u, ['manage_orders']) },
   { to: '/admin/payments', label: t('nav.payments', 'Paiements'), icon: DollarSign, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || hasAnyPermission(u, ['verify_payments']) },
   { to: '/admin/users', label: t('nav.users', 'Utilisateurs'), icon: Users, show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_users']) },
   { to: '/admin/products', label: t('nav.products', 'Produits'), icon: Package, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageProducts || hasAnyPermission(u, ['manage_products']) },
-  { to: '/admin/delivery-guys', label: t('nav.deliveryGuys', 'Livreurs'), icon: Truck, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageDelivery || hasAnyPermission(u, ['manage_delivery']) },
+  { to: '/admin/delivery-guys', label: t('nav.deliveryGuys', 'Livreurs'), icon: Truck, show: (u) => platformDeliveryEnabled && (u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageDelivery || hasAnyPermission(u, ['manage_delivery'])) },
+  { to: '/admin/delivery-requests', label: t('nav.deliveryRequests', 'Demandes livraison'), icon: Truck, show: (u) => platformDeliveryEnabled && (u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageDelivery || hasAnyPermission(u, ['manage_delivery'])) },
   { to: '/admin/complaints', label: t('nav.complaints', 'Réclamations'), icon: AlertCircle, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageComplaints || hasAnyPermission(u, ['manage_complaints']) },
   { to: '/admin/chat-templates', label: t('nav.chatTemplates', 'Modèles de chat'), icon: MessageSquare, show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canManageChatTemplates || hasAnyPermission(u, ['manage_chat_templates']) },
   { to: '/admin/promo-codes', label: t('nav.promoCodes', 'Codes promo'), icon: Ticket, show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
@@ -49,12 +50,19 @@ const buildNavItems = (t) => [
 
 export default function AdminLayout() {
   const { user } = useContext(AuthContext);
-  const { t } = useAppSettings();
+  const { t, getRuntimeValue } = useAppSettings();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const isManager = user?.role === 'manager';
   const isFounder = user?.role === 'founder';
+  const platformDeliveryEnabled =
+    ['true', '1', 'yes', 'on'].includes(
+      String(getRuntimeValue('enable_platform_delivery', false)).trim().toLowerCase()
+    ) &&
+    !['false', '0', 'no', 'off'].includes(
+      String(getRuntimeValue('enable_delivery_requests', true)).trim().toLowerCase()
+    );
 
-  const navItems = buildNavItems(t);
+  const navItems = buildNavItems(t, platformDeliveryEnabled);
   const visibleItems = navItems.filter((item) => item.show(user));
 
   return (

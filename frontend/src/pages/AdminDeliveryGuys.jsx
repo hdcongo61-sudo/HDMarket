@@ -2,20 +2,32 @@ import React, { useCallback, useContext, useEffect, useMemo, useState } from 're
 import api from '../services/api';
 import { Plus, Save, Edit3, Trash2, Phone, Truck, Search, Users, UserPlus, UserMinus, AlertCircle, Loader2 } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 export default function AdminDeliveryGuys() {
   const { user } = useContext(AuthContext);
+  const { cities, communes } = useAppSettings();
   const isAdmin = user?.role === 'admin' || user?.role === 'founder';
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [formState, setFormState] = useState({ name: '', phone: '', active: true });
+  const [formState, setFormState] = useState({
+    name: '',
+    phone: '',
+    active: true,
+    cityId: '',
+    communes: [],
+    vehicleType: '',
+    notes: ''
+  });
   const [editingId, setEditingId] = useState(null);
   const [searchDraft, setSearchDraft] = useState('');
   const [searchValue, setSearchValue] = useState('');
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
+  const [cityFilter, setCityFilter] = useState('');
+  const [communeFilter, setCommuneFilter] = useState('');
   const [managers, setManagers] = useState([]);
   const [loadingManagers, setLoadingManagers] = useState(false);
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -38,6 +50,24 @@ export default function AdminDeliveryGuys() {
   );
   summary.inactive = Math.max(0, summary.total - summary.active);
 
+  const cityOptions = useMemo(
+    () =>
+      (Array.isArray(cities) ? cities : [])
+        .filter((entry) => entry?.isActive !== false)
+        .map((entry) => ({ id: entry._id, name: entry.name })),
+    [cities]
+  );
+  const communeOptions = useMemo(() => {
+    const activeCommunes = (Array.isArray(communes) ? communes : []).filter((entry) => entry?.isActive !== false);
+    if (!formState.cityId) return activeCommunes;
+    return activeCommunes.filter((entry) => String(entry.cityId?._id || entry.cityId || '') === String(formState.cityId));
+  }, [communes, formState.cityId]);
+  const listCommuneOptions = useMemo(() => {
+    const activeCommunes = (Array.isArray(communes) ? communes : []).filter((entry) => entry?.isActive !== false);
+    if (!cityFilter) return activeCommunes;
+    return activeCommunes.filter((entry) => String(entry.cityId?._id || entry.cityId || '') === String(cityFilter));
+  }, [communes, cityFilter]);
+
   const loadDeliveryGuys = async () => {
     setLoading(true);
     setError('');
@@ -46,6 +76,8 @@ export default function AdminDeliveryGuys() {
       params.set('page', page);
       params.set('limit', 12);
       if (searchValue) params.set('search', searchValue);
+      if (cityFilter) params.set('cityId', cityFilter);
+      if (communeFilter) params.set('communeId', communeFilter);
       const { data } = await api.get(`/admin/delivery-guys?${params.toString()}`);
       const list = Array.isArray(data) ? data : data?.items || [];
       setItems(list);
@@ -66,7 +98,7 @@ export default function AdminDeliveryGuys() {
 
   useEffect(() => {
     loadDeliveryGuys();
-  }, [page, searchValue]);
+  }, [page, searchValue, cityFilter, communeFilter]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -77,7 +109,7 @@ export default function AdminDeliveryGuys() {
 
   useEffect(() => {
     setPage(1);
-  }, [searchValue]);
+  }, [searchValue, cityFilter, communeFilter]);
 
   useEffect(() => {
     if (!managerMessage) return;
@@ -106,7 +138,7 @@ export default function AdminDeliveryGuys() {
   }, [loadManagers]);
 
   const resetForm = () => {
-    setFormState({ name: '', phone: '', active: true });
+    setFormState({ name: '', phone: '', active: true, cityId: '', communes: [], vehicleType: '', notes: '' });
     setEditingId(null);
   };
 
@@ -118,15 +150,23 @@ export default function AdminDeliveryGuys() {
     try {
       if (editingId) {
         await api.patch(`/admin/delivery-guys/${editingId}`, {
-          name: formState.name.trim(),
+          fullName: formState.name.trim(),
           phone: formState.phone.trim(),
-          active: formState.active
+          active: formState.active,
+          cityId: formState.cityId || null,
+          communes: formState.communes,
+          vehicleType: formState.vehicleType || '',
+          notes: formState.notes || ''
         });
       } else {
         await api.post('/admin/delivery-guys', {
-          name: formState.name.trim(),
+          fullName: formState.name.trim(),
           phone: formState.phone.trim(),
-          active: formState.active
+          active: formState.active,
+          cityId: formState.cityId || null,
+          communes: formState.communes,
+          vehicleType: formState.vehicleType || '',
+          notes: formState.notes || ''
         });
       }
       await loadDeliveryGuys();
@@ -141,9 +181,15 @@ export default function AdminDeliveryGuys() {
   const handleEdit = (deliveryGuy) => {
     setEditingId(deliveryGuy._id);
     setFormState({
-      name: deliveryGuy.name || '',
+      name: deliveryGuy.fullName || deliveryGuy.name || '',
       phone: deliveryGuy.phone || '',
-      active: Boolean(deliveryGuy.active)
+      active: Boolean(deliveryGuy.isActive ?? deliveryGuy.active),
+      cityId: deliveryGuy.cityId?._id || deliveryGuy.cityId || '',
+      communes: Array.isArray(deliveryGuy.communes)
+        ? deliveryGuy.communes.map((entry) => entry?._id || entry).filter(Boolean)
+        : [],
+      vehicleType: deliveryGuy.vehicleType || '',
+      notes: deliveryGuy.notes || ''
     });
   };
 
@@ -416,6 +462,70 @@ export default function AdminDeliveryGuys() {
               {editingId ? 'Mettre à jour' : 'Ajouter'}
             </button>
           </div>
+          <div className="md:col-span-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="text-xs font-semibold uppercase text-gray-500">Ville</label>
+              <select
+                value={formState.cityId}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFormState((prev) => ({ ...prev, cityId: value, communes: [] }));
+                }}
+                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+              >
+                <option value="">Aucune</option>
+                {cityOptions.map((city) => (
+                  <option key={city.id || city.name} value={city.id}>
+                    {city.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase text-gray-500">Type véhicule</label>
+              <select
+                value={formState.vehicleType}
+                onChange={(e) => setFormState((prev) => ({ ...prev, vehicleType: e.target.value }))}
+                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+              >
+                <option value="">Non précisé</option>
+                <option value="bike">Vélo</option>
+                <option value="motorcycle">Moto</option>
+                <option value="car">Voiture</option>
+                <option value="van">Fourgonnette</option>
+                <option value="truck">Camion</option>
+                <option value="other">Autre</option>
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs font-semibold uppercase text-gray-500">Communes assignées</label>
+              <select
+                multiple
+                value={formState.communes}
+                onChange={(e) => {
+                  const values = Array.from(e.target.selectedOptions || []).map((opt) => opt.value);
+                  setFormState((prev) => ({ ...prev, communes: values }));
+                }}
+                className="mt-1 h-28 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+              >
+                {communeOptions.map((commune) => (
+                  <option key={commune._id} value={commune._id}>
+                    {commune.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs font-semibold uppercase text-gray-500">Notes</label>
+              <textarea
+                value={formState.notes}
+                onChange={(e) => setFormState((prev) => ({ ...prev, notes: e.target.value }))}
+                rows={2}
+                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                placeholder="Instructions opérationnelles"
+              />
+            </div>
+          </div>
         </form>
       </section>
 
@@ -423,6 +533,33 @@ export default function AdminDeliveryGuys() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Livreurs</h2>
           <div className="flex items-center gap-3">
+            <select
+              value={cityFilter}
+              onChange={(e) => {
+                setCityFilter(e.target.value);
+                setCommuneFilter('');
+              }}
+              className="rounded-xl border border-gray-200 py-2 px-3 text-xs"
+            >
+              <option value="">Ville (toutes)</option>
+              {cityOptions.map((city) => (
+                <option key={`filter-${city.id || city.name}`} value={city.id}>
+                  {city.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={communeFilter}
+              onChange={(e) => setCommuneFilter(e.target.value)}
+              className="rounded-xl border border-gray-200 py-2 px-3 text-xs"
+            >
+              <option value="">Commune (toutes)</option>
+              {listCommuneOptions.map((commune) => (
+                <option key={`filter-commune-${commune._id}`} value={commune._id}>
+                  {commune.name}
+                </option>
+              ))}
+            </select>
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
@@ -448,8 +585,17 @@ export default function AdminDeliveryGuys() {
                 className="flex flex-wrap items-center justify-between gap-3 py-3"
               >
                 <div className="space-y-1">
-                  <p className="text-sm font-semibold text-gray-900">{deliveryGuy.name}</p>
+                  <p className="text-sm font-semibold text-gray-900">{deliveryGuy.fullName || deliveryGuy.name}</p>
                   <p className="text-xs text-gray-500">{deliveryGuy.phone || 'Téléphone non renseigné'}</p>
+                  <p className="text-xs text-gray-500">
+                    {deliveryGuy.cityId?.name || 'Ville non assignée'}
+                    {Array.isArray(deliveryGuy.communes) && deliveryGuy.communes.length > 0
+                      ? ` · ${deliveryGuy.communes
+                          .map((entry) => entry?.name || '')
+                          .filter(Boolean)
+                          .join(', ')}`
+                      : ''}
+                  </p>
                   <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
                     <span className="rounded-full bg-gray-100 px-2 py-0.5">
                       Assignées: {deliveryGuy.stats?.totalAssigned || 0}
@@ -465,10 +611,10 @@ export default function AdminDeliveryGuys() {
                 <div className="flex items-center gap-2">
                   <span
                     className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
-                      deliveryGuy.active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
+                      (deliveryGuy.isActive ?? deliveryGuy.active) ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
                     }`}
                   >
-                    {deliveryGuy.active ? 'Actif' : 'Inactif'}
+                    {(deliveryGuy.isActive ?? deliveryGuy.active) ? 'Actif' : 'Inactif'}
                   </span>
                   <button
                     type="button"

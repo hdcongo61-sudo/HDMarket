@@ -15,6 +15,7 @@ import {
 import { validate, schemas } from '../middlewares/validate.js';
 import { cacheMiddleware } from '../utils/cache.js';
 import { upload } from '../utils/upload.js';
+import { deliveryProofUpload } from '../utils/deliveryProofUpload.js';
 import {
   getDashboardStats,
   getCacheStatsAdmin,
@@ -101,6 +102,15 @@ import {
   updateDeliveryGuyAdmin,
   deleteDeliveryGuyAdmin
 } from '../controllers/deliveryGuyController.js';
+import {
+  listAdminDeliveryRequests,
+  acceptAdminDeliveryRequest,
+  rejectAdminDeliveryRequest,
+  assignAdminDeliveryRequest,
+  submitPickupProofAdmin,
+  submitDeliveryProofAdmin,
+  getAdminDeliveryAnalytics
+} from '../controllers/deliveryRequestController.js';
 import {
   listImprovementFeedbackAdmin,
   markImprovementFeedbackRead,
@@ -664,6 +674,66 @@ router.delete(
   requireDeliveryAccess,
   validate(schemas.idParam, 'params'),
   deleteDeliveryGuyAdmin
+);
+router.get(
+  '/delivery-requests',
+  protect,
+  requireDeliveryAccess,
+  validate(schemas.adminDeliveryRequestsListQuery, 'query'),
+  listAdminDeliveryRequests
+);
+router.get(
+  '/delivery-requests/analytics',
+  protect,
+  requireDeliveryAccess,
+  validate(schemas.adminDeliveryRequestsListQuery, 'query'),
+  getAdminDeliveryAnalytics
+);
+router.patch(
+  '/delivery-requests/:id/accept',
+  protect,
+  requireDeliveryAccess,
+  validate(schemas.idParam, 'params'),
+  validate(schemas.adminDeliveryRequestAccept),
+  acceptAdminDeliveryRequest
+);
+router.patch(
+  '/delivery-requests/:id/reject',
+  protect,
+  requireDeliveryAccess,
+  validate(schemas.idParam, 'params'),
+  validate(schemas.adminDeliveryRequestReject),
+  rejectAdminDeliveryRequest
+);
+router.patch(
+  '/delivery-requests/:id/assign-delivery-guy',
+  protect,
+  requireDeliveryAccess,
+  validate(schemas.idParam, 'params'),
+  validate(schemas.adminDeliveryRequestAssign),
+  assignAdminDeliveryRequest
+);
+router.patch(
+  '/delivery-requests/:id/pickup-proof',
+  protect,
+  requireDeliveryAccess,
+  validate(schemas.idParam, 'params'),
+  deliveryProofUpload.fields([
+    { name: 'photos', maxCount: 3 },
+    { name: 'signatureFile', maxCount: 1 }
+  ]),
+  submitPickupProofAdmin
+);
+router.patch(
+  '/delivery-requests/:id/delivery-proof',
+  protect,
+  requireDeliveryAccess,
+  validate(schemas.idParam, 'params'),
+  deliveryProofUpload.fields([
+    { name: 'photos', maxCount: 3 },
+    { name: 'signatureFile', maxCount: 1 }
+  ]),
+  submitDeliveryProofAdmin
 );
 
 // Categories management - admin only

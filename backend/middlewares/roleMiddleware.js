@@ -129,6 +129,8 @@ export const requireDeliveryAccess = (req, res, next) => {
     return res.status(403).json({ message: 'Forbidden' });
   }
   if (
+    req.user.role === 'admin' ||
+    req.user.role === 'founder' ||
     req.user.role === 'manager' ||
     hasAnyPermission(req.user, ['manage_delivery']) ||
     req.user.canManageDelivery === true

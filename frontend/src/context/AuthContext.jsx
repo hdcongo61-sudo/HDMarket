@@ -10,6 +10,15 @@ import { normalizePermissions } from '../utils/permissions';
 
 const AuthContext = createContext();
 
+const isTruthyFlag = (value) => {
+  if (value === true || value === 1) return true;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on';
+  }
+  return false;
+};
+
 const withResolvedCapabilities = (rawUser = {}) => {
   const role = String(rawUser?.role || '').toLowerCase();
   const isFounder = role === 'founder';
@@ -20,16 +29,16 @@ const withResolvedCapabilities = (rawUser = {}) => {
   return {
     ...rawUser,
     permissions,
-    canReadFeedback: Boolean(rawUser?.canReadFeedback) || hasPermission('read_feedback'),
-    canVerifyPayments: Boolean(rawUser?.canVerifyPayments) || hasPermission('verify_payments'),
-    canManageBoosts: Boolean(rawUser?.canManageBoosts) || hasPermission('manage_boosts'),
-    canManageComplaints: Boolean(rawUser?.canManageComplaints) || hasPermission('manage_complaints'),
-    canManageProducts: Boolean(rawUser?.canManageProducts) || hasPermission('manage_products'),
-    canManageDelivery: Boolean(rawUser?.canManageDelivery) || hasPermission('manage_delivery'),
+    canReadFeedback: isTruthyFlag(rawUser?.canReadFeedback) || hasPermission('read_feedback'),
+    canVerifyPayments: isTruthyFlag(rawUser?.canVerifyPayments) || hasPermission('verify_payments'),
+    canManageBoosts: isTruthyFlag(rawUser?.canManageBoosts) || hasPermission('manage_boosts'),
+    canManageComplaints: isTruthyFlag(rawUser?.canManageComplaints) || hasPermission('manage_complaints'),
+    canManageProducts: isTruthyFlag(rawUser?.canManageProducts) || hasPermission('manage_products'),
+    canManageDelivery: isTruthyFlag(rawUser?.canManageDelivery) || hasPermission('manage_delivery'),
     canManageChatTemplates:
-      Boolean(rawUser?.canManageChatTemplates) || hasPermission('manage_chat_templates'),
+      isTruthyFlag(rawUser?.canManageChatTemplates) || hasPermission('manage_chat_templates'),
     canManageHelpCenter:
-      Boolean(rawUser?.canManageHelpCenter) || hasPermission('manage_help_center')
+      isTruthyFlag(rawUser?.canManageHelpCenter) || hasPermission('manage_help_center')
   };
 };
 
