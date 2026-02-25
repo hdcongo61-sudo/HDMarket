@@ -134,7 +134,11 @@ const buildSettingResponse = ({ key, value, environment = 'all' }) => {
     description: metadata.description || '',
     valueType: metadata.valueType || inferValueType(value),
     isPublic: metadata.isPublic === true,
-    hidden: metadata.hidden === true
+    hidden: metadata.hidden === true,
+    allowedValues: Array.isArray(metadata.allowedValues) ? metadata.allowedValues : [],
+    min: metadata.min,
+    max: metadata.max,
+    maxLength: metadata.maxLength
   };
 };
 
@@ -303,6 +307,10 @@ export const listRuntimeConfigs = async (options = {}) => {
         valueType: metadata.valueType || inferValueType(resolvedValue),
         isPublic: metadata.isPublic === true,
         hidden: metadata.hidden === true,
+        allowedValues: Array.isArray(metadata.allowedValues) ? metadata.allowedValues : [],
+        min: metadata.min,
+        max: metadata.max,
+        maxLength: metadata.maxLength,
         environment: found?.environment || env,
         updatedAt: found?.updatedAt || null,
         updatedBy: found?.updatedBy || null,

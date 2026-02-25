@@ -347,6 +347,51 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     min: 1,
     max: 120
   },
+  shop_location_verified_accuracy_max_m: {
+    category: 'security',
+    description: 'Précision GPS max (mètres) pour marquer une position boutique comme vérifiée.',
+    valueType: 'number',
+    defaultValue: 150,
+    isPublic: false,
+    min: 10,
+    max: 1000
+  },
+  shop_location_review_score_threshold: {
+    category: 'security',
+    description: 'Score de confiance minimum avant revue admin obligatoire.',
+    valueType: 'number',
+    defaultValue: 60,
+    isPublic: false,
+    min: 1,
+    max: 100
+  },
+  shop_location_jump_review_km: {
+    category: 'security',
+    description: 'Distance (km) déclenchant une revue admin de la localisation boutique.',
+    valueType: 'number',
+    defaultValue: 30,
+    isPublic: false,
+    min: 1,
+    max: 5000
+  },
+  shop_location_updates_24h_limit: {
+    category: 'security',
+    description: 'Nombre max de mises à jour localisation boutique sur 24h avant revue.',
+    valueType: 'number',
+    defaultValue: 5,
+    isPublic: false,
+    min: 1,
+    max: 100
+  },
+  shop_location_history_limit: {
+    category: 'security',
+    description: 'Nombre max d’entrées conservées dans l’historique de localisation boutique.',
+    valueType: 'number',
+    defaultValue: 20,
+    isPublic: false,
+    min: 1,
+    max: 200
+  },
   seller_max_product_limit: {
     category: 'role_limits',
     description: 'Nombre max de produits par vendeur.',
@@ -411,6 +456,14 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     defaultValue: 'HDMarket',
     isPublic: true,
     maxLength: 120
+  },
+  map_provider: {
+    category: 'ui',
+    description: 'Fournisseur cartographique public (osm|google).',
+    valueType: 'string',
+    defaultValue: 'osm',
+    isPublic: true,
+    allowedValues: ['osm', 'google']
   },
 
   // Backward-compatible legacy keys currently used in existing business logic.

@@ -1,4 +1,5 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { protect } from '../middlewares/authMiddleware.js';
 import { validate, schemas } from '../middlewares/validate.js';
 import { upload } from '../utils/upload.js';
@@ -9,6 +10,7 @@ import {
   clearMyCacheOnLogout,
   getProfileStats,
   updateProfile,
+  updateShopLocation,
   sendPasswordChangeCode,
   changePassword,
   getNotifications,
@@ -51,6 +53,17 @@ import {
 } from '../controllers/sellerAnalyticsController.js';
 
 const router = express.Router();
+const shopLocationRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Trop de mises à jour de localisation. Réessayez dans quelques minutes.',
+    code: 'SHOP_LOCATION_RATE_LIMIT'
+  }
+});
 
 router.use(protect);
 
@@ -81,6 +94,12 @@ router.put(
   ]),
   validate(schemas.profileUpdate),
   updateProfile
+);
+router.put(
+  '/profile/shop-location',
+  shopLocationRateLimiter,
+  validate(schemas.shopLocationUpdate),
+  updateShopLocation
 );
 router.post('/password/send-code', validate(schemas.passwordSendCode), sendPasswordChangeCode);
 router.post('/password/change', validate(schemas.passwordChange), changePassword);

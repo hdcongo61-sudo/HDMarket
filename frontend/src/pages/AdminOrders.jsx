@@ -6,6 +6,7 @@ import { buildProductPath, buildShopPath } from '../utils/links';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { CheckCircle, Search, Package, User, MapPin, Truck, Clock, ClipboardList, Plus, RefreshCcw, ArrowLeft, X, AlertCircle, ShieldCheck, FileSpreadsheet, Trash2 } from 'lucide-react';
 import OrderChat from '../components/OrderChat';
+import BaseModal from '../components/modals/BaseModal';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -1489,15 +1490,13 @@ export default function AdminOrders() {
         </section>
 
       {createOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-          <div
-            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-            onClick={() => setCreateOpen(false)}
-          />
-          <div
-            className="ui-card ui-card-lg relative w-full max-w-5xl p-4 shadow-xl sm:p-6 max-h-[85vh] overflow-auto"
-            onClick={(event) => event.stopPropagation()}
-          >
+        <BaseModal
+          isOpen={createOpen}
+          onClose={() => setCreateOpen(false)}
+          size="full"
+          panelClassName="ui-card ui-card-lg max-h-[85dvh] overflow-auto p-4 shadow-xl sm:max-w-5xl sm:p-6"
+          ariaLabel="Créer une commande"
+        >
             <div className="flex items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-2 text-gray-900 font-semibold text-lg">
                 <Plus className="w-5 h-5 text-green-600" />
@@ -1703,20 +1702,17 @@ export default function AdminOrders() {
                 Ajouter la commande
               </button>
             </form>
-          </div>
-        </div>
+        </BaseModal>
       )}
 
       {assignOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-          <div
-            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-            onClick={closeAssignModal}
-          />
-          <div
-            className="ui-card ui-card-lg relative w-full max-w-md p-6 shadow-xl"
-            onClick={(event) => event.stopPropagation()}
-          >
+        <BaseModal
+          isOpen={assignOpen}
+          onClose={closeAssignModal}
+          size="sm"
+          panelClassName="ui-card ui-card-lg p-6 shadow-xl sm:max-w-md"
+          ariaLabel="Assigner un livreur"
+        >
             <div className="flex items-center justify-between gap-3 mb-4">
               <div>
                 <p className="text-xs uppercase tracking-wide text-gray-500">Assigner un livreur</p>
@@ -1781,20 +1777,17 @@ export default function AdminOrders() {
                 {assignSaving ? 'Mise à jour...' : 'Enregistrer'}
               </button>
             </div>
-          </div>
-        </div>
+        </BaseModal>
       )}
 
       {statusUpdateInfo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-          <div
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-            onClick={() => setStatusUpdateInfo(null)}
-          />
-          <div
-            className="ui-card ui-card-lg relative w-full max-w-sm p-6 text-center shadow-xl"
-            onClick={(event) => event.stopPropagation()}
-          >
+        <BaseModal
+          isOpen={Boolean(statusUpdateInfo)}
+          onClose={() => setStatusUpdateInfo(null)}
+          size="sm"
+          panelClassName="ui-card ui-card-lg p-6 text-center shadow-xl sm:max-w-sm"
+          ariaLabel="Statut de commande mis à jour"
+        >
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-600">
               <CheckCircle className="h-6 w-6" />
             </div>
@@ -1809,20 +1802,17 @@ export default function AdminOrders() {
             >
               OK
             </button>
-          </div>
-        </div>
+        </BaseModal>
       )}
 
       {viewOrderOpen && (
-        <div className="fixed inset-0 z-[58] flex items-center justify-center px-4 py-6">
-          <div
-            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-            onClick={() => setViewOrderOpen(false)}
-          />
-          <div
-            className="ui-card ui-card-lg relative w-full max-w-2xl max-h-[85vh] overflow-auto p-4 shadow-xl sm:p-6"
-            onClick={(event) => event.stopPropagation()}
-          >
+        <BaseModal
+          isOpen={viewOrderOpen}
+          onClose={() => setViewOrderOpen(false)}
+          size="lg"
+          panelClassName="ui-card ui-card-lg max-h-[85dvh] overflow-auto p-4 shadow-xl sm:max-w-2xl sm:p-6"
+          ariaLabel="Aperçu commande"
+        >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Aperçu commande</p>
@@ -1944,20 +1934,20 @@ export default function AdminOrders() {
                 </div>
               </div>
             )}
-          </div>
-        </div>
+        </BaseModal>
       )}
 
       {deleteOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-          <div
-            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-            onClick={() => !deleteLoading && setDeleteOrder(null)}
-          />
-          <div
-            className="ui-card ui-card-lg relative w-full max-w-sm p-6 shadow-xl"
-            onClick={(event) => event.stopPropagation()}
-          >
+        <BaseModal
+          isOpen={Boolean(deleteOrder)}
+          onClose={() => {
+            if (!deleteLoading) setDeleteOrder(null);
+          }}
+          closeOnBackdrop={!deleteLoading}
+          size="sm"
+          panelClassName="ui-card ui-card-lg p-6 shadow-xl sm:max-w-sm"
+          ariaLabel="Supprimer la commande"
+        >
             <div className="flex items-center gap-3 mb-4">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
                 <Trash2 className="h-6 w-6" />
@@ -1990,20 +1980,20 @@ export default function AdminOrders() {
                 {deleteLoading ? 'Suppression...' : 'Supprimer'}
               </button>
             </div>
-          </div>
-        </div>
+        </BaseModal>
       )}
 
       {actionModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 py-6">
-          <div
-            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-            onClick={() => !actionSaving && setActionModalOpen(false)}
-          />
-          <div
-            className="ui-card ui-card-lg relative w-full max-w-lg p-5 shadow-xl sm:p-6"
-            onClick={(event) => event.stopPropagation()}
-          >
+        <BaseModal
+          isOpen={actionModalOpen}
+          onClose={() => {
+            if (!actionSaving) setActionModalOpen(false);
+          }}
+          closeOnBackdrop={!actionSaving}
+          size="md"
+          panelClassName="ui-card ui-card-lg p-5 shadow-xl sm:max-w-lg sm:p-6"
+          ariaLabel="Action administrative commande"
+        >
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Action admin</p>
@@ -2105,17 +2095,19 @@ export default function AdminOrders() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </BaseModal>
       )}
 
       {timelineOpen && (
-        <div className="fixed inset-0 z-[55]">
-          <div
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px]"
-            onClick={() => setTimelineOpen(false)}
-          />
-          <aside className="absolute right-0 top-0 h-full w-full max-w-xl overflow-y-auto border-l border-gray-200 bg-white p-4 shadow-2xl sm:p-6">
+        <BaseModal
+          isOpen={timelineOpen}
+          onClose={() => setTimelineOpen(false)}
+          mobileSheet={false}
+          size="full"
+          rootClassName="z-[125] items-stretch justify-end p-0"
+          panelClassName="h-full w-full max-h-none max-w-xl overflow-y-auto rounded-none border-l border-gray-200 bg-white p-4 shadow-2xl sm:p-6 sm:rounded-none"
+          ariaLabel="Timeline commande"
+        >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Timeline commande</p>
@@ -2205,8 +2197,7 @@ export default function AdminOrders() {
                 )}
               </div>
             )}
-          </aside>
-        </div>
+        </BaseModal>
       )}
 
       <section className="ui-card ui-card-interactive ui-card-fade-in p-4 sm:p-6 space-y-5">

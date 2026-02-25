@@ -22,6 +22,7 @@ import {
   Package, CheckCircle, Clock, XCircle, Shield, 
   TrendingUp, Users, Star, Award, Edit3, Image,
   Lock,
+  LocateFixed,
   Truck,
   ClipboardList, AlertTriangle, Paperclip, FileText,
   Bell,
@@ -36,6 +37,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import VerifiedBadge from '../components/VerifiedBadge';
+import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
 import { buildShopPath } from '../utils/links';
 import useIsMobile from '../hooks/useIsMobile';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -262,9 +264,54 @@ const hydrateShopHoursFromUser = (value) => {
   });
 };
 
+const normalizeMapProvider = (value) => {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase();
+  return normalized === 'google' ? 'google' : 'osm';
+};
+
+const buildOsmEmbedUrl = (latitude, longitude) => {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return '';
+  const delta = 0.008;
+  const minLon = longitude - delta;
+  const minLat = latitude - delta;
+  const maxLon = longitude + delta;
+  const maxLat = latitude + delta;
+  const url = new URL('https://www.openstreetmap.org/export/embed.html');
+  url.searchParams.set('bbox', `${minLon},${minLat},${maxLon},${maxLat}`);
+  url.searchParams.set('layer', 'mapnik');
+  url.searchParams.set('marker', `${latitude},${longitude}`);
+  return url.toString();
+};
+
+const buildGoogleEmbedUrl = (latitude, longitude) => {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return '';
+  const url = new URL('https://www.google.com/maps');
+  url.searchParams.set('q', `${latitude},${longitude}`);
+  url.searchParams.set('z', '16');
+  url.searchParams.set('output', 'embed');
+  return url.toString();
+};
+
+const buildExternalMapUrl = ({ provider, latitude, longitude }) => {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return '';
+  if (provider === 'google') {
+    const url = new URL('https://www.google.com/maps/search/');
+    url.searchParams.set('api', '1');
+    url.searchParams.set('query', `${latitude},${longitude}`);
+    return url.toString();
+  }
+  const url = new URL('https://www.openstreetmap.org/');
+  url.searchParams.set('mlat', String(latitude));
+  url.searchParams.set('mlon', String(longitude));
+  url.hash = `map=16/${latitude}/${longitude}`;
+  return url.toString();
+};
+
 export default function Profile() {
   const { user, updateUser } = useContext(AuthContext);
-  const { cities, communes } = useAppSettings();
+  const { cities, communes, runtime } = useAppSettings();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
@@ -276,6 +323,17 @@ export default function Profile() {
   const [shopBannerFile, setShopBannerFile] = useState(null);
   const [shopBannerPreview, setShopBannerPreview] = useState('');
   const [shopHours, setShopHours] = useState(() => createDefaultShopHours());
+  const [locationCaptureLoading, setLocationCaptureLoading] = useState(false);
+  const [locationSaving, setLocationSaving] = useState(false);
+  const [locationError, setLocationError] = useState('');
+  const [locationMessage, setLocationMessage] = useState('');
+  const [locationDraft, setLocationDraft] = useState(null);
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
+  const [mapPickerQuery, setMapPickerQuery] = useState('');
+  const [mapPickerResults, setMapPickerResults] = useState([]);
+  const [mapPickerLoading, setMapPickerLoading] = useState(false);
+  const [mapPickerError, setMapPickerError] = useState('');
+  const [mapPickerSelection, setMapPickerSelection] = useState(null);
   const [stats, setStats] = useState(() => createDefaultStats());
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState('');
@@ -304,6 +362,10 @@ export default function Profile() {
   const [ordersShowFilters, setOrdersShowFilters] = useState(false);
   const userShopLink = user?.accountType === 'shop' ? buildShopPath(user) : null;
   const isMobile = useIsMobile(768);
+  const mapProvider = useMemo(
+    () => normalizeMapProvider(runtime?.map_provider || runtime?.mapProvider),
+    [runtime?.map_provider, runtime?.mapProvider]
+  );
 
   const mobileTabs = useMemo(() => {
     const base = [
@@ -364,6 +426,14 @@ export default function Profile() {
       return String(itemCityId || '') === String(selectedCityRecord._id);
     });
   }, [communes, selectedCityRecord?._id]);
+  const currentShopCoordinates = useMemo(() => {
+    const coords = user?.shopLocation?.coordinates;
+    if (!Array.isArray(coords) || coords.length !== 2) return null;
+    const [longitude, latitude] = coords.map((value) => Number(value));
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+    return { latitude, longitude };
+  }, [user?.shopLocation?.coordinates]);
+  const hasVerifiedShopLocation = Boolean(user?.shopLocationVerified);
 
   useEffect(
     () => () => {
@@ -403,6 +473,30 @@ export default function Profile() {
     setShopBannerPreview(user.shopBanner || '');
     setShopHours(hydrateShopHoursFromUser(user.shopHours));
   }, [user]);
+
+  useEffect(() => {
+    if (form.accountType === 'shop') return;
+    setLocationDraft(null);
+    setLocationError('');
+    setLocationMessage('');
+    setMapPickerOpen(false);
+    setMapPickerResults([]);
+    setMapPickerSelection(null);
+    setMapPickerError('');
+  }, [form.accountType]);
+
+  useEffect(() => {
+    if (!mapPickerOpen || mapPickerSelection) return;
+    if (!currentShopCoordinates) return;
+    const preview = {
+      id: 'current-shop-location',
+      latitude: Number(currentShopCoordinates.latitude),
+      longitude: Number(currentShopCoordinates.longitude),
+      label: form.shopAddress || 'Position actuelle enregistrée',
+      source: 'map'
+    };
+    setMapPickerSelection(preview);
+  }, [currentShopCoordinates, form.shopAddress, mapPickerOpen, mapPickerSelection]);
 
   useEffect(() => {
     if (!user) {
@@ -709,6 +803,242 @@ export default function Profile() {
   const toggleShopHourClosed = (day, closed) => {
     updateShopHour(day, { closed });
   };
+
+  const resolveCurrentPosition = useCallback(() => {
+    return new Promise((resolve, reject) => {
+      if (typeof navigator === 'undefined' || !navigator.geolocation) {
+        reject(new Error('Géolocalisation indisponible sur cet appareil.'));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 0
+      });
+    });
+  }, []);
+
+  const reverseGeocodeLocation = useCallback(async (latitude, longitude) => {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId =
+      controller && typeof window !== 'undefined'
+        ? window.setTimeout(() => controller.abort(), 8000)
+        : null;
+    try {
+      const url = new URL('https://nominatim.openstreetmap.org/reverse');
+      url.searchParams.set('format', 'jsonv2');
+      url.searchParams.set('lat', String(latitude));
+      url.searchParams.set('lon', String(longitude));
+      url.searchParams.set('zoom', '18');
+      url.searchParams.set('addressdetails', '1');
+
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        signal: controller?.signal
+      });
+      if (!response.ok) return '';
+      const payload = await response.json();
+      return String(payload?.display_name || '').trim();
+    } catch {
+      return '';
+    } finally {
+      if (timeoutId) window.clearTimeout(timeoutId);
+    }
+  }, []);
+
+  const searchMapCandidates = useCallback(
+    async (query) => {
+      const normalizedQuery = String(query || '').trim();
+      if (!normalizedQuery) {
+        setMapPickerError('Saisissez une adresse ou un quartier pour rechercher.');
+        return;
+      }
+      setMapPickerLoading(true);
+      setMapPickerError('');
+      try {
+        const endpoint = new URL('https://nominatim.openstreetmap.org/search');
+        endpoint.searchParams.set('q', normalizedQuery);
+        endpoint.searchParams.set('format', 'jsonv2');
+        endpoint.searchParams.set('addressdetails', '1');
+        endpoint.searchParams.set('limit', '8');
+        endpoint.searchParams.set('countrycodes', 'cg');
+
+        const response = await fetch(endpoint.toString(), {
+          method: 'GET',
+          headers: { Accept: 'application/json' }
+        });
+        if (!response.ok) {
+          throw new Error('Recherche de carte indisponible.');
+        }
+
+        const payload = await response.json();
+        const normalized = (Array.isArray(payload) ? payload : [])
+          .map((entry, index) => {
+            const latitude = Number(entry?.lat);
+            const longitude = Number(entry?.lon);
+            if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+            return {
+              id: String(entry?.place_id || `${Date.now()}-${index}`),
+              latitude,
+              longitude,
+              label: String(entry?.display_name || '').trim(),
+              source: 'map'
+            };
+          })
+          .filter(Boolean);
+
+        setMapPickerResults(normalized);
+        setMapPickerSelection((prev) => {
+          if (prev && normalized.some((item) => item.id === prev.id)) return prev;
+          return normalized[0] || null;
+        });
+
+        if (!normalized.length) {
+          setMapPickerError('Aucun résultat trouvé. Essayez un autre libellé.');
+        }
+      } catch (searchError) {
+        setMapPickerError(
+          searchError?.message || 'Impossible de rechercher une adresse sur la carte.'
+        );
+      } finally {
+        setMapPickerLoading(false);
+      }
+    },
+    []
+  );
+
+  const handleCaptureShopLocation = useCallback(async () => {
+    setLocationCaptureLoading(true);
+    setLocationError('');
+    setLocationMessage('');
+    try {
+      const position = await resolveCurrentPosition();
+      const latitude = Number(position?.coords?.latitude);
+      const longitude = Number(position?.coords?.longitude);
+      const accuracy = Number(position?.coords?.accuracy);
+
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        throw new Error('Position GPS invalide. Réessayez.');
+      }
+
+      const resolvedAddress = await reverseGeocodeLocation(latitude, longitude);
+      setLocationDraft({
+        latitude,
+        longitude,
+        accuracy: Number.isFinite(accuracy) ? Math.round(accuracy) : null,
+        resolvedAddress,
+        source: 'gps'
+      });
+
+      if (!resolvedAddress) {
+        setLocationMessage('Position capturée. Ajoutez une adresse manuelle si nécessaire.');
+      }
+    } catch (captureError) {
+      const code = Number(captureError?.code || 0);
+      const message =
+        code === 1
+          ? 'Permission GPS refusée. Activez la localisation puis réessayez.'
+          : code === 2
+          ? 'Position indisponible. Vérifiez votre signal GPS.'
+          : code === 3
+          ? 'Temps d’attente dépassé. Réessayez.'
+          : captureError?.message || 'Impossible de capturer votre position.';
+      setLocationError(message);
+      showToast(message, { variant: 'error' });
+    } finally {
+      setLocationCaptureLoading(false);
+    }
+  }, [resolveCurrentPosition, reverseGeocodeLocation, showToast]);
+
+  const handleSaveShopLocation = useCallback(async () => {
+    if (!locationDraft) return;
+    setLocationSaving(true);
+    setLocationError('');
+    setLocationMessage('');
+    try {
+      const { data } = await api.put('/users/profile/shop-location', {
+        latitude: locationDraft.latitude,
+        longitude: locationDraft.longitude,
+        accuracy: locationDraft.accuracy,
+        source: locationDraft.source || 'gps',
+        resolvedAddress: locationDraft.resolvedAddress || '',
+        applyResolvedAddress: Boolean(locationDraft.resolvedAddress)
+      });
+
+      if (data?.user) {
+        updateUser(data.user);
+        setForm((prev) => ({
+          ...prev,
+          shopAddress: data.user?.shopAddress || prev.shopAddress
+        }));
+      }
+
+      const needsReview = Boolean(data?.location?.needsReview || data?.user?.shopLocationNeedsReview);
+      setLocationMessage(
+        needsReview
+          ? 'Position enregistrée. Une revue sécurité admin est en cours.'
+          : 'Position boutique enregistrée.'
+      );
+      setLocationDraft(null);
+      showToast(
+        needsReview ? 'Position enregistrée (revue sécurité en cours).' : 'Position boutique enregistrée.',
+        { variant: 'success' }
+      );
+      setMapPickerSelection(null);
+      setMapPickerResults([]);
+    } catch (saveError) {
+      const message =
+        saveError?.response?.data?.message ||
+        saveError?.message ||
+        'Impossible d’enregistrer la localisation.';
+      setLocationError(message);
+      showToast(message, { variant: 'error' });
+    } finally {
+      setLocationSaving(false);
+    }
+  }, [locationDraft, showToast, updateUser]);
+
+  const mapPickerPreviewUrl = useMemo(() => {
+    const latitude = Number(mapPickerSelection?.latitude);
+    const longitude = Number(mapPickerSelection?.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return '';
+    return mapProvider === 'google'
+      ? buildGoogleEmbedUrl(latitude, longitude)
+      : buildOsmEmbedUrl(latitude, longitude);
+  }, [mapPickerSelection?.latitude, mapPickerSelection?.longitude, mapProvider]);
+
+  const openShopLocationInMaps = useCallback(() => {
+    if (!currentShopCoordinates || typeof window === 'undefined') return;
+    const { latitude, longitude } = currentShopCoordinates;
+    const url = buildExternalMapUrl({ provider: mapProvider, latitude, longitude });
+    if (!url) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }, [currentShopCoordinates, mapProvider]);
+
+  const openMapSelector = useCallback(() => {
+    const query = form.shopAddress?.trim() || form.address?.trim() || form.city || 'Brazzaville';
+    setMapPickerQuery(query);
+    setMapPickerError('');
+    setMapPickerOpen(true);
+    setMapPickerResults([]);
+    setMapPickerSelection(null);
+    void searchMapCandidates(query);
+  }, [form.address, form.city, form.shopAddress, searchMapCandidates]);
+
+  const confirmMapPickerSelection = useCallback(() => {
+    if (!mapPickerSelection) return;
+    setLocationDraft({
+      latitude: mapPickerSelection.latitude,
+      longitude: mapPickerSelection.longitude,
+      accuracy: null,
+      resolvedAddress: mapPickerSelection.label || '',
+      source: 'map'
+    });
+    setLocationMessage('Position sélectionnée sur la carte. Confirmez pour enregistrer.');
+    setLocationError('');
+    setMapPickerOpen(false);
+  }, [mapPickerSelection]);
 
   const sendPasswordChangeCode = async () => {
     setPasswordCodeSending(true);
@@ -1284,6 +1614,118 @@ export default function Profile() {
                         <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       </div>
                     </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-sky-100 bg-sky-50/70 p-4 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-sky-900">Localisation GPS boutique</p>
+                        <p className="text-xs text-sky-700">
+                          Capturez la position réelle pour améliorer la confiance et l’itinéraire client.
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-sky-600">
+                          Fournisseur carte: {mapProvider === 'google' ? 'Google Maps' : 'OpenStreetMap'}
+                        </p>
+                      </div>
+                      {hasVerifiedShopLocation ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          Position vérifiée
+                        </span>
+                      ) : user?.shopLocationNeedsReview ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                          En revue admin
+                        </span>
+                      ) : null}
+                      {Number.isFinite(Number(user?.shopLocationTrustScore)) && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                          Score confiance {Math.round(Number(user.shopLocationTrustScore))}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={handleCaptureShopLocation}
+                        disabled={loading || locationCaptureLoading || locationSaving}
+                        className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-700 hover:bg-sky-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        <LocateFixed className="w-4 h-4" />
+                        {locationCaptureLoading ? 'Capture en cours…' : 'Capturer la position'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={openMapSelector}
+                        disabled={loading || locationCaptureLoading || locationSaving}
+                        className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        <MapPin className="w-4 h-4" />
+                        Sélectionner sur carte
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleSaveShopLocation}
+                        disabled={loading || locationSaving || !locationDraft}
+                        className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-3 py-2 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        <Save className="w-4 h-4" />
+                        {locationSaving ? 'Enregistrement…' : 'Confirmer la position'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={openShopLocationInMaps}
+                        disabled={!currentShopCoordinates}
+                        className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        <MapPin className="w-4 h-4" />
+                        {mapProvider === 'google' ? 'Ouvrir Google Maps' : 'Ouvrir OpenStreetMap'}
+                      </button>
+                    </div>
+
+                    {locationDraft && (
+                      <div className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs text-slate-700 space-y-1">
+                        <p className="font-semibold text-slate-800">
+                          Aperçu de la position {locationDraft.source === 'map' ? 'sélectionnée' : 'capturée'}
+                        </p>
+                        <p>
+                          Latitude: {locationDraft.latitude.toFixed(6)} · Longitude:{' '}
+                          {locationDraft.longitude.toFixed(6)}
+                        </p>
+                        <p>
+                          Précision GPS:{' '}
+                          {locationDraft.accuracy !== null ? `${locationDraft.accuracy} m` : 'Non disponible'}
+                        </p>
+                        {locationDraft.resolvedAddress ? (
+                          <p>Adresse détectée: {locationDraft.resolvedAddress}</p>
+                        ) : (
+                          <p>Adresse automatique indisponible. Vous pouvez saisir l’adresse manuellement.</p>
+                        )}
+                      </div>
+                    )}
+
+                    {!locationDraft && currentShopCoordinates && (
+                      <div className="rounded-xl border border-sky-100 bg-white px-3 py-2 text-xs text-slate-700">
+                        <p className="font-semibold text-slate-800">Position actuelle enregistrée</p>
+                        <p>
+                          Latitude: {currentShopCoordinates.latitude.toFixed(6)} · Longitude:{' '}
+                          {currentShopCoordinates.longitude.toFixed(6)}
+                        </p>
+                        {user?.shopLocationUpdatedAt && (
+                          <p>
+                            Mise à jour:{' '}
+                            {new Date(user.shopLocationUpdatedAt).toLocaleString('fr-FR')}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {locationError && <p className="text-xs text-red-600">{locationError}</p>}
+                    {locationMessage && <p className="text-xs text-emerald-700">{locationMessage}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -2776,6 +3218,121 @@ export default function Profile() {
             </div>
           </div>
         )}
+
+        <BaseModal
+          isOpen={mapPickerOpen}
+          onClose={() => setMapPickerOpen(false)}
+          size="lg"
+          mobileSheet={true}
+          ariaLabel="Sélectionner la position boutique sur la carte"
+        >
+          <ModalHeader
+            title="Sélectionner sur carte"
+            subtitle={`Mode ${mapProvider === 'google' ? 'Google Maps' : 'OpenStreetMap'} (recherche géocodée)`}
+            onClose={() => setMapPickerOpen(false)}
+          />
+          <ModalBody className="space-y-4">
+            <form
+              className="flex flex-col gap-2 sm:flex-row"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void searchMapCandidates(mapPickerQuery);
+              }}
+            >
+              <input
+                type="text"
+                value={mapPickerQuery}
+                onChange={(event) => setMapPickerQuery(event.target.value)}
+                placeholder="Adresse, quartier, repère..."
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+              />
+              <button
+                type="submit"
+                disabled={mapPickerLoading}
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-neutral-900 px-4 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-60"
+              >
+                <Search className="h-4 w-4" />
+                {mapPickerLoading ? 'Recherche…' : 'Rechercher'}
+              </button>
+            </form>
+
+            {mapPickerError ? (
+              <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                {mapPickerError}
+              </p>
+            ) : null}
+
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+              {mapPickerPreviewUrl ? (
+                <iframe
+                  title="Prévisualisation carte"
+                  src={mapPickerPreviewUrl}
+                  loading="lazy"
+                  className="h-64 w-full border-0"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              ) : (
+                <div className="flex h-64 items-center justify-center px-6 text-center text-sm text-slate-500">
+                  Lancez une recherche puis sélectionnez une adresse pour prévisualiser la carte.
+                </div>
+              )}
+            </div>
+
+            {mapPickerSelection ? (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                <p className="font-semibold text-slate-900">Sélection actuelle</p>
+                <p className="mt-1">{mapPickerSelection.label || 'Adresse non renseignée'}</p>
+                <p className="mt-1">
+                  {mapPickerSelection.latitude.toFixed(6)} · {mapPickerSelection.longitude.toFixed(6)}
+                </p>
+              </div>
+            ) : null}
+
+            <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+              {mapPickerResults.map((candidate) => {
+                const selected = mapPickerSelection?.id === candidate.id;
+                return (
+                  <button
+                    key={candidate.id}
+                    type="button"
+                    onClick={() => setMapPickerSelection(candidate)}
+                    className={`w-full rounded-xl border px-3 py-2 text-left transition ${
+                      selected
+                        ? 'border-sky-300 bg-sky-50'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <p className="text-xs font-semibold text-slate-900">
+                      {candidate.label || 'Adresse détectée'}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-slate-500">
+                      {candidate.latitude.toFixed(6)} · {candidate.longitude.toFixed(6)}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setMapPickerOpen(false)}
+                className="inline-flex min-h-10 items-center rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={confirmMapPickerSelection}
+                disabled={!mapPickerSelection}
+                className="inline-flex min-h-10 items-center rounded-xl bg-neutral-900 px-3 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-60"
+              >
+                Utiliser cette position
+              </button>
+            </div>
+          </ModalFooter>
+        </BaseModal>
       </div>
     </div>
   );

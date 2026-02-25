@@ -8,7 +8,7 @@ import ProductCard from './ProductCard';
 import useIsMobile from '../hooks/useIsMobile';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 
-const MAX_IMAGES = 3;
+const DEFAULT_MAX_IMAGES = 3;
 const MAX_VIDEO_SIZE_MB = 20;
 const MAX_PDF_SIZE_MB = 10;
 const DeleteIcon = ({ className = '' }) => (
@@ -99,6 +99,16 @@ export default function ProductForm(props) {
   const ASPECT_PRESETS = { '1:1': 1, '4:3': 4/3, '16:9': 16/9 };
   const [showPreview, setShowPreview] = useState(false);
   const isMobile = useIsMobile(768);
+  const maxImagesLimit = useMemo(() => {
+    const candidates = [runtime?.max_image_upload, runtime?.maxUploadImages, app?.maxUploadImages, DEFAULT_MAX_IMAGES];
+    for (const candidate of candidates) {
+      const parsed = Number(candidate);
+      if (Number.isInteger(parsed) && parsed >= 1) {
+        return Math.min(parsed, 20);
+      }
+    }
+    return DEFAULT_MAX_IMAGES;
+  }, [app?.maxUploadImages, runtime?.maxUploadImages, runtime?.max_image_upload]);
   const commissionRatePercent = useMemo(() => {
     const candidates = [runtime?.commission_rate, runtime?.commissionRate, app?.commissionRate, 3];
     for (const candidate of candidates) {
@@ -133,15 +143,15 @@ export default function ProductForm(props) {
   const handleImageChange = async (e) => {
     const selectedFiles = Array.from(e.target.files || []);
     if (!selectedFiles.length) return;
-    const maxSelectable = Math.max(0, MAX_IMAGES - existingImages.length - files.length);
+    const maxSelectable = Math.max(0, maxImagesLimit - existingImages.length - files.length);
     if (maxSelectable === 0) {
-      setImageError(`Maximum ${MAX_IMAGES} photos au total. Supprimez une image pour en ajouter.`);
+      setImageError(`Maximum ${maxImagesLimit} photos au total. Supprimez une image pour en ajouter.`);
       e.target.value = '';
       return;
     }
     const limitedFiles = selectedFiles.slice(0, maxSelectable);
     if (selectedFiles.length > maxSelectable) {
-      setImageError(`Maximum ${MAX_IMAGES} photos au total. Seules les premières ont été conservées.`);
+      setImageError(`Maximum ${maxImagesLimit} photos au total. Seules les premières ont été conservées.`);
     } else {
       setImageError('');
     }
@@ -538,7 +548,7 @@ export default function ProductForm(props) {
     const newPreviews = imagePreviews.filter((_, i) => i !== index);
     setFiles(newFiles);
     setImagePreviews(newPreviews);
-    if (newFiles.length < MAX_IMAGES) setImageError('');
+    if (newFiles.length < maxImagesLimit) setImageError('');
   };
 
   const removeExistingImage = (index) => {
@@ -546,7 +556,7 @@ export default function ProductForm(props) {
     if (!target) return;
     setExistingImages(existingImages.filter((_, i) => i !== index));
     setRemovedImages((prev) => [...prev, target]);
-    if (existingImages.length - 1 + files.length < MAX_IMAGES) setImageError('');
+    if (existingImages.length - 1 + files.length < maxImagesLimit) setImageError('');
   };
 
   const handleVideoChange = async (e) => {
@@ -910,7 +920,7 @@ export default function ProductForm(props) {
           .sort((a, b) => a.minQty - b.minQty);
         data.append('wholesaleTiers', JSON.stringify(normalizedWholesaleTiers));
       }
-      files.slice(0, MAX_IMAGES).forEach((item) => {
+      files.slice(0, maxImagesLimit).forEach((item) => {
         const file = item?.file || item;
         if (file instanceof File) {
           data.append('images', file);
@@ -1694,7 +1704,7 @@ export default function ProductForm(props) {
                       `(${existingImages.length + files.length})`}
                   </span>
                 </label>
-                <p className="text-xs text-gray-500">Jusqu&apos;à {MAX_IMAGES} photos (PNG ou JPG, 10&nbsp;MB max chacun).</p>
+                <p className="text-xs text-gray-500">Jusqu&apos;à {maxImagesLimit} photos (PNG ou JPG, 10&nbsp;MB max chacun).</p>
 
                 {existingImages.length > 0 && (
                   <div className="space-y-2">

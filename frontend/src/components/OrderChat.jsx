@@ -41,6 +41,7 @@ import { buildProductPath } from '../utils/links';
 import { encrypt, decrypt, getSharedSecret } from '../utils/chatEncryption.js';
 import { orderChatKeys } from '../queries/orderChatKeys';
 import { fetchOrderMessagePage } from '../queries/orderChatApi';
+import BaseModal from './modals/BaseModal';
 
 const formatTimestamp = (value) => {
   const date = new Date(value);
@@ -1086,10 +1087,21 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
   const messageGroups = groupMessagesByDate(filteredMessages);
 
   const orderRef = order?.deliveryCode || order?._id?.slice(-6) || '';
+  const closeChat = () => {
+    setIsOpen(false);
+    onClose?.();
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-900 w-full sm:rounded-2xl sm:max-w-lg sm:mx-4 h-full sm:h-[85vh] sm:max-h-[700px] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-300 border border-gray-200/50 dark:border-gray-700/50">
+    <BaseModal
+      isOpen={isOpen}
+      onClose={closeChat}
+      size="md"
+      panelClassName="w-full h-full sm:h-[85vh] sm:max-h-[700px] sm:max-w-lg overflow-hidden border border-gray-200/50 bg-white shadow-2xl animate-in slide-in-from-bottom-4 duration-300 dark:border-gray-700/50 dark:bg-gray-900"
+      rootClassName="z-[130] p-0 sm:p-4"
+      ariaLabel="Conversation commande"
+    >
+      <div className="flex h-full w-full flex-col">
         {/* Header — matches app (iOS safe area top) */}
         <header
           className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
@@ -1099,10 +1111,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <button
                 type="button"
-                onClick={() => {
-                  setIsOpen(false);
-                  if (onClose) onClose();
-                }}
+                onClick={closeChat}
                 className="flex-shrink-0 p-2 -ml-1 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200 transition-colors sm:hidden"
                 aria-label="Retour"
               >
@@ -1177,7 +1186,10 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                       {hasProductLink && (
                         <Link
                           to={productPath}
-                          onClick={() => { setShowChatMenu(false); setIsOpen(false); onClose?.(); }}
+                          onClick={() => {
+                            setShowChatMenu(false);
+                            closeChat();
+                          }}
                           className="flex items-center gap-2 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-t-xl"
                         >
                           <ExternalLink className="w-4 h-4" />
@@ -1194,8 +1206,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                             try {
                               await onArchive(orderId);
                               setShowChatMenu(false);
-                              setIsOpen(false);
-                              onClose?.();
+                              closeChat();
                             } catch (err) {
                               setError(err.response?.data?.message || 'Impossible d\'archiver.');
                             } finally {
@@ -1218,8 +1229,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                             try {
                               await onDelete(orderId);
                               setShowChatMenu(false);
-                              setIsOpen(false);
-                              onClose?.();
+                              closeChat();
                             } catch (err) {
                               setError(err.response?.data?.message || 'Impossible de supprimer.');
                             } finally {
@@ -1238,7 +1248,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
               </div>
               <button
                 type="button"
-                onClick={() => { setIsOpen(false); if (onClose) onClose(); }}
+                onClick={closeChat}
                 className="hidden sm:flex p-2.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200 transition-colors"
                 aria-label="Fermer"
               >
@@ -1290,7 +1300,10 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                 {hasProductLink ? (
                   <Link
                     to={productPath}
-                    onClick={() => { setShowInfo(false); setIsOpen(false); onClose?.(); }}
+                    onClick={() => {
+                      setShowInfo(false);
+                      closeChat();
+                    }}
                     className="font-semibold text-gray-900 dark:text-white truncate block hover:text-neutral-600 dark:hover:text-neutral-400 transition-colors"
                   >
                     {productName}
@@ -1302,7 +1315,10 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                 {hasProductLink && (
                   <Link
                     to={productPath}
-                    onClick={() => { setShowInfo(false); setIsOpen(false); onClose?.(); }}
+                    onClick={() => {
+                      setShowInfo(false);
+                      closeChat();
+                    }}
                     className="inline-flex items-center gap-1.5 mt-2 text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:underline"
                   >
                     <ExternalLink className="w-4 h-4" />
@@ -1656,9 +1672,15 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
         {/* Image Lightbox Modal */}
         {selectedImage && (
-          <div
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm"
-            onClick={() => setSelectedImage(null)}
+          <BaseModal
+            isOpen={Boolean(selectedImage)}
+            onClose={() => setSelectedImage(null)}
+            mobileSheet={false}
+            size="full"
+            rootClassName="z-[140] p-4 sm:p-6"
+            panelClassName="max-h-[92dvh] sm:max-w-[92vw] border-none bg-transparent shadow-none p-0"
+            backdropClassName="bg-black/90 backdrop-blur-sm"
+            ariaLabel="Image du message"
           >
             <button
               type="button"
@@ -1676,7 +1698,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                 onClick={(e) => e.stopPropagation()}
               />
             </div>
-          </div>
+          </BaseModal>
         )}
 
         {/* Quick replies */}
@@ -1877,6 +1899,6 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
           </div>
         </form>
       </div>
-    </div>
+    </BaseModal>
   );
 }

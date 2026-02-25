@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, UploadCloud } from 'lucide-react';
+import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../modals/BaseModal';
 
 export default function ImportWizard({
   open,
@@ -46,19 +47,20 @@ export default function ImportWizard({
   const summary = result?.summary || null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
-      <div className="ui-card ui-card-lg w-full max-w-3xl p-4 shadow-2xl">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">Import catégories</h3>
-          <button type="button" onClick={onClose} className="rounded-lg px-2 py-1 text-sm text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800">
-            Fermer
-          </button>
-        </div>
-
-        <p className="mb-2 text-xs text-neutral-500">Collez un arbre JSON ({`{ tree: [...] }`} ou tableau direct) puis lancez un dry-run.</p>
-
-        <div className="mb-3 flex items-center gap-2">
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800">
+    <BaseModal
+      isOpen={open}
+      onClose={onClose}
+      size="xl"
+      mobileSheet={true}
+    >
+      <ModalHeader
+        title="Import catégories"
+        subtitle="Collez un arbre JSON ({ tree: [...] } ou tableau direct) puis lancez un dry-run."
+        onClose={onClose}
+      />
+      <ModalBody>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800">
             <UploadCloud size={14} /> Charger un fichier
             <input type="file" accept="application/json" className="hidden" onChange={handleFile} />
           </label>
@@ -70,7 +72,7 @@ export default function ImportWizard({
               if (!payload) return;
               onDryRun(payload);
             }}
-            className="rounded-xl border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
+            className="min-h-11 rounded-xl border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
           >
             Dry run
           </button>
@@ -82,13 +84,14 @@ export default function ImportWizard({
               if (!payload) return;
               onApply(payload);
             }}
-            className="rounded-xl bg-neutral-600 px-3 py-2 text-xs font-medium text-white hover:bg-neutral-500 disabled:opacity-50"
+            className="min-h-11 rounded-xl bg-neutral-600 px-3 py-2 text-xs font-medium text-white hover:bg-neutral-500 disabled:opacity-50"
           >
             Appliquer
           </button>
         </div>
 
         <textarea
+          data-autofocus
           rows={10}
           value={jsonInput}
           onChange={(event) => setJsonInput(event.target.value)}
@@ -128,7 +131,18 @@ export default function ImportWizard({
             </p>
           </div>
         ) : null}
-      </div>
-    </div>
+      </ModalBody>
+      <ModalFooter>
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="min-h-11 rounded-xl border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-900"
+          >
+            Fermer
+          </button>
+        </div>
+      </ModalFooter>
+    </BaseModal>
   );
 }

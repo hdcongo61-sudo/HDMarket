@@ -1,4 +1,5 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { protect } from '../middlewares/authMiddleware.js';
 import { requireRole } from '../middlewares/roleMiddleware.js';
 import { upload } from '../utils/upload.js';
@@ -12,6 +13,7 @@ import {
   getPublicPickupOnlyProducts,
   getPublicHighlights,
   getPublicProductById,
+  registerPublicProductView,
   getMyProducts,
   getAllProductsAdmin,
   getProductById,
@@ -36,6 +38,19 @@ import {
 } from '../controllers/ratingController.js';
 
 const router = express.Router();
+const productViewRateLimiter = rateLimit({
+  windowMs: Math.max(30_000, Number(process.env.PRODUCT_VIEW_RATE_WINDOW_MS || 60_000)),
+  max: Math.max(10, Number(process.env.PRODUCT_VIEW_RATE_MAX || 80)),
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res, _next, options) => {
+    res.status(options.statusCode || 429).json({
+      success: false,
+      message: 'Trop de vues enregistrées en peu de temps. Réessayez dans un instant.',
+      code: 'PRODUCT_VIEW_RATE_LIMITED'
+    });
+  }
+});
 
 // Public (validation query) - with caching
 router.get('/public/highlights', cacheMiddleware({ ttl: 300000 }), getPublicHighlights);
@@ -48,6 +63,12 @@ router.get('/public/top-sales/today', cacheMiddleware({ ttl: 120000 }), getTopSa
 router.get('/public', cacheMiddleware({ ttl: 180000 }), validate(schemas.publicQuery, 'query'), getPublicProducts);
 router.get('/public/:id/comments', cacheMiddleware({ ttl: 120000 }), getCommentsForProduct);
 router.get('/public/:id/ratings', cacheMiddleware({ ttl: 120000 }), getRatingSummary);
+router.post(
+  '/public/:id/view',
+  productViewRateLimiter,
+  validate(schemas.identifierParam, 'params'),
+  registerPublicProductView
+);
 router.get('/public/:id', cacheMiddleware({ ttl: 300000 }), getPublicProductById);
 router.post('/public/:id/whatsapp-click', validate(schemas.identifierParam, 'params'), registerWhatsappClick);
 

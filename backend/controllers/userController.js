@@ -9,6 +9,7 @@ import Notification from '../models/notificationModel.js';
 import SearchHistory from '../models/searchHistoryModel.js';
 import ProductView from '../models/productViewModel.js';
 import PushToken from '../models/pushTokenModel.js';
+import AuditLog from '../models/auditLogModel.js';
 import { registerNotificationStream } from '../utils/notificationEmitter.js';
 import { createNotification } from '../utils/notificationService.js';
 import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
@@ -33,6 +34,7 @@ import {
   sendVerificationCode
 } from '../utils/firebaseVerification.js';
 import { resolvePermissionsForUser } from '../services/rbacService.js';
+import { getRuntimeConfig } from '../services/configService.js';
 
 const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   product_comment: true,
@@ -87,6 +89,53 @@ const mergeNotificationPreferences = (prefs = {}) => {
   return merged;
 };
 
+const normalizeCoordinates = (coordinates) => {
+  if (!Array.isArray(coordinates) || coordinates.length !== 2) return null;
+  const [longitude, latitude] = coordinates.map((item) => Number(item));
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null;
+  return { longitude, latitude };
+};
+
+const clampNumber = (value, min, max) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return min;
+  return Math.min(max, Math.max(min, numeric));
+};
+
+const haversineDistanceKm = (from, to) => {
+  if (!from || !to) return null;
+  const toRad = (value) => (value * Math.PI) / 180;
+  const dLat = toRad(to.latitude - from.latitude);
+  const dLon = toRad(to.longitude - from.longitude);
+  const lat1 = toRad(from.latitude);
+  const lat2 = toRad(to.latitude);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return 6371 * c;
+};
+
+const getClientIp = (req = {}) => {
+  const forwarded = String(req.headers?.['x-forwarded-for'] || '')
+    .split(',')[0]
+    .trim();
+  return forwarded || req.ip || req.socket?.remoteAddress || '';
+};
+
+const getClientDevice = (req = {}) => String(req.headers?.['user-agent'] || '').slice(0, 255);
+
+const formatShopLocation = (user = {}) => {
+  const normalized = normalizeCoordinates(user?.shopLocation?.coordinates);
+  if (!normalized) return null;
+  return {
+    type: 'Point',
+    coordinates: [normalized.longitude, normalized.latitude],
+    longitude: normalized.longitude,
+    latitude: normalized.latitude
+  };
+};
+
 const sanitizeUser = (user) => ({
   _id: user._id,
   name: user.name,
@@ -111,6 +160,18 @@ const sanitizeUser = (user) => ({
   shopBanner: user.shopBanner,
   shopVerified: Boolean(user.shopVerified),
   shopDescription: user.shopDescription || '',
+  shopLocation: formatShopLocation(user),
+  shopLocationVerified: Boolean(user.shopLocationVerified),
+  shopLocationAccuracy: Number.isFinite(Number(user.shopLocationAccuracy))
+    ? Number(user.shopLocationAccuracy)
+    : null,
+  shopLocationUpdatedAt: user.shopLocationUpdatedAt || null,
+  shopLocationTrustScore: Number.isFinite(Number(user.shopLocationTrustScore))
+    ? Number(user.shopLocationTrustScore)
+    : 0,
+  shopLocationNeedsReview: Boolean(user.shopLocationNeedsReview),
+  shopLocationReviewStatus: user.shopLocationReviewStatus || 'approved',
+  shopLocationReviewFlags: Array.isArray(user.shopLocationReviewFlags) ? user.shopLocationReviewFlags : [],
   shopHours: sanitizeShopHours(user.shopHours || []),
   freeDeliveryEnabled: Boolean(user.freeDeliveryEnabled),
   freeDeliveryNote: user.freeDeliveryNote || '',
@@ -999,6 +1060,245 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
   await invalidateUserCache(user._id, ['users', 'dashboard', 'analytics']);
   res.json(sanitizeUser(user));
+});
+
+export const updateShopLocation = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
+
+  if (user.accountType !== 'shop') {
+    return res.status(403).json({ message: 'La localisation est réservée aux comptes boutique.' });
+  }
+
+  const latitude = Number(req.body.latitude);
+  const longitude = Number(req.body.longitude);
+  const accuracyRaw = req.body.accuracy;
+  const accuracy = Number.isFinite(Number(accuracyRaw)) ? Number(accuracyRaw) : null;
+  const sourceRaw = String(req.body.source || 'manual')
+    .trim()
+    .toLowerCase()
+    .slice(0, 40);
+  const source = ['gps', 'map', 'manual'].includes(sourceRaw) ? sourceRaw : 'manual';
+  const resolvedAddress = String(req.body.resolvedAddress || '')
+    .trim()
+    .slice(0, 220);
+  const applyResolvedAddress =
+    req.body.applyResolvedAddress === true ||
+    req.body.applyResolvedAddress === 'true' ||
+    req.body.applyResolvedAddress === 1 ||
+    req.body.applyResolvedAddress === '1';
+
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+    return res.status(400).json({ message: 'Latitude invalide.' });
+  }
+  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    return res.status(400).json({ message: 'Longitude invalide.' });
+  }
+  if (accuracy !== null && (accuracy < 0 || accuracy > 50000)) {
+    return res.status(400).json({ message: 'Précision GPS invalide.' });
+  }
+
+  const [
+    verifiedAccuracyMaxRaw,
+    reviewScoreThresholdRaw,
+    jumpReviewKmRaw,
+    updates24hLimitRaw,
+    historyLimitRaw
+  ] = await Promise.all([
+    getRuntimeConfig('shop_location_verified_accuracy_max_m', { fallback: 150 }),
+    getRuntimeConfig('shop_location_review_score_threshold', { fallback: 60 }),
+    getRuntimeConfig('shop_location_jump_review_km', { fallback: 30 }),
+    getRuntimeConfig('shop_location_updates_24h_limit', { fallback: 5 }),
+    getRuntimeConfig('shop_location_history_limit', { fallback: 20 })
+  ]);
+
+  const verifiedAccuracyMax = clampNumber(verifiedAccuracyMaxRaw, 10, 1000);
+  const reviewScoreThreshold = clampNumber(reviewScoreThresholdRaw, 1, 100);
+  const jumpReviewKm = clampNumber(jumpReviewKmRaw, 1, 5000);
+  const updates24hLimit = Math.round(clampNumber(updates24hLimitRaw, 1, 100));
+  const historyLimit = Math.round(clampNumber(historyLimitRaw, 1, 200));
+
+  const previousCoordinates = normalizeCoordinates(user.shopLocation?.coordinates);
+  const previousLocationUpdatedAt = user.shopLocationUpdatedAt || null;
+  const previousLocationAccuracy = Number.isFinite(Number(user.shopLocationAccuracy))
+    ? Number(user.shopLocationAccuracy)
+    : null;
+  const nextCoordinates = [longitude, latitude];
+  const now = new Date();
+  const hasRealChange =
+    !previousCoordinates ||
+    Math.abs(previousCoordinates.latitude - latitude) > 1e-7 ||
+    Math.abs(previousCoordinates.longitude - longitude) > 1e-7;
+  const nowMs = now.getTime();
+  const recentWindowStartMs = nowMs - 24 * 60 * 60 * 1000;
+
+  const existingHistory = Array.isArray(user.shopLocationHistory) ? [...user.shopLocationHistory] : [];
+  const recentHistoryCount = existingHistory.reduce((count, entry) => {
+    const updatedAt = new Date(entry?.updatedAt || 0).getTime();
+    if (!Number.isFinite(updatedAt) || updatedAt < recentWindowStartMs) return count;
+    return count + 1;
+  }, 0);
+  const previousUpdateInWindow =
+    previousLocationUpdatedAt && new Date(previousLocationUpdatedAt).getTime() >= recentWindowStartMs ? 1 : 0;
+  const updatesInLast24h = recentHistoryCount + previousUpdateInWindow + 1;
+  const distanceFromPreviousKm =
+    hasRealChange && previousCoordinates
+      ? haversineDistanceKm(previousCoordinates, { latitude, longitude })
+      : 0;
+
+  const riskFlags = [];
+  let trustScore = 100;
+  if (source === 'manual') {
+    riskFlags.push('manual_source');
+    trustScore -= 30;
+  } else if (source === 'map') {
+    riskFlags.push('map_selected_source');
+    trustScore -= 15;
+  }
+
+  if (accuracy === null) {
+    riskFlags.push('missing_accuracy');
+    trustScore -= 10;
+  } else if (accuracy > 500) {
+    riskFlags.push('very_low_accuracy');
+    trustScore -= 35;
+  } else if (accuracy > verifiedAccuracyMax) {
+    riskFlags.push('low_accuracy');
+    trustScore -= 18;
+  }
+
+  if (Number.isFinite(distanceFromPreviousKm) && previousCoordinates) {
+    if (distanceFromPreviousKm >= jumpReviewKm * 2) {
+      riskFlags.push('large_location_jump');
+      trustScore -= 35;
+    } else if (distanceFromPreviousKm >= jumpReviewKm) {
+      riskFlags.push('location_jump_over_threshold');
+      trustScore -= 25;
+    } else if (distanceFromPreviousKm >= 5) {
+      riskFlags.push('location_jump');
+      trustScore -= 10;
+    }
+  }
+
+  if (updatesInLast24h > updates24hLimit) {
+    riskFlags.push('too_many_updates_24h');
+    trustScore -= 22;
+  }
+
+  if (!resolvedAddress && source !== 'gps') {
+    riskFlags.push('missing_resolved_address');
+    trustScore -= 8;
+  }
+  if (
+    resolvedAddress &&
+    user.city &&
+    !String(resolvedAddress).toLowerCase().includes(String(user.city).toLowerCase())
+  ) {
+    riskFlags.push('city_mismatch');
+    trustScore -= 8;
+  }
+
+  const normalizedTrustScore = Math.round(clampNumber(trustScore, 0, 100));
+  const needsReview = Boolean(
+    normalizedTrustScore < reviewScoreThreshold ||
+      riskFlags.includes('large_location_jump') ||
+      riskFlags.includes('location_jump_over_threshold') ||
+      riskFlags.includes('too_many_updates_24h')
+  );
+
+  if (hasRealChange && previousCoordinates) {
+    existingHistory.unshift({
+      coordinates: [previousCoordinates.longitude, previousCoordinates.latitude],
+      accuracy: previousLocationAccuracy,
+      updatedAt: previousLocationUpdatedAt || now,
+      source: 'history',
+      trustScore: Number.isFinite(Number(user.shopLocationTrustScore))
+        ? Number(user.shopLocationTrustScore)
+        : null
+    });
+  }
+  user.shopLocationHistory = existingHistory.slice(0, historyLimit);
+
+  user.shopLocation = {
+    type: 'Point',
+    coordinates: nextCoordinates
+  };
+  user.shopLocationAccuracy = accuracy;
+  user.shopLocationUpdatedAt = now;
+  user.shopLocationTrustScore = normalizedTrustScore;
+  user.shopLocationNeedsReview = needsReview;
+  user.shopLocationReviewStatus = needsReview ? 'pending_review' : 'approved';
+  user.shopLocationReviewFlags = Array.from(new Set(riskFlags)).slice(0, 10);
+  user.shopLocationVerified = Boolean(
+    source === 'gps' &&
+      accuracy !== null &&
+      accuracy <= verifiedAccuracyMax &&
+      !needsReview
+  );
+
+  if (resolvedAddress && (applyResolvedAddress || !String(user.shopAddress || '').trim())) {
+    user.shopAddress = resolvedAddress;
+  }
+
+  await user.save();
+
+  await invalidateUserCache(user._id, ['users', 'dashboard', 'analytics']);
+
+  try {
+    await AuditLog.create({
+      performedBy: req.user.id,
+      targetUser: user._id,
+      actionType: 'shop_location_updated',
+      previousValue: previousCoordinates
+        ? {
+            longitude: previousCoordinates.longitude,
+            latitude: previousCoordinates.latitude,
+            accuracy: previousLocationAccuracy,
+            updatedAt: previousLocationUpdatedAt
+          }
+        : null,
+      newValue: {
+        longitude,
+        latitude,
+        accuracy,
+        source,
+        locationVerified: user.shopLocationVerified,
+        trustScore: normalizedTrustScore,
+        needsReview,
+        riskFlags: Array.from(new Set(riskFlags)),
+        distanceFromPreviousKm: Number.isFinite(distanceFromPreviousKm)
+          ? Number(distanceFromPreviousKm.toFixed(3))
+          : 0
+      },
+      ip: getClientIp(req),
+      device: getClientDevice(req),
+      meta: {
+        applyResolvedAddress,
+        hasResolvedAddress: Boolean(resolvedAddress),
+        accountType: user.accountType,
+        reviewScoreThreshold,
+        verifiedAccuracyMax,
+        jumpReviewKm,
+        updates24hLimit,
+        updatesInLast24h
+      }
+    });
+  } catch {
+    // Keep location update successful even if audit log fails.
+  }
+
+  return res.json({
+    message: 'Localisation boutique mise à jour.',
+    user: sanitizeUser(user),
+    location: {
+      ...formatShopLocation(user),
+      verified: Boolean(user.shopLocationVerified),
+      trustScore: normalizedTrustScore,
+      needsReview,
+      reviewStatus: user.shopLocationReviewStatus,
+      reviewFlags: Array.isArray(user.shopLocationReviewFlags) ? user.shopLocationReviewFlags : []
+    }
+  });
 });
 
 export const sendPasswordChangeCode = asyncHandler(async (req, res) => {

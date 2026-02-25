@@ -124,7 +124,11 @@ const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 export default function Navbar() {
   const navigate = useNavigate();
   const { user, logout } = useContext(AuthContext);
-  const { theme, setTheme, t, cities } = useAppSettings();
+  const { theme, setTheme, t, cities, isFeatureEnabled } = useAppSettings();
+  const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
+    defaultValue: true
+  });
+  const chatEnabled = isFeatureEnabled('enable_chat', { defaultValue: true });
   const { cart } = useContext(CartContext);
   const { favorites } = useContext(FavoriteContext);
   const cartCount = cart?.totals?.quantity || 0;
@@ -593,13 +597,21 @@ export default function Navbar() {
     { id: 'profile', label: t('nav.profile', 'Profil'), path: '/profile', icon: User, badge: null, visible: user ? true : false, order: 5 },
     { id: 'notifications', label: t('nav.notifications', 'Notifications'), path: '/notifications', icon: Bell, badge: commentAlerts, visible: user ? true : false, order: 6 },
     { id: 'orders', label: t('nav.orders', 'Commandes'), path: '/orders', icon: ClipboardList, badge: activeOrders, visible: user ? true : false, order: 7 },
-    { id: 'messages', label: t('nav.messages', 'Messages'), path: '/orders/messages', icon: MessageSquare, badge: unreadOrderMessages, visible: user ? true : false, order: 8 },
+    { id: 'messages', label: t('nav.messages', 'Messages'), path: '/orders/messages', icon: MessageSquare, badge: unreadOrderMessages, visible: user ? chatEnabled : false, order: 8 },
     { id: 'my', label: t('nav.myListings', 'Mes annonces'), path: '/my', icon: Package, badge: null, visible: user ? true : false, order: 9 },
     { id: 'shop-conversion', label: t('nav.becomeShop', 'Devenir Boutique'), path: '/shop-conversion-request', icon: Store, badge: null, visible: user && user.accountType !== 'shop' ? true : false, order: 10 },
-    { id: 'suggestions', label: t('nav.suggestions', 'Suggestions'), path: '/suggestions', icon: Sparkles, badge: null, visible: true, order: 11 }
+    { id: 'suggestions', label: t('nav.suggestions', 'Suggestions'), path: '/suggestions', icon: Sparkles, badge: null, visible: aiRecommendationsEnabled, order: 11 }
   ];
 
-  const navItems = customNavItems || defaultNavItems;
+  const navItems = (customNavItems || defaultNavItems).map((item) => {
+    if (item?.id === 'suggestions') {
+      return { ...item, visible: Boolean(item.visible) && aiRecommendationsEnabled };
+    }
+    if (item?.id === 'messages') {
+      return { ...item, visible: Boolean(item.visible) && chatEnabled };
+    }
+    return item;
+  });
   const primaryItems = navItems.filter(item => item.visible && item.order < 5).sort((a, b) => a.order - b.order);
   const secondaryItems = navItems.filter(item => item.visible && item.order >= 5).sort((a, b) => a.order - b.order);
 
@@ -2929,18 +2941,20 @@ export default function Navbar() {
                       </span>
                     )}
                   </Link>
-                  <Link
-                    to="/orders/messages"
-                    className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200"
-                    aria-label={t('nav.messages', 'Messages')}
-                  >
-                    <MessageSquare size={18} />
-                    {hasUnreadOrderMessages && (
-                      <span className="absolute -top-1 -right-1 bg-neutral-900 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-pulse">
-                        {unreadOrderMessagesBadge}
-                      </span>
-                    )}
-                  </Link>
+                  {chatEnabled && (
+                    <Link
+                      to="/orders/messages"
+                      className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200"
+                      aria-label={t('nav.messages', 'Messages')}
+                    >
+                      <MessageSquare size={18} />
+                      {hasUnreadOrderMessages && (
+                        <span className="absolute -top-1 -right-1 bg-neutral-900 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-pulse">
+                          {unreadOrderMessagesBadge}
+                        </span>
+                      )}
+                    </Link>
+                  )}
                   <Link
                     to="/favorites"
                     className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200"
@@ -3554,20 +3568,22 @@ export default function Navbar() {
                 {t('nav.shops', 'Boutiques')}
               </NavLink>
 
-              <NavLink
-                to="/suggestions"
-                onClick={() => setIsMenuOpen(false)}
-                className={({ isActive }) => 
-                  `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                    isActive 
-                      ? 'bg-black text-white shadow-lg' 
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
-                  }`
-                }
-              >
-                <Sparkles size={20} />
-                {t('nav.suggestions', 'Suggestions')}
-              </NavLink>
+              {aiRecommendationsEnabled && (
+                <NavLink
+                  to="/suggestions"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={({ isActive }) => 
+                    `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                      isActive 
+                        ? 'bg-black text-white shadow-lg' 
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
+                    }`
+                  }
+                >
+                  <Sparkles size={20} />
+                  {t('nav.suggestions', 'Suggestions')}
+                </NavLink>
+              )}
 
               {/* Réclamations & Avis amélioration - all users (mobile) */}
               <Link
@@ -3693,19 +3709,21 @@ export default function Navbar() {
                       </span>
                     )}
                   </NavLink>
-                  <NavLink
-                    to="/orders/messages"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    <MessageSquare size={20} />
-                    {t('nav.messages', 'Messages')}
-                    {hasUnreadOrderMessages && (
-                      <span className="ml-auto bg-neutral-900 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">
-                        {unreadOrderMessagesBadge}
-                      </span>
-                    )}
-                  </NavLink>
+                  {chatEnabled && (
+                    <NavLink
+                      to="/orders/messages"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <MessageSquare size={20} />
+                      {t('nav.messages', 'Messages')}
+                      {hasUnreadOrderMessages && (
+                        <span className="ml-auto bg-neutral-900 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">
+                          {unreadOrderMessagesBadge}
+                        </span>
+                      )}
+                    </NavLink>
+                  )}
                   <NavLink
                     to="/seller/orders"
                     onClick={() => setIsMenuOpen(false)}

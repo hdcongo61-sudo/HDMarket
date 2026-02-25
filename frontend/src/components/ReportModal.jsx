@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { X, Flag, AlertCircle } from 'lucide-react';
+import React, { useId, useState } from 'react';
+import { Flag, AlertCircle } from 'lucide-react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
+import BaseModal, { ModalBody, ModalFooter, ModalHeader } from './modals/BaseModal';
 
 export default function ReportModal({ isOpen, onClose, type, commentId, productId, photoUrl, productTitle }) {
   const { showToast } = useToast();
@@ -48,36 +49,25 @@ export default function ReportModal({ isOpen, onClose, type, commentId, productI
     }
   };
 
-  if (!isOpen) return null;
+  const titleId = useId();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div
-        className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
-              <Flag className="w-5 h-5 text-red-600" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">Signaler du contenu</h2>
-              <p className="text-xs text-gray-500">
-                {type === 'comment' ? 'Signaler un commentaire' : 'Signaler une photo'}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors"
-          >
-            <X size={20} className="text-gray-500" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+    <BaseModal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="md"
+      mobileSheet={true}
+      ariaLabelledBy={titleId}
+    >
+      <ModalHeader
+        titleId={titleId}
+        title="Signaler du contenu"
+        subtitle={type === 'comment' ? 'Signaler un commentaire' : 'Signaler une photo'}
+        icon={<Flag className="w-5 h-5 text-red-600" />}
+        onClose={onClose}
+      />
+      <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+        <ModalBody className="space-y-4">
           {productTitle && (
             <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
               <p className="text-xs text-gray-500 mb-1">Produit concerné</p>
@@ -90,6 +80,7 @@ export default function ReportModal({ isOpen, onClose, type, commentId, productI
               Raison du signalement <span className="text-gray-400">(optionnel)</span>
             </label>
             <textarea
+              data-autofocus
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Décrivez pourquoi vous signalez ce contenu..."
@@ -107,8 +98,9 @@ export default function ReportModal({ isOpen, onClose, type, commentId, productI
               <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
-
-          <div className="flex gap-3 pt-2">
+        </ModalBody>
+        <ModalFooter>
+          <div className="flex gap-3">
             <button
               type="button"
               onClick={onClose}
@@ -125,8 +117,8 @@ export default function ReportModal({ isOpen, onClose, type, commentId, productI
               {submitting ? 'Envoi...' : 'Signaler'}
             </button>
           </div>
-        </form>
-      </div>
-    </div>
+        </ModalFooter>
+      </form>
+    </BaseModal>
   );
 }

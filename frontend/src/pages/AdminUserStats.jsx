@@ -4,6 +4,7 @@ import { ArrowLeft, Heart, MessageCircle } from 'lucide-react';
 import api from '../services/api';
 import { buildProductPath, buildShopPath } from '../utils/links';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
+import BaseModal, { ModalBody, ModalHeader } from '../components/modals/BaseModal';
 
 const numberFormatter = new Intl.NumberFormat('fr-FR');
 const formatNumber = (value) => {
@@ -30,21 +31,10 @@ const HighlightStat = ({ label, value, helper }) => (
 );
 
 const SectionModal = ({ title, onClose, children }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
-    <div className="w-full max-w-3xl overflow-hidden rounded-2xl bg-white p-5 shadow-2xl">
-      <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-xs font-semibold uppercase tracking-wide text-gray-500 hover:text-gray-800"
-        >
-          Fermer
-        </button>
-      </div>
-      <div className="mt-4 max-h-[70vh] overflow-y-auto pr-1">{children}</div>
-    </div>
-  </div>
+  <BaseModal isOpen={Boolean(title)} onClose={onClose} size="lg" mobileSheet={true}>
+    <ModalHeader title={title} onClose={onClose} />
+    <ModalBody>{children}</ModalBody>
+  </BaseModal>
 );
 
 export default function AdminUserStats() {

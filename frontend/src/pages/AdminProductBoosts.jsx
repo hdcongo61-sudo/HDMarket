@@ -507,9 +507,9 @@ export default function AdminProductBoosts() {
     return (
       <article
         key={product._id}
-        className="ui-card ui-card-interactive ui-card-fade-in group p-5"
+        className="ui-card ui-card-interactive ui-card-fade-in group p-4 sm:p-5"
       >
-        <div className="ui-media-frame mb-4 h-48 rounded-xl">
+        <div className="ui-media-frame mb-3 h-40 rounded-xl sm:mb-4 sm:h-48">
           <img
             src={imageUrl}
             alt={product.title}
@@ -518,7 +518,7 @@ export default function AdminProductBoosts() {
           />
         </div>
         <div className="space-y-3">
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <Tag className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
@@ -530,7 +530,7 @@ export default function AdminProductBoosts() {
                 {product.title}
               </h2>
             </div>
-            <div className="text-right flex-shrink-0">
+            <div className="flex-shrink-0 text-left sm:text-right">
               <p className="text-lg font-black text-neutral-600 dark:text-neutral-400">
                 {priceLabel}
               </p>
@@ -540,7 +540,7 @@ export default function AdminProductBoosts() {
           <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
             {descriptionExcerpt}
           </p>
-          <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
             <div className="flex items-center gap-1">
               <Heart className="h-3.5 w-3.5" />
               <span>{product.favoritesCount || 0}</span>
@@ -561,7 +561,7 @@ export default function AdminProductBoosts() {
                 <Calendar className="h-4 w-4 text-neutral-600 dark:text-neutral-400 flex-shrink-0" />
                 <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Période de boost (optionnel)</span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
                   <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Date de début</label>
                   <input
@@ -627,7 +627,7 @@ export default function AdminProductBoosts() {
           <button
             onClick={() => handleToggle(product._id)}
             disabled={savingId === product._id}
-            className={`w-full rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
+            className={`w-full min-h-[42px] rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
               product.boosted
                 ? 'bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg'
                 : 'bg-gradient-to-r from-neutral-600 to-neutral-600 hover:from-neutral-700 hover:to-neutral-700 text-white shadow-md hover:shadow-lg'
@@ -664,9 +664,9 @@ export default function AdminProductBoosts() {
     return (
       <article
         key={shop._id}
-        className="ui-card ui-card-interactive ui-card-fade-in group p-5"
+        className="ui-card ui-card-interactive ui-card-fade-in group p-4 sm:p-5"
       >
-        <div className="ui-media-frame mb-4 flex h-48 items-center justify-center rounded-xl">
+        <div className="ui-media-frame mb-3 flex h-40 items-center justify-center rounded-xl sm:mb-4 sm:h-48">
           <img
             src={logoUrl}
             alt={shop.shopName || shop.name}
@@ -675,7 +675,7 @@ export default function AdminProductBoosts() {
           />
         </div>
         <div className="space-y-3">
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <Store className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
@@ -687,7 +687,7 @@ export default function AdminProductBoosts() {
                 {shop.shopName || shop.name}
               </h2>
             </div>
-            <div className="text-right flex-shrink-0">
+            <div className="flex-shrink-0 text-left sm:text-right">
               <p className="text-xs text-gray-500 dark:text-gray-400">{createdDate}</p>
             </div>
           </div>
@@ -697,7 +697,7 @@ export default function AdminProductBoosts() {
               <span className="line-clamp-1">{shop.shopAddress}</span>
             </div>
           )}
-          <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
             <div className="flex items-center gap-1">
               <Heart className="h-3.5 w-3.5" />
               <span>{shop.followersCount || 0}</span>
@@ -722,7 +722,7 @@ export default function AdminProductBoosts() {
                 <Calendar className="h-4 w-4 text-neutral-600 dark:text-neutral-400 flex-shrink-0" />
                 <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Période de boost (optionnel)</span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
                   <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Date de début</label>
                   <input
@@ -788,7 +788,7 @@ export default function AdminProductBoosts() {
           <button
             onClick={() => handleToggleShopBoost(shop._id)}
             disabled={savingShopId === shop._id}
-            className={`w-full rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
+            className={`w-full min-h-[42px] rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
               isShopCurrentlyBoosted(shop)
                 ? 'bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg'
                 : 'bg-gradient-to-r from-neutral-600 to-neutral-600 hover:from-neutral-700 hover:to-neutral-700 text-white shadow-md hover:shadow-lg'
@@ -891,15 +891,15 @@ export default function AdminProductBoosts() {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+    <div className="mx-auto max-w-7xl space-y-4 px-3 pb-8 pt-4 sm:space-y-6 sm:px-4 sm:py-6">
       {/* Header */}
-      <header className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <header className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div className="flex items-center gap-3 sm:gap-4">
           <div className="p-3 rounded-2xl bg-gradient-to-br from-neutral-500 to-neutral-600 shadow-lg">
             <Sparkles className="h-8 w-8 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-gray-900 dark:text-white">Gestion des Boosts</h1>
+            <h1 className="text-xl font-black text-gray-900 dark:text-white sm:text-3xl">Gestion des Boosts</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Promouvez vos produits et augmentez leur visibilité
             </p>
@@ -909,7 +909,7 @@ export default function AdminProductBoosts() {
           <button
             type="button"
             onClick={() => setShowUserManager(!showUserManager)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-neutral-600 hover:bg-neutral-700 text-white font-semibold shadow-md hover:shadow-lg transition-all"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-600 px-4 py-2.5 font-semibold text-white shadow-md transition-all hover:bg-neutral-700 hover:shadow-lg sm:w-auto"
           >
             <Users className="h-5 w-5" />
             <span>Gérer les permissions</span>
@@ -919,11 +919,11 @@ export default function AdminProductBoosts() {
 
       {/* Statistics Dashboard */}
       {statsLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="ui-card ui-card-interactive ui-card-fade-in p-6 animate-pulse"
+              className="ui-card ui-card-interactive ui-card-fade-in p-4 animate-pulse sm:p-6"
             >
               <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-3" />
               <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-16" />
@@ -931,8 +931,8 @@ export default function AdminProductBoosts() {
           ))}
         </div>
       ) : stats ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="ui-card ui-card-interactive ui-card-fade-in !bg-gradient-to-br !from-neutral-50 !to-neutral-100 dark:!from-neutral-900/20 dark:!to-neutral-800/20 p-6">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <div className="ui-card ui-card-interactive ui-card-fade-in !bg-gradient-to-br !from-neutral-50 !to-neutral-100 p-4 dark:!from-neutral-900/20 dark:!to-neutral-800/20 sm:p-6">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2 rounded-xl bg-neutral-500 text-white">
                 <Zap className="h-5 w-5" />
@@ -942,7 +942,7 @@ export default function AdminProductBoosts() {
             <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
               Produits boostés
             </p>
-            <p className="text-3xl font-black text-neutral-900 dark:text-neutral-100">
+            <p className="text-2xl font-black text-neutral-900 dark:text-neutral-100 sm:text-3xl">
               {stats.totalBoosted || 0}
             </p>
             <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-2">
@@ -950,7 +950,7 @@ export default function AdminProductBoosts() {
             </p>
           </div>
 
-          <div className="ui-card ui-card-interactive ui-card-fade-in !bg-gradient-to-br !from-neutral-50 !to-neutral-100 dark:!from-neutral-900/20 dark:!to-neutral-800/20 p-6">
+          <div className="ui-card ui-card-interactive ui-card-fade-in !bg-gradient-to-br !from-neutral-50 !to-neutral-100 p-4 dark:!from-neutral-900/20 dark:!to-neutral-800/20 sm:p-6">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2 rounded-xl bg-neutral-500 text-white">
                 <Package className="h-5 w-5" />
@@ -960,7 +960,7 @@ export default function AdminProductBoosts() {
             <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
               Non boostés
             </p>
-            <p className="text-3xl font-black text-neutral-900 dark:text-neutral-100">
+            <p className="text-2xl font-black text-neutral-900 dark:text-neutral-100 sm:text-3xl">
               {stats.totalNonBoosted || 0}
             </p>
             <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-2">
@@ -968,7 +968,7 @@ export default function AdminProductBoosts() {
             </p>
           </div>
 
-          <div className="ui-card ui-card-interactive ui-card-fade-in border-emerald-200 dark:border-emerald-800 !bg-gradient-to-br !from-emerald-50 !to-emerald-100 dark:!from-emerald-900/20 dark:!to-emerald-800/20 p-6">
+          <div className="ui-card ui-card-interactive ui-card-fade-in border-emerald-200 !bg-gradient-to-br !from-emerald-50 !to-emerald-100 p-4 dark:border-emerald-800 dark:!from-emerald-900/20 dark:!to-emerald-800/20 sm:p-6">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2 rounded-xl bg-emerald-500 text-white">
                 <Calendar className="h-5 w-5" />
@@ -978,7 +978,7 @@ export default function AdminProductBoosts() {
             <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 mb-1">
               Boostés ce mois
             </p>
-            <p className="text-3xl font-black text-emerald-900 dark:text-emerald-100">
+            <p className="text-2xl font-black text-emerald-900 dark:text-emerald-100 sm:text-3xl">
               {stats.boostedThisMonth || 0}
             </p>
             <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
@@ -986,7 +986,7 @@ export default function AdminProductBoosts() {
             </p>
           </div>
 
-          <div className="ui-card ui-card-interactive ui-card-fade-in border-amber-200 dark:border-amber-800 !bg-gradient-to-br !from-amber-50 !to-amber-100 dark:!from-amber-900/20 dark:!to-amber-800/20 p-6">
+          <div className="ui-card ui-card-interactive ui-card-fade-in border-amber-200 !bg-gradient-to-br !from-amber-50 !to-amber-100 p-4 dark:border-amber-800 dark:!from-amber-900/20 dark:!to-amber-800/20 sm:p-6">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2 rounded-xl bg-amber-500 text-white">
                 <Users className="h-5 w-5" />
@@ -996,7 +996,7 @@ export default function AdminProductBoosts() {
             <p className="text-sm font-semibold text-amber-700 dark:text-amber-300 mb-1">
               Gestionnaires
             </p>
-            <p className="text-3xl font-black text-amber-900 dark:text-amber-100">
+            <p className="text-2xl font-black text-amber-900 dark:text-amber-100 sm:text-3xl">
               {boostManagers.length}
             </p>
             <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
@@ -1008,12 +1008,12 @@ export default function AdminProductBoosts() {
 
       {/* Category Statistics */}
       {stats?.boostedByCategory && stats.boostedByCategory.length > 0 && (
-        <div className="ui-card ui-card-interactive ui-card-fade-in p-6">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <div className="ui-card ui-card-interactive ui-card-fade-in p-4 sm:p-6">
+          <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-white sm:text-xl">
             <Tag className="h-5 w-5 text-neutral-600" />
             Top catégories boostées
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-5">
             {stats.boostedByCategory.map((cat, idx) => (
               <div
                 key={cat._id || idx}
@@ -1033,9 +1033,9 @@ export default function AdminProductBoosts() {
 
       {/* User Management Section */}
       {isAdmin && showUserManager && (
-        <div className="ui-card ui-card-interactive ui-card-fade-in p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+        <div className="ui-card ui-card-interactive ui-card-fade-in p-4 sm:p-6">
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <h2 className="flex items-center gap-2 text-base font-bold text-gray-900 dark:text-white sm:text-xl">
               <Users className="h-5 w-5 text-neutral-600" />
               Gestionnaires de boosts
             </h2>
@@ -1071,7 +1071,7 @@ export default function AdminProductBoosts() {
                 {boostManagers.map((manager) => (
                   <div
                     key={manager._id}
-                    className="flex items-center justify-between p-3 rounded-xl bg-neutral-50 dark:bg-neutral-900/20 border border-neutral-200 dark:border-neutral-800"
+                    className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900/20 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-lg bg-neutral-500 text-white">
@@ -1087,7 +1087,7 @@ export default function AdminProductBoosts() {
                     <button
                       type="button"
                       onClick={() => handleToggleBoostManager(manager._id)}
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-medium transition-colors"
+                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600 sm:w-auto"
                     >
                       <UserMinus className="h-4 w-4" />
                       <span>Retirer</span>
@@ -1120,7 +1120,7 @@ export default function AdminProductBoosts() {
                   .map((userItem) => (
                     <div
                       key={userItem._id || userItem.id}
-                      className="ui-card-soft-separator flex items-center justify-between rounded-xl border border-gray-200 p-3 transition-colors hover:border-neutral-300 dark:border-gray-700 dark:hover:border-neutral-600"
+                      className="ui-card-soft-separator flex flex-col gap-3 rounded-xl border border-gray-200 p-3 transition-colors hover:border-neutral-300 dark:border-gray-700 dark:hover:border-neutral-600 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="flex items-center gap-3">
                         <div className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700">
@@ -1138,8 +1138,8 @@ export default function AdminProductBoosts() {
                       <button
                         type="button"
                         onClick={() => handleToggleBoostManager(userItem._id || userItem.id)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-neutral-600 hover:bg-neutral-700 text-white text-sm font-medium transition-colors"
-                      >
+                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-neutral-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-700 sm:w-auto"
+                    >
                         <UserPlus className="h-4 w-4" />
                         <span>Ajouter</span>
                       </button>
@@ -1163,7 +1163,7 @@ export default function AdminProductBoosts() {
       )}
 
       {/* Search Bar and Filter */}
-      <div className="ui-card ui-card-interactive ui-card-fade-in flex flex-col gap-3 p-5">
+      <div className="ui-card ui-card-interactive ui-card-fade-in flex flex-col gap-3 p-4 sm:p-5">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-neutral-100 dark:bg-neutral-900/20">
             <Search className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
@@ -1175,16 +1175,16 @@ export default function AdminProductBoosts() {
             className="ui-input flex-1 rounded-xl px-4 py-2.5 text-sm"
           />
         </div>
-        <div className="flex items-center justify-between pl-12">
+        <div className="flex flex-col gap-2 sm:pl-12">
           <p className="text-xs text-gray-500 dark:text-gray-400">
           Recherche dans les produits approuvés avec tri par statut de boost
         </p>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Filtrer:</span>
+          <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1">
+            <span className="hidden text-xs font-medium text-gray-600 dark:text-gray-400 sm:inline">Filtrer:</span>
             <button
               type="button"
               onClick={() => setProductFilter('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
                 productFilter === 'all'
                   ? 'bg-neutral-600 text-white shadow-md'
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
@@ -1195,7 +1195,7 @@ export default function AdminProductBoosts() {
             <button
               type="button"
               onClick={() => setProductFilter('boosted')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
                 productFilter === 'boosted'
                   ? 'bg-neutral-600 text-white shadow-md'
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
@@ -1206,7 +1206,7 @@ export default function AdminProductBoosts() {
             <button
               type="button"
               onClick={() => setProductFilter('non-boosted')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
                 productFilter === 'non-boosted'
                   ? 'bg-neutral-600 text-white shadow-md'
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
@@ -1219,15 +1219,15 @@ export default function AdminProductBoosts() {
       </div>
 
       {/* Products Section */}
-      <section className="space-y-8">
-        <div className="ui-card ui-card-interactive ui-card-fade-in space-y-5 p-6">
-          <div className="flex items-center justify-between">
+      <section className="space-y-6 sm:space-y-8">
+        <div className="ui-card ui-card-interactive ui-card-fade-in space-y-5 p-4 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-neutral-500 text-white">
                 <Package className="h-6 w-6" />
               </div>
               <div>
-                <h2 className="text-2xl font-black text-gray-900 dark:text-white">
+                <h2 className="text-xl font-black text-gray-900 dark:text-white sm:text-2xl">
                   Produits
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -1237,7 +1237,7 @@ export default function AdminProductBoosts() {
                 </p>
               </div>
             </div>
-            <div className="text-right">
+            <div className="text-left sm:text-right">
               <p className="text-lg font-bold text-neutral-600 dark:text-neutral-400">
                 {filteredProducts.length} produit{filteredProducts.length !== 1 ? 's' : ''}
               </p>
@@ -1254,7 +1254,7 @@ export default function AdminProductBoosts() {
               {boostedError || nonBoostedError}
             </div>
           )}
-          <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
             {(boostedLoading || nonBoostedLoading) ? (
               <div className="ui-card-soft-separator col-span-full rounded-2xl border-2 border-dashed border-gray-300 p-12 text-center dark:border-gray-700">
                 <Loader2 className="h-8 w-8 animate-spin text-neutral-600 mx-auto mb-3" />
@@ -1290,13 +1290,13 @@ export default function AdminProductBoosts() {
       </section>
 
       {/* Shop Boost Section */}
-      <section className="space-y-8 mt-12">
-        <div className="flex items-center gap-3 mb-6">
+      <section className="mt-8 space-y-6 sm:mt-12 sm:space-y-8">
+        <div className="mb-4 flex items-center gap-3 sm:mb-6">
           <div className="p-2 rounded-xl bg-emerald-500 text-white">
             <Store className="h-6 w-6" />
           </div>
           <div>
-            <h2 className="text-2xl font-black text-gray-900 dark:text-white">Boosts Boutiques Certifiées</h2>
+            <h2 className="text-xl font-black text-gray-900 dark:text-white sm:text-2xl">Boosts Boutiques Certifiées</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Promouvez les boutiques vérifiées et augmentez leur visibilité
             </p>
@@ -1305,11 +1305,11 @@ export default function AdminProductBoosts() {
 
         {/* Shop Statistics Dashboard */}
         {shopStatsLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (
               <div
                 key={i}
-                className="ui-card ui-card-interactive ui-card-fade-in p-6 animate-pulse"
+                className="ui-card ui-card-interactive ui-card-fade-in p-4 animate-pulse sm:p-6"
               >
                 <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-3" />
                 <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-16" />
@@ -1317,8 +1317,8 @@ export default function AdminProductBoosts() {
             ))}
           </div>
         ) : shopStats ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="ui-card ui-card-interactive ui-card-fade-in border-emerald-200 dark:border-emerald-800 !bg-gradient-to-br !from-emerald-50 !to-emerald-100 dark:!from-emerald-900/20 dark:!to-emerald-800/20 p-6">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            <div className="ui-card ui-card-interactive ui-card-fade-in border-emerald-200 !bg-gradient-to-br !from-emerald-50 !to-emerald-100 p-4 dark:border-emerald-800 dark:!from-emerald-900/20 dark:!to-emerald-800/20 sm:p-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="p-2 rounded-xl bg-emerald-500 text-white">
                   <Zap className="h-5 w-5" />
@@ -1328,7 +1328,7 @@ export default function AdminProductBoosts() {
               <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 mb-1">
                 Boutiques boostées
               </p>
-              <p className="text-3xl font-black text-emerald-900 dark:text-emerald-100">
+              <p className="text-2xl font-black text-emerald-900 dark:text-emerald-100 sm:text-3xl">
                 {shopStats.totalBoosted || 0}
               </p>
               <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
@@ -1336,7 +1336,7 @@ export default function AdminProductBoosts() {
               </p>
             </div>
 
-            <div className="ui-card ui-card-interactive ui-card-fade-in !bg-gradient-to-br !from-neutral-50 !to-neutral-100 dark:!from-neutral-900/20 dark:!to-neutral-800/20 p-6">
+            <div className="ui-card ui-card-interactive ui-card-fade-in !bg-gradient-to-br !from-neutral-50 !to-neutral-100 p-4 dark:!from-neutral-900/20 dark:!to-neutral-800/20 sm:p-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="p-2 rounded-xl bg-neutral-500 text-white">
                   <Store className="h-5 w-5" />
@@ -1346,7 +1346,7 @@ export default function AdminProductBoosts() {
               <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
                 Non boostées
               </p>
-              <p className="text-3xl font-black text-neutral-900 dark:text-neutral-100">
+              <p className="text-2xl font-black text-neutral-900 dark:text-neutral-100 sm:text-3xl">
                 {shopStats.totalNonBoosted || 0}
               </p>
               <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-2">
@@ -1354,7 +1354,7 @@ export default function AdminProductBoosts() {
               </p>
             </div>
 
-            <div className="ui-card ui-card-interactive ui-card-fade-in border-amber-200 dark:border-amber-800 !bg-gradient-to-br !from-amber-50 !to-amber-100 dark:!from-amber-900/20 dark:!to-amber-800/20 p-6">
+            <div className="ui-card ui-card-interactive ui-card-fade-in border-amber-200 !bg-gradient-to-br !from-amber-50 !to-amber-100 p-4 dark:border-amber-800 dark:!from-amber-900/20 dark:!to-amber-800/20 sm:p-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="p-2 rounded-xl bg-amber-500 text-white">
                   <Calendar className="h-5 w-5" />
@@ -1364,7 +1364,7 @@ export default function AdminProductBoosts() {
               <p className="text-sm font-semibold text-amber-700 dark:text-amber-300 mb-1">
                 Boostées ce mois
               </p>
-              <p className="text-3xl font-black text-amber-900 dark:text-amber-100">
+              <p className="text-2xl font-black text-amber-900 dark:text-amber-100 sm:text-3xl">
                 {shopStats.boostedThisMonth || 0}
               </p>
               <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
@@ -1372,7 +1372,7 @@ export default function AdminProductBoosts() {
               </p>
             </div>
 
-            <div className="ui-card ui-card-interactive ui-card-fade-in !bg-gradient-to-br !from-neutral-50 !to-neutral-100 dark:!from-neutral-900/20 dark:!to-neutral-800/20 p-6">
+            <div className="ui-card ui-card-interactive ui-card-fade-in !bg-gradient-to-br !from-neutral-50 !to-neutral-100 p-4 dark:!from-neutral-900/20 dark:!to-neutral-800/20 sm:p-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="p-2 rounded-xl bg-neutral-500 text-white">
                   <Heart className="h-5 w-5" />
@@ -1382,7 +1382,7 @@ export default function AdminProductBoosts() {
               <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
                 Total followers
               </p>
-              <p className="text-3xl font-black text-neutral-900 dark:text-neutral-100">
+              <p className="text-2xl font-black text-neutral-900 dark:text-neutral-100 sm:text-3xl">
                 {shopStats.topBoostedShops?.reduce((sum, shop) => sum + (shop.followersCount || 0), 0) || 0}
               </p>
               <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-2">
@@ -1393,7 +1393,7 @@ export default function AdminProductBoosts() {
         ) : null}
 
         {/* Shop Search Bar and Filter */}
-        <div className="ui-card ui-card-interactive ui-card-fade-in flex flex-col gap-3 p-5">
+        <div className="ui-card ui-card-interactive ui-card-fade-in flex flex-col gap-3 p-4 sm:p-5">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/20">
               <Search className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -1405,16 +1405,16 @@ export default function AdminProductBoosts() {
               className="ui-input flex-1 rounded-xl px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-emerald-200 dark:focus:ring-emerald-900"
             />
           </div>
-          <div className="flex items-center justify-between pl-12">
+          <div className="flex flex-col gap-2 sm:pl-12">
             <p className="text-xs text-gray-500 dark:text-gray-400">
               Recherche dans les boutiques vérifiées avec tri par statut de boost
             </p>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Filtrer:</span>
+            <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1">
+              <span className="hidden text-xs font-medium text-gray-600 dark:text-gray-400 sm:inline">Filtrer:</span>
               <button
                 type="button"
                 onClick={() => setShopFilter('all')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
                   shopFilter === 'all'
                     ? 'bg-emerald-600 text-white shadow-md'
                     : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
@@ -1425,7 +1425,7 @@ export default function AdminProductBoosts() {
               <button
                 type="button"
                 onClick={() => setShopFilter('boosted')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
                   shopFilter === 'boosted'
                     ? 'bg-emerald-600 text-white shadow-md'
                     : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
@@ -1436,7 +1436,7 @@ export default function AdminProductBoosts() {
               <button
                 type="button"
                 onClick={() => setShopFilter('non-boosted')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
                   shopFilter === 'non-boosted'
                     ? 'bg-emerald-600 text-white shadow-md'
                     : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
@@ -1449,14 +1449,14 @@ export default function AdminProductBoosts() {
         </div>
 
         {/* Shops Section */}
-        <div className="ui-card ui-card-interactive ui-card-fade-in space-y-5 border-emerald-200 p-6 dark:border-emerald-800">
-          <div className="flex items-center justify-between">
+        <div className="ui-card ui-card-interactive ui-card-fade-in space-y-5 border-emerald-200 p-4 dark:border-emerald-800 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-emerald-500 text-white">
                 <Store className="h-6 w-6" />
               </div>
               <div>
-                <h2 className="text-2xl font-black text-gray-900 dark:text-white">
+                <h2 className="text-xl font-black text-gray-900 dark:text-white sm:text-2xl">
                   Boutiques
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -1466,7 +1466,7 @@ export default function AdminProductBoosts() {
                 </p>
               </div>
             </div>
-            <div className="text-right">
+            <div className="text-left sm:text-right">
               <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
                 {filteredShops.length} boutique{filteredShops.length !== 1 ? 's' : ''}
               </p>
@@ -1483,7 +1483,7 @@ export default function AdminProductBoosts() {
               {boostedShopsError || nonBoostedShopsError}
             </div>
           )}
-          <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
             {(boostedShopsLoading || nonBoostedShopsLoading) ? (
               <div className="ui-card-soft-separator col-span-full rounded-2xl border-2 border-dashed border-gray-300 p-12 text-center dark:border-gray-700">
                 <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mx-auto mb-3" />

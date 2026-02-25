@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, BarChart3, Clock3, Sparkles } from 'lucide-react';
+import { ArrowLeft, BarChart3, Clock3, Sparkles, TrendingUp } from 'lucide-react';
 import api from '../services/api';
 import BoostRequestForm from '../components/BoostRequestForm';
 import { useToast } from '../context/ToastContext';
@@ -71,87 +71,116 @@ export default function SellerBoosts() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-6">
-      <div className="max-w-6xl mx-auto px-4 space-y-6">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <Link to="/dashboard" className="inline-flex items-center gap-2 text-neutral-600 font-medium">
-              <ArrowLeft className="h-4 w-4" /> Retour au dashboard
+    <div className="min-h-screen bg-gradient-to-b from-slate-100 via-white to-slate-50 pb-8 pt-4 sm:py-6">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-3 sm:gap-6 sm:px-4">
+        <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-4 shadow-sm backdrop-blur sm:p-6">
+          <div className="flex flex-col gap-3">
+            <Link
+              to="/dashboard"
+              className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Retour au dashboard
             </Link>
-            <h1 className="mt-2 text-2xl font-bold text-gray-900">Boost interne</h1>
-            <p className="text-sm text-gray-500">Gérez vos demandes de boost multi-produits.</p>
+            <div className="space-y-1">
+              <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-3xl">Boost interne</h1>
+              <p className="text-sm text-slate-600">Gérez vos demandes de boost multi-produits, optimisé mobile.</p>
+            </div>
           </div>
-        </div>
+        </section>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="rounded-xl border border-gray-200 bg-white p-3">
-            <p className="text-xs text-gray-500 uppercase">Demandes</p>
-            <p className="text-xl font-bold text-gray-900">{stats.total}</p>
-          </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-3">
-            <p className="text-xs text-gray-500 uppercase">Actives</p>
-            <p className="text-xl font-bold text-emerald-700">{stats.active}</p>
-          </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-3">
-            <p className="text-xs text-gray-500 uppercase">En attente</p>
-            <p className="text-xl font-bold text-amber-700">{stats.pending}</p>
-          </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-3">
-            <p className="text-xs text-gray-500 uppercase">CA boost</p>
-            <p className="text-xl font-bold text-neutral-700">{formatCurrency(stats.revenue)}</p>
-          </div>
-        </div>
+        <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
+          <article className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+            <p className="text-[11px] uppercase tracking-wide text-slate-500">Demandes</p>
+            <p className="mt-1 text-lg font-black text-slate-900 sm:text-2xl">{stats.total}</p>
+          </article>
+          <article className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 shadow-sm">
+            <p className="text-[11px] uppercase tracking-wide text-emerald-700">Actives</p>
+            <p className="mt-1 text-lg font-black text-emerald-700 sm:text-2xl">{stats.active}</p>
+          </article>
+          <article className="rounded-2xl border border-amber-200 bg-amber-50/80 p-3 shadow-sm">
+            <p className="text-[11px] uppercase tracking-wide text-amber-700">En attente</p>
+            <p className="mt-1 text-lg font-black text-amber-700 sm:text-2xl">{stats.pending}</p>
+          </article>
+          <article className="rounded-2xl border border-slate-200 bg-slate-100/80 p-3 shadow-sm">
+            <p className="text-[11px] uppercase tracking-wide text-slate-600">CA boost</p>
+            <p className="mt-1 truncate text-base font-black text-slate-800 sm:text-xl">{formatCurrency(stats.revenue)}</p>
+          </article>
+        </section>
 
         <BoostRequestForm products={products} onSubmitted={handleSubmitted} />
 
-        <section className="rounded-2xl border border-gray-200 bg-white p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="h-5 w-5 text-gray-600" />
-            <h2 className="text-base font-bold text-gray-900">Historique des demandes</h2>
+        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-slate-600" />
+              <h2 className="text-base font-black text-slate-900 sm:text-lg">Historique des demandes</h2>
+            </div>
+            <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+              <TrendingUp className="h-3.5 w-3.5" />
+              {requests.length}
+            </span>
           </div>
           {loading ? (
-            <p className="text-sm text-gray-500">Chargement...</p>
+            <p className="text-sm text-slate-500">Chargement...</p>
           ) : error ? (
-            <p className="text-sm text-red-600">{error}</p>
+            <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</p>
           ) : !requests.length ? (
-            <p className="text-sm text-gray-500">Aucune demande de boost pour le moment.</p>
+            <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">Aucune demande de boost pour le moment.</p>
           ) : (
             <div className="space-y-3">
-              {requests.map((item) => (
-                <article key={item.id} className="rounded-xl border border-gray-200 p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-neutral-600" />
-                      <p className="text-sm font-semibold text-gray-900">{item.boostType}</p>
+              {requests.map((item, idx) => (
+                <article
+                  key={item.id || item._id || `${item.boostType || 'boost'}-${item.createdAt || idx}`}
+                  className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-colors hover:bg-slate-50"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
+                        <Sparkles className="h-4 w-4 shrink-0 text-neutral-600" />
+                        <span className="truncate">{item.boostType}</span>
+                      </p>
+                      <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                        <Clock3 className="h-3.5 w-3.5" />
+                        {item.createdAt ? new Date(item.createdAt).toLocaleDateString('fr-FR') : '-'}
+                      </p>
                     </div>
-                    <span className={`inline-flex items-center rounded-full border px-2 py-1 text-xs font-semibold ${STATUS_STYLES[item.status] || STATUS_STYLES.EXPIRED}`}>
+                    <span className={`inline-flex items-center rounded-full border px-2 py-1 text-[11px] font-semibold ${STATUS_STYLES[item.status] || STATUS_STYLES.EXPIRED}`}>
                       {STATUS_LABELS[item.status] || item.status}
                     </span>
                   </div>
-                  <div className="mt-2 grid grid-cols-2 md:grid-cols-5 gap-2 text-xs text-gray-600">
-                    <p>Produits: <span className="font-semibold">{item.productIds?.length || 0}</span></p>
-                    <p>Ville: <span className="font-semibold">{item.city || 'Global'}</span></p>
-                    <p>Durée: <span className="font-semibold">{item.duration} j</span></p>
-                    <p>Total: <span className="font-semibold">{formatCurrency(item.totalPrice)}</span></p>
-                    <p className="flex items-center gap-1">
-                      <Clock3 className="h-3.5 w-3.5" />
-                      <span>{item.createdAt ? new Date(item.createdAt).toLocaleDateString('fr-FR') : '-'}</span>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
+                      <p className="text-slate-500">Produits</p>
+                      <p className="font-semibold text-slate-900">{item.productIds?.length || 0}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
+                      <p className="text-slate-500">Ville</p>
+                      <p className="truncate font-semibold text-slate-900">{item.city || 'Global'}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
+                      <p className="text-slate-500">Durée</p>
+                      <p className="font-semibold text-slate-900">{item.duration} j</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
+                      <p className="text-slate-500">Total</p>
+                      <p className="truncate font-semibold text-slate-900">{formatCurrency(item.totalPrice)}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-2 grid grid-cols-1 gap-1.5 text-xs text-slate-600 sm:grid-cols-2">
+                    <p>Opérateur: <span className="font-semibold text-slate-800">{item.paymentOperator || '-'}</span></p>
+                    <p>Expéditeur: <span className="font-semibold text-slate-800">{item.paymentSenderName || '-'}</span></p>
+                    <p className="sm:col-span-2">
+                      ID transaction: <span className="font-semibold font-mono text-slate-800">{item.paymentTransactionId || '-'}</span>
                     </p>
                   </div>
-                  <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-600">
-                    <p>
-                      Opérateur: <span className="font-semibold text-gray-800">{item.paymentOperator || '-'}</span>
-                    </p>
-                    <p>
-                      Expéditeur: <span className="font-semibold text-gray-800">{item.paymentSenderName || '-'}</span>
-                    </p>
-                    <p>
-                      ID transaction:{' '}
-                      <span className="font-semibold font-mono text-gray-800">{item.paymentTransactionId || '-'}</span>
-                    </p>
-                  </div>
+
                   {item.rejectionReason && (
-                    <p className="mt-2 text-xs text-red-600">Motif rejet: {item.rejectionReason}</p>
+                    <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-xs text-red-700">
+                      Motif rejet: {item.rejectionReason}
+                    </p>
                   )}
                 </article>
               ))}

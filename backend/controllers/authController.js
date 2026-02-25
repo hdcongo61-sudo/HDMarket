@@ -52,6 +52,26 @@ const buildAuthResponse = (user, token) => ({
   theme: user.theme || 'system',
   gender: user.gender,
   shopDescription: user.shopDescription || '',
+  shopLocation:
+    Array.isArray(user.shopLocation?.coordinates) && user.shopLocation.coordinates.length === 2
+      ? {
+          type: 'Point',
+          coordinates: [Number(user.shopLocation.coordinates[0]), Number(user.shopLocation.coordinates[1])],
+          longitude: Number(user.shopLocation.coordinates[0]),
+          latitude: Number(user.shopLocation.coordinates[1])
+        }
+      : null,
+  shopLocationVerified: Boolean(user.shopLocationVerified),
+  shopLocationAccuracy: Number.isFinite(Number(user.shopLocationAccuracy))
+    ? Number(user.shopLocationAccuracy)
+    : null,
+  shopLocationUpdatedAt: user.shopLocationUpdatedAt || null,
+  shopLocationTrustScore: Number.isFinite(Number(user.shopLocationTrustScore))
+    ? Number(user.shopLocationTrustScore)
+    : 0,
+  shopLocationNeedsReview: Boolean(user.shopLocationNeedsReview),
+  shopLocationReviewStatus: user.shopLocationReviewStatus || 'approved',
+  shopLocationReviewFlags: Array.isArray(user.shopLocationReviewFlags) ? user.shopLocationReviewFlags : [],
   shopHours: sanitizeShopHours(user.shopHours || []),
   token
 });

@@ -50,7 +50,10 @@ const getPromoPercentForPrice = ({ promo, price }) => {
   return clampPercent((fixedDiscount / basePrice) * 100);
 };
 
-const loadShopByIdentifier = async (identifier, projection = 'shopName shopAddress shopLogo shopBanner name createdAt shopVerified followersCount slug accountType phone shopDescription shopHours freeDeliveryEnabled freeDeliveryNote isBlocked') => {
+const loadShopByIdentifier = async (
+  identifier,
+  projection = 'shopName shopAddress shopLogo shopBanner name createdAt shopVerified followersCount slug accountType phone shopDescription shopHours freeDeliveryEnabled freeDeliveryNote shopLocation shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags isBlocked'
+) => {
   const query = buildIdentifierQuery(identifier);
   if (!Object.keys(query).length) return null;
   const shop = await User.findOne(query).select(projection);
@@ -272,7 +275,7 @@ export const listFreeDeliveryShops = asyncHandler(async (req, res) => {
 
 export const getShopProfile = asyncHandler(async (req, res) => {
   const shop = await loadShopByIdentifier(req.params.id, [
-    'name shopName phone accountType createdAt shopLogo shopBanner shopAddress shopVerified shopDescription shopHours freeDeliveryEnabled freeDeliveryNote isBlocked followersCount slug'
+    'name shopName phone accountType createdAt shopLogo shopBanner shopAddress shopVerified shopDescription shopHours freeDeliveryEnabled freeDeliveryNote shopLocation shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags isBlocked followersCount slug'
   ].join(' '));
   if (!shop || shop.accountType !== 'shop') {
     return res.status(404).json({ message: 'Boutique introuvable.' });
@@ -442,6 +445,24 @@ export const getShopProfile = asyncHandler(async (req, res) => {
       shopVerified: Boolean(shop.shopVerified),
       shopDescription: shop.shopDescription || '',
       followersCount: Number(shop.followersCount || 0),
+      location:
+        Array.isArray(shop.shopLocation?.coordinates) && shop.shopLocation.coordinates.length === 2
+          ? {
+              type: 'Point',
+              coordinates: [
+                Number(shop.shopLocation.coordinates[0]),
+                Number(shop.shopLocation.coordinates[1])
+              ]
+            }
+          : null,
+      locationVerified: Boolean(shop.shopLocationVerified),
+      locationUpdatedAt: shop.shopLocationUpdatedAt || null,
+      locationTrustScore: Number.isFinite(Number(shop.shopLocationTrustScore))
+        ? Number(shop.shopLocationTrustScore)
+        : 0,
+      locationNeedsReview: Boolean(shop.shopLocationNeedsReview),
+      locationReviewStatus: shop.shopLocationReviewStatus || 'approved',
+      locationReviewFlags: Array.isArray(shop.shopLocationReviewFlags) ? shop.shopLocationReviewFlags : [],
       ratingAverage,
       ratingCount,
       shopHours: sanitizeShopHours(shop.shopHours || []),

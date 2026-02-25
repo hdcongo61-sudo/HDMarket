@@ -1,4 +1,5 @@
 import asyncHandler from 'express-async-handler';
+import crypto from 'crypto';
 import mongoose from 'mongoose';
 import Product from '../models/productModel.js';
 import Category from '../models/categoryModel.js';
@@ -9,6 +10,8 @@ import Order from '../models/orderModel.js';
 import City from '../models/cityModel.js';
 import ProhibitedWord from '../models/prohibitedWordModel.js';
 import ProductAuditLog from '../models/productAuditLogModel.js';
+import { initRedis, getRedisClient, isRedisReady } from '../config/redisClient.js';
+import { getRuntimeConfig } from '../services/configService.js';
 import { createNotification } from '../utils/notificationService.js';
 import { invalidateProductCache } from '../utils/cache.js';
 import {
@@ -33,8 +36,172 @@ import {
 
 const MAX_PRODUCT_IMAGES = 3;
 const SHOP_SELECT_FIELDS =
-  'name phone accountType shopName shopAddress shopLogo city country shopVerified isBlocked slug';
+  'name phone accountType shopName shopAddress shopLogo city country shopVerified isBlocked slug followersCount createdAt freeDeliveryEnabled';
 const CATEGORY_SELECT_FIELDS = '_id name slug parentId level isDeleted isActive';
+const PRODUCT_VIEW_TODAY_KEY_TTL_SECONDS = 48 * 60 * 60;
+const PRODUCT_VIEW_DEFAULT_DEDUP_MINUTES = Math.max(
+  10,
+  Number(process.env.PRODUCT_VIEW_DEDUP_MINUTES || 30)
+);
+const PRODUCT_VIEW_DEFAULT_UNIQUE_RETENTION_DAYS = Math.max(
+  1,
+  Number(process.env.PRODUCT_UNIQUE_VIEW_RETENTION_DAYS || 30)
+);
+const LOCAL_VIEW_DEDUP_CACHE_MAX = Math.max(5000, Number(process.env.PRODUCT_VIEW_LOCAL_CACHE_MAX || 20000));
+const localViewDedupCache = new Map();
+const localUniqueViewerCache = new Map();
+const localTodayViewsCache = new Map();
+
+const withRedis = async () => {
+  if (isRedisReady()) return getRedisClient();
+  return initRedis();
+};
+
+const toBoundedInteger = (value, fallback, { min = 1, max = 365 } = {}) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  const rounded = Math.round(numeric);
+  if (rounded < min) return min;
+  if (rounded > max) return max;
+  return rounded;
+};
+
+const getRequestIp = (req = {}) => {
+  const forwarded = String(req.headers?.['x-forwarded-for'] || '').split(',')[0].trim();
+  return forwarded || req.ip || req.socket?.remoteAddress || '';
+};
+
+const hashViewerIdentity = (value) =>
+  crypto.createHash('sha256').update(String(value || '')).digest('hex');
+
+const getViewerFingerprint = (req = {}) => {
+  const authId = req.user?.id || req.user?._id || null;
+  if (authId) {
+    const normalized = `user:${String(authId)}`;
+    return {
+      viewerKey: normalized,
+      viewerHash: hashViewerIdentity(normalized)
+    };
+  }
+  const ip = getRequestIp(req);
+  const userAgent = String(req.headers?.['user-agent'] || '').slice(0, 180);
+  if (!ip && !userAgent) {
+    return { viewerKey: '', viewerHash: '' };
+  }
+  const raw = `guest:${ip}|${userAgent}`;
+  return {
+    viewerKey: raw,
+    viewerHash: hashViewerIdentity(raw)
+  };
+};
+
+const getTodayKeySuffix = () => new Date().toISOString().slice(0, 10);
+
+const pruneLocalViewCaches = (nowTs = Date.now()) => {
+  if (localViewDedupCache.size) {
+    for (const [key, expiresAt] of localViewDedupCache.entries()) {
+      if (Number(expiresAt || 0) <= nowTs) localViewDedupCache.delete(key);
+    }
+  }
+
+  while (localViewDedupCache.size > LOCAL_VIEW_DEDUP_CACHE_MAX) {
+    const oldest = localViewDedupCache.keys().next().value;
+    if (!oldest) break;
+    localViewDedupCache.delete(oldest);
+  }
+};
+
+const getTodayViewsKey = (productId) => `prod:view:today:${String(productId)}:${getTodayKeySuffix()}`;
+
+const getTodayViewsCount = async (productId) => {
+  const key = getTodayViewsKey(productId);
+  const redis = await withRedis();
+  if (redis) {
+    const raw = await redis.get(key);
+    return Number(raw || 0);
+  }
+  return Number(localTodayViewsCache.get(key) || 0);
+};
+
+const registerProductViewCount = async ({ productId, req }) => {
+  const viewer = getViewerFingerprint(req);
+  if (!viewer.viewerHash) {
+    return { counted: false, uniqueCounted: false, todayViewsCount: await getTodayViewsCount(productId) };
+  }
+
+  const [dedupMinutesRaw, uniqueRetentionRaw] = await Promise.all([
+    getRuntimeConfig('product_view_dedup_minutes', { fallback: PRODUCT_VIEW_DEFAULT_DEDUP_MINUTES }),
+    getRuntimeConfig('product_unique_view_retention_days', {
+      fallback: PRODUCT_VIEW_DEFAULT_UNIQUE_RETENTION_DAYS
+    })
+  ]);
+
+  const dedupMinutes = toBoundedInteger(dedupMinutesRaw, PRODUCT_VIEW_DEFAULT_DEDUP_MINUTES, {
+    min: 1,
+    max: 240
+  });
+  const uniqueRetentionDays = toBoundedInteger(
+    uniqueRetentionRaw,
+    PRODUCT_VIEW_DEFAULT_UNIQUE_RETENTION_DAYS,
+    { min: 1, max: 365 }
+  );
+
+  const dedupSeconds = dedupMinutes * 60;
+  const uniqueRetentionSeconds = uniqueRetentionDays * 24 * 60 * 60;
+  const dedupKey = `prod:view:${String(productId)}:${viewer.viewerHash}`;
+  const uniqueSetKey = `prod:view:unique:${String(productId)}`;
+  const todayKey = getTodayViewsKey(productId);
+
+  const redis = await withRedis();
+  let counted = false;
+  let uniqueCounted = false;
+  let todayViewsCount = 0;
+
+  if (redis) {
+    try {
+      const inserted = await redis.set(dedupKey, '1', { EX: dedupSeconds, NX: true });
+      if (inserted !== 'OK') {
+        return { counted: false, uniqueCounted: false, todayViewsCount: await getTodayViewsCount(productId) };
+      }
+      counted = true;
+      const uniqueAdded = await redis.sAdd(uniqueSetKey, viewer.viewerHash);
+      uniqueCounted = Number(uniqueAdded || 0) === 1;
+      if (uniqueCounted) {
+        await redis.expire(uniqueSetKey, uniqueRetentionSeconds);
+      }
+      todayViewsCount = Number(await redis.incr(todayKey));
+      await redis.expire(todayKey, PRODUCT_VIEW_TODAY_KEY_TTL_SECONDS);
+      return { counted, uniqueCounted, todayViewsCount };
+    } catch {
+      counted = false;
+      uniqueCounted = false;
+      todayViewsCount = 0;
+    }
+  }
+
+  const nowTs = Date.now();
+  pruneLocalViewCaches(nowTs);
+  const existingExpiresAt = Number(localViewDedupCache.get(dedupKey) || 0);
+  if (existingExpiresAt > nowTs) {
+    return { counted: false, uniqueCounted: false, todayViewsCount: await getTodayViewsCount(productId) };
+  }
+
+  counted = true;
+  localViewDedupCache.set(dedupKey, nowTs + dedupSeconds * 1000);
+
+  const productUniqueSet = localUniqueViewerCache.get(String(productId)) || new Set();
+  uniqueCounted = !productUniqueSet.has(viewer.viewerHash);
+  if (uniqueCounted) {
+    productUniqueSet.add(viewer.viewerHash);
+    localUniqueViewerCache.set(String(productId), productUniqueSet);
+  }
+
+  const currentToday = Number(localTodayViewsCache.get(todayKey) || 0);
+  todayViewsCount = currentToday + 1;
+  localTodayViewsCache.set(todayKey, todayViewsCount);
+
+  return { counted, uniqueCounted, todayViewsCount };
+};
 
 const isTruthyQueryValue = (value) =>
   value === true || value === 'true' || value === 1 || value === '1';
@@ -1783,8 +1950,64 @@ export const getPublicProductById = asyncHandler(async (req, res) => {
   product.ratingAverage = rating.average;
   product.ratingCount = rating.count;
   product.installmentAvailable = isProductInstallmentActive(productDoc);
+  product.viewsCount = Number(product.viewsCount || 0);
+  product.uniqueViewsCount = Number(product.uniqueViewsCount || 0);
+  product.views = product.viewsCount;
+  product.todayViewsCount = await getTodayViewsCount(productDoc._id);
 
   res.json(product);
+});
+
+export const registerPublicProductView = asyncHandler(async (req, res) => {
+  const query = {
+    ...buildIdentifierQuery(req.params.id),
+    status: 'approved'
+  };
+  const product = await Product.findOne(query).select('_id viewsCount uniqueViewsCount lastViewedAt');
+  if (!product) {
+    return res.status(404).json({ message: 'Produit introuvable ou non publié.' });
+  }
+
+  const { counted, uniqueCounted, todayViewsCount } = await registerProductViewCount({
+    productId: product._id,
+    req
+  });
+
+  if (!counted) {
+    return res.status(200).json({
+      counted: false,
+      duplicate: true,
+      viewsCount: Number(product.viewsCount || 0),
+      uniqueViewsCount: Number(product.uniqueViewsCount || 0),
+      todayViewsCount: Number(todayViewsCount || 0),
+      lastViewedAt: product.lastViewedAt || null
+    });
+  }
+
+  const increment = uniqueCounted
+    ? { viewsCount: 1, uniqueViewsCount: 1 }
+    : { viewsCount: 1 };
+  const updated = await Product.findByIdAndUpdate(
+    product._id,
+    {
+      $inc: increment,
+      $set: { lastViewedAt: new Date() }
+    },
+    {
+      new: true,
+      select: '_id viewsCount uniqueViewsCount lastViewedAt'
+    }
+  );
+
+  return res.status(201).json({
+    counted: true,
+    duplicate: false,
+    uniqueCounted,
+    viewsCount: Number(updated?.viewsCount || product.viewsCount || 0),
+    uniqueViewsCount: Number(updated?.uniqueViewsCount || product.uniqueViewsCount || 0),
+    todayViewsCount: Number(todayViewsCount || 0),
+    lastViewedAt: updated?.lastViewedAt || new Date()
+  });
 });
 
 export const getMyProducts = asyncHandler(async (req, res) => {
@@ -2960,7 +3183,9 @@ export const registerWhatsappClick = asyncHandler(async (req, res) => {
 // Get product analytics
 export const getProductAnalytics = asyncHandler(async (req, res) => {
   const query = buildIdentifierQuery(req.params.id);
-  const product = await Product.findOne(query).select('_id user favoritesCount whatsappClicks salesCount createdAt');
+  const product = await Product.findOne(query).select(
+    '_id user favoritesCount whatsappClicks salesCount createdAt viewsCount uniqueViewsCount'
+  );
   
   if (!product) {
     return res.status(404).json({ message: 'Produit introuvable.' });
@@ -2989,8 +3214,10 @@ export const getProductAnalytics = asyncHandler(async (req, res) => {
     }
   ]);
 
-  const totalViews = viewsAggregation.length > 0 ? viewsAggregation[0].totalViews : 0;
-  const uniqueViewers = viewsAggregation.length > 0 ? viewsAggregation[0].uniqueViewers.length : 0;
+  const totalViewsFromHistory = viewsAggregation.length > 0 ? viewsAggregation[0].totalViews : 0;
+  const uniqueViewersFromHistory = viewsAggregation.length > 0 ? viewsAggregation[0].uniqueViewers.length : 0;
+  const totalViews = Number(product.viewsCount || totalViewsFromHistory || 0);
+  const uniqueViewers = Number(product.uniqueViewsCount || uniqueViewersFromHistory || 0);
 
   // Get views over time (last 30 days)
   const thirtyDaysAgo = new Date();

@@ -53,6 +53,49 @@ const userSchema = new mongoose.Schema(
       verifiedAt: { type: Date, default: null }
     },
     shopDescription: { type: String, trim: true, default: '' },
+    shopLocation: {
+      type: {
+        type: String,
+        enum: ['Point']
+      },
+      coordinates: {
+        type: [Number],
+        default: undefined,
+        validate: {
+          validator: (value) =>
+            value === undefined ||
+            value === null ||
+            (Array.isArray(value) && value.length === 2 && value.every((item) => Number.isFinite(item))),
+          message: 'Les coordonnées doivent contenir [longitude, latitude].'
+        }
+      }
+    },
+    shopLocationVerified: { type: Boolean, default: false },
+    shopLocationAccuracy: { type: Number, default: null },
+    shopLocationUpdatedAt: { type: Date, default: null },
+    shopLocationTrustScore: { type: Number, default: 0, min: 0, max: 100 },
+    shopLocationNeedsReview: { type: Boolean, default: false },
+    shopLocationReviewStatus: {
+      type: String,
+      enum: ['approved', 'pending_review', 'rejected'],
+      default: 'approved'
+    },
+    shopLocationReviewFlags: { type: [String], default: [] },
+    shopLocationHistory: {
+      type: [
+        {
+          coordinates: {
+            type: [Number],
+            default: []
+          },
+          accuracy: { type: Number, default: null },
+          updatedAt: { type: Date, default: Date.now },
+          source: { type: String, trim: true, default: 'manual' },
+          trustScore: { type: Number, default: null, min: 0, max: 100 }
+        }
+      ],
+      default: []
+    },
     shopHours: {
       type: [
         {
@@ -190,6 +233,7 @@ const userSchema = new mongoose.Schema(
 userSchema.add({
   slug: { type: String, unique: true, index: true, lowercase: true, trim: true }
 });
+userSchema.index({ shopLocation: '2dsphere' }, { sparse: true });
 
 userSchema.pre('validate', async function (next) {
   const needsSlug =

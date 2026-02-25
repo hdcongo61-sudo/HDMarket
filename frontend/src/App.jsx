@@ -99,6 +99,7 @@ function LegacyOrderRouteResolver() {
 function AppContent() {
   const location = useLocation();
   const { pathname } = location;
+  const { isFeatureEnabled } = useAppSettings();
   const [splashConfig, setSplashConfig] = useState(null);
   const [splashDismissed, setSplashDismissed] = useState(false);
   const [bootLoading, setBootLoading] = useState(true);
@@ -136,6 +137,14 @@ function AppContent() {
     !splashDismissed;
 
   const showLoader = !showSplash && (bootLoading || routeLoading);
+  const chatEnabled = isFeatureEnabled('enable_chat', { defaultValue: true });
+  const boostEnabled = isFeatureEnabled('enable_boost', { defaultValue: true });
+  const founderModeEnabled = isFeatureEnabled('enable_founder_mode', {
+    defaultValue: true
+  });
+  const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
+    defaultValue: true
+  });
 
   useEffect(() => {
     if (!showLoader) {
@@ -216,7 +225,12 @@ function AppContent() {
           <Route path="/search" element={<AdvancedSearch />} />
           <Route path="/cities" element={<CityProducts />} />
           <Route path="/categories/:categoryId" element={<CategoryProducts />} />
-          <Route path="/suggestions" element={<Suggestions />} />
+          <Route
+            path="/suggestions"
+            element={
+              aiRecommendationsEnabled ? <Suggestions /> : <Navigate to="/" replace />
+            }
+          />
           <Route
             path="/favorites"
             element={
@@ -365,7 +379,7 @@ function AppContent() {
             path="/orders/messages"
             element={
               <ProtectedRoute>
-                <OrderMessages />
+                {chatEnabled ? <OrderMessages /> : <Navigate to="/orders" replace />}
               </ProtectedRoute>
             }
           />
@@ -438,7 +452,7 @@ function AppContent() {
             path="/seller/boosts"
             element={
               <ProtectedRoute>
-                <SellerBoosts />
+                {boostEnabled ? <SellerBoosts /> : <Navigate to="/my" replace />}
               </ProtectedRoute>
             }
           />
@@ -496,7 +510,7 @@ function AppContent() {
               path="product-boosts"
               element={
                 <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.role === 'founder' || user?.canManageBoosts === true || hasAnyPermission(user, ['manage_boosts'])}>
-                  <AdminProductBoosts />
+                  {boostEnabled ? <AdminProductBoosts /> : <Navigate to="/admin" replace />}
                 </ProtectedRoute>
               }
             />
@@ -504,7 +518,7 @@ function AppContent() {
               path="boost-management"
               element={
                 <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.role === 'founder' || user?.canManageBoosts === true || hasAnyPermission(user, ['manage_boosts'])}>
-                  <AdminBoostManagement />
+                  {boostEnabled ? <AdminBoostManagement /> : <Navigate to="/admin" replace />}
                 </ProtectedRoute>
               }
             />
@@ -584,7 +598,7 @@ function AppContent() {
               path="founder-intelligence"
               element={
                 <ProtectedRoute roles={['founder']}>
-                  <FounderIntelligence />
+                  {founderModeEnabled ? <FounderIntelligence /> : <Navigate to="/admin" replace />}
                 </ProtectedRoute>
               }
             />
@@ -605,7 +619,7 @@ function AppContent() {
         </AnimatePresence>
       </main>
       <Footer />
-      <ChatBox />
+      {chatEnabled ? <ChatBox /> : null}
       <MobileScrollToTopButton />
     </>
   );

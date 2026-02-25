@@ -64,7 +64,28 @@ const readPersistedUser = async () => {
       preferredCurrency: parsed.preferredCurrency || 'XAF',
       preferredCity: parsed.preferredCity || parsed.city || '',
       commune: parsed.commune || '',
-      theme: ['light', 'dark', 'system'].includes(parsed.theme) ? parsed.theme : 'system'
+      theme: ['light', 'dark', 'system'].includes(parsed.theme) ? parsed.theme : 'system',
+      shopLocation:
+        parsed?.shopLocation &&
+        Array.isArray(parsed.shopLocation.coordinates) &&
+        parsed.shopLocation.coordinates.length === 2
+          ? parsed.shopLocation
+          : null,
+      shopLocationVerified: Boolean(parsed.shopLocationVerified),
+      shopLocationAccuracy:
+        parsed.shopLocationAccuracy === null || parsed.shopLocationAccuracy === undefined
+          ? null
+          : Number(parsed.shopLocationAccuracy),
+      shopLocationUpdatedAt: parsed.shopLocationUpdatedAt || null,
+      shopLocationTrustScore:
+        parsed.shopLocationTrustScore === null || parsed.shopLocationTrustScore === undefined
+          ? 0
+          : Number(parsed.shopLocationTrustScore),
+      shopLocationNeedsReview: Boolean(parsed.shopLocationNeedsReview),
+      shopLocationReviewStatus: parsed.shopLocationReviewStatus || 'approved',
+      shopLocationReviewFlags: Array.isArray(parsed.shopLocationReviewFlags)
+        ? parsed.shopLocationReviewFlags
+        : []
     });
     return { id: payload.id, role: payload.role, token, ...normalized };
   } catch {
@@ -127,6 +148,27 @@ export const AuthProvider = ({ children }) => {
       shopLogo: data.shopLogo || '',
       shopBanner: data.shopBanner || '',
       shopDescription: data.shopDescription || '',
+      shopLocation:
+        data?.shopLocation &&
+        Array.isArray(data.shopLocation.coordinates) &&
+        data.shopLocation.coordinates.length === 2
+          ? data.shopLocation
+          : null,
+      shopLocationVerified: Boolean(data.shopLocationVerified),
+      shopLocationAccuracy:
+        data.shopLocationAccuracy === null || data.shopLocationAccuracy === undefined
+          ? null
+          : Number(data.shopLocationAccuracy),
+      shopLocationUpdatedAt: data.shopLocationUpdatedAt || null,
+      shopLocationTrustScore:
+        data.shopLocationTrustScore === null || data.shopLocationTrustScore === undefined
+          ? 0
+          : Number(data.shopLocationTrustScore),
+      shopLocationNeedsReview: Boolean(data.shopLocationNeedsReview),
+      shopLocationReviewStatus: data.shopLocationReviewStatus || 'approved',
+      shopLocationReviewFlags: Array.isArray(data.shopLocationReviewFlags)
+        ? data.shopLocationReviewFlags
+        : [],
       shopHours: Array.isArray(data.shopHours) ? data.shopHours : [],
       shopVerified: Boolean(data.shopVerified),
       followingShops: Array.isArray(data.followingShops) ? data.followingShops : [],

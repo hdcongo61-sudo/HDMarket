@@ -39,6 +39,7 @@ import CartContext from '../context/CartContext';
 import AuthContext from '../context/AuthContext';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { getPickupShopAddress, isPickupOrder } from '../utils/pickupAddress';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
@@ -247,6 +248,10 @@ export default function OrderDetail() {
   const { user } = React.useContext(AuthContext);
   const { addItem } = React.useContext(CartContext);
   const externalLinkProps = useDesktopExternalLink();
+  const { isFeatureEnabled } = useAppSettings();
+  const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
+    defaultValue: true
+  });
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -293,6 +298,11 @@ export default function OrderDetail() {
 
   // Load suggestions / similar products for mobile bottom section
   useEffect(() => {
+    if (!aiRecommendationsEnabled) {
+      setSuggestionsProducts([]);
+      setSuggestionsLoading(false);
+      return;
+    }
     if (!order?.items?.length && !order?.productSnapshot) return;
     const orderProductIds = new Set(
       (order?.items || []).map((i) => i.product?._id || i.product).filter(Boolean).map(String)
@@ -322,7 +332,7 @@ export default function OrderDetail() {
     return () => {
       active = false;
     };
-  }, [order?._id, order?.items?.length]);
+  }, [aiRecommendationsEnabled, order?._id, order?.items?.length]);
 
   const handleSkipCancellationWindow = async () => {
     if (!order || !confirm('En confirmant, vous autorisez le vendeur à traiter immédiatement cette commande.')) return;
@@ -1135,7 +1145,7 @@ export default function OrderDetail() {
         </div>
 
         {/* Mobile-only: Suggestions & similar products at bottom (like Suggestions page) */}
-        {isMobile && (
+        {isMobile && aiRecommendationsEnabled && (
           <div className="mt-8 md:hidden">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">

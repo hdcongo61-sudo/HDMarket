@@ -64,6 +64,13 @@
   --ui-card-border: rgba(15, 23, 42, 0.08);
   --ui-card-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
   --ui-card-shadow-hover: 0 16px 34px rgba(15, 23, 42, 0.1);
+  --ui-modal-radius-mobile: 1.35rem;
+  --ui-modal-radius-desktop: 1rem;
+  --ui-modal-gap-mobile: 0.75rem;
+  --ui-modal-gap-desktop: 1rem;
+  --ui-modal-z: 120;
+  --ui-modal-backdrop: rgba(2, 6, 23, 0.56);
+  --ui-modal-shadow: 0 24px 58px rgba(15, 23, 42, 0.28);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -388,6 +395,66 @@ body.menu-open .verified-shops-header {
 
 .dark .ui-card-soft-separator {
   border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Unified modal system */
+.ui-modal-root {
+  z-index: var(--ui-modal-z);
+}
+.ui-modal-backdrop {
+  background: var(--ui-modal-backdrop);
+}
+.ui-modal-panel {
+  border-radius: var(--ui-modal-radius-mobile) var(--ui-modal-radius-mobile) 0 0;
+  box-shadow: var(--ui-modal-shadow);
+}
+.ui-modal-header,
+.ui-modal-body,
+.ui-modal-footer {
+  gap: var(--ui-modal-gap-mobile);
+}
+.ui-modal-footer {
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 640px) {
+  .ui-modal-panel {
+    border-radius: var(--ui-modal-radius-desktop);
+  }
+  .ui-modal-header,
+  .ui-modal-body,
+  .ui-modal-footer {
+    gap: var(--ui-modal-gap-desktop);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ui-modal-panel {
+    animation: uiModalIn 210ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .ui-modal-backdrop {
+    animation: uiModalBackdropIn 180ms ease both;
+  }
+}
+
+@keyframes uiModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes uiModalBackdropIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* Unified media frame for card images */

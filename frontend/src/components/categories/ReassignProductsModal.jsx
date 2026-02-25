@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../modals/BaseModal';
 
 export default function ReassignProductsModal({
   open,
@@ -33,15 +34,18 @@ export default function ReassignProductsModal({
   if (!open || !source) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
-      <div className="ui-card ui-card-lg w-full max-w-lg p-4 shadow-2xl">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">Réassigner les produits</h3>
-          <button type="button" onClick={onClose} className="rounded-lg px-2 py-1 text-sm text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800">
-            Fermer
-          </button>
-        </div>
-
+    <BaseModal
+      isOpen={open}
+      onClose={onClose}
+      size="md"
+      mobileSheet={true}
+    >
+      <ModalHeader
+        title="Réassigner les produits"
+        subtitle="Déplace les produits d'une catégorie vers une autre"
+        onClose={onClose}
+      />
+      <ModalBody>
         <p className="mb-2 text-sm text-neutral-600 dark:text-neutral-300">
           Source: <span className="font-semibold">{source.name}</span>
         </p>
@@ -51,6 +55,7 @@ export default function ReassignProductsModal({
 
         <label className="mb-2 block text-xs font-medium text-neutral-600 dark:text-neutral-300">Catégorie cible</label>
         <select
+          data-autofocus
           value={targetId}
           onChange={(event) => setTargetId(event.target.value)}
           className="ui-input mb-3 w-full rounded-xl px-3 py-2 text-sm"
@@ -78,18 +83,28 @@ export default function ReassignProductsModal({
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           placeholder="Raison (audit)"
-          className="ui-input mb-3 w-full rounded-xl px-3 py-2 text-sm"
+          className="ui-input w-full rounded-xl px-3 py-2 text-sm"
         />
-
-        <button
-          type="button"
-          disabled={!targetId || loading}
-          onClick={() => onConfirm({ sourceId: source.id, targetId, includeChildren, reason })}
-          className="w-full rounded-xl bg-neutral-600 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-500 disabled:opacity-50"
-        >
-          Confirmer la réassignation
-        </button>
-      </div>
-    </div>
+      </ModalBody>
+      <ModalFooter>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-900"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            disabled={!targetId || loading}
+            onClick={() => onConfirm({ sourceId: source.id, targetId, includeChildren, reason })}
+            className="rounded-xl bg-neutral-600 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-500 disabled:opacity-50"
+          >
+            Confirmer la réassignation
+          </button>
+        </div>
+      </ModalFooter>
+    </BaseModal>
   );
 }

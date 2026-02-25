@@ -53,7 +53,9 @@ import {
   removeUserRestriction,
   getSellerReceivedOrders,
   listAuditLogs,
-  getUserAuditLogs
+  getUserAuditLogs,
+  reviewShopLocation,
+  getShopLocationTimeline
 } from '../controllers/adminController.js';
 import { getAdminUserStats } from '../controllers/userController.js';
 import {
@@ -789,6 +791,19 @@ router.patch(
   validate(schemas.idParam, 'params'),
   validate(schemas.adminShopVerification),
   updateShopVerification
+);
+router.patch(
+  '/users/:id/shop-location-review',
+  requireManageSellers,
+  validate(schemas.idParam, 'params'),
+  validate(schemas.adminShopLocationReview),
+  reviewShopLocation
+);
+router.get(
+  '/users/:id/shop-location-timeline',
+  requireManageSellers,
+  validate(schemas.idParam, 'params'),
+  getShopLocationTimeline
 );
 router.patch(
   '/users/:id/role',

@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import api from '../services/api';
+import api, { clearCache } from '../services/api';
 import storage from '../utils/storage';
 import AuthContext from './AuthContext';
 import { formatPriceWithCurrency } from '../utils/priceFormatter';
@@ -46,6 +46,31 @@ const FALLBACK_COMMUNE = {
 };
 
 const AppSettingsContext = createContext(null);
+
+const FEATURE_RUNTIME_KEYS = Object.freeze({
+  enable_boost: ['enable_boost', 'boost_enabled'],
+  enable_chat: ['enable_chat'],
+  enable_wholesale: ['enable_wholesale'],
+  enable_founder_mode: ['enable_founder_mode'],
+  enable_seller_analytics: ['enable_seller_analytics'],
+  enable_advanced_chat: ['enable_advanced_chat'],
+  enable_ai_recommendations: ['enable_ai_recommendations']
+});
+
+const FEATURE_APP_KEYS = Object.freeze({
+  enable_boost: ['boostEnabled']
+});
+
+const toBoolean = (value, fallback = false) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'oui', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'non', 'off', ''].includes(normalized)) return false;
+  }
+  return fallback;
+};
 
 const normalizeTheme = (value) => (['light', 'dark', 'system'].includes(value) ? value : 'system');
 
@@ -117,15 +142,20 @@ export const AppSettingsProvider = ({ children }) => {
   }, []);
 
   const loadPublicSettings = useCallback(async () => {
+    const refreshToken = Date.now();
     try {
-      const { data } = await api.get('/settings/public', { skipCache: true });
+      const { data } = await api.get('/settings/public', {
+        skipCache: true,
+        headers: { 'x-skip-cache': '1' },
+        params: { refresh: refreshToken }
+      });
       return normalizePublicPayload(data || {});
     } catch {
       const [currenciesResult, citiesResult, communesResult, runtimeResult] = await Promise.allSettled([
-        api.get('/settings/currencies', { skipCache: true }),
-        api.get('/settings/cities', { skipCache: true }),
-        api.get('/settings/communes', { skipCache: true }),
-        api.get('/settings/runtime', { skipCache: true })
+        api.get('/settings/currencies', { skipCache: true, headers: { 'x-skip-cache': '1' }, params: { refresh: refreshToken } }),
+        api.get('/settings/cities', { skipCache: true, headers: { 'x-skip-cache': '1' }, params: { refresh: refreshToken } }),
+        api.get('/settings/communes', { skipCache: true, headers: { 'x-skip-cache': '1' }, params: { refresh: refreshToken } }),
+        api.get('/settings/runtime', { skipCache: true, headers: { 'x-skip-cache': '1' }, params: { refresh: refreshToken } })
       ]);
 
       const fallbackPayload = {
@@ -164,6 +194,7 @@ export const AppSettingsProvider = ({ children }) => {
       if (refreshing) return;
       refreshing = true;
       try {
+        await clearCache('/settings');
         await loadPublicSettings();
       } finally {
         refreshing = false;
@@ -341,6 +372,51 @@ export const AppSettingsProvider = ({ children }) => {
     [publicSettings.defaultCurrency, selectedCurrency]
   );
 
+  const getRuntimeValue = useCallback(
+    (key, fallback = null) => {
+      const normalized = String(key || '').trim();
+      if (!normalized) return fallback;
+      if (Object.prototype.hasOwnProperty.call(publicSettings.runtime || {}, normalized)) {
+        return publicSettings.runtime[normalized];
+      }
+      return fallback;
+    },
+    [publicSettings.runtime]
+  );
+
+  const isFeatureEnabled = useCallback(
+    (featureName, options = {}) => {
+      const normalized = String(featureName || '').trim();
+      if (!normalized) return false;
+      const defaultValue = Object.prototype.hasOwnProperty.call(options, 'defaultValue')
+        ? Boolean(options.defaultValue)
+        : true;
+
+      const featureEntry = publicSettings.featureFlags?.[normalized];
+      if (typeof featureEntry === 'boolean') return featureEntry;
+      if (featureEntry && typeof featureEntry === 'object' && typeof featureEntry.enabled === 'boolean') {
+        return featureEntry.enabled;
+      }
+
+      const runtimeKeys = FEATURE_RUNTIME_KEYS[normalized] || [normalized];
+      for (const key of runtimeKeys) {
+        if (Object.prototype.hasOwnProperty.call(publicSettings.runtime || {}, key)) {
+          return toBoolean(publicSettings.runtime[key], defaultValue);
+        }
+      }
+
+      const appKeys = FEATURE_APP_KEYS[normalized] || [];
+      for (const key of appKeys) {
+        if (Object.prototype.hasOwnProperty.call(publicSettings.app || {}, key)) {
+          return toBoolean(publicSettings.app[key], defaultValue);
+        }
+      }
+
+      return defaultValue;
+    },
+    [publicSettings.featureFlags, publicSettings.runtime, publicSettings.app]
+  );
+
   const contextValue = useMemo(
     () => ({
       loading,
@@ -363,14 +439,14 @@ export const AppSettingsProvider = ({ children }) => {
       selectedCurrency,
       t,
       formatPrice,
+      getRuntimeValue,
       refreshSettings: loadPublicSettings,
       setLanguage: (value) => persistPreferences({ preferredLanguage: value }),
       setCurrency: (value) => persistPreferences({ preferredCurrency: value }),
       setCity: (value) => persistPreferences({ preferredCity: value }),
       setTheme: (value) => persistPreferences({ theme: value }),
       updatePreferences: persistPreferences,
-      isFeatureEnabled: (featureName) =>
-        Boolean(publicSettings.featureFlags?.[featureName]?.enabled)
+      isFeatureEnabled
     }),
     [
       loading,
@@ -393,8 +469,10 @@ export const AppSettingsProvider = ({ children }) => {
       selectedCurrency,
       t,
       formatPrice,
+      getRuntimeValue,
       loadPublicSettings,
-      persistPreferences
+      persistPreferences,
+      isFeatureEnabled
     ]
   );
 

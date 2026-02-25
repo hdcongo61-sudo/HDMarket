@@ -173,6 +173,7 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
       runtime: {
         app_name: 'HDMarket',
         ui_primary_color: '#171717',
+        map_provider: 'osm',
         maintenance_mode: false,
         maintenance_message: 'Maintenance en cours. Merci de réessayer plus tard.'
       },
@@ -182,7 +183,8 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
         ui_primary_color: '#171717',
         ui_banner_message: '',
         ui_announcement_text: '',
-        footer_text: 'HDMarket'
+        footer_text: 'HDMarket',
+        map_provider: 'osm'
       }
     });
   }

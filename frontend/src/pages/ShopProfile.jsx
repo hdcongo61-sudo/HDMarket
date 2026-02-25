@@ -35,6 +35,7 @@ import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import useIsMobile from '../hooks/useIsMobile';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { useToast } from '../context/ToastContext';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 const DAY_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const DAY_LABELS = {
@@ -226,6 +227,87 @@ const getOpeningSummary = (hours, timeZone) => {
   };
 };
 
+const parseGeoPoint = (location) => {
+  const coordinates = location?.coordinates;
+  if (!Array.isArray(coordinates) || coordinates.length !== 2) return null;
+  const longitude = Number(coordinates[0]);
+  const latitude = Number(coordinates[1]);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
+  return { latitude, longitude };
+};
+
+const haversineDistanceKm = (from, to) => {
+  if (!from || !to) return null;
+  const toRad = (value) => (value * Math.PI) / 180;
+  const dLat = toRad(to.latitude - from.latitude);
+  const dLon = toRad(to.longitude - from.longitude);
+  const lat1 = toRad(from.latitude);
+  const lat2 = toRad(to.latitude);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return 6371 * c;
+};
+
+const buildGoogleDirectionsUrl = ({ destination, origin = null }) => {
+  if (!destination) return '';
+  const destinationParam = `${destination.latitude},${destination.longitude}`;
+  const url = new URL('https://www.google.com/maps/dir/');
+  url.searchParams.set('api', '1');
+  url.searchParams.set('destination', destinationParam);
+  if (origin) {
+    url.searchParams.set('origin', `${origin.latitude},${origin.longitude}`);
+  }
+  return url.toString();
+};
+
+const buildAppleDirectionsUrl = ({ destination }) => {
+  if (!destination) return '';
+  const url = new URL('https://maps.apple.com/');
+  url.searchParams.set('daddr', `${destination.latitude},${destination.longitude}`);
+  return url.toString();
+};
+
+const buildOsmEmbedUrl = (destination) => {
+  if (!destination) return '';
+  const delta = 0.008;
+  const minLon = destination.longitude - delta;
+  const minLat = destination.latitude - delta;
+  const maxLon = destination.longitude + delta;
+  const maxLat = destination.latitude + delta;
+  const url = new URL('https://www.openstreetmap.org/export/embed.html');
+  url.searchParams.set('bbox', `${minLon},${minLat},${maxLon},${maxLat}`);
+  url.searchParams.set('layer', 'mapnik');
+  url.searchParams.set('marker', `${destination.latitude},${destination.longitude}`);
+  return url.toString();
+};
+
+const buildGoogleEmbedUrl = (destination) => {
+  if (!destination) return '';
+  const url = new URL('https://www.google.com/maps');
+  url.searchParams.set('q', `${destination.latitude},${destination.longitude}`);
+  url.searchParams.set('z', '15');
+  url.searchParams.set('output', 'embed');
+  return url.toString();
+};
+
+const buildOsmDirectionsUrl = ({ destination, origin = null }) => {
+  if (!destination) return '';
+  const url = new URL('https://www.openstreetmap.org/directions');
+  if (origin) {
+    url.searchParams.set(
+      'route',
+      `${origin.latitude},${origin.longitude};${destination.latitude},${destination.longitude}`
+    );
+    url.searchParams.set('engine', 'fossgis_osrm_car');
+  } else {
+    url.searchParams.set('route', `${destination.latitude},${destination.longitude}`);
+  }
+  return url.toString();
+};
+
 const readShopSnapshot = (slug) => {
   if (!slug || typeof window === 'undefined') return null;
   try {
@@ -400,6 +482,7 @@ export default function ShopProfile() {
   const queryClient = useQueryClient();
   const { user, updateUser } = useContext(AuthContext);
   const { showToast } = useToast();
+  const { runtime } = useAppSettings();
   const isMobile = useIsMobile();
   const [viewportMetrics, setViewportMetrics] = useState(() => getViewportMetrics());
   const viewportWidth = viewportMetrics.effectiveWidth;
@@ -413,6 +496,10 @@ export default function ShopProfile() {
   const [isEditingReview, setIsEditingReview] = useState(true);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [showDebugDetails, setShowDebugDetails] = useState(true);
+  const [viewerLocation, setViewerLocation] = useState(null);
+  const [distanceKm, setDistanceKm] = useState(null);
+  const [distanceLoading, setDistanceLoading] = useState(false);
+  const [distanceError, setDistanceError] = useState('');
   const [productGridRuntime, setProductGridRuntime] = useState({
     cssColumns: 0,
     cssTemplate: '',
@@ -450,6 +537,12 @@ export default function ShopProfile() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(userAgent);
   }, []);
   const useMobileLayout = isMobile || (isMobileUserAgent && viewportWidth <= 1024);
+  const mapProvider = useMemo(() => {
+    const normalized = String(runtime?.map_provider || runtime?.mapProvider || '')
+      .trim()
+      .toLowerCase();
+    return normalized === 'google' ? 'google' : 'osm';
+  }, [runtime?.map_provider, runtime?.mapProvider]);
   const shopDebugEnabled = useMemo(() => {
     if (searchParams.get('debug') === '1') return true;
     if (typeof window === 'undefined') return false;
@@ -727,13 +820,94 @@ export default function ShopProfile() {
     navigate('/orders/messages');
   }, [navigate, products, slug, user]);
 
+  const shopLocation = useMemo(
+    () => parseGeoPoint(shop?.location || shop?.shopLocation),
+    [shop?.location, shop?.shopLocation]
+  );
+  const googleDirectionsUrl = useMemo(
+    () => buildGoogleDirectionsUrl({ destination: shopLocation, origin: viewerLocation }),
+    [shopLocation, viewerLocation]
+  );
+  const osmDirectionsUrl = useMemo(
+    () => buildOsmDirectionsUrl({ destination: shopLocation, origin: viewerLocation }),
+    [shopLocation, viewerLocation]
+  );
+  const appleDirectionsUrl = useMemo(
+    () => buildAppleDirectionsUrl({ destination: shopLocation }),
+    [shopLocation]
+  );
+  const osmEmbedUrl = useMemo(() => buildOsmEmbedUrl(shopLocation), [shopLocation]);
+  const googleEmbedUrl = useMemo(() => buildGoogleEmbedUrl(shopLocation), [shopLocation]);
+  const activeDirectionsUrl = useMemo(
+    () => (mapProvider === 'google' ? googleDirectionsUrl : osmDirectionsUrl),
+    [googleDirectionsUrl, mapProvider, osmDirectionsUrl]
+  );
+  const activeEmbedUrl = useMemo(
+    () => (mapProvider === 'google' ? googleEmbedUrl : osmEmbedUrl),
+    [googleEmbedUrl, mapProvider, osmEmbedUrl]
+  );
+
+  const requestViewerLocation = useCallback(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setDistanceError('Géolocalisation indisponible sur cet appareil.');
+      return;
+    }
+    setDistanceLoading(true);
+    setDistanceError('');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const latitude = Number(position?.coords?.latitude);
+        const longitude = Number(position?.coords?.longitude);
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+          setDistanceError('Position actuelle invalide.');
+          setDistanceLoading(false);
+          return;
+        }
+        setViewerLocation({ latitude, longitude });
+        setDistanceLoading(false);
+      },
+      (error) => {
+        const code = Number(error?.code || 0);
+        const message =
+          code === 1
+            ? 'Permission de localisation refusée.'
+            : code === 2
+            ? 'Position indisponible.'
+            : code === 3
+            ? 'Temps de localisation dépassé.'
+            : 'Impossible de récupérer votre position.';
+        setDistanceError(message);
+        setDistanceLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!shopLocation || !viewerLocation) {
+      setDistanceKm(null);
+      return;
+    }
+    const computedDistance = haversineDistanceKm(viewerLocation, shopLocation);
+    setDistanceKm(Number.isFinite(computedDistance) ? computedDistance : null);
+  }, [shopLocation, viewerLocation]);
+
   const handleDirections = useCallback(() => {
-    const query = shop?.shopAddress || shop?.shopName || 'HDMarket';
-    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+    const fallbackUrl =
+      mapProvider === 'google'
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+            shop?.shopAddress || shop?.shopName || 'HDMarket'
+          )}`
+        : `https://www.openstreetmap.org/search?query=${encodeURIComponent(
+            shop?.shopAddress || shop?.shopName || 'HDMarket'
+          )}`;
+    const url =
+      activeDirectionsUrl ||
+      fallbackUrl;
     if (typeof window !== 'undefined') {
       window.open(url, '_blank', 'noopener,noreferrer');
     }
-  }, [shop?.shopAddress, shop?.shopName]);
+  }, [activeDirectionsUrl, mapProvider, shop?.shopAddress, shop?.shopName]);
 
   const handleShareShop = useCallback(async () => {
     const title = shop?.shopName || 'Boutique HDMarket';
@@ -916,7 +1090,12 @@ export default function ShopProfile() {
       productsCount: products.length,
       isCertifiedShop,
       shopVerifiedFlag,
+      hasShopLocation: Boolean(shopLocation),
+      shopLocation,
+      viewerLocation,
+      distanceKm,
       hasVerifiedSellerInProducts,
+      mapProvider,
       productGridRuntime,
       layoutContainerWidth,
       breakpoints: debugBreakpointState,
@@ -929,16 +1108,20 @@ export default function ShopProfile() {
       isMobile,
       isMobileUserAgent,
       layoutContainerWidth,
+      mapProvider,
+      distanceKm,
       productGridClass,
       productGridRuntime,
       products.length,
       shop?._id,
       shop?.slug,
+      shopLocation,
       shopVerificationSignals,
       shopVerifiedFlag,
       slug,
       useCompactProductCards,
       useMobileLayout,
+      viewerLocation,
       viewportMetrics.clientWidth,
       viewportMetrics.innerWidth,
       viewportMetrics.visualWidth,
@@ -1434,6 +1617,12 @@ export default function ShopProfile() {
                   <span className="inline-flex items-center gap-1"><CheckCircle size={13} /> {isCertifiedShop ? 'Boutique vérifiée' : 'Vérification en cours'}</span>
                   <span className="inline-flex items-center gap-1"><Clock size={13} /> Réponse en journée</span>
                   <span className="inline-flex items-center gap-1"><TrendingUp size={13} /> Satisfaction {customerSatisfaction}</span>
+                  {Number.isFinite(distanceKm) && (
+                    <span className="inline-flex items-center gap-1">
+                      <Navigation size={13} />
+                      À {distanceKm < 1 ? `${Math.round(distanceKm * 1000)} m` : `${distanceKm.toFixed(1)} km`}
+                    </span>
+                  )}
                 </div>
               </div>
             </section>
@@ -1641,6 +1830,104 @@ export default function ShopProfile() {
                   </dd>
                 </div>
               </dl>
+
+              {shopLocation ? (
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-slate-900">Localisation boutique</p>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                        shop?.locationVerified
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      <MapPin size={12} />
+                      {shop?.locationVerified ? 'Position vérifiée' : 'Position déclarée'}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                    {activeEmbedUrl ? (
+                      <iframe
+                        title={`Carte ${shop.shopName}`}
+                        src={activeEmbedUrl}
+                        loading="lazy"
+                        className="h-52 w-full border-0"
+                        referrerPolicy="no-referrer-when-downgrade"
+                      />
+                    ) : (
+                      <div className="flex h-52 items-center justify-center text-sm text-slate-500">
+                        Carte indisponible
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <a
+                      href={activeDirectionsUrl || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-neutral-900 px-3 text-xs font-semibold text-white hover:bg-neutral-800"
+                    >
+                      <Navigation size={14} />
+                      {mapProvider === 'google' ? 'Ouvrir Google Maps' : 'Ouvrir OpenStreetMap'}
+                      <ExternalLink size={13} />
+                    </a>
+                    <a
+                      href={appleDirectionsUrl || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      <MapPin size={14} />
+                      Apple Plans
+                      <ExternalLink size={13} />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={requestViewerLocation}
+                      disabled={distanceLoading}
+                      className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 text-xs font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-60"
+                    >
+                      <Navigation size={14} />
+                      {distanceLoading ? 'Calcul…' : 'Calculer la distance'}
+                    </button>
+                  </div>
+
+                  {shop?.locationNeedsReview ? (
+                    <p className="mt-2 text-xs text-amber-700">
+                      Position en revue de sécurité. Itinéraire disponible, vérification en cours.
+                    </p>
+                  ) : null}
+                  {Number.isFinite(Number(shop?.locationTrustScore)) ? (
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      Score confiance position: {Math.round(Number(shop.locationTrustScore))}
+                    </p>
+                  ) : null}
+
+                  {Number.isFinite(distanceKm) && (
+                    <p className="mt-2 text-xs text-slate-600">
+                      Distance estimée:{' '}
+                      <span className="font-semibold text-slate-800">
+                        {distanceKm < 1
+                          ? `${Math.round(distanceKm * 1000)} m`
+                          : `${distanceKm.toFixed(1)} km`}
+                      </span>
+                    </p>
+                  )}
+                  {shop?.locationUpdatedAt && (
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      Position mise à jour le {new Date(shop.locationUpdatedAt).toLocaleDateString('fr-FR')}
+                    </p>
+                  )}
+                  {distanceError && <p className="mt-2 text-xs text-rose-600">{distanceError}</p>}
+                </div>
+              ) : (
+                <p className="mt-3 text-xs text-slate-500">
+                  La boutique n’a pas encore partagé sa position GPS précise.
+                </p>
+              )}
             </section>
 
             <section className="shop-panel rounded-2xl p-3.5 sm:p-5" aria-label="Politiques boutique">

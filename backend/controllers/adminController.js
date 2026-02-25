@@ -40,6 +40,31 @@ const monthKey = (year, month) => `${year}-${String(month).padStart(2, '0')}`;
       shopAddress: user.shopAddress || '',
       shopLogo: user.shopLogo || '',
       shopVerified: Boolean(user.shopVerified),
+      shopLocation:
+        Array.isArray(user.shopLocation?.coordinates) && user.shopLocation.coordinates.length === 2
+          ? {
+              type: 'Point',
+              coordinates: [
+                Number(user.shopLocation.coordinates[0]),
+                Number(user.shopLocation.coordinates[1])
+              ],
+              longitude: Number(user.shopLocation.coordinates[0]),
+              latitude: Number(user.shopLocation.coordinates[1])
+            }
+          : null,
+      shopLocationAccuracy: Number.isFinite(Number(user.shopLocationAccuracy))
+        ? Number(user.shopLocationAccuracy)
+        : null,
+      shopLocationVerified: Boolean(user.shopLocationVerified),
+      shopLocationUpdatedAt: user.shopLocationUpdatedAt || null,
+      shopLocationTrustScore: Number.isFinite(Number(user.shopLocationTrustScore))
+        ? Number(user.shopLocationTrustScore)
+        : 0,
+      shopLocationNeedsReview: Boolean(user.shopLocationNeedsReview),
+      shopLocationReviewStatus: user.shopLocationReviewStatus || 'approved',
+      shopLocationReviewFlags: Array.isArray(user.shopLocationReviewFlags)
+        ? user.shopLocationReviewFlags
+        : [],
       shopVerifiedBy: user.shopVerifiedBy
         ? {
             id: user.shopVerifiedBy._id.toString(),
@@ -96,6 +121,24 @@ const createAuditLog = async ({ action, targetUser, performedBy, details, ipAddr
     console.error('Failed to create audit log:', error);
     // Don't fail the main operation if audit logging fails
   }
+};
+
+const LOCATION_REVIEW_ACTIONS = Object.freeze([
+  'shop_location_review_approved',
+  'shop_location_review_rejected'
+]);
+
+const toNumberOrNull = (value) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const toCoordinatesObject = (coordinates) => {
+  if (!Array.isArray(coordinates) || coordinates.length !== 2) return null;
+  const longitude = toNumberOrNull(coordinates[0]);
+  const latitude = toNumberOrNull(coordinates[1]);
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null;
+  return { longitude, latitude };
 };
 
 const suspendUserProducts = async (userId) => {
@@ -933,7 +976,7 @@ export const listUsers = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(safeLimit)
     .select(
-      'name email phone role accountType shopName shopAddress shopLogo shopVerified shopVerifiedBy shopVerifiedAt createdAt updatedAt isBlocked blockedAt blockedReason followersCount restrictions canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageHelpCenter canManageChatTemplates'
+      'name email phone role accountType shopName shopAddress shopLogo shopVerified shopVerifiedBy shopVerifiedAt shopLocation shopLocationAccuracy shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags shopLocationHistory createdAt updatedAt isBlocked blockedAt blockedReason followersCount restrictions canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageHelpCenter canManageChatTemplates'
     )
     .populate('shopVerifiedBy', 'name email');
 
@@ -1222,6 +1265,243 @@ export const updateShopVerification = asyncHandler(async (req, res) => {
     });
   }
   res.json(toAdminUserResponse(populated));
+});
+
+export const reviewShopLocation = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { id } = req.params;
+  const decision = String(req.body?.decision || '').trim().toLowerCase();
+  const reason = String(req.body?.reason || '').trim().slice(0, 500);
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
+  }
+  if (!['approve', 'reject'].includes(decision)) {
+    return res.status(400).json({ message: 'Décision invalide.' });
+  }
+
+  const user = await User.findById(id).populate('shopVerifiedBy', 'name email');
+  if (!user) return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  if (user.accountType !== 'shop') {
+    return res.status(400).json({ message: 'Cet utilisateur n’est pas une boutique.' });
+  }
+
+  const currentCoords = toCoordinatesObject(user.shopLocation?.coordinates);
+  if (!currentCoords) {
+    return res.status(400).json({ message: 'Cette boutique n’a pas de position GPS à réviser.' });
+  }
+
+  const previousState = {
+    shopLocationVerified: Boolean(user.shopLocationVerified),
+    shopLocationNeedsReview: Boolean(user.shopLocationNeedsReview),
+    shopLocationReviewStatus: user.shopLocationReviewStatus || 'approved',
+    shopLocationReviewFlags: Array.isArray(user.shopLocationReviewFlags) ? user.shopLocationReviewFlags : [],
+    shopLocationTrustScore: Number.isFinite(Number(user.shopLocationTrustScore))
+      ? Number(user.shopLocationTrustScore)
+      : 0
+  };
+
+  const now = new Date();
+  if (decision === 'approve') {
+    user.shopLocationVerified = true;
+    user.shopLocationNeedsReview = false;
+    user.shopLocationReviewStatus = 'approved';
+    user.shopLocationReviewFlags = [];
+  } else {
+    user.shopLocationVerified = false;
+    user.shopLocationNeedsReview = true;
+    user.shopLocationReviewStatus = 'rejected';
+    const flags = Array.isArray(user.shopLocationReviewFlags) ? [...user.shopLocationReviewFlags] : [];
+    flags.unshift('rejected_by_admin');
+    user.shopLocationReviewFlags = Array.from(new Set(flags)).slice(0, 10);
+  }
+
+  const history = Array.isArray(user.shopLocationHistory) ? [...user.shopLocationHistory] : [];
+  history.unshift({
+    coordinates: [currentCoords.longitude, currentCoords.latitude],
+    accuracy: Number.isFinite(Number(user.shopLocationAccuracy)) ? Number(user.shopLocationAccuracy) : null,
+    updatedAt: now,
+    source: decision === 'approve' ? 'admin_approved' : 'admin_rejected',
+    trustScore: Number.isFinite(Number(user.shopLocationTrustScore))
+      ? Number(user.shopLocationTrustScore)
+      : null
+  });
+  user.shopLocationHistory = history.slice(0, 50);
+  await user.save();
+
+  const auditAction = decision === 'approve' ? 'shop_location_review_approved' : 'shop_location_review_rejected';
+  await createAuditLog({
+    action: auditAction,
+    targetUser: user._id,
+    performedBy: req.user.id,
+    details: {
+      userName: user.name,
+      userEmail: user.email,
+      shopName: user.shopName || '',
+      reason,
+      decision,
+      previousState,
+      nextState: {
+        shopLocationVerified: Boolean(user.shopLocationVerified),
+        shopLocationNeedsReview: Boolean(user.shopLocationNeedsReview),
+        shopLocationReviewStatus: user.shopLocationReviewStatus || 'approved',
+        shopLocationReviewFlags: Array.isArray(user.shopLocationReviewFlags) ? user.shopLocationReviewFlags : [],
+        shopLocationTrustScore: Number.isFinite(Number(user.shopLocationTrustScore))
+          ? Number(user.shopLocationTrustScore)
+          : 0
+      },
+      coordinates: {
+        longitude: currentCoords.longitude,
+        latitude: currentCoords.latitude
+      }
+    },
+    ipAddress: req.ip || req.connection?.remoteAddress
+  });
+
+  await createAuditLogEntry({
+    performedBy: req.user.id,
+    targetUser: user._id,
+    actionType: auditAction,
+    previousValue: previousState,
+    newValue: {
+      ...previousState,
+      shopLocationVerified: Boolean(user.shopLocationVerified),
+      shopLocationNeedsReview: Boolean(user.shopLocationNeedsReview),
+      shopLocationReviewStatus: user.shopLocationReviewStatus || 'approved',
+      shopLocationReviewFlags: Array.isArray(user.shopLocationReviewFlags) ? user.shopLocationReviewFlags : []
+    },
+    req,
+    meta: {
+      reason,
+      decision
+    }
+  });
+
+  return res.json({
+    message:
+      decision === 'approve'
+        ? 'Localisation boutique approuvée.'
+        : 'Localisation boutique rejetée. Une nouvelle preuve de position est requise.',
+    user: toAdminUserResponse(user)
+  });
+});
+
+export const getShopLocationTimeline = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
+  }
+
+  const requestedLimit = Number(req.query?.limit || 50);
+  const limit = Math.min(Math.max(Number.isFinite(requestedLimit) ? requestedLimit : 50, 1), 200);
+
+  const user = await User.findById(id)
+    .select(
+      'name email accountType shopName shopAddress shopLocation shopLocationAccuracy shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags shopLocationHistory'
+    )
+    .lean();
+  if (!user) return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  if (user.accountType !== 'shop') {
+    return res.status(400).json({ message: 'Cet utilisateur n’est pas une boutique.' });
+  }
+
+  const reviewLogs = await AdminAuditLog.find({
+    targetUser: user._id,
+    action: { $in: LOCATION_REVIEW_ACTIONS }
+  })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .populate('performedBy', 'name email')
+    .lean();
+
+  const currentCoordinates = toCoordinatesObject(user.shopLocation?.coordinates);
+  const currentEntry = currentCoordinates
+    ? [
+        {
+          id: 'current-location',
+          type: 'current_location',
+          createdAt: user.shopLocationUpdatedAt || null,
+          source: 'current',
+          coordinates: {
+            longitude: currentCoordinates.longitude,
+            latitude: currentCoordinates.latitude
+          },
+          accuracy: Number.isFinite(Number(user.shopLocationAccuracy))
+            ? Number(user.shopLocationAccuracy)
+            : null,
+          trustScore: Number.isFinite(Number(user.shopLocationTrustScore))
+            ? Number(user.shopLocationTrustScore)
+            : 0,
+          reviewStatus: user.shopLocationReviewStatus || 'approved',
+          needsReview: Boolean(user.shopLocationNeedsReview),
+          reviewFlags: Array.isArray(user.shopLocationReviewFlags) ? user.shopLocationReviewFlags : [],
+          verified: Boolean(user.shopLocationVerified)
+        }
+      ]
+    : [];
+
+  const historyEntries = (Array.isArray(user.shopLocationHistory) ? user.shopLocationHistory : [])
+    .map((entry, index) => {
+      const coordinates = toCoordinatesObject(entry?.coordinates);
+      if (!coordinates) return null;
+      return {
+        id: `location-history-${index}`,
+        type: 'location_update',
+        createdAt: entry?.updatedAt || null,
+        source: String(entry?.source || 'history'),
+        coordinates: {
+          longitude: coordinates.longitude,
+          latitude: coordinates.latitude
+        },
+        accuracy: Number.isFinite(Number(entry?.accuracy)) ? Number(entry.accuracy) : null,
+        trustScore: Number.isFinite(Number(entry?.trustScore)) ? Number(entry.trustScore) : null
+      };
+    })
+    .filter(Boolean);
+
+  const reviewEntries = reviewLogs.map((log) => ({
+    id: `review-${log._id}`,
+    type: 'review_action',
+    createdAt: log.createdAt || null,
+    action: log.action,
+    reason: String(log?.details?.reason || '').trim(),
+    performedBy: log.performedBy
+      ? {
+          id: String(log.performedBy._id),
+          name: log.performedBy.name,
+          email: log.performedBy.email
+        }
+      : null,
+    details: log.details || {}
+  }));
+
+  const entries = [...currentEntry, ...historyEntries, ...reviewEntries]
+    .sort((a, b) => {
+      const aTime = new Date(a?.createdAt || 0).getTime();
+      const bTime = new Date(b?.createdAt || 0).getTime();
+      return bTime - aTime;
+    })
+    .slice(0, limit);
+
+  return res.json({
+    user: {
+      id: String(user._id),
+      name: user.name,
+      email: user.email,
+      shopName: user.shopName || '',
+      shopAddress: user.shopAddress || '',
+      shopLocationVerified: Boolean(user.shopLocationVerified),
+      shopLocationNeedsReview: Boolean(user.shopLocationNeedsReview),
+      shopLocationReviewStatus: user.shopLocationReviewStatus || 'approved',
+      shopLocationTrustScore: Number.isFinite(Number(user.shopLocationTrustScore))
+        ? Number(user.shopLocationTrustScore)
+        : 0
+    },
+    entries,
+    total: entries.length
+  });
 });
 
 export const updateUserRole = asyncHandler(async (req, res) => {

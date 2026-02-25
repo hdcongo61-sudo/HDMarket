@@ -1333,9 +1333,28 @@ export default function AdminSystemSettings() {
                                   <option value="true">true</option>
                                   <option value="false">false</option>
                                 </select>
+                              ) : Array.isArray(item?.allowedValues) && item.allowedValues.length > 0 ? (
+                                <select
+                                  value={String(draftValue ?? '')}
+                                  onChange={(event) =>
+                                    setRuntimeDrafts((prev) => ({
+                                      ...prev,
+                                      [key]: event.target.value
+                                    }))
+                                  }
+                                  className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+                                >
+                                  {item.allowedValues.map((allowedValue) => (
+                                    <option key={String(allowedValue)} value={String(allowedValue)}>
+                                      {String(allowedValue)}
+                                    </option>
+                                  ))}
+                                </select>
                               ) : item?.valueType === 'number' ? (
                                 <input
                                   type="number"
+                                  min={Number.isFinite(Number(item?.min)) ? Number(item.min) : undefined}
+                                  max={Number.isFinite(Number(item?.max)) ? Number(item.max) : undefined}
                                   value={draftValue ?? 0}
                                   onChange={(event) =>
                                     setRuntimeDrafts((prev) => ({
@@ -1380,6 +1399,23 @@ export default function AdminSystemSettings() {
                                 {isSaving ? '...' : 'Enregistrer'}
                               </button>
                             </div>
+                            {(Array.isArray(item?.allowedValues) && item.allowedValues.length > 0) ||
+                            Number.isFinite(Number(item?.min)) ||
+                            Number.isFinite(Number(item?.max)) ? (
+                              <p className="mt-1 text-[11px] text-gray-500 dark:text-neutral-400">
+                                {Array.isArray(item?.allowedValues) && item.allowedValues.length > 0
+                                  ? `Valeurs autorisées: ${item.allowedValues.join(', ')}`
+                                  : `Bornes: ${
+                                      Number.isFinite(Number(item?.min)) ? `min ${Number(item.min)}` : ''
+                                    }${
+                                      Number.isFinite(Number(item?.min)) && Number.isFinite(Number(item?.max))
+                                        ? ' · '
+                                        : ''
+                                    }${
+                                      Number.isFinite(Number(item?.max)) ? `max ${Number(item.max)}` : ''
+                                    }`}
+                              </p>
+                            ) : null}
                           </div>
                         );
                       })}

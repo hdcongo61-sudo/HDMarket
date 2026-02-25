@@ -184,66 +184,88 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
   };
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-2xl border border-gray-200 bg-white p-5 space-y-4">
-      <div className="flex items-center gap-2">
+    <form onSubmit={handleSubmit} className="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
+      <div className="mb-4 flex items-center gap-2">
         <Sparkles className="h-5 w-5 text-neutral-600" />
-        <h3 className="text-base font-bold text-gray-900">Nouvelle demande de boost</h3>
+        <h3 className="text-base font-black text-slate-900 sm:text-lg">Nouvelle demande de boost</h3>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <label className="space-y-1">
-          <span className="text-xs font-semibold text-gray-600 uppercase">Type</span>
-          <select
-            value={boostType}
-            onChange={(e) => setBoostType(e.target.value)}
-            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-neutral-500 focus:ring-2 focus:ring-neutral-100"
-          >
+      <div className="space-y-3">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-600">Type de boost</p>
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:hidden">
             {BOOST_TYPES.map((item) => (
-              <option key={item.value} value={item.value}>
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => setBoostType(item.value)}
+                className={`shrink-0 rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                  boostType === item.value
+                    ? 'border-neutral-600 bg-neutral-600 text-white'
+                    : 'border-slate-300 bg-white text-slate-700'
+                }`}
+              >
                 {item.label}
-              </option>
+              </button>
             ))}
-          </select>
-        </label>
-        <label className="space-y-1">
-          <span className="text-xs font-semibold text-gray-600 uppercase">Durée (jours)</span>
-          <input
-            type="number"
-            min={1}
-            max={365}
-            value={duration}
-            onChange={(e) => setDuration(Math.max(1, Number(e.target.value || 1)))}
-            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-neutral-500 focus:ring-2 focus:ring-neutral-100"
-          />
-        </label>
-        {requiresCity && (
-          <label className="space-y-1">
-            <span className="text-xs font-semibold text-gray-600 uppercase">Ville</span>
+          </div>
+          <label className="hidden space-y-1 sm:block">
+            <span className="text-xs font-semibold uppercase text-slate-600">Type</span>
             <select
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-neutral-500 focus:ring-2 focus:ring-neutral-100"
+              value={boostType}
+              onChange={(e) => setBoostType(e.target.value)}
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-neutral-500 focus:ring-2 focus:ring-neutral-100"
             >
-              {cityOptions.length === 0 && <option value="">Aucune ville configurée</option>}
-              {cityOptions.map((item) => (
-                <option key={item} value={item}>
-                  {item}
+              {BOOST_TYPES.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
                 </option>
               ))}
             </select>
           </label>
-        )}
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <label className="space-y-1">
+            <span className="text-xs font-semibold uppercase text-slate-600">Durée (jours)</span>
+            <input
+              type="number"
+              min={1}
+              max={365}
+              value={duration}
+              onChange={(e) => setDuration(Math.max(1, Number(e.target.value || 1)))}
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-neutral-500 focus:ring-2 focus:ring-neutral-100"
+            />
+          </label>
+          {requiresCity && (
+            <label className="space-y-1">
+              <span className="text-xs font-semibold uppercase text-slate-600">Ville</span>
+              <select
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-neutral-500 focus:ring-2 focus:ring-neutral-100"
+              >
+                {cityOptions.length === 0 && <option value="">Aucune ville configurée</option>}
+                {cityOptions.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
       </div>
 
       {requiresProducts && (
-        <div className="space-y-2">
-          <p className="text-xs font-semibold text-gray-600 uppercase">
+        <div className="mt-4 space-y-2 rounded-2xl border border-slate-200 bg-white p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">
             Produits concernés ({selectedProductIds.length})
           </p>
           {!availableProducts.length ? (
-            <p className="text-sm text-gray-500">Aucun produit approuvé disponible.</p>
+            <p className="text-sm text-slate-500">Aucun produit approuvé disponible.</p>
           ) : (
-            <div className="max-h-56 overflow-y-auto rounded-xl border border-gray-200 divide-y divide-gray-100">
+            <div className="max-h-60 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200">
               {availableProducts.map((product) => (
                 <label key={product._id} className="flex items-center gap-3 px-3 py-2 text-sm">
                   <input
@@ -252,8 +274,8 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
                     onChange={() => toggleProduct(product._id)}
                     className="h-4 w-4 rounded border-gray-300 text-neutral-600 focus:ring-neutral-500"
                   />
-                  <span className="flex-1 truncate text-gray-700">{product.title}</span>
-                  <span className="font-semibold text-gray-900">{formatPrice(product.price)}</span>
+                  <span className="min-w-0 flex-1 truncate text-slate-700">{product.title}</span>
+                  <span className="shrink-0 font-semibold text-slate-900">{formatPrice(product.price)}</span>
                 </label>
               ))}
             </div>
@@ -261,7 +283,7 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
         </div>
       )}
 
-      <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+      <div className="mt-4 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
         <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
           <p className="text-sm font-semibold text-neutral-900">
             Montant à payer: <span className="text-base">{formatPrice(preview?.totalPrice || 0)}</span>
@@ -270,12 +292,12 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
             Après paiement Mobile Money, renseignez le nom de l’expéditeur et l’ID de transaction.
           </p>
         </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-3">
-          <p className="text-xs font-semibold text-gray-600 uppercase mb-2">Opérateur Mobile Money</p>
+        <div className="rounded-xl border border-slate-200 bg-white p-3">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-600">Opérateur Mobile Money</p>
           {networksLoading ? (
-            <p className="text-sm text-gray-500">Chargement des réseaux...</p>
+            <p className="text-sm text-slate-500">Chargement des réseaux...</p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {activeNetworks.map((network) => (
                 <button
                   key={network.name}
@@ -284,50 +306,50 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
                   className={`rounded-xl border px-3 py-2 text-left transition-colors ${
                     paymentOperator === network.name
                       ? 'border-neutral-500 bg-neutral-50 text-neutral-700'
-                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
                   }`}
                 >
                   <p className="text-sm font-semibold">{network.name}</p>
                   {network.phoneNumber ? (
-                    <p className="text-xs text-gray-500">{network.phoneNumber}</p>
+                    <p className="text-xs text-slate-500">{network.phoneNumber}</p>
                   ) : null}
                 </button>
               ))}
             </div>
           )}
         </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-3">
-          <p className="text-sm font-semibold text-gray-800 mb-1">
+        <div className="rounded-xl border border-slate-200 bg-white p-3">
+          <p className="mb-1 text-sm font-semibold text-slate-800">
             Exemple: où trouver l’ID de transaction
           </p>
-          <p className="text-xs text-gray-600 mb-3">
+          <p className="mb-3 text-xs text-slate-600">
             L’ID de transaction est le numéro à 10 chiffres indiqué dans le SMS de confirmation.
           </p>
           <img
             src="/images/transaction-sms-example-shop-conversion.png"
             alt="Exemple de SMS avec ID transaction"
-            className="max-w-full rounded-lg border border-gray-200 shadow-sm max-h-60 object-contain mx-auto"
+            className="mx-auto max-h-60 max-w-full rounded-lg border border-slate-200 object-contain shadow-sm"
           />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="space-y-1">
-            <span className="text-xs font-semibold text-gray-600 uppercase">Nom de l’expéditeur</span>
-            <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 bg-white focus-within:border-neutral-500 focus-within:ring-2 focus-within:ring-neutral-100">
-              <CreditCard className="h-4 w-4 text-gray-400" />
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Nom de l’expéditeur</span>
+            <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 focus-within:border-neutral-500 focus-within:ring-2 focus-within:ring-neutral-100">
+              <CreditCard className="h-4 w-4 text-slate-400" />
               <input
                 type="text"
                 value={paymentSenderName}
                 onChange={(e) => setPaymentSenderName(e.target.value)}
                 placeholder="Ex: Jean K."
-                className="w-full border-none p-0 text-sm text-gray-800 focus:outline-none"
+                className="w-full border-none p-0 text-sm text-slate-800 focus:outline-none"
                 required
               />
             </div>
           </label>
           <label className="space-y-1">
-            <span className="text-xs font-semibold text-gray-600 uppercase">ID transaction (10 chiffres)</span>
-            <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 bg-white focus-within:border-neutral-500 focus-within:ring-2 focus-within:ring-neutral-100">
-              <Hash className="h-4 w-4 text-gray-400" />
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">ID transaction (10 chiffres)</span>
+            <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 focus-within:border-neutral-500 focus-within:ring-2 focus-within:ring-neutral-100">
+              <Hash className="h-4 w-4 text-slate-400" />
               <input
                 type="text"
                 inputMode="numeric"
@@ -335,7 +357,7 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
                 value={paymentTransactionId}
                 onChange={(e) => setPaymentTransactionId(e.target.value.replace(/\D/g, '').slice(0, 10))}
                 placeholder="1234567890"
-                className="w-full border-none p-0 text-sm font-mono text-gray-800 focus:outline-none"
+                className="w-full border-none p-0 text-sm font-mono text-slate-800 focus:outline-none"
                 required
               />
             </div>
@@ -343,10 +365,10 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
         </div>
       </div>
 
-      <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-3">
-        <div className="flex items-center gap-2 mb-2">
+      <div className="mt-4 rounded-2xl border border-neutral-100 bg-neutral-50 p-3">
+        <div className="mb-2 flex items-center gap-2">
           <Receipt className="h-4 w-4 text-neutral-700" />
-          <p className="text-xs font-semibold uppercase text-neutral-700">Prévisualisation du prix</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-700">Prévisualisation du prix</p>
         </div>
         {previewLoading ? (
           <div className="flex items-center gap-2 text-sm text-neutral-700">
@@ -354,14 +376,14 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
             Calcul en cours...
           </div>
         ) : preview ? (
-          <div className="space-y-1 text-sm text-gray-800">
+          <div className="space-y-1 text-sm text-slate-800">
             <p>Prix unitaire: <span className="font-semibold">{formatPrice(preview.unitPrice)}</span></p>
             <p>Sous-total: <span className="font-semibold">{formatPrice(preview.subtotal)}</span></p>
             <p>Multiplicateur saisonnier: <span className="font-semibold">x{Number(preview.seasonalMultiplier || 1).toFixed(2)}</span></p>
             <p className="text-base font-bold text-neutral-800">Total: {formatPrice(preview.totalPrice)}</p>
           </div>
         ) : (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-slate-500">
             Complétez le formulaire pour voir le calcul automatique.
           </p>
         )}
@@ -369,20 +391,22 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
       </div>
 
       {submitError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 flex items-start gap-2">
-          <AlertCircle className="h-4 w-4 mt-0.5" />
+        <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <AlertCircle className="mt-0.5 h-4 w-4" />
           <span>{submitError}</span>
         </div>
       )}
 
-      <button
-        type="submit"
-        disabled={submitting}
-        className="inline-flex items-center justify-center gap-2 rounded-xl bg-neutral-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-60"
-      >
-        {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-        {submitting ? 'Envoi...' : 'Envoyer la demande'}
-      </button>
+      <div className="sticky bottom-0 z-[2] -mx-3 mt-4 border-t border-slate-200 bg-white/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur sm:static sm:mx-0 sm:border-t-0 sm:bg-transparent sm:p-0">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-xl bg-neutral-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-60 sm:w-auto"
+        >
+          {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+          {submitting ? 'Envoi...' : 'Envoyer la demande'}
+        </button>
+      </div>
     </form>
   );
 }

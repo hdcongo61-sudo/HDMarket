@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { Eye, Heart, MessageCircle, ShoppingCart, TrendingUp, X, BarChart3 } from 'lucide-react';
+import React, { useEffect, useId, useState } from 'react';
+import { Heart, MessageCircle, ShoppingCart, TrendingUp, BarChart3 } from 'lucide-react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
+import BaseModal, { ModalBody, ModalHeader } from './modals/BaseModal';
 
 export default function ProductAnalytics({ productId, productTitle, onClose }) {
   const { showToast } = useToast();
+  const titleId = useId();
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState(null);
   const [error, setError] = useState('');
@@ -38,30 +40,21 @@ export default function ProductAnalytics({ productId, productTitle, onClose }) {
   const maxViews = Math.max(...viewsOverTime.map((v) => v.views), 1);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-neutral-100 dark:bg-neutral-900/30">
-              <BarChart3 className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Analytics du produit</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-md">{productTitle}</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 space-y-6">
+    <BaseModal
+      isOpen={Boolean(productId)}
+      onClose={onClose}
+      size="xl"
+      mobileSheet={true}
+      ariaLabelledBy={titleId}
+    >
+      <ModalHeader
+        titleId={titleId}
+        title="Analytics du produit"
+        subtitle={productTitle}
+        icon={<BarChart3 className="w-5 h-5" />}
+        onClose={onClose}
+      />
+      <ModalBody className="space-y-6">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-600"></div>
@@ -180,8 +173,7 @@ export default function ProductAnalytics({ productId, productTitle, onClose }) {
               </div>
             </>
           )}
-        </div>
-      </div>
-    </div>
+      </ModalBody>
+    </BaseModal>
   );
 }

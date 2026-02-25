@@ -176,6 +176,14 @@ export const schemas = {
     commune: Joi.string().trim().min(2).max(80).allow('', null),
     gender: Joi.string().valid('homme', 'femme')
   }).min(0),
+  shopLocationUpdate: Joi.object({
+    latitude: Joi.number().min(-90).max(90).required(),
+    longitude: Joi.number().min(-180).max(180).required(),
+    accuracy: Joi.number().min(0).max(50000).allow(null),
+    source: Joi.string().valid('gps', 'map', 'manual').default('manual'),
+    resolvedAddress: Joi.string().max(220).allow('', null),
+    applyResolvedAddress: Joi.boolean().truthy('true').falsy('false').default(false)
+  }),
   favoriteModify: Joi.object({
     productId: Joi.string().hex().length(24).required()
   }),
@@ -459,6 +467,14 @@ export const schemas = {
   }),
   adminShopVerification: Joi.object({
     verified: Joi.boolean().required()
+  }),
+  adminShopLocationReview: Joi.object({
+    decision: Joi.string().valid('approve', 'reject').required(),
+    reason: Joi.when('decision', {
+      is: 'reject',
+      then: Joi.string().trim().min(3).max(500).required(),
+      otherwise: Joi.string().trim().max(500).allow('', null)
+    })
   }),
   adminProductCertification: Joi.object({
     certified: Joi.boolean().required()

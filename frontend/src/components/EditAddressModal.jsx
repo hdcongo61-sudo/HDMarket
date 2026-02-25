@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { X, MapPin, AlertCircle } from 'lucide-react';
+import React, { useEffect, useId, useState } from 'react';
+import { MapPin, AlertCircle } from 'lucide-react';
 import { useAppSettings } from '../context/AppSettingsContext';
+import BaseModal, { ModalBody, ModalFooter, ModalHeader } from './modals/BaseModal';
 
 export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
   const { cities } = useAppSettings();
@@ -19,8 +20,6 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
       setError('');
     }
   }, [cityOptions, isOpen, order]);
-
-  if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -46,31 +45,24 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
   };
 
   const canEdit = order && order.status !== 'delivering' && order.status !== 'delivered' && order.status !== 'cancelled';
+  const titleId = useId();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-neutral-100 dark:bg-neutral-900/30">
-              <MapPin className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
-            </div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-              Modifier l'adresse de livraison
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Content */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+    <BaseModal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="md"
+      mobileSheet={true}
+      ariaLabelledBy={titleId}
+    >
+      <ModalHeader
+        titleId={titleId}
+        title="Modifier l'adresse de livraison"
+        icon={<MapPin className="w-5 h-5" />}
+        onClose={onClose}
+      />
+      <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+        <ModalBody className="space-y-4">
           {!canEdit && (
             <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
               <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
@@ -114,6 +106,7 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
                   Nouvelle adresse de livraison *
                 </label>
                 <textarea
+                  data-autofocus
                   id="deliveryAddress"
                   value={deliveryAddress}
                   onChange={(e) => setDeliveryAddress(e.target.value)}
@@ -157,9 +150,9 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
               </div>
             </>
           )}
-
-          {/* Actions */}
-          <div className="flex items-center gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+        </ModalBody>
+        <ModalFooter>
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={onClose}
@@ -178,8 +171,8 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
               </button>
             )}
           </div>
-        </form>
-      </div>
-    </div>
+        </ModalFooter>
+      </form>
+    </BaseModal>
   );
 }

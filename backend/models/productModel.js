@@ -36,6 +36,9 @@ const productSchema = new mongoose.Schema(
     city: { type: String, default: 'Brazzaville', trim: true },
     validationDate: { type: Date, default: null, index: true },
     whatsappClicks: { type: Number, default: 0, min: 0 },
+    viewsCount: { type: Number, default: 0, min: 0, index: true },
+    uniqueViewsCount: { type: Number, default: 0, min: 0 },
+    lastViewedAt: { type: Date, default: null, index: true },
     favoritesCount: { type: Number, default: 0, min: 0 },
     salesCount: { type: Number, default: 0, min: 0 },
     disabledByAdmin: { type: Boolean, default: false },
@@ -86,6 +89,7 @@ productSchema.index({ title: 'text', description: 'text' });
 productSchema.index({ status: 1, category: 1, price: 1, createdAt: -1 });
 productSchema.index({ status: 1, categoryId: 1, subcategoryId: 1, createdAt: -1 });
 productSchema.index({ salesCount: -1, status: 1 });
+productSchema.index({ status: 1, viewsCount: -1, createdAt: -1 });
 productSchema.index({ installmentEnabled: 1, installmentStartDate: 1, installmentEndDate: 1, status: 1 });
 productSchema.index({ status: 1, wholesaleEnabled: 1, createdAt: -1 });
 productSchema.index({ status: 1, city: 1, boosted: -1, validationDate: -1, createdAt: -1 });

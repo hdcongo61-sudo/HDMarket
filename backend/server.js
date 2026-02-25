@@ -168,7 +168,10 @@ const corsOptions = {
     'Accept',
     'x-skip-cache',
     'x-request-id',
-    'x-correlation-id'
+    'x-correlation-id',
+    'Idempotency-Key',
+    'idempotency-key',
+    'x-idempotency-key'
   ],
   optionsSuccessStatus: 200
 };
