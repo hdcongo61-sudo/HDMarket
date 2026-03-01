@@ -65,13 +65,13 @@ export default class GlobalErrorBoundary extends React.Component {
             <button
               type="button"
               onClick={this.handleRetry}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-neutral-900 px-4 text-sm font-semibold text-white transition hover:bg-black"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-neutral-900 px-6 text-sm font-semibold text-white transition hover:bg-neutral-800"
             >
               Réessayer
             </button>
             <a
               href="/"
-              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-neutral-200 px-6 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
             >
               Accueil
             </a>

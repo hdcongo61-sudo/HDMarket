@@ -35,6 +35,8 @@ import marketplacePromoCodeRoutes from './routes/marketplacePromoCodeRoutes.js';
 import disputeRoutes from './routes/disputeRoutes.js';
 import boostRoutes from './routes/boostRoutes.js';
 import founderRoutes from './routes/founderRoutes.js';
+import courierRoutes from './routes/courierRoutes.js';
+import deliveryRoutes from './routes/deliveryRoutes.js';
 
 import User from './models/userModel.js';
 import Order from './models/orderModel.js';
@@ -270,6 +272,8 @@ app.use('/api/marketplace-promo-codes', marketplacePromoCodeRoutes);
 app.use('/api/disputes', disputeRoutes);
 app.use('/api/boosts', boostRoutes);
 app.use('/api/founder', founderRoutes);
+app.use('/api/courier', courierRoutes);
+app.use('/api/delivery', deliveryRoutes);
 app.use('/api/*', notFoundApiHandler);
 
 app.use(globalErrorHandler);

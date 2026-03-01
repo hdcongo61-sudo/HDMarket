@@ -1,4 +1,5 @@
 import asyncHandler from 'express-async-handler';
+import crypto from 'crypto';
 import DeliveryGuy from '../models/deliveryGuyModel.js';
 import DeliveryRequest from '../models/deliveryRequestModel.js';
 import Order from '../models/orderModel.js';
@@ -9,6 +10,7 @@ import { createNotification } from '../utils/notificationService.js';
 import {
   assertPlatformDeliveryEnabled,
   canManageDeliveryRequests,
+  getAdminRuleDeliveryPrice,
   resolvePlatformDeliveryPrice
 } from '../services/platformDeliveryService.js';
 import { getRuntimeConfig } from '../services/configService.js';
@@ -18,9 +20,10 @@ import {
   invalidateSellerCache,
   invalidateUserCache
 } from '../utils/cache.js';
+import { assignCourierFromAdmin } from './courierDeliveryController.js';
 
 const ACTIVE_DELIVERY_REQUEST_STATUSES = ['PENDING', 'ACCEPTED', 'IN_PROGRESS'];
-const TERMINAL_DELIVERY_REQUEST_STATUSES = ['REJECTED', 'CANCELED', 'DELIVERED'];
+const TERMINAL_DELIVERY_REQUEST_STATUSES = ['REJECTED', 'CANCELED', 'DELIVERED', 'FAILED'];
 const OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
 
 const isObjectId = (value = '') => OBJECT_ID_REGEX.test(String(value || '').trim());
@@ -29,9 +32,41 @@ const escapeRegex = (value = '') =>
   String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const normalizeText = (value = '') => String(value || '').trim();
+const pickFirstText = (...values) => {
+  for (const value of values) {
+    const normalized = normalizeText(value);
+    if (normalized) return normalized;
+  }
+  return '';
+};
 const toNumber = (value, fallback = 0) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const DELIVERY_PIN_SECRET = normalizeText(
+  process.env.DELIVERY_PIN_SECRET || process.env.JWT_SECRET || process.env.SECRET_KEY || ''
+);
+const DELIVERY_PIN_KEY = DELIVERY_PIN_SECRET
+  ? crypto.createHash('sha256').update(DELIVERY_PIN_SECRET).digest()
+  : null;
+
+const hashDeliveryPin = (value = '') =>
+  crypto
+    .createHash('sha256')
+    .update(String(value || ''))
+    .digest('hex');
+
+const encryptDeliveryPin = (value = '') => {
+  const pin = normalizeText(value);
+  if (!pin) return '';
+  // If no encryption key is configured, store the pin in clear text so couriers can still see it.
+  if (!DELIVERY_PIN_KEY) return pin;
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', DELIVERY_PIN_KEY, iv);
+  const encrypted = Buffer.concat([cipher.update(pin, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`;
 };
 
 const toUploadedProofUrl = (file) => {
@@ -57,23 +92,28 @@ const getTimelineEventAt = (timeline = [], types = []) => {
   return null;
 };
 
+const isEmptyParam = (v) => {
+  const s = String(v ?? '').trim().toLowerCase();
+  return !s || s === 'undefined' || s === 'null';
+};
+
 const buildDeliveryRequestFilter = (query = {}, { forAnalytics = false } = {}) => {
-  const {
-    status = '',
-    pickupCommune = '',
-    dropoffCommune = '',
-    city = '',
-    dateFrom = '',
-    dateTo = '',
-    shop = '',
-    priceMin = '',
-    priceMax = ''
-  } = query || {};
+  const raw = query || {};
+  const status = isEmptyParam(raw.status) ? '' : String(raw.status || '').trim();
+  const pickupCommune = isEmptyParam(raw.pickupCommune) ? '' : String(raw.pickupCommune || '').trim();
+  const dropoffCommune = isEmptyParam(raw.dropoffCommune) ? '' : String(raw.dropoffCommune || '').trim();
+  const city = isEmptyParam(raw.city) ? '' : String(raw.city || '').trim();
+  const dateFrom = isEmptyParam(raw.dateFrom) ? '' : String(raw.dateFrom || '').trim();
+  const dateTo = isEmptyParam(raw.dateTo) ? '' : String(raw.dateTo || '').trim();
+  const shop = isEmptyParam(raw.shop) ? '' : String(raw.shop || '').trim();
+  const priceMin = isEmptyParam(raw.priceMin) ? '' : String(raw.priceMin || '').trim();
+  const priceMax = isEmptyParam(raw.priceMax) ? '' : String(raw.priceMax || '').trim();
 
   const filter = {};
-  const normalizedStatus = String(status || '').trim().toUpperCase();
+  const normalizedStatus = status.toUpperCase();
   if (normalizedStatus && normalizedStatus !== 'ALL') {
-    filter.status = normalizedStatus;
+    // Match status case-insensitively so DB values like "pending" or "PENDING" both match
+    filter.status = new RegExp(`^${escapeRegex(normalizedStatus)}$`, 'i');
   }
 
   if (isObjectId(pickupCommune)) {
@@ -87,7 +127,7 @@ const buildDeliveryRequestFilter = (query = {}, { forAnalytics = false } = {}) =
   }
 
   const cityText = normalizeText(city);
-  if (cityText) {
+  if (cityText && cityText !== 'undefined' && cityText !== 'null') {
     if (isObjectId(cityText)) {
       filter.$or = [{ 'pickup.cityId': cityText }, { 'dropoff.cityId': cityText }];
     } else {
@@ -96,8 +136,11 @@ const buildDeliveryRequestFilter = (query = {}, { forAnalytics = false } = {}) =
     }
   }
 
-  const min = Number(priceMin);
-  const max = Number(priceMax);
+  // Only apply price filter when user actually provided a value (empty string parses to 0 and would wrongly require deliveryPrice === 0)
+  const hasPriceMin = priceMin !== '' && priceMin !== undefined;
+  const hasPriceMax = priceMax !== '' && priceMax !== undefined;
+  const min = hasPriceMin ? Number(priceMin) : NaN;
+  const max = hasPriceMax ? Number(priceMax) : NaN;
   if (Number.isFinite(min) || Number.isFinite(max)) {
     filter.deliveryPrice = {};
     if (Number.isFinite(min)) filter.deliveryPrice.$gte = Math.max(0, min);
@@ -166,8 +209,112 @@ const appendTimeline = (requestDoc, event) => {
 const toPublicDeliveryRequest = (requestDoc) => {
   if (!requestDoc) return null;
   const raw = requestDoc.toObject ? requestDoc.toObject() : requestDoc;
+  const {
+    deliveryPinCodeHash: _deliveryPinCodeHash,
+    deliveryPinCodeEncrypted: _deliveryPinCodeEncrypted,
+    ...safeRaw
+  } = raw;
+  const productSnapshot = Array.isArray(raw.productSnapshot) ? raw.productSnapshot : [];
+  const itemsSnapshot = Array.isArray(raw.itemsSnapshot) ? raw.itemsSnapshot : [];
+  const rawOrder = raw.orderId && typeof raw.orderId === 'object' ? raw.orderId : null;
+  const rawBuyer = raw.buyerId && typeof raw.buyerId === 'object' ? raw.buyerId : null;
+  const rawSeller = raw.sellerId && typeof raw.sellerId === 'object' ? raw.sellerId : null;
+  const rawShop = raw.shopId && typeof raw.shopId === 'object' ? raw.shopId : null;
+  const snapshot = rawOrder?.shippingAddressSnapshot || {};
+  const savedDropoffAddress = pickFirstText(raw?.dropoff?.address);
+  const savedPickupAddress = pickFirstText(raw?.pickup?.address);
+  const fallbackPickupAddress = pickFirstText(rawSeller?.shopAddress, rawSeller?.address);
+  const fallbackDropoffAddress = pickFirstText(
+    snapshot?.addressLine,
+    snapshot?.address,
+    snapshot?.street,
+    rawOrder?.deliveryAddress,
+    rawBuyer?.address
+  );
+  const shouldOverrideDropoffAddress =
+    !savedDropoffAddress ||
+    /^retrait en boutique$/i.test(savedDropoffAddress) ||
+    (savedPickupAddress &&
+      fallbackDropoffAddress &&
+      savedDropoffAddress === savedPickupAddress &&
+      savedDropoffAddress !== fallbackDropoffAddress);
+  const dropoffAddress = shouldOverrideDropoffAddress ? fallbackDropoffAddress : savedDropoffAddress;
+  const pickupAddress = savedPickupAddress || fallbackPickupAddress || '—';
+  const dropoff = {
+    ...(raw.dropoff || {}),
+    cityId: raw?.dropoff?.cityId || snapshot?.cityId || null,
+    cityName: pickFirstText(raw?.dropoff?.cityName, snapshot?.cityName, rawOrder?.deliveryCity, rawBuyer?.city),
+    communeId: raw?.dropoff?.communeId || snapshot?.communeId || null,
+    communeName: pickFirstText(raw?.dropoff?.communeName, snapshot?.communeName, rawBuyer?.commune),
+    address: dropoffAddress || '—'
+  };
+  const pickup = {
+    ...(raw.pickup || {}),
+    cityId: raw?.pickup?.cityId || null,
+    cityName: pickFirstText(raw?.pickup?.cityName),
+    communeId: raw?.pickup?.communeId || null,
+    communeName: pickFirstText(raw?.pickup?.communeName),
+    address: pickupAddress
+  };
+
   return {
-    ...raw,
+    ...safeRaw,
+    itemsSnapshot: itemsSnapshot.length ? itemsSnapshot : productSnapshot,
+    productSnapshot: productSnapshot.length ? productSnapshot : itemsSnapshot,
+    pickup,
+    dropoff,
+    pickupProof: raw.pickupProof && typeof raw.pickupProof === 'object' ? raw.pickupProof : {},
+    deliveryProof: raw.deliveryProof && typeof raw.deliveryProof === 'object' ? raw.deliveryProof : {},
+    assignedDeliveryGuyId: raw.assignedDeliveryGuyId ?? safeRaw.assignedDeliveryGuyId,
+    order: rawOrder
+      ? {
+          _id: rawOrder._id || null,
+          status: rawOrder.status || '',
+          totalAmount: rawOrder.totalAmount ?? 0,
+          deliveryMode: rawOrder.deliveryMode || '',
+          deliveryAddress: rawOrder.deliveryAddress || '',
+          deliveryCity: rawOrder.deliveryCity || '',
+          createdAt: rawOrder.createdAt || null,
+          shippingAddressSnapshot: rawOrder.shippingAddressSnapshot || {}
+        }
+      : null,
+    seller: rawSeller
+      ? {
+          _id: rawSeller._id || null,
+          name: rawSeller.shopName || rawSeller.name || '',
+          phone: rawSeller.phone || '',
+          city: rawSeller.city || '',
+          commune: rawSeller.commune || '',
+          address: rawSeller.address || '',
+          shopAddress: rawSeller.shopAddress || ''
+        }
+      : null,
+    buyer: rawBuyer
+      ? {
+          _id: rawBuyer._id || null,
+          name: rawBuyer.name || '',
+          phone: rawBuyer.phone || snapshot?.phone || '',
+          city: rawBuyer.city || '',
+          commune: rawBuyer.commune || '',
+          address: rawBuyer.address || ''
+        }
+      : snapshot?.phone
+      ? {
+          _id: raw.buyerId?._id || raw.buyerId || null,
+          name: '',
+          phone: snapshot.phone,
+          city: '',
+          commune: '',
+          address: ''
+        }
+      : null,
+    shop: rawShop
+      ? {
+          _id: rawShop._id || null,
+          name: rawShop.shopName || rawShop.name || '',
+          phone: rawShop.phone || ''
+        }
+      : null,
     orderId: raw.orderId?._id || raw.orderId,
     sellerId: raw.sellerId?._id || raw.sellerId,
     buyerId: raw.buyerId?._id || raw.buyerId,
@@ -191,11 +338,14 @@ const findCommuneByName = async (name = '', cityId = null) => {
 
 const loadDeliveryRequestById = async (id) => {
   return DeliveryRequest.findById(id)
-    .populate('orderId', '_id status deliveryMode deliveryAddress deliveryCity totalAmount')
-    .populate('sellerId', '_id name shopName phone city commune shopAddress')
-    .populate('buyerId', '_id name phone city commune address')
+    .populate(
+      'orderId',
+      '_id status deliveryMode deliveryAddress deliveryCity totalAmount createdAt shippingAddressSnapshot'
+    )
+    .populate('sellerId', '_id name shopName phone city commune shopAddress address')
+    .populate('buyerId', '_id name phone city commune address location')
     .populate('shopId', '_id name shopName phone city commune')
-    .populate('assignedDeliveryGuyId', '_id fullName name phone isActive active cityId communes');
+    .populate('assignedDeliveryGuyId', '_id userId fullName name phone isActive active cityId communes');
 };
 
 const updateOrderPlatformDeliveryState = async ({
@@ -310,8 +460,8 @@ export const requestPlatformDeliveryForOrder = asyncHandler(async (req, res) => 
   }
 
   const [seller, buyer] = await Promise.all([
-    User.findById(sellerId).select('_id name shopName phone city commune shopAddress freeDeliveryEnabled').lean(),
-    User.findById(order.customer).select('_id name phone city commune address').lean()
+    User.findById(sellerId).select('_id name shopName phone city commune shopAddress address shopLocation freeDeliveryEnabled').lean(),
+    User.findById(order.customer).select('_id name phone city commune address location').lean()
   ]);
   if (!seller || !buyer) {
     return res.status(404).json({ message: 'Impossible de récupérer les participants de la commande.' });
@@ -327,17 +477,29 @@ export const requestPlatformDeliveryForOrder = asyncHandler(async (req, res) => 
     req.body?.pickup?.communeName || seller.commune || firstItem?.snapshot?.shopCommune || ''
   );
   const pickupAddress = normalizeText(
-    req.body?.pickup?.address || seller.shopAddress || firstItem?.snapshot?.shopAddress || ''
+    req.body?.pickup?.address || seller.shopAddress || seller.address || firstItem?.snapshot?.shopAddress || ''
   );
 
-  const dropoffCityName = normalizeText(
-    order?.shippingAddressSnapshot?.cityName || order.deliveryCity || buyer.city || ''
+  const dropoffCityName = pickFirstText(
+    req.body?.dropoff?.cityName,
+    order?.shippingAddressSnapshot?.cityName,
+    order?.shippingAddressSnapshot?.city,
+    order?.deliveryCity,
+    buyer.city
   );
-  const dropoffCommuneName = normalizeText(
-    order?.shippingAddressSnapshot?.communeName || buyer.commune || ''
+  const dropoffCommuneName = pickFirstText(
+    req.body?.dropoff?.communeName,
+    order?.shippingAddressSnapshot?.communeName,
+    order?.shippingAddressSnapshot?.commune,
+    buyer.commune
   );
-  const dropoffAddress = normalizeText(
-    order?.shippingAddressSnapshot?.addressLine || order.deliveryAddress || buyer.address || ''
+  const dropoffAddress = pickFirstText(
+    req.body?.dropoff?.address,
+    order?.shippingAddressSnapshot?.addressLine,
+    order?.shippingAddressSnapshot?.address,
+    order?.shippingAddressSnapshot?.street,
+    order?.deliveryAddress,
+    buyer.address
   );
 
   const pickupCityById = isObjectId(req.body?.pickup?.cityId || '')
@@ -349,11 +511,13 @@ export const requestPlatformDeliveryForOrder = asyncHandler(async (req, res) => 
     : null;
   const pickupCommune = pickupCommuneById || (await findCommuneByName(pickupCommuneName, pickupCity?._id));
 
-  const dropoffCityById = isObjectId(order?.shippingAddressSnapshot?.cityId || '')
-    ? await City.findById(order.shippingAddressSnapshot.cityId).lean()
+  const dropoffCityInputId = req.body?.dropoff?.cityId || order?.shippingAddressSnapshot?.cityId || '';
+  const dropoffCityById = isObjectId(dropoffCityInputId)
+    ? await City.findById(dropoffCityInputId).lean()
     : null;
-  const dropoffCommuneById = isObjectId(order?.shippingAddressSnapshot?.communeId || '')
-    ? await Commune.findById(order.shippingAddressSnapshot.communeId).lean()
+  const dropoffCommuneInputId = req.body?.dropoff?.communeId || order?.shippingAddressSnapshot?.communeId || '';
+  const dropoffCommuneById = isObjectId(dropoffCommuneInputId)
+    ? await Commune.findById(dropoffCommuneInputId).lean()
     : null;
   const dropoffCity = dropoffCityById || (await findCityByName(dropoffCityName));
   const dropoffCommune = dropoffCommuneById || (await findCommuneByName(dropoffCommuneName, dropoffCity?._id));
@@ -369,6 +533,23 @@ export const requestPlatformDeliveryForOrder = asyncHandler(async (req, res) => 
     buyerSuggestedPrice
   });
 
+  const itemSnapshots = (Array.isArray(sellerItems) ? sellerItems : []).map((item) => ({
+    productId: item?.product || null,
+    title: item?.snapshot?.title || 'Produit',
+    name: item?.snapshot?.title || 'Produit',
+    imageUrl: item?.snapshot?.image || '',
+    qty: Math.max(1, Number(item?.quantity || 1))
+  }));
+
+  const pickupCoords =
+    Array.isArray(seller?.shopLocation?.coordinates) && seller.shopLocation.coordinates.length === 2
+      ? { type: 'Point', coordinates: seller.shopLocation.coordinates }
+      : null;
+  const dropoffCoords =
+    Array.isArray(buyer?.location?.coordinates) && buyer.location.coordinates.length === 2
+      ? { type: 'Point', coordinates: buyer.location.coordinates }
+      : null;
+
   const payload = {
     orderId: order._id,
     sellerId,
@@ -379,28 +560,38 @@ export const requestPlatformDeliveryForOrder = asyncHandler(async (req, res) => 
       cityName: pickupCity?.name || pickupCityName,
       communeId: pickupCommune?._id || null,
       communeName: pickupCommune?.name || pickupCommuneName,
-      address: pickupAddress
+      address: pickupAddress,
+      coordinates: pickupCoords
     },
     dropoff: {
       cityId: dropoffCity?._id || null,
       cityName: dropoffCity?.name || dropoffCityName,
       communeId: dropoffCommune?._id || null,
       communeName: dropoffCommune?.name || dropoffCommuneName,
-      address: dropoffAddress
+      address: dropoffAddress,
+      coordinates: dropoffCoords
     },
     deliveryPrice: Number(pricing.deliveryPrice || 0),
     deliveryPriceSource: pricing.deliveryPriceSource || 'UNKNOWN',
     currency: 'XAF',
-    productSnapshot: (Array.isArray(sellerItems) ? sellerItems : []).map((item) => ({
-      productId: item?.product || null,
-      title: item?.snapshot?.title || 'Produit',
-      imageUrl: item?.snapshot?.image || '',
-      qty: Math.max(1, Number(item?.quantity || 1))
-    })),
+    productSnapshot: itemSnapshots,
+    itemsSnapshot: itemSnapshots,
     invoiceUrl,
     note,
     pickupInstructions,
     status: 'PENDING',
+    currentStage: 'ASSIGNED',
+    assignmentStatus: 'PENDING',
+    mapAccess: {
+      sellerVisibleUntil: new Date(
+        Date.now() + Number(runtime.locationVisibilityMinutesAfterAccept || 90) * 60 * 1000
+      ),
+      buyerVisibleUntil: new Date(
+        Date.now() + Number(runtime.locationVisibilityMinutesAfterAccept || 90) * 60 * 1000
+      ),
+      lockedAfterDistanceMeters: Number(runtime.locationLockDistanceMeters || 120),
+      lockedAfterStatus: String(runtime.locationLockOnStatus || 'DELIVERED').toUpperCase()
+    },
     expiresAt: new Date(Date.now() + Number(runtime.requestExpireHours || 24) * 60 * 60 * 1000),
     timeline: [
       {
@@ -428,6 +619,11 @@ export const requestPlatformDeliveryForOrder = asyncHandler(async (req, res) => 
             acceptedBy: null,
             acceptedAt: null,
             assignedDeliveryGuyId: null,
+            assignmentStatus: 'PENDING',
+            assignmentAcceptedAt: null,
+            assignmentRejectedAt: null,
+            assignmentRejectReason: '',
+            currentStage: 'ASSIGNED',
             updatedAt: new Date()
           }
         },
@@ -504,6 +700,210 @@ export const requestPlatformDeliveryForOrder = asyncHandler(async (req, res) => 
   });
 });
 
+export const sellerUpdateDeliveryPinForOrder = asyncHandler(async (req, res) => {
+  const runtime = await assertPlatformDeliveryEnabled();
+  if (!runtime.enableDeliveryPinCode) {
+    return res.status(403).json({
+      message: 'Le code de livraison est désactivé dans la configuration runtime.'
+    });
+  }
+
+  const orderId = normalizeText(req.params?.id || req.params?.orderId || '');
+  if (!isObjectId(orderId)) {
+    return res.status(400).json({ message: 'Commande invalide.' });
+  }
+
+  const sellerId = String(req.user?.id || req.user?._id || '');
+  const order = await Order.findById(orderId).select(
+    '_id customer items deliveryMode platformDeliveryRequestId platformDeliveryStatus'
+  );
+  if (!order) {
+    return res.status(404).json({ message: 'Commande introuvable.' });
+  }
+  if (String(order.deliveryMode || '').toUpperCase() !== 'DELIVERY') {
+    return res.status(400).json({ message: 'Cette commande n’est pas en mode livraison.' });
+  }
+  const sellerIds = resolveOrderSellerIdSet(order);
+  if (!sellerIds.has(sellerId)) {
+    return res.status(403).json({ message: 'Vous ne pouvez modifier le code que pour vos commandes.' });
+  }
+
+  const deliveryRequest = isObjectId(String(order.platformDeliveryRequestId || ''))
+    ? await DeliveryRequest.findById(order.platformDeliveryRequestId)
+    : await DeliveryRequest.findOne({ orderId: order._id });
+  if (!deliveryRequest) {
+    return res.status(404).json({
+      message: 'Aucune demande plateforme trouvée pour cette commande.'
+    });
+  }
+  if (String(deliveryRequest.sellerId || '') !== sellerId) {
+    return res.status(403).json({ message: 'Accès refusé à cette demande.' });
+  }
+  if (TERMINAL_DELIVERY_REQUEST_STATUSES.includes(String(deliveryRequest.status || '').toUpperCase())) {
+    return res.status(409).json({ message: 'La demande est clôturée, code non modifiable.' });
+  }
+
+  const action = normalizeText(req.body?.action || '').toLowerCase();
+  const explicitCode = normalizeText(req.body?.deliveryPinCode || req.body?.code || '');
+  const enabledFlag =
+    typeof req.body?.enabled === 'boolean'
+      ? req.body.enabled
+      : ['true', '1', 'yes', 'on'].includes(String(req.body?.enabled || '').toLowerCase());
+  const shouldClear = action === 'clear' || (req.body?.enabled === false);
+  const shouldGenerate =
+    action === 'generate' || (!explicitCode && req.body?.generate === true) || (!explicitCode && !shouldClear);
+
+  if (shouldClear) {
+    deliveryRequest.deliveryPinCodeHash = '';
+    deliveryRequest.deliveryPinCodeEncrypted = '';
+    deliveryRequest.deliveryPinCodeExpiresAt = null;
+    appendTimeline(deliveryRequest, {
+      type: 'DELIVERY_PIN_CLEARED_BY_SELLER',
+      by: req.user.id,
+      meta: { orderId: String(order._id) }
+    });
+    await deliveryRequest.save();
+
+    const courier = isObjectId(String(deliveryRequest.assignedDeliveryGuyId || ''))
+      ? await DeliveryGuy.findById(deliveryRequest.assignedDeliveryGuyId).select('_id userId').lean()
+      : null;
+    const recipients = [String(deliveryRequest.buyerId)];
+    if (isObjectId(String(courier?.userId || ''))) recipients.push(String(courier.userId));
+
+    await emitDeliveryNotifications({
+      actorId: req.user.id,
+      orderId: order._id,
+      deliveryRequestId: deliveryRequest._id,
+      pickupCommuneId: deliveryRequest.pickup?.communeId || null,
+      dropoffCommuneId: deliveryRequest.dropoff?.communeId || null,
+      recipients,
+      type: 'delivery_request_accepted',
+      extraMetadata: {
+        status: deliveryRequest.status,
+        deliveryPinCleared: true
+      },
+      priority: 'HIGH'
+    });
+
+    await createAuditLogEntry({
+      performedBy: req.user.id,
+      targetUser: deliveryRequest.buyerId,
+      actionType: 'DELIVERY_PIN_CLEARED_BY_SELLER',
+      previousValue: { hadDeliveryPin: true },
+      newValue: { hadDeliveryPin: false },
+      req,
+      meta: {
+        orderId: String(order._id),
+        deliveryRequestId: String(deliveryRequest._id)
+      }
+    });
+
+    await Promise.all([
+      invalidateSellerCache(deliveryRequest.sellerId, ['orders', 'dashboard']),
+      invalidateUserCache(deliveryRequest.buyerId, ['orders', 'notifications']),
+      invalidateAdminCache(['admin', 'dashboard', 'delivery'])
+    ]);
+
+    const hydratedCleared = await loadDeliveryRequestById(deliveryRequest._id);
+    return res.json({
+      message: 'Code livraison supprimé.',
+      item: toPublicDeliveryRequest(hydratedCleared),
+      deliveryPinCode: '',
+      deliveryPinCodeExpiresAt: null
+    });
+  }
+
+  let pinCode = explicitCode;
+  if (!pinCode && shouldGenerate) {
+    pinCode = String(Math.floor(1000 + Math.random() * 9000));
+  }
+  if (!pinCode) {
+    return res.status(400).json({
+      message: 'Saisissez un code ou activez la génération automatique.'
+    });
+  }
+  if (!/^\d{4,8}$/.test(pinCode)) {
+    return res.status(400).json({
+      message: 'Le code doit contenir entre 4 et 8 chiffres.'
+    });
+  }
+
+  const expiresHoursRaw = Number(req.body?.expiresHours);
+  const expiresHours = Number.isFinite(expiresHoursRaw)
+    ? Math.max(1, Math.min(168, Math.round(expiresHoursRaw)))
+    : 24;
+  const expiresAt = new Date(Date.now() + expiresHours * 60 * 60 * 1000);
+
+  deliveryRequest.deliveryPinCodeHash = hashDeliveryPin(pinCode);
+  deliveryRequest.deliveryPinCodeEncrypted = encryptDeliveryPin(pinCode);
+  deliveryRequest.deliveryPinCodeExpiresAt = expiresAt;
+  appendTimeline(deliveryRequest, {
+    type: 'DELIVERY_PIN_ISSUED_BY_SELLER',
+    by: req.user.id,
+    meta: {
+      orderId: String(order._id),
+      expiresAt,
+      generated: shouldGenerate && !explicitCode,
+      enabled: enabledFlag !== false
+    }
+  });
+  await deliveryRequest.save();
+
+  const courier = isObjectId(String(deliveryRequest.assignedDeliveryGuyId || ''))
+    ? await DeliveryGuy.findById(deliveryRequest.assignedDeliveryGuyId).select('_id userId').lean()
+    : null;
+  const recipients = [String(deliveryRequest.buyerId)];
+  if (isObjectId(String(courier?.userId || ''))) recipients.push(String(courier.userId));
+
+  await emitDeliveryNotifications({
+    actorId: req.user.id,
+    orderId: order._id,
+    deliveryRequestId: deliveryRequest._id,
+    pickupCommuneId: deliveryRequest.pickup?.communeId || null,
+    dropoffCommuneId: deliveryRequest.dropoff?.communeId || null,
+    recipients,
+    type: 'delivery_request_accepted',
+    extraMetadata: {
+      status: deliveryRequest.status,
+      deliveryPinCode: pinCode,
+      deliveryPinCodeExpiresAt: expiresAt,
+      deliveryPinUpdated: true
+    },
+    priority: 'HIGH'
+  });
+
+  await createAuditLogEntry({
+    performedBy: req.user.id,
+    targetUser: deliveryRequest.buyerId,
+    actionType: 'DELIVERY_PIN_ISSUED_BY_SELLER',
+    previousValue: { hadDeliveryPin: false },
+    newValue: {
+      hadDeliveryPin: true,
+      expiresAt
+    },
+    req,
+    meta: {
+      orderId: String(order._id),
+      deliveryRequestId: String(deliveryRequest._id),
+      sharedWithCourier: isObjectId(String(courier?.userId || ''))
+    }
+  });
+
+  await Promise.all([
+    invalidateSellerCache(deliveryRequest.sellerId, ['orders', 'dashboard']),
+    invalidateUserCache(deliveryRequest.buyerId, ['orders', 'notifications']),
+    invalidateAdminCache(['admin', 'dashboard', 'delivery'])
+  ]);
+
+  const hydrated = await loadDeliveryRequestById(deliveryRequest._id);
+  return res.json({
+    message: shouldGenerate && !explicitCode ? 'Code livraison généré et partagé.' : 'Code livraison mis à jour.',
+    item: toPublicDeliveryRequest(hydrated),
+    deliveryPinCode: pinCode,
+    deliveryPinCodeExpiresAt: expiresAt
+  });
+});
+
 export const listAdminDeliveryRequests = asyncHandler(async (req, res) => {
   const runtime = await assertPlatformDeliveryEnabled();
   if (!canManageDeliveryRequests(req.user, runtime)) {
@@ -517,27 +917,276 @@ export const listAdminDeliveryRequests = asyncHandler(async (req, res) => {
   const pageSize = Math.max(1, Math.min(Number(limit) || 20, 100));
   const skip = (pageNumber - 1) * pageSize;
 
-  const [items, total] = await Promise.all([
+  // DEBUG: delivery requests list
+  const totalUnfiltered = await DeliveryRequest.countDocuments({});
+  console.log('[delivery-requests] DEBUG listAdminDeliveryRequests', {
+    query: req.query,
+    filter: JSON.stringify(filter, (_, v) => (v instanceof RegExp ? v.toString() : v)),
+    page: pageNumber,
+    pageSize,
+    skip,
+    totalInDb: totalUnfiltered
+  });
+
+  const [items, total, orphanOrders] = await Promise.all([
     DeliveryRequest.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(pageSize)
-      .populate('orderId', '_id status totalAmount deliveryMode deliveryAddress deliveryCity createdAt')
-      .populate('sellerId', '_id name shopName phone city commune')
-      .populate('buyerId', '_id name phone city commune')
+      .populate(
+        'orderId',
+        '_id status totalAmount deliveryMode deliveryAddress deliveryCity createdAt shippingAddressSnapshot platformDeliveryStatus'
+      )
+      .populate('sellerId', '_id name shopName phone city commune shopAddress address shopLocation')
+      .populate('buyerId', '_id name phone city commune address location')
       .populate('shopId', '_id name shopName phone city commune')
-      .populate('assignedDeliveryGuyId', '_id fullName name phone isActive active cityId communes')
+      .populate('assignedDeliveryGuyId', '_id userId fullName name phone isActive active cityId communes')
       .lean(),
-    DeliveryRequest.countDocuments(filter)
+    DeliveryRequest.countDocuments(filter),
+    (async () => {
+      const requested = await Order.find({
+        platformDeliveryStatus: 'REQUESTED',
+        deliveryMode: 'DELIVERY'
+      })
+        .select('_id platformDeliveryRequestId customer deliveryAddress deliveryCity shippingAddressSnapshot createdAt items')
+        .populate('customer', 'name phone city commune address')
+        .sort({ updatedAt: -1 })
+        .limit(50)
+        .lean();
+      const orphans = [];
+      for (const order of requested || []) {
+        const requestId = order.platformDeliveryRequestId;
+        const hasRequest =
+          isObjectId(requestId) && (await DeliveryRequest.findById(requestId).select('_id').lean());
+        if (!hasRequest) {
+          orphans.push({
+            _id: order._id,
+            orderId: order._id,
+            deliveryAddress: order.deliveryAddress,
+            deliveryCity: order.deliveryCity,
+            createdAt: order.createdAt,
+            customer: order.customer,
+            shippingAddressSnapshot: order.shippingAddressSnapshot
+          });
+        }
+      }
+      return orphans;
+    })()
   ]);
 
+  const list = Array.isArray(items) ? items : [];
+  // DEBUG: what we're returning
+  console.log('[delivery-requests] DEBUG list result', {
+    totalMatchingFilter: total,
+    itemsReturned: list.length,
+    itemSummaries: list.map((i) => ({ _id: i._id?.toString(), status: i.status, orderId: i.orderId?.toString?.() }))
+  });
+
   return res.json({
-    items: items.map((item) => toPublicDeliveryRequest(item)),
+    items: list.map((item) => {
+      const publicItem = toPublicDeliveryRequest(item);
+      const adminRulePrice = getAdminRuleDeliveryPrice(
+        runtime,
+        publicItem.pickup?.communeId || item.pickup?.communeId,
+        publicItem.dropoff?.communeId || item.dropoff?.communeId,
+        publicItem.pickup?.communeName || item.pickup?.communeName,
+        publicItem.dropoff?.communeName || item.dropoff?.communeName
+      );
+      return { ...publicItem, adminRuleDeliveryPrice: adminRulePrice };
+    }),
     total,
     page: pageNumber,
     pageSize,
     totalPages: Math.max(1, Math.ceil(total / pageSize)),
-    filtersEnabled: Boolean(runtime.communeFiltersEnabled)
+    filtersEnabled: Boolean(runtime.communeFiltersEnabled),
+    orphanOrders: orphanOrders || []
+  });
+});
+
+/**
+ * Admin: create a DeliveryRequest for an order that has platformDeliveryStatus REQUESTED
+ * but no DeliveryRequest record (e.g. orphan after partial failure or legacy data).
+ */
+export const createDeliveryRequestForOrderAdmin = asyncHandler(async (req, res) => {
+  const runtime = await assertPlatformDeliveryEnabled();
+  if (!canManageDeliveryRequests(req.user, runtime)) {
+    return res.status(403).json({ message: 'Accès refusé à la gestion des demandes de livraison.' });
+  }
+
+  const orderId = normalizeText(req.params?.orderId || req.params?.id || '');
+  if (!isObjectId(orderId)) {
+    return res.status(400).json({ message: 'Commande invalide.' });
+  }
+
+  const order = await Order.findById(orderId).select(
+    '_id customer items status deliveryMode deliveryAddress deliveryCity shippingAddressSnapshot totalAmount deliveryFeeTotal platformDeliveryStatus platformDeliveryRequestId'
+  );
+  if (!order) {
+    return res.status(404).json({ message: 'Commande introuvable.' });
+  }
+  if (String(order.deliveryMode || '').toUpperCase() !== 'DELIVERY') {
+    return res.status(400).json({ message: 'La commande n\'est pas en mode livraison.' });
+  }
+  if (String(order.platformDeliveryStatus || '').toUpperCase() !== 'REQUESTED') {
+    return res.status(400).json({
+      message: 'La commande n\'a pas le statut REQUESTED. Créez la demande depuis la fiche commande vendeur.'
+    });
+  }
+  const existingRequest = await DeliveryRequest.findOne({ orderId: order._id });
+  if (existingRequest) {
+    const hydrated = await loadDeliveryRequestById(existingRequest._id);
+    return res.status(200).json({
+      message: 'Une demande de livraison existe déjà pour cette commande.',
+      item: toPublicDeliveryRequest(hydrated)
+    });
+  }
+
+  const sellerIds = resolveOrderSellerIdSet(order);
+  const sellerId = Array.from(sellerIds)[0] || null;
+  if (!sellerId) {
+    return res.status(400).json({ message: 'Impossible d\'identifier le vendeur de la commande.' });
+  }
+
+  const [seller, buyer] = await Promise.all([
+    User.findById(sellerId).select('_id name shopName phone city commune shopAddress address shopLocation freeDeliveryEnabled').lean(),
+    User.findById(order.customer).select('_id name phone city commune address location').lean()
+  ]);
+  if (!seller || !buyer) {
+    return res.status(404).json({ message: 'Impossible de récupérer vendeur ou acheteur.' });
+  }
+
+  const sellerItems = getOrderItemsForSeller(order, sellerId);
+  const firstItem = sellerItems[0] || order.items?.[0] || {};
+
+  const pickupCityName = normalizeText(seller.city || firstItem?.snapshot?.shopCity || '');
+  const pickupCommuneName = normalizeText(seller.commune || firstItem?.snapshot?.shopCommune || '');
+  const pickupAddress = normalizeText(seller.shopAddress || seller.address || firstItem?.snapshot?.shopAddress || '');
+
+  const dropoffCityName = pickFirstText(
+    order?.shippingAddressSnapshot?.cityName,
+    order?.shippingAddressSnapshot?.city,
+    order?.deliveryCity,
+    buyer.city
+  );
+  const dropoffCommuneName = pickFirstText(
+    order?.shippingAddressSnapshot?.communeName,
+    order?.shippingAddressSnapshot?.commune,
+    buyer.commune
+  );
+  const dropoffAddress = pickFirstText(
+    order?.shippingAddressSnapshot?.addressLine,
+    order?.shippingAddressSnapshot?.address,
+    order?.shippingAddressSnapshot?.street,
+    order?.deliveryAddress,
+    buyer.address
+  );
+
+  const pickupCity = await findCityByName(pickupCityName);
+  const pickupCommune = await findCommuneByName(pickupCommuneName, pickupCity?._id);
+  const dropoffCity = await findCityByName(dropoffCityName);
+  const dropoffCommune = await findCommuneByName(dropoffCommuneName, dropoffCity?._id);
+
+  const pricing = resolvePlatformDeliveryPrice({
+    runtime,
+    seller,
+    order,
+    pickupCommuneId: pickupCommune?._id || '',
+    dropoffCommuneId: dropoffCommune?._id || '',
+    pickupCommuneName: pickupCommune?.name || pickupCommuneName,
+    dropoffCommuneName: dropoffCommune?.name || dropoffCommuneName,
+    buyerSuggestedPrice: 0
+  });
+
+  const itemSnapshots = (Array.isArray(sellerItems) ? sellerItems : []).map((item) => ({
+    productId: item?.product || null,
+    title: item?.snapshot?.title || 'Produit',
+    name: item?.snapshot?.title || 'Produit',
+    imageUrl: item?.snapshot?.image || '',
+    qty: Math.max(1, Number(item?.quantity || 1))
+  }));
+
+  const pickupCoords =
+    Array.isArray(seller?.shopLocation?.coordinates) && seller.shopLocation.coordinates.length === 2
+      ? { type: 'Point', coordinates: seller.shopLocation.coordinates }
+      : null;
+  const dropoffCoords =
+    Array.isArray(buyer?.location?.coordinates) && buyer.location.coordinates.length === 2
+      ? { type: 'Point', coordinates: buyer.location.coordinates }
+      : null;
+
+  const payload = {
+    orderId: order._id,
+    sellerId,
+    buyerId: buyer._id,
+    shopId: seller._id,
+    pickup: {
+      cityId: pickupCity?._id || null,
+      cityName: pickupCity?.name || pickupCityName,
+      communeId: pickupCommune?._id || null,
+      communeName: pickupCommune?.name || pickupCommuneName,
+      address: pickupAddress,
+      coordinates: pickupCoords
+    },
+    dropoff: {
+      cityId: dropoffCity?._id || null,
+      cityName: dropoffCity?.name || dropoffCityName,
+      communeId: dropoffCommune?._id || null,
+      communeName: dropoffCommune?.name || dropoffCommuneName,
+      address: dropoffAddress,
+      coordinates: dropoffCoords
+    },
+    deliveryPrice: Number(pricing.deliveryPrice || 0),
+    deliveryPriceSource: pricing.deliveryPriceSource || 'UNKNOWN',
+    currency: 'XAF',
+    productSnapshot: itemSnapshots,
+    itemsSnapshot: itemSnapshots,
+    invoiceUrl: '',
+    note: '',
+    pickupInstructions: '',
+    status: 'PENDING',
+    currentStage: 'ASSIGNED',
+    assignmentStatus: 'PENDING',
+    mapAccess: {
+      sellerVisibleUntil: new Date(
+        Date.now() + Number(runtime.locationVisibilityMinutesAfterAccept || 90) * 60 * 1000
+      ),
+      buyerVisibleUntil: new Date(
+        Date.now() + Number(runtime.locationVisibilityMinutesAfterAccept || 90) * 60 * 1000
+      ),
+      lockedAfterDistanceMeters: Number(runtime.locationLockDistanceMeters || 120),
+      lockedAfterStatus: String(runtime.locationLockOnStatus || 'DELIVERED').toUpperCase()
+    },
+    expiresAt: new Date(Date.now() + Number(runtime.requestExpireHours || 24) * 60 * 60 * 1000),
+    timeline: [
+      {
+        type: 'DELIVERY_REQUEST_CREATED',
+        by: req.user.id,
+        at: new Date(),
+        meta: { orderId: String(order._id), createdByAdmin: true }
+      }
+    ]
+  };
+
+  const deliveryRequest = await DeliveryRequest.create(payload);
+
+  await updateOrderPlatformDeliveryState({
+    orderId: order._id,
+    requestId: deliveryRequest._id,
+    platformDeliveryStatus: 'REQUESTED',
+    platformDeliveryMode: 'PLATFORM_DELIVERY',
+    platformDeliveryPriceSource: pricing.deliveryPriceSource || 'UNKNOWN'
+  });
+
+  await Promise.all([
+    invalidateSellerCache(sellerId, ['orders', 'dashboard']),
+    invalidateUserCache(buyer._id, ['orders', 'notifications']),
+    invalidateAdminCache(['admin', 'dashboard'])
+  ]);
+
+  const hydrated = await loadDeliveryRequestById(deliveryRequest._id);
+  return res.status(201).json({
+    message: 'Demande de livraison créée pour cette commande.',
+    item: toPublicDeliveryRequest(hydrated)
   });
 });
 
@@ -556,7 +1205,7 @@ export const acceptAdminDeliveryRequest = asyncHandler(async (req, res) => {
   if (!deliveryRequest) {
     return res.status(404).json({ message: 'Demande de livraison introuvable.' });
   }
-  if (['REJECTED', 'CANCELED', 'DELIVERED'].includes(deliveryRequest.status)) {
+  if (['REJECTED', 'CANCELED', 'DELIVERED', 'FAILED'].includes(deliveryRequest.status)) {
     return res.status(409).json({ message: 'Impossible d’accepter une demande déjà clôturée.' });
   }
 
@@ -572,9 +1221,22 @@ export const acceptAdminDeliveryRequest = asyncHandler(async (req, res) => {
     }
   }
 
-  deliveryRequest.status = 'ACCEPTED';
+  deliveryRequest.status = deliveryGuyId && !runtime.courierMustAcceptAssignment ? 'IN_PROGRESS' : 'ACCEPTED';
   deliveryRequest.acceptedBy = req.user.id;
   deliveryRequest.acceptedAt = new Date();
+  deliveryRequest.currentStage = deliveryGuyId
+    ? runtime.courierMustAcceptAssignment
+      ? 'ASSIGNED'
+      : 'ACCEPTED'
+    : 'ASSIGNED';
+  deliveryRequest.assignmentStatus = deliveryGuyId
+    ? runtime.courierMustAcceptAssignment
+      ? 'PENDING'
+      : 'ACCEPTED'
+    : 'PENDING';
+  deliveryRequest.assignmentAcceptedAt = deliveryGuyId && !runtime.courierMustAcceptAssignment ? new Date() : null;
+  deliveryRequest.assignmentRejectedAt = null;
+  deliveryRequest.assignmentRejectReason = '';
   if (deliveryGuyId) {
     deliveryRequest.assignedDeliveryGuyId = deliveryGuyId;
   }
@@ -585,12 +1247,22 @@ export const acceptAdminDeliveryRequest = asyncHandler(async (req, res) => {
       deliveryGuyId: deliveryGuyId || null
     }
   });
+  if (deliveryGuyId) {
+    appendTimeline(deliveryRequest, {
+      type: 'COURIER_ASSIGNED',
+      by: req.user.id,
+      meta: {
+        deliveryGuyId: deliveryGuyId || null,
+        courierMustAcceptAssignment: Boolean(runtime.courierMustAcceptAssignment)
+      }
+    });
+  }
   await deliveryRequest.save();
 
   await updateOrderPlatformDeliveryState({
     orderId: deliveryRequest.orderId,
     requestId: deliveryRequest._id,
-    platformDeliveryStatus: 'ACCEPTED',
+    platformDeliveryStatus: runtime.courierMustAcceptAssignment ? 'ACCEPTED' : deliveryGuyId ? 'IN_PROGRESS' : 'ACCEPTED',
     platformDeliveryMode: 'PLATFORM_DELIVERY',
     deliveryGuyId: deliveryGuyId || undefined
   });
@@ -609,6 +1281,24 @@ export const acceptAdminDeliveryRequest = asyncHandler(async (req, res) => {
     },
     priority: 'HIGH'
   });
+
+  if (deliveryGuy?.userId) {
+    await emitDeliveryNotifications({
+      actorId: req.user.id,
+      orderId: deliveryRequest.orderId,
+      deliveryRequestId: deliveryRequest._id,
+      pickupCommuneId: deliveryRequest.pickup?.communeId || null,
+      dropoffCommuneId: deliveryRequest.dropoff?.communeId || null,
+      recipients: [String(deliveryGuy.userId)],
+      type: 'delivery_request_assigned',
+      extraMetadata: {
+        status: deliveryRequest.status,
+        assignmentStatus: deliveryRequest.assignmentStatus,
+        deliveryGuyId: deliveryGuyId || null
+      },
+      priority: 'HIGH'
+    });
+  }
 
   await createAuditLogEntry({
     performedBy: req.user.id,
@@ -656,7 +1346,7 @@ export const rejectAdminDeliveryRequest = asyncHandler(async (req, res) => {
   if (!deliveryRequest) {
     return res.status(404).json({ message: 'Demande de livraison introuvable.' });
   }
-  if (['REJECTED', 'CANCELED', 'DELIVERED'].includes(deliveryRequest.status)) {
+  if (['REJECTED', 'CANCELED', 'DELIVERED', 'FAILED'].includes(deliveryRequest.status)) {
     return res.status(409).json({ message: 'Cette demande est déjà clôturée.' });
   }
 
@@ -746,15 +1436,11 @@ export const assignAdminDeliveryRequest = asyncHandler(async (req, res) => {
   if (!deliveryGuy) {
     return res.status(404).json({ message: 'Livreur introuvable.' });
   }
-  if (['REJECTED', 'CANCELED', 'DELIVERED'].includes(deliveryRequest.status)) {
+  if (['REJECTED', 'CANCELED', 'DELIVERED', 'FAILED'].includes(deliveryRequest.status)) {
     return res.status(409).json({ message: 'Impossible d’assigner un livreur à une demande clôturée.' });
   }
 
   const previousStatus = String(deliveryRequest.status || 'PENDING');
-  deliveryRequest.assignedDeliveryGuyId = deliveryGuyId;
-  if (deliveryRequest.status === 'PENDING' || deliveryRequest.status === 'ACCEPTED') {
-    deliveryRequest.status = 'IN_PROGRESS';
-  }
   appendTimeline(deliveryRequest, {
     type: 'DELIVERY_REQUEST_ASSIGNED',
     by: req.user.id,
@@ -762,14 +1448,12 @@ export const assignAdminDeliveryRequest = asyncHandler(async (req, res) => {
       deliveryGuyId
     }
   });
-  await deliveryRequest.save();
-
-  await updateOrderPlatformDeliveryState({
-    orderId: deliveryRequest.orderId,
-    requestId: deliveryRequest._id,
-    platformDeliveryStatus: 'IN_PROGRESS',
-    platformDeliveryMode: 'PLATFORM_DELIVERY',
-    deliveryGuyId
+  await assignCourierFromAdmin({
+    requestDoc: deliveryRequest,
+    deliveryGuyId,
+    actorId: req.user.id,
+    req,
+    runtime
   });
 
   await emitDeliveryNotifications({
@@ -782,7 +1466,8 @@ export const assignAdminDeliveryRequest = asyncHandler(async (req, res) => {
     type: 'delivery_request_assigned',
     extraMetadata: {
       status: deliveryRequest.status,
-      deliveryGuyId
+      deliveryGuyId,
+      assignmentStatus: deliveryRequest.assignmentStatus
     },
     priority: 'HIGH'
   });
@@ -813,6 +1498,285 @@ export const assignAdminDeliveryRequest = asyncHandler(async (req, res) => {
   });
 });
 
+export const unassignAdminDeliveryRequest = asyncHandler(async (req, res) => {
+  const runtime = await assertPlatformDeliveryEnabled();
+  if (!canManageDeliveryRequests(req.user, runtime)) {
+    return res.status(403).json({ message: 'Accès refusé à la gestion des demandes de livraison.' });
+  }
+
+  const requestId = normalizeText(req.params?.id || '');
+  if (!isObjectId(requestId)) {
+    return res.status(400).json({ message: 'Demande invalide.' });
+  }
+  const reason = normalizeText(req.body?.reason || '');
+
+  const deliveryRequest = await DeliveryRequest.findById(requestId);
+  if (!deliveryRequest) {
+    return res.status(404).json({ message: 'Demande de livraison introuvable.' });
+  }
+  if (['REJECTED', 'CANCELED', 'DELIVERED', 'FAILED'].includes(String(deliveryRequest.status || ''))) {
+    return res.status(409).json({ message: 'Impossible de retirer un livreur d’une demande clôturée.' });
+  }
+
+  if (String(deliveryRequest.assignmentStatus || '').toUpperCase() === 'ACCEPTED') {
+    return res.status(403).json({
+      message: 'Impossible de désassigner : le livreur a déjà accepté cette livraison.'
+    });
+  }
+
+  const previousDeliveryGuyId = String(deliveryRequest.assignedDeliveryGuyId || '');
+  if (!previousDeliveryGuyId) {
+    const hydratedNoop = await loadDeliveryRequestById(deliveryRequest._id);
+    return res.json({
+      message: 'Aucun livreur n’était assigné.',
+      idempotent: true,
+      item: toPublicDeliveryRequest(hydratedNoop)
+    });
+  }
+
+  deliveryRequest.assignedDeliveryGuyId = null;
+  deliveryRequest.assignmentStatus = 'PENDING';
+  deliveryRequest.assignmentAcceptedAt = null;
+  deliveryRequest.assignmentRejectedAt = null;
+  deliveryRequest.assignmentRejectReason = '';
+  deliveryRequest.currentStage = 'ASSIGNED';
+  if (String(deliveryRequest.status || '').toUpperCase() === 'IN_PROGRESS') {
+    deliveryRequest.status = 'ACCEPTED';
+  }
+  appendTimeline(deliveryRequest, {
+    type: 'DELIVERY_REQUEST_UNASSIGNED',
+    by: req.user.id,
+    meta: {
+      previousDeliveryGuyId,
+      reason: reason || undefined
+    }
+  });
+  await deliveryRequest.save();
+
+  await updateOrderPlatformDeliveryState({
+    orderId: deliveryRequest.orderId,
+    requestId: deliveryRequest._id,
+    platformDeliveryStatus: 'ACCEPTED',
+    platformDeliveryMode: 'PLATFORM_DELIVERY',
+    deliveryGuyId: null
+  });
+
+  await emitDeliveryNotifications({
+    actorId: req.user.id,
+    orderId: deliveryRequest.orderId,
+    deliveryRequestId: deliveryRequest._id,
+    pickupCommuneId: deliveryRequest.pickup?.communeId || null,
+    dropoffCommuneId: deliveryRequest.dropoff?.communeId || null,
+    recipients: [String(deliveryRequest.sellerId), String(deliveryRequest.buyerId)],
+    type: 'delivery_request_created',
+    extraMetadata: {
+      status: deliveryRequest.status,
+      unassigned: true,
+      reason: reason || undefined
+    },
+    priority: 'HIGH'
+  });
+
+  await createAuditLogEntry({
+    performedBy: req.user.id,
+    targetUser: deliveryRequest.sellerId,
+    actionType: 'DELIVERY_REQUEST_UNASSIGNED',
+    previousValue: { deliveryGuyId: previousDeliveryGuyId },
+    newValue: { deliveryGuyId: null, reason: reason || '' },
+    req,
+    meta: {
+      orderId: String(deliveryRequest.orderId),
+      deliveryRequestId: String(deliveryRequest._id)
+    }
+  });
+
+  await Promise.all([
+    invalidateSellerCache(deliveryRequest.sellerId, ['orders', 'dashboard']),
+    invalidateUserCache(deliveryRequest.buyerId, ['orders', 'notifications']),
+    invalidateAdminCache(['admin', 'dashboard', 'delivery'])
+  ]);
+
+  const hydrated = await loadDeliveryRequestById(deliveryRequest._id);
+  return res.json({
+    message: 'Livreur retiré de la demande.',
+    item: toPublicDeliveryRequest(hydrated)
+  });
+});
+
+export const updateAdminDeliveryRequestPrice = asyncHandler(async (req, res) => {
+  const runtime = await assertPlatformDeliveryEnabled();
+  if (!canManageDeliveryRequests(req.user, runtime)) {
+    return res.status(403).json({ message: 'Accès refusé à la gestion des demandes de livraison.' });
+  }
+
+  const requestId = normalizeText(req.params?.id || '');
+  if (!isObjectId(requestId)) {
+    return res.status(400).json({ message: 'Demande invalide.' });
+  }
+
+  const nextPrice = Math.max(0, Number(req.body?.deliveryPrice || 0));
+  const reason = normalizeText(req.body?.reason || '');
+
+  const deliveryRequest = await DeliveryRequest.findById(requestId);
+  if (!deliveryRequest) {
+    return res.status(404).json({ message: 'Demande de livraison introuvable.' });
+  }
+  if (['REJECTED', 'CANCELED', 'DELIVERED', 'FAILED'].includes(String(deliveryRequest.status || ''))) {
+    return res.status(409).json({ message: 'Impossible de modifier le prix sur une demande clôturée.' });
+  }
+  if (String(deliveryRequest.assignmentStatus || '').toUpperCase() === 'ACCEPTED') {
+    return res.status(403).json({
+      message: 'Impossible de modifier le prix : le livreur a déjà accepté cette livraison.'
+    });
+  }
+
+  const previousPrice = Math.max(0, Number(deliveryRequest.deliveryPrice || 0));
+  const previousSource = String(deliveryRequest.deliveryPriceSource || 'UNKNOWN');
+  if (Number(previousPrice) === Number(nextPrice)) {
+    const hydratedNoop = await loadDeliveryRequestById(deliveryRequest._id);
+    return res.json({
+      message: 'Le prix est déjà à cette valeur.',
+      idempotent: true,
+      item: toPublicDeliveryRequest(hydratedNoop)
+    });
+  }
+
+  deliveryRequest.deliveryPrice = nextPrice;
+  deliveryRequest.deliveryPriceSource = 'ADMIN_RULE';
+  appendTimeline(deliveryRequest, {
+    type: 'DELIVERY_REQUEST_PRICE_UPDATED',
+    by: req.user.id,
+    meta: {
+      previousPrice,
+      nextPrice,
+      reason: reason || undefined
+    }
+  });
+  await deliveryRequest.save();
+
+  const orderDoc = await Order.findById(deliveryRequest.orderId).select('itemsSubtotal discountTotal paidAmount totalAmount remainingAmount').lean();
+  const itemsSubtotal = Number(orderDoc?.itemsSubtotal ?? 0);
+  const discountTotal = Number(orderDoc?.discountTotal ?? 0);
+  const paidAmount = Number(orderDoc?.paidAmount ?? 0);
+  const newTotalAmount = Math.max(0, Number((itemsSubtotal - discountTotal + nextPrice).toFixed(2)));
+  const newRemainingAmount = Math.max(0, Number((newTotalAmount - paidAmount).toFixed(2)));
+
+  await Order.updateOne(
+    { _id: deliveryRequest.orderId },
+    {
+      $set: {
+        deliveryFeeTotal: nextPrice,
+        platformDeliveryPriceSource: 'ADMIN_RULE',
+        totalAmount: newTotalAmount,
+        remainingAmount: newRemainingAmount
+      }
+    }
+  );
+
+  await createAuditLogEntry({
+    performedBy: req.user.id,
+    targetUser: deliveryRequest.sellerId,
+    actionType: 'DELIVERY_REQUEST_PRICE_UPDATED',
+    previousValue: { deliveryPrice: previousPrice, deliveryPriceSource: previousSource },
+    newValue: { deliveryPrice: nextPrice, deliveryPriceSource: 'ADMIN_RULE', reason: reason || '' },
+    req,
+    meta: {
+      orderId: String(deliveryRequest.orderId),
+      deliveryRequestId: String(deliveryRequest._id)
+    }
+  });
+
+  await emitDeliveryNotifications({
+    actorId: req.user.id,
+    orderId: deliveryRequest.orderId,
+    deliveryRequestId: deliveryRequest._id,
+    pickupCommuneId: deliveryRequest.pickup?.communeId || null,
+    dropoffCommuneId: deliveryRequest.dropoff?.communeId || null,
+    recipients: [String(deliveryRequest.sellerId), String(deliveryRequest.buyerId)],
+    type: 'delivery_request_accepted',
+    extraMetadata: {
+      status: deliveryRequest.status,
+      deliveryPrice: nextPrice,
+      deliveryPriceSource: 'ADMIN_RULE',
+      priceUpdated: true
+    },
+    priority: 'HIGH'
+  });
+
+  await Promise.all([
+    invalidateSellerCache(deliveryRequest.sellerId, ['orders', 'dashboard']),
+    invalidateUserCache(deliveryRequest.buyerId, ['orders', 'notifications']),
+    invalidateAdminCache(['admin', 'dashboard', 'delivery'])
+  ]);
+
+  const hydrated = await loadDeliveryRequestById(deliveryRequest._id);
+  return res.json({
+    message: 'Prix de livraison mis à jour.',
+    item: toPublicDeliveryRequest(hydrated)
+  });
+});
+
+/**
+ * Admin: set pickup and/or dropoff coordinates (geolocation) for a delivery request.
+ * Body: { pickup?: { latitude, longitude }, dropoff?: { latitude, longitude } }
+ * GeoJSON stores [longitude, latitude].
+ */
+export const updateAdminDeliveryRequestCoordinates = asyncHandler(async (req, res) => {
+  const runtime = await assertPlatformDeliveryEnabled();
+  if (!canManageDeliveryRequests(req.user, runtime)) {
+    return res.status(403).json({ message: 'Accès refusé à la gestion des demandes de livraison.' });
+  }
+
+  const requestId = normalizeText(req.params?.id || '');
+  if (!isObjectId(requestId)) {
+    return res.status(400).json({ message: 'Demande invalide.' });
+  }
+
+  const deliveryRequest = await DeliveryRequest.findById(requestId);
+  if (!deliveryRequest) {
+    return res.status(404).json({ message: 'Demande de livraison introuvable.' });
+  }
+
+  const { pickup: pickupCoords, dropoff: dropoffCoords } = req.body || {};
+
+  if (pickupCoords && typeof pickupCoords.latitude === 'number' && typeof pickupCoords.longitude === 'number') {
+    deliveryRequest.pickup = deliveryRequest.pickup || {};
+    deliveryRequest.pickup.coordinates = {
+      type: 'Point',
+      coordinates: [Number(pickupCoords.longitude), Number(pickupCoords.latitude)]
+    };
+  }
+  if (dropoffCoords && typeof dropoffCoords.latitude === 'number' && typeof dropoffCoords.longitude === 'number') {
+    deliveryRequest.dropoff = deliveryRequest.dropoff || {};
+    deliveryRequest.dropoff.coordinates = {
+      type: 'Point',
+      coordinates: [Number(dropoffCoords.longitude), Number(dropoffCoords.latitude)]
+    };
+  }
+
+  appendTimeline(deliveryRequest, {
+    type: 'DELIVERY_REQUEST_COORDINATES_UPDATED',
+    by: req.user.id,
+    meta: {
+      pickupSet: Boolean(pickupCoords?.latitude != null),
+      dropoffSet: Boolean(dropoffCoords?.latitude != null)
+    }
+  });
+  await deliveryRequest.save();
+
+  await Promise.all([
+    invalidateSellerCache(deliveryRequest.sellerId, ['orders', 'dashboard']),
+    invalidateUserCache(deliveryRequest.buyerId, ['orders', 'notifications']),
+    invalidateAdminCache(['admin', 'dashboard', 'delivery'])
+  ]);
+
+  const hydrated = await loadDeliveryRequestById(deliveryRequest._id);
+  return res.json({
+    message: 'Position(s) GPS enregistrée(s).',
+    item: toPublicDeliveryRequest(hydrated)
+  });
+});
+
 export const submitPickupProofAdmin = asyncHandler(async (req, res) => {
   const runtime = await assertPlatformDeliveryEnabled();
   if (!canManageDeliveryRequests(req.user, runtime)) {
@@ -828,7 +1792,7 @@ export const submitPickupProofAdmin = asyncHandler(async (req, res) => {
   if (!deliveryRequest) {
     return res.status(404).json({ message: 'Demande de livraison introuvable.' });
   }
-  if (['REJECTED', 'CANCELED', 'DELIVERED'].includes(String(deliveryRequest.status || ''))) {
+  if (['REJECTED', 'CANCELED', 'DELIVERED', 'FAILED'].includes(String(deliveryRequest.status || ''))) {
     return res.status(409).json({ message: 'Impossible de déposer une preuve pour une demande clôturée.' });
   }
 
@@ -852,6 +1816,11 @@ export const submitPickupProofAdmin = asyncHandler(async (req, res) => {
   if (['PENDING', 'ACCEPTED'].includes(String(deliveryRequest.status || ''))) {
     deliveryRequest.status = 'IN_PROGRESS';
   }
+  if (String(deliveryRequest.assignmentStatus || '').toUpperCase() !== 'ACCEPTED') {
+    deliveryRequest.assignmentStatus = 'ACCEPTED';
+    deliveryRequest.assignmentAcceptedAt = deliveryRequest.assignmentAcceptedAt || new Date();
+  }
+  deliveryRequest.currentStage = 'PICKED_UP';
   appendTimeline(deliveryRequest, {
     type: 'DELIVERY_PICKUP_PROOF_SUBMITTED',
     by: req.user.id,
@@ -946,6 +1915,8 @@ export const submitDeliveryProofAdmin = asyncHandler(async (req, res) => {
     submittedAt: new Date()
   };
   deliveryRequest.status = 'DELIVERED';
+  deliveryRequest.currentStage = 'DELIVERED';
+  deliveryRequest.assignmentStatus = 'ACCEPTED';
   appendTimeline(deliveryRequest, {
     type: 'DELIVERY_DELIVERY_PROOF_SUBMITTED',
     by: req.user.id,
@@ -1039,6 +2010,7 @@ export const getAdminDeliveryAnalytics = asyncHandler(async (req, res) => {
     delivered: 0,
     rejected: 0,
     canceled: 0,
+    failed: 0,
     deliveredRevenue: 0,
     totalRevenueAllStates: 0,
     avgDeliveryPrice: 0,
@@ -1082,6 +2054,7 @@ export const getAdminDeliveryAnalytics = asyncHandler(async (req, res) => {
     }
     if (status === 'REJECTED') kpis.rejected += 1;
     if (status === 'CANCELED') kpis.canceled += 1;
+    if (status === 'FAILED') kpis.failed += 1;
 
     if (createdAt && acceptedAt && !Number.isNaN(createdAt.getTime()) && !Number.isNaN(acceptedAt.getTime())) {
       const delta = acceptedAt.getTime() - createdAt.getTime();

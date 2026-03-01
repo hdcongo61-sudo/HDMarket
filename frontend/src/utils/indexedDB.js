@@ -171,11 +171,20 @@ class IndexedDBManager {
   async clear(storeName) {
     await this.init();
     if (!this.db) return false;
+    if (!this.db.objectStoreNames.contains(storeName)) return false;
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction([storeName], 'readwrite');
-      const store = transaction.objectStore(storeName);
-      const request = store.clear();
+      let transaction;
+      let store;
+      let request;
+      try {
+        transaction = this.db.transaction([storeName], 'readwrite');
+        store = transaction.objectStore(storeName);
+        request = store.clear();
+      } catch (error) {
+        resolve(false);
+        return;
+      }
 
       request.onsuccess = () => {
         resolve(true);

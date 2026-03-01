@@ -51,14 +51,15 @@ export default function UserSettings() {
     setClearingPwaCache(true);
     try {
       queryClient.clear();
-      await clearAllCache();
-      await clearSearchCache();
-      await Promise.all([
+      const cleanupTasks = [
+        clearAllCache(),
+        clearSearchCache(),
         indexedDB.clear(STORES.CACHE),
         indexedDB.clear(STORES.PRODUCTS),
         indexedDB.clear(STORES.SEARCH_RESULTS),
         indexedDB.clear(STORES.SHOP_DATA)
-      ]);
+      ];
+      const cleanupResults = await Promise.allSettled(cleanupTasks);
 
       if (typeof window !== 'undefined') {
         const removableKeys = [
@@ -103,8 +104,24 @@ export default function UserSettings() {
         }
       }
 
-      await unregisterServiceWorker();
-      showToast(t('settings.cache.cleared', 'Cache utilisateur vide. Rechargement...'), { variant: 'success' });
+      const swResult = await Promise.resolve(unregisterServiceWorker())
+        .then(() => ({ ok: true }))
+        .catch(() => ({ ok: false }));
+
+      const hasAnyFailure = cleanupResults.some((entry) => entry.status === 'rejected') || !swResult.ok;
+      if (hasAnyFailure) {
+        showToast(
+          t(
+            'settings.cache.partial',
+            'Cache utilisateur nettoye partiellement. Rechargement recommande.'
+          ),
+          { variant: 'warning' }
+        );
+      } else {
+        showToast(t('settings.cache.cleared', 'Cache utilisateur vide. Rechargement...'), {
+          variant: 'success'
+        });
+      }
       if (typeof window !== 'undefined') {
         window.setTimeout(() => {
           const url = new URL(window.location.href);

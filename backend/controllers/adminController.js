@@ -6,6 +6,7 @@ import Payment from '../models/paymentModel.js';
 import Comment from '../models/commentModel.js';
 import Rating from '../models/ratingModel.js';
 import Order from '../models/orderModel.js';
+import DeliveryGuy from '../models/deliveryGuyModel.js';
 import ImprovementFeedback from '../models/improvementFeedbackModel.js';
 import AccountTypeChange from '../models/accountTypeChangeModel.js';
 import AdminAuditLog from '../models/adminAuditLogModel.js';
@@ -1513,7 +1514,7 @@ export const updateUserRole = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
   }
 
-  if (!['user', 'manager'].includes(role)) {
+  if (!['user', 'manager', 'delivery_agent'].includes(role)) {
     return res.status(400).json({ message: 'Rôle non autorisé.' });
   }
 
@@ -1556,6 +1557,281 @@ export const updateUserRole = asyncHandler(async (req, res) => {
 
   const populated = await user.populate('shopVerifiedBy', 'name email');
   res.json(toAdminUserResponse(populated));
+});
+
+export const promoteUserToDeliveryGuy = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
+  }
+
+  if (req.user?.id && id === req.user.id) {
+    return res.status(400).json({ message: 'Vous ne pouvez pas modifier votre propre compte.' });
+  }
+
+  const user = await User.findById(id);
+  if (!user) return res.status(404).json({ message: 'Utilisateur introuvable.' });
+
+  if (['admin', 'founder'].includes(String(user.role || '').toLowerCase())) {
+    return res.status(400).json({
+      message: "Impossible de promouvoir un administrateur/fondateur en livreur."
+    });
+  }
+
+  const previousRole = String(user.role || 'user').toLowerCase();
+  const normalizedUserPhone = String(user.phone || '').trim();
+  const requestedFullName = String(req.body?.fullName || '').trim();
+  const requestedPhone = String(req.body?.phone || '').trim();
+  const requestedVehicleType = String(req.body?.vehicleType || '').trim();
+  const requestedNotes = String(req.body?.notes || '').trim();
+  const requestedCityId = mongoose.Types.ObjectId.isValid(req.body?.cityId)
+    ? req.body.cityId
+    : null;
+  const requestedCommunes = Array.isArray(req.body?.communes)
+    ? req.body.communes.filter((entry) => mongoose.Types.ObjectId.isValid(entry))
+    : [];
+  const requestedActive =
+    typeof req.body?.isActive === 'boolean'
+      ? req.body.isActive
+      : typeof req.body?.active === 'boolean'
+      ? req.body.active
+      : true;
+
+  let deliveryGuy = await DeliveryGuy.findOne({ userId: user._id });
+  let profileCreated = false;
+  let linkedByPhoneFallback = false;
+
+  if (!deliveryGuy && normalizedUserPhone) {
+    const byPhone = await DeliveryGuy.findOne({ phone: normalizedUserPhone });
+    if (byPhone) {
+      if (byPhone.userId && String(byPhone.userId) !== String(user._id)) {
+        return res.status(409).json({
+          message:
+            'Ce numéro est déjà lié à un autre profil livreur. Mettez à jour la fiche livreur manuellement.'
+        });
+      }
+      deliveryGuy = byPhone;
+      linkedByPhoneFallback = true;
+    }
+  }
+
+  if (!deliveryGuy) {
+    deliveryGuy = await DeliveryGuy.create({
+      userId: user._id,
+      fullName: requestedFullName || user.name || 'Livreur',
+      name: requestedFullName || user.name || 'Livreur',
+      phone: requestedPhone || normalizedUserPhone || '',
+      cityId: requestedCityId,
+      communes: requestedCommunes,
+      isActive: Boolean(requestedActive),
+      active: Boolean(requestedActive),
+      vehicleType: requestedVehicleType || '',
+      notes: requestedNotes || ''
+    });
+    profileCreated = true;
+  } else {
+    deliveryGuy.userId = user._id;
+    deliveryGuy.fullName = requestedFullName || deliveryGuy.fullName || deliveryGuy.name || user.name || 'Livreur';
+    deliveryGuy.name = deliveryGuy.fullName;
+    if (requestedPhone || !String(deliveryGuy.phone || '').trim()) {
+      deliveryGuy.phone = requestedPhone || normalizedUserPhone || '';
+    }
+    if (requestedCityId) {
+      deliveryGuy.cityId = requestedCityId;
+    }
+    if (requestedCommunes.length) {
+      deliveryGuy.communes = requestedCommunes;
+    }
+    if (typeof req.body?.isActive === 'boolean' || typeof req.body?.active === 'boolean') {
+      deliveryGuy.isActive = Boolean(requestedActive);
+      deliveryGuy.active = Boolean(requestedActive);
+    } else if (deliveryGuy.isActive === false && deliveryGuy.active === false) {
+      deliveryGuy.isActive = true;
+      deliveryGuy.active = true;
+    }
+    if (requestedVehicleType) deliveryGuy.vehicleType = requestedVehicleType;
+    if (requestedNotes) deliveryGuy.notes = requestedNotes;
+    await deliveryGuy.save();
+  }
+
+  if (previousRole !== 'delivery_agent') {
+    user.role = 'delivery_agent';
+    await user.save();
+  }
+
+  await createAuditLog({
+    action: 'role_changed',
+    targetUser: user._id,
+    performedBy: req.user.id,
+    details: {
+      userName: user.name,
+      userEmail: user.email,
+      previousRole,
+      newRole: 'delivery_agent',
+      deliveryGuyId: String(deliveryGuy._id),
+      profileCreated,
+      linkedByPhoneFallback
+    },
+    ipAddress: req.ip || req.connection?.remoteAddress
+  });
+
+  await createAuditLogEntry({
+    performedBy: req.user.id,
+    targetUser: user._id,
+    actionType: 'role_changed',
+    previousValue: { role: previousRole },
+    newValue: {
+      role: 'delivery_agent',
+      deliveryGuyId: String(deliveryGuy._id),
+      profileCreated,
+      linkedByPhoneFallback
+    },
+    req
+  });
+
+  const populatedUser = await user.populate('shopVerifiedBy', 'name email');
+  return res.json({
+    message:
+      previousRole === 'delivery_agent'
+        ? 'Profil livreur lié/mis à jour avec succès.'
+        : 'Utilisateur promu en livreur et profil lié avec succès.',
+    user: toAdminUserResponse(populatedUser),
+    deliveryGuy: {
+      id: String(deliveryGuy._id),
+      fullName: deliveryGuy.fullName || deliveryGuy.name || '',
+      phone: deliveryGuy.phone || '',
+      isActive: Boolean(deliveryGuy.isActive ?? deliveryGuy.active)
+    },
+    profileCreated,
+    linkedByPhoneFallback
+  });
+});
+
+/**
+ * Unlink the delivery guy profile from a user (founder/admin). The user is no longer a livreur
+ * but the DeliveryGuy document is kept (userId set to null) so their data is preserved and
+ * they can be re-linked later when promoted again.
+ */
+export const unlinkUserFromDeliveryGuy = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
+  }
+
+  if (req.user?.id && id === req.user.id) {
+    return res.status(400).json({ message: 'Vous ne pouvez pas modifier votre propre compte.' });
+  }
+
+  const user = await User.findById(id);
+  if (!user) return res.status(404).json({ message: 'Utilisateur introuvable.' });
+
+  if (['admin', 'founder'].includes(String(user.role || '').toLowerCase())) {
+    return res.status(400).json({
+      message: "Impossible de modifier le rôle d'un administrateur ou fondateur."
+    });
+  }
+
+  const deliveryGuy = await DeliveryGuy.findOne({ userId: user._id });
+  if (!deliveryGuy) {
+    return res.status(404).json({
+      message: "Aucun profil livreur lié à cet utilisateur."
+    });
+  }
+
+  const previousRole = String(user.role || 'user').toLowerCase();
+  const deliveryGuyId = deliveryGuy._id;
+
+  // Unlink only: clear userId so the user is no longer a livreur; keep all DeliveryGuy data
+  deliveryGuy.userId = null;
+  await deliveryGuy.save();
+
+  // Revert user role to normal user so they no longer have courier access
+  user.role = 'user';
+  await user.save();
+
+  await createAuditLog({
+    action: 'delivery_guy_unlinked',
+    targetUser: user._id,
+    performedBy: req.user.id,
+    details: {
+      userName: user.name,
+      userEmail: user.email,
+      previousRole,
+      deliveryGuyId: String(deliveryGuyId),
+      deliveryGuyPreserved: true
+    },
+    ipAddress: req.ip || req.connection?.remoteAddress
+  });
+
+  await createAuditLogEntry({
+    performedBy: req.user.id,
+    targetUser: user._id,
+    actionType: 'delivery_guy_unlinked',
+    previousValue: { role: previousRole, deliveryGuyId: String(deliveryGuyId) },
+    newValue: { role: 'user', deliveryGuyPreserved: true },
+    req
+  });
+
+  const populatedUser = await user.populate('shopVerifiedBy', 'name email');
+  return res.json({
+    message: 'Profil livreur délié. Les données du livreur sont conservées pour une éventuelle réaffectation.',
+    user: toAdminUserResponse(populatedUser),
+    deliveryGuyPreserved: true,
+    deliveryGuyId: String(deliveryGuyId)
+  });
+});
+
+/**
+ * Admin sets a user's password (no verification code). Optionally force logout.
+ */
+export const setUserPassword = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { id } = req.params;
+  const newPassword = String(req.body?.newPassword || '').trim();
+  const forceLogout = Boolean(req.body?.forceLogout);
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ message: 'Le mot de passe doit contenir au moins 6 caractères.' });
+  }
+
+  const user = await User.findById(id);
+  if (!user) return res.status(404).json({ message: 'Utilisateur introuvable.' });
+
+  if (req.user?.id && id === req.user.id) {
+    return res.status(400).json({ message: 'Utilisez la page profil pour modifier votre propre mot de passe.' });
+  }
+
+  user.password = newPassword;
+  if (forceLogout) {
+    user.sessionsInvalidatedAt = new Date();
+  }
+  await user.save();
+
+  await createAuditLog({
+    action: 'admin_set_password',
+    targetUser: user._id,
+    performedBy: req.user.id,
+    details: { userName: user.name, userEmail: user.email, forceLogout },
+    ipAddress: req.ip || req.connection?.remoteAddress
+  });
+
+  const populated = await User.findById(id)
+    .select(
+      'name email phone role accountType shopName shopAddress shopLogo shopVerified shopVerifiedBy shopVerifiedAt shopLocation shopLocationAccuracy shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags shopLocationHistory createdAt updatedAt isBlocked blockedAt blockedReason followersCount restrictions canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageHelpCenter canManageChatTemplates'
+    )
+    .populate('shopVerifiedBy', 'name email')
+    .lean();
+  return res.json({
+    message: 'Mot de passe mis à jour.',
+    user: toAdminUserResponse(populated)
+  });
 });
 
 export const updateAllProductSalesCount = asyncHandler(async (req, res) => {

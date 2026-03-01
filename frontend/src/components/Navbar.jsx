@@ -132,6 +132,8 @@ const isTruthyFlag = (value) => {
 
 export default function Navbar() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isCourierRoute = location.pathname.startsWith('/delivery') || location.pathname.startsWith('/courier');
   const { user, logout } = useContext(AuthContext);
   const { theme, setTheme, t, cities, isFeatureEnabled, getRuntimeValue } = useAppSettings();
   const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
@@ -166,6 +168,15 @@ export default function Navbar() {
   const canVerifyPayments = isTruthyFlag(user?.canVerifyPayments);
   const canManageComplaints = isTruthyFlag(user?.canManageComplaints);
   const canManageBoosts = isTruthyFlag(user?.canManageBoosts);
+  const canUseCourierMode =
+    normalizedRole === 'delivery_agent' ||
+    (!canAccessBackOffice &&
+      hasAnyPermission(user, [
+        'courier_view_assignments',
+        'courier_accept_assignment',
+        'courier_update_status',
+        'courier_upload_proof'
+      ]));
   const canViewAdminDashboard = hasAnyPermission(user, ['view_admin_dashboard']);
   const adminLinkLabel = isManager
     ? t('nav.management', 'Gestion')
@@ -3030,8 +3041,8 @@ export default function Navbar() {
                 </div>
               ) : (
                 <div className="relative group">
-                  <button className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200">
-                    <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center">
+                  <button className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:ring-offset-2 dark:focus:ring-offset-gray-900">
+                    <div className="w-8 h-8 bg-gradient-to-br from-neutral-700 to-neutral-900 rounded-full flex items-center justify-center shadow-inner">
                       <span className="text-white font-semibold text-sm">
                         {user.name?.charAt(0)?.toUpperCase() || 'U'}
                       </span>
@@ -3039,218 +3050,324 @@ export default function Navbar() {
                     <span className="font-medium text-gray-700 dark:text-gray-200 max-w-24 truncate hidden lg:block">
                       {user.name || t('nav.myAccount', 'Mon compte')}
                     </span>
-                    <ChevronDown size={16} className="text-gray-500 hidden lg:block" />
+                    <ChevronDown size={16} className="text-gray-500 hidden lg:block transition-transform group-hover:rotate-180 duration-200" />
                   </button>
-                  
-                  {/* MENU DÉROULANT UTILISATEUR - GARDE "Mes annonces" POUR TOUS */}
-                  <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                    <div className="p-4 border-b border-gray-100 dark:border-gray-700">
-                      <p className="font-semibold text-gray-900 dark:text-white truncate">
-                        {user.name || t('nav.user', 'Utilisateur')}
-                      </p>
-                      <p className="text-sm text-gray-500 truncate">{user.email}</p>
+
+                  {/* Dropdown panel: professional layout with sections */}
+                  <div className="absolute right-0 mt-2 w-72 max-h-[min(28rem,calc(100vh-5rem))] bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700 rounded-2xl shadow-xl shadow-black/10 dark:shadow-black/30 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden flex flex-col">
+                    {/* User header (fixed at top) */}
+                    <div className="flex-shrink-0 p-4 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800/80 dark:to-gray-800 border-b border-gray-100 dark:border-gray-700">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-neutral-600 to-neutral-800 flex items-center justify-center text-white font-bold text-lg shadow-md flex-shrink-0">
+                          {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-gray-900 dark:text-white truncate">
+                            {user.name || t('nav.user', 'Utilisateur')}
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="p-2">
-                      <Link
-                        to="/profile"
-                        className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                      >
-                        <User size={16} />
-                        <span>{t('nav.myProfile', 'Mon profil')}</span>
-                      </Link>
-                      <Link
-                        to="/settings/preferences"
-                        className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                      >
-                        <Settings size={16} />
-                        <span>{t('nav.preferences', 'Préférences')}</span>
-                      </Link>
-                      {/* "Mes annonces" conservé dans le dropdown même pour les admins */}
-                      <Link
-                        to="/my"
-                        className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                      >
-                        <Package size={16} />
-                        <span>{t('nav.myListings', 'Mes annonces')}</span>
-                      </Link>
-                      <Link
-                        to="/orders"
-                        className="relative flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                      >
-                        <ClipboardList size={16} />
-                        <span>{t('nav.myOrders', 'Mes commandes')}</span>
-                        {hasActiveOrders && (
-                          <span className="ml-auto bg-black text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                            {activeOrdersBadge}
-                          </span>
-                        )}
-                      </Link>
-                      <Link
-                        to="/seller/orders"
-                        className="relative flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                      >
-                        <Package size={16} />
-                        <span>{t('nav.customerOrders', 'Commandes clients')}</span>
-                        {hasSellerOrders && (
-                          <span className="ml-auto bg-neutral-900 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                            {sellerOrdersBadge}
-                          </span>
-                        )}
-                      </Link>
-                      {(canAccessBackOffice || canManageProducts) && (
+
+                    {/* Scrollable content: mode switch + sections */}
+                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable]">
+                    {/* Account mode switch (courier) */}
+                    {platformDeliveryEnabled && canUseCourierMode && (
+                      <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700/80 bg-gray-50/50 dark:bg-gray-800/30">
+                        <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                          {t('nav.accountMode', 'Mode du compte')}
+                        </p>
+                        <div className="flex rounded-xl bg-gray-200/80 dark:bg-gray-700/50 p-1 gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (typeof window !== 'undefined') {
+                                window.localStorage.setItem('hdmarket:courier-view-mode', 'normal');
+                              }
+                              if (isCourierRoute) navigate('/my');
+                            }}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                              !isCourierRoute
+                                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                            }`}
+                          >
+                            <User size={16} />
+                            {t('nav.normalAccount', 'Normal')}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (typeof window !== 'undefined') {
+                                window.localStorage.setItem('hdmarket:courier-view-mode', 'courier');
+                              }
+                              if (!isCourierRoute) navigate('/delivery/dashboard');
+                            }}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                              isCourierRoute
+                                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                            }`}
+                          >
+                            <Truck size={16} />
+                            {t('nav.courierMode', 'Mode livreur')}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Section: Mon compte */}
+                    <div className="py-2">
+                      <p className="px-4 py-1.5 text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                        Mon compte
+                      </p>
+                      <div className="px-2 space-y-0.5">
                         <Link
-                          to="/admin/products"
-                          className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                          to="/profile"
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
                         >
-                          <Package size={16} />
-                          <span className="text-sm font-semibold">{t('nav.products', 'Produits')}</span>
+                          <User size={18} className="text-gray-500 dark:text-gray-400 shrink-0" />
+                          <span className="text-sm font-medium">{t('nav.myProfile', 'Mon profil')}</span>
                         </Link>
-                      )}
-                      {platformDeliveryEnabled && (canAccessBackOffice || canManageDelivery) && (
                         <Link
-                          to="/admin/delivery-guys"
-                          className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                          to="/settings/preferences"
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
                         >
-                          <Truck size={16} />
-                          <span className="text-sm font-semibold">{t('nav.deliveryGuys', 'Livreurs')}</span>
+                          <Settings size={18} className="text-gray-500 dark:text-gray-400 shrink-0" />
+                          <span className="text-sm font-medium">{t('nav.preferences', 'Préférences')}</span>
                         </Link>
-                      )}
-                      {platformDeliveryEnabled && (canAccessBackOffice || canManageDelivery) && (
                         <Link
-                          to="/admin/delivery-requests"
-                          className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                          to="/my"
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
                         >
-                          <ClipboardList size={16} />
-                          <span className="text-sm font-semibold">{t('nav.deliveryRequests', 'Demandes livraison')}</span>
+                          <Package size={18} className="text-gray-500 dark:text-gray-400 shrink-0" />
+                          <span className="text-sm font-medium">{t('nav.myListings', 'Mes annonces')}</span>
                         </Link>
-                      )}
-                      {(isAdminLike || canManageChatTemplates) && (
                         <Link
-                          to="/admin/chat-templates"
-                          className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                          to="/orders"
+                          className="relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
                         >
-                          <MessageSquare size={16} />
-                          <span className="text-sm font-semibold">{t('nav.chatTemplates', 'Chat templates')}</span>
-                        </Link>
-                      )}
-                      {isAdminLike && (
-                        <Link
-                          to="/admin/settings"
-                          className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                        >
-                          <SlidersHorizontal size={16} />
-                          <span className="text-sm font-semibold">{t('nav.appSettings', 'App Settings')}</span>
-                        </Link>
-                      )}
-                      {(isAdminLike || canReadFeedback) && (
-                        <Link
-                          to="/admin/feedback"
-                          className="relative flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                        >
-                          <MessageSquare size={16} />
-                          <span className="text-sm font-semibold">{t('nav.feedback', 'Avis amélioration')}</span>
-                          {unreadFeedback > 0 && (
-                            <span className="ml-auto bg-neutral-800 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                              {unreadFeedback > 99 ? '99+' : unreadFeedback}
+                          <ClipboardList size={18} className="text-gray-500 dark:text-gray-400 shrink-0" />
+                          <span className="text-sm font-medium">{t('nav.myOrders', 'Mes commandes')}</span>
+                          {hasActiveOrders && (
+                            <span className="ml-auto bg-neutral-800 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[22px] text-center">
+                              {activeOrdersBadge}
                             </span>
                           )}
                         </Link>
-                      )}
-                      {(isAdminLike || canVerifyPayments) && (
                         <Link
-                          to="/admin/payment-verification"
-                          className="relative flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                          to="/seller/orders"
+                          className="relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
                         >
-                          <CheckCircle size={16} />
-                          <span className="text-sm font-semibold">{t('nav.verifyPayments', 'Vérifier paiements')}</span>
-                          {waitingPayments > 0 && (
-                            <span className="ml-auto flex items-center justify-center min-w-[22px] h-6 px-2 bg-neutral-900 text-white text-xs font-bold rounded-full shadow-lg border-2 border-white dark:border-gray-800 animate-pulse">
-                              {waitingPayments > 99 ? '99+' : waitingPayments}
+                          <Package size={18} className="text-gray-500 dark:text-gray-400 shrink-0" />
+                          <span className="text-sm font-medium">{t('nav.customerOrders', 'Commandes clients')}</span>
+                          {hasSellerOrders && (
+                            <span className="ml-auto bg-neutral-800 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[22px] text-center">
+                              {sellerOrdersBadge}
                             </span>
                           )}
                         </Link>
-                      )}
-                      {(canAccessBackOffice || canManageComplaints) && (
+                      </div>
+                    </div>
+
+                    {/* Section: Administration (visible for admin/capabilities) */}
+                    {(canAccessBackOffice || canManageProducts || canManageDelivery || canManageChatTemplates || isAdminLike || canReadFeedback || canVerifyPayments || canManageComplaints || canManageBoosts) && (
+                      <div className="py-2 border-t border-gray-100 dark:border-gray-700/80">
+                        <p className="px-4 py-1.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <ShieldCheck size={12} />
+                          Administration
+                        </p>
+                        <div className="px-2 space-y-0.5 bg-amber-50/30 dark:bg-amber-900/10 rounded-xl mx-2 py-1">
+                          {isAdminLike && (
+                            <Link
+                              to="/admin"
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-800 dark:text-gray-100 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors font-medium"
+                            >
+                              <BarChart3 size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <span className="text-sm">Tableau de bord</span>
+                            </Link>
+                          )}
+                          {(canAccessBackOffice || canManageProducts) && (
+                            <Link
+                              to="/admin/products"
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
+                            >
+                              <Package size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <span className="text-sm font-medium">{t('nav.products', 'Produits')}</span>
+                            </Link>
+                          )}
+                          {platformDeliveryEnabled && (canAccessBackOffice || canManageDelivery) && (
+                            <>
+                              <Link
+                                to="/admin/delivery-guys"
+                                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
+                              >
+                                <Truck size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                                <span className="text-sm font-medium">{t('nav.deliveryGuys', 'Livreurs')}</span>
+                              </Link>
+                              <Link
+                                to="/admin/delivery-requests"
+                                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
+                              >
+                                <ClipboardList size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                                <span className="text-sm font-medium">{t('nav.deliveryRequests', 'Demandes livraison')}</span>
+                              </Link>
+                            </>
+                          )}
+                          {platformDeliveryEnabled && canUseCourierMode && (
+                            <Link
+                              to="/delivery/dashboard"
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
+                            >
+                              <Truck size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <span className="text-sm font-medium">{t('nav.courierMode', 'Mode livreur')}</span>
+                            </Link>
+                          )}
+                          {(isAdminLike || canManageChatTemplates) && (
+                            <Link
+                              to="/admin/chat-templates"
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
+                            >
+                              <MessageSquare size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <span className="text-sm font-medium">{t('nav.chatTemplates', 'Chat templates')}</span>
+                            </Link>
+                          )}
+                          {isAdminLike && (
+                            <Link
+                              to="/admin/settings"
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
+                            >
+                              <SlidersHorizontal size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <span className="text-sm font-medium">{t('nav.appSettings', 'App Settings')}</span>
+                            </Link>
+                          )}
+                          {(isAdminLike || canReadFeedback) && (
+                            <Link
+                              to="/admin/feedback"
+                              className="relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
+                            >
+                              <MessageSquare size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <span className="text-sm font-medium">{t('nav.feedback', 'Avis amélioration')}</span>
+                              {unreadFeedback > 0 && (
+                                <span className="ml-auto bg-amber-600 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[22px] text-center">
+                                  {unreadFeedback > 99 ? '99+' : unreadFeedback}
+                                </span>
+                              )}
+                            </Link>
+                          )}
+                          {(isAdminLike || canVerifyPayments) && (
+                            <Link
+                              to="/admin/payment-verification"
+                              className="relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
+                            >
+                              <CheckCircle size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <span className="text-sm font-medium">{t('nav.verifyPayments', 'Vérifier paiements')}</span>
+                              {waitingPayments > 0 && (
+                                <span className="ml-auto flex items-center justify-center min-w-[22px] h-6 px-2 bg-amber-600 text-white text-xs font-bold rounded-full animate-pulse">
+                                  {waitingPayments > 99 ? '99+' : waitingPayments}
+                                </span>
+                              )}
+                            </Link>
+                          )}
+                          {(canAccessBackOffice || canManageComplaints) && (
+                            <Link
+                              to="/admin/complaints"
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
+                            >
+                              <AlertCircle size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <span className="text-sm font-medium">{t('nav.handleComplaints', 'Traiter les réclamations')}</span>
+                            </Link>
+                          )}
+                          {!isAdminLike && canManageBoosts && (
+                            <Link
+                              to="/admin/product-boosts"
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
+                            >
+                              <Sparkles size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <span className="text-sm font-medium">{t('nav.productBoosts', 'Boost produits')}</span>
+                            </Link>
+                          )}
+                          {isAdminLike && (
+                            <Link
+                              to="/admin/payment-verifiers"
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
+                            >
+                              <Users size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <span className="text-sm font-medium">{t('nav.paymentVerifiers', 'Vérificateurs paiements')}</span>
+                            </Link>
+                          )}
+                          {isAdminLike && (
+                            <Link
+                              to="/admin/product-boosts"
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
+                            >
+                              <Sparkles size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <span className="text-sm font-medium">{t('nav.productBoosts', 'Boost produits')}</span>
+                            </Link>
+                          )}
+                          {isAdminLike && (
+                            <Link
+                              to="/admin/reports"
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
+                            >
+                              <FileText size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <span className="text-sm font-medium">{t('nav.reports', 'Rapports')}</span>
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Section: Raccourcis (stats, favoris, panier) */}
+                    <div className="py-2 border-t border-gray-100 dark:border-gray-700/80">
+                      <p className="px-4 py-1.5 text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                        Raccourcis
+                      </p>
+                      <div className="px-2 space-y-0.5">
                         <Link
-                          to="/admin/complaints"
-                          className="relative flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                          to="/stats"
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
                         >
-                          <AlertCircle size={16} />
-                          <span className="text-sm font-semibold">{t('nav.handleComplaints', 'Traiter les réclamations')}</span>
+                          <BarChart3 size={18} className="text-gray-500 dark:text-gray-400 shrink-0" />
+                          <span className="text-sm font-medium">{t('nav.statistics', 'Statistiques')}</span>
                         </Link>
-                      )}
-                      {!isAdminLike && canManageBoosts && (
                         <Link
-                          to="/admin/product-boosts"
-                          className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                          to="/favorites"
+                          className="relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
                         >
-                          <Sparkles size={16} />
-                          <span className="text-sm font-semibold">{t('nav.productBoosts', 'Boost produits')}</span>
+                          <Heart size={18} className="text-gray-500 dark:text-gray-400 shrink-0" />
+                          <span className="text-sm font-medium">{t('nav.favorites', 'Favoris')}</span>
+                          {favoritesCount > 0 && (
+                            <span className="ml-auto bg-neutral-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[22px] text-center">
+                              {favoritesCount}
+                            </span>
+                          )}
                         </Link>
-                      )}
-                      {isAdminLike && (
                         <Link
-                          to="/admin/payment-verifiers"
-                          className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                          to="/cart"
+                          className="relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
                         >
-                          <Users size={16} />
-                          <span className="text-sm font-semibold">{t('nav.paymentVerifiers', 'Vérificateurs paiements')}</span>
+                          <ShoppingCart size={18} className="text-gray-500 dark:text-gray-400 shrink-0" />
+                          <span className="text-sm font-medium">{t('nav.cart', 'Panier')}</span>
+                          {cartCount > 0 && (
+                            <span className="ml-auto bg-neutral-800 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[22px] text-center">
+                              {cartCount}
+                            </span>
+                          )}
                         </Link>
-                      )}
-                      {isAdminLike && (
-                        <Link
-                          to="/admin/product-boosts"
-                          className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                        >
-                          <Sparkles size={16} />
-                          <span className="text-sm font-semibold">{t('nav.productBoosts', 'Boost produits')}</span>
-                        </Link>
-                      )}
-                      {isAdminLike && (
-                        <Link
-                          to="/admin/reports"
-                          className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                        >
-                          <FileText size={16} />
-                          <span className="text-sm font-semibold">{t('nav.reports', 'Rapports')}</span>
-                        </Link>
-                      )}
-                      <Link
-                        to="/stats"
-                        className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                      >
-                        <BarChart3 size={16} />
-                        <span>{t('nav.statistics', 'Statistiques')}</span>
-                      </Link>
-                      <Link
-                        to="/favorites"
-                        className="relative flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                      >
-                        <Heart size={16} />
-                        <span>{t('nav.favorites', 'Favoris')}</span>
-                        {favoritesCount > 0 && (
-                          <span className="ml-auto bg-neutral-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                            {favoritesCount}
-                          </span>
-                        )}
-                      </Link>
-                      <Link
-                        to="/cart"
-                        className="relative flex items-center gap-3 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                      >
-                        <ShoppingCart size={16} />
-                        <span>{t('nav.cart', 'Panier')}</span>
-                        {cartCount > 0 && (
-                          <span className="ml-auto bg-black text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                            {cartCount}
-                          </span>
-                        )}
-                      </Link>
+                      </div>
+                    </div>
+
+                    </div>
+
+                    {/* Logout (fixed at bottom) */}
+                    <div className="flex-shrink-0 p-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
                       <button
                         onClick={logout}
-                        className="flex items-center gap-3 px-3 py-2 rounded-xl text-neutral-800 hover:bg-neutral-50 dark:hover:bg-red-900/20 transition-colors w-full text-left"
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left transition-colors font-medium text-sm"
                       >
-                        <LogOut size={16} />
+                        <LogOut size={18} className="shrink-0" />
                         <span>{t('nav.logout', 'Déconnexion')}</span>
                       </button>
                     </div>
@@ -3642,9 +3759,12 @@ export default function Navbar() {
                 {t('nav.feedback', 'Avis amélioration')}
               </Link>
 
-              {/* Utilisateur connecté mobile - TOUJOURS AFFICHER "Mes annonces" */}
+              {/* Utilisateur connecté mobile - sections alignées avec le dropdown desktop */}
               {user && (
                 <>
+                  <p className="px-4 pt-4 pb-1 text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                    Mon compte
+                  </p>
                   <NavLink 
                     to="/my" 
                     onClick={() => setIsMenuOpen(false)}
@@ -3776,6 +3896,24 @@ export default function Navbar() {
                       </span>
                     )}
                   </NavLink>
+                  {(canAccessBackOffice || canManageProducts || isAdminLike || canReadFeedback || canVerifyPayments || canManageComplaints || canManageChatTemplates || canManageBoosts) && (
+                    <>
+                      <p className="px-4 pt-4 pb-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <ShieldCheck size={12} />
+                        Administration
+                      </p>
+                      {isAdminLike && (
+                        <NavLink
+                          to="/admin"
+                          onClick={() => setIsMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3 rounded-xl font-medium bg-amber-50 dark:bg-amber-900/20 text-gray-800 dark:text-gray-100 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+                        >
+                          <BarChart3 size={20} />
+                          Tableau de bord
+                        </NavLink>
+                      )}
+                    </>
+                  )}
                   {canAccessBackOffice && (
                     <NavLink
                       to="/admin/orders"
@@ -3905,6 +4043,51 @@ export default function Navbar() {
                       <ClipboardList size={20} />
                       {t('nav.deliveryRequests', 'Demandes livraison')}
                     </NavLink>
+                  )}
+                  {platformDeliveryEnabled && canUseCourierMode && (
+                    <div className="px-2 py-2">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                        {t('nav.accountMode', 'Mode du compte')}
+                      </p>
+                      <div className="flex rounded-xl bg-gray-200 dark:bg-gray-700/50 p-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (typeof window !== 'undefined') {
+                              window.localStorage.setItem('hdmarket:courier-view-mode', 'normal');
+                            }
+                            if (isCourierRoute) navigate('/my');
+                            setIsMenuOpen(false);
+                          }}
+                          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-semibold transition-colors ${
+                            !isCourierRoute
+                              ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                              : 'text-gray-600 dark:text-gray-400'
+                          }`}
+                        >
+                          <User size={18} />
+                          {t('nav.normalAccount', 'Normal')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (typeof window !== 'undefined') {
+                              window.localStorage.setItem('hdmarket:courier-view-mode', 'courier');
+                            }
+                            if (!isCourierRoute) navigate('/delivery/dashboard');
+                            setIsMenuOpen(false);
+                          }}
+                          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-semibold transition-colors ${
+                            isCourierRoute
+                              ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                              : 'text-gray-600 dark:text-gray-400'
+                          }`}
+                        >
+                          <Truck size={18} />
+                          {t('nav.courierMode', 'Mode livreur')}
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </>
               )}

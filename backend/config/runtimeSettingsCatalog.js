@@ -168,6 +168,90 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     defaultValue: false,
     isPublic: true
   },
+  enable_delivery_agents: {
+    category: 'delivery_platform',
+    description: 'Activer le mode livreur dédié (courier dashboard + endpoints).',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  courier_must_accept_assignment: {
+    category: 'delivery_platform',
+    description: 'Exiger que le livreur accepte/refuse explicitement une affectation.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: false
+  },
+  courier_accept_timeout_minutes: {
+    category: 'delivery_platform',
+    description: 'Délai max (minutes) pour accepter une affectation livreur.',
+    valueType: 'number',
+    defaultValue: 30,
+    isPublic: false,
+    min: 5,
+    max: 720
+  },
+  enable_proof_upload: {
+    category: 'delivery_platform',
+    description: 'Activer le dépôt de preuves pickup/livraison par les livreurs.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  enable_delivery_pin_code: {
+    category: 'delivery_platform',
+    description: 'Exiger un code de confirmation client pour valider la livraison.',
+    valueType: 'boolean',
+    defaultValue: false,
+    isPublic: false
+  },
+  enable_live_location: {
+    category: 'delivery_platform',
+    description: 'Activer le suivi live du livreur (préparation future).',
+    valueType: 'boolean',
+    defaultValue: false,
+    isPublic: false
+  },
+  delivery_agent_must_accept: {
+    category: 'delivery_platform',
+    description: 'Alias runtime: exiger que le livreur accepte une mission (compatibilité API delivery).',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: false
+  },
+  delivery_location_lock_enabled: {
+    category: 'delivery_platform',
+    description: 'Activer le verrouillage de localisation côté livreur.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: false
+  },
+  delivery_location_lock_distance_m: {
+    category: 'delivery_platform',
+    description: 'Distance (m) en-dessous de laquelle la localisation est masquée pour le livreur.',
+    valueType: 'number',
+    defaultValue: 120,
+    isPublic: false,
+    min: 10,
+    max: 5000
+  },
+  delivery_location_lock_on_status: {
+    category: 'delivery_platform',
+    description: 'Statut à partir duquel la localisation est verrouillée.',
+    valueType: 'string',
+    defaultValue: 'DELIVERED',
+    isPublic: false,
+    allowedValues: ['IN_TRANSIT', 'DELIVERED']
+  },
+  delivery_location_visibility_minutes_after_accept: {
+    category: 'delivery_platform',
+    description: 'Durée (minutes) de visibilité des coordonnées après acceptation.',
+    valueType: 'number',
+    defaultValue: 90,
+    isPublic: false,
+    min: 5,
+    max: 1440
+  },
   order_reminder_interval_hours: {
     category: 'order_automation',
     description: 'Intervalle minimum entre deux relances d’une même commande (heures).',

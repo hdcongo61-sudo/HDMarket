@@ -58,7 +58,16 @@ const getPeriodDates = (period, startDate, endDate) => {
 
 export const generateReport = asyncHandler(async (req, res) => {
   const { period = 'month', startDate, endDate } = req.query;
-  const { start, end, label, type } = getPeriodDates(period, startDate, endDate);
+  let start, end, label, type;
+  try {
+    const periodResult = getPeriodDates(period, startDate, endDate);
+    start = periodResult.start;
+    end = periodResult.end;
+    label = periodResult.label;
+    type = periodResult.type;
+  } catch (err) {
+    return res.status(400).json({ message: err.message || 'Période invalide.' });
+  }
 
   // Users stats
   const [
@@ -78,7 +87,7 @@ export const generateReport = asyncHandler(async (req, res) => {
     User.aggregate([
       { $group: { _id: '$city', count: { $sum: 1 } } }
     ]),
-    AccountTypeChange.countDocuments({ newAccountType: 'shop', createdAt: { $gte: start, $lte: end } }),
+    AccountTypeChange.countDocuments({ newType: 'shop', createdAt: { $gte: start, $lte: end } }),
     User.countDocuments({ isBlocked: true }),
     User.countDocuments({ phoneVerified: true })
   ]);
@@ -117,8 +126,8 @@ export const generateReport = asyncHandler(async (req, res) => {
     return acc;
   }, {});
 
-  const totalOrderValue = ordersValue[0]?.totalValue || 0;
-  const avgOrderValue = ordersValue[0]?.avgValue || 0;
+  const totalOrderValue = Number(ordersValue[0]?.totalValue) || 0;
+  const avgOrderValue = Number(ordersValue[0]?.avgValue) || 0;
 
   // Products stats
   const [
@@ -295,7 +304,7 @@ export const generateReport = asyncHandler(async (req, res) => {
       total: totalOrders,
       new: newOrders,
       byStatus: ordersByStatusMap,
-      totalValue,
+      totalValue: totalOrderValue,
       averageValue: avgOrderValue
     },
     products: {

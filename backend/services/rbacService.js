@@ -21,7 +21,11 @@ const PERMISSIONS = Object.freeze({
   MANAGE_PRODUCTS: 'manage_products',
   MANAGE_DELIVERY: 'manage_delivery',
   MANAGE_CHAT_TEMPLATES: 'manage_chat_templates',
-  MANAGE_HELP_CENTER: 'manage_help_center'
+  MANAGE_HELP_CENTER: 'manage_help_center',
+  COURIER_VIEW_ASSIGNMENTS: 'courier_view_assignments',
+  COURIER_ACCEPT_ASSIGNMENT: 'courier_accept_assignment',
+  COURIER_UPDATE_STATUS: 'courier_update_status',
+  COURIER_UPLOAD_PROOF: 'courier_upload_proof'
 });
 
 const ALL_PERMISSIONS = Object.freeze(Object.values(PERMISSIONS));
@@ -34,6 +38,9 @@ const normalizeRole = (role = 'user') => {
   if (normalized === 'founder') return 'founder';
   if (normalized === 'admin') return 'admin';
   if (normalized === 'manager') return 'manager';
+  if (normalized === 'delivery_agent' || normalized === 'delivery-agent' || normalized === 'courier') {
+    return 'delivery_agent';
+  }
   return 'user';
 };
 
@@ -69,6 +76,12 @@ const ROLE_PERMISSION_MAP = Object.freeze({
     PERMISSIONS.MANAGE_BOOSTS,
     PERMISSIONS.MANAGE_CHAT_TEMPLATES,
     PERMISSIONS.MANAGE_HELP_CENTER
+  ],
+  delivery_agent: [
+    PERMISSIONS.COURIER_VIEW_ASSIGNMENTS,
+    PERMISSIONS.COURIER_ACCEPT_ASSIGNMENT,
+    PERMISSIONS.COURIER_UPDATE_STATUS,
+    PERMISSIONS.COURIER_UPLOAD_PROOF
   ],
   seller: [PERMISSIONS.EDIT_USER_PROFILE],
   user: [PERMISSIONS.EDIT_USER_PROFILE]

@@ -259,6 +259,27 @@ export default function SellerOrderDetail() {
   const [requestPlatformDeliveryNote, setRequestPlatformDeliveryNote] = useState('');
   const [requestPlatformDeliveryInvoiceUrl, setRequestPlatformDeliveryInvoiceUrl] = useState('');
   const [requestPlatformDeliveryError, setRequestPlatformDeliveryError] = useState('');
+  const [deliveryPinDraft, setDeliveryPinDraft] = useState('');
+  const [deliveryPinLoading, setDeliveryPinLoading] = useState(false);
+  const [deliveryPinError, setDeliveryPinError] = useState('');
+  const [deliveryPinValue, setDeliveryPinValue] = useState('');
+  const [deliveryPinExpiresAt, setDeliveryPinExpiresAt] = useState('');
+  const [deliveryFeeEditValue, setDeliveryFeeEditValue] = useState('');
+  const [deliveryFeeSaving, setDeliveryFeeSaving] = useState(false);
+
+  // Delivery fee cannot be modified once order is "Prête à livrer" or "En cours de livraison"
+  const SELLER_CAN_EDIT_DELIVERY_FEE = [
+    'pending_payment',
+    'paid',
+    'pending',
+    'pending_installment',
+    'installment_active',
+    'overdue_installment',
+    'confirmed',
+    'ready_for_pickup'
+  ];
+  const canEditDeliveryFee = order && SELLER_CAN_EDIT_DELIVERY_FEE.includes(String(order.status));
+  const deliveryFeeUpdatedAt = order?.deliveryFeeUpdatedAt ? new Date(order.deliveryFeeUpdatedAt) : null;
 
   const normalizeFileUrl = useCallback((url) => {
     if (!url) return '';
@@ -275,6 +296,7 @@ export default function SellerOrderDetail() {
     try {
       const { data } = await api.get(`/orders/seller/detail/${orderId}`);
       setOrder(data);
+      setDeliveryFeeEditValue('');
       const { data: messages } = await api.get(`/orders/${orderId}/messages`);
       const currentUserId = user?._id || user?.id || '';
       const unread = Array.isArray(messages)
@@ -293,6 +315,12 @@ export default function SellerOrderDetail() {
     loadOrder();
   }, [loadOrder]);
 
+  useEffect(() => {
+    const handler = () => loadOrder();
+    window.addEventListener('hdmarket:orders-refresh', handler);
+    return () => window.removeEventListener('hdmarket:orders-refresh', handler);
+  }, [loadOrder]);
+
   const handleStatusUpdate = async (nextStatus) => {
     if (!order) return;
     setStatusUpdatingId(order._id);
@@ -307,6 +335,28 @@ export default function SellerOrderDetail() {
       showToast(message, { variant: 'error' });
     } finally {
       setStatusUpdatingId('');
+    }
+  };
+
+  const handleUpdateDeliveryFee = async () => {
+    if (!order) return;
+    const num = Number(deliveryFeeEditValue);
+    if (!Number.isFinite(num) || num < 0) {
+      showToast('Montant invalide.', { variant: 'error' });
+      return;
+    }
+    setDeliveryFeeSaving(true);
+    try {
+      const { data } = await api.patch(`/orders/seller/${order._id}/delivery-fee`, {
+        deliveryFeeTotal: num
+      });
+      setOrder(data);
+      setDeliveryFeeEditValue('');
+      showToast('Frais de livraison mis à jour. Le client a été notifié.', { variant: 'success' });
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Impossible de modifier les frais.', { variant: 'error' });
+    } finally {
+      setDeliveryFeeSaving(false);
     }
   };
 
@@ -391,13 +441,47 @@ export default function SellerOrderDetail() {
 
   const handleRequestPlatformDelivery = async () => {
     if (!order?._id) return;
+    const rawInvoiceUrl = String(requestPlatformDeliveryInvoiceUrl || '').trim();
+    const normalizedInvoiceUrl = (() => {
+      if (!rawInvoiceUrl) return '';
+      if (/^https?:\/\//i.test(rawInvoiceUrl)) return rawInvoiceUrl;
+      // Accept domain-like values typed by sellers and normalize them.
+      return `https://${rawInvoiceUrl}`;
+    })();
+
+    if (requireInvoiceForPlatformDelivery && !normalizedInvoiceUrl) {
+      const message = 'URL facture requise pour envoyer la demande.';
+      setRequestPlatformDeliveryError(message);
+      showToast(message, { variant: 'error' });
+      return;
+    }
+
+    if (normalizedInvoiceUrl) {
+      try {
+        const parsed = new URL(normalizedInvoiceUrl);
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+          throw new Error('INVALID_PROTOCOL');
+        }
+        const host = String(parsed.hostname || '').trim().toLowerCase();
+        const looksLikeIpv4 = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host);
+        if (!host || (host !== 'localhost' && !host.includes('.') && !looksLikeIpv4)) {
+          throw new Error('INVALID_HOST');
+        }
+      } catch {
+        const message = 'URL facture invalide (ex: https://exemple.com/facture.pdf).';
+        setRequestPlatformDeliveryError(message);
+        showToast(message, { variant: 'error' });
+        return;
+      }
+    }
+
     setRequestPlatformDeliveryLoading(true);
     setRequestPlatformDeliveryError('');
     try {
       const payload = {
         note: String(requestPlatformDeliveryNote || '').trim(),
         pickupInstructions: String(requestPlatformDeliveryNote || '').trim(),
-        invoiceUrl: String(requestPlatformDeliveryInvoiceUrl || '').trim()
+        invoiceUrl: normalizedInvoiceUrl
       };
       const { data } = await api.post(`/orders/${order._id}/request-delivery`, payload);
       showToast(data?.message || 'Demande de livraison envoyée.', { variant: 'success' });
@@ -406,11 +490,56 @@ export default function SellerOrderDetail() {
       setRequestPlatformDeliveryInvoiceUrl('');
       await loadOrder();
     } catch (err) {
-      const message = err.response?.data?.message || 'Impossible de demander la livraison plateforme.';
+      const message =
+        err.response?.data?.message ||
+        err.response?.data?.details?.[0] ||
+        'Impossible de demander la livraison plateforme.';
       setRequestPlatformDeliveryError(message);
       showToast(message, { variant: 'error' });
     } finally {
       setRequestPlatformDeliveryLoading(false);
+    }
+  };
+
+  const handleSellerDeliveryPin = async (action = 'generate') => {
+    if (!order?._id || deliveryPinLoading) return;
+    const normalizedAction = String(action || '').trim().toLowerCase();
+    const manualCode = String(deliveryPinDraft || '').trim();
+    if (normalizedAction === 'set' && !/^\d{4,8}$/.test(manualCode)) {
+      const message = 'Le code doit contenir entre 4 et 8 chiffres.';
+      setDeliveryPinError(message);
+      showToast(message, { variant: 'error' });
+      return;
+    }
+
+    setDeliveryPinLoading(true);
+    setDeliveryPinError('');
+    try {
+      const payload =
+        normalizedAction === 'clear'
+          ? { action: 'clear' }
+          : normalizedAction === 'set'
+          ? { action: 'set', deliveryPinCode: manualCode, expiresHours: 24 }
+          : { action: 'generate', expiresHours: 24 };
+      const { data } = await api.post(`/orders/${order._id}/delivery-pin`, payload);
+      const nextCode = String(data?.deliveryPinCode || '').trim();
+      const nextExpiresAt = data?.deliveryPinCodeExpiresAt || '';
+      setDeliveryPinValue(nextCode);
+      setDeliveryPinExpiresAt(nextExpiresAt);
+      if (normalizedAction !== 'set') {
+        setDeliveryPinDraft(nextCode || '');
+      }
+      showToast(data?.message || 'Code de livraison mis à jour.', { variant: 'success' });
+      await loadOrder();
+    } catch (err) {
+      const message =
+        err.response?.data?.message ||
+        err.response?.data?.details?.[0] ||
+        'Impossible de mettre à jour le code de livraison.';
+      setDeliveryPinError(message);
+      showToast(message, { variant: 'error' });
+    } finally {
+      setDeliveryPinLoading(false);
     }
   };
 
@@ -432,6 +561,15 @@ export default function SellerOrderDetail() {
       setShowDeliveryProofForm(false);
     }
   }, [order, showDeliveryProofForm]);
+
+  useEffect(() => {
+    if (!order?.platformDeliveryRequestId) {
+      setDeliveryPinDraft('');
+      setDeliveryPinValue('');
+      setDeliveryPinExpiresAt('');
+      setDeliveryPinError('');
+    }
+  }, [order?.platformDeliveryRequestId]);
 
   if (loading && !order) {
     return (
@@ -517,9 +655,23 @@ export default function SellerOrderDetail() {
     ['true', '1', 'yes', 'on'].includes(
       String(getRuntimeValue('delivery_require_invoice_attachment', false)).trim().toLowerCase()
     );
+  const deliveryPinEnabled =
+    ['true', '1', 'yes', 'on'].includes(
+      String(getRuntimeValue('enable_delivery_pin_code', false)).trim().toLowerCase()
+    );
   const platformDeliveryStatus = String(order.platformDeliveryStatus || 'NONE').toUpperCase();
+  const supportsPlatformDeliveryForOrder =
+    String(order.deliveryMode || '').toUpperCase() === 'DELIVERY';
+  const hasPlatformDeliveryRequest = Boolean(order.platformDeliveryRequestId);
+  const canManageDeliveryPin =
+    platformDeliveryEnabled &&
+    deliveryPinEnabled &&
+    supportsPlatformDeliveryForOrder &&
+    hasPlatformDeliveryRequest &&
+    !['REJECTED', 'DELIVERED', 'CANCELED'].includes(platformDeliveryStatus);
   const canRequestPlatformDelivery =
     platformDeliveryEnabled &&
+    supportsPlatformDeliveryForOrder &&
     !isPickupOrder &&
     !['REQUESTED', 'ACCEPTED', 'IN_PROGRESS', 'DELIVERED'].includes(platformDeliveryStatus) &&
     !['cancelled', 'completed'].includes(order.status);
@@ -728,6 +880,48 @@ export default function SellerOrderDetail() {
             <div>
               <h4 className="text-sm font-bold text-gray-900 uppercase mb-3 flex items-center gap-2"><CreditCard className="w-4 h-4 text-gray-500" /> Paiement</h4>
               <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 space-y-3">
+                {(Number(order.deliveryFeeTotal ?? 0) > 0 || canEditDeliveryFee) && (
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm text-gray-600">
+                          Frais de livraison{hasPlatformDeliveryRequest ? ' (plateforme)' : ''}
+                        </span>
+                        {deliveryFeeUpdatedAt && (
+                          <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800" title={deliveryFeeUpdatedAt.toLocaleString('fr-FR')}>
+                            Modifié par le vendeur
+                          </span>
+                        )}
+                      </div>
+                      {!canEditDeliveryFee && (
+                        <span className="text-sm font-semibold text-gray-900">
+                          {formatCurrency(order.deliveryFeeTotal)}
+                        </span>
+                      )}
+                    </div>
+                    {canEditDeliveryFee && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          type="number"
+                          min={0}
+                          step={100}
+                          value={deliveryFeeEditValue !== '' ? deliveryFeeEditValue : (order.deliveryFeeTotal ?? 0)}
+                          onChange={(e) => setDeliveryFeeEditValue(e.target.value === '' ? '' : Number(e.target.value))}
+                          className="w-28 rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-medium text-gray-900"
+                        />
+                        <span className="text-xs text-gray-500">FCFA</span>
+                        <button
+                          type="button"
+                          onClick={handleUpdateDeliveryFee}
+                          disabled={deliveryFeeSaving}
+                          className="rounded-lg bg-neutral-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-neutral-700 disabled:opacity-50"
+                        >
+                          {deliveryFeeSaving ? 'Enregistrement...' : 'Modifier'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Total commande</span>
                   <span className="text-lg font-bold text-gray-900">
@@ -1268,9 +1462,86 @@ export default function SellerOrderDetail() {
                   </>
                 ) : (
                   <p className="text-xs text-blue-800">
-                    Demande déjà créée ou indisponible pour ce statut de commande.
+                    {supportsPlatformDeliveryForOrder
+                      ? 'Demande déjà créée ou indisponible pour ce statut de commande.'
+                      : 'La demande plateforme est disponible uniquement pour les commandes en mode livraison.'}
                   </p>
                 )}
+
+                {deliveryPinEnabled && hasPlatformDeliveryRequest ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-bold uppercase tracking-wide text-amber-900">
+                        Code livraison (optionnel)
+                      </p>
+                      {deliveryPinValue ? (
+                        <span className="rounded-full border border-amber-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+                          Actif
+                        </span>
+                      ) : (
+                        <span className="rounded-full border border-amber-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                          Non défini
+                        </span>
+                      )}
+                    </div>
+                    {deliveryPinValue ? (
+                      <div className="rounded-lg border border-amber-300 bg-white px-3 py-2">
+                        <p className="text-lg font-black tracking-[0.2em] text-amber-900">{deliveryPinValue}</p>
+                        <p className="text-[11px] text-amber-700">
+                          Expire: {deliveryPinExpiresAt ? formatOrderTimestamp(deliveryPinExpiresAt) : '—'}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-amber-800">
+                        Le vendeur peut générer un code de sécurité à partager avec l’acheteur et le livreur.
+                      </p>
+                    )}
+
+                    {canManageDeliveryPin ? (
+                      <>
+                        <input
+                          value={deliveryPinDraft}
+                          onChange={(e) => setDeliveryPinDraft(e.target.value.replace(/[^\d]/g, '').slice(0, 8))}
+                          placeholder="Code manuel (4-8 chiffres)"
+                          inputMode="numeric"
+                          className="w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm text-gray-800"
+                        />
+                        {deliveryPinError ? <p className="text-xs text-red-600">{deliveryPinError}</p> : null}
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSellerDeliveryPin('generate')}
+                            disabled={deliveryPinLoading}
+                            className="inline-flex items-center gap-2 rounded-xl bg-amber-700 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-800 disabled:opacity-60"
+                          >
+                            {deliveryPinLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                            Générer auto
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSellerDeliveryPin('set')}
+                            disabled={deliveryPinLoading}
+                            className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-60"
+                          >
+                            Enregistrer manuel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSellerDeliveryPin('clear')}
+                            disabled={deliveryPinLoading}
+                            className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
+                          >
+                            Supprimer code
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-[11px] text-amber-700">
+                        Code non modifiable pour ce statut.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
               </div>
             ) : null}
 

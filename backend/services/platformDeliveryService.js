@@ -43,7 +43,18 @@ export const getPlatformDeliveryRuntime = async () => {
     'delivery_max_active_requests_per_shop',
     'delivery_auto_reminder_enabled',
     'delivery_auto_reminder_hours',
-    'delivery_require_invoice_attachment'
+    'delivery_require_invoice_attachment',
+    'enable_delivery_agents',
+    'delivery_agent_must_accept',
+    'courier_must_accept_assignment',
+    'courier_accept_timeout_minutes',
+    'enable_proof_upload',
+    'enable_delivery_pin_code',
+    'enable_live_location',
+    'delivery_location_lock_enabled',
+    'delivery_location_lock_distance_m',
+    'delivery_location_lock_on_status',
+    'delivery_location_visibility_minutes_after_accept'
   ]);
 
   const managerRolesRaw = Array.isArray(settings.delivery_manager_roles)
@@ -59,6 +70,18 @@ export const getPlatformDeliveryRuntime = async () => {
   const priceMode = ['ADMIN_RULES', 'SELLER_DEFINED', 'BUYER_DEFINED', 'HYBRID'].includes(priceModeRaw)
     ? priceModeRaw
     : DEFAULT_PRICE_MODE;
+
+  const lockOnStatusRaw = String(settings.delivery_location_lock_on_status || 'DELIVERED')
+    .trim()
+    .toUpperCase();
+  const lockOnStatus = ['IN_TRANSIT', 'DELIVERED'].includes(lockOnStatusRaw)
+    ? lockOnStatusRaw
+    : 'DELIVERED';
+
+  const mustAcceptAssignment =
+    settings.delivery_agent_must_accept !== undefined && settings.delivery_agent_must_accept !== null
+      ? toBoolean(settings.delivery_agent_must_accept, true)
+      : toBoolean(settings.courier_must_accept_assignment, true);
 
   return {
     enablePlatformDelivery: toBoolean(settings.enable_platform_delivery, false),
@@ -76,7 +99,20 @@ export const getPlatformDeliveryRuntime = async () => {
     maxActiveRequestsPerShop: Math.max(1, toNumber(settings.delivery_max_active_requests_per_shop, 20)),
     autoReminderEnabled: toBoolean(settings.delivery_auto_reminder_enabled, false),
     autoReminderHours: Math.max(1, toNumber(settings.delivery_auto_reminder_hours, 4)),
-    requireInvoiceAttachment: toBoolean(settings.delivery_require_invoice_attachment, false)
+    requireInvoiceAttachment: toBoolean(settings.delivery_require_invoice_attachment, false),
+    enableDeliveryAgents: toBoolean(settings.enable_delivery_agents, true),
+    courierMustAcceptAssignment: mustAcceptAssignment,
+    courierAcceptTimeoutMinutes: Math.max(5, toNumber(settings.courier_accept_timeout_minutes, 30)),
+    enableProofUpload: toBoolean(settings.enable_proof_upload, true),
+    enableDeliveryPinCode: toBoolean(settings.enable_delivery_pin_code, false),
+    enableLiveLocation: toBoolean(settings.enable_live_location, false),
+    locationLockEnabled: toBoolean(settings.delivery_location_lock_enabled, true),
+    locationLockDistanceMeters: Math.max(10, toNumber(settings.delivery_location_lock_distance_m, 120)),
+    locationLockOnStatus: lockOnStatus,
+    locationVisibilityMinutesAfterAccept: Math.max(
+      5,
+      toNumber(settings.delivery_location_visibility_minutes_after_accept, 90)
+    )
   };
 };
 
@@ -138,6 +174,20 @@ const findAdminRulePrice = ({
   return null;
 };
 
+/**
+ * Returns the admin/founder rule delivery price for a commune pair (for display when no order-specific price is set).
+ */
+export const getAdminRuleDeliveryPrice = (runtime, pickupCommuneId, dropoffCommuneId, pickupCommuneName, dropoffCommuneName) => {
+  const price = findAdminRulePrice({
+    adminPriceMap: runtime?.adminPriceMap || {},
+    pickupCommuneId: String(pickupCommuneId || ''),
+    dropoffCommuneId: String(dropoffCommuneId || ''),
+    pickupCommuneName: String(pickupCommuneName || ''),
+    dropoffCommuneName: String(dropoffCommuneName || '')
+  });
+  return price !== null ? Math.max(0, Number(price)) : null;
+};
+
 export const resolvePlatformDeliveryPrice = ({
   runtime,
   seller,
@@ -197,4 +247,3 @@ export const buildCommuneNameRegex = (value = '') => {
   if (!clean) return null;
   return new RegExp(`^${escapeRegex(clean)}$`, 'i');
 };
-

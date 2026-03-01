@@ -22,7 +22,7 @@ export const protect = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.id).select(
-      'role permissions isBlocked blockedReason isActive isLocked lockReason sessionsInvalidatedAt canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageChatTemplates canManageHelpCenter'
+      'role permissions phone isBlocked blockedReason isActive isLocked lockReason sessionsInvalidatedAt canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageChatTemplates canManageHelpCenter'
     );
     if (!user) {
       return res.status(401).json({ message: 'Not authorized' });
@@ -62,6 +62,7 @@ export const protect = async (req, res, next) => {
       id: user._id.toString(),
       role: user.role,
       permissions: resolvedPermissions,
+      phone: user.phone || '',
       canReadFeedback: user.canReadFeedback,
       canVerifyPayments: user.canVerifyPayments,
       canManageBoosts: user.canManageBoosts,

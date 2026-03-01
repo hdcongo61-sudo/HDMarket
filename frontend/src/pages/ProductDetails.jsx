@@ -1701,20 +1701,22 @@ export default function ProductDetails() {
 
       {/* 7.5 Ajouter au panier + WhatsApp (in-content, mobile) */}
       {!isOwnProduct && (
-        <div className="mx-4 mb-3 rounded-2xl border border-gray-100 bg-white shadow-sm p-4 space-y-3">
-          <div className="grid grid-cols-[1fr_auto] gap-2 items-stretch">
+        <div className="mx-4 mb-3 rounded-3xl border border-slate-200/80 bg-white p-4 shadow-[0_10px_28px_-22px_rgba(15,23,42,0.55)] space-y-3">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-stretch gap-2.5 max-[420px]:grid-cols-1">
             <button
               type="button"
               onClick={handleAddToCart}
               disabled={addingToCart || inCart || isOutOfStock}
-              className={`flex items-center justify-center gap-2 px-4 py-3.5 min-h-[52px] rounded-2xl font-semibold text-base transition-all tap-feedback ${
+              className={`group flex min-h-[52px] items-center justify-center gap-2.5 rounded-2xl px-4 py-3.5 text-sm font-bold transition-all tap-feedback ${
                 inCart || isOutOfStock
-                  ? 'bg-gray-200 text-gray-500 cursor-default'
-                  : 'bg-neutral-900 text-white hover:bg-neutral-800'
+                  ? 'cursor-default bg-slate-200 text-slate-500'
+                  : 'bg-slate-900 text-white shadow-sm hover:bg-slate-800'
               }`}
             >
-              <ShoppingCart size={20} />
-              <span className="truncate">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/15">
+                <ShoppingCart size={16} />
+              </span>
+              <span className="truncate leading-tight">
                 {isOutOfStock ? 'Rupture' : inCart ? 'Déjà au panier' : addingToCart ? 'Ajout...' : 'Ajouter au panier'}
               </span>
             </button>
@@ -1724,11 +1726,13 @@ export default function ProductDetails() {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={handleWhatsappClick}
-                className="flex items-center justify-center gap-2 px-4 py-3.5 min-h-[52px] min-w-[120px] rounded-2xl bg-neutral-900 text-white font-semibold text-sm active:scale-[0.98] transition-transform shadow-sm flex-shrink-0"
+                className="group inline-flex min-h-[52px] min-w-[124px] flex-shrink-0 items-center justify-center gap-2 rounded-2xl border border-emerald-300/80 bg-emerald-50 px-4 py-3.5 text-sm font-bold text-emerald-700 shadow-sm transition-all active:scale-[0.98] hover:bg-emerald-100 max-[420px]:w-full"
                 title="Contacter le vendeur sur WhatsApp"
               >
-                <MessageCircle size={22} />
-                <span>WhatsApp</span>
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white">
+                  <MessageCircle size={15} />
+                </span>
+                <span className="leading-tight">WhatsApp</span>
               </a>
             )}
           </div>
@@ -1736,14 +1740,18 @@ export default function ProductDetails() {
             type="button"
             onClick={handleBuyNow}
             disabled={addingToCart || isOutOfStock}
-            className={`flex items-center justify-center gap-2 w-full px-4 py-3 rounded-2xl font-semibold transition-transform active:scale-[0.98] ${
+            className={`inline-flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl px-4 py-3.5 text-sm font-bold transition-all active:scale-[0.98] ${
               isOutOfStock
-                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                : 'bg-neutral-500 text-white hover:bg-neutral-600'
+                ? 'cursor-not-allowed bg-slate-200 text-slate-500'
+                : 'border border-slate-300 bg-white text-slate-800 hover:bg-slate-50'
             }`}
           >
-            <ShoppingCart size={18} />
-            {inCart ? 'Passer la commande' : addingToCart ? 'Traitement...' : 'Acheter maintenant'}
+            <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${
+              isOutOfStock ? 'bg-slate-300' : 'bg-slate-900 text-white'
+            }`}>
+              <ShoppingCart size={15} />
+            </span>
+            <span className="truncate leading-tight">{inCart ? 'Passer la commande' : addingToCart ? 'Traitement...' : 'Acheter maintenant'}</span>
           </button>
         </div>
       )}
@@ -2683,31 +2691,37 @@ export default function ProductDetails() {
 
             {!isOwnProduct && (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <button
                     onClick={handleAddToCart}
                     disabled={addingToCart || inCart || isOutOfStock}
-                  className={`flex items-center justify-center space-x-2 px-6 py-3.5 rounded-2xl font-semibold text-base transition-all duration-200 active:scale-95 shadow-sm ${
+                  className={`group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all duration-200 active:scale-[0.98] ${
                     inCart || isOutOfStock
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60' 
-                      : 'bg-neutral-900 text-white hover:bg-neutral-800 hover:shadow-md'
+                      ? 'cursor-not-allowed bg-slate-200 text-slate-500 opacity-70'
+                      : 'bg-slate-900 text-white shadow-sm hover:bg-slate-800 hover:shadow-md'
                   }`}
                 >
-                  <ShoppingCart size={20} />
-                  <span>{isOutOfStock ? 'Rupture' : inCart ? 'Déjà au panier' : addingToCart ? 'Ajout...' : 'Ajouter au panier'}</span>
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/15">
+                    <ShoppingCart size={16} />
+                  </span>
+                  <span className="truncate leading-tight">{isOutOfStock ? 'Rupture' : inCart ? 'Déjà au panier' : addingToCart ? 'Ajout...' : 'Ajouter au panier'}</span>
                 </button>
                 <button
                   type="button"
                   onClick={handleBuyNow}
                   disabled={addingToCart || isOutOfStock}
-                  className={`flex items-center justify-center space-x-2 px-6 py-3.5 rounded-2xl font-semibold text-base transition-all duration-200 active:scale-95 shadow-sm ${
+                  className={`group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all duration-200 active:scale-[0.98] ${
                     isOutOfStock
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'
-                      : 'bg-neutral-500 text-white hover:bg-neutral-600 hover:shadow-md'
+                      ? 'cursor-not-allowed bg-slate-200 text-slate-500 opacity-70'
+                      : 'border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:shadow-sm'
                   }`}
                 >
-                  <ShoppingCart size={20} />
-                  <span>{inCart ? 'Passer la commande' : addingToCart ? 'Traitement...' : 'Acheter maintenant'}</span>
+                  <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${
+                    isOutOfStock ? 'bg-slate-300' : 'bg-slate-900 text-white'
+                  }`}>
+                    <ShoppingCart size={16} />
+                  </span>
+                  <span className="truncate leading-tight">{inCart ? 'Passer la commande' : addingToCart ? 'Traitement...' : 'Acheter maintenant'}</span>
                 </button>
 
                 {whatsappLink && (
@@ -2716,10 +2730,12 @@ export default function ProductDetails() {
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={handleWhatsappClick}
-                    className="flex items-center justify-center space-x-2 px-6 py-3.5 rounded-2xl border border-gray-300 bg-white text-gray-900 font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 active:scale-95 shadow-sm"
+                    className="group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl border border-emerald-300/80 bg-emerald-50 px-5 py-3.5 text-sm font-bold text-emerald-700 shadow-sm transition-all duration-200 active:scale-[0.98] hover:bg-emerald-100"
                   >
-                    <MessageCircle size={20} />
-                    <span>WhatsApp</span>
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white">
+                      <MessageCircle size={15} />
+                    </span>
+                    <span className="truncate leading-tight">WhatsApp</span>
                   </a>
                 )}
               </div>

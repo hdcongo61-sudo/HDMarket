@@ -10,7 +10,11 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true },
     phone: { type: String, required: true, unique: true },
     phoneVerified: { type: Boolean, default: false },
-    role: { type: String, enum: ['user', 'admin', 'manager', 'founder'], default: 'user' },
+    role: {
+      type: String,
+      enum: ['user', 'admin', 'manager', 'founder', 'delivery_agent'],
+      default: 'user'
+    },
     permissions: { type: [String], default: [], index: true },
     isActive: { type: Boolean, default: true, index: true },
     isLocked: { type: Boolean, default: false, index: true },
@@ -42,6 +46,26 @@ const userSchema = new mongoose.Schema(
     preferredCity: { type: String, default: '', trim: true },
     theme: { type: String, enum: ['light', 'dark', 'system'], default: 'system' },
     address: { type: String, trim: true, default: '' },
+    /** Geolocation for simple user (person) - delivery address position [longitude, latitude] */
+    location: {
+      type: {
+        type: String,
+        enum: ['Point']
+      },
+      coordinates: {
+        type: [Number],
+        default: undefined,
+        validate: {
+          validator: (value) =>
+            value === undefined ||
+            value === null ||
+            (Array.isArray(value) && value.length === 2 && value.every((item) => Number.isFinite(item))),
+          message: 'Les coordonnées doivent contenir [longitude, latitude].'
+        }
+      }
+    },
+    locationUpdatedAt: { type: Date, default: null },
+    locationAccuracy: { type: Number, default: null },
     shopName: { type: String },
     shopAddress: { type: String },
     shopLogo: { type: String },

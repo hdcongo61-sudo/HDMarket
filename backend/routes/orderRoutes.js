@@ -20,6 +20,7 @@ import {
   userSkipCancellationWindow,
   sellerListOrders,
   sellerGetOrder,
+  sellerUpdateOrderDeliveryFee,
   sellerSubmitDeliveryProof,
   clientConfirmDelivery,
   getOrderDeliveryLogs,
@@ -32,7 +33,10 @@ import {
   deleteDraftOrder,
   createInquiryOrder
 } from '../controllers/orderController.js';
-import { requestPlatformDeliveryForOrder } from '../controllers/deliveryRequestController.js';
+import {
+  requestPlatformDeliveryForOrder,
+  sellerUpdateDeliveryPinForOrder
+} from '../controllers/deliveryRequestController.js';
 import {
   adminApplyOrderAction,
   adminOrderAlerts,
@@ -153,6 +157,12 @@ router.get(
   validate(schemas.idParam, 'params'),
   sellerGetOrder
 );
+router.patch(
+  '/seller/:id/delivery-fee',
+  validate(schemas.idParam, 'params'),
+  validate(schemas.sellerDeliveryFeeUpdate, 'body'),
+  sellerUpdateOrderDeliveryFee
+);
 router.post(
   '/seller/:id/delivery-proof',
   validate(schemas.idParam, 'params'),
@@ -172,6 +182,12 @@ router.post(
   validate(schemas.idParam, 'params'),
   validate(schemas.orderRequestDelivery),
   requestPlatformDeliveryForOrder
+);
+router.post(
+  '/:id/delivery-pin',
+  validate(schemas.idParam, 'params'),
+  validate(schemas.sellerDeliveryPinUpdate),
+  sellerUpdateDeliveryPinForOrder
 );
 router.patch(
   '/:id/status',

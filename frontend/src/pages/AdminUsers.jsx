@@ -28,6 +28,7 @@ const roleLabels = {
   user: 'Utilisateur',
   admin: 'Administrateur',
   manager: 'Gestionnaire',
+  delivery_agent: 'Livreur',
   founder: 'Fondateur',
   seller: 'Vendeur'
 };
@@ -181,6 +182,8 @@ export default function AdminUsers() {
   const canManageOrders = hasAnyPermission(authUser, ['manage_orders']);
   const canAssignRoles = hasAnyPermission(authUser, ['assign_roles']);
   const canRevokeRoles = hasAnyPermission(authUser, ['revoke_roles']);
+  const canManageDeliveryProfiles =
+    hasAnyPermission(authUser, ['manage_delivery']) || Boolean(authUser?.canManageDelivery);
   const canResetPasswords = hasAnyPermission(authUser, ['reset_passwords']);
   const canForceLogout = hasAnyPermission(authUser, ['force_logout']);
   const canLockAccounts = hasAnyPermission(authUser, ['lock_accounts']);
@@ -556,6 +559,42 @@ export default function AdminUsers() {
     } finally {
       setConvertingUserId('');
     }
+  };
+
+  const handlePromoteToDeliveryGuy = async (user) => {
+    if (!user?.id) return;
+    if (!(canManagePermissions || canAssignRoles || canManageDeliveryProfiles)) {
+      setActionError("Vous n'avez pas la permission de gérer les livreurs.");
+      return;
+    }
+
+    await runSecurityAction({
+      key: `promote-delivery:${user.id}`,
+      request: () => api.post(`/admin/users/${user.id}/promote-delivery-guy`),
+      onSuccess: (response) => {
+        const nextUser = response?.data?.user;
+        if (nextUser) upsertUser(nextUser);
+        setRefreshKey((k) => k + 1);
+      }
+    });
+  };
+
+  const handleUnlinkDeliveryGuy = async (user) => {
+    if (!user?.id) return;
+    if (!(canManagePermissions || canAssignRoles || canManageDeliveryProfiles)) {
+      setActionError("Vous n'avez pas la permission de gérer les livreurs.");
+      return;
+    }
+
+    await runSecurityAction({
+      key: `unlink-delivery:${user.id}`,
+      request: () => api.post(`/admin/users/${user.id}/unlink-delivery-guy`),
+      onSuccess: (response) => {
+        const nextUser = response?.data?.user;
+        if (nextUser) upsertUser(nextUser);
+        setRefreshKey((k) => k + 1);
+      }
+    });
   };
 
   const toggleShopVerification = useCallback(async (id, nextValue) => {
@@ -1212,6 +1251,7 @@ export default function AdminUsers() {
     canForceLogout,
     canLockAccounts,
     canManagePermissions,
+    canManageDeliveryProfiles,
     canResetPasswords,
     canRevokeRoles,
     handleForceLogout,
@@ -1652,6 +1692,49 @@ export default function AdminUsers() {
                           Convertir en boutique
                         </button>
                       )}
+                      {!['admin', 'founder'].includes(String(user.role || '').toLowerCase()) ? (
+                        <>
+                          <button
+                            type="button"
+                                onClick={() => handlePromoteToDeliveryGuy(user)}
+                                  disabled={
+                                    !(canManagePermissions || canAssignRoles || canManageDeliveryProfiles) ||
+                                    securityActionKey === `promote-delivery:${user.id}`
+                                  }
+                                  className="inline-flex items-center gap-1 rounded-lg border border-cyan-500 px-3 py-2 text-xs font-semibold text-cyan-700 hover:bg-cyan-50 disabled:opacity-50"
+                                >
+                                  {String(user.role || '').toLowerCase() === 'delivery_agent'
+                                    ? 'Lier profil livreur'
+                                    : 'Promouvoir livreur'}
+                                </button>
+                                {String(user.role || '').toLowerCase() === 'delivery_agent' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUnlinkDeliveryGuy(user)}
+                                    disabled={
+                                      !(canManagePermissions || canAssignRoles || canManageDeliveryProfiles) ||
+                                      securityActionKey === `unlink-delivery:${user.id}`
+                                    }
+                                    className="inline-flex items-center gap-1 rounded-lg border border-amber-500 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-50"
+                                  >
+                                    Délier profil livreur
+                                  </button>
+                                )}
+                          {String(user.role || '').toLowerCase() === 'delivery_agent' && (
+                            <button
+                              type="button"
+                              onClick={() => handleUnlinkDeliveryGuy(user)}
+                              disabled={
+                                !(canManagePermissions || canAssignRoles || canManageDeliveryProfiles) ||
+                                securityActionKey === `unlink-delivery:${user.id}`
+                              }
+                              className="inline-flex items-center gap-1 rounded-lg border border-amber-500 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-50"
+                            >
+                              Délier profil livreur
+                            </button>
+                          )}
+                        </>
+                      ) : null}
                       {/* Shop certified button for shops */}
                       {user.accountType === 'shop' && (
                         <button
@@ -1919,6 +2002,36 @@ export default function AdminUsers() {
                                 Convertir
                               </button>
                             )}
+                            {!['admin', 'founder'].includes(String(user.role || '').toLowerCase()) ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handlePromoteToDeliveryGuy(user)}
+                                  disabled={
+                                    !(canManagePermissions || canAssignRoles || canManageDeliveryProfiles) ||
+                                    securityActionKey === `promote-delivery:${user.id}`
+                                  }
+                                  className="rounded-lg border border-cyan-500 px-3 py-1.5 text-xs font-semibold text-cyan-700 hover:bg-cyan-50 disabled:opacity-50"
+                                >
+                                  {String(user.role || '').toLowerCase() === 'delivery_agent'
+                                    ? 'Lier profil livreur'
+                                    : 'Promouvoir livreur'}
+                                </button>
+                                {String(user.role || '').toLowerCase() === 'delivery_agent' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUnlinkDeliveryGuy(user)}
+                                    disabled={
+                                      !(canManagePermissions || canAssignRoles || canManageDeliveryProfiles) ||
+                                      securityActionKey === `unlink-delivery:${user.id}`
+                                    }
+                                    className="rounded-lg border border-amber-500 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-50"
+                                  >
+                                    Délier livreur
+                                  </button>
+                                )}
+                              </>
+                            ) : null}
                             {/* Reconvert to particulier button for shops */}
                             {user.accountType === 'shop' && (
                               <button

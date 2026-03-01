@@ -208,7 +208,7 @@ const ORDER_STATUS_SUMMARY_OPTIONS = [
   { value: 'cancelled', label: 'Annulées' }
 ];
 
-const REMINDER_FINAL_STATUSES = new Set(['delivered', 'completed', 'cancelled']);
+const REMINDER_FINAL_STATUSES = new Set(['delivered', 'completed', 'cancelled', 'confirmed_by_client', 'picked_up_confirmed']);
 
 const getPaymentSortValue = (payment, prioritizeUpdated = false) => {
   const candidates = prioritizeUpdated
@@ -347,14 +347,15 @@ export default function AdminDashboard() {
   const { showToast } = useToast();
 
   const { user: authUser } = useContext(AuthContext);
-  const isAdmin = authUser?.role === 'admin' || authUser?.role === 'founder';
-  const isManager = authUser?.role === 'manager';
-  const isFounder = authUser?.role === 'founder';
+  const normalizedRole = String(authUser?.role || '').toLowerCase();
+  const isAdmin = normalizedRole === 'admin';
+  const isManager = normalizedRole === 'manager';
+  const isFounder = normalizedRole === 'founder';
   const canAccessBackOffice = isAdmin || isManager || isFounder;
-  const canViewStats = isAdmin;
-  const canManageUsers = isAdmin;
-  const canManagePayments = isAdmin || isManager;
-  const canManageComplaints = isAdmin || isManager;
+  const canViewStats = canAccessBackOffice;
+  const canManageUsers = isAdmin || isFounder;
+  const canManagePayments = isAdmin || isManager || isFounder;
+  const canManageComplaints = isAdmin || isManager || isFounder;
   const pageTitle = isFounder
     ? 'Founder command center'
     : isManager
@@ -1770,7 +1771,7 @@ export default function AdminDashboard() {
                   />
                   <StatCard
                     title="Prêtes au retrait"
-                    value={formatNumber(orderStatusCount('ready_for_pickup', 'picked_up_confirmed'))}
+                    value={formatNumber(orderStatusCount('ready_for_pickup'))}
                     subtitle="Boutique / retrait"
                     icon={Package}
                   />
@@ -1788,8 +1789,8 @@ export default function AdminDashboard() {
                   />
                   <StatCard
                     title="Livrées"
-                    value={formatNumber(orderStatusCount('delivered', 'confirmed_by_client'))}
-                    subtitle="Terminées"
+                    value={formatNumber(orderStatusCount('delivered', 'confirmed_by_client', 'picked_up_confirmed', 'completed'))}
+                    subtitle="Retraits confirmés, confirmées client, paiement terminé"
                     icon={CheckCircle}
                   />
                   <StatCard
@@ -2819,39 +2820,58 @@ export default function AdminDashboard() {
       )}
 
       {canManageUsers && shouldShowSection('users') && (
-        <section className="rounded-lg border bg-white p-4 shadow-sm space-y-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Gestion des utilisateurs</h2>
-              <p className="text-xs text-gray-500">
-                Recherchez un compte particulier et convertissez-le en boutique si nécessaire.
-            </p>
+        <section className="rounded-2xl border border-gray-200/80 bg-white shadow-sm overflow-hidden">
+          {/* Desktop: header strip with icon and primary action */}
+          <div className="flex flex-col gap-3 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between lg:border-b lg:border-gray-100 lg:bg-gradient-to-r lg:from-gray-50/80 lg:to-white">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-neutral-600">
+                <Users size={22} strokeWidth={2} />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Gestion des utilisateurs</h2>
+                <p className="mt-0.5 text-sm text-gray-500 max-w-xl">
+                  Recherchez un compte particulier et convertissez-le en boutique si nécessaire.
+                </p>
+                <Link
+                  to="/admin/users"
+                  className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-neutral-700 hover:text-neutral-900"
+                >
+                  Ouvrir la gestion des suspensions
+                  <ChevronRight size={16} className="shrink-0" />
+                </Link>
+              </div>
+            </div>
             <Link
               to="/admin/users"
-              className="mt-2 inline-flex items-center text-xs font-medium text-neutral-600 hover:underline"
+              className="hidden lg:inline-flex items-center gap-2 rounded-xl bg-neutral-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-neutral-700 transition-colors"
             >
-              Ouvrir la gestion des suspensions →
+              Gestion des suspensions
+              <ChevronRight size={18} />
             </Link>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="p-4 sm:p-5 space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-3">
             <SectionStatCard
               label="Utilisateurs"
               value={formatNumber(stats?.users?.total)}
               helper={`Boutiques : ${formatNumber(stats?.users?.shops)}`}
+              icon={Users}
             />
             <SectionStatCard
               label="Utilisateurs bloqués"
               value={formatNumber(stats?.users?.blocked || 0)}
               helper="À surveiller"
+              icon={Shield}
             />
             <SectionStatCard
               label="Nouveaux (30j)"
               value={formatNumber(stats?.users?.newLast30Days)}
               helper="Indicateur 30 jours"
+              icon={Activity}
             />
           </div>
           <form
-            className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3"
+            className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 lg:rounded-xl lg:border lg:border-gray-200/80 lg:bg-gray-50/50 lg:p-3 lg:gap-3"
             onSubmit={(e) => {
               e.preventDefault();
               setEditingUser(null);
@@ -2932,7 +2952,6 @@ export default function AdminDashboard() {
               </div>
             </div>
           </form>
-        </div>
         {usersError ? <p className="text-sm text-red-600">{usersError}</p> : null}
         {userSuccessMessage ? <p className="text-sm text-green-600">{userSuccessMessage}</p> : null}
         {isMobileView ? (
@@ -3363,36 +3382,55 @@ export default function AdminDashboard() {
             ) : null}
           </div>
         )}
+          </div>
         </section>
       )}
 
       {canManagePayments && shouldShowSection('payments') && (
-        <section className="rounded-lg border bg-white p-4 shadow-sm space-y-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Vérification des paiements</h2>
-              <p className="text-xs text-gray-500">
-                Validez ou rejetez les preuves de paiement envoyées par les vendeurs.
-            </p>
+        <section className="rounded-2xl border border-gray-200/80 bg-white shadow-sm overflow-hidden">
+          {/* Desktop: header strip with icon and description */}
+          <div className="flex flex-col gap-3 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between lg:border-b lg:border-gray-100 lg:bg-gradient-to-r lg:from-gray-50/80 lg:to-white">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                <DollarSign size={22} strokeWidth={2} />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Vérification des paiements</h2>
+                <p className="mt-0.5 text-sm text-gray-500 max-w-xl">
+                  Validez ou rejetez les preuves de paiement envoyées par les vendeurs.
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/admin/payment-verification"
+              className="hidden lg:inline-flex items-center gap-2 rounded-xl bg-neutral-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-neutral-700 transition-colors"
+            >
+              Ouvrir la vérification
+              <ChevronRight size={18} />
+            </Link>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="p-4 sm:p-5 space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-3">
             <SectionStatCard
               label="En attente"
               value={formatNumber(stats?.payments?.waiting)}
               helper="Paiements non vérifiés"
+              icon={Clock}
             />
             <SectionStatCard
               label="Validés"
               value={formatNumber(stats?.payments?.verified)}
               helper="Paiements acceptés"
+              icon={CheckCircle}
             />
             <SectionStatCard
               label="CA validé"
               value={formatCurrency(stats?.payments?.revenue)}
               helper="Total confirmé"
+              icon={DollarSign}
             />
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 lg:rounded-xl lg:border lg:border-gray-200/80 lg:bg-gray-50/50 lg:p-3">
             {isMobileView ? (
               <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
                 {paymentFilterOptions.map((option) => (
@@ -3439,7 +3477,6 @@ export default function AdminDashboard() {
               />
             </div>
           </div>
-        </div>
         {paymentActionMessage ? <p className="text-sm text-green-600">{paymentActionMessage}</p> : null}
         {paymentActionError ? <p className="text-sm text-red-600">{paymentActionError}</p> : null}
         {isMobileView ? (
@@ -3721,6 +3758,7 @@ export default function AdminDashboard() {
         </div>
         </>
         )}
+          </div>
         </section>
       )}
 

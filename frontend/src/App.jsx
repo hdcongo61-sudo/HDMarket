@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import api from './services/api';
@@ -18,6 +18,7 @@ import AdminUsers from './pages/AdminUsers';
 import AdminOrders from './pages/AdminOrders';
 import AdminDeliveryGuys from './pages/AdminDeliveryGuys';
 import AdminDeliveryRequests from './pages/AdminDeliveryRequests';
+import CourierDashboard from './pages/CourierDashboard';
 import TopDeals from './pages/TopDeals';
 import TopRanking from './pages/TopRanking';
 import TopFavorites from './pages/TopFavorites';
@@ -80,7 +81,41 @@ import AnalyticsTracker from './components/AnalyticsTracker';
 import ShopConversionRequest from './pages/ShopConversionRequest';
 import PendingActionHandler from './components/PendingActionHandler';
 import { useAppSettings } from './context/AppSettingsContext';
+import AuthContext from './context/AuthContext';
+import { ShopProfileLoadProvider, useShopProfileLoad } from './context/ShopProfileLoadContext';
 import { hasAnyPermission } from './utils/permissions';
+
+const LAST_ADMIN_ROUTE_KEY = 'hdmarket:last-admin-route';
+const LAST_COURIER_ROUTE_KEY = 'hdmarket:last-courier-route';
+const COURIER_VIEW_MODE_KEY = 'hdmarket:courier-view-mode';
+
+const getCourierViewMode = () => {
+  if (typeof window === 'undefined') return 'courier';
+  return String(window.localStorage.getItem(COURIER_VIEW_MODE_KEY) || 'courier').toLowerCase();
+};
+
+const normalizeStoredAdminRoute = (value = '') => {
+  const normalized = String(value || '').trim();
+  if (!normalized.startsWith('/admin')) return '';
+  if (normalized === '/admin' || normalized.startsWith('/admin?')) return '';
+  return normalized;
+};
+
+const normalizeStoredCourierRoute = (value = '') => {
+  const normalized = String(value || '').trim();
+  const isDeliveryRoute = normalized.startsWith('/delivery');
+  const isCourierRoute = normalized.startsWith('/courier');
+  if (!isDeliveryRoute && !isCourierRoute) return '';
+  if (
+    normalized === '/delivery' ||
+    normalized === '/courier' ||
+    normalized.startsWith('/delivery?') ||
+    normalized.startsWith('/courier?')
+  ) {
+    return '';
+  }
+  return normalized;
+};
 
 function LegacyOrderRouteResolver() {
   const { legacyValue = '' } = useParams();
@@ -96,16 +131,39 @@ function LegacyOrderRouteResolver() {
   return <Navigate to={`/orders/${value.toLowerCase()}`} replace />;
 }
 
+function AdminIndexRedirect() {
+  return <AdminDashboard />;
+}
+
+function CourierEntryRedirect() {
+  const stored =
+    typeof window !== 'undefined'
+      ? normalizeStoredCourierRoute(window.localStorage.getItem(LAST_COURIER_ROUTE_KEY))
+      : '';
+
+  if (stored) {
+    return <Navigate to={stored} replace />;
+  }
+
+  return <Navigate to="/delivery/dashboard" replace />;
+}
+
+const isShopProfileRoute = (path) => /^\/shop\/[^/]+$/.test(path || '');
+
 function AppContent() {
   const location = useLocation();
   const { pathname } = location;
+  const { user } = useContext(AuthContext);
   const { isFeatureEnabled, getRuntimeValue } = useAppSettings();
+  const shopLoad = useShopProfileLoad();
   const [splashConfig, setSplashConfig] = useState(null);
   const [splashDismissed, setSplashDismissed] = useState(false);
   const [bootLoading, setBootLoading] = useState(true);
   const [routeLoading, setRouteLoading] = useState(false);
   const [loaderTimedOut, setLoaderTimedOut] = useState(false);
   const firstRouteRef = useRef(true);
+  const isShopRoute = isShopProfileRoute(pathname);
+  const showShopProfileLoader = isShopRoute && shopLoad?.isShopProfileLoading;
 
   useEffect(() => {
     if (pathname !== '/') return;
@@ -136,7 +194,7 @@ function AppContent() {
     splashConfig?.splashImage &&
     !splashDismissed;
 
-  const showLoader = !showSplash && (bootLoading || routeLoading);
+  const showLoader = !showSplash && (bootLoading || routeLoading || showShopProfileLoader);
   const chatEnabled = isFeatureEnabled('enable_chat', { defaultValue: true });
   const boostEnabled = isFeatureEnabled('enable_boost', { defaultValue: true });
   const founderModeEnabled = isFeatureEnabled('enable_founder_mode', {
@@ -152,6 +210,45 @@ function AppContent() {
     !['false', '0', 'no', 'off'].includes(
       String(getRuntimeValue('enable_delivery_requests', true)).trim().toLowerCase()
     );
+  const courierModeEnabled =
+    ['true', '1', 'yes', 'on'].includes(
+      String(getRuntimeValue('enable_delivery_agents', true)).trim().toLowerCase()
+    ) && platformDeliveryEnabled;
+  const normalizedUserRole = String(user?.role || '').toLowerCase();
+  const isBackofficeRole = ['admin', 'founder', 'manager'].includes(normalizedUserRole);
+  const courierAccessAllowed =
+    !isBackofficeRole &&
+    (normalizedUserRole === 'delivery_agent' ||
+    hasAnyPermission(user, [
+      'courier_view_assignments',
+      'courier_accept_assignment',
+      'courier_update_status',
+      'courier_upload_proof'
+    ]));
+  const isCourierRoute = pathname.startsWith('/courier') || pathname.startsWith('/delivery');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!pathname.startsWith('/admin')) return;
+    const route = normalizeStoredAdminRoute(`${pathname}${location.search || ''}${location.hash || ''}`);
+    if (!route) return;
+    window.localStorage.setItem(LAST_ADMIN_ROUTE_KEY, route);
+  }, [pathname, location.search, location.hash]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!(pathname.startsWith('/delivery') || pathname.startsWith('/courier'))) return;
+    const route = normalizeStoredCourierRoute(`${pathname}${location.search || ''}${location.hash || ''}`);
+    if (!route) return;
+    window.localStorage.setItem(LAST_COURIER_ROUTE_KEY, route);
+  }, [pathname, location.search, location.hash]);
+
+  useEffect(() => {
+    if (!isShopRoute && shopLoad?.setShopLogo) {
+      shopLoad.setShopLogo('');
+      shopLoad.setShopName('');
+    }
+  }, [pathname, isShopRoute, shopLoad]);
 
   useEffect(() => {
     if (!showLoader) {
@@ -172,11 +269,27 @@ function AppContent() {
     );
   }
 
+  // Only redirect to courier dashboard when user has courier access but is on a normal route
+  // and has not explicitly chosen "Compte normal" (view as normal account).
+  if (courierModeEnabled && courierAccessAllowed && !isCourierRoute) {
+    if (getCourierViewMode() === 'normal') {
+      // User chose to view as normal account; allow staying on /my, /profile, etc.
+    } else {
+      const storedRoute =
+        typeof window !== 'undefined'
+          ? normalizeStoredCourierRoute(window.localStorage.getItem(LAST_COURIER_ROUTE_KEY))
+          : '';
+      return <Navigate to={storedRoute || '/delivery/dashboard'} replace />;
+    }
+  }
+
   return (
     <>
       <PendingActionHandler />
       <AppLoader
         visible={showLoader}
+        logoSrc={showShopProfileLoader ? shopLoad?.shopLogo : undefined}
+        label={showShopProfileLoader && shopLoad?.shopName ? shopLoad.shopName : 'HDMarket'}
         timedOut={loaderTimedOut}
         onRetry={() => {
           setLoaderTimedOut(false);
@@ -188,7 +301,7 @@ function AppContent() {
       <PushNotificationsManager />
       <AnalyticsTracker />
       <ScrollToTop />
-      <Navbar />
+      {!isCourierRoute ? <Navbar /> : null}
       <NetworkStatusBanner />
       <main
         className="pt-20 sm:pt-24 md:pt-32 pb-24 md:pb-0 main-content no-ios-callout"
@@ -213,6 +326,52 @@ function AppContent() {
           <Route path="/shops/verified" element={<VerifiedShops />} />
           <Route path="/shops/free-delivery" element={<FreeDeliveryShops />} />
           <Route path="/help" element={<HelpCenter />} />
+          <Route
+            path="/courier/dashboard"
+            element={
+              <ProtectedRoute>
+                <CourierDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/courier"
+            element={
+              <ProtectedRoute>
+                <CourierEntryRedirect />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/delivery/dashboard"
+            element={
+              <ProtectedRoute
+                permissions={[
+                  'courier_view_assignments',
+                  'courier_accept_assignment',
+                  'courier_update_status',
+                  'courier_upload_proof'
+                ]}
+              >
+                <CourierDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/delivery"
+            element={
+              <ProtectedRoute
+                permissions={[
+                  'courier_view_assignments',
+                  'courier_accept_assignment',
+                  'courier_update_status',
+                  'courier_upload_proof'
+                ]}
+              >
+                <CourierEntryRedirect />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/settings/categories"
             element={
@@ -493,7 +652,7 @@ function AppContent() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<AdminDashboard />} />
+            <Route index element={<AdminIndexRedirect />} />
             <Route path="payments" element={<AdminPayments />} />
             <Route path="orders" element={<AdminOrders />} />
             <Route
@@ -633,8 +792,8 @@ function AppContent() {
           </motion.div>
         </AnimatePresence>
       </main>
-      <Footer />
-      {chatEnabled ? <ChatBox /> : null}
+      {!isCourierRoute ? <Footer /> : null}
+      {!isCourierRoute && chatEnabled ? <ChatBox /> : null}
     </>
   );
 }
@@ -695,7 +854,9 @@ export default function App() {
         v7_relativeSplatPath: true
       }}
     >
-      <AppContent key={`lang-${language || 'fr'}`} />
+      <ShopProfileLoadProvider>
+        <AppContent key={`lang-${language || 'fr'}`} />
+      </ShopProfileLoadProvider>
     </BrowserRouter>
   );
 }

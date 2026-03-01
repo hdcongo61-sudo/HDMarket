@@ -49,12 +49,22 @@ export default function BaseModal({
 }) {
   const panelRef = useRef(null);
   const lastFocusedRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  const closeOnEscRef = useRef(closeOnEsc);
   const [keyboardInset, setKeyboardInset] = useState(0);
 
   const sizeClass = SIZE_CLASS_MAP[size] || SIZE_CLASS_MAP.md;
   const rootLayoutClass = mobileSheet
     ? 'items-end justify-center sm:items-center'
     : 'items-center justify-center';
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    closeOnEscRef.current = closeOnEsc;
+  }, [closeOnEsc]);
 
   useEffect(() => {
     if (!isOpen || typeof window === 'undefined') return undefined;
@@ -100,9 +110,9 @@ export default function BaseModal({
 
     const onKeyDown = (event) => {
       if (!panelRef.current) return;
-      if (event.key === 'Escape' && closeOnEsc) {
+      if (event.key === 'Escape' && closeOnEscRef.current) {
         event.preventDefault();
-        onClose?.();
+        onCloseRef.current?.();
         return;
       }
       if (event.key !== 'Tab') return;
@@ -151,7 +161,7 @@ export default function BaseModal({
         lastFocusedRef.current.focus();
       }
     };
-  }, [isOpen, closeOnEsc, onClose, lockScroll, initialFocusSelector]);
+  }, [isOpen, lockScroll, initialFocusSelector]);
 
   const panelStyle = useMemo(
     () => ({

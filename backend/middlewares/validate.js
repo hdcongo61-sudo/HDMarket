@@ -184,6 +184,11 @@ export const schemas = {
     resolvedAddress: Joi.string().max(220).allow('', null),
     applyResolvedAddress: Joi.boolean().truthy('true').falsy('false').default(false)
   }),
+  profileLocationUpdate: Joi.object({
+    latitude: Joi.number().min(-90).max(90).required(),
+    longitude: Joi.number().min(-180).max(180).required(),
+    accuracy: Joi.number().min(0).max(50000).allow(null)
+  }),
   favoriteModify: Joi.object({
     productId: Joi.string().hex().length(24).required()
   }),
@@ -605,6 +610,26 @@ export const schemas = {
       address: Joi.string().trim().max(300).allow('', null)
     }).allow(null)
   }),
+  sellerDeliveryPinUpdate: Joi.object({
+    action: Joi.string().valid('generate', 'set', 'clear').allow('', null),
+    enabled: Joi.boolean().optional(),
+    generate: Joi.boolean().optional(),
+    deliveryPinCode: Joi.string()
+      .trim()
+      .pattern(/^\d{4,8}$/)
+      .allow('', null)
+      .messages({
+        'string.pattern.base': 'Le code de livraison doit contenir entre 4 et 8 chiffres.'
+      }),
+    code: Joi.string()
+      .trim()
+      .pattern(/^\d{4,8}$/)
+      .allow('', null)
+      .messages({
+        'string.pattern.base': 'Le code de livraison doit contenir entre 4 et 8 chiffres.'
+      }),
+    expiresHours: Joi.number().integer().min(1).max(168).allow(null)
+  }),
   orderStatusUpdate: Joi.object({
     status: Joi.string()
       .valid(
@@ -693,6 +718,9 @@ export const schemas = {
     }),
     issueRefund: Joi.boolean().default(false)
   }),
+  sellerDeliveryFeeUpdate: Joi.object({
+    deliveryFeeTotal: Joi.number().min(0).required()
+  }),
   orderUpdate: Joi.object({
     status: Joi.string().valid(
       'pending_payment',
@@ -766,8 +794,82 @@ export const schemas = {
   adminDeliveryRequestAssign: Joi.object({
     deliveryGuyId: Joi.string().hex().length(24).required()
   }),
+  adminDeliveryRequestUnassign: Joi.object({
+    reason: Joi.string().trim().max(1000).allow('', null)
+  }),
+  adminDeliveryRequestPriceUpdate: Joi.object({
+    deliveryPrice: Joi.number().min(0).required(),
+    reason: Joi.string().trim().max(500).allow('', null)
+  }),
+  adminDeliveryRequestCoordinates: Joi.object({
+    pickup: Joi.object({
+      latitude: Joi.number().min(-90).max(90).required(),
+      longitude: Joi.number().min(-180).max(180).required()
+    }).optional(),
+    dropoff: Joi.object({
+      latitude: Joi.number().min(-90).max(90).required(),
+      longitude: Joi.number().min(-180).max(180).required()
+    }).optional()
+  }).min(1),
+  courierAssignmentsListQuery: Joi.object({
+    status: Joi.string().trim().max(40).allow('', null),
+    date: Joi.string().valid('today', 'all', '').allow(null),
+    pickupCommune: Joi.string().trim().allow('', null),
+    dropoffCommune: Joi.string().trim().allow('', null),
+    deliveryGuyId: Joi.string().hex().length(24).allow('', null),
+    page: Joi.number().integer().min(1).max(100000).default(1),
+    limit: Joi.number().integer().min(1).max(50).default(20)
+  }),
+  courierAssignmentReject: Joi.object({
+    reason: Joi.string().trim().min(2).max(1000).required(),
+    deliveryGuyId: Joi.string().hex().length(24).allow('', null)
+  }),
+  courierAssignmentStage: Joi.object({
+    stage: Joi.string()
+      .valid(
+        'ASSIGNED',
+        'ACCEPTED',
+        'PICKUP_STARTED',
+        'PICKED_UP',
+        'IN_TRANSIT',
+        'ARRIVED',
+        'DELIVERED',
+        'FAILED'
+      )
+      .required(),
+    note: Joi.string().trim().max(1000).allow('', null),
+    reason: Joi.string().trim().max(1000).allow('', null),
+    deliveryPinCode: Joi.string().trim().max(12).allow('', null),
+    deliveryGuyId: Joi.string().hex().length(24).allow('', null)
+  }),
+  courierAssignmentProof: Joi.object({
+    proofType: Joi.string().valid('pickup', 'delivery').required(),
+    note: Joi.string().trim().max(1000).allow('', null),
+    signatureUrl: Joi.string().trim().uri().allow('', null),
+    deliveryPinCode: Joi.string().trim().max(12).allow('', null),
+    deliveryGuyId: Joi.string().hex().length(24).allow('', null)
+  }),
+  deliveryLocationPing: Joi.object({
+    jobId: Joi.string().hex().length(24).allow('', null),
+    assignmentId: Joi.string().hex().length(24).allow('', null),
+    deliveryRequestId: Joi.string().hex().length(24).allow('', null),
+    lat: Joi.number().min(-90).max(90).required(),
+    lng: Joi.number().min(-180).max(180).required()
+  }).or('jobId', 'assignmentId', 'deliveryRequestId'),
   adminUserRole: Joi.object({
-    role: Joi.string().valid('user', 'manager').required()
+    role: Joi.string().valid('user', 'manager', 'delivery_agent').required()
+  }),
+  adminPromoteDeliveryGuy: Joi.object({
+    fullName: Joi.string().trim().min(2).max(120).allow('', null),
+    phone: Joi.string().trim().min(5).max(40).allow('', null),
+    cityId: Joi.string().hex().length(24).allow('', null),
+    communes: Joi.array().items(Joi.string().hex().length(24)).max(50),
+    isActive: Joi.boolean(),
+    active: Joi.boolean(),
+    vehicleType: Joi.string()
+      .valid('bike', 'motorcycle', 'car', 'van', 'truck', 'other', '')
+      .allow('', null),
+    notes: Joi.string().trim().max(500).allow('', null)
   }),
   adminDirectPasswordUpdate: Joi.object({
     newPassword: Joi.string().min(6).max(100).required(),
