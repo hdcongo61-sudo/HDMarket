@@ -1818,13 +1818,13 @@ export const userUpdateOrderAddress = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à modifier cette commande.' });
   }
 
-  // Only allow address modification before shipping
+  // Address cannot be modified once order is "Prête à livrer" or "En cours de livraison"
   if (
-    ['delivering', 'out_for_delivery', 'delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(
-      order.status
+    ['ready_for_delivery', 'delivering', 'out_for_delivery', 'delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(
+      String(order.status)
     )
   ) {
-    return res.status(400).json({ 
+    return res.status(400).json({
       message: 'Impossible de modifier l\'adresse de livraison. La commande est déjà en cours de livraison ou livrée.',
       code: 'ORDER_ALREADY_SHIPPED'
     });
@@ -1926,10 +1926,34 @@ export const userSkipCancellationWindow = asyncHandler(async (req, res) => {
   const populated = await baseOrderQuery().findById(order._id);
   await ensureOrderProductSlugs([populated]);
 
+  const sellerIds = [
+    ...new Set(
+      (order.items || [])
+        .map((item) => resolveItemShopId(item))
+        .filter((id) => id)
+        .map((id) => String(id))
+    )
+  ];
   await invalidateOrderCachesForMutation({
     customerId: order.customer,
-    sellerIds: (order.items || []).map((item) => resolveItemShopId(item))
+    sellerIds
   });
+
+  for (const sellerId of sellerIds) {
+    await createNotification({
+      userId: sellerId,
+      actorId: userId,
+      type: 'order_cancellation_window_skipped',
+      metadata: {
+        title: 'Délai d’annulation levé',
+        message: 'Le client a autorisé le traitement immédiat de la commande.',
+        orderId: String(order._id)
+      },
+      allowSelf: false,
+      priority: 'HIGH'
+    });
+  }
+
   res.json(buildOrderResponse(populated));
 });
 
@@ -2016,6 +2040,74 @@ export const sellerGetOrder = asyncHandler(async (req, res) => {
     const normalized = item.toObject ? item.toObject() : item;
     return { ...normalized, snapshot: normalized.snapshot || {} };
   });
+  res.json(response);
+});
+
+// Delivery fee cannot be modified once order is "Prête à livrer" or "En cours de livraison"
+const SELLER_CAN_UPDATE_DELIVERY_FEE_STATUSES = new Set([
+  'pending_payment',
+  'paid',
+  'pending',
+  'pending_installment',
+  'installment_active',
+  'overdue_installment',
+  'confirmed',
+  'ready_for_pickup'
+]);
+
+export const sellerUpdateOrderDeliveryFee = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { deliveryFeeTotal: newFee } = req.body;
+  const userId = req.user?.id || req.user?._id;
+  if (!ensureObjectId(id)) {
+    return res.status(400).json({ message: 'Commande inconnue.' });
+  }
+  const order = await Order.findOne({ _id: id, 'items.snapshot.shopId': userId, isDraft: false });
+  if (!order) {
+    return res.status(404).json({ message: 'Commande introuvable.' });
+  }
+  if (!SELLER_CAN_UPDATE_DELIVERY_FEE_STATUSES.has(String(order.status))) {
+    return res.status(400).json({
+      message: 'Les frais de livraison ne peuvent plus être modifiés pour cette commande.'
+    });
+  }
+  const numFee = Number(newFee);
+  if (!Number.isFinite(numFee) || numFee < 0) {
+    return res.status(400).json({ message: 'Montant des frais de livraison invalide.' });
+  }
+  const previousFee = Number(order.deliveryFeeTotal || 0);
+  const totalAmount = Number(order.totalAmount || 0) - previousFee + numFee;
+  const paidAmount = Number(order.paidAmount || 0);
+  const remainingAmount = Math.max(0, totalAmount - paidAmount);
+  order.deliveryFeeTotal = numFee;
+  order.totalAmount = totalAmount;
+  order.remainingAmount = remainingAmount;
+  order.deliveryFeeUpdatedAt = new Date();
+  order.deliveryFeeUpdatedBy = userId;
+  await order.save();
+  const populated = await baseOrderQuery().findById(order._id);
+  const response = buildOrderResponse(populated);
+  const filteredItems = filterOrderItemsForSeller(populated, userId);
+  if (filteredItems.length) {
+    response.items = filteredItems.map((item) => {
+      const normalized = item.toObject ? item.toObject() : item;
+      return { ...normalized, snapshot: normalized.snapshot || {} };
+    });
+  }
+  const customerId = order.customer && (order.customer._id || order.customer);
+  if (customerId) {
+    await createNotification({
+      userId: customerId,
+      actorId: userId,
+      type: 'order_delivery_fee_updated',
+      metadata: {
+        orderId: order._id,
+        previousFee,
+        newFee: numFee,
+        orderShortId: String(order._id).slice(-6)
+      }
+    });
+  }
   res.json(response);
 });
 

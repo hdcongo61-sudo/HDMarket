@@ -328,6 +328,10 @@ export default function Profile() {
   const [locationError, setLocationError] = useState('');
   const [locationMessage, setLocationMessage] = useState('');
   const [locationDraft, setLocationDraft] = useState(null);
+  const [personLocationCaptureLoading, setPersonLocationCaptureLoading] = useState(false);
+  const [personLocationSaving, setPersonLocationSaving] = useState(false);
+  const [personLocationError, setPersonLocationError] = useState('');
+  const [personLocationMessage, setPersonLocationMessage] = useState('');
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const [mapPickerQuery, setMapPickerQuery] = useState('');
   const [mapPickerResults, setMapPickerResults] = useState([]);
@@ -999,6 +1003,57 @@ export default function Profile() {
     }
   }, [locationDraft, showToast, updateUser]);
 
+  const currentPersonCoordinates = useMemo(() => {
+    const coords = user?.location?.coordinates;
+    if (!Array.isArray(coords) || coords.length !== 2) return null;
+    const [longitude, latitude] = coords.map((v) => Number(v));
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+    return { latitude, longitude };
+  }, [user?.location?.coordinates]);
+
+  const handleCapturePersonLocation = useCallback(() => {
+    if (!navigator?.geolocation) {
+      setPersonLocationError('La géolocalisation n’est pas disponible sur cet appareil.');
+      showToast('Géolocalisation non disponible.', { variant: 'error' });
+      return;
+    }
+    setPersonLocationCaptureLoading(true);
+    setPersonLocationError('');
+    setPersonLocationMessage('');
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        setPersonLocationCaptureLoading(false);
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        const accuracy = position.coords.accuracy != null ? Math.round(position.coords.accuracy) : null;
+        setPersonLocationSaving(true);
+        setPersonLocationError('');
+        try {
+          const { data } = await api.put('/users/profile/location', {
+            latitude,
+            longitude,
+            accuracy
+          });
+          if (data?.user) updateUser(data.user);
+          setPersonLocationMessage('Position de livraison enregistrée.');
+          showToast('Position de livraison enregistrée.', { variant: 'success' });
+        } catch (err) {
+          const msg = err.response?.data?.message || 'Impossible d’enregistrer la position.';
+          setPersonLocationError(msg);
+          showToast(msg, { variant: 'error' });
+        } finally {
+          setPersonLocationSaving(false);
+        }
+      },
+      () => {
+        setPersonLocationCaptureLoading(false);
+        setPersonLocationError('Impossible d’obtenir la position. Autorisez l’accès à la position ou réessayez.');
+        showToast('Position non disponible.', { variant: 'error' });
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  }, [showToast, updateUser]);
+
   const mapPickerPreviewUrl = useMemo(() => {
     const latitude = Number(mapPickerSelection?.latitude);
     const longitude = Number(mapPickerSelection?.longitude);
@@ -1491,6 +1546,40 @@ export default function Profile() {
                     <MapPin className="absolute left-4 top-4 w-4 h-4 text-gray-400" />
                   </div>
                 </div>
+
+                {form.accountType === 'person' && (
+                  <div className="space-y-2 md:col-span-2 rounded-2xl border border-sky-100 bg-sky-50/50 p-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-sky-900">
+                      <LocateFixed className="w-4 h-4 text-sky-600" />
+                      <span>Position de livraison (géolocalisation)</span>
+                    </div>
+                    <p className="text-xs text-sky-800">
+                      Enregistrez votre position pour faciliter les livraisons. Si vous ne capturez pas la position, votre adresse écrite ci-dessus sera utilisée.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleCapturePersonLocation}
+                        disabled={loading || personLocationCaptureLoading || personLocationSaving}
+                        className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-700 hover:bg-sky-50 disabled:opacity-60"
+                      >
+                        <LocateFixed className="w-4 h-4" />
+                        {personLocationCaptureLoading ? 'Capture…' : personLocationSaving ? 'Enregistrement…' : 'Capturer ma position'}
+                      </button>
+                    </div>
+                    {currentPersonCoordinates && (
+                      <div className="rounded-xl border border-sky-100 bg-white px-3 py-2 text-xs text-slate-700">
+                        <p className="font-semibold text-slate-800">Position enregistrée</p>
+                        <p>Latitude: {currentPersonCoordinates.latitude.toFixed(6)} · Longitude: {currentPersonCoordinates.longitude.toFixed(6)}</p>
+                        {user?.locationUpdatedAt && (
+                          <p>Mise à jour: {new Date(user.locationUpdatedAt).toLocaleString('fr-FR')}</p>
+                        )}
+                      </div>
+                    )}
+                    {personLocationError && <p className="text-xs text-red-600">{personLocationError}</p>}
+                    {personLocationMessage && <p className="text-xs text-emerald-700">{personLocationMessage}</p>}
+                  </div>
+                )}
 
                 <div className="space-y-2 md:col-span-2">
                   <span className="text-sm font-medium text-gray-700 flex items-center gap-2">

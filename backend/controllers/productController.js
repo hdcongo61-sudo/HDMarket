@@ -33,6 +33,7 @@ import {
   normalizeWholesaleTiers,
   validateWholesaleConfig
 } from '../utils/wholesaleUtils.js';
+import { getSellerResponseStats } from '../utils/sellerResponseStats.js';
 
 const MAX_PRODUCT_IMAGES = 3;
 const SHOP_SELECT_FIELDS =
@@ -1954,6 +1955,19 @@ export const getPublicProductById = asyncHandler(async (req, res) => {
   product.uniqueViewsCount = Number(product.uniqueViewsCount || 0);
   product.views = product.viewsCount;
   product.todayViewsCount = await getTodayViewsCount(productDoc._id);
+
+  if (product.user?._id) {
+    try {
+      const stats = await getSellerResponseStats(product.user._id);
+      if (stats.responseRate != null) product.user.responseRate = stats.responseRate;
+      if (stats.responseTime) {
+        product.user.responseTime = stats.responseTime;
+        product.user.averageResponseTime = stats.responseTime;
+      }
+    } catch (_) {
+      // Non-fatal: leave responseRate/responseTime undefined (frontend shows N/A)
+    }
+  }
 
   res.json(product);
 });

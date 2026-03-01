@@ -38,8 +38,10 @@ const ORDER_TYPES = new Set([
   'order_received',
   'order_reminder',
   'order_cancelled',
+  'order_cancellation_window_skipped',
   'order_message',
-  'order_address_updated'
+  'order_address_updated',
+  'order_delivery_fee_updated'
 ]);
 
 const BOOST_TYPES = new Set(['product_boosted']);

@@ -529,17 +529,21 @@ export default function AdminDeliveryGuys() {
         </form>
       </section>
 
-      <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Livreurs</h2>
-          <div className="flex items-center gap-3">
+      <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Livreurs</h2>
+            <span className="text-sm text-gray-500 tabular-nums">{meta.total} enregistré(s)</span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
             <select
               value={cityFilter}
               onChange={(e) => {
                 setCityFilter(e.target.value);
                 setCommuneFilter('');
               }}
-              className="rounded-xl border border-gray-200 py-2 px-3 text-xs"
+              className="min-h-[44px] w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-400/30 sm:w-auto sm:min-w-[140px]"
+              aria-label="Filtrer par ville"
             >
               <option value="">Ville (toutes)</option>
               {cityOptions.map((city) => (
@@ -551,7 +555,8 @@ export default function AdminDeliveryGuys() {
             <select
               value={communeFilter}
               onChange={(e) => setCommuneFilter(e.target.value)}
-              className="rounded-xl border border-gray-200 py-2 px-3 text-xs"
+              className="min-h-[44px] w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-400/30 sm:w-auto sm:min-w-[140px]"
+              aria-label="Filtrer par commune"
             >
               <option value="">Commune (toutes)</option>
               {listCommuneOptions.map((commune) => (
@@ -560,17 +565,17 @@ export default function AdminDeliveryGuys() {
                 </option>
               ))}
             </select>
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <div className="relative w-full sm:w-56">
+              <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden />
               <input
                 type="search"
                 value={searchDraft}
                 onChange={(e) => setSearchDraft(e.target.value)}
-                className="w-56 rounded-xl border border-gray-200 py-2 pl-9 pr-3 text-xs focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                className="min-h-[44px] w-full rounded-xl border border-gray-200 py-2.5 pl-10 pr-4 text-sm text-gray-800 placeholder:text-gray-400 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-400/30 sm:pl-9"
                 placeholder="Rechercher un livreur"
+                aria-label="Rechercher un livreur"
               />
             </div>
-            <span className="text-xs text-gray-400">{meta.total} enregistré(s)</span>
           </div>
         </div>
         {loading ? (

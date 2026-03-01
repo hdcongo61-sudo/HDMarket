@@ -63,16 +63,28 @@ export default function AdminBoostManagement() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [pricingRes, seasonalRes, requestsRes, revenueRes] = await Promise.all([
+      const [pricingRes, seasonalRes, requestsRes, revenueRes] = await Promise.allSettled([
         api.get('/admin/boost-pricing'),
         api.get('/admin/seasonal-pricing'),
         api.get('/admin/boost-requests', { params: { page: 1, limit: 30 } }),
         api.get('/admin/boosts/revenue-dashboard')
       ]);
-      setPricingItems(Array.isArray(pricingRes?.data?.items) ? pricingRes.data.items : []);
-      setSeasonalItems(Array.isArray(seasonalRes?.data?.items) ? seasonalRes.data.items : []);
-      setRequestItems(Array.isArray(requestsRes?.data?.items) ? requestsRes.data.items : []);
-      setDashboard(revenueRes?.data || null);
+      setPricingItems(
+        pricingRes.status === 'fulfilled' && Array.isArray(pricingRes.value?.data?.items)
+          ? pricingRes.value.data.items
+          : []
+      );
+      setSeasonalItems(
+        seasonalRes.status === 'fulfilled' && Array.isArray(seasonalRes.value?.data?.items)
+          ? seasonalRes.value.data.items
+          : []
+      );
+      setRequestItems(
+        requestsRes.status === 'fulfilled' && Array.isArray(requestsRes.value?.data?.items)
+          ? requestsRes.value.data.items
+          : []
+      );
+      setDashboard(revenueRes.status === 'fulfilled' && revenueRes.value?.data ? revenueRes.value.data : null);
     } catch (error) {
       showToast(error.response?.data?.message || 'Impossible de charger la gestion boost.', {
         variant: 'error'

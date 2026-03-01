@@ -46,7 +46,8 @@ export const emitSocketNotification = (userId, payload = {}) => {
   notificationNamespace.to(`user:${String(userId)}`).emit('notifications:refresh', {
     userId: String(userId),
     notificationId: payload?.notificationId || '',
-    type: payload?.type || 'refresh'
+    type: payload?.type || 'refresh',
+    event: payload?.event || ''
   });
 };
 

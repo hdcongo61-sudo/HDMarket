@@ -383,7 +383,21 @@ api.interceptors.request.use(async (config) => {
 // Retry config for network errors (no response = connection/timeout/CORS)
 const NETWORK_ERROR_MAX_RETRIES = 1;
 const NETWORK_ERROR_DELAY_MS = 700;
+// When network changed (e.g. WiFi ↔ mobile), allow more retries with longer delay so connection can stabilize
+const NETWORK_CHANGED_CODES = ['ERR_NETWORK_CHANGED', 'ERR_INTERNET_DISCONNECTED', 'ERR_NETWORK_ACCESS_DENIED'];
+const NETWORK_CHANGED_MAX_RETRIES = 2;
+const NETWORK_CHANGED_DELAY_MS = 1200;
 const RETRYABLE_METHODS = new Set(['get', 'head', 'options']);
+
+const isNetworkChangedError = (err) => {
+  const code = String(err?.code || '');
+  const msg = String(err?.message || '');
+  const combined = (code + ' ' + msg).toLowerCase();
+  if (NETWORK_CHANGED_CODES.some((c) => combined.includes(c.toLowerCase()))) return true;
+  if (/net::err_network_changed|err_network_changed/.test(combined)) return true;
+  if (/net::err_internet_disconnected|err_internet_disconnected/.test(combined)) return true;
+  return false;
+};
 
 api.interceptors.response.use(
   async (response) => {
@@ -403,6 +417,7 @@ api.interceptors.response.use(
     const retryCount = config.__retryCount ?? 0;
     const method = String(config.method || 'get').toLowerCase();
     const isNetworkError = !error.response;
+    const networkChanged = isNetworkError && isNetworkChangedError(error);
     const isTimeoutError =
       error.code === 'ECONNABORTED' ||
       error.name === 'AbortError' ||
@@ -418,7 +433,9 @@ api.interceptors.response.use(
         error.message = error.userMessage;
       }
     } else if (isNetworkError) {
-      error.userMessage = 'Connexion indisponible. Vérifiez internet puis réessayez.';
+      error.userMessage = networkChanged
+        ? 'Réseau modifié. Nouvelle tentative…'
+        : 'Connexion indisponible. Vérifiez internet puis réessayez.';
       error.message = error.userMessage;
     }
     if (!error.response && error.userMessage) {
@@ -436,10 +453,12 @@ api.interceptors.response.use(
     }
 
     const canRetry = RETRYABLE_METHODS.has(method);
-    if ((isNetworkError || isRetryableStatus) && canRetry && retryCount < NETWORK_ERROR_MAX_RETRIES) {
+    const maxRetries = networkChanged ? NETWORK_CHANGED_MAX_RETRIES : NETWORK_ERROR_MAX_RETRIES;
+    const delayMs = networkChanged ? NETWORK_CHANGED_DELAY_MS * (retryCount + 1) : NETWORK_ERROR_DELAY_MS * (retryCount + 1);
+
+    if ((isNetworkError || isRetryableStatus) && canRetry && retryCount < maxRetries) {
       config.__retryCount = retryCount + 1;
-      const delay = NETWORK_ERROR_DELAY_MS * (retryCount + 1);
-      await new Promise((r) => setTimeout(r, delay));
+      await new Promise((r) => setTimeout(r, delayMs));
       return api.request(config);
     }
 

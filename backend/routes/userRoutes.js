@@ -11,6 +11,7 @@ import {
   getProfileStats,
   updateProfile,
   updateShopLocation,
+  updateProfileLocation,
   sendPasswordChangeCode,
   changePassword,
   getNotifications,
@@ -100,6 +101,11 @@ router.put(
   shopLocationRateLimiter,
   validate(schemas.shopLocationUpdate),
   updateShopLocation
+);
+router.put(
+  '/profile/location',
+  validate(schemas.profileLocationUpdate),
+  updateProfileLocation
 );
 router.post('/password/send-code', validate(schemas.passwordSendCode), sendPasswordChangeCode);
 router.post('/password/change', validate(schemas.passwordChange), changePassword);

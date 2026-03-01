@@ -749,18 +749,25 @@ const OrderSummaryCard = ({ order }) => {
         </div>
       </div>
       {/* Footer: total + CTA */}
-      <div className="px-4 pb-4 flex items-center justify-between gap-3">
-        {isInstallmentOrder ? (
-          <StatusBadge paymentType="installment" compact />
-        ) : (
-          <StatusBadge status={fullPaymentBadgeStatus} compact />
-        )}
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-gray-900">
-            {formatCurrency(isInstallmentOrder ? installmentPaid : totalAmount)}
-          </span>
-          <span className="text-neutral-800 font-medium text-sm flex items-center gap-0.5">{t('orders.viewDetail', 'Voir le détail')} <ChevronRight className="w-4 h-4" /></span>
+      <div className="px-4 pb-4 flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-3">
+          {isInstallmentOrder ? (
+            <StatusBadge paymentType="installment" compact />
+          ) : (
+            <StatusBadge status={fullPaymentBadgeStatus} compact />
+          )}
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-gray-900">
+              {formatCurrency(isInstallmentOrder ? installmentPaid : totalAmount)}
+            </span>
+            <span className="text-neutral-800 font-medium text-sm flex items-center gap-0.5">{t('orders.viewDetail', 'Voir le détail')} <ChevronRight className="w-4 h-4" /></span>
+          </div>
         </div>
+        {Number(order.deliveryFeeTotal ?? 0) > 0 && (
+          <p className="text-xs text-gray-500">
+            {t('orders.deliveryFee', 'Frais de livraison')}: {formatCurrency(order.deliveryFeeTotal)}
+          </p>
+        )}
       </div>
     </Link>
   );
@@ -1516,9 +1523,12 @@ export default function UserOrders() {
                         </div>
 
                         {/* Amount */}
-                        <div className="col-span-2 flex items-center gap-2 md:block">
+                        <div className="col-span-2 flex flex-col gap-0.5 md:block">
                           <span className="md:hidden text-xs font-medium text-gray-500">{t('orders.amount', 'Montant')}:</span>
                           <span className="font-bold text-gray-900 text-sm">{formatCurrency(totalAmount)}</span>
+                          {Number(order.deliveryFeeTotal ?? 0) > 0 && (
+                            <span className="text-xs text-gray-500">{t('orders.deliveryFee', 'Frais livraison')}: {formatCurrency(order.deliveryFeeTotal)}</span>
+                          )}
                         </div>
 
                         {/* Status */}

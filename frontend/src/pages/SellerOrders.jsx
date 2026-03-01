@@ -361,16 +361,23 @@ const SellerOrderSummaryCard = ({ order }) => {
           )}
         </div>
       </div>
-      <div className="px-4 pb-4 flex items-center justify-between gap-3">
-        {isInstallmentOrder ? (
-          <StatusBadge paymentType="installment" compact />
-        ) : (
-          <StatusBadge status={fullPaymentBadgeStatus} compact />
-        )}
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-gray-900">{formatCurrency(totalAmount)}</span>
-          <span className="text-neutral-800 font-medium text-sm flex items-center gap-0.5">{t('orders.viewDetail', 'Voir le détail')} <ChevronRight className="w-4 h-4" /></span>
+      <div className="px-4 pb-4 flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-3">
+          {isInstallmentOrder ? (
+            <StatusBadge paymentType="installment" compact />
+          ) : (
+            <StatusBadge status={fullPaymentBadgeStatus} compact />
+          )}
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-gray-900">{formatCurrency(totalAmount)}</span>
+            <span className="text-neutral-800 font-medium text-sm flex items-center gap-0.5">{t('orders.viewDetail', 'Voir le détail')} <ChevronRight className="w-4 h-4" /></span>
+          </div>
         </div>
+        {Number(order.deliveryFeeTotal ?? 0) > 0 && (
+          <p className="text-xs text-gray-500">
+            {t('orders.deliveryFee', 'Frais de livraison')}: {formatCurrency(order.deliveryFeeTotal)}
+          </p>
+        )}
       </div>
     </Link>
   );
@@ -483,6 +490,9 @@ const SellerMobileOrderCard = ({
               <p className="text-xs text-gray-500 font-medium">{t('orders.order', 'Commande')}</p>
               <h3 className="text-lg font-bold text-gray-900">#{order._id.slice(-6)}</h3>
               <p className="text-xs text-gray-500">{itemCount} article{itemCount > 1 ? 's' : ''} • {formatCurrency(totalAmount)}</p>
+              {Number(order.deliveryFeeTotal ?? 0) > 0 && (
+                <p className="text-[11px] text-gray-500 mt-0.5">{t('orders.deliveryFee', 'Frais de livraison')}: {formatCurrency(order.deliveryFeeTotal)}</p>
+              )}
             </div>
           </div>
         </div>
@@ -686,6 +696,12 @@ const SellerMobileOrderCard = ({
 
       {/* Payment Summary */}
       <div className="mx-4 mb-4 p-4 rounded-xl bg-gray-50">
+        {Number(order.deliveryFeeTotal ?? 0) > 0 && (
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-gray-600">{t('orders.deliveryFee', 'Frais de livraison')}</span>
+            <span className="text-sm font-medium text-gray-900">{formatCurrency(order.deliveryFeeTotal)}</span>
+          </div>
+        )}
         <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-gray-600">{t('orders.total', 'Total')}</span>
           <span className="text-lg font-bold text-gray-900">{formatCurrency(totalAmount)}</span>
@@ -969,6 +985,12 @@ export default function SellerOrders() {
     };
     loadOrders();
   }, [activeStatus, page, user?._id, reloadToken]);
+
+  useEffect(() => {
+    const handler = () => setReloadToken((v) => v + 1);
+    window.addEventListener('hdmarket:orders-refresh', handler);
+    return () => window.removeEventListener('hdmarket:orders-refresh', handler);
+  }, []);
 
   const handleStatusUpdate = async (orderId, nextStatus) => {
     setStatusUpdatingId(orderId);

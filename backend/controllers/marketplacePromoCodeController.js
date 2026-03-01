@@ -817,3 +817,278 @@ export const previewMarketplacePromoCode = asyncHandler(async (req, res) => {
     pricing: preview.pricing
   });
 });
+
+const ensureAdminPromoAccess = (req) => {
+  const role = String(req.user?.role || '');
+  if (!['admin', 'founder', 'manager'].includes(role)) {
+    const err = new Error('Accès réservé aux administrateurs.');
+    err.status = 403;
+    throw err;
+  }
+};
+
+export const listAdminPromoCodes = asyncHandler(async (req, res) => {
+  ensureAdminPromoAccess(req);
+  const { page = 1, limit = DEFAULT_PAGE_SIZE, status = 'all', search = '' } = req.query;
+  const pageNumber = Math.max(1, Number(page) || 1);
+  const pageSize = Math.max(1, Math.min(MAX_PAGE_SIZE, Number(limit) || DEFAULT_PAGE_SIZE));
+  const now = new Date();
+
+  const filter = {};
+  const searchTerm = String(search || '').trim();
+  if (searchTerm) {
+    const escaped = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    filter.code = { $regex: escaped, $options: 'i' };
+  }
+  if (status === 'active') {
+    filter.isActive = true;
+    filter.startDate = { $lte: now };
+    filter.endDate = { $gte: now };
+  } else if (status === 'inactive') {
+    filter.isActive = false;
+  } else if (status === 'expired') {
+    filter.endDate = { $lt: now };
+  } else if (status === 'upcoming') {
+    filter.startDate = { $gt: now };
+  }
+
+  const [items, total] = await Promise.all([
+    MarketplacePromoCode.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((pageNumber - 1) * pageSize)
+      .limit(pageSize)
+      .populate('boutiqueId', 'name shopName email')
+      .populate('productId', 'title slug')
+      .lean(),
+    MarketplacePromoCode.countDocuments(filter)
+  ]);
+
+  res.json({
+    items: items.map((item) => ({
+      ...toPromoResponse(item, now),
+      id: item._id.toString(),
+      _id: item._id,
+      boutique: item.boutiqueId
+        ? {
+            id: item.boutiqueId._id?.toString?.() || item.boutiqueId,
+            name: item.boutiqueId.shopName || item.boutiqueId.name,
+            email: item.boutiqueId.email
+          }
+        : null
+    })),
+    pagination: {
+      page: pageNumber,
+      limit: pageSize,
+      total,
+      pages: Math.max(1, Math.ceil(total / pageSize))
+    }
+  });
+});
+
+export const getAdminPromoAnalytics = asyncHandler(async (req, res) => {
+  ensureAdminPromoAccess(req);
+  const now = new Date();
+
+  const [overview, topCodes] = await Promise.all([
+    MarketplacePromoCode.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalCodes: { $sum: 1 },
+          activeCodes: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$isActive', true] },
+                    { $lte: ['$startDate', now] },
+                    { $gte: ['$endDate', now] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          },
+          totalUsage: { $sum: '$usedCount' }
+        }
+      }
+    ]),
+    Order.aggregate([
+      {
+        $match: {
+          isDraft: { $ne: true },
+          'appliedPromoCode.code': { $exists: true, $ne: '' }
+        }
+      },
+      {
+        $group: {
+          _id: '$appliedPromoCode.code',
+          usage: { $sum: 1 },
+          discountAmount: { $sum: { $ifNull: ['$appliedPromoCode.discountAmount', 0] } }
+        }
+      },
+      { $sort: { usage: -1, discountAmount: -1 } },
+      { $limit: 10 }
+    ])
+  ]);
+
+  const summary = overview[0] || { totalCodes: 0, activeCodes: 0, totalUsage: 0 };
+  res.json({
+    overview: {
+      totalCodes: Number(summary.totalCodes || 0),
+      activeCodes: Number(summary.activeCodes || 0),
+      totalUsage: Number(summary.totalUsage || 0)
+    },
+    topCodes: (topCodes || []).map((entry) => ({
+      code: entry._id,
+      usage: Number(entry.usage || 0),
+      discountAmount: Number((entry.discountAmount || 0).toFixed(2))
+    }))
+  });
+});
+
+export const getAdminPromoUsage = asyncHandler(async (req, res) => {
+  ensureAdminPromoAccess(req);
+  const limit = Math.min(50, Math.max(1, Number(req.query?.limit) || 10));
+
+  const items = await Order.aggregate([
+    {
+      $match: {
+        isDraft: { $ne: true },
+        'appliedPromoCode.code': { $exists: true, $ne: '' }
+      }
+    },
+    {
+      $group: {
+        _id: '$appliedPromoCode.code',
+        usage: { $sum: 1 },
+        discountAmount: { $sum: { $ifNull: ['$appliedPromoCode.discountAmount', 0] } }
+      }
+    },
+    { $sort: { usage: -1, discountAmount: -1 } },
+    { $limit: limit }
+  ]);
+
+  res.json({
+    items: items.map((entry) => ({
+      code: entry._id,
+      usage: Number(entry.usage || 0),
+      discountAmount: Number((entry.discountAmount || 0).toFixed(2))
+    }))
+  });
+});
+
+export const generateAdminPromoCode = asyncHandler(async (req, res) => {
+  ensureAdminPromoAccess(req);
+  const prefix = String(req.body?.prefix || '').trim().toUpperCase().slice(0, 10);
+  const length = Math.max(4, Math.min(20, Number(req.body?.length) || 8));
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let suffix = '';
+  for (let i = 0; i < length; i++) {
+    suffix += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  const code = prefix ? `${prefix}${suffix}` : suffix;
+  res.json({ code });
+});
+
+export const createAdminPromoCode = asyncHandler(async (req, res) => {
+  ensureAdminPromoAccess(req);
+  const boutiqueId = toObjectId(req.body?.boutiqueId);
+  if (!boutiqueId) {
+    return res.status(400).json({ message: 'boutiqueId est requis pour créer un code promo.' });
+  }
+
+  const rawCode = req.body?.code || req.body?.codePrefix;
+  const normalizedCode = normalizeMarketplacePromoCode(rawCode);
+  if (!normalizedCode) {
+    return res.status(400).json({ message: 'Le code promo est requis.' });
+  }
+
+  const discountType = req.body?.discountType === 'fixed' ? 'fixed' : 'percentage';
+  const discountValue = Math.max(0, Number(req.body?.discountValue ?? 100));
+  const usageLimit = Math.max(1, Number(req.body?.usageLimit ?? 1));
+  const startDate = parseDate(req.body?.startDate, 'startDate');
+  const endDate = parseDate(req.body?.endDate, 'endDate');
+  if (startDate >= endDate) {
+    return res.status(400).json({ message: 'La date de fin doit être postérieure à la date de début.' });
+  }
+
+  const existing = await MarketplacePromoCode.findOne({ boutiqueId, code: normalizedCode }).select('_id').lean();
+  if (existing) {
+    return res.status(409).json({ message: 'Ce code existe déjà pour cette boutique.' });
+  }
+
+  const promo = await MarketplacePromoCode.create({
+    code: normalizedCode,
+    boutiqueId,
+    appliesTo: req.body?.appliesTo === 'product' ? 'product' : 'boutique',
+    productId: req.body?.appliesTo === 'product' ? toObjectId(req.body?.productId) : null,
+    discountType,
+    discountValue,
+    usageLimit,
+    startDate,
+    endDate,
+    isActive: req.body?.isActive !== false
+  });
+
+  res.status(201).json({
+    message: 'Code promo créé.',
+    promoCode: toPromoResponse(promo),
+    id: promo._id.toString()
+  });
+});
+
+export const updateAdminPromoCode = asyncHandler(async (req, res) => {
+  ensureAdminPromoAccess(req);
+  const id = toObjectId(req.params?.id);
+  if (!id) return res.status(400).json({ message: 'Identifiant invalide.' });
+
+  const promo = await MarketplacePromoCode.findById(id);
+  if (!promo) return res.status(404).json({ message: 'Code promo introuvable.' });
+
+  if (req.body?.code !== undefined) {
+    const normalizedCode = normalizeMarketplacePromoCode(req.body.code);
+    if (!normalizedCode) {
+      return res.status(400).json({ message: 'Code promo invalide.' });
+    }
+    const duplicate = await MarketplacePromoCode.findOne({
+      _id: { $ne: id },
+      boutiqueId: promo.boutiqueId,
+      code: normalizedCode
+    })
+      .select('_id')
+      .lean();
+    if (duplicate) return res.status(409).json({ message: 'Ce code existe déjà pour cette boutique.' });
+    promo.code = normalizedCode;
+  }
+  if (req.body?.discountType !== undefined) promo.discountType = req.body.discountType === 'fixed' ? 'fixed' : 'percentage';
+  if (req.body?.discountValue !== undefined) promo.discountValue = Math.max(0, Number(req.body.discountValue));
+  if (req.body?.usageLimit !== undefined) promo.usageLimit = Math.max(1, Number(req.body.usageLimit));
+  if (typeof req.body?.isActive === 'boolean') promo.isActive = req.body.isActive;
+  if (req.body?.startDate !== undefined) promo.startDate = parseDate(req.body.startDate, 'startDate');
+  if (req.body?.endDate !== undefined) promo.endDate = parseDate(req.body.endDate, 'endDate');
+  if (promo.startDate >= promo.endDate) {
+    return res.status(400).json({ message: 'La date de fin doit être postérieure à la date de début.' });
+  }
+
+  await promo.save();
+  res.json({ message: 'Code promo mis à jour.', promoCode: toPromoResponse(promo) });
+});
+
+export const toggleAdminPromoCode = asyncHandler(async (req, res) => {
+  ensureAdminPromoAccess(req);
+  const id = toObjectId(req.params?.id);
+  if (!id) return res.status(400).json({ message: 'Identifiant invalide.' });
+
+  const promo = await MarketplacePromoCode.findById(id);
+  if (!promo) return res.status(404).json({ message: 'Code promo introuvable.' });
+
+  promo.isActive = typeof req.body?.isActive === 'boolean' ? req.body.isActive : !promo.isActive;
+  await promo.save();
+
+  res.json({
+    message: promo.isActive ? 'Code promo activé.' : 'Code promo désactivé.',
+    promoCode: toPromoResponse(promo)
+  });
+});

@@ -214,6 +214,8 @@ const orderSchema = new mongoose.Schema(
     },
     itemsSubtotal: { type: Number, default: 0, min: 0 },
     deliveryFeeTotal: { type: Number, default: 0, min: 0 },
+    deliveryFeeUpdatedAt: { type: Date, default: null },
+    deliveryFeeUpdatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     discountTotal: { type: Number, default: 0, min: 0 },
     deliveryAddress: { type: String, required: true, trim: true },
     deliveryCity: { type: String, default: 'Brazzaville', trim: true },

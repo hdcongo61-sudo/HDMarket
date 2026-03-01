@@ -14,6 +14,7 @@ const TYPE_PRIORITY_MAP = Object.freeze({
   payment_pending: 'HIGH',
   order_received: 'HIGH',
   order_reminder: 'HIGH',
+  order_cancellation_window_skipped: 'HIGH',
   order_delivered: 'HIGH',
   delivery_request_created: 'HIGH',
   delivery_request_accepted: 'HIGH',

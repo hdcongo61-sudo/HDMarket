@@ -38,6 +38,8 @@ const notificationSchema = new mongoose.Schema(
       'installment_product_suspended',
       'review_reminder',
       'order_address_updated',
+      'order_delivery_fee_updated',
+      'order_cancellation_window_skipped',
       'order_message',
       'delivery_request_created',
       'delivery_request_accepted',

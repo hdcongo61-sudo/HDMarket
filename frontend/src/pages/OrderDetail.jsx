@@ -489,8 +489,9 @@ export default function OrderDetail() {
 
   const openOrderPdf = (o) => {
     const orderItems = o?.items?.length ? o.items : o?.productSnapshot ? [{ snapshot: o.productSnapshot, quantity: 1 }] : [];
-    const computedTotal = orderItems.reduce((s, i) => s + Number(i.snapshot?.price || 0) * Number(i.quantity || 1), 0);
-    const orderTotal = Number(o?.totalAmount ?? computedTotal);
+    const itemsSubtotal = orderItems.reduce((s, i) => s + Number(i.snapshot?.price || 0) * Number(i.quantity || 1), 0);
+    const deliveryFeeTotal = Number(o?.deliveryFeeTotal ?? 0);
+    const orderTotal = Number(o?.totalAmount ?? itemsSubtotal + deliveryFeeTotal);
     const escapeHtml = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     const rowsHtml = orderItems
       .map((item, idx) => {
@@ -501,8 +502,11 @@ export default function OrderDetail() {
         return `<tr><td>${idx + 1}</td><td><div class="title">${title}</div>${shopName ? `<div class="meta">Boutique: ${shopName}</div>` : ''}</td><td class="right">x${qty}</td><td class="right">${lineTotal}</td></tr>`;
       })
       .join('');
+    const deliveryRowHtml = deliveryFeeTotal > 0
+      ? `<tr><td colspan="3" class="right">Frais de livraison</td><td class="right">${formatCurrency(deliveryFeeTotal)}</td></tr>`
+      : '';
     const orderShort = escapeHtml(o?._id?.slice(-6) || '');
-    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"/><title>Bon de commande ${orderShort}</title><style>body{font-family:sans-serif;margin:32px;} table{width:100%;border-collapse:collapse;} th,td{border-bottom:1px solid #eee;padding:10px;} .right{text-align:right;} .total-row td{font-weight:700;}</style></head><body><h1>Bon de commande #${orderShort}</h1><p>${escapeHtml(new Date(o?.createdAt).toLocaleDateString('fr-FR'))}</p><table><thead><tr><th>#</th><th>Article</th><th class="right">Qté</th><th class="right">Total</th></tr></thead><tbody>${rowsHtml}<tr class="total-row"><td colspan="3" class="right">Total</td><td class="right">${formatCurrency(orderTotal)}</td></tr></tbody></table></body></html>`;
+    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"/><title>Bon de commande ${orderShort}</title><style>body{font-family:sans-serif;margin:32px;} table{width:100%;border-collapse:collapse;} th,td{border-bottom:1px solid #eee;padding:10px;} .right{text-align:right;} .total-row td{font-weight:700;}</style></head><body><h1>Bon de commande #${orderShort}</h1><p>${escapeHtml(new Date(o?.createdAt).toLocaleDateString('fr-FR'))}</p><table><thead><tr><th>#</th><th>Article</th><th class="right">Qté</th><th class="right">Total</th></tr></thead><tbody>${rowsHtml}${deliveryRowHtml}<tr class="total-row"><td colspan="3" class="right">Total</td><td class="right">${formatCurrency(orderTotal)}</td></tr></tbody></table></body></html>`;
     const w = window.open('', '_blank');
     if (w) {
       w.document.write(html);
@@ -727,7 +731,6 @@ export default function OrderDetail() {
                     'pending_payment',
                     'paid',
                     'confirmed',
-                    'ready_for_delivery',
                     'pending_installment'
                   ].includes(order.status) && !pickupOrder && (
                     <button type="button" onClick={() => setEditAddressModalOpen(true)} className="px-4 py-2 rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-700 text-xs font-semibold hover:bg-neutral-100">
@@ -840,6 +843,21 @@ export default function OrderDetail() {
             <div>
               <h4 className="text-sm font-bold text-gray-900 uppercase mb-3 flex items-center gap-2"><CreditCard className="w-4 h-4 text-gray-500" /> Paiement</h4>
               <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 space-y-3">
+                {Number(order.deliveryFeeTotal ?? 0) > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm text-gray-600">Frais de livraison</span>
+                      {order.deliveryFeeUpdatedAt && (
+                        <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800" title={new Date(order.deliveryFeeUpdatedAt).toLocaleString('fr-FR')}>
+                          Modifié par le vendeur
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {formatCurrency(order.deliveryFeeTotal)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Total commande</span>
                   <span className="text-lg font-bold text-gray-900">

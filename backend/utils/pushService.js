@@ -198,6 +198,11 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       body = `${actorName} vous rappelle d'accélérer la commande ${orderId}${city}.`;
       break;
     }
+    case 'order_cancellation_window_skipped': {
+      title = metadata?.title || 'Délai d’annulation levé';
+      body = metadata?.message || `Le client a autorisé le traitement immédiat de la commande ${orderId}.`;
+      break;
+    }
     case 'order_delivering': {
       const city = metadata.deliveryCity ? ` pour ${metadata.deliveryCity}` : '';
       title = 'Commande en livraison';
@@ -269,6 +274,11 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
     case 'order_address_updated': {
       title = 'Adresse modifiée';
       body = `L'adresse de livraison de la commande ${orderId} a été modifiée.`;
+      break;
+    }
+    case 'order_delivery_fee_updated': {
+      title = 'Frais de livraison modifiés';
+      body = `Le vendeur a modifié les frais de livraison de votre commande ${orderId}. Vérifiez le détail de la commande.`;
       break;
     }
     case 'order_message': {
@@ -424,6 +434,8 @@ export const sendPushNotification = async ({
   const notificationType = notification.type || '';
   if (notificationType === 'order_message') {
     url = '/orders/messages';
+  } else if (notificationType === 'order_delivery_fee_updated' && orderId) {
+    url = `/orders/detail/${orderId}`;
   } else if (notificationType.startsWith('order_') || notificationType.startsWith('installment_')) {
     const status = notification.metadata?.status || '';
     if (

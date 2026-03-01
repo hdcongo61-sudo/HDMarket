@@ -193,6 +193,9 @@ const sanitizeUser = (user) => ({
   canManageDelivery: Boolean(user.canManageDelivery),
   canManageChatTemplates: Boolean(user.canManageChatTemplates),
   canManageHelpCenter: Boolean(user.canManageHelpCenter),
+  location: user.location || null,
+  locationUpdatedAt: user.locationUpdatedAt || null,
+  locationAccuracy: Number.isFinite(Number(user.locationAccuracy)) ? Number(user.locationAccuracy) : null,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt
 });
@@ -1303,6 +1306,53 @@ export const updateShopLocation = asyncHandler(async (req, res) => {
       needsReview,
       reviewStatus: user.shopLocationReviewStatus,
       reviewFlags: Array.isArray(user.shopLocationReviewFlags) ? user.shopLocationReviewFlags : []
+    }
+  });
+});
+
+/** Simple user (person) delivery address geolocation - no review flow */
+export const updateProfileLocation = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ message: 'Utilisateur introuvable.' });
+
+  if (user.accountType !== 'person') {
+    return res.status(403).json({
+      message: 'La position de livraison est réservée aux comptes particuliers. Les boutiques utilisent la position boutique.'
+    });
+  }
+
+  const latitude = Number(req.body.latitude);
+  const longitude = Number(req.body.longitude);
+  const accuracyRaw = req.body.accuracy;
+  const accuracy = Number.isFinite(Number(accuracyRaw)) ? Number(accuracyRaw) : null;
+
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+    return res.status(400).json({ message: 'Latitude invalide.' });
+  }
+  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    return res.status(400).json({ message: 'Longitude invalide.' });
+  }
+  if (accuracy !== null && (accuracy < 0 || accuracy > 50000)) {
+    return res.status(400).json({ message: 'Précision GPS invalide.' });
+  }
+
+  const now = new Date();
+  user.location = {
+    type: 'Point',
+    coordinates: [longitude, latitude]
+  };
+  user.locationUpdatedAt = now;
+  user.locationAccuracy = accuracy;
+  await user.save();
+
+  await invalidateUserCache(user._id, ['users', 'dashboard']);
+  return res.json({
+    message: 'Position de livraison enregistrée.',
+    user: sanitizeUser(user),
+    location: {
+      coordinates: user.location?.coordinates || [longitude, latitude],
+      updatedAt: user.locationUpdatedAt,
+      accuracy: user.locationAccuracy
     }
   });
 });

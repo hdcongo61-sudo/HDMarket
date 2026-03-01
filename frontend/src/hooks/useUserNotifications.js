@@ -29,6 +29,8 @@ const DEFAULT_PREFERENCES = Object.freeze({
   installment_product_suspended: true,
   review_reminder: true,
   order_address_updated: true,
+  order_delivery_fee_updated: true,
+  order_cancellation_window_skipped: true,
   order_message: true,
   order_cancelled: true,
   dispute_created: true,
@@ -332,8 +334,11 @@ export default function useUserNotifications(enabled, options = {}) {
       socket.on('notification', () => {
         scheduleRefresh();
       });
-      socket.on('notifications:refresh', () => {
+      socket.on('notifications:refresh', (payload) => {
         scheduleRefresh();
+        if (payload?.event === 'order_cancellation_window_skipped' && typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('hdmarket:orders-refresh'));
+        }
       });
       socket.on('connect_error', () => {
         // SSE fallback remains active.

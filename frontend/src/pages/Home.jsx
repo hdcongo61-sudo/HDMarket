@@ -766,10 +766,15 @@ const loadDiscountProducts = async () => {
                   key={`flash-${product._id}-${idx}`}
                   to={buildHomeProductLink(product)}
                   {...externalLinkProps}
-                  className="flex-shrink-0 w-[130px] bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden active:scale-[0.97] transition-transform"
+                  className="flex-shrink-0 w-[140px] flex flex-col bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden active:scale-[0.97] transition-transform"
                 >
-                  <div className="relative aspect-square bg-gray-100">
-                    <img src={product.images?.[0] || '/api/placeholder/200/200'} alt={product.title} className="w-full h-full object-cover" loading="lazy" />
+                  <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
+                    <img
+                      src={product.images?.[0] || '/api/placeholder/400/400'}
+                      alt={product.title}
+                      className="w-full h-full object-cover object-center"
+                      loading="lazy"
+                    />
                     {product.flashPromo?.endDate && (
                       <span className="absolute bottom-1.5 left-1.5 bg-black/75 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md">
                         {formatCountdown(product.flashPromo.endDate, flashNow)}
@@ -781,7 +786,7 @@ const loadDiscountProducts = async () => {
                       </span>
                     )}
                   </div>
-                  <div className="p-2">
+                  <div className="p-2 flex flex-col min-h-0">
                     <p className="text-xs font-bold text-gray-900 truncate">
                       {Number(product.promoPrice ?? product.price ?? 0).toLocaleString()} F
                     </p>
@@ -862,7 +867,10 @@ const loadDiscountProducts = async () => {
             {topSalesCityTodayLoading ? (
               <div className="flex gap-2.5 overflow-x-auto pb-2 hide-scrollbar" style={scrollStyle}>
                 {Array.from({ length: 4 }).map((_, idx) => (
-                  <div key={`city-sales-mobile-skeleton-${idx}`} className="w-[130px] h-[176px] animate-pulse rounded-xl bg-gray-100" />
+                  <div key={`city-sales-mobile-skeleton-${idx}`} className="w-[140px] flex flex-col rounded-xl overflow-hidden">
+                    <div className="w-full aspect-square animate-pulse bg-gray-100" />
+                    <div className="h-12 animate-pulse bg-gray-100 rounded-b-xl mt-1" />
+                  </div>
                 ))}
               </div>
             ) : topSalesCityTodayProducts.length > 0 ? (
@@ -872,15 +880,20 @@ const loadDiscountProducts = async () => {
                     key={`city-sales-mobile-${product._id}-${idx}`}
                     to={buildHomeProductLink(product)}
                     {...externalLinkProps}
-                    className="flex-shrink-0 w-[130px] bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden active:scale-[0.97] transition-transform"
+                    className="flex-shrink-0 w-[140px] flex flex-col bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden active:scale-[0.97] transition-transform"
                   >
-                    <div className="relative aspect-square bg-gray-100">
-                      <img src={product.images?.[0] || '/api/placeholder/200/200'} alt={product.title} className="w-full h-full object-cover" loading="lazy" />
+                    <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
+                      <img
+                        src={product.images?.[0] || '/api/placeholder/400/400'}
+                        alt={product.title}
+                        className="w-full h-full object-cover object-center"
+                        loading="lazy"
+                      />
                       <span className="absolute top-1.5 right-1.5 rounded-md bg-neutral-900/90 px-1.5 py-0.5 text-[9px] font-semibold text-white">
                         {Number(product.totalSoldToday || 0)} vendu(s)
                       </span>
                     </div>
-                    <div className="p-2">
+                    <div className="p-2 flex flex-col min-h-0">
                       <p className="text-[11px] text-gray-700 font-medium truncate">{product.title}</p>
                       <p className="text-xs font-bold text-gray-900">{Number(product.price || 0).toLocaleString()} F</p>
                     </div>
@@ -913,10 +926,15 @@ const loadDiscountProducts = async () => {
                   key={`bestseller-${product._id}-${idx}`}
                   to={buildHomeProductLink(product)}
                   {...externalLinkProps}
-                  className="flex-shrink-0 w-[130px] bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden active:scale-[0.97] transition-transform"
+                  className="flex-shrink-0 w-[140px] flex flex-col bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden active:scale-[0.97] transition-transform"
                 >
-                  <div className="relative aspect-square bg-gray-100">
-                    <img src={product.images?.[0] || '/api/placeholder/200/200'} alt={product.title} className="w-full h-full object-cover" loading="lazy" />
+                  <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
+                    <img
+                      src={product.images?.[0] || '/api/placeholder/400/400'}
+                      alt={product.title}
+                      className="w-full h-full object-cover object-center"
+                      loading="lazy"
+                    />
                     {idx < 3 && (
                       <span className={`absolute top-1.5 left-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow ${
                         idx === 0 ? 'bg-neutral-500' : idx === 1 ? 'bg-gray-400' : 'bg-neutral-600'
@@ -925,7 +943,7 @@ const loadDiscountProducts = async () => {
                       </span>
                     )}
                   </div>
-                  <div className="p-2">
+                  <div className="p-2 flex flex-col min-h-0">
                     <p className="text-[11px] text-gray-700 font-medium truncate">{product.title}</p>
                     <p className="text-xs font-bold text-gray-900">{Number(product.price || 0).toLocaleString()} F</p>
                   </div>
@@ -956,10 +974,16 @@ const loadDiscountProducts = async () => {
                   to={buildShopPath(shop)}
                   className="flex-shrink-0 flex items-center gap-2.5 px-3 py-2.5 bg-white rounded-xl border border-gray-100 shadow-sm active:scale-[0.97] transition-transform"
                 >
-                  <img src={shop.shopLogo || '/api/placeholder/40/40'} alt={shop.shopName} className="w-9 h-9 rounded-lg object-cover border border-gray-100" />
+                  <div className="relative w-10 h-10 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100 border border-gray-100">
+                    <img
+                      src={shop.shopLogo || '/api/placeholder/40/40'}
+                      alt={shop.shopName}
+                      className="absolute inset-0 w-full h-full object-cover object-center"
+                    />
+                  </div>
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-gray-900 truncate max-w-[100px]">{shop.shopName}</p>
-                  <p className="text-[10px] text-neutral-600 font-medium">{shop.productCount || 0} {t('home.listings', 'annonces')}</p>
+                    <p className="text-[10px] text-neutral-600 font-medium">{shop.productCount || 0} {t('home.listings', 'annonces')}</p>
                   </div>
                 </Link>
               ))}
@@ -1048,15 +1072,20 @@ const loadDiscountProducts = async () => {
                       key={`city-m-${product._id}-${idx}`}
                       to={buildHomeProductLink(product)}
                       {...externalLinkProps}
-                      className="flex-shrink-0 w-[130px] bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden active:scale-[0.97] transition-transform"
+                      className="flex-shrink-0 w-[140px] flex flex-col bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden active:scale-[0.97] transition-transform"
                     >
-                      <div className="relative aspect-square bg-gray-100">
-                        <img src={product.images?.[0] || '/api/placeholder/200/200'} alt={product.title} className="w-full h-full object-cover" loading="lazy" />
+                      <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
+                        <img
+                          src={product.images?.[0] || '/api/placeholder/400/400'}
+                          alt={product.title}
+                          className="w-full h-full object-cover object-center"
+                          loading="lazy"
+                        />
                         <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 text-[9px] font-semibold rounded-md bg-white/90 text-gray-600">
                           {product.condition === 'new' ? 'Neuf' : 'Occasion'}
                         </span>
                       </div>
-                      <div className="p-2">
+                      <div className="p-2 flex flex-col min-h-0">
                         <p className="text-xs font-bold text-gray-900 truncate">{Number(product.price || 0).toLocaleString()} F</p>
                         <p className="text-[10px] text-gray-500 truncate">{product.title}</p>
                       </div>
@@ -1133,7 +1162,7 @@ const loadDiscountProducts = async () => {
           {wholesaleLoading && !wholesaleProducts.length ? (
             <div className="grid grid-cols-2 gap-3 max-[375px]:grid-cols-1 max-[375px]:gap-2.5">
               {Array.from({ length: 4 }).map((_, index) => (
-                <div key={`wholesale-skeleton-${index}`} className="h-48 animate-pulse rounded-xl bg-gray-200" />
+                <div key={`wholesale-skeleton-${index}`} className="aspect-[3/4] max-h-48 animate-pulse rounded-xl bg-gray-200 overflow-hidden" />
               ))}
             </div>
           ) : wholesaleProducts.length > 0 ? (
@@ -1141,9 +1170,11 @@ const loadDiscountProducts = async () => {
               {wholesaleProducts.slice(0, 4).map((product) => {
                 const minQty = Number(product?.wholesaleMinQty || product?.wholesaleTiers?.[0]?.minQty || 2);
                 return (
-                  <div key={`wholesale-mobile-${product._id}`} className="overflow-hidden rounded-xl border border-emerald-100 bg-white p-1 max-[375px]:p-0.5 shadow-sm">
-                    <ProductCard p={product} productLink={buildHomeProductLink(product)} />
-                    <div className="mt-1 rounded-lg border border-neutral-200 bg-neutral-50 px-2 py-1.5 max-[375px]:px-1.5 max-[375px]:py-1">
+                  <div key={`wholesale-mobile-${product._id}`} className="flex flex-col overflow-hidden rounded-xl border border-emerald-100 bg-white shadow-sm">
+                    <div className="min-h-0 flex-1">
+                      <ProductCard p={product} productLink={buildHomeProductLink(product)} />
+                    </div>
+                    <div className="mt-1 rounded-b-xl border-t border-neutral-100 bg-neutral-50 px-2 py-1.5 max-[375px]:px-1.5 max-[375px]:py-1">
                       <span className="inline-flex items-center rounded-full border border-neutral-200 bg-white px-2 py-0.5 text-[10px] max-[375px]:text-[9px] font-semibold text-neutral-700">
                         Vente en gros
                       </span>
@@ -1457,10 +1488,15 @@ const loadDiscountProducts = async () => {
                     key={`deal-panel-${product._id}-${idx}`}
                     to={buildHomeProductLink(product)}
                     {...externalLinkProps}
-                    className="group bg-gray-50 rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-neutral-200 transition-all"
+                    className="group flex flex-col bg-gray-50 rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-neutral-200 transition-all"
                   >
-                    <div className="relative aspect-square bg-gray-100">
-                      <img src={product.images?.[0] || '/api/placeholder/200/200'} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
+                    <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
+                      <img
+                        src={product.images?.[0] || '/api/placeholder/400/400'}
+                        alt={product.title}
+                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                        loading="lazy"
+                      />
                       {product.flashPromo?.endDate && (
                         <span className="absolute bottom-1.5 left-1.5 bg-black/75 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md">
                           {formatCountdown(product.flashPromo.endDate, flashNow)}
@@ -1470,13 +1506,13 @@ const loadDiscountProducts = async () => {
                         <span className="absolute top-1.5 left-1.5 bg-neutral-900 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow">-{product.discount}%</span>
                       )}
                     </div>
-                    <div className="p-2">
-                      <p className="text-sm font-bold text-gray-900">{Number(product.promoPrice ?? product.price ?? 0).toLocaleString()} F</p>
+                    <div className="p-2.5 flex flex-col flex-1 min-h-0">
+                      <p className="text-sm font-bold text-gray-900 truncate">{Number(product.promoPrice ?? product.price ?? 0).toLocaleString()} F</p>
                       {product.priceBeforeDiscount > product.price && (
                         <p className="text-[10px] text-gray-400 line-through">{Number(product.priceBeforeDiscount).toLocaleString()} F</p>
                       )}
                       {Number(product.promoSavedAmount || 0) > 0 && (
-                        <p className="text-[10px] text-neutral-600 font-semibold">
+                        <p className="text-[10px] text-neutral-600 font-semibold mt-0.5">
                           Éco: {Number(product.promoSavedAmount).toLocaleString()} F
                         </p>
                       )}
@@ -1523,15 +1559,20 @@ const loadDiscountProducts = async () => {
                     key={`city-sales-desktop-${product._id}-${idx}`}
                     to={buildHomeProductLink(product)}
                     {...externalLinkProps}
-                    className="group bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md hover:border-neutral-200 transition-all"
+                    className="group flex flex-col bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md hover:border-neutral-200 transition-all"
                   >
-                    <div className="relative aspect-square bg-gray-100">
-                      <img src={product.images?.[0] || '/api/placeholder/200/200'} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
+                    <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100">
+                      <img
+                        src={product.images?.[0] || '/api/placeholder/400/400'}
+                        alt={product.title}
+                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                        loading="lazy"
+                      />
                       <span className="absolute top-2 right-2 rounded-md bg-neutral-900/90 px-2 py-0.5 text-[10px] font-semibold text-white">
                         {Number(product.totalSoldToday || 0)} vendu(s)
                       </span>
                     </div>
-                    <div className="p-3">
+                    <div className="p-3 flex flex-col flex-1 min-h-0">
                       <p className="text-sm font-medium text-gray-700 truncate">{product.title}</p>
                       <p className="text-sm font-bold text-gray-900 mt-0.5">{formatPrice(product.price || 0)}</p>
                     </div>
@@ -1564,10 +1605,15 @@ const loadDiscountProducts = async () => {
                   key={`bestseller-d-${product._id}-${idx}`}
                   to={buildHomeProductLink(product)}
                   {...externalLinkProps}
-                  className="group bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md hover:border-neutral-200 transition-all"
+                  className="group flex flex-col bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md hover:border-neutral-200 transition-all"
                 >
-                  <div className="relative aspect-square bg-gray-100">
-                    <img src={product.images?.[0] || '/api/placeholder/200/200'} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
+                  <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100">
+                    <img
+                      src={product.images?.[0] || '/api/placeholder/400/400'}
+                      alt={product.title}
+                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                      loading="lazy"
+                    />
                     {idx < 3 && (
                       <span className={`absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg ${
                         idx === 0 ? 'bg-neutral-500' : idx === 1 ? 'bg-gray-400' : 'bg-neutral-600'
@@ -1576,7 +1622,7 @@ const loadDiscountProducts = async () => {
                       </span>
                     )}
                   </div>
-                  <div className="p-3">
+                  <div className="p-3 flex flex-col flex-1 min-h-0">
                     <p className="text-sm font-medium text-gray-700 truncate">{product.title}</p>
                     <p className="text-sm font-bold text-gray-900 mt-0.5">{formatPrice(product.price || 0)}</p>
                   </div>
@@ -1618,7 +1664,13 @@ const loadDiscountProducts = async () => {
                     to={buildShopPath(shop)}
                     className="flex items-center gap-3 rounded-xl bg-white border border-gray-100 hover:border-neutral-200 hover:shadow-sm transition-all p-3"
                   >
-                    <img src={shop.shopLogo || '/api/placeholder/40/40'} alt={shop.shopName} className="w-10 h-10 rounded-lg object-cover border border-gray-100" />
+                    <div className="relative w-12 h-12 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100 border border-gray-100">
+                      <img
+                        src={shop.shopLogo || '/api/placeholder/48/48'}
+                        alt={shop.shopName}
+                        className="absolute inset-0 w-full h-full object-cover object-center"
+                      />
+                    </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-gray-900 truncate">{shop.shopName}</p>
                       <p className="text-xs text-gray-500 truncate">{shop.shopAddress || 'Adresse non renseignée'}</p>
@@ -1675,17 +1727,22 @@ const loadDiscountProducts = async () => {
                     key={`trend-${topProductsTab}-${product._id}-${index}`}
                     to={buildHomeProductLink(product)}
                     {...externalLinkProps}
-                    className="group bg-gray-50 rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-neutral-200 transition-all"
+                    className="group flex flex-col bg-gray-50 rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-neutral-200 transition-all"
                   >
-                    <div className="relative aspect-square bg-gray-100">
-                      <img src={product.images?.[0] || '/api/placeholder/200/200'} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
+                    <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
+                      <img
+                        src={product.images?.[0] || '/api/placeholder/400/400'}
+                        alt={product.title}
+                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                        loading="lazy"
+                      />
                       <span className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow ${
                         index === 0 ? 'bg-neutral-500' : index === 1 ? 'bg-gray-400' : 'bg-neutral-600'
                       }`}>
                         {index + 1}
                       </span>
                     </div>
-                    <div className="p-3">
+                    <div className="p-3 flex flex-col flex-1 min-h-0">
                       <p className="text-sm font-medium text-gray-700 truncate group-hover:text-neutral-900 transition-colors">{product.title}</p>
                       <p className="text-sm font-bold text-gray-900 mt-0.5">{formatPrice(product.price || 0)}</p>
                       {topProductsTab === 'favorites' && (
@@ -1782,9 +1839,11 @@ const loadDiscountProducts = async () => {
                 {wholesaleProducts.slice(0, 4).map((product) => {
                   const minQty = Number(product?.wholesaleMinQty || product?.wholesaleTiers?.[0]?.minQty || 2);
                   return (
-                    <div key={`wholesale-desktop-${product._id}`} className="overflow-hidden rounded-xl border border-emerald-100 bg-white p-1.5 shadow-sm">
-                      <ProductCard p={product} productLink={buildHomeProductLink(product)} />
-                      <div className="mt-1.5 rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-2">
+                    <div key={`wholesale-desktop-${product._id}`} className="flex flex-col overflow-hidden rounded-xl border border-emerald-100 bg-white shadow-sm">
+                      <div className="min-h-0 flex-1">
+                        <ProductCard p={product} productLink={buildHomeProductLink(product)} />
+                      </div>
+                      <div className="mt-0 rounded-b-xl border-t border-neutral-100 bg-neutral-50 px-2.5 py-2">
                         <span className="inline-flex items-center rounded-full border border-neutral-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-neutral-700">
                           Vente en gros
                         </span>

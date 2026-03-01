@@ -24,7 +24,16 @@ const founderLimiter = rateLimit({
   message: { message: 'Too many founder analytics requests. Please retry in one minute.' }
 });
 
-router.get('/intelligence', founderLimiter, protect, requireFounder, requirePermission('access_founder_analytics'), founderIntelligence);
+// Intelligence is polled every few seconds from AdminDashboard; allow more requests per minute
+const founderIntelligenceLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: Math.max(30, Number(process.env.FOUNDER_INTELLIGENCE_RATE_LIMIT_PER_MIN || 60)),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many requests. Please retry in one minute.' }
+});
+
+router.get('/intelligence', founderIntelligenceLimiter, protect, requireFounder, requirePermission('access_founder_analytics'), founderIntelligence);
 router.get('/audit-logs', founderLimiter, protect, requireFounder, requirePermission('view_logs'), listFounderAuditLogs);
 router.post('/promote-admin/:id', protect, requireFounder, requirePermission('assign_roles'), validate(schemas.idParam, 'params'), promoteAdmin);
 router.post('/revoke-admin/:id', protect, requireFounder, requirePermission('revoke_roles'), validate(schemas.idParam, 'params'), revokeAdmin);
