@@ -858,6 +858,7 @@ function AppContent() {
             }
           >
             <Route index element={<AdminIndexRedirect />} />
+            <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="payments" element={<AdminPayments />} />
             <Route path="orders" element={<AdminOrders />} />
             <Route
