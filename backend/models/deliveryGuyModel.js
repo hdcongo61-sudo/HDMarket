@@ -6,6 +6,7 @@ const deliveryGuySchema = new mongoose.Schema(
     fullName: { type: String, trim: true, default: '' },
     // Legacy compatibility for existing records/UI
     name: { type: String, trim: true, default: '' },
+    photoUrl: { type: String, trim: true, default: '' },
     phone: { type: String, trim: true, default: '' },
     cityId: { type: mongoose.Schema.Types.ObjectId, ref: 'City', default: null, index: true },
     communes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Commune' }],

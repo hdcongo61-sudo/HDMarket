@@ -4,6 +4,7 @@ import Product from '../models/productModel.js';
 import User from '../models/userModel.js';
 import { createNotification } from '../utils/notificationService.js';
 import { invalidateProductCache } from '../utils/cache.js';
+import { invalidateVerifiedProductCache } from '../utils/publicProductVisibility.js';
 import { calculateCommissionBreakdown, normalizePromoCode } from '../utils/promoCodeUtils.js';
 import { consumePromoCodeForSeller, previewPromoForSeller } from '../utils/promoCodeService.js';
 import { getRuntimeConfig } from '../services/configService.js';
@@ -149,6 +150,7 @@ export const createPayment = asyncHandler(async (req, res) => {
   product.payment = payment._id;
   product.status = 'pending';
   await product.save();
+  invalidateVerifiedProductCache();
 
   try {
     const [moderators, waitingCount] = await Promise.all([
@@ -283,6 +285,7 @@ export const verifyPayment = asyncHandler(async (req, res) => {
   product.status = 'approved';
   product.payment = payment._id;
   await product.save();
+  invalidateVerifiedProductCache();
 
   // Invalidate product cache so the approved product appears on home page immediately
   await invalidateProductCache();
@@ -312,6 +315,7 @@ export const rejectPayment = asyncHandler(async (req, res) => {
   const product = await Product.findById(payment.product._id);
   product.status = 'rejected';
   await product.save();
+  invalidateVerifiedProductCache();
 
   // Invalidate product cache so the rejected product is removed from home page immediately
   await invalidateProductCache();

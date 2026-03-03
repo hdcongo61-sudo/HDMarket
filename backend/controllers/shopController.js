@@ -12,6 +12,7 @@ import { createNotification } from '../utils/notificationService.js';
 import { sanitizeShopHours } from '../utils/shopHours.js';
 import { buildIdentifierQuery } from '../utils/idResolver.js';
 import { ensureDocumentSlug, ensureModelSlugsForItems } from '../utils/slugUtils.js';
+import { withVerifiedPublicProductFilter } from '../utils/publicProductVisibility.js';
 
 const formatShopReview = (review) => {
   if (!review) return null;
@@ -112,7 +113,12 @@ export const listShops = asyncHandler(async (req, res) => {
 
     const shopIds = shops.map((shop) => shop._id);
     const productCounts = await Product.aggregate([
-      { $match: { user: { $in: shopIds }, status: 'approved' } },
+      {
+        $match: await withVerifiedPublicProductFilter({
+          user: { $in: shopIds },
+          status: 'approved'
+        })
+      },
       { $group: { _id: '$user', count: { $sum: 1 } } }
     ]);
 
@@ -149,11 +155,11 @@ export const listShops = asyncHandler(async (req, res) => {
     if (includeImages && shopIds.length) {
       const imageAgg = await Product.aggregate([
         {
-          $match: {
+          $match: await withVerifiedPublicProductFilter({
             user: { $in: shopIds },
             status: 'approved',
             images: { $exists: true, $ne: [] }
-          }
+          })
         },
         { $project: { user: 1, images: 1 } },
         { $unwind: '$images' },
@@ -289,12 +295,14 @@ export const getShopProfile = asyncHandler(async (req, res) => {
   const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 12));
   const skip = (page - 1) * limit;
 
+  const publicProductFilter = await withVerifiedPublicProductFilter({
+    user: shop._id,
+    status: 'approved'
+  });
+
   const [totalProducts, productsRaw] = await Promise.all([
-    Product.countDocuments({ user: shop._id, status: 'approved' }),
-    Product.find({
-      user: shop._id,
-      status: 'approved'
-    })
+    Product.countDocuments(publicProductFilter),
+    Product.find(publicProductFilter)
       .select(
         '_id title price images category condition city createdAt slug salesCount favoritesCount whatsappClicks views discount priceBeforeDiscount certified installmentEnabled installmentStartDate installmentEndDate wholesaleEnabled wholesaleTiers'
       )

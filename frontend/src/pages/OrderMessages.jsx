@@ -32,6 +32,7 @@ import storage from '../utils/storage';
 import AuthContext from '../context/AuthContext';
 import OrderChat from '../components/OrderChat';
 import { buildProductPath } from '../utils/links';
+import { resolveUserProfileImage } from '../utils/userAvatar';
 import { fetchOrderConversations, fetchOrderUnreadCount } from '../queries/orderChatApi';
 import { orderChatKeys } from '../queries/orderChatKeys';
 
@@ -659,6 +660,20 @@ export default function OrderMessages() {
                 partnerName = conversation.productInfo?.shopName || 'Vendeur';
                 buttonText = 'Contacter le vendeur';
               }
+              const latestSender = conversation.latestMessage?.sender || null;
+              const latestSenderIsSelf =
+                latestSender?._id && String(latestSender._id) === String(user?._id);
+              const partnerAvatar = (() => {
+                if (isAdmin || isSeller) {
+                  return resolveUserProfileImage({
+                    profileImage: conversation.customerProfileImage || ''
+                  });
+                }
+                if (isCustomer && latestSender && !latestSenderIsSelf) {
+                  return resolveUserProfileImage(latestSender);
+                }
+                return '';
+              })();
               const productPath = conversation.productInfo?.slug
                 ? buildProductPath(conversation.productInfo)
                 : null;
@@ -715,8 +730,22 @@ export default function OrderMessages() {
                               {conversation.productInfo?.title || 'Produit'}
                             </p>
                           )}
-                          <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
-                            {partnerName} · #{conversation.orderCode || String(conversation.orderId || '').slice(-6)}
+                          <p className="mt-0.5 text-xs text-slate-500 dark:text-gray-400">
+                            <span className="inline-flex items-center gap-1.5">
+                              {partnerAvatar ? (
+                                <img
+                                  src={partnerAvatar}
+                                  alt={partnerName}
+                                  className="h-4 w-4 rounded-full object-cover"
+                                />
+                              ) : (
+                                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-600 dark:bg-gray-700 dark:text-gray-300">
+                                  {String(partnerName || 'U').charAt(0).toUpperCase()}
+                                </span>
+                              )}
+                              <span>{partnerName}</span>
+                            </span>{' '}
+                            · #{conversation.orderCode || String(conversation.orderId || '').slice(-6)}
                           </p>
                         </div>
                         <div className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium flex-shrink-0 ${statusStyle}`}>

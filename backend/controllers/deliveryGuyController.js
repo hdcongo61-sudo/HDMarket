@@ -13,21 +13,32 @@ const toObjectId = (value = '') => {
   if (!normalized || !/^[a-f\d]{24}$/i.test(normalized)) return null;
   return normalized;
 };
+const resolveDeliveryGuyProfileImage = (deliveryGuy = {}) =>
+  normalizeText(
+    deliveryGuy?.photoUrl ||
+      deliveryGuy?.profileImage ||
+      deliveryGuy?.userId?.shopLogo
+  );
 
 const serializeDeliveryGuy = (item = {}) => {
   const raw = item?.toObject ? item.toObject() : item;
   const fullName = normalizeText(raw.fullName || raw.name || '');
+  const rawUser = raw?.userId && typeof raw.userId === 'object' ? raw.userId : null;
   const isActive =
     typeof raw.isActive === 'boolean'
       ? raw.isActive
       : typeof raw.active === 'boolean'
       ? raw.active
       : true;
+  const profileImage = resolveDeliveryGuyProfileImage(raw);
 
   return {
     ...raw,
+    userId: rawUser?._id || raw?.userId || null,
     fullName,
     name: fullName,
+    photoUrl: profileImage || '',
+    profileImage: profileImage || '',
     isActive,
     active: isActive
   };
@@ -70,6 +81,7 @@ export const listDeliveryGuysAdmin = asyncHandler(async (req, res) => {
       .sort({ fullName: 1, name: 1 })
       .skip(skip)
       .limit(pageSize)
+      .populate('userId', '_id name shopLogo')
       .populate('cityId', 'name')
       .populate('communes', 'name cityId')
       .lean(),
@@ -193,6 +205,7 @@ export const createDeliveryGuyAdmin = asyncHandler(async (req, res) => {
     userId: toObjectId(req.body?.userId) || null,
     fullName,
     name: fullName,
+    photoUrl: normalizeText(req.body?.photoUrl || ''),
     phone: normalizeText(req.body?.phone || ''),
     cityId: toObjectId(req.body?.cityId) || null,
     communes: communeIds,
@@ -202,6 +215,7 @@ export const createDeliveryGuyAdmin = asyncHandler(async (req, res) => {
     notes: normalizeText(req.body?.notes || '')
   });
   const populated = await DeliveryGuy.findById(deliveryGuy._id)
+    .populate('userId', '_id name shopLogo')
     .populate('cityId', 'name')
     .populate('communes', 'name cityId');
   res.status(201).json(serializeDeliveryGuy(populated));
@@ -226,6 +240,9 @@ export const updateDeliveryGuyAdmin = asyncHandler(async (req, res) => {
   if (typeof req.body?.phone === 'string') {
     deliveryGuy.phone = normalizeText(req.body.phone);
   }
+  if (typeof req.body?.photoUrl !== 'undefined') {
+    deliveryGuy.photoUrl = normalizeText(req.body.photoUrl || '');
+  }
   if (typeof req.body?.userId !== 'undefined') {
     deliveryGuy.userId = toObjectId(req.body.userId) || null;
   }
@@ -249,6 +266,7 @@ export const updateDeliveryGuyAdmin = asyncHandler(async (req, res) => {
   }
   await deliveryGuy.save();
   const populated = await DeliveryGuy.findById(deliveryGuy._id)
+    .populate('userId', '_id name shopLogo')
     .populate('cityId', 'name')
     .populate('communes', 'name cityId');
   res.json(serializeDeliveryGuy(populated));

@@ -90,6 +90,7 @@ router.get(
 router.put(
   '/profile',
   upload.fields([
+    { name: 'profileImage', maxCount: 1 },
     { name: 'shopLogo', maxCount: 1 },
     { name: 'shopBanner', maxCount: 1 }
   ]),

@@ -18,7 +18,8 @@ const formatComment = (comment) => {
     user: plain.user
       ? {
           _id: plain.user._id,
-          name: plain.user.name
+          name: plain.user.name,
+          profileImage: String(plain.user.profileImage || plain.user.shopLogo || '').trim()
         }
       : null,
     parent: plain.parent
@@ -28,7 +29,10 @@ const formatComment = (comment) => {
           user: plain.parent.user
             ? {
                 _id: plain.parent.user._id,
-                name: plain.parent.user.name
+                name: plain.parent.user.name,
+                profileImage: String(
+                  plain.parent.user.profileImage || plain.parent.user.shopLogo || ''
+                ).trim()
               }
             : null
         }
@@ -60,11 +64,11 @@ export const getCommentsForProduct = asyncHandler(async (req, res) => {
   }
 
   const comments = await Comment.find({ product: product._id })
-    .populate('user', 'name')
+    .populate('user', 'name profileImage shopLogo')
     .populate({
       path: 'parent',
       select: 'message user',
-      populate: { path: 'user', select: 'name' }
+      populate: { path: 'user', select: 'name profileImage shopLogo' }
     })
     .sort('createdAt');
 
@@ -112,11 +116,11 @@ export const addComment = asyncHandler(async (req, res) => {
     parent: parent ? parent._id : null
   });
 
-  await comment.populate('user', 'name');
+  await comment.populate('user', 'name profileImage shopLogo');
   await comment.populate({
     path: 'parent',
     select: 'message user',
-    populate: { path: 'user', select: 'name' }
+    populate: { path: 'user', select: 'name profileImage shopLogo' }
   });
 
   const notifications = [];

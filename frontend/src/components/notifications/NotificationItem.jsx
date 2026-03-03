@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, ExternalLink, MoreHorizontal } from 'lucide-react';
 import SwipeActions from './SwipeActions';
 import { useAppSettings } from '../../context/AppSettingsContext';
+import { resolveUserProfileImage } from '../../utils/userAvatar';
 
 const previewText = (message, max = 120) => {
   const safe = String(message || '').trim();
@@ -32,6 +33,10 @@ export default function NotificationItem({
     const trimmed = String(name).trim();
     return trimmed ? trimmed.charAt(0).toUpperCase() : '';
   }, [alert?.actor?.name, alert?.user?.name]);
+  const actorAvatar = useMemo(
+    () => resolveUserProfileImage(alert?.actor || alert?.user || {}),
+    [alert?.actor, alert?.user]
+  );
 
   const visibleActions = useMemo(() => {
     if (!Array.isArray(actions) || !actions.length) return [];
@@ -91,7 +96,13 @@ export default function NotificationItem({
               }`}
             >
               <div className="relative mt-0.5 flex-shrink-0">
-                {avatarLetter ? (
+                {actorAvatar ? (
+                  <img
+                    src={actorAvatar}
+                    alt={alert?.actor?.name || alert?.user?.name || 'Utilisateur'}
+                    className="h-10 w-10 rounded-full object-cover"
+                  />
+                ) : avatarLetter ? (
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-sm font-semibold text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
                     {avatarLetter}
                   </div>

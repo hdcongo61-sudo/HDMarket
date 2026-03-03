@@ -68,8 +68,8 @@ export const getOrderMessages = asyncHandler(async (req, res) => {
     }
 
     const rows = await OrderMessage.find(findQuery)
-      .populate('sender', 'name email shopName')
-      .populate('recipient', 'name email shopName')
+      .populate('sender', 'name email shopName profileImage shopLogo')
+      .populate('recipient', 'name email shopName profileImage shopLogo')
       .sort({ createdAt: -1 })
       .limit(limit + 1)
       .lean();
@@ -80,8 +80,8 @@ export const getOrderMessages = asyncHandler(async (req, res) => {
   } else {
     // Legacy mode for endpoints still expecting the full visible thread payload.
     raw = await OrderMessage.find({ order: orderId })
-      .populate('sender', 'name email shopName')
-      .populate('recipient', 'name email shopName')
+      .populate('sender', 'name email shopName profileImage shopLogo')
+      .populate('recipient', 'name email shopName profileImage shopLogo')
       .sort({ createdAt: 1 })
       .limit(100)
       .lean();
@@ -210,7 +210,7 @@ export const sendOrderMessage = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: 'Le destinataire n\'est pas associé à cette commande.' });
     }
 
-    recipient = await User.findById(recipientId).select('_id name email shopName');
+    recipient = await User.findById(recipientId).select('_id name email shopName profileImage shopLogo');
     if (!recipient) {
       return res.status(404).json({ message: 'Destinataire introuvable.' });
     }
@@ -228,13 +228,13 @@ export const sendOrderMessage = asyncHandler(async (req, res) => {
           firstSellerId = product?.user;
         }
         if (firstSellerId) {
-          recipient = await User.findById(firstSellerId).select('_id name email shopName');
+          recipient = await User.findById(firstSellerId).select('_id name email shopName profileImage shopLogo');
         }
       } else {
         if (!customerId) {
           return res.status(400).json({ message: 'Cette commande n\'a pas de client associé.' });
         }
-        recipient = await User.findById(customerId).select('_id name email shopName');
+        recipient = await User.findById(customerId).select('_id name email shopName profileImage shopLogo');
       }
       if (!recipient) {
         return res.status(400).json({ message: adminIsCustomer ? 'Impossible de déterminer le vendeur.' : 'Le client de cette commande est introuvable.' });
@@ -248,11 +248,11 @@ export const sendOrderMessage = asyncHandler(async (req, res) => {
         firstSellerId = product?.user;
       }
       if (firstSellerId) {
-        recipient = await User.findById(firstSellerId).select('_id name email shopName');
+        recipient = await User.findById(firstSellerId).select('_id name email shopName profileImage shopLogo');
       }
     } else if (isSeller) {
       // Seller sends to customer
-      recipient = await User.findById(order.customer).select('_id name email shopName');
+      recipient = await User.findById(order.customer).select('_id name email shopName profileImage shopLogo');
     }
 
     if (!recipient) {
@@ -314,8 +314,8 @@ export const sendOrderMessage = asyncHandler(async (req, res) => {
   const message = await OrderMessage.create(messageData);
 
   const populated = await OrderMessage.findById(message._id)
-    .populate('sender', 'name email shopName')
-    .populate('recipient', 'name email shopName')
+    .populate('sender', 'name email shopName profileImage shopLogo')
+    .populate('recipient', 'name email shopName profileImage shopLogo')
     .lean();
 
   // Send notification to recipient
@@ -341,12 +341,30 @@ export const sendOrderMessage = asyncHandler(async (req, res) => {
   });
 
   // Return plain object with explicit _id so both GET and POST have same shape for sender/admin
-  const payload = populated ? {
-    ...populated,
-    _id: populated._id,
-    sender: populated.sender ? { _id: populated.sender._id, name: populated.sender.name, email: populated.sender.email, shopName: populated.sender.shopName } : null,
-    recipient: populated.recipient ? { _id: populated.recipient._id, name: populated.recipient.name, email: populated.recipient.email, shopName: populated.recipient.shopName } : null
-  } : populated;
+  const payload = populated
+    ? {
+        ...populated,
+        _id: populated._id,
+        sender: populated.sender
+          ? {
+              _id: populated.sender._id,
+              name: populated.sender.name,
+              email: populated.sender.email,
+              shopName: populated.sender.shopName,
+              profileImage: populated.sender.profileImage || populated.sender.shopLogo || ''
+            }
+          : null,
+        recipient: populated.recipient
+          ? {
+              _id: populated.recipient._id,
+              name: populated.recipient.name,
+              email: populated.recipient.email,
+              shopName: populated.recipient.shopName,
+              profileImage: populated.recipient.profileImage || populated.recipient.shopLogo || ''
+            }
+          : null
+      }
+    : populated;
 
   emitOrderMessageCreated({
     conversationId: orderId,
@@ -552,7 +570,7 @@ export const getAllOrderConversations = asyncHandler(async (req, res) => {
 
   const allOrders = await Order.find(query)
     .select('_id customer items status deliveryCode createdAt isInquiry archivedBy deletedBy')
-    .populate('customer', 'name')
+    .populate('customer', 'name profileImage shopLogo')
     .lean();
 
   const orderIds = allOrders.map((order) => order._id);
@@ -584,7 +602,7 @@ export const getAllOrderConversations = asyncHandler(async (req, res) => {
     )
   );
   const senders = senderIds.length
-    ? await User.find({ _id: { $in: senderIds } }).select('name email shopName').lean()
+    ? await User.find({ _id: { $in: senderIds } }).select('name email shopName profileImage shopLogo').lean()
     : [];
   const senderById = new Map(senders.map((sender) => [String(sender._id), sender]));
 
@@ -633,6 +651,7 @@ export const getAllOrderConversations = asyncHandler(async (req, res) => {
       createdAt: order.createdAt,
       customerId: customer?._id || order.customer,
       customerName: customer?.name || null,
+      customerProfileImage: customer?.profileImage || customer?.shopLogo || '',
       sellerId: firstItem?.snapshot?.shopId || null,
       productInfo,
       latestMessage: latestMessage
@@ -644,7 +663,8 @@ export const getAllOrderConversations = asyncHandler(async (req, res) => {
                   _id: sender._id,
                   name: sender.name,
                   email: sender.email,
-                  shopName: sender.shopName
+                  shopName: sender.shopName,
+                  profileImage: sender.profileImage || sender.shopLogo || ''
                 }
               : latestMessage.sender,
             createdAt: latestMessage.createdAt
@@ -920,8 +940,8 @@ export const updateOrderMessage = asyncHandler(async (req, res) => {
   await message.save();
 
   const populated = await OrderMessage.findById(message._id)
-    .populate('sender', 'name email shopName')
-    .populate('recipient', 'name email shopName')
+    .populate('sender', 'name email shopName profileImage shopLogo')
+    .populate('recipient', 'name email shopName profileImage shopLogo')
     .lean();
 
   emitOrderMessageUpdated({

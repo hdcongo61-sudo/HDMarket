@@ -43,6 +43,34 @@ const toNumber = (value, fallback = 0) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 };
+const resolveDeliveryGuyProfileImage = (deliveryGuy = {}) =>
+  pickFirstText(
+    deliveryGuy?.photoUrl,
+    deliveryGuy?.profileImage,
+    deliveryGuy?.userId?.shopLogo
+  );
+const toPublicAssignedDeliveryGuy = (value) => {
+  if (!value || typeof value !== 'object') return value;
+  const raw = value?.toObject ? value.toObject() : value;
+  const userObject = raw?.userId && typeof raw.userId === 'object' ? raw.userId : null;
+  const profileImage = resolveDeliveryGuyProfileImage(raw);
+  const isActive =
+    typeof raw?.isActive === 'boolean'
+      ? raw.isActive
+      : typeof raw?.active === 'boolean'
+      ? raw.active
+      : true;
+  return {
+    ...raw,
+    userId: userObject?._id || raw?.userId || null,
+    fullName: pickFirstText(raw?.fullName, raw?.name),
+    name: pickFirstText(raw?.name, raw?.fullName),
+    photoUrl: profileImage,
+    profileImage,
+    isActive,
+    active: isActive
+  };
+};
 
 const DELIVERY_PIN_SECRET = normalizeText(
   process.env.DELIVERY_PIN_SECRET || process.env.JWT_SECRET || process.env.SECRET_KEY || ''
@@ -265,7 +293,7 @@ const toPublicDeliveryRequest = (requestDoc) => {
     dropoff,
     pickupProof: raw.pickupProof && typeof raw.pickupProof === 'object' ? raw.pickupProof : {},
     deliveryProof: raw.deliveryProof && typeof raw.deliveryProof === 'object' ? raw.deliveryProof : {},
-    assignedDeliveryGuyId: raw.assignedDeliveryGuyId ?? safeRaw.assignedDeliveryGuyId,
+    assignedDeliveryGuyId: toPublicAssignedDeliveryGuy(raw.assignedDeliveryGuyId ?? safeRaw.assignedDeliveryGuyId),
     order: rawOrder
       ? {
           _id: rawOrder._id || null,
@@ -322,6 +350,12 @@ const toPublicDeliveryRequest = (requestDoc) => {
   };
 };
 
+const DELIVERY_GUY_PUBLIC_POPULATE = {
+  path: 'assignedDeliveryGuyId',
+  select: '_id userId fullName name phone isActive active cityId communes photoUrl',
+  populate: { path: 'userId', select: '_id name shopLogo' }
+};
+
 const findCityByName = async (name = '') => {
   const clean = normalizeText(name);
   if (!clean) return null;
@@ -345,7 +379,7 @@ const loadDeliveryRequestById = async (id) => {
     .populate('sellerId', '_id name shopName phone city commune shopAddress address')
     .populate('buyerId', '_id name phone city commune address location')
     .populate('shopId', '_id name shopName phone city commune')
-    .populate('assignedDeliveryGuyId', '_id userId fullName name phone isActive active cityId communes');
+    .populate(DELIVERY_GUY_PUBLIC_POPULATE);
 };
 
 const updateOrderPlatformDeliveryState = async ({
@@ -940,7 +974,7 @@ export const listAdminDeliveryRequests = asyncHandler(async (req, res) => {
       .populate('sellerId', '_id name shopName phone city commune shopAddress address shopLocation')
       .populate('buyerId', '_id name phone city commune address location')
       .populate('shopId', '_id name shopName phone city commune')
-      .populate('assignedDeliveryGuyId', '_id userId fullName name phone isActive active cityId communes')
+      .populate(DELIVERY_GUY_PUBLIC_POPULATE)
       .lean(),
     DeliveryRequest.countDocuments(filter),
     (async () => {

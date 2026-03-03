@@ -1,128 +1,126 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Camera,
-  Check,
-  Clock3,
-  ExternalLink,
-  Loader2,
-  LogOut,
-  MapPin,
-  Package,
-  RefreshCcw,
-  Route,
-  ShieldAlert,
-  Truck,
-  User,
-  X
-} from 'lucide-react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeftRight, ChevronRight, History, Loader2, LogOut, RefreshCcw, User } from 'lucide-react';
 import api from '../services/api';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
 import AuthContext from '../context/AuthContext';
+import DeliveryActionFooter from '../components/delivery/DeliveryActionFooter';
+import DeliveryHeader from '../components/delivery/DeliveryHeader';
+import DeliveryKpiRow from '../components/delivery/DeliveryKpiRow';
+import DeliveryListItem from '../components/delivery/DeliveryListItem';
+import DeliverySkeleton from '../components/delivery/DeliverySkeleton';
+import DeliveryTabs from '../components/delivery/DeliveryTabs';
+import NextDeliveryCard from '../components/delivery/NextDeliveryCard';
+import OfflineBanner from '../components/delivery/OfflineBanner';
+import {
+  buildAssignmentRoute,
+  buildHistoryRoute,
+  buildProfileRoute,
+  extractMessage,
+  formatCurrency,
+  getApiModeFromPath,
+  isDoneDelivery,
+  isItemInTab,
+  sortByPriority,
+  workflowStatusOf
+} from '../utils/deliveryUi';
+import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
 
-const STATUS_FILTERS = [
-  { key: 'all', label: 'Toutes' },
-  { key: 'PENDING', label: 'À accepter' },
-  { key: 'ACCEPTED', label: 'Acceptées' },
-  { key: 'IN_PROGRESS', label: 'En cours' },
-  { key: 'DELIVERED', label: 'Livrées' }
+const FEED_TABS = [
+  { key: 'new', label: 'New' },
+  { key: 'active', label: 'Active' },
+  { key: 'done', label: 'Done' }
 ];
 
-const STAGE_ORDER = [
-  'ASSIGNED',
-  'ACCEPTED',
-  'PICKUP_STARTED',
-  'PICKED_UP',
-  'IN_TRANSIT',
-  'ARRIVED',
-  'DELIVERED'
+const DATE_FILTERS = [
+  { key: 'today', label: 'Today' },
+  { key: 'all', label: 'All' }
 ];
 
-const STAGE_LABELS = {
-  ASSIGNED: 'Assignée',
-  ACCEPTED: 'Acceptée',
-  PICKUP_STARTED: 'Départ pickup',
-  PICKED_UP: 'Pickup validé',
-  IN_TRANSIT: 'En transit',
-  ARRIVED: 'Arrivé destination',
-  DELIVERED: 'Livrée',
-  FAILED: 'Échec'
-};
+const REQUEST_TIMEOUT_MS = 8000;
+const PAGE_SIZE = 12;
+const REVENUE_PAGE_LIMIT = 50;
+const REVENUE_MAX_ITEMS = 200;
+const COURIER_VIEW_MODE_KEY = 'hdmarket:courier-view-mode';
 
-const NEXT_STAGE = {
-  ASSIGNED: 'ACCEPTED',
-  ACCEPTED: 'PICKUP_STARTED',
-  PICKUP_STARTED: 'PICKED_UP',
-  PICKED_UP: 'IN_TRANSIT',
-  IN_TRANSIT: 'ARRIVED',
-  ARRIVED: 'DELIVERED'
-};
-
-const normalizeFileUrl = (url = '') => {
-  const normalized = String(url || '').trim();
-  if (!normalized) return '';
-  if (/^https?:\/\//i.test(normalized)) return normalized;
-  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-  const host = apiBase.replace(/\/api\/?$/, '');
-  return `${host}/${normalized.replace(/^\/+/, '')}`;
-};
-
-const getLatLng = (geoPoint = null) => {
-  const coordinates = Array.isArray(geoPoint?.coordinates) ? geoPoint.coordinates : null;
-  if (!coordinates || coordinates.length !== 2) return null;
-  const lng = Number(coordinates[0]);
-  const lat = Number(coordinates[1]);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  return { lat, lng };
-};
-
-const buildMapHref = (geoPoint = null, fallbackAddress = '') => {
-  const latLng = getLatLng(geoPoint);
-  if (latLng) {
-    return `https://www.google.com/maps?q=${latLng.lat},${latLng.lng}`;
-  }
-  const address = String(fallbackAddress || '').trim();
-  if (!address) return '';
-  return `https://www.google.com/maps?q=${encodeURIComponent(address)}`;
-};
-
-const fmtDateTime = (value) => {
-  if (!value) return '—';
+const getDayStart = (value = Date.now()) => {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleString('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
 };
 
-const extractMessage = (error, fallback) =>
-  error?.response?.data?.message || error?.response?.data?.details?.[0] || fallback;
+const getWeekStart = (value = Date.now()) => {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() - 6);
+  return date.getTime();
+};
+
+const buildListParams = ({ dateFilter, page = 1, limit = PAGE_SIZE, deliveryGuyId = '' } = {}) => {
+  const params = new URLSearchParams();
+  params.set('date', dateFilter || 'today');
+  params.set('page', String(page || 1));
+  params.set('limit', String(limit || PAGE_SIZE));
+  if (deliveryGuyId) params.set('deliveryGuyId', String(deliveryGuyId));
+  return params.toString();
+};
+
+const mergeInfiniteItems = (data = {}) =>
+  (Array.isArray(data?.pages) ? data.pages : []).flatMap((page) => (Array.isArray(page?.items) ? page.items : []));
+
+const updateInfiniteDataItems = (prev, updater) => {
+  if (!prev || !Array.isArray(prev.pages)) return prev;
+  return {
+    ...prev,
+    pages: prev.pages.map((page) => ({
+      ...page,
+      items: (Array.isArray(page?.items) ? page.items : []).map((item) => updater(item))
+    }))
+  };
+};
+
+const sumRevenueFromItems = (items = []) =>
+  (Array.isArray(items) ? items : []).reduce((total, item) => total + Math.max(0, Number(item?.deliveryPrice || 0)), 0);
 
 export default function CourierDashboard() {
   const { logout } = useContext(AuthContext);
   const location = useLocation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const useLegacyCourierApi = location.pathname.startsWith('/courier');
-  const apiPrefix = useLegacyCourierApi ? '/courier' : '/delivery';
-  const [statusFilter, setStatusFilter] = useState('all');
+  const { apiPrefix, useLegacyCourierApi, routePrefix } = useMemo(
+    () => getApiModeFromPath(location.pathname),
+    [location.pathname]
+  );
+
+  const [feedTab, setFeedTab] = useState('new');
+  const [dateFilter, setDateFilter] = useState('today');
   const [selectedDeliveryGuyId, setSelectedDeliveryGuyId] = useState('');
-  const [selected, setSelected] = useState(null);
-  const [rejectReason, setRejectReason] = useState('');
-  const [proofModal, setProofModal] = useState({ open: false, type: 'pickup', item: null });
-  const [proofPhoto, setProofPhoto] = useState(null);
-  const [proofSignatureFile, setProofSignatureFile] = useState(null);
-  const [proofSignatureUrl, setProofSignatureUrl] = useState('');
-  const [proofNote, setProofNote] = useState('');
-  const [pinCode, setPinCode] = useState('');
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState('');
+  const [pullDistance, setPullDistance] = useState(0);
+  const [rejectDialog, setRejectDialog] = useState({ open: false, item: null, reason: '' });
+  const [isOffline, setIsOffline] = useState(
+    typeof navigator !== 'undefined' ? !navigator.onLine : false
+  );
+
+  const touchStartYRef = useRef(null);
+  const loadMoreRef = useRef(null);
+
+  useEffect(() => {
+    const onOnline = () => setIsOffline(false);
+    const onOffline = () => setIsOffline(true);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
 
   const bootstrapQuery = useQuery({
-    queryKey: ['courier', 'bootstrap', apiPrefix],
+    queryKey: ['delivery', 'bootstrap', apiPrefix],
     queryFn: async () => {
-      const { data } = await api.get(`${apiPrefix}/bootstrap`);
+      const { data } = await api.get(`${apiPrefix}/bootstrap`, { timeout: REQUEST_TIMEOUT_MS });
       return data || {};
     },
     staleTime: 30_000,
@@ -131,790 +129,728 @@ export default function CourierDashboard() {
 
   const previewMode = Boolean(bootstrapQuery.data?.previewMode);
   const availableDeliveryGuys = useMemo(
-    () => (Array.isArray(bootstrapQuery.data?.availableDeliveryGuys) ? bootstrapQuery.data.availableDeliveryGuys : []),
+    () =>
+      Array.isArray(bootstrapQuery.data?.availableDeliveryGuys)
+        ? bootstrapQuery.data.availableDeliveryGuys
+        : [],
     [bootstrapQuery.data?.availableDeliveryGuys]
   );
 
   useEffect(() => {
     if (!previewMode) {
-      if (selectedDeliveryGuyId) setSelectedDeliveryGuyId('');
+      setSelectedDeliveryGuyId('');
       return;
     }
     if (!availableDeliveryGuys.length) {
-      if (selectedDeliveryGuyId) setSelectedDeliveryGuyId('');
+      setSelectedDeliveryGuyId('');
       return;
     }
-    if (selectedDeliveryGuyId && availableDeliveryGuys.some((entry) => String(entry?._id || '') === selectedDeliveryGuyId)) {
+    if (
+      selectedDeliveryGuyId &&
+      availableDeliveryGuys.some((entry) => String(entry?._id || '') === String(selectedDeliveryGuyId))
+    ) {
       return;
     }
-    if (availableDeliveryGuys.length === 1) {
-      setSelectedDeliveryGuyId(String(availableDeliveryGuys[0]?._id || ''));
-    }
-  }, [previewMode, availableDeliveryGuys, selectedDeliveryGuyId]);
+    setSelectedDeliveryGuyId(String(availableDeliveryGuys[0]?._id || ''));
+  }, [availableDeliveryGuys, previewMode, selectedDeliveryGuyId]);
 
-  useEffect(() => {
-    setSelected(null);
-    setRejectReason('');
-    setPinCode('');
-  }, [selectedDeliveryGuyId, previewMode]);
+  const selectedDeliveryGuy = availableDeliveryGuys.find(
+    (entry) => String(entry?._id || '') === String(selectedDeliveryGuyId || '')
+  );
 
-  const params = useMemo(() => {
-    const p = new URLSearchParams();
-    p.set('date', 'today');
-    if (statusFilter !== 'all') p.set('status', statusFilter);
-    if (previewMode && selectedDeliveryGuyId) p.set('deliveryGuyId', selectedDeliveryGuyId);
-    p.set('limit', '30');
-    return p.toString();
-  }, [statusFilter, previewMode, selectedDeliveryGuyId]);
-
-  const assignmentsQuery = useQuery({
-    queryKey: ['courier', 'assignments', apiPrefix, params, previewMode, selectedDeliveryGuyId],
-    queryFn: async () => {
+  const assignmentsQuery = useInfiniteQuery({
+    queryKey: ['delivery', 'list', apiPrefix, dateFilter, previewMode, selectedDeliveryGuyId],
+    queryFn: async ({ pageParam = 1 }) => {
+      const params = buildListParams({
+        dateFilter,
+        page: pageParam,
+        limit: PAGE_SIZE,
+        deliveryGuyId: previewMode && selectedDeliveryGuyId ? selectedDeliveryGuyId : ''
+      });
       const endpoint = useLegacyCourierApi ? `/assignments?${params}` : `/jobs?${params}`;
-      const { data } = await api.get(`${apiPrefix}${endpoint}`);
-      return data || { items: [], total: 0 };
+      const { data } = await api.get(`${apiPrefix}${endpoint}`, { timeout: REQUEST_TIMEOUT_MS });
+      return {
+        items: Array.isArray(data?.items) ? data.items : [],
+        page: Number(data?.page || pageParam || 1),
+        totalPages: Math.max(1, Number(data?.totalPages || 1)),
+        total: Number(data?.total || 0)
+      };
     },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      Number(lastPage?.page || 1) < Number(lastPage?.totalPages || 1)
+        ? Number(lastPage.page) + 1
+        : undefined,
     enabled: bootstrapQuery.isSuccess && (!previewMode || Boolean(selectedDeliveryGuyId)),
     staleTime: 15_000,
     retry: 1,
-    refetchInterval: 10_000
+    refetchInterval: isOffline ? false : 15_000
   });
 
-  const refetchAll = () => {
-    queryClient.invalidateQueries({ queryKey: ['courier'] });
+  const allItems = useMemo(() => mergeInfiniteItems(assignmentsQuery.data), [assignmentsQuery.data]);
+
+  const filteredItems = useMemo(
+    () => allItems.filter((item) => isItemInTab(item, feedTab)),
+    [allItems, feedTab]
+  );
+
+  const fetchRevenueItems = async ({ date = 'today' } = {}) => {
+    const collected = [];
+    let page = 1;
+    let totalPages = 1;
+
+    while (page <= totalPages && collected.length < REVENUE_MAX_ITEMS) {
+      const params = new URLSearchParams();
+      params.set('status', 'DELIVERED');
+      params.set('date', date);
+      params.set('limit', String(REVENUE_PAGE_LIMIT));
+      params.set('page', String(page));
+      if (previewMode && selectedDeliveryGuyId) params.set('deliveryGuyId', selectedDeliveryGuyId);
+
+      const endpoint = useLegacyCourierApi ? `/assignments?${params.toString()}` : `/jobs?${params.toString()}`;
+      const { data } = await api.get(`${apiPrefix}${endpoint}`, { timeout: REQUEST_TIMEOUT_MS });
+      const chunk = Array.isArray(data?.items) ? data.items : [];
+      collected.push(...chunk);
+      totalPages = Math.max(1, Number(data?.totalPages || 1));
+      page += 1;
+    }
+
+    return collected.slice(0, REVENUE_MAX_ITEMS);
+  };
+
+  const todayRevenueQuery = useQuery({
+    queryKey: ['delivery', 'revenue', 'today', apiPrefix, previewMode, selectedDeliveryGuyId],
+    queryFn: () => fetchRevenueItems({ date: 'today' }),
+    enabled: bootstrapQuery.isSuccess && (!previewMode || Boolean(selectedDeliveryGuyId)),
+    staleTime: 60_000,
+    retry: 1
+  });
+
+  const weekRevenueQuery = useQuery({
+    queryKey: ['delivery', 'revenue', 'week', apiPrefix, previewMode, selectedDeliveryGuyId],
+    queryFn: () => fetchRevenueItems({ date: 'all' }),
+    enabled: bootstrapQuery.isSuccess && (!previewMode || Boolean(selectedDeliveryGuyId)),
+    staleTime: 60_000,
+    retry: 1
+  });
+
+  const statsQuery = useQuery({
+    queryKey: ['delivery', 'stats', apiPrefix, previewMode, selectedDeliveryGuyId],
+    queryFn: async () => {
+      const { data } = await api.get(`${apiPrefix}/stats`, { timeout: REQUEST_TIMEOUT_MS });
+      return data?.stats || null;
+    },
+    enabled: bootstrapQuery.isSuccess && !previewMode,
+    staleTime: 30_000,
+    retry: 1
+  });
+
+  const counts = useMemo(() => {
+    const base = { new: 0, active: 0, done: 0 };
+    return allItems.reduce((acc, item) => {
+      if (isItemInTab(item, 'new')) acc.new += 1;
+      if (isItemInTab(item, 'active')) acc.active += 1;
+      if (isItemInTab(item, 'done')) acc.done += 1;
+      return acc;
+    }, base);
+  }, [allItems]);
+
+  const todayRevenue = useMemo(
+    () => sumRevenueFromItems(todayRevenueQuery.data || []),
+    [todayRevenueQuery.data]
+  );
+
+  const weekRevenue = useMemo(() => {
+    const weekStart = getWeekStart(Date.now());
+    const items = Array.isArray(weekRevenueQuery.data) ? weekRevenueQuery.data : [];
+    return items.reduce((sum, item) => {
+      const at = new Date(item?.deliveryProof?.submittedAt || item?.updatedAt || item?.createdAt || 0).getTime();
+      if (!Number.isFinite(at) || at < weekStart) return sum;
+      return sum + Math.max(0, Number(item?.deliveryPrice || 0));
+    }, 0);
+  }, [weekRevenueQuery.data]);
+
+  const sortedAllItems = useMemo(() => sortByPriority(allItems), [allItems]);
+  const nextDelivery = useMemo(
+    () => sortedAllItems.find((item) => !isDoneDelivery(item)) || sortedAllItems[0] || null,
+    [sortedAllItems]
+  );
+
+  const selectedPreviewItem =
+    allItems.find((item) => String(item?._id || '') === String(selectedAssignmentId || '')) || nextDelivery;
+
+  const updateDeliveryListCache = (updater) => {
+    queryClient.setQueriesData({ queryKey: ['delivery', 'list'] }, (previous) =>
+      updateInfiniteDataItems(previous, updater)
+    );
   };
 
   const acceptMutation = useMutation({
     mutationFn: async ({ id }) => {
-      const payload = previewMode && selectedDeliveryGuyId ? { deliveryGuyId: selectedDeliveryGuyId } : {};
       const endpoint = useLegacyCourierApi ? `/assignments/${id}/accept` : `/jobs/${id}/accept`;
-      const { data } = await api.patch(`${apiPrefix}${endpoint}`, payload);
+      const payload = previewMode && selectedDeliveryGuyId ? { deliveryGuyId: selectedDeliveryGuyId } : {};
+      const { data } = await api.patch(`${apiPrefix}${endpoint}`, payload, { timeout: REQUEST_TIMEOUT_MS });
       return data;
     },
-    onSuccess: () => {
-      setRejectReason('');
-      refetchAll();
+    onMutate: async ({ id }) => {
+      await queryClient.cancelQueries({ queryKey: ['delivery', 'list'] });
+      const previous = queryClient.getQueriesData({ queryKey: ['delivery', 'list'] });
+      updateDeliveryListCache((item) =>
+        String(item?._id || '') === String(id)
+          ? {
+              ...item,
+              assignmentStatus: 'ACCEPTED',
+              status: item?.status === 'PENDING' ? 'ACCEPTED' : item?.status,
+              currentStage: item?.currentStage === 'ASSIGNED' ? 'ACCEPTED' : item?.currentStage,
+              updatedAt: new Date().toISOString()
+            }
+          : item
+      );
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      (context?.previous || []).forEach(([key, data]) => queryClient.setQueryData(key, data));
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['delivery'] });
     }
   });
 
   const rejectMutation = useMutation({
     mutationFn: async ({ id, reason }) => {
       const endpoint = useLegacyCourierApi ? `/assignments/${id}/reject` : `/jobs/${id}/reject`;
-      const { data } = await api.patch(`${apiPrefix}${endpoint}`, {
+      const payload = {
         reason,
         ...(previewMode && selectedDeliveryGuyId ? { deliveryGuyId: selectedDeliveryGuyId } : {})
-      });
+      };
+      const { data } = await api.patch(`${apiPrefix}${endpoint}`, payload, { timeout: REQUEST_TIMEOUT_MS });
       return data;
     },
-    onSuccess: () => {
-      setSelected(null);
-      setRejectReason('');
-      refetchAll();
+    onMutate: async ({ id }) => {
+      await queryClient.cancelQueries({ queryKey: ['delivery', 'list'] });
+      const previous = queryClient.getQueriesData({ queryKey: ['delivery', 'list'] });
+      updateDeliveryListCache((item) =>
+        String(item?._id || '') === String(id)
+          ? {
+              ...item,
+              assignmentStatus: 'REJECTED',
+              status: 'REJECTED',
+              updatedAt: new Date().toISOString()
+            }
+          : item
+      );
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      (context?.previous || []).forEach(([key, data]) => queryClient.setQueryData(key, data));
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['delivery'] });
     }
   });
 
-  const stageMutation = useMutation({
-    mutationFn: async ({ id, stage, note, deliveryPinCode }) => {
-      const endpoint = useLegacyCourierApi ? `/assignments/${id}/stage` : `/jobs/${id}/stage`;
-      const { data } = await api.patch(`${apiPrefix}${endpoint}`, {
-        stage,
-        note,
-        deliveryPinCode,
-        ...(previewMode && selectedDeliveryGuyId ? { deliveryGuyId: selectedDeliveryGuyId } : {})
-      });
-      return data;
-    },
-    onSuccess: (payload) => {
-      setSelected(payload?.item || null);
-      setPinCode('');
-      refetchAll();
-    }
-  });
+  const openDetail = (item) => {
+    if (!item?._id) return;
+    setSelectedAssignmentId(String(item._id));
+    navigate(buildAssignmentRoute({ basePath: routePrefix, id: item._id }));
+  };
 
-  const proofMutation = useMutation({
-    mutationFn: async ({ id, proofType }) => {
-      const formData = new FormData();
-      formData.append('proofType', proofType);
-      if (proofPhoto) formData.append('photos', proofPhoto);
-      if (proofSignatureFile) formData.append('signatureFile', proofSignatureFile);
-      if (proofSignatureUrl.trim()) formData.append('signatureUrl', proofSignatureUrl.trim());
-      if (proofNote.trim()) formData.append('note', proofNote.trim());
-      if (pinCode.trim()) formData.append('deliveryPinCode', pinCode.trim());
-      if (previewMode && selectedDeliveryGuyId) formData.append('deliveryGuyId', selectedDeliveryGuyId);
-      const endpoint = useLegacyCourierApi ? `/assignments/${id}/proof` : `/jobs/${id}/proof`;
-      const { data } = await api.post(`${apiPrefix}${endpoint}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      return data;
-    },
-    onSuccess: (payload) => {
-      setProofModal({ open: false, type: 'pickup', item: null });
-      setProofPhoto(null);
-      setProofSignatureFile(null);
-      setProofSignatureUrl('');
-      setProofNote('');
-      setPinCode('');
-      setSelected(payload?.item || null);
-      refetchAll();
-    }
-  });
+  const openRejectDialog = (item) => {
+    if (!item?._id) return;
+    setRejectDialog({ open: true, item, reason: '' });
+  };
 
-  const items = Array.isArray(assignmentsQuery.data?.items) ? assignmentsQuery.data.items : [];
-  const statsQuery = useQuery({
-    queryKey: ['courier', 'stats', apiPrefix],
-    queryFn: async () => {
-      const { data } = await api.get(`${apiPrefix}/stats`);
-      return data || null;
-    },
-    enabled: bootstrapQuery.isSuccess && !previewMode,
-    staleTime: 30_000,
-    retry: 1
-  });
-  const deliveryStats = statsQuery.data?.stats || null;
-  const stats = useMemo(() => {
-    const initial = { total: 0, pending: 0, inProgress: 0, delivered: 0 };
-    return items.reduce((acc, item) => {
-      acc.total += 1;
-      const assignmentStatus = String(item.assignmentStatus || '').toUpperCase();
-      const status = String(item.status || '').toUpperCase();
-      if (assignmentStatus === 'PENDING') acc.pending += 1;
-      if (status === 'IN_PROGRESS') acc.inProgress += 1;
-      if (status === 'DELIVERED') acc.delivered += 1;
-      return acc;
-    }, initial);
-  }, [items]);
+  const handleSubmitReject = () => {
+    const reason = String(rejectDialog.reason || '').trim();
+    if (!rejectDialog.item?._id || !reason || rejectMutation.isPending || isOffline) return;
+    rejectMutation.mutate(
+      { id: rejectDialog.item._id, reason },
+      {
+        onSuccess: () => {
+          setRejectDialog({ open: false, item: null, reason: '' });
+        }
+      }
+    );
+  };
 
-  const loading = bootstrapQuery.isLoading || assignmentsQuery.isLoading;
-  const hardError = bootstrapQuery.error || assignmentsQuery.error;
-  const modeEnabled = bootstrapQuery.data?.enabled !== false;
-  const selectedDeliveryGuy = availableDeliveryGuys.find(
-    (entry) => String(entry?._id || '') === String(selectedDeliveryGuyId || '')
-  );
-
-  const selectedCurrentStage = String(selected?.currentStage || '').toUpperCase();
-  const nextStage = NEXT_STAGE[selectedCurrentStage] || '';
-
-  const openProof = (item, type) => {
-    setProofModal({ open: true, type, item });
-    setProofPhoto(null);
-    setProofSignatureFile(null);
-    setProofSignatureUrl('');
-    setProofNote('');
-    setPinCode('');
+  const handleRefresh = () => {
+    assignmentsQuery.refetch();
+    todayRevenueQuery.refetch();
+    weekRevenueQuery.refetch();
+    statsQuery.refetch();
   };
 
   const handleLogout = async () => {
     try {
-      await api.post(`${apiPrefix}/logout-event`);
+      await api.post(`${apiPrefix}/logout-event`, {}, { timeout: REQUEST_TIMEOUT_MS });
     } catch {
-      // best effort audit event
+      // best effort event log
     }
+    queryClient.clear();
     await logout();
   };
 
-  return (
-    <div className="mx-auto w-full max-w-4xl space-y-4 px-3 py-4 sm:px-5">
-      <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Courier mode</p>
-            <h1 className="mt-1 text-xl font-bold text-slate-900">Tableau livreur</h1>
-            <p className="mt-1 text-xs text-slate-500">
-              {previewMode
-                ? `${selectedDeliveryGuy?.fullName || 'Aperçu admin'} · ${selectedDeliveryGuy?.phone || 'Sélection requise'}`
-                : `${bootstrapQuery.data?.deliveryGuy?.fullName || 'Livreur'} · ${bootstrapQuery.data?.deliveryGuy?.phone || '—'}`}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {!previewMode && (
-              <Link
-                to="/my"
-                onClick={() => {
-                  if (typeof window !== 'undefined') {
-                    window.localStorage.setItem('hdmarket:courier-view-mode', 'normal');
-                  }
-                }}
-                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
-              >
-                <User size={14} />
-                Compte normal
-              </Link>
-            )}
-            <button
-              type="button"
-              onClick={refetchAll}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700"
-            >
-              <RefreshCcw size={15} className={assignmentsQuery.isFetching ? 'animate-spin' : ''} />
-            </button>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
-            >
-              <LogOut size={14} />
-              Déconnexion
-            </button>
-          </div>
-        </div>
+  const handleSwitchToNormalAccount = () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(COURIER_VIEW_MODE_KEY, 'normal');
+    }
+    navigate('/');
+  };
 
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
-            <p className="text-[11px] text-slate-500">Total</p>
-            <p className="text-lg font-bold text-slate-900">{stats.total}</p>
-          </div>
-          <div className="rounded-2xl border border-amber-100 bg-amber-50 px-3 py-2">
-            <p className="text-[11px] text-amber-700">À accepter</p>
-            <p className="text-lg font-bold text-amber-800">{stats.pending}</p>
-          </div>
-          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2">
-            <p className="text-[11px] text-emerald-700">Livrées</p>
-            <p className="text-lg font-bold text-emerald-800">{stats.delivered}</p>
-          </div>
-          <div className="rounded-2xl border border-blue-100 bg-blue-50 px-3 py-2">
-            <p className="text-[11px] text-blue-700">Complétion</p>
-            <p className="text-lg font-bold text-blue-800">
-              {deliveryStats ? `${deliveryStats.completionRate || 0}%` : '—'}
-            </p>
-          </div>
-        </div>
-        {previewMode ? (
-          <div className="mt-3 rounded-2xl border border-indigo-200 bg-indigo-50 p-2.5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-indigo-700">Mode admin</p>
-            <p className="mt-1 text-xs text-indigo-700/90">
-              Sélectionnez un livreur pour consulter et opérer ses affectations.
-            </p>
-            <label className="mt-2 block">
-              <span className="sr-only">Sélection livreur</span>
-              <select
-                value={selectedDeliveryGuyId}
-                onChange={(event) => setSelectedDeliveryGuyId(event.target.value)}
-                className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-800"
-              >
-                <option value="">Choisir un livreur</option>
-                {availableDeliveryGuys.map((entry) => (
-                  <option key={entry._id} value={entry._id}>
-                    {entry.fullName || 'Livreur'}{entry.phone ? ` · ${entry.phone}` : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        ) : null}
-      </section>
+  const nextCardActions = useMemo(() => {
+    if (!nextDelivery?._id) return { primaryLabel: 'Aucune action', onPrimary: undefined };
+    const workflow = workflowStatusOf(nextDelivery);
+    if (workflow === 'NEW') {
+      return {
+        primaryLabel: 'Accepter',
+        onPrimary: () => acceptMutation.mutate({ id: nextDelivery._id }),
+        primaryDisabled: acceptMutation.isPending || isOffline,
+        secondaryLabel: 'Refuser',
+        onSecondary: () => openRejectDialog(nextDelivery),
+        secondaryDisabled: rejectMutation.isPending || isOffline
+      };
+    }
+    if (workflow === 'ACCEPTED') {
+      return {
+        primaryLabel: 'Confirmer pickup',
+        onPrimary: () => openDetail(nextDelivery),
+        secondaryLabel: 'Détails',
+        onSecondary: () => openDetail(nextDelivery)
+      };
+    }
+    if (workflow === 'PICKUP') {
+      return {
+        primaryLabel: 'Démarrer route',
+        onPrimary: () => openDetail(nextDelivery),
+        secondaryLabel: 'Détails',
+        onSecondary: () => openDetail(nextDelivery)
+      };
+    }
+    if (workflow === 'ON_ROUTE') {
+      return {
+        primaryLabel: 'Confirmer livré',
+        onPrimary: () => openDetail(nextDelivery),
+        secondaryLabel: 'Détails',
+        onSecondary: () => openDetail(nextDelivery)
+      };
+    }
+    return {
+      primaryLabel: 'Voir résumé',
+      onPrimary: () => openDetail(nextDelivery),
+      secondaryLabel: '',
+      onSecondary: undefined
+    };
+  }, [acceptMutation.isPending, isOffline, nextDelivery, rejectMutation.isPending]);
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm">
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {STATUS_FILTERS.map((filter) => (
-            <button
-              key={filter.key}
-              type="button"
-              onClick={() => setStatusFilter(filter.key)}
-              className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold ${
-                statusFilter === filter.key
-                  ? 'border-neutral-900 bg-neutral-900 text-white'
-                  : 'border-slate-200 bg-white text-slate-700'
-              }`}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
-      </section>
+  const todayLabel = useMemo(
+    () =>
+      new Date().toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        day: '2-digit',
+        month: 'long'
+      }),
+    []
+  );
 
-      {loading ? (
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center text-slate-500">
-          <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />
-          Chargement des affectations…
-        </div>
-      ) : hardError ? (
-        <div className="rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {extractMessage(hardError, 'Impossible de charger le mode livreur.')}
-        </div>
-      ) : !modeEnabled ? (
-        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          Le mode livreur est désactivé par la configuration système.
-        </div>
-      ) : previewMode && !selectedDeliveryGuyId ? (
-        <div className="rounded-3xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-800">
-          Choisissez un livreur dans la carte en haut pour afficher les affectations.
-        </div>
-      ) : items.length === 0 ? (
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center text-slate-500">
-          <ShieldAlert className="mx-auto mb-2 h-5 w-5" />
-          Aucune affectation pour ce filtre.
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {items.map((item) => {
-            const assignmentStatus = String(item.assignmentStatus || '').toUpperCase();
-            const status = String(item.status || '').toUpperCase();
-            const canAccept = assignmentStatus === 'PENDING';
-            const canReject = assignmentStatus === 'PENDING';
-            const isProgressing = ['ACCEPTED', 'IN_PROGRESS'].includes(status);
-            const dropoffCommuneName = item?.dropoff?.communeName || item?.buyer?.commune || '—';
-            const dropoffCityName = item?.dropoff?.cityName || item?.buyer?.city || '—';
-            const dropoffAddress = item?.dropoff?.address || item?.buyer?.address || '—';
-            const hasDeliveryPin = Boolean(String(item?.deliveryPinCode || '').trim());
-            const pickupMapHref = buildMapHref(
-              item?.pickup?.coordinates,
-              `${item?.pickup?.address || ''} ${item?.pickup?.communeName || ''} ${item?.pickup?.cityName || ''}`
-            );
-            const dropoffMapHref = buildMapHref(
-              item?.dropoff?.coordinates,
-              `${dropoffAddress} ${dropoffCommuneName} ${dropoffCityName}`
-            );
-            return (
-              <article
-                key={item._id}
-                className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[11px] text-slate-500">Commande #{String(item.orderId || '').slice(-6)}</p>
-                    <p className="text-sm font-semibold text-slate-900">{STAGE_LABELS[item.currentStage] || item.currentStage}</p>
-                    <p className="text-xs text-slate-500">{fmtDateTime(item.createdAt)}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setSelected(item)}
-                    className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700"
-                  >
-                    Détails
-                  </button>
-                </div>
-
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  <div className="rounded-2xl bg-slate-50 p-2.5">
-                    <p className="flex items-center gap-1 text-[11px] font-semibold uppercase text-slate-500">
-                      <MapPin size={12} /> Pickup
-                    </p>
-                    <p className="text-sm font-medium text-slate-900">{item.pickup?.communeName || '—'} · {item.pickup?.cityName || '—'}</p>
-                    <p className="text-xs text-slate-500">{item.pickup?.address || '—'}</p>
-                    {pickupMapHref ? (
-                      <a
-                        href={pickupMapHref}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-slate-700 underline"
-                      >
-                        Ouvrir Maps <ExternalLink size={11} />
-                      </a>
-                    ) : null}
-                  </div>
-                  <div className="rounded-2xl bg-slate-50 p-2.5">
-                    <p className="flex items-center gap-1 text-[11px] font-semibold uppercase text-slate-500">
-                      <Route size={12} /> Dropoff
-                    </p>
-                    <p className="text-sm font-medium text-slate-900">{dropoffCommuneName} · {dropoffCityName}</p>
-                    <p className="text-xs text-slate-500">{dropoffAddress}</p>
-                    {dropoffMapHref ? (
-                      <a
-                        href={dropoffMapHref}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-slate-700 underline"
-                      >
-                        Ouvrir Maps <ExternalLink size={11} />
-                      </a>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                  <Package size={13} />
-                  {(Array.isArray(item.itemsSnapshot) ? item.itemsSnapshot : []).length} article(s)
-                  <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800">
-                    Code livraison: {hasDeliveryPin ? item.deliveryPinCode : '—'}
-                  </span>
-                  <span className="ml-auto rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
-                    Frais: {Number(item.deliveryPrice || item.deliveryFee || 0).toLocaleString('fr-FR')} {item.currency || 'XAF'}
-                  </span>
-                </div>
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={!canAccept || acceptMutation.isPending}
-                    onClick={() => acceptMutation.mutate({ id: item._id })}
-                    className="inline-flex min-h-10 items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700 disabled:opacity-50"
-                  >
-                    {acceptMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-                    Accepter
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!canReject || rejectMutation.isPending}
-                    onClick={() => {
-                      setSelected(item);
-                      setRejectReason('');
-                    }}
-                    className="inline-flex min-h-10 items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700 disabled:opacity-50"
-                  >
-                    <X size={12} />
-                    Refuser
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!isProgressing || stageMutation.isPending}
-                    onClick={() => setSelected(item)}
-                    className="inline-flex min-h-10 items-center gap-1 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-700 disabled:opacity-50"
-                  >
-                    <Truck size={12} />
-                    Mettre à jour
-                  </button>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
-
-      <BaseModal
-        isOpen={Boolean(selected)}
-        onClose={() => {
-          setSelected(null);
-          setRejectReason('');
-          setPinCode('');
-        }}
-        panelClassName="w-full max-w-2xl"
-        ariaLabel="Détails livraison"
-      >
-        <ModalHeader
-          title={selected ? `Commande #${String(selected.orderId || '').slice(-6)}` : 'Détails livraison'}
-          subtitle={
-            selected
-              ? `${selected.pickup?.communeName || '—'} → ${selected.dropoff?.communeName || selected?.buyer?.commune || '—'}`
-              : ''
+  const headerActions = [
+    ...(!previewMode
+      ? [
+          {
+            key: 'normal-account',
+            label: 'Compte normal',
+            onClick: handleSwitchToNormalAccount,
+            icon: ArrowLeftRight
           }
-          onClose={() => {
-            setSelected(null);
-            setRejectReason('');
-            setPinCode('');
-          }}
-        />
-        <ModalBody className="space-y-4">
-          {selected ? (
-            <>
-              <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-                {STAGE_ORDER.map((stage) => {
-                  const stageIndex = STAGE_ORDER.indexOf(stage);
-                  const currentIndex = STAGE_ORDER.indexOf(String(selected.currentStage || 'ASSIGNED').toUpperCase());
-                  const done = currentIndex >= 0 && stageIndex <= currentIndex;
-                  return (
-                    <div
-                      key={stage}
-                      className={`rounded-xl border px-2 py-2 ${done ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500'}`}
-                    >
-                      {STAGE_LABELS[stage] || stage}
-                    </div>
-                  );
-                })}
-              </div>
+        ]
+      : []),
+    {
+      key: 'history',
+      label: 'History',
+      to: buildHistoryRoute(routePrefix),
+      icon: History
+    },
+    {
+      key: 'profile',
+      label: 'Profile',
+      to: buildProfileRoute(routePrefix),
+      icon: User
+    },
+    {
+      key: 'refresh',
+      label: 'Refresh',
+      onClick: handleRefresh,
+      icon: RefreshCcw,
+      disabled: assignmentsQuery.isFetching
+    },
+    {
+      key: 'logout',
+      label: 'Logout',
+      onClick: handleLogout,
+      icon: LogOut,
+      tone: 'danger'
+    }
+  ];
 
-              {selected.order ? (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                    Détails commande
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">
-                    Commande #{String(selected.order._id || selected.orderId || '').slice(-6) || '—'}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-600">
-                    Statut commande : {selected.order.status || '—'}
-                  </p>
-                  <p className="text-xs text-slate-600">
-                    Statut livraison plateforme : {selected.order.platformDeliveryStatus || '—'}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Mode : {selected.order.deliveryMode || '—'} · Adresse :{' '}
-                    {[selected.order.deliveryAddress, selected.order.deliveryCity].filter(Boolean).join(', ') || '—'}
-                  </p>
-                </div>
-              ) : null}
+  useEffect(() => {
+    if (!assignmentsQuery.hasNextPage || assignmentsQuery.isFetchingNextPage) return;
+    const node = loadMoreRef.current;
+    if (!node) return;
 
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Pickup</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">
-                    {selected.pickup?.communeName || '—'} · {selected.pickup?.cityName || '—'}
-                  </p>
-                  <p className="text-xs text-slate-500">{selected.pickup?.address || '—'}</p>
-                  {buildMapHref(
-                    selected?.pickup?.coordinates,
-                    `${selected?.pickup?.address || ''} ${selected?.pickup?.communeName || ''} ${selected?.pickup?.cityName || ''}`
-                  ) ? (
-                    <a
-                      href={buildMapHref(
-                        selected?.pickup?.coordinates,
-                        `${selected?.pickup?.address || ''} ${selected?.pickup?.communeName || ''} ${selected?.pickup?.cityName || ''}`
-                      )}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-slate-700 underline"
-                    >
-                      Ouvrir Maps <ExternalLink size={11} />
-                    </a>
-                  ) : null}
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Dropoff</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">
-                    {selected.dropoff?.communeName || selected.buyer?.commune || '—'} ·{' '}
-                    {selected.dropoff?.cityName || selected.buyer?.city || '—'}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {selected.dropoff?.address || selected.buyer?.address || '—'}
-                  </p>
-                  {buildMapHref(
-                    selected?.dropoff?.coordinates,
-                    `${selected?.dropoff?.address || selected?.buyer?.address || ''} ${selected?.dropoff?.communeName || selected?.buyer?.commune || ''} ${selected?.dropoff?.cityName || selected?.buyer?.city || ''}`
-                  ) ? (
-                    <a
-                      href={buildMapHref(
-                        selected?.dropoff?.coordinates,
-                        `${selected?.dropoff?.address || selected?.buyer?.address || ''} ${selected?.dropoff?.communeName || selected?.buyer?.commune || ''} ${selected?.dropoff?.cityName || selected?.buyer?.city || ''}`
-                      )}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-slate-700 underline"
-                    >
-                      Ouvrir Maps <ExternalLink size={11} />
-                    </a>
-                  ) : null}
-                </div>
-              </div>
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          assignmentsQuery.fetchNextPage();
+        }
+      },
+      { rootMargin: '240px 0px' }
+    );
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Frais livraison</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">
-                  {Number(selected.deliveryPrice ?? selected.deliveryFee ?? 0).toLocaleString('fr-FR')} {selected.currency || 'XAF'}
-                </p>
-              </div>
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [assignmentsQuery]);
 
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-700">
-                  Code livraison
-                </p>
-                {String(selected.deliveryPinCode || '').trim() ? (
-                  <>
-                    <p className="mt-1 text-lg font-black tracking-[0.2em] text-amber-900">
-                      {selected.deliveryPinCode}
-                    </p>
-                    <p className="text-xs text-amber-700">
-                      Expire: {fmtDateTime(selected.deliveryPinCodeExpiresAt)}
-                    </p>
-                  </>
-                ) : (
-                  <p className="mt-1 text-xs text-amber-700">
-                    Aucun code requis pour cette livraison.
-                  </p>
-                )}
-              </div>
+  const handleTouchStart = (event) => {
+    if (typeof window === 'undefined' || window.scrollY > 0) {
+      touchStartYRef.current = null;
+      return;
+    }
+    touchStartYRef.current = event.touches?.[0]?.clientY || null;
+  };
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-semibold uppercase text-slate-500">Articles</p>
-                <div className="mt-2 space-y-2">
-                  {(Array.isArray(selected.itemsSnapshot) ? selected.itemsSnapshot : []).map((entry, index) => (
-                    <div key={`${entry.productId || index}`} className="flex items-center gap-2 rounded-xl bg-white p-2">
-                      {entry.imageUrl ? (
-                        <img
-                          src={normalizeFileUrl(entry.imageUrl)}
-                          alt={entry.name || 'Produit'}
-                          className="h-11 w-11 rounded-lg object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="h-11 w-11 rounded-lg bg-slate-100" />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-slate-900">{entry.name || 'Produit'}</p>
-                        <p className="text-xs text-slate-500">Qté: {entry.qty || 1}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+  const handleTouchMove = (event) => {
+    const startY = touchStartYRef.current;
+    if (startY == null) return;
+    const currentY = event.touches?.[0]?.clientY || startY;
+    const delta = Math.max(0, Math.min(90, currentY - startY));
+    setPullDistance(delta);
+  };
 
-              <div className="grid gap-2 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => openProof(selected, 'pickup')}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-semibold text-indigo-700"
-                >
-                  <Camera size={14} />
-                  Preuve pickup
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openProof(selected, 'delivery')}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 text-sm font-semibold text-violet-700"
-                >
-                  <Camera size={14} />
-                  Preuve livraison
-                </button>
-              </div>
+  const handleTouchEnd = () => {
+    if (pullDistance >= 70) {
+      handleRefresh();
+    }
+    setPullDistance(0);
+    touchStartYRef.current = null;
+  };
 
-              {rejectReason ? (
-                <div className="rounded-xl border border-red-200 bg-red-50 p-3">
-                  <textarea
-                    value={rejectReason}
-                    onChange={(event) => setRejectReason(event.target.value)}
-                    rows={3}
-                    placeholder="Motif du refus"
-                    className="w-full rounded-xl border border-red-200 px-3 py-2 text-sm"
-                  />
-                </div>
-              ) : null}
+  const hardError = bootstrapQuery.error || assignmentsQuery.error;
+  const modeEnabled = bootstrapQuery.data?.enabled !== false;
+  const timeoutDetected = /timeout|ECONNABORTED/i.test(
+    `${extractMessage(hardError, '')} ${String(hardError?.code || '')}`
+  );
 
-              {(stageMutation.isError || rejectMutation.isError || acceptMutation.isError) ? (
-                <p className="text-xs text-red-600">
-                  {extractMessage(stageMutation.error || rejectMutation.error || acceptMutation.error, 'Action impossible.')}
-                </p>
-              ) : null}
-            </>
-          ) : null}
-        </ModalBody>
-        <ModalFooter>
-          {selected ? (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <button
-                type="button"
-                disabled={!nextStage || stageMutation.isPending}
-                onClick={() =>
-                  stageMutation.mutate({
-                    id: selected._id,
-                    stage: nextStage,
-                    deliveryPinCode: nextStage === 'DELIVERED' ? pinCode : undefined
-                  })
-                }
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-neutral-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                {stageMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Truck size={14} />}
-                {nextStage ? `Passer: ${STAGE_LABELS[nextStage] || nextStage}` : 'Aucune étape'}
-              </button>
-              <button
-                type="button"
-                disabled={rejectMutation.isPending || !rejectReason.trim()}
-                onClick={() => rejectMutation.mutate({ id: selected._id, reason: rejectReason.trim() })}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 disabled:opacity-50"
-              >
-                {rejectMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
-                Refuser affectation
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelected(null)}
-                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700"
-              >
-                Fermer
-              </button>
-            </div>
-          ) : null}
-          {nextStage === 'DELIVERED' ? (
-            <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-2">
-              <label className="text-xs font-medium text-slate-600">Code livraison (si requis)</label>
-              <div className="mt-1 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
-                <Clock3 size={14} className="text-slate-400" />
-                <input
-                  value={pinCode}
-                  onChange={(event) => setPinCode(event.target.value)}
-                  inputMode="numeric"
-                  placeholder="Code client"
-                  className="w-full border-none bg-transparent text-sm outline-none"
+  const kpiItems = [
+    {
+      key: 'todo',
+      label: 'A faire',
+      value: counts.new,
+      toneClass: 'bg-yellow-100 text-yellow-700'
+    },
+    {
+      key: 'active',
+      label: 'En cours',
+      value: counts.active,
+      toneClass: 'bg-blue-100 text-blue-700'
+    },
+    {
+      key: 'done',
+      label: 'Terminees',
+      value: counts.done,
+      toneClass: 'bg-green-100 text-green-700'
+    },
+    {
+      key: 'today-revenue',
+      label: 'Revenus auj.',
+      value: `${todayRevenue.toLocaleString('fr-FR')} XAF`,
+      toneClass: 'bg-indigo-100 text-indigo-700'
+    },
+    {
+      key: 'week-revenue',
+      label: 'Revenus semaine',
+      value: `${weekRevenue.toLocaleString('fr-FR')} XAF`,
+      toneClass: 'bg-indigo-100 text-indigo-700'
+    }
+  ];
+
+  return (
+    <div
+      className="mx-auto w-full max-w-7xl space-y-4 px-3 pb-28 pt-2 sm:px-5"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
+    >
+      <div
+        className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top,0px)+64px)] z-50 mx-auto w-full max-w-sm px-3 sm:hidden"
+        style={{ opacity: pullDistance ? 1 : 0, transform: `translateY(${Math.max(0, pullDistance / 3)}px)` }}
+      >
+        <div className="rounded-full bg-gray-900 px-3 py-1 text-center text-xs font-semibold text-white">
+          {pullDistance >= 70 ? 'Relacher pour rafraichir' : 'Tirer pour rafraichir'}
+        </div>
+      </div>
+
+      <OfflineBanner offline={isOffline} />
+
+      <DeliveryHeader
+        title="Livraisons"
+        subtitle={todayLabel}
+        online={!isOffline}
+        actions={headerActions}
+      />
+
+      <DeliveryKpiRow
+        items={kpiItems}
+        loading={bootstrapQuery.isLoading || todayRevenueQuery.isLoading || weekRevenueQuery.isLoading}
+      />
+
+      {previewMode ? (
+        <section className="rounded-2xl bg-indigo-50 p-4 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-indigo-700">Mode preview admin</p>
+          <p className="mt-1 text-xs text-indigo-700/90">Selectionnez un livreur pour simuler son dashboard.</p>
+          <label className="mt-3 block text-sm font-medium text-indigo-800">
+            Livreur
+            <select
+              value={selectedDeliveryGuyId}
+              onChange={(event) => setSelectedDeliveryGuyId(event.target.value)}
+              className="mt-1 min-h-[44px] w-full rounded-xl border border-indigo-200 bg-white px-3 text-sm text-gray-800"
+            >
+              <option value="">Choisir un livreur</option>
+              {availableDeliveryGuys.map((entry) => (
+                <option key={entry._id} value={entry._id}>
+                  {entry.fullName || 'Livreur'}{entry.phone ? ` · ${entry.phone}` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+          {selectedDeliveryGuy ? (
+            <div className="mt-3 flex items-center gap-3 rounded-xl bg-white/80 p-3">
+              {resolveDeliveryGuyProfileImage(selectedDeliveryGuy) ? (
+                <img
+                  src={resolveDeliveryGuyProfileImage(selectedDeliveryGuy)}
+                  alt={selectedDeliveryGuy.fullName || 'Livreur'}
+                  className="h-11 w-11 rounded-full object-cover"
                 />
+              ) : (
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-700">
+                  {String(selectedDeliveryGuy.fullName || selectedDeliveryGuy.name || 'L').charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-indigo-900">
+                  {selectedDeliveryGuy.fullName || selectedDeliveryGuy.name || 'Livreur'}
+                </p>
+                <p className="truncate text-xs text-indigo-700/90">
+                  {selectedDeliveryGuy.phone || 'Telephone non renseigne'}
+                </p>
               </div>
             </div>
           ) : null}
-        </ModalFooter>
-      </BaseModal>
+        </section>
+      ) : null}
+
+      {nextDelivery ? (
+        <div className="lg:hidden">
+          <NextDeliveryCard
+            assignment={nextDelivery}
+            title="Next delivery"
+            primaryLabel={nextCardActions.primaryLabel}
+            secondaryLabel={nextCardActions.secondaryLabel}
+            onPrimary={nextCardActions.onPrimary}
+            onSecondary={nextCardActions.onSecondary}
+            primaryDisabled={nextCardActions.primaryDisabled}
+            secondaryDisabled={nextCardActions.secondaryDisabled}
+          />
+        </div>
+      ) : null}
+
+      <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+        <section className="space-y-3">
+          <div className="rounded-2xl bg-white p-3 shadow-sm">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Date filter</p>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {DATE_FILTERS.map((filter) => (
+                <button
+                  key={filter.key}
+                  type="button"
+                  onClick={() => setDateFilter(filter.key)}
+                  className={`min-h-[40px] whitespace-nowrap rounded-xl px-3 text-sm font-semibold transition active:scale-[0.98] ${
+                    dateFilter === filter.key ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <DeliveryTabs value={feedTab} onChange={setFeedTab} tabs={FEED_TABS} />
+
+          {bootstrapQuery.isLoading || assignmentsQuery.isLoading ? (
+            <DeliverySkeleton count={4} />
+          ) : hardError ? (
+            <div className="rounded-2xl bg-white p-4 shadow-sm">
+              <p className="text-sm font-semibold text-red-700">
+                {extractMessage(hardError, 'Impossible de charger les livraisons.')}
+              </p>
+              {timeoutDetected ? (
+                <p className="mt-1 text-xs text-red-600">
+                  Requete trop longue (8s max). Verifiez la connexion puis reessayez.
+                </p>
+              ) : null}
+              <button
+                type="button"
+                onClick={handleRefresh}
+                className="mt-3 inline-flex min-h-[44px] items-center rounded-xl bg-gray-900 px-3 text-sm font-semibold text-white"
+              >
+                Reessayer
+              </button>
+            </div>
+          ) : !modeEnabled ? (
+            <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800 shadow-sm">
+              Le mode livreur est desactive par la configuration systeme.
+            </div>
+          ) : previewMode && !selectedDeliveryGuyId ? (
+            <div className="rounded-2xl bg-indigo-50 p-4 text-sm text-indigo-800 shadow-sm">
+              Choisissez un livreur pour afficher ses livraisons.
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+              <p className="text-sm font-semibold text-gray-800">
+                {feedTab === 'done' ? 'All caught up' : 'No deliveries yet'}
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                {feedTab === 'done'
+                  ? 'Aucune livraison terminee pour ce filtre.'
+                  : 'Les nouvelles affectations apparaitront ici.'}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredItems.map((item) => (
+                <DeliveryListItem
+                  key={item._id}
+                  item={item}
+                  onOpen={openDetail}
+                  onAccept={() => acceptMutation.mutate({ id: item._id })}
+                  onReject={() => openRejectDialog(item)}
+                  acceptDisabled={acceptMutation.isPending}
+                  rejectDisabled={rejectMutation.isPending}
+                  actionsDisabled={isOffline}
+                />
+              ))}
+
+              <div ref={loadMoreRef} className="h-8" />
+
+              {assignmentsQuery.isFetchingNextPage ? (
+                <div className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white p-3 text-xs text-gray-500 shadow-sm">
+                  <Loader2 size={14} className="animate-spin" />
+                  Chargement...
+                </div>
+              ) : null}
+
+              {!assignmentsQuery.hasNextPage && filteredItems.length > 0 ? (
+                <p className="text-center text-xs text-gray-500">Fin de la liste</p>
+              ) : null}
+            </div>
+          )}
+        </section>
+
+        <aside className="hidden space-y-4 lg:block">
+          <div className="sticky top-[120px] space-y-4">
+            <NextDeliveryCard
+              assignment={selectedPreviewItem}
+              title="Next delivery"
+              primaryLabel={nextCardActions.primaryLabel}
+              secondaryLabel={nextCardActions.secondaryLabel}
+              onPrimary={nextCardActions.onPrimary}
+              onSecondary={nextCardActions.onSecondary}
+              primaryDisabled={nextCardActions.primaryDisabled}
+              secondaryDisabled={nextCardActions.secondaryDisabled}
+            />
+
+            <section className="rounded-2xl bg-white p-4 shadow-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Mini stats</p>
+              <div className="mt-3 space-y-2 text-sm text-gray-700">
+                <p className="flex items-center justify-between"><span>Completed</span><strong>{statsQuery.data?.delivered ?? '—'}</strong></p>
+                <p className="flex items-center justify-between"><span>Failed</span><strong>{statsQuery.data?.failed ?? '—'}</strong></p>
+                <p className="flex items-center justify-between"><span>Acceptance rate</span><strong>{statsQuery.data ? `${statsQuery.data.acceptanceRate || 0}%` : '—'}</strong></p>
+                <p className="flex items-center justify-between"><span>Avg delivery time</span><strong>{statsQuery.data?.avgPickupToDeliveredMinutes ? `${statsQuery.data.avgPickupToDeliveredMinutes} min` : '—'}</strong></p>
+                <p className="flex items-center justify-between"><span>Total earnings</span><strong>{statsQuery.data ? formatCurrency(statsQuery.data.deliveryFeeRevenue || 0) : '—'}</strong></p>
+              </div>
+              {selectedPreviewItem?._id ? (
+                <Link
+                  to={buildAssignmentRoute({ basePath: routePrefix, id: selectedPreviewItem._id })}
+                  className="mt-4 inline-flex min-h-[44px] w-full items-center justify-center gap-1 rounded-xl bg-gray-900 px-3 text-sm font-semibold text-white"
+                >
+                  Open selected
+                  <ChevronRight size={14} />
+                </Link>
+              ) : null}
+            </section>
+          </div>
+        </aside>
+      </div>
+
+      {nextDelivery && !isDoneDelivery(nextDelivery) ? (
+        <div className="lg:hidden">
+          <DeliveryActionFooter
+            primaryLabel={nextCardActions.primaryLabel}
+            onPrimary={nextCardActions.onPrimary}
+            primaryDisabled={nextCardActions.primaryDisabled}
+            primaryLoading={acceptMutation.isPending || rejectMutation.isPending}
+            secondaryLabel={nextCardActions.secondaryLabel || 'Detailler'}
+            onSecondary={nextCardActions.onSecondary || (() => openDetail(nextDelivery))}
+            secondaryDisabled={nextCardActions.secondaryDisabled}
+          />
+        </div>
+      ) : null}
 
       <BaseModal
-        isOpen={proofModal.open}
-        onClose={() => {
-          setProofModal({ open: false, type: 'pickup', item: null });
-          setProofPhoto(null);
-          setProofSignatureFile(null);
-          setProofSignatureUrl('');
-          setProofNote('');
-          setPinCode('');
-        }}
+        isOpen={rejectDialog.open}
+        onClose={() => setRejectDialog({ open: false, item: null, reason: '' })}
         panelClassName="w-full max-w-md"
       >
         <ModalHeader
-          title={proofModal.type === 'delivery' ? 'Preuve livraison' : 'Preuve pickup'}
-          subtitle="Ajoutez photo, signature ou note"
-          onClose={() => {
-            setProofModal({ open: false, type: 'pickup', item: null });
-            setProofPhoto(null);
-            setProofSignatureFile(null);
-            setProofSignatureUrl('');
-            setProofNote('');
-            setPinCode('');
-          }}
+          title="Refuser cette livraison"
+          subtitle={rejectDialog.item ? `Commande #${String(rejectDialog.item.orderId || '').slice(-6)}` : ''}
+          onClose={() => setRejectDialog({ open: false, item: null, reason: '' })}
         />
         <ModalBody className="space-y-3">
-          <label className="block text-xs font-semibold text-slate-700">
-            Photo
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(event) => setProofPhoto(event.target.files?.[0] || null)}
-              className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            />
-          </label>
-          <label className="block text-xs font-semibold text-slate-700">
-            Signature (fichier)
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(event) => setProofSignatureFile(event.target.files?.[0] || null)}
-              className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            />
-          </label>
-          <input
-            value={proofSignatureUrl}
-            onChange={(event) => setProofSignatureUrl(event.target.value)}
-            placeholder="ou URL signature"
-            data-autofocus
-            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-          />
           <textarea
-            value={proofNote}
-            onChange={(event) => setProofNote(event.target.value)}
-            rows={3}
-            placeholder="Note"
-            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            value={rejectDialog.reason}
+            onChange={(event) =>
+              setRejectDialog((prev) => ({
+                ...prev,
+                reason: event.target.value.slice(0, 600)
+              }))
+            }
+            rows={4}
+            placeholder="Expliquez la raison du refus"
+            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
           />
-          {proofModal.type === 'delivery' ? (
-            <input
-              value={pinCode}
-              onChange={(event) => setPinCode(event.target.value)}
-              placeholder="Code livraison (si requis)"
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            />
-          ) : null}
-          {proofMutation.isError ? (
-            <p className="text-xs text-red-600">
-              {extractMessage(proofMutation.error, 'Impossible d’envoyer la preuve.')}
-            </p>
+          {rejectMutation.isError ? (
+            <p className="text-xs text-red-600">{extractMessage(rejectMutation.error, 'Impossible de refuser.')}</p>
           ) : null}
         </ModalBody>
         <ModalFooter>
-          <button
-            type="button"
-            disabled={proofMutation.isPending || !proofModal.item?._id}
-            onClick={() =>
-              proofMutation.mutate({
-                id: proofModal.item?._id,
-                proofType: proofModal.type
-              })
-            }
-            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-neutral-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
-          >
-            {proofMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
-            Enregistrer la preuve
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setRejectDialog({ open: false, item: null, reason: '' })}
+              className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmitReject}
+              disabled={!rejectDialog.reason.trim() || rejectMutation.isPending || isOffline}
+              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-red-600 px-4 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {rejectMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
+              Confirmer
+            </button>
+          </div>
         </ModalFooter>
       </BaseModal>
     </div>

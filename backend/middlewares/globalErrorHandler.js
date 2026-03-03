@@ -138,26 +138,6 @@ export const globalErrorHandler = (err, req, res, _next) => {
   const requestId = res.locals?.requestId || req.requestId || 'unknown';
   const mapped = toClientError(err || {});
 
-  const safeLog = {
-    requestId,
-    status: mapped.status,
-    code: mapped.code,
-    method: req.method,
-    path: req.originalUrl,
-    ip: req.ip,
-    message: err?.message || mapped.message,
-    details: redactSensitive(err?.details || err?.meta || {}),
-    params: redactSensitive(req.params || {}),
-    query: redactSensitive(req.query || {}),
-    body: redactSensitive(req.body || {})
-  };
-
-  if (mapped.status >= 500) {
-    console.error('[api-error]', safeLog, err?.stack || '');
-  } else {
-    console.warn('[api-error]', safeLog);
-  }
-
   void persistCriticalError({ requestId, req, mapped, err });
 
   if (res.headersSent || res.writableEnded) {
@@ -182,4 +162,3 @@ export const globalErrorHandler = (err, req, res, _next) => {
 };
 
 export default globalErrorHandler;
-

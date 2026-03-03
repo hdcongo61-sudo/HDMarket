@@ -155,6 +155,7 @@ export const AuthProvider = ({ children }) => {
       shopName: data.shopName || '',
       shopAddress: data.shopAddress || '',
       shopLogo: data.shopLogo || '',
+      profileImage: data.profileImage || '',
       shopBanner: data.shopBanner || '',
       shopDescription: data.shopDescription || '',
       shopLocation:

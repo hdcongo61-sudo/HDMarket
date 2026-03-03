@@ -19,6 +19,9 @@ import AdminOrders from './pages/AdminOrders';
 import AdminDeliveryGuys from './pages/AdminDeliveryGuys';
 import AdminDeliveryRequests from './pages/AdminDeliveryRequests';
 import CourierDashboard from './pages/CourierDashboard';
+import DeliveryAssignmentDetail from './pages/delivery/DeliveryAssignmentDetail';
+import DeliveryHistory from './pages/delivery/DeliveryHistory';
+import DeliveryProfile from './pages/delivery/DeliveryProfile';
 import TopDeals from './pages/TopDeals';
 import TopRanking from './pages/TopRanking';
 import TopFavorites from './pages/TopFavorites';
@@ -72,6 +75,7 @@ import AdminBoostManagement from './pages/AdminBoostManagement';
 import SettingsCategoriesPage from './pages/SettingsCategoriesPage';
 import AdminLayout from './components/AdminLayout';
 import FounderIntelligence from './pages/FounderIntelligence';
+import FounderAccountControl from './pages/FounderAccountControl';
 import CertifiedProducts from './pages/CertifiedProducts';
 import Suggestions from './pages/Suggestions';
 import AdvancedSearch from './pages/AdvancedSearch';
@@ -335,6 +339,30 @@ function AppContent() {
             }
           />
           <Route
+            path="/courier/assignment/:id"
+            element={
+              <ProtectedRoute>
+                <DeliveryAssignmentDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/courier/history"
+            element={
+              <ProtectedRoute>
+                <DeliveryHistory />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/courier/profile"
+            element={
+              <ProtectedRoute>
+                <DeliveryProfile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/courier"
             element={
               <ProtectedRoute>
@@ -354,6 +382,51 @@ function AppContent() {
                 ]}
               >
                 <CourierDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/delivery/assignment/:id"
+            element={
+              <ProtectedRoute
+                permissions={[
+                  'courier_view_assignments',
+                  'courier_accept_assignment',
+                  'courier_update_status',
+                  'courier_upload_proof'
+                ]}
+              >
+                <DeliveryAssignmentDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/delivery/history"
+            element={
+              <ProtectedRoute
+                permissions={[
+                  'courier_view_assignments',
+                  'courier_accept_assignment',
+                  'courier_update_status',
+                  'courier_upload_proof'
+                ]}
+              >
+                <DeliveryHistory />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/delivery/profile"
+            element={
+              <ProtectedRoute
+                permissions={[
+                  'courier_view_assignments',
+                  'courier_accept_assignment',
+                  'courier_update_status',
+                  'courier_upload_proof'
+                ]}
+              >
+                <DeliveryProfile />
               </ProtectedRoute>
             }
           />
@@ -773,6 +846,14 @@ function AppContent() {
               element={
                 <ProtectedRoute roles={['founder']}>
                   {founderModeEnabled ? <FounderIntelligence /> : <Navigate to="/admin" replace />}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="founder-account-control"
+              element={
+                <ProtectedRoute roles={['founder']}>
+                  {founderModeEnabled ? <FounderAccountControl /> : <Navigate to="/admin" replace />}
                 </ProtectedRoute>
               }
             />

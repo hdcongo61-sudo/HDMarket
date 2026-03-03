@@ -160,6 +160,7 @@ const sanitizeUser = (user) => ({
   preferredCity: user.preferredCity || user.city || '',
   theme: user.theme || 'system',
   gender: user.gender,
+  profileImage: user.profileImage || '',
   shopName: user.shopName,
   shopAddress: user.shopAddress,
   shopLogo: user.shopLogo,
@@ -905,6 +906,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
     name,
     email,
     phone,
+    profileImage,
     accountType,
     shopName,
     shopAddress,
@@ -941,6 +943,29 @@ export const updateProfile = asyncHandler(async (req, res) => {
   }
 
   if (name) user.name = name;
+  if (typeof profileImage !== 'undefined') {
+    user.profileImage = String(profileImage || '').trim();
+  }
+
+  const profileImageFile = req.files?.profileImage?.[0] || null;
+  if (profileImageFile) {
+    if (!isCloudinaryConfigured()) {
+      return res
+        .status(503)
+        .json({ message: 'Cloudinary n’est pas configuré. Définissez CLOUDINARY_* pour publier des médias.' });
+    }
+    try {
+      const folder = getCloudinaryFolder(['users', 'profiles']);
+      const uploaded = await uploadToCloudinary({
+        buffer: profileImageFile.buffer,
+        resourceType: 'image',
+        folder
+      });
+      user.profileImage = uploaded.secure_url || uploaded.url || '';
+    } catch (error) {
+      return res.status(500).json({ message: 'Erreur lors de l’upload de la photo de profil.' });
+    }
+  }
 
   if (accountType) {
     user.accountType = accountType === 'shop' ? 'shop' : 'person';
@@ -1416,7 +1441,7 @@ export const getNotifications = asyncHandler(async (req, res) => {
       .limit(50)
       .populate('product', 'title status slug')
       .populate('shop', 'shopName name')
-      .populate('actor', 'name email'),
+      .populate('actor', 'name email profileImage shopLogo'),
     User.findById(req.user.id).select('notificationPreferences')
   ]);
 
@@ -1429,7 +1454,10 @@ export const getNotifications = asyncHandler(async (req, res) => {
       ? {
           _id: notification.actor._id,
           name: notification.actor.name,
-          email: notification.actor.email
+          email: notification.actor.email,
+          profileImage:
+            String(notification.actor.profileImage || '').trim() ||
+            String(notification.actor.shopLogo || '').trim()
         }
       : null;
     const product = notification.product

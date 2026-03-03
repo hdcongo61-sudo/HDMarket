@@ -40,6 +40,7 @@ const monthKey = (year, month) => `${year}-${String(month).padStart(2, '0')}`;
       shopName: user.shopName || '',
       shopAddress: user.shopAddress || '',
       shopLogo: user.shopLogo || '',
+      profileImage: user.profileImage || '',
       shopVerified: Boolean(user.shopVerified),
       shopLocation:
         Array.isArray(user.shopLocation?.coordinates) && user.shopLocation.coordinates.length === 2
@@ -297,7 +298,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     User.find()
       .sort({ createdAt: -1 })
       .limit(5)
-      .select('name email accountType role createdAt')
+      .select('name email accountType role createdAt profileImage shopLogo')
       .lean(),
     Product.find()
       .sort({ createdAt: -1 })
@@ -433,6 +434,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     email: user.email,
     accountType: user.accountType,
     role: user.role,
+    profileImage: String(user.profileImage || user.shopLogo || '').trim(),
     createdAt: user.createdAt
   }));
 
@@ -977,7 +979,7 @@ export const listUsers = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(safeLimit)
     .select(
-      'name email phone role accountType shopName shopAddress shopLogo shopVerified shopVerifiedBy shopVerifiedAt shopLocation shopLocationAccuracy shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags shopLocationHistory createdAt updatedAt isBlocked blockedAt blockedReason followersCount restrictions canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageHelpCenter canManageChatTemplates'
+      'name email phone role accountType shopName shopAddress shopLogo profileImage shopVerified shopVerifiedBy shopVerifiedAt shopLocation shopLocationAccuracy shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags shopLocationHistory createdAt updatedAt isBlocked blockedAt blockedReason followersCount restrictions canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageHelpCenter canManageChatTemplates'
     )
     .populate('shopVerifiedBy', 'name email');
 
@@ -1584,6 +1586,7 @@ export const promoteUserToDeliveryGuy = asyncHandler(async (req, res) => {
   const normalizedUserPhone = String(user.phone || '').trim();
   const requestedFullName = String(req.body?.fullName || '').trim();
   const requestedPhone = String(req.body?.phone || '').trim();
+  const requestedPhotoUrl = String(req.body?.photoUrl || '').trim();
   const requestedVehicleType = String(req.body?.vehicleType || '').trim();
   const requestedNotes = String(req.body?.notes || '').trim();
   const requestedCityId = mongoose.Types.ObjectId.isValid(req.body?.cityId)
@@ -1622,6 +1625,7 @@ export const promoteUserToDeliveryGuy = asyncHandler(async (req, res) => {
       userId: user._id,
       fullName: requestedFullName || user.name || 'Livreur',
       name: requestedFullName || user.name || 'Livreur',
+      photoUrl: requestedPhotoUrl || String(user.shopLogo || '').trim(),
       phone: requestedPhone || normalizedUserPhone || '',
       cityId: requestedCityId,
       communes: requestedCommunes,
@@ -1635,6 +1639,11 @@ export const promoteUserToDeliveryGuy = asyncHandler(async (req, res) => {
     deliveryGuy.userId = user._id;
     deliveryGuy.fullName = requestedFullName || deliveryGuy.fullName || deliveryGuy.name || user.name || 'Livreur';
     deliveryGuy.name = deliveryGuy.fullName;
+    if (requestedPhotoUrl) {
+      deliveryGuy.photoUrl = requestedPhotoUrl;
+    } else if (!String(deliveryGuy.photoUrl || '').trim() && String(user.shopLogo || '').trim()) {
+      deliveryGuy.photoUrl = String(user.shopLogo || '').trim();
+    }
     if (requestedPhone || !String(deliveryGuy.phone || '').trim()) {
       deliveryGuy.phone = requestedPhone || normalizedUserPhone || '';
     }
@@ -1702,7 +1711,9 @@ export const promoteUserToDeliveryGuy = asyncHandler(async (req, res) => {
       id: String(deliveryGuy._id),
       fullName: deliveryGuy.fullName || deliveryGuy.name || '',
       phone: deliveryGuy.phone || '',
-      isActive: Boolean(deliveryGuy.isActive ?? deliveryGuy.active)
+      isActive: Boolean(deliveryGuy.isActive ?? deliveryGuy.active),
+      photoUrl: String(deliveryGuy.photoUrl || '').trim(),
+      profileImage: String(deliveryGuy.photoUrl || '').trim()
     },
     profileCreated,
     linkedByPhoneFallback
@@ -1824,7 +1835,7 @@ export const setUserPassword = asyncHandler(async (req, res) => {
 
   const populated = await User.findById(id)
     .select(
-      'name email phone role accountType shopName shopAddress shopLogo shopVerified shopVerifiedBy shopVerifiedAt shopLocation shopLocationAccuracy shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags shopLocationHistory createdAt updatedAt isBlocked blockedAt blockedReason followersCount restrictions canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageHelpCenter canManageChatTemplates'
+      'name email phone role accountType shopName shopAddress shopLogo profileImage shopVerified shopVerifiedBy shopVerifiedAt shopLocation shopLocationAccuracy shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags shopLocationHistory createdAt updatedAt isBlocked blockedAt blockedReason followersCount restrictions canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageHelpCenter canManageChatTemplates'
     )
     .populate('shopVerifiedBy', 'name email')
     .lean();

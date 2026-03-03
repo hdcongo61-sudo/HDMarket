@@ -37,6 +37,7 @@ import { buildProductShareUrl, buildProductPath, buildShopPath } from "../utils/
 import { recordProductView } from "../utils/recentViews";
 import { setPendingAction } from "../utils/pendingAction";
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
+import { resolveUserProfileImage } from "../utils/userAvatar";
 import VerifiedBadge from "../components/VerifiedBadge";
 import OrderChat from "../components/OrderChat";
 import ReportModal from "../components/ReportModal";
@@ -1907,8 +1908,21 @@ export default function ProductDetails() {
         )}
         {comments.length > 0 && (
           <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
-            <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-              <span className="font-semibold text-gray-800">{comments[0].user?.name || 'Utilisateur'}</span>
+            <div className="mb-1 flex items-center justify-between gap-2 text-xs text-gray-500">
+              <div className="flex items-center gap-2">
+                {resolveUserProfileImage(comments[0]?.user) ? (
+                  <img
+                    src={resolveUserProfileImage(comments[0]?.user)}
+                    alt={comments[0].user?.name || 'Utilisateur'}
+                    className="h-6 w-6 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-[10px] font-bold text-gray-600">
+                    {String(comments[0].user?.name || 'U').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span className="font-semibold text-gray-800">{comments[0].user?.name || 'Utilisateur'}</span>
+              </div>
               <span>{new Date(comments[0].createdAt).toLocaleDateString('fr-FR')}</span>
             </div>
             <p className="text-sm text-gray-700 line-clamp-2">{comments[0].message}</p>
@@ -3341,10 +3355,23 @@ export default function ProductDetails() {
               <div className="mt-4 space-y-3">
                 {comments.slice(0, 2).map((comment) => (
                   <div key={comment._id} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span className="font-semibold text-gray-800">
-                        {comment.user?.name || 'Utilisateur'}
-                      </span>
+                    <div className="flex items-center justify-between gap-2 text-xs text-gray-500">
+                      <div className="flex items-center gap-2">
+                        {resolveUserProfileImage(comment.user) ? (
+                          <img
+                            src={resolveUserProfileImage(comment.user)}
+                            alt={comment.user?.name || 'Utilisateur'}
+                            className="h-6 w-6 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-[10px] font-bold text-gray-600">
+                            {String(comment.user?.name || 'U').charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <span className="font-semibold text-gray-800">
+                          {comment.user?.name || 'Utilisateur'}
+                        </span>
+                      </div>
                       <span>{new Date(comment.createdAt).toLocaleDateString('fr-FR')}</span>
                     </div>
                     <p className="mt-2 text-sm text-gray-700 line-clamp-3">{comment.message}</p>
@@ -3633,11 +3660,19 @@ function CommentThread({
       <div className="p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-neutral-900 rounded-2xl flex items-center justify-center shadow-lg ring-2 ring-white">
-              <span className="text-white text-base font-black">
-                {comment.user?.name?.charAt(0) || 'U'}
-              </span>
-            </div>
+            {resolveUserProfileImage(comment.user) ? (
+              <img
+                src={resolveUserProfileImage(comment.user)}
+                alt={comment.user?.name || 'Utilisateur'}
+                className="h-12 w-12 rounded-2xl object-cover shadow-lg ring-2 ring-white"
+              />
+            ) : (
+              <div className="w-12 h-12 bg-neutral-900 rounded-2xl flex items-center justify-center shadow-lg ring-2 ring-white">
+                <span className="text-white text-base font-black">
+                  {comment.user?.name?.charAt(0) || 'U'}
+                </span>
+              </div>
+            )}
             <div>
               <span className="font-black text-gray-900 text-base">
                 {comment.user?.name || 'Utilisateur'}
@@ -3732,11 +3767,19 @@ function CommentThread({
             <div key={reply._id} className="p-4 sm:p-4 border-b border-gray-200 last:border-b-0">
               <div className="flex items-center gap-3 mb-2">
                 <CornerDownLeft size={16} className="text-neutral-700" />
-                <div className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center shadow-md ring-2 ring-white">
-                  <span className="text-white text-sm font-black">
-                    {reply.user?.name?.charAt(0) || 'U'}
-                  </span>
-                </div>
+                {resolveUserProfileImage(reply.user) ? (
+                  <img
+                    src={resolveUserProfileImage(reply.user)}
+                    alt={reply.user?.name || 'Utilisateur'}
+                    className="h-10 w-10 rounded-xl object-cover shadow-md ring-2 ring-white"
+                  />
+                ) : (
+                  <div className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center shadow-md ring-2 ring-white">
+                    <span className="text-white text-sm font-black">
+                      {reply.user?.name?.charAt(0) || 'U'}
+                    </span>
+                  </div>
+                )}
                 <div className="flex-1">
                   <span className="font-black text-gray-900 text-sm">
                     {reply.user?.name || 'Utilisateur'}

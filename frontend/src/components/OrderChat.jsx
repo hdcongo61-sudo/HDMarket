@@ -38,6 +38,7 @@ import AuthContext from '../context/AuthContext';
 import api from '../services/api';
 import storage from '../utils/storage';
 import { buildProductPath } from '../utils/links';
+import { resolveUserProfileImage } from '../utils/userAvatar';
 import { encrypt, decrypt, getSharedSecret } from '../utils/chatEncryption.js';
 import { orderChatKeys } from '../queries/orderChatKeys';
 import { fetchOrderMessagePage } from '../queries/orderChatApi';
@@ -1424,7 +1425,13 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                         {/* Avatar for received messages */}
                         {!isOwnMessage && (
                           <div className={`w-8 h-8 flex-shrink-0 ${showAvatar ? '' : 'invisible'}`}>
-                            {message.sender?.shopName ? (
+                            {resolveUserProfileImage(message.sender) ? (
+                              <img
+                                src={resolveUserProfileImage(message.sender)}
+                                alt={message.sender?.shopName || message.sender?.name || 'Utilisateur'}
+                                className="h-8 w-8 rounded-full object-cover"
+                              />
+                            ) : message.sender?.shopName ? (
                               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-neutral-400 to-neutral-600 flex items-center justify-center text-white text-xs font-bold">
                                 {message.sender.shopName.charAt(0).toUpperCase()}
                               </div>

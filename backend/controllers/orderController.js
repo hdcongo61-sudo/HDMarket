@@ -33,6 +33,7 @@ import {
 } from '../utils/cache.js';
 import { buildAdminOrderFilter as buildAdvancedAdminOrderFilter } from '../services/adminOrderAutomationService.js';
 import { getRuntimeConfig } from '../services/configService.js';
+import { getVerifiedProductIds } from '../utils/publicProductVisibility.js';
 
 const ORDER_STATUS = [
   'pending_payment',
@@ -145,7 +146,11 @@ const baseOrderQuery = () =>
       select: 'title price images status user slug',
       populate: { path: 'user', select: 'name shopName phone shopAddress city commune' }
     })
-    .populate('deliveryGuy', 'name phone active')
+    .populate({
+      path: 'deliveryGuy',
+      select: 'name fullName phone active isActive photoUrl userId',
+      populate: { path: 'userId', select: '_id name shopLogo' }
+    })
     .populate('createdBy', 'name email');
 
 const collectOrderProductRefs = (orders = []) => {
@@ -173,6 +178,13 @@ const ensureOrderProductSlugs = async (orders = []) => {
 };
 
 const ensureObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+const toIdSet = (values = []) => new Set((Array.isArray(values) ? values : []).map((value) => String(value)));
+const isPurchasableProduct = (product, verifiedProductSet) =>
+  Boolean(
+    product &&
+      String(product.status || '') === 'approved' &&
+      verifiedProductSet?.has(String(product._id || ''))
+  );
 
 const invalidateOrderCachesForMutation = async ({ customerId, sellerIds = [], includeAdmin = true }) => {
   const sellerIdList = Array.from(new Set((Array.isArray(sellerIds) ? sellerIds : []).map((id) => String(id || '')).filter(Boolean)));
@@ -502,9 +514,22 @@ const buildOrderResponse = (order) => {
     deliveryGuy: obj.deliveryGuy
       ? {
           _id: obj.deliveryGuy._id,
-          name: obj.deliveryGuy.name,
+          name: obj.deliveryGuy.fullName || obj.deliveryGuy.name,
           phone: obj.deliveryGuy.phone,
-          active: obj.deliveryGuy.active
+          active:
+            typeof obj.deliveryGuy.active === 'boolean'
+              ? obj.deliveryGuy.active
+              : Boolean(obj.deliveryGuy.isActive),
+          photoUrl:
+            obj.deliveryGuy.photoUrl ||
+            obj.deliveryGuy.profileImage ||
+            obj.deliveryGuy.userId?.shopLogo ||
+            '',
+          profileImage:
+            obj.deliveryGuy.photoUrl ||
+            obj.deliveryGuy.profileImage ||
+            obj.deliveryGuy.userId?.shopLogo ||
+            ''
         }
       : null,
     cancelledAt: obj.cancelledAt || null,
@@ -557,10 +582,12 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Produit invalide.' });
   }
 
-  const [customer, productDocs] = await Promise.all([
+  const [customer, productDocs, verifiedProductIds] = await Promise.all([
     User.findById(customerId).select('name email phone address city'),
-    Product.find({ _id: { $in: productIds } }).populate('user', 'shopName name slug shopAddress city commune')
+    Product.find({ _id: { $in: productIds } }).populate('user', 'shopName name slug shopAddress city commune'),
+    getVerifiedProductIds()
   ]);
+  const verifiedProductSet = toIdSet(verifiedProductIds);
 
   if (!customer) {
     return res.status(404).json({ message: 'Client introuvable.' });
@@ -571,7 +598,7 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
   try {
     orderItems = normalizedItems.map((item) => {
       const product = productMap.get(item.productId);
-      if (!product || product.status !== 'approved') {
+      if (!isPurchasableProduct(product, verifiedProductSet)) {
         throw Object.assign(new Error('Produit indisponible ou non approuvé.'), { statusCode: 400 });
       }
       return buildOrderItemFromProduct(product, item.quantity);
@@ -666,17 +693,21 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Produit invalide.' });
   }
 
-  const productDocs = await Product.find({ _id: { $in: productIds } }).populate(
-    'user',
-    'shopName name slug shopAddress city commune freeDeliveryEnabled freeDeliveryNote'
-  );
+  const [productDocs, verifiedProductIds] = await Promise.all([
+    Product.find({ _id: { $in: productIds } }).populate(
+      'user',
+      'shopName name slug shopAddress city commune freeDeliveryEnabled freeDeliveryNote'
+    ),
+    getVerifiedProductIds()
+  ]);
+  const verifiedProductSet = toIdSet(verifiedProductIds);
   const productMap = new Map(productDocs.map((doc) => [doc._id.toString(), doc]));
 
   let orderItems;
   try {
     orderItems = normalizedItems.map((item) => {
       const product = productMap.get(item.productId.toString());
-      if (!product || product.status !== 'approved') {
+      if (!isPurchasableProduct(product, verifiedProductSet)) {
         throw Object.assign(new Error('Produit indisponible ou non approuvé.'), { statusCode: 400 });
       }
       return buildOrderItemFromProduct(product, item.quantity);
@@ -1525,17 +1556,21 @@ export const saveDraftOrder = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Produit invalide.' });
   }
 
-  const productDocs = await Product.find({ _id: { $in: productIds } }).populate(
-    'user',
-    'shopName name slug shopAddress city commune'
-  );
+  const [productDocs, verifiedProductIds] = await Promise.all([
+    Product.find({ _id: { $in: productIds } }).populate(
+      'user',
+      'shopName name slug shopAddress city commune'
+    ),
+    getVerifiedProductIds()
+  ]);
+  const verifiedProductSet = toIdSet(verifiedProductIds);
   const productMap = new Map(productDocs.map((doc) => [doc._id.toString(), doc]));
 
   let orderItems;
   try {
     orderItems = normalizedItems.map((item) => {
       const product = productMap.get(item.productId.toString());
-      if (!product || product.status !== 'approved') {
+      if (!isPurchasableProduct(product, verifiedProductSet)) {
         throw Object.assign(new Error('Produit indisponible ou non approuvé.'), { statusCode: 400 });
       }
       return buildOrderItemFromProduct(product, item.quantity);
@@ -1655,7 +1690,8 @@ export const createInquiryOrder = asyncHandler(async (req, res) => {
   }
 
   const product = await Product.findById(productId).populate('user', 'shopName name slug _id shopAddress city commune');
-  if (!product || product.status !== 'approved') {
+  const verifiedProductSet = toIdSet(await getVerifiedProductIds());
+  if (!isPurchasableProduct(product, verifiedProductSet)) {
     return res.status(404).json({ message: 'Produit introuvable ou non disponible.' });
   }
 
@@ -2155,6 +2191,12 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
       code: 'DELIVERY_PROOF_LIMIT'
     });
   }
+  const isPlatformDeliveryOrder =
+    String(order.platformDeliveryMode || '').toUpperCase() === 'PLATFORM_DELIVERY' ||
+    Boolean(order.platformDeliveryRequestId) ||
+    ['REQUESTED', 'ACCEPTED', 'IN_PROGRESS', 'DELIVERED'].includes(
+      String(order.platformDeliveryStatus || '').toUpperCase()
+    );
 
   const signatureImage = String(req.body?.clientSignatureImage || '').trim();
   if (!signatureImage || !signatureImage.startsWith('data:image/')) {
@@ -2179,9 +2221,12 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
   order.deliveryDate = now;
   order.deliverySubmittedBy = userId;
   order.deliverySubmittedAt = now;
-  order.deliveryStatus = 'submitted';
+  order.deliveryStatus = isPlatformDeliveryOrder ? 'verified' : 'submitted';
   order.deliveryProofAttemptCount = Number(order.deliveryProofAttemptCount || 0) + 1;
-  order.status = 'delivery_proof_submitted';
+  order.status = isPlatformDeliveryOrder ? 'delivered' : 'delivery_proof_submitted';
+  if (isPlatformDeliveryOrder) {
+    order.clientDeliveryConfirmedAt = order.clientDeliveryConfirmedAt || now;
+  }
   if (!order.outForDeliveryAt) {
     order.outForDeliveryAt = now;
   }
@@ -2224,7 +2269,7 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
       orderId: order._id,
       deliveryAddress: order.deliveryAddress,
       deliveryCity: order.deliveryCity,
-      status: 'delivery_proof_submitted',
+      status: isPlatformDeliveryOrder ? 'delivered' : 'delivery_proof_submitted',
       deliveredAt: order.deliveredAt,
       deliveryProofSubmitted: true
     },
@@ -2238,7 +2283,9 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
     sellerIds: (order.items || []).map((item) => resolveItemShopId(item))
   });
   res.json({
-    message: 'Preuve de livraison soumise. En attente de confirmation client.',
+    message: isPlatformDeliveryOrder
+      ? 'Preuve de livraison enregistrée. Livraison validée automatiquement (plateforme).'
+      : 'Preuve de livraison soumise. En attente de confirmation client.',
     order: buildOrderResponse(populated)
   });
 });
@@ -2259,6 +2306,38 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
   }
   if (order.status === 'dispute_opened') {
     return res.status(400).json({ message: 'Commande en litige, confirmation impossible.' });
+  }
+  const isPlatformDeliveryOrder =
+    String(order.platformDeliveryMode || '').toUpperCase() === 'PLATFORM_DELIVERY' ||
+    Boolean(order.platformDeliveryRequestId) ||
+    ['REQUESTED', 'ACCEPTED', 'IN_PROGRESS', 'DELIVERED'].includes(
+      String(order.platformDeliveryStatus || '').toUpperCase()
+    );
+  if (isPlatformDeliveryOrder) {
+    const now = new Date();
+    if (order.deliveryStatus !== 'verified') {
+      order.deliveryStatus = 'verified';
+    }
+    if (!order.clientDeliveryConfirmedAt) {
+      order.clientDeliveryConfirmedAt = now;
+    }
+    if (!order.deliveredAt) {
+      order.deliveredAt = order.deliveryDate || now;
+    }
+    if (order.status === 'delivery_proof_submitted') {
+      order.status = 'delivered';
+    }
+    await order.save();
+    const populated = await baseOrderQuery().findById(order._id);
+    await ensureOrderProductSlugs([populated]);
+    await invalidateOrderCachesForMutation({
+      customerId: order.customer,
+      sellerIds: (order.items || []).map((item) => resolveItemShopId(item))
+    });
+    return res.json({
+      message: 'Livraison plateforme validée automatiquement. Aucune confirmation client requise.',
+      order: buildOrderResponse(populated)
+    });
   }
   if (req.body?.confirm === false) {
     return res.status(400).json({

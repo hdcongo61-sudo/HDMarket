@@ -41,6 +41,7 @@ import usePullToRefresh from '../hooks/usePullToRefresh';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { getPickupShopAddress, isPickupOrder as resolvePickupOrder } from '../utils/pickupAddress';
+import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
@@ -513,7 +514,21 @@ const SellerMobileOrderCard = ({
           </div>
           {order.deliveryGuy && (
             <div className="flex items-center gap-1 text-xs text-gray-600">
-              <Truck className="w-3.5 h-3.5" />
+              <div className="h-5 w-5 overflow-hidden rounded-full bg-gray-200">
+                {resolveDeliveryGuyProfileImage(order.deliveryGuy) ? (
+                  <img
+                    src={resolveDeliveryGuyProfileImage(order.deliveryGuy)}
+                    alt={order.deliveryGuy.name || 'Livreur'}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-[9px] font-semibold text-gray-600">
+                    {String(order.deliveryGuy.name || 'L').charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+              <Truck className="h-3.5 w-3.5" />
               <span>{order.deliveryGuy.name}</span>
             </div>
           )}

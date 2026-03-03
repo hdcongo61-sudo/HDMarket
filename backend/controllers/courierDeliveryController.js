@@ -31,6 +31,40 @@ const pickFirstText = (...values) => {
   }
   return '';
 };
+const resolveDeliveryGuyProfileImage = (deliveryGuy = {}) =>
+  pickFirstText(
+    deliveryGuy?.photoUrl,
+    deliveryGuy?.profileImage,
+    deliveryGuy?.userId?.shopLogo
+  );
+const toPublicDeliveryGuy = (value = {}) => {
+  if (!value || typeof value !== 'object') return value;
+  const raw = value?.toObject ? value.toObject() : value;
+  const userObject = raw?.userId && typeof raw.userId === 'object' ? raw.userId : null;
+  const fullName = pickFirstText(raw?.fullName, raw?.name);
+  const isActive =
+    typeof raw?.isActive === 'boolean'
+      ? raw.isActive
+      : typeof raw?.active === 'boolean'
+      ? raw.active
+      : true;
+  const profileImage = resolveDeliveryGuyProfileImage(raw);
+  return {
+    ...raw,
+    userId: userObject?._id || raw?.userId || null,
+    fullName,
+    name: fullName,
+    photoUrl: profileImage,
+    profileImage,
+    isActive,
+    active: isActive
+  };
+};
+const DELIVERY_GUY_POPULATE = {
+  path: 'assignedDeliveryGuyId',
+  select: '_id userId fullName name phone isActive active photoUrl',
+  populate: { path: 'userId', select: '_id name shopLogo' }
+};
 const hashPinCode = (value = '') =>
   crypto
     .createHash('sha256')
@@ -79,6 +113,29 @@ const decryptDeliveryPin = (payload = '') => {
   }
 };
 
+const resolveVisibleDeliveryPin = ({
+  encryptedPin = '',
+  legacyDeliveryCode = '',
+  exposeDeliveryPin = true,
+  pinExpired = false,
+  terminalStatus = false
+} = {}) => {
+  if (!exposeDeliveryPin || pinExpired || terminalStatus) return '';
+
+  const decrypted = decryptDeliveryPin(encryptedPin);
+  if (decrypted) return decrypted;
+
+  // Backward compatibility for legacy records that stored plain numeric PIN directly.
+  const legacyEncrypted = normalizeText(encryptedPin);
+  if (/^\d{4,8}$/.test(legacyEncrypted)) return legacyEncrypted;
+
+  // Fallback to historical order delivery code when no platform PIN is available.
+  const fallbackCode = normalizeText(legacyDeliveryCode);
+  if (/^\d{4,8}$/.test(fallbackCode)) return fallbackCode;
+
+  return '';
+};
+
 const STAGE_TO_ORDER_STATUS = Object.freeze({
   ASSIGNED: 'REQUESTED',
   ACCEPTED: 'ACCEPTED',
@@ -115,6 +172,17 @@ const appendTimeline = (requestDoc, event) => {
     meta: event.meta && typeof event.meta === 'object' ? event.meta : {}
   });
   requestDoc.timeline = timeline;
+};
+
+const hasProofContent = (proof = {}) => {
+  const submittedAt = proof?.submittedAt ? new Date(proof.submittedAt) : null;
+  const hasValidSubmittedAt = submittedAt instanceof Date && !Number.isNaN(submittedAt.getTime());
+  return Boolean(
+    hasValidSubmittedAt ||
+      normalizeText(proof?.photoUrl || '') ||
+      normalizeText(proof?.signatureUrl || '') ||
+      normalizeText(proof?.note || '')
+  );
 };
 
 const getManagerRecipients = async (runtime) => {
@@ -218,6 +286,84 @@ const updateOrderPlatformDeliveryState = async ({
     payload.deliveryGuy = deliveryGuyId || null;
   }
   await Order.updateOne({ _id: orderId }, { $set: payload });
+
+  const normalizedStage = normalizeStage(stage) || 'ASSIGNED';
+  if (normalizedStage === 'DELIVERED') {
+    const deliveredAtExpr = {
+      $ifNull: ['$deliveredAt', { $ifNull: ['$deliveryDate', '$$NOW'] }]
+    };
+    await Promise.all([
+      // Non-installment orders: surface "delivered" across seller/client order pages.
+      Order.updateOne(
+        {
+          _id: orderId,
+          paymentType: { $ne: 'installment' },
+          status: { $nin: ['cancelled', 'completed', 'confirmed_by_client', 'picked_up_confirmed'] }
+        },
+        [
+          {
+            $set: {
+              status: 'delivered',
+              outForDeliveryAt: { $ifNull: ['$outForDeliveryAt', '$$NOW'] },
+              shippedAt: { $ifNull: ['$shippedAt', '$$NOW'] },
+              deliverySubmittedAt: { $ifNull: ['$deliverySubmittedAt', '$$NOW'] },
+              deliveryDate: { $ifNull: ['$deliveryDate', '$$NOW'] },
+              deliveredAt: deliveredAtExpr,
+              deliveryStatus: 'verified',
+              clientDeliveryConfirmedAt: { $ifNull: ['$clientDeliveryConfirmedAt', '$$NOW'] }
+            }
+          }
+        ]
+      ),
+      // Installment orders keep status "completed" and use installmentSaleStatus for delivery state.
+      Order.updateOne(
+        {
+          _id: orderId,
+          paymentType: 'installment',
+          status: 'completed',
+          installmentSaleStatus: { $nin: ['delivered', 'cancelled'] }
+        },
+        [
+          {
+            $set: {
+              installmentSaleStatus: 'delivered',
+              outForDeliveryAt: { $ifNull: ['$outForDeliveryAt', '$$NOW'] },
+              shippedAt: { $ifNull: ['$shippedAt', '$$NOW'] },
+              deliverySubmittedAt: { $ifNull: ['$deliverySubmittedAt', '$$NOW'] },
+              deliveryDate: { $ifNull: ['$deliveryDate', '$$NOW'] },
+              deliveredAt: deliveredAtExpr,
+              deliveryStatus: 'verified',
+              clientDeliveryConfirmedAt: { $ifNull: ['$clientDeliveryConfirmedAt', '$$NOW'] }
+            }
+          }
+        ]
+      )
+    ]);
+    return;
+  }
+
+  const shouldMarkSellerOrderInDelivery = ['PICKED_UP', 'IN_TRANSIT', 'ARRIVED'].includes(normalizedStage);
+  if (!shouldMarkSellerOrderInDelivery) return;
+
+  // Keep seller-side order status in sync for platform courier flow after pickup proof.
+  await Order.updateOne(
+    {
+      _id: orderId,
+      paymentType: { $ne: 'installment' },
+      status: {
+        $nin: ['cancelled', 'completed', 'delivered', 'delivery_proof_submitted', 'confirmed_by_client', 'picked_up_confirmed']
+      }
+    },
+    [
+      {
+        $set: {
+          status: 'out_for_delivery',
+          outForDeliveryAt: { $ifNull: ['$outForDeliveryAt', '$$NOW'] },
+          shippedAt: { $ifNull: ['$shippedAt', '$$NOW'] }
+        }
+      }
+    ]
+  );
 };
 
 const toCourierItems = (requestDoc = {}) => {
@@ -347,10 +493,13 @@ const toCourierAssignment = (requestDoc = {}, locationMaps = null, options = {})
   const terminalStatus = ['REJECTED', 'CANCELED', 'DELIVERED', 'FAILED'].includes(
     String(raw.status || '').toUpperCase()
   );
-  const decryptedPin =
-    exposeDeliveryPin && !pinExpired && !terminalStatus
-      ? decryptDeliveryPin(raw.deliveryPinCodeEncrypted)
-      : '';
+  const visibleDeliveryPin = resolveVisibleDeliveryPin({
+    encryptedPin: raw.deliveryPinCodeEncrypted,
+    legacyDeliveryCode: rawOrder?.deliveryCode,
+    exposeDeliveryPin,
+    pinExpired,
+    terminalStatus
+  });
   return {
     _id: raw._id,
     orderId: raw.orderId?._id || raw.orderId,
@@ -361,7 +510,8 @@ const toCourierAssignment = (requestDoc = {}, locationMaps = null, options = {})
           platformDeliveryStatus: rawOrder.platformDeliveryStatus || '',
           deliveryMode: rawOrder.deliveryMode || '',
           deliveryAddress: rawOrder.deliveryAddress || '',
-          deliveryCity: rawOrder.deliveryCity || ''
+          deliveryCity: rawOrder.deliveryCity || '',
+          deliveryCode: rawOrder.deliveryCode || ''
         }
       : null,
     status: String(raw.status || '').toUpperCase(),
@@ -394,7 +544,7 @@ const toCourierAssignment = (requestDoc = {}, locationMaps = null, options = {})
     assignmentAcceptedAt: raw.assignmentAcceptedAt || null,
     assignmentRejectedAt: raw.assignmentRejectedAt || null,
     assignmentRejectReason: raw.assignmentRejectReason || '',
-    deliveryPinCode: decryptedPin || '',
+    deliveryPinCode: visibleDeliveryPin || '',
     deliveryPinCodeExpiresAt: pinExpiresAt || null,
     timeline: Array.isArray(raw.timeline) ? raw.timeline : [],
     createdAt: raw.createdAt,
@@ -524,7 +674,7 @@ const resolveCourierContext = async (req, { requireAgentFlag = true, allowAdminP
     const userDigits = normalizePhoneToDigits(userPhone);
     if (userDigits.length >= 8) {
       const candidates = await DeliveryGuy.find({ phone: { $exists: true, $ne: '' } })
-        .select('_id userId fullName name phone isActive active')
+        .select('_id userId fullName name phone isActive active photoUrl')
         .lean();
       deliveryGuy = candidates.find(
         (dg) => normalizePhoneToDigits(dg?.phone || '') === userDigits
@@ -591,11 +741,11 @@ const loadCourierAssignmentById = async (requestId) =>
   DeliveryRequest.findById(requestId)
     .populate(
       'orderId',
-      '_id status deliveryMode deliveryAddress deliveryCity platformDeliveryStatus shippingAddressSnapshot'
+      '_id status deliveryMode deliveryAddress deliveryCity deliveryCode platformDeliveryStatus shippingAddressSnapshot'
     )
     .populate('sellerId', '_id name shopName phone city commune')
     .populate('buyerId', '_id name phone city commune address')
-    .populate('assignedDeliveryGuyId', '_id userId fullName name phone isActive active');
+    .populate(DELIVERY_GUY_POPULATE);
 
 export const listCourierAssignments = asyncHandler(async (req, res) => {
   const allowAdminPreview = !isStrictDeliveryPortalRequest(req);
@@ -645,7 +795,7 @@ export const listCourierAssignments = asyncHandler(async (req, res) => {
     from.setHours(0, 0, 0, 0);
     const to = new Date();
     to.setHours(23, 59, 59, 999);
-    filter.createdAt = { $gte: from, $lte: to };
+    filter.updatedAt = { $gte: from, $lte: to };
   }
 
   const pageNumber = Math.max(1, Number(page) || 1);
@@ -654,16 +804,16 @@ export const listCourierAssignments = asyncHandler(async (req, res) => {
 
   const [items, total] = await Promise.all([
     DeliveryRequest.find(filter)
-      .sort({ createdAt: -1 })
+      .sort({ updatedAt: -1, createdAt: -1 })
       .skip(skip)
       .limit(pageSize)
       .populate(
         'orderId',
-        '_id status deliveryMode deliveryAddress deliveryCity platformDeliveryStatus shippingAddressSnapshot'
+        '_id status deliveryMode deliveryAddress deliveryCity deliveryCode platformDeliveryStatus shippingAddressSnapshot'
       )
       .populate('sellerId', '_id name shopName phone city commune')
       .populate('buyerId', '_id name phone city commune address')
-      .populate('assignedDeliveryGuyId', '_id userId fullName name phone isActive active')
+      .populate(DELIVERY_GUY_POPULATE)
       .lean(),
     DeliveryRequest.countDocuments(filter)
   ]);
@@ -1097,6 +1247,12 @@ export const uploadCourierProof = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Accès refusé à cette demande.' });
   }
 
+  if (proofType === 'delivery' && !hasProofContent(assignment.pickupProof || {})) {
+    return res.status(409).json({
+      message: 'Soumettez d’abord la preuve de pickup avant la preuve de livraison.'
+    });
+  }
+
   const files = req.files || {};
   const photoFile = Array.isArray(files.photos) ? files.photos[0] : null;
   const signatureFile = Array.isArray(files.signatureFile) ? files.signatureFile[0] : null;
@@ -1221,7 +1377,8 @@ export const getCourierModeBootstrap = asyncHandler(async (req, res) => {
     const availableDeliveryGuys = await DeliveryGuy.find({
       $or: [{ isActive: true }, { active: true }]
     })
-      .select('_id fullName name phone cityId communes')
+      .select('_id userId fullName name phone cityId communes photoUrl')
+      .populate('userId', '_id name shopLogo')
       .sort({ fullName: 1, name: 1 })
       .limit(200)
       .lean();
@@ -1229,24 +1386,40 @@ export const getCourierModeBootstrap = asyncHandler(async (req, res) => {
       enabled: Boolean(runtime.enableDeliveryAgents),
       previewMode: true,
       deliveryGuy: null,
-      availableDeliveryGuys: availableDeliveryGuys.map((entry) => ({
-        _id: entry._id,
-        fullName: entry.fullName || entry.name || '',
-        phone: entry.phone || '',
-        cityId: entry.cityId || null,
-        communes: Array.isArray(entry.communes) ? entry.communes : []
-      }))
+      availableDeliveryGuys: availableDeliveryGuys.map((entry) => {
+        const publicEntry = toPublicDeliveryGuy(entry);
+        return {
+          _id: publicEntry?._id || entry?._id,
+          fullName: publicEntry?.fullName || '',
+          phone: publicEntry?.phone || '',
+          cityId: publicEntry?.cityId || entry?.cityId || null,
+          communes: Array.isArray(publicEntry?.communes)
+            ? publicEntry.communes
+            : Array.isArray(entry?.communes)
+            ? entry.communes
+            : [],
+          photoUrl: publicEntry?.photoUrl || '',
+          profileImage: publicEntry?.profileImage || ''
+        };
+      })
     });
   }
+  const publicDeliveryGuy = toPublicDeliveryGuy(deliveryGuy);
   return res.json({
     enabled: Boolean(runtime.enableDeliveryAgents),
     previewMode: false,
     deliveryGuy: {
-      _id: deliveryGuy._id,
-      fullName: deliveryGuy.fullName || deliveryGuy.name || '',
-      phone: deliveryGuy.phone || '',
-      cityId: deliveryGuy.cityId || null,
-      communes: Array.isArray(deliveryGuy.communes) ? deliveryGuy.communes : []
+      _id: publicDeliveryGuy?._id || deliveryGuy._id,
+      fullName: publicDeliveryGuy?.fullName || '',
+      phone: publicDeliveryGuy?.phone || '',
+      cityId: publicDeliveryGuy?.cityId || deliveryGuy.cityId || null,
+      communes: Array.isArray(publicDeliveryGuy?.communes)
+        ? publicDeliveryGuy.communes
+        : Array.isArray(deliveryGuy.communes)
+        ? deliveryGuy.communes
+        : [],
+      photoUrl: publicDeliveryGuy?.photoUrl || '',
+      profileImage: publicDeliveryGuy?.profileImage || ''
     }
   });
 });
@@ -1256,6 +1429,7 @@ export const getDeliveryAgentMe = asyncHandler(async (req, res) => {
     allowAdminPreview: false,
     requireAgentFlag: true
   });
+  const publicDeliveryGuy = toPublicDeliveryGuy(deliveryGuy);
   return res.json({
     role: String(req.user?.role || '').toLowerCase(),
     permissions: Array.isArray(req.user?.permissions) ? req.user.permissions : [],
@@ -1269,11 +1443,17 @@ export const getDeliveryAgentMe = asyncHandler(async (req, res) => {
       locationLockOnStatus: String(runtime.locationLockOnStatus || 'DELIVERED')
     },
     deliveryGuy: {
-      _id: deliveryGuy._id,
-      fullName: deliveryGuy.fullName || deliveryGuy.name || '',
-      phone: deliveryGuy.phone || '',
-      cityId: deliveryGuy.cityId || null,
-      communes: Array.isArray(deliveryGuy.communes) ? deliveryGuy.communes : []
+      _id: publicDeliveryGuy?._id || deliveryGuy._id,
+      fullName: publicDeliveryGuy?.fullName || '',
+      phone: publicDeliveryGuy?.phone || '',
+      cityId: publicDeliveryGuy?.cityId || deliveryGuy.cityId || null,
+      communes: Array.isArray(publicDeliveryGuy?.communes)
+        ? publicDeliveryGuy.communes
+        : Array.isArray(deliveryGuy.communes)
+        ? deliveryGuy.communes
+        : [],
+      photoUrl: publicDeliveryGuy?.photoUrl || '',
+      profileImage: publicDeliveryGuy?.profileImage || ''
     }
   });
 });

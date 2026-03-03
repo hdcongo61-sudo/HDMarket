@@ -41,6 +41,7 @@ import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/mo
 import { buildShopPath } from '../utils/links';
 import useIsMobile from '../hooks/useIsMobile';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { resolveUserProfileImage } from '../utils/userAvatar';
 
 const STATS_PERIOD_OPTIONS = [
   { value: '7', label: '7j' },
@@ -318,6 +319,8 @@ export default function Profile() {
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [error, setError] = useState('');
+  const [profileImageFile, setProfileImageFile] = useState(null);
+  const [profileImagePreview, setProfileImagePreview] = useState('');
   const [shopLogoFile, setShopLogoFile] = useState(null);
   const [shopLogoPreview, setShopLogoPreview] = useState('');
   const [shopBannerFile, setShopBannerFile] = useState(null);
@@ -441,6 +444,9 @@ export default function Profile() {
 
   useEffect(
     () => () => {
+      if (profileImagePreview && profileImagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(profileImagePreview);
+      }
       if (shopLogoPreview && shopLogoPreview.startsWith('blob:')) {
         URL.revokeObjectURL(shopLogoPreview);
       }
@@ -448,7 +454,7 @@ export default function Profile() {
         URL.revokeObjectURL(shopBannerPreview);
       }
     },
-    [shopLogoPreview, shopBannerPreview]
+    [profileImagePreview, shopLogoPreview, shopBannerPreview]
   );
 
   useEffect(() => {
@@ -473,6 +479,7 @@ export default function Profile() {
       commune: user.commune || '',
       gender: user.gender || ''
     }));
+    setProfileImagePreview(resolveUserProfileImage(user));
     setShopLogoPreview(user.shopLogo || '');
     setShopBannerPreview(user.shopBanner || '');
     setShopHours(hydrateShopHoursFromUser(user.shopHours));
@@ -756,6 +763,25 @@ export default function Profile() {
       return;
     }
     setForm((prev) => ({ ...prev, [name]: nextValue }));
+  };
+
+  const onProfileImageChange = (e) => {
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    setProfileImageFile(file);
+    if (file) {
+      if (profileImagePreview && profileImagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(profileImagePreview);
+      }
+      setProfileImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const removeProfileImage = () => {
+    if (profileImagePreview && profileImagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(profileImagePreview);
+    }
+    setProfileImageFile(null);
+    setProfileImagePreview('');
   };
 
   const onLogoChange = (e) => {
@@ -1193,6 +1219,10 @@ export default function Profile() {
       }));
       payload.append('name', form.name);
       payload.append('email', form.email);
+      payload.append(
+        'profileImage',
+        profileImagePreview && !profileImageFile ? profileImagePreview : ''
+      );
       payload.append('accountType', form.accountType);
       payload.append('city', form.city);
       payload.append('commune', form.commune || '');
@@ -1211,6 +1241,9 @@ export default function Profile() {
           payload.append('shopBanner', shopBannerFile);
         }
         payload.append('shopHours', JSON.stringify(normalizedShopHours));
+      }
+      if (profileImageFile) {
+        payload.append('profileImage', profileImageFile);
       }
 
       const { data } = await api.put('/users/profile', payload, {
@@ -1235,6 +1268,8 @@ export default function Profile() {
         commune: data.commune || '',
         gender: data.gender || ''
       }));
+      setProfileImagePreview(data.profileImage || '');
+      setProfileImageFile(null);
       setShopLogoPreview(data.shopLogo || '');
       setShopLogoFile(null);
       setShopBannerPreview(data.shopBanner || '');
@@ -1275,9 +1310,17 @@ export default function Profile() {
       <div className="max-w-6xl mx-auto px-4 py-6">
         {/* En-tête */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-neutral-900 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <User className="w-10 h-10 text-white" />
-          </div>
+          {profileImagePreview ? (
+            <img
+              src={profileImagePreview}
+              alt={form.name || 'Profil'}
+              className="mx-auto mb-4 h-20 w-20 rounded-2xl object-cover ring-2 ring-neutral-200"
+            />
+          ) : (
+            <div className="w-20 h-20 bg-neutral-900 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <User className="w-10 h-10 text-white" />
+            </div>
+          )}
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Mon Profil</h1>
           <p className="text-gray-500">Gérez vos informations et consultez vos statistiques</p>
           {user?.address ? (
@@ -1400,6 +1443,48 @@ export default function Profile() {
                     Section utilisateur
                   </span>
                   <span className="text-xs text-gray-500">Informations personnelles et de contact</span>
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
+                  <label className="mb-3 flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <Camera className="h-4 w-4 text-neutral-700" />
+                    <span>Photo de profil</span>
+                  </label>
+                  <div className="flex flex-wrap items-center gap-4">
+                    {profileImagePreview ? (
+                      <img
+                        src={profileImagePreview}
+                        alt={form.name || 'Profil'}
+                        className="h-16 w-16 rounded-xl object-cover ring-1 ring-gray-200"
+                      />
+                    ) : (
+                      <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-gray-200 text-lg font-semibold text-gray-500">
+                        {String(form.name || 'U').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        <Upload className="h-4 w-4" />
+                        Changer
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={onProfileImageChange}
+                          className="hidden"
+                          disabled={loading}
+                        />
+                      </label>
+                      {profileImagePreview ? (
+                        <button
+                          type="button"
+                          onClick={removeProfileImage}
+                          className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                          disabled={loading}
+                        >
+                          Supprimer
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
                 {/* Informations de base */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

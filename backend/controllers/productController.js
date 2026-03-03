@@ -34,6 +34,10 @@ import {
   validateWholesaleConfig
 } from '../utils/wholesaleUtils.js';
 import { getSellerResponseStats } from '../utils/sellerResponseStats.js';
+import {
+  hasVerifiedPaymentForProduct,
+  withVerifiedPublicProductFilter
+} from '../utils/publicProductVisibility.js';
 
 const MAX_PRODUCT_IMAGES = 3;
 const SHOP_SELECT_FIELDS =
@@ -1016,7 +1020,8 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   }
 
   const blockedSellerIds = await getBlockedSellerIdsSet();
-  const activeFilter = applyBlockedUsersToFilter(filter, blockedSellerIds);
+  const baseActiveFilter = applyBlockedUsersToFilter(filter, blockedSellerIds);
+  const activeFilter = await withVerifiedPublicProductFilter(baseActiveFilter);
   const shouldApplyLocationPriority = locationPriorityEnabled && Boolean(userCity);
   const baseSort = { boosted: -1, boostScore: -1 };
   
@@ -1326,7 +1331,8 @@ export const getTopSales = asyncHandler(async (req, res) => {
   const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 12));
   const skip = (page - 1) * limit;
 
-  const filter = { status: 'approved', salesCount: { $gt: 0 } };
+  const baseFilter = { status: 'approved', salesCount: { $gt: 0 } };
+  const filter = await withVerifiedPublicProductFilter(baseFilter);
 
   const [itemsRaw, total] = await Promise.all([
     Product.find(filter)
@@ -1455,13 +1461,14 @@ export const getTopSalesTodayByCity = asyncHandler(async (req, res) => {
     .map((id) => new mongoose.Types.ObjectId(id));
 
   const blockedSellerIds = await getBlockedSellerIdsSet();
-  const productFilter = applyBlockedUsersToFilter(
+  const baseProductFilter = applyBlockedUsersToFilter(
     {
       _id: { $in: productIds },
       status: 'approved'
     },
     blockedSellerIds
   );
+  const productFilter = await withVerifiedPublicProductFilter(baseProductFilter);
 
   const itemsRaw = await Product.find(productFilter).lean();
   await Product.populate(itemsRaw, { path: 'user', select: SHOP_SELECT_FIELDS });
@@ -1535,7 +1542,8 @@ export const getPublicHighlights = asyncHandler(async (req, res) => {
 
   const baseFilter = { status: 'approved' };
   const blockedSellerIds = await getBlockedSellerIdsSet();
-  const activeBaseFilter = applyBlockedUsersToFilter(baseFilter, blockedSellerIds);
+  const baseActiveFilter = applyBlockedUsersToFilter(baseFilter, blockedSellerIds);
+  const activeBaseFilter = await withVerifiedPublicProductFilter(baseActiveFilter);
 
   const favoritesRaw = await Product.find(activeBaseFilter)
     .sort({ favoritesCount: -1, createdAt: -1 })
@@ -1586,10 +1594,11 @@ export const getPublicHighlights = asyncHandler(async (req, res) => {
   const ratingCandidateIds = topRatingStats.map((stat) => stat._id);
   let ratingProductsRaw = [];
   if (ratingCandidateIds.length) {
-    const ratingFilter = applyBlockedUsersToFilter(
+    const baseRatingFilter = applyBlockedUsersToFilter(
       { _id: { $in: ratingCandidateIds }, status: 'approved' },
       blockedSellerIds
     );
+    const ratingFilter = await withVerifiedPublicProductFilter(baseRatingFilter);
     ratingProductsRaw = await Product.find(ratingFilter).lean();
   }
 
@@ -1703,14 +1712,15 @@ export const getPublicInstallmentProducts = asyncHandler(async (req, res) => {
     },
     blockedSellerIds
   );
+  const visibleFilter = await withVerifiedPublicProductFilter(baseFilter);
 
   const [itemsRaw, total] = await Promise.all([
-    Product.find(baseFilter)
+    Product.find(visibleFilter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean(),
-    Product.countDocuments(baseFilter)
+    Product.countDocuments(visibleFilter)
   ]);
 
   await Product.populate(itemsRaw, { path: 'user', select: SHOP_SELECT_FIELDS });
@@ -1793,14 +1803,15 @@ export const getPublicWholesaleProducts = asyncHandler(async (req, res) => {
   }
 
   const baseFilter = applyBlockedUsersToFilter(filter, blockedSellerIds);
+  const visibleFilter = await withVerifiedPublicProductFilter(baseFilter);
 
   const [itemsRaw, total] = await Promise.all([
-    Product.find(baseFilter)
+    Product.find(visibleFilter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean(),
-    Product.countDocuments(baseFilter)
+    Product.countDocuments(visibleFilter)
   ]);
 
   await Product.populate(itemsRaw, { path: 'user', select: SHOP_SELECT_FIELDS });
@@ -1856,7 +1867,7 @@ export const getPublicPickupOnlyProducts = asyncHandler(async (req, res) => {
   const skip = (page - 1) * limit;
 
   const blockedSellerIds = await getBlockedSellerIdsSet();
-  const filter = applyBlockedUsersToFilter(
+  const baseFilter = applyBlockedUsersToFilter(
     {
       status: 'approved',
       deliveryAvailable: false,
@@ -1864,6 +1875,7 @@ export const getPublicPickupOnlyProducts = asyncHandler(async (req, res) => {
     },
     blockedSellerIds
   );
+  const filter = await withVerifiedPublicProductFilter(baseFilter);
 
   const [itemsRaw, total] = await Promise.all([
     Product.find(filter)
@@ -1922,11 +1934,10 @@ export const getPublicPickupOnlyProducts = asyncHandler(async (req, res) => {
 
 export const getPublicProductById = asyncHandler(async (req, res) => {
   const query = buildIdentifierQuery(req.params.id);
-  const productDoc = await Product.findOne(query)
-    .select('-payment')
-    .populate('user', SHOP_SELECT_FIELDS);
+  const productDoc = await Product.findOne(query).populate('user', SHOP_SELECT_FIELDS);
   await ensureProductSlug(productDoc);
-  if (!productDoc || productDoc.status !== 'approved') {
+  const hasVerifiedPayment = await hasVerifiedPaymentForProduct(productDoc?.payment);
+  if (!productDoc || productDoc.status !== 'approved' || !hasVerifiedPayment) {
     return res.status(404).json({ message: 'Produit introuvable ou non publié.' });
   }
 
@@ -1947,6 +1958,7 @@ export const getPublicProductById = asyncHandler(async (req, res) => {
     : { average: 0, count: 0 };
 
   const product = withCategoryCompatibility(productDoc);
+  delete product.payment;
   product.commentCount = commentCount;
   product.ratingAverage = rating.average;
   product.ratingCount = rating.count;
@@ -1977,8 +1989,9 @@ export const registerPublicProductView = asyncHandler(async (req, res) => {
     ...buildIdentifierQuery(req.params.id),
     status: 'approved'
   };
-  const product = await Product.findOne(query).select('_id viewsCount uniqueViewsCount lastViewedAt');
-  if (!product) {
+  const product = await Product.findOne(query).select('_id payment viewsCount uniqueViewsCount lastViewedAt');
+  const hasVerifiedPayment = await hasVerifiedPaymentForProduct(product?.payment);
+  if (!product || !hasVerifiedPayment) {
     return res.status(404).json({ message: 'Produit introuvable ou non publié.' });
   }
 

@@ -21,6 +21,7 @@ import {
   normalizeTransactionCode,
   TRANSACTION_CODE_REUSED_MESSAGE
 } from '../utils/transactionCodeService.js';
+import { getVerifiedProductIds } from '../utils/publicProductVisibility.js';
 
 const ensureObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -38,7 +39,11 @@ const baseOrderQuery = () =>
       select: 'title price images status user slug',
       populate: { path: 'user', select: 'name shopName phone' }
     })
-    .populate('deliveryGuy', 'name phone active')
+    .populate({
+      path: 'deliveryGuy',
+      select: 'name fullName phone active isActive photoUrl userId',
+      populate: { path: 'userId', select: '_id name shopLogo' }
+    })
     .populate('createdBy', 'name email');
 
 const collectOrderProductRefs = (orders = []) => {
@@ -99,9 +104,22 @@ const buildOrderResponse = (order) => {
     deliveryGuy: obj.deliveryGuy
       ? {
           _id: obj.deliveryGuy._id,
-          name: obj.deliveryGuy.name,
+          name: obj.deliveryGuy.fullName || obj.deliveryGuy.name,
           phone: obj.deliveryGuy.phone,
-          active: obj.deliveryGuy.active
+          active:
+            typeof obj.deliveryGuy.active === 'boolean'
+              ? obj.deliveryGuy.active
+              : Boolean(obj.deliveryGuy.isActive),
+          photoUrl:
+            obj.deliveryGuy.photoUrl ||
+            obj.deliveryGuy.profileImage ||
+            obj.deliveryGuy.userId?.shopLogo ||
+            '',
+          profileImage:
+            obj.deliveryGuy.photoUrl ||
+            obj.deliveryGuy.profileImage ||
+            obj.deliveryGuy.userId?.shopLogo ||
+            ''
         }
       : null,
     installmentProgress
@@ -231,10 +249,12 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
     return res.status(409).json({ message: TRANSACTION_CODE_REUSED_MESSAGE });
   }
 
-  const [customer, product] = await Promise.all([
+  const [customer, product, verifiedProductIds] = await Promise.all([
     User.findById(userId).select('name email phone address city commune restrictions'),
-    Product.findById(productId).populate('user', 'shopName name slug accountType shopAddress city commune')
+    Product.findById(productId).populate('user', 'shopName name slug accountType shopAddress city commune'),
+    getVerifiedProductIds()
   ]);
+  const verifiedProductSet = new Set(verifiedProductIds.map((id) => String(id)));
 
   if (!customer) {
     return res.status(404).json({ message: 'Client introuvable.' });
@@ -245,7 +265,11 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
       restrictionType: 'canOrder'
     });
   }
-  if (!product || product.status !== 'approved') {
+  if (
+    !product ||
+    product.status !== 'approved' ||
+    !verifiedProductSet.has(String(product._id || ''))
+  ) {
     return res.status(404).json({ message: 'Produit introuvable ou non disponible.' });
   }
   if (!isProductInstallmentActive(product)) {

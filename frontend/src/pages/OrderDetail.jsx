@@ -40,6 +40,7 @@ import AuthContext from '../context/AuthContext';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { getPickupShopAddress, isPickupOrder } from '../utils/pickupAddress';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
@@ -143,6 +144,10 @@ const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
 const getEffectiveOrderStatus = (order) => {
   if (!order) return 'pending';
+  const platformAutoConfirmed =
+    (Boolean(order.platformDeliveryRequestId) ||
+      String(order.platformDeliveryMode || '').toUpperCase() === 'PLATFORM_DELIVERY') &&
+    String(order.platformDeliveryStatus || '').toUpperCase() === 'DELIVERED';
   if (order.paymentType === 'installment' && order.status === 'completed') {
     return order.installmentSaleStatus || 'confirmed';
   }
@@ -150,7 +155,10 @@ const getEffectiveOrderStatus = (order) => {
     pending: 'pending_payment',
     confirmed: 'ready_for_delivery',
     delivering: 'out_for_delivery',
-    delivered: order.deliveryStatus === 'submitted' ? 'delivery_proof_submitted' : 'delivered'
+    delivered:
+      order.deliveryStatus === 'submitted' && !platformAutoConfirmed
+        ? 'delivery_proof_submitted'
+        : 'delivered'
   };
   return map[order.status] || order.status || 'pending_payment';
 };
@@ -584,6 +592,11 @@ export default function OrderDetail() {
   const statusStyle = STATUS_STYLES[effectiveOrderStatus] || STATUS_STYLES.pending;
   const pickupOrder = isPickupOrder(order);
   const pickupShopAddress = pickupOrder ? getPickupShopAddress(order) : null;
+  const platformDeliveryAutoConfirmed =
+    (Boolean(order.platformDeliveryRequestId) ||
+      String(order.platformDeliveryMode || '').toUpperCase() === 'PLATFORM_DELIVERY') &&
+    String(order.platformDeliveryStatus || '').toUpperCase() === 'DELIVERED';
+  const deliveryConfirmationDone = order.deliveryStatus === 'verified' || platformDeliveryAutoConfirmed;
   const statusTimelineEntries = [
     { key: 'created', label: 'Créée', icon: Calendar, time: order.createdAt },
     { key: 'confirmed', label: 'Confirmée', icon: Package, time: order.confirmedAt },
@@ -752,10 +765,26 @@ export default function OrderDetail() {
                     </>
                   )}
                   {!pickupOrder && order.deliveryGuy && (
-                    <div className="mt-3 pt-3 border-t border-gray-200 text-xs">
-                      <Truck className="w-3 h-3 text-neutral-600 inline mr-1" />
-                      <span className="font-semibold">Livreur:</span> {order.deliveryGuy.name || 'Non assigné'}
-                      {order.deliveryGuy.phone && ` • ${order.deliveryGuy.phone}`}
+                    <div className="mt-3 flex items-center gap-2 border-t border-gray-200 pt-3 text-xs">
+                      <div className="h-7 w-7 overflow-hidden rounded-full bg-gray-200">
+                        {resolveDeliveryGuyProfileImage(order.deliveryGuy) ? (
+                          <img
+                            src={resolveDeliveryGuyProfileImage(order.deliveryGuy)}
+                            alt={order.deliveryGuy.name || 'Livreur'}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-gray-600">
+                            {String(order.deliveryGuy.name || 'L').charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <Truck className="mr-1 inline h-3 w-3 text-neutral-600" />
+                        <span className="font-semibold">Livreur:</span> {order.deliveryGuy.name || 'Non assigné'}
+                        {order.deliveryGuy.phone && ` • ${order.deliveryGuy.phone}`}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -779,7 +808,7 @@ export default function OrderDetail() {
                 <p className="text-sm text-gray-700">
                   Statut:{' '}
                   <span className="font-semibold">
-                    {order.deliveryStatus === 'verified'
+                    {deliveryConfirmationDone
                       ? 'Livraison confirmée'
                       : 'Soumise par le vendeur (en attente de votre confirmation)'}
                   </span>
@@ -819,7 +848,7 @@ export default function OrderDetail() {
                     />
                   </div>
                 )}
-                {order.deliveryStatus !== 'verified' && (
+                {!deliveryConfirmationDone && (
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"

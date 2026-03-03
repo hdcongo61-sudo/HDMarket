@@ -5,6 +5,10 @@ import Product from '../models/productModel.js';
 import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
 import { getWholesalePricing, normalizeWholesaleTiers } from '../utils/wholesaleUtils.js';
 import { invalidateUserCache } from '../utils/cache.js';
+import {
+  getVerifiedProductIds,
+  hasVerifiedPaymentForProduct
+} from '../utils/publicProductVisibility.js';
 
 const productSelectFields =
   'title price discount priceBeforeDiscount images status category user city country whatsappClicks slug installmentEnabled installmentMinAmount installmentDuration installmentStartDate installmentEndDate installmentRequireGuarantor wholesaleEnabled wholesaleTiers deliveryAvailable pickupAvailable deliveryFee deliveryFeeEnabled';
@@ -18,9 +22,18 @@ const getItemProductId = (item) => {
 
 const sanitizeCart = async (cart) => {
   if (!cart) return null;
+  const verifiedProductIds = await getVerifiedProductIds();
+  const verifiedProductSet = new Set(verifiedProductIds.map((id) => String(id)));
   let modified = false;
   cart.items = cart.items.filter((item) => {
     if (!item.product) {
+      modified = true;
+      return false;
+    }
+    const productId = String(item.product?._id || item.product || '');
+    const isApproved = String(item.product?.status || '') === 'approved';
+    const hasVerifiedPayment = productId && verifiedProductSet.has(productId);
+    if (!isApproved || !hasVerifiedPayment) {
       modified = true;
       return false;
     }
@@ -158,8 +171,9 @@ export const addItem = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Quantity must be greater than zero' });
   }
 
-  const product = await Product.findById(productId).select('status');
-  if (!product || product.status !== 'approved') {
+  const product = await Product.findById(productId).select('status payment');
+  const hasVerifiedPayment = await hasVerifiedPaymentForProduct(product?.payment);
+  if (!product || product.status !== 'approved' || !hasVerifiedPayment) {
     return res.status(404).json({ message: 'Product unavailable' });
   }
 

@@ -10,6 +10,7 @@ import BaseModal from '../components/modals/BaseModal';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement',
@@ -1745,13 +1746,46 @@ export default function AdminOrders() {
                   <option value="">Assigner un livreur</option>
                   {deliveryGuys.map((deliveryGuy) => (
                     <option key={deliveryGuy._id} value={deliveryGuy._id}>
-                      {deliveryGuy.name}
+                      {deliveryGuy.fullName || deliveryGuy.name}
                     </option>
                   ))}
                 </select>
                 {deliveryGuysError && (
                   <p className="mt-2 text-xs text-red-500">{deliveryGuysError}</p>
                 )}
+                {assignDeliveryGuyId ? (
+                  <div className="mt-2 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5">
+                    {(() => {
+                      const selectedDeliveryGuy = deliveryGuys.find(
+                        (entry) => String(entry._id) === String(assignDeliveryGuyId)
+                      );
+                      if (!selectedDeliveryGuy) return null;
+                      return (
+                        <>
+                          <div className="h-7 w-7 overflow-hidden rounded-full bg-gray-200">
+                            {resolveDeliveryGuyProfileImage(selectedDeliveryGuy) ? (
+                              <img
+                                src={resolveDeliveryGuyProfileImage(selectedDeliveryGuy)}
+                                alt={selectedDeliveryGuy.name || selectedDeliveryGuy.fullName || 'Livreur'}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-gray-600">
+                                {String(selectedDeliveryGuy.name || selectedDeliveryGuy.fullName || 'L')
+                                  .charAt(0)
+                                  .toUpperCase()}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-700">
+                            {selectedDeliveryGuy.name || selectedDeliveryGuy.fullName || 'Livreur'}
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                ) : null}
                 {assignError && <p className="mt-2 text-xs text-red-500">{assignError}</p>}
               </div>
 
@@ -2521,9 +2555,23 @@ export default function AdminOrders() {
                         <p className="text-[11px] uppercase tracking-wide text-gray-500">
                           Livreur
                         </p>
-                        <p className="text-xs text-gray-700">
-                          {order.deliveryGuy?.name || 'Non assigné'}
-                        </p>
+                        <div className="mt-1 flex items-center gap-2 text-xs text-gray-700">
+                          <div className="h-6 w-6 overflow-hidden rounded-full bg-gray-200">
+                            {resolveDeliveryGuyProfileImage(order.deliveryGuy) ? (
+                              <img
+                                src={resolveDeliveryGuyProfileImage(order.deliveryGuy)}
+                                alt={order.deliveryGuy?.name || 'Livreur'}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-[9px] font-semibold text-gray-600">
+                                {String(order.deliveryGuy?.name || 'L').charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                          </div>
+                          <p>{order.deliveryGuy?.name || 'Non assigné'}</p>
+                        </div>
                         <button
                           type="button"
                           onClick={() => openAssignModal(order)}
@@ -2765,8 +2813,22 @@ export default function AdminOrders() {
                             <div className="text-[11px] uppercase tracking-wide text-gray-500">
                               Livreur
                             </div>
-                            <div className="text-xs text-gray-700">
-                              {order.deliveryGuy?.name || 'Non assigné'}
+                            <div className="mt-1 flex items-center gap-2 text-xs text-gray-700">
+                              <div className="h-5 w-5 overflow-hidden rounded-full bg-gray-200">
+                                {resolveDeliveryGuyProfileImage(order.deliveryGuy) ? (
+                                  <img
+                                    src={resolveDeliveryGuyProfileImage(order.deliveryGuy)}
+                                    alt={order.deliveryGuy?.name || 'Livreur'}
+                                    className="h-full w-full object-cover"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center text-[9px] font-semibold text-gray-600">
+                                    {String(order.deliveryGuy?.name || 'L').charAt(0).toUpperCase()}
+                                  </div>
+                                )}
+                              </div>
+                              <span>{order.deliveryGuy?.name || 'Non assigné'}</span>
                             </div>
                             <button
                               type="button"

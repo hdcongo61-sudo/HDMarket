@@ -12,6 +12,7 @@ import { buildProductPath, buildShopPath } from "../utils/links";
 import { getCachedSearch, setCachedSearch } from "../utils/searchCache.js";
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import { hasAnyPermission } from "../utils/permissions";
+import { resolveUserProfileImage } from "../utils/userAvatar";
 import { useAppSettings } from "../context/AppSettingsContext";
 import categoryGroups from "../data/categories";
 import {
@@ -3042,11 +3043,19 @@ export default function Navbar() {
               ) : (
                 <div className="relative group">
                   <button className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:ring-offset-2 dark:focus:ring-offset-gray-900">
-                    <div className="w-8 h-8 bg-gradient-to-br from-neutral-700 to-neutral-900 rounded-full flex items-center justify-center shadow-inner">
-                      <span className="text-white font-semibold text-sm">
-                        {user.name?.charAt(0)?.toUpperCase() || 'U'}
-                      </span>
-                    </div>
+                    {resolveUserProfileImage(user) ? (
+                      <img
+                        src={resolveUserProfileImage(user)}
+                        alt={user.name || t('nav.user', 'Utilisateur')}
+                        className="h-8 w-8 rounded-full object-cover ring-1 ring-black/5 dark:ring-white/10"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 bg-gradient-to-br from-neutral-700 to-neutral-900 rounded-full flex items-center justify-center shadow-inner">
+                        <span className="text-white font-semibold text-sm">
+                          {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                        </span>
+                      </div>
+                    )}
                     <span className="font-medium text-gray-700 dark:text-gray-200 max-w-24 truncate hidden lg:block">
                       {user.name || t('nav.myAccount', 'Mon compte')}
                     </span>
@@ -3058,9 +3067,17 @@ export default function Navbar() {
                     {/* User header (fixed at top) */}
                     <div className="flex-shrink-0 p-4 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800/80 dark:to-gray-800 border-b border-gray-100 dark:border-gray-700">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-neutral-600 to-neutral-800 flex items-center justify-center text-white font-bold text-lg shadow-md flex-shrink-0">
-                          {user.name?.charAt(0)?.toUpperCase() || 'U'}
-                        </div>
+                        {resolveUserProfileImage(user) ? (
+                          <img
+                            src={resolveUserProfileImage(user)}
+                            alt={user.name || t('nav.user', 'Utilisateur')}
+                            className="h-12 w-12 rounded-xl object-cover ring-1 ring-black/5 dark:ring-white/10 flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-neutral-600 to-neutral-800 flex items-center justify-center text-white font-bold text-lg shadow-md flex-shrink-0">
+                            {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                          </div>
+                        )}
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold text-gray-900 dark:text-white truncate">
                             {user.name || t('nav.user', 'Utilisateur')}
@@ -3085,7 +3102,7 @@ export default function Navbar() {
                               if (typeof window !== 'undefined') {
                                 window.localStorage.setItem('hdmarket:courier-view-mode', 'normal');
                               }
-                              if (isCourierRoute) navigate('/my');
+                              if (isCourierRoute) navigate('/');
                             }}
                             className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
                               !isCourierRoute
@@ -4056,7 +4073,7 @@ export default function Navbar() {
                             if (typeof window !== 'undefined') {
                               window.localStorage.setItem('hdmarket:courier-view-mode', 'normal');
                             }
-                            if (isCourierRoute) navigate('/my');
+                            if (isCourierRoute) navigate('/');
                             setIsMenuOpen(false);
                           }}
                           className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-semibold transition-colors ${

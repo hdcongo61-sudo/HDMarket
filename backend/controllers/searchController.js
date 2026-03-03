@@ -5,6 +5,7 @@ import User from '../models/userModel.js';
 import Rating from '../models/ratingModel.js';
 import SearchAnalytics from '../models/searchAnalyticsModel.js';
 import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
+import { withVerifiedPublicProductFilter } from '../utils/publicProductVisibility.js';
 
 export const globalSearch = asyncHandler(async (req, res) => {
   const { 
@@ -105,8 +106,9 @@ export const globalSearch = asyncHandler(async (req, res) => {
   }
 
   // Combine base filter with OR filters
+  const visibleBaseProductFilter = await withVerifiedPublicProductFilter(baseProductFilter);
   const productFilter = {
-    ...baseProductFilter,
+    ...visibleBaseProductFilter,
     $or: orFilters
   };
 
@@ -144,20 +146,22 @@ export const globalSearch = asyncHandler(async (req, res) => {
   );
 
   // Get product counts for shops
-  const shopProductCounts = shopUserIds.length > 0 ? await Product.aggregate([
-    {
-      $match: {
-        user: { $in: shopUserIds },
-        status: { $ne: 'disabled' }
-      }
-    },
-    {
-      $group: {
-        _id: '$user',
-        count: { $sum: 1 }
-      }
-    }
-  ]) : [];
+  const shopProductCounts = shopUserIds.length
+    ? await Product.aggregate([
+        {
+          $match: await withVerifiedPublicProductFilter({
+            user: { $in: shopUserIds },
+            status: 'approved'
+          })
+        },
+        {
+          $group: {
+            _id: '$user',
+            count: { $sum: 1 }
+          }
+        }
+      ])
+    : [];
 
   const shopProductCountMap = new Map(
     shopProductCounts.map((stat) => [String(stat._id), stat.count])
@@ -273,7 +277,8 @@ export const getSearchCategories = asyncHandler(async (req, res) => {
     return res.json(Array.from(new Set(categories)).sort());
   }
 
-  const legacyCategories = await Product.distinct('category', { status: 'approved' });
+  const legacyCategoriesFilter = await withVerifiedPublicProductFilter({ status: 'approved' });
+  const legacyCategories = await Product.distinct('category', legacyCategoriesFilter);
   const sortedLegacyCategories = legacyCategories.filter(Boolean).sort();
   return res.json(sortedLegacyCategories);
 });

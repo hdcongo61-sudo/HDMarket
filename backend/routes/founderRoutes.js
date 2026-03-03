@@ -1,12 +1,17 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
+import Joi from 'joi';
 import { founderIntelligence } from '../controllers/founderAnalyticsController.js';
 import {
+  founderHardDeleteAccount,
   forceLogoutUser,
   forcePasswordResetUser,
+  listFounderDeletionCandidates,
   listFounderAuditLogs,
+  listFounderPhoneBlacklist,
   lockUserAccount,
   promoteAdmin,
+  reverseFounderPhoneBlacklist,
   revokeAdmin,
   unlockUserAccount
 } from '../controllers/founderController.js';
@@ -35,6 +40,39 @@ const founderIntelligenceLimiter = rateLimit({
 
 router.get('/intelligence', founderIntelligenceLimiter, protect, requireFounder, requirePermission('access_founder_analytics'), founderIntelligence);
 router.get('/audit-logs', founderLimiter, protect, requireFounder, requirePermission('view_logs'), listFounderAuditLogs);
+router.get('/deletion-candidates', founderLimiter, protect, requireFounder, requirePermission('founder_override'), listFounderDeletionCandidates);
+router.get('/phone-blacklist', founderLimiter, protect, requireFounder, requirePermission('founder_override'), listFounderPhoneBlacklist);
+router.post(
+  '/hard-delete/:id',
+  founderLimiter,
+  protect,
+  requireFounder,
+  requirePermission('founder_override'),
+  validate(schemas.idParam, 'params'),
+  validate(
+    Joi.object({
+      reason: Joi.string().trim().min(3).max(500).required(),
+      entityType: Joi.string().valid('user', 'shop').optional()
+    }),
+    'body'
+  ),
+  founderHardDeleteAccount
+);
+router.post(
+  '/phone-blacklist/:id/reverse',
+  founderLimiter,
+  protect,
+  requireFounder,
+  requirePermission('founder_override'),
+  validate(schemas.idParam, 'params'),
+  validate(
+    Joi.object({
+      reason: Joi.string().trim().max(500).allow('', null).optional()
+    }),
+    'body'
+  ),
+  reverseFounderPhoneBlacklist
+);
 router.post('/promote-admin/:id', protect, requireFounder, requirePermission('assign_roles'), validate(schemas.idParam, 'params'), promoteAdmin);
 router.post('/revoke-admin/:id', protect, requireFounder, requirePermission('revoke_roles'), validate(schemas.idParam, 'params'), revokeAdmin);
 router.post('/lock-user/:id', protect, requireFounder, requirePermission('lock_accounts'), validate(schemas.idParam, 'params'), lockUserAccount);

@@ -3,6 +3,7 @@ import api from '../services/api';
 import { Plus, Save, Edit3, Trash2, Phone, Truck, Search, Users, UserPlus, UserMinus, AlertCircle, Loader2 } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
 
 export default function AdminDeliveryGuys() {
   const { user } = useContext(AuthContext);
@@ -14,6 +15,7 @@ export default function AdminDeliveryGuys() {
   const [saving, setSaving] = useState(false);
   const [formState, setFormState] = useState({
     name: '',
+    photoUrl: '',
     phone: '',
     active: true,
     cityId: '',
@@ -138,7 +140,16 @@ export default function AdminDeliveryGuys() {
   }, [loadManagers]);
 
   const resetForm = () => {
-    setFormState({ name: '', phone: '', active: true, cityId: '', communes: [], vehicleType: '', notes: '' });
+    setFormState({
+      name: '',
+      photoUrl: '',
+      phone: '',
+      active: true,
+      cityId: '',
+      communes: [],
+      vehicleType: '',
+      notes: ''
+    });
     setEditingId(null);
   };
 
@@ -151,6 +162,7 @@ export default function AdminDeliveryGuys() {
       if (editingId) {
         await api.patch(`/admin/delivery-guys/${editingId}`, {
           fullName: formState.name.trim(),
+          photoUrl: String(formState.photoUrl || '').trim(),
           phone: formState.phone.trim(),
           active: formState.active,
           cityId: formState.cityId || null,
@@ -161,6 +173,7 @@ export default function AdminDeliveryGuys() {
       } else {
         await api.post('/admin/delivery-guys', {
           fullName: formState.name.trim(),
+          photoUrl: String(formState.photoUrl || '').trim(),
           phone: formState.phone.trim(),
           active: formState.active,
           cityId: formState.cityId || null,
@@ -182,6 +195,7 @@ export default function AdminDeliveryGuys() {
     setEditingId(deliveryGuy._id);
     setFormState({
       name: deliveryGuy.fullName || deliveryGuy.name || '',
+      photoUrl: deliveryGuy.profileImage || deliveryGuy.photoUrl || '',
       phone: deliveryGuy.phone || '',
       active: Boolean(deliveryGuy.isActive ?? deliveryGuy.active),
       cityId: deliveryGuy.cityId?._id || deliveryGuy.cityId || '',
@@ -419,7 +433,7 @@ export default function AdminDeliveryGuys() {
         <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
           {editingId ? 'Modifier un livreur' : 'Ajouter un livreur'}
         </h2>
-        <form className="mt-4 grid gap-4 md:grid-cols-[1.2fr_1fr_auto]" onSubmit={handleSubmit}>
+        <form className="mt-4 grid gap-4 md:grid-cols-[1.2fr_1fr_1.2fr_auto]" onSubmit={handleSubmit}>
           <div>
             <label className="text-xs font-semibold uppercase text-gray-500">Nom</label>
             <input
@@ -442,6 +456,16 @@ export default function AdminDeliveryGuys() {
                 placeholder="06 000 00 00"
               />
             </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold uppercase text-gray-500">Photo profil (URL)</label>
+            <input
+              type="text"
+              value={formState.photoUrl}
+              onChange={(e) => setFormState((prev) => ({ ...prev, photoUrl: e.target.value }))}
+              className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+              placeholder="https://..."
+            />
           </div>
           <div className="flex flex-col justify-end gap-2">
             <label className="flex items-center gap-2 text-sm text-gray-600">
@@ -589,28 +613,44 @@ export default function AdminDeliveryGuys() {
                 key={deliveryGuy._id}
                 className="flex flex-wrap items-center justify-between gap-3 py-3"
               >
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-gray-900">{deliveryGuy.fullName || deliveryGuy.name}</p>
-                  <p className="text-xs text-gray-500">{deliveryGuy.phone || 'Téléphone non renseigné'}</p>
-                  <p className="text-xs text-gray-500">
-                    {deliveryGuy.cityId?.name || 'Ville non assignée'}
-                    {Array.isArray(deliveryGuy.communes) && deliveryGuy.communes.length > 0
-                      ? ` · ${deliveryGuy.communes
-                          .map((entry) => entry?.name || '')
-                          .filter(Boolean)
-                          .join(', ')}`
-                      : ''}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
-                    <span className="rounded-full bg-gray-100 px-2 py-0.5">
-                      Assignées: {deliveryGuy.stats?.totalAssigned || 0}
-                    </span>
-                    <span className="rounded-full bg-neutral-100/70 px-2 py-0.5 text-neutral-700">
-                      En cours: {deliveryGuy.stats?.delivering || 0}
-                    </span>
-                    <span className="rounded-full bg-emerald-100/70 px-2 py-0.5 text-emerald-700">
-                      Livrées: {deliveryGuy.stats?.delivered || 0}
-                    </span>
+                <div className="flex items-start gap-3">
+                  <div className="h-11 w-11 overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200">
+                    {resolveDeliveryGuyProfileImage(deliveryGuy) ? (
+                      <img
+                        src={resolveDeliveryGuyProfileImage(deliveryGuy)}
+                        alt={deliveryGuy.fullName || deliveryGuy.name || 'Livreur'}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-gray-500">
+                        {String(deliveryGuy.fullName || deliveryGuy.name || 'L').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-gray-900">{deliveryGuy.fullName || deliveryGuy.name}</p>
+                    <p className="text-xs text-gray-500">{deliveryGuy.phone || 'Téléphone non renseigné'}</p>
+                    <p className="text-xs text-gray-500">
+                      {deliveryGuy.cityId?.name || 'Ville non assignée'}
+                      {Array.isArray(deliveryGuy.communes) && deliveryGuy.communes.length > 0
+                        ? ` · ${deliveryGuy.communes
+                            .map((entry) => entry?.name || '')
+                            .filter(Boolean)
+                            .join(', ')}`
+                        : ''}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5">
+                        Assignées: {deliveryGuy.stats?.totalAssigned || 0}
+                      </span>
+                      <span className="rounded-full bg-neutral-100/70 px-2 py-0.5 text-neutral-700">
+                        En cours: {deliveryGuy.stats?.delivering || 0}
+                      </span>
+                      <span className="rounded-full bg-emerald-100/70 px-2 py-0.5 text-emerald-700">
+                        Livrées: {deliveryGuy.stats?.delivered || 0}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

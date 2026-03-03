@@ -1,6 +1,7 @@
 import asyncHandler from 'express-async-handler';
 import jwt from 'jsonwebtoken';
 import User from '../models/userModel.js';
+import PhoneBlacklist from '../models/phoneBlacklistModel.js';
 import { sanitizeShopHours } from '../utils/shopHours.js';
 import { resolvePermissionsForUser } from '../services/rbacService.js';
 import { blacklistToken } from '../services/sessionSecurityService.js';
@@ -28,6 +29,7 @@ const buildAuthResponse = (user, token) => ({
   role: user.role,
   permissions: resolvePermissionsForUser(user),
   accountType: user.accountType,
+  profileImage: user.profileImage || null,
   shopVerified: Boolean(user.shopVerified),
   shopName: user.shopName || null,
   shopAddress: user.shopAddress || null,
@@ -132,6 +134,18 @@ export const register = asyncHandler(async (req, res) => {
   const phoneCandidates = buildPhoneCandidates(trimmedPhone);
   const phoneTaken = await User.findOne({ phone: { $in: phoneCandidates } });
   if (phoneTaken) return res.status(400).json({ message: 'Téléphone déjà utilisé' });
+  const blacklistedPhone = await PhoneBlacklist.findOne({
+    isActive: true,
+    $or: [{ phoneNormalized: normalizedPhone }, { phoneVariants: { $in: phoneCandidates } }]
+  })
+    .select('_id')
+    .lean();
+  if (blacklistedPhone) {
+    return res.status(403).json({
+      message: "Ce numéro est blacklisté et ne peut plus créer de compte.",
+      code: 'PHONE_BLACKLISTED'
+    });
+  }
 
   // Verify code using email (skipped in production or when email not configured)
   const normalizedRole = role === 'admin' ? 'admin' : role === 'manager' ? 'manager' : 'user';

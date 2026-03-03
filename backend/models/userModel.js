@@ -45,6 +45,7 @@ const userSchema = new mongoose.Schema(
     preferredCurrency: { type: String, default: 'XAF', trim: true, uppercase: true },
     preferredCity: { type: String, default: '', trim: true },
     theme: { type: String, enum: ['light', 'dark', 'system'], default: 'system' },
+    profileImage: { type: String, trim: true, default: '' },
     address: { type: String, trim: true, default: '' },
     /** Geolocation for simple user (person) - delivery address position [longitude, latitude] */
     location: {

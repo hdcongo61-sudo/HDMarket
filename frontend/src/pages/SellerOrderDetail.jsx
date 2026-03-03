@@ -39,6 +39,7 @@ import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { getPickupShopAddress, isPickupOrder as resolvePickupOrder } from '../utils/pickupAddress';
+import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
@@ -441,13 +442,33 @@ export default function SellerOrderDetail() {
 
   const handleRequestPlatformDelivery = async () => {
     if (!order?._id) return;
-    const rawInvoiceUrl = String(requestPlatformDeliveryInvoiceUrl || '').trim();
+    const fallbackInvoiceUrl = (() => {
+      if (typeof window === 'undefined' || !order?._id) return '';
+      const host = String(window.location.hostname || '').trim().toLowerCase();
+      const looksLikeIpv4 = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host);
+      if (!host || (host !== 'localhost' && !host.includes('.') && !looksLikeIpv4)) {
+        return '';
+      }
+      return `${window.location.origin}/orders/detail/${order._id}`;
+    })();
+    const rawInvoiceUrl = String(requestPlatformDeliveryInvoiceUrl || fallbackInvoiceUrl || '').trim();
     const normalizedInvoiceUrl = (() => {
       if (!rawInvoiceUrl) return '';
       if (/^https?:\/\//i.test(rawInvoiceUrl)) return rawInvoiceUrl;
       // Accept domain-like values typed by sellers and normalize them.
       return `https://${rawInvoiceUrl}`;
     })();
+
+    const totalAmount = Number(order.totalAmount || 0);
+    const paidAmount = Number(order.paidAmount || 0);
+    const remainingAmount = Number(order.remainingAmount ?? Math.max(0, totalAmount - paidAmount));
+    const settlementInstruction = remainingAmount > 0
+      ? `Montant restant a collecter: ${formatCurrency(remainingAmount)}. Faire signer la facture par le client a la livraison.`
+      : 'Faire signer la facture par le client a la livraison.';
+    const sellerNote = String(requestPlatformDeliveryNote || '').trim();
+    const mergedNote = sellerNote
+      ? `${sellerNote}\n\n${settlementInstruction}`
+      : settlementInstruction;
 
     if (requireInvoiceForPlatformDelivery && !normalizedInvoiceUrl) {
       const message = 'URL facture requise pour envoyer la demande.';
@@ -479,8 +500,8 @@ export default function SellerOrderDetail() {
     setRequestPlatformDeliveryError('');
     try {
       const payload = {
-        note: String(requestPlatformDeliveryNote || '').trim(),
-        pickupInstructions: String(requestPlatformDeliveryNote || '').trim(),
+        note: mergedNote,
+        pickupInstructions: mergedNote,
         invoiceUrl: normalizedInvoiceUrl
       };
       const { data } = await api.post(`/orders/${order._id}/request-delivery`, payload);
@@ -626,13 +647,20 @@ export default function SellerOrderDetail() {
     order.status === 'completed' &&
     !['delivered', 'cancelled'].includes(installmentSaleStatus);
   const normalizedOrderStatusForTimeline = (() => {
+    const platformAutoConfirmed =
+      (Boolean(order.platformDeliveryRequestId) ||
+        String(order.platformDeliveryMode || '').toUpperCase() === 'PLATFORM_DELIVERY') &&
+      String(order.platformDeliveryStatus || '').toUpperCase() === 'DELIVERED';
     const map = {
       pending: 'pending_payment',
       ready_for_pickup: 'ready_for_delivery',
       picked_up_confirmed: 'delivered',
       confirmed: 'ready_for_delivery',
       delivering: 'out_for_delivery',
-      delivered: order.deliveryStatus === 'submitted' ? 'delivery_proof_submitted' : 'delivered'
+      delivered:
+        order.deliveryStatus === 'submitted' && !platformAutoConfirmed
+          ? 'delivery_proof_submitted'
+          : 'delivered'
     };
     return map[order.status] || order.status;
   })();
@@ -663,6 +691,9 @@ export default function SellerOrderDetail() {
   const supportsPlatformDeliveryForOrder =
     String(order.deliveryMode || '').toUpperCase() === 'DELIVERY';
   const hasPlatformDeliveryRequest = Boolean(order.platformDeliveryRequestId);
+  const platformDeliveryAutoConfirmed =
+    (hasPlatformDeliveryRequest || String(order.platformDeliveryMode || '').toUpperCase() === 'PLATFORM_DELIVERY') &&
+    platformDeliveryStatus === 'DELIVERED';
   const canManageDeliveryPin =
     platformDeliveryEnabled &&
     deliveryPinEnabled &&
@@ -830,10 +861,26 @@ export default function SellerOrderDetail() {
                   </>
                 )}
                 {!isPickupOrder && order.deliveryGuy && (
-                  <div className="mt-3 pt-3 border-t border-gray-200 text-xs">
-                    <Truck className="w-3 h-3 text-neutral-600 inline mr-1" />
-                    <span className="font-semibold">Livreur:</span> {order.deliveryGuy.name || 'Non assigné'}
-                    {order.deliveryGuy.phone && ` • ${order.deliveryGuy.phone}`}
+                  <div className="mt-3 flex items-center gap-2 border-t border-gray-200 pt-3 text-xs">
+                    <div className="h-7 w-7 overflow-hidden rounded-full bg-gray-200">
+                      {resolveDeliveryGuyProfileImage(order.deliveryGuy) ? (
+                        <img
+                          src={resolveDeliveryGuyProfileImage(order.deliveryGuy)}
+                          alt={order.deliveryGuy.name || 'Livreur'}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-gray-600">
+                          {String(order.deliveryGuy.name || 'L').charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <Truck className="mr-1 inline h-3 w-3 text-neutral-600" />
+                      <span className="font-semibold">Livreur:</span> {order.deliveryGuy.name || 'Non assigné'}
+                      {order.deliveryGuy.phone && ` • ${order.deliveryGuy.phone}`}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1079,7 +1126,7 @@ export default function SellerOrderDetail() {
               />
             )}
 
-            {!isInstallmentOrder && order.deliveryStatus === 'submitted' && (
+            {!isInstallmentOrder && order.deliveryStatus === 'submitted' && !platformDeliveryAutoConfirmed && (
               <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 space-y-2">
                 <p className="text-sm font-semibold text-neutral-900">
                   Preuve de livraison soumise. En attente de confirmation du client.
@@ -1402,7 +1449,21 @@ export default function SellerOrderDetail() {
                     {!requestPlatformDeliveryOpen ? (
                       <button
                         type="button"
-                        onClick={() => setRequestPlatformDeliveryOpen(true)}
+                        onClick={() => {
+                          const defaultInvoiceUrl = (() => {
+                            if (typeof window === 'undefined' || !order?._id) return '';
+                            const host = String(window.location.hostname || '').trim().toLowerCase();
+                            const looksLikeIpv4 = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host);
+                            if (!host || (host !== 'localhost' && !host.includes('.') && !looksLikeIpv4)) {
+                              return '';
+                            }
+                            return `${window.location.origin}/orders/detail/${order._id}`;
+                          })();
+                          if (!String(requestPlatformDeliveryInvoiceUrl || '').trim() && defaultInvoiceUrl) {
+                            setRequestPlatformDeliveryInvoiceUrl(defaultInvoiceUrl);
+                          }
+                          setRequestPlatformDeliveryOpen(true);
+                        }}
                         className="inline-flex items-center gap-2 rounded-xl border border-blue-300 bg-white px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
                       >
                         <Truck size={12} />
@@ -1413,7 +1474,7 @@ export default function SellerOrderDetail() {
                         <input
                           value={requestPlatformDeliveryInvoiceUrl}
                           onChange={(e) => setRequestPlatformDeliveryInvoiceUrl(e.target.value)}
-                          placeholder="URL facture (optionnel)"
+                          placeholder="URL facture (auto-remplie)"
                           className="w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-gray-800"
                         />
                         <textarea
@@ -1428,6 +1489,9 @@ export default function SellerOrderDetail() {
                             La configuration actuelle exige une URL de facture.
                           </p>
                         ) : null}
+                        <p className="text-[11px] text-blue-700">
+                          La facture sera transmise pour signature client et reglement du montant restant.
+                        </p>
                         {requestPlatformDeliveryError ? (
                           <p className="text-xs text-red-600">{requestPlatformDeliveryError}</p>
                         ) : null}

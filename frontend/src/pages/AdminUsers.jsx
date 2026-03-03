@@ -9,6 +9,7 @@ import BaseModal from '../components/modals/BaseModal';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import AuthContext from '../context/AuthContext';
 import { hasAnyPermission } from '../utils/permissions';
+import { resolveUserProfileImage } from '../utils/userAvatar';
 
 const RESTRICTION_TYPES = [
   { key: 'canComment', label: 'Commentaires', icon: MessageSquareOff, color: 'orange', shopOnly: false },
@@ -30,7 +31,51 @@ const roleLabels = {
   manager: 'Gestionnaire',
   delivery_agent: 'Livreur',
   founder: 'Fondateur',
-  seller: 'Vendeur'
+  seller: 'Vendeur',
+  support: 'Support',
+  finance: 'Finance',
+  verifier: 'Vérificateur',
+  payment_verifier: 'Vérificateur paiement'
+};
+
+const KNOWN_ROLE_ORDER = [
+  'founder',
+  'admin',
+  'manager',
+  'delivery_agent',
+  'seller',
+  'support',
+  'finance',
+  'verifier',
+  'payment_verifier',
+  'user'
+];
+
+const roleBadgeClasses = {
+  founder: 'bg-violet-100 text-violet-700',
+  admin: 'bg-rose-100 text-rose-700',
+  manager: 'bg-blue-100 text-blue-700',
+  delivery_agent: 'bg-cyan-100 text-cyan-700',
+  seller: 'bg-teal-100 text-teal-700',
+  support: 'bg-orange-100 text-orange-700',
+  finance: 'bg-emerald-100 text-emerald-700',
+  verifier: 'bg-fuchsia-100 text-fuchsia-700',
+  payment_verifier: 'bg-indigo-100 text-indigo-700',
+  user: 'bg-gray-100 text-gray-700'
+};
+
+const formatRoleLabel = (role) => {
+  const key = String(role || '').trim().toLowerCase();
+  if (!key) return 'Non défini';
+  if (roleLabels[key]) return roleLabels[key];
+  return key
+    .replaceAll('_', ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const getRoleBadgeClass = (role) => {
+  const key = String(role || '').trim().toLowerCase();
+  return roleBadgeClasses[key] || 'bg-gray-100 text-gray-700';
 };
 
 const formatNumber = (value) => {
@@ -166,6 +211,7 @@ export default function AdminUsers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [accountTypeFilter, setAccountTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
   const [restrictionFilter, setRestrictionFilter] = useState('all');
   const [conversionFilter, setConversionFilter] = useState('all');
   const [page, setPage] = useState(1);
@@ -287,6 +333,21 @@ export default function AdminUsers() {
     loadConversionRequests();
   }, [refreshKey]);
 
+  const roleFilterOptions = useMemo(() => {
+    const detectedRoles = new Set(
+      users.map((entry) => String(entry?.role || 'user').toLowerCase()).filter(Boolean)
+    );
+    const ordered = KNOWN_ROLE_ORDER.filter((role) => detectedRoles.has(role));
+    const extras = Array.from(detectedRoles)
+      .filter((role) => !KNOWN_ROLE_ORDER.includes(role))
+      .sort((a, b) => a.localeCompare(b));
+    return [
+      { value: 'all', label: 'Tous les rôles' },
+      ...ordered.map((role) => ({ value: role, label: formatRoleLabel(role) })),
+      ...extras.map((role) => ({ value: role, label: formatRoleLabel(role) }))
+    ];
+  }, [users]);
+
   const displayedUsers = useMemo(() => {
     let filtered = users;
 
@@ -295,6 +356,10 @@ export default function AdminUsers() {
       filtered = filtered.filter((user) => user.isBlocked);
     } else if (statusFilter === 'active') {
       filtered = filtered.filter((user) => !user.isBlocked);
+    }
+
+    if (roleFilter !== 'all') {
+      filtered = filtered.filter((user) => String(user.role || '').toLowerCase() === roleFilter);
     }
 
     // Restriction filter
@@ -320,28 +385,37 @@ export default function AdminUsers() {
     }
 
     return filtered;
-  }, [statusFilter, restrictionFilter, conversionFilter, users, conversionRequests]);
+  }, [statusFilter, roleFilter, restrictionFilter, conversionFilter, users, conversionRequests]);
 
   const stats = useMemo(() => {
     const total = users.length;
+    const active = users.filter((user) => !user.isBlocked).length;
     const blocked = users.filter((user) => user.isBlocked).length;
     const shops = users.filter((user) => user.accountType === 'shop').length;
     const restricted = users.filter((user) =>
       RESTRICTION_TYPES.some((rt) => user.restrictions?.[rt.key]?.isActive)
     ).length;
+    const roleBuckets = users.reduce((acc, user) => {
+      const key = String(user?.role || 'user').toLowerCase();
+      acc[key] = Number(acc[key] || 0) + 1;
+      return acc;
+    }, {});
     const pendingConversion = conversionRequests.length;
     return {
       total,
+      active,
       blocked,
       shops,
       restricted,
-      pendingConversion
+      pendingConversion,
+      roleBuckets,
+      deliveryAgents: Number(roleBuckets.delivery_agent || 0)
     };
   }, [users, conversionRequests]);
 
   useEffect(() => {
     setPage(1);
-  }, [accountTypeFilter, statusFilter, restrictionFilter, conversionFilter, searchTerm]);
+  }, [accountTypeFilter, statusFilter, roleFilter, restrictionFilter, conversionFilter, searchTerm]);
 
   useEffect(() => {
     if (!actionSuccess) return;
@@ -1265,67 +1339,121 @@ export default function AdminUsers() {
   ]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 space-y-6">
-      <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gestion des utilisateurs</h1>
-          <p className="text-sm text-gray-500">
-            Administrez les comptes, suspendez ou réactivez un utilisateur en cas d&apos;abuse.
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          {isFounder && canViewLogs && (
+    <div className="mx-auto max-w-7xl space-y-5 px-3 py-4 sm:px-5 md:px-6 lg:px-8">
+      <header className="rounded-3xl border border-gray-100 bg-white/90 p-4 shadow-sm backdrop-blur sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Admin Console</p>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+              Utilisateurs & Roles
+            </h1>
+            <p className="mt-1 text-sm text-gray-600">
+              Vue unifiee des comptes, permissions et operations sensibles.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-700">
+                {displayedUsers.length} visibles
+              </span>
+              {roleFilter !== 'all' ? (
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${getRoleBadgeClass(roleFilter)}`}>
+                  Filtre role: {formatRoleLabel(roleFilter)}
+                </span>
+              ) : null}
+              {searchTerm ? (
+                <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
+                  Recherche active
+                </span>
+              ) : null}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {isFounder && canViewLogs && (
+              <button
+                type="button"
+                onClick={openFounderAuditModal}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-sm font-semibold text-indigo-700 hover:bg-indigo-100"
+              >
+                <History size={16} />
+                Timeline founder
+              </button>
+            )}
+            <Link
+              to="/admin"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-700 hover:bg-gray-100"
+            >
+              <ArrowLeft size={16} />
+              Retour dashboard
+            </Link>
             <button
               type="button"
-              onClick={openFounderAuditModal}
-              className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
+              onClick={handleRefresh}
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
             >
-              <History size={16} />
-              Timeline founder
+              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+              Actualiser
             </button>
-          )}
-          <Link
-            to="/admin"
-            className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100"
-          >
-            <ArrowLeft size={16} />
-            Retour au tableau de bord
-          </Link>
-          <button
-            type="button"
-            onClick={handleRefresh}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-            Actualiser
-          </button>
+          </div>
         </div>
       </header>
 
-      <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <div className="rounded-lg border bg-white p-4 shadow-sm">
-          <p className="text-xs text-gray-500 uppercase tracking-wide">Utilisateurs totaux</p>
-          <p className="text-2xl font-semibold text-gray-900">{stats.total}</p>
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Total</p>
+          <p className="mt-1 text-2xl font-semibold text-gray-900">{stats.total}</p>
         </div>
-        <div className="rounded-lg border bg-white p-4 shadow-sm">
-          <p className="text-xs text-gray-500 uppercase tracking-wide">Boutiques</p>
-          <p className="text-2xl font-semibold text-gray-900">{stats.shops}</p>
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Actifs</p>
+          <p className="mt-1 text-2xl font-semibold text-emerald-700">{stats.active}</p>
         </div>
-        <div className="rounded-lg border bg-white p-4 shadow-sm">
-          <p className="text-xs text-gray-500 uppercase tracking-wide">Bloqués</p>
-          <p className="text-2xl font-semibold text-red-600">{stats.blocked}</p>
+        <div className="rounded-2xl border border-red-100 bg-red-50/70 p-4 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700">Suspendus</p>
+          <p className="mt-1 text-2xl font-semibold text-red-700">{stats.blocked}</p>
         </div>
-        <div className="rounded-lg border bg-white p-4 shadow-sm">
-          <p className="text-xs text-gray-500 uppercase tracking-wide">Avec restrictions</p>
-          <p className="text-2xl font-semibold text-amber-600">{stats.restricted}</p>
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Boutiques</p>
+          <p className="mt-1 text-2xl font-semibold text-gray-900">{stats.shops}</p>
         </div>
-        <div className="rounded-lg border bg-white p-4 shadow-sm">
-          <p className="text-xs text-gray-500 uppercase tracking-wide">Demandes boutique</p>
-          <p className="text-2xl font-semibold text-teal-600">{stats.pendingConversion}</p>
+        <div className="rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-700">Livreurs</p>
+          <p className="mt-1 text-2xl font-semibold text-cyan-700">{stats.deliveryAgents}</p>
+        </div>
+        <div className="rounded-2xl border border-teal-100 bg-teal-50/70 p-4 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-teal-700">Demandes shop</p>
+          <p className="mt-1 text-2xl font-semibold text-teal-700">{stats.pendingConversion}</p>
         </div>
       </section>
 
-      <section className="rounded-lg border bg-white p-4 shadow-sm space-y-4">
+      {roleFilterOptions.length > 1 ? (
+        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Repartition des roles</p>
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+            {roleFilterOptions
+              .filter((option) => option.value !== 'all')
+              .map((option) => {
+                const count = Number(stats.roleBuckets?.[option.value] || 0);
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setRoleFilter(option.value)}
+                    className={`inline-flex min-h-[36px] items-center gap-2 whitespace-nowrap rounded-full border px-3 text-xs font-semibold transition ${
+                      roleFilter === option.value
+                        ? `${getRoleBadgeClass(option.value)} border-transparent`
+                        : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <span>{option.label}</span>
+                    <span className="rounded-full bg-white/80 px-1.5 py-0.5 text-[10px] font-bold text-gray-700">
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="space-y-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
         <form
           onSubmit={handleSearchSubmit}
           className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between"
@@ -1394,6 +1522,22 @@ export default function AdminUsers() {
                 ))}
               </div>
               <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
+                {roleFilterOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setRoleFilter(option.value)}
+                    className={`flex-shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      roleFilter === option.value
+                        ? `${getRoleBadgeClass(option.value)} shadow`
+                        : 'border border-gray-200 bg-white text-gray-600'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
                 {restrictionFilterOptions.map((option) => (
                   <button
                     key={option.value}
@@ -1451,6 +1595,21 @@ export default function AdminUsers() {
                 ))}
               </select>
               <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className={`rounded-lg border px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400 ${
+                  roleFilter !== 'all'
+                    ? `${getRoleBadgeClass(roleFilter)} border-transparent`
+                    : 'border-gray-200 text-gray-700'
+                }`}
+              >
+                {roleFilterOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <select
                 value={restrictionFilter}
                 onChange={(e) => setRestrictionFilter(e.target.value)}
                 className={`rounded-lg border px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400 ${
@@ -1500,12 +1659,25 @@ export default function AdminUsers() {
                     user.shopLocationReviewStatus === 'rejected' ||
                     (Array.isArray(user.shopLocationReviewFlags) && user.shopLocationReviewFlags.length > 0));
                 return (
-                  <article key={user.id} className="space-y-3 rounded-2xl border border-gray-100 p-4 shadow-sm">
+                  <article key={user.id} className="space-y-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:shadow-md">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">{user.name}</p>
-                        <p className="text-xs text-gray-500 break-all">{user.email}</p>
-                        <p className="text-xs text-gray-400">{user.phone || '—'}</p>
+                      <div className="min-w-0 flex items-start gap-3">
+                        {resolveUserProfileImage(user) ? (
+                          <img
+                            src={resolveUserProfileImage(user)}
+                            alt={user.name || 'Utilisateur'}
+                            className="h-10 w-10 rounded-full object-cover ring-1 ring-gray-200"
+                          />
+                        ) : (
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-500">
+                            {String(user.name || 'U').charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-gray-900">{user.name}</p>
+                          <p className="break-all text-xs text-gray-500">{user.email}</p>
+                          <p className="text-xs text-gray-400">{user.phone || '—'}</p>
+                        </div>
                         {user.accountType === 'shop' && user.shopName ? (
                           <div className="text-xs space-y-1">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -1521,8 +1693,8 @@ export default function AdminUsers() {
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-2 text-xs text-gray-600">
-                      <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 font-semibold text-gray-700">
-                        {roleLabels[user.role] || user.role}
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-semibold ${getRoleBadgeClass(user.role)}`}>
+                        {formatRoleLabel(user.role)}
                       </span>
                       {isBlocked ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 font-semibold text-red-600">
@@ -1815,9 +1987,9 @@ export default function AdminUsers() {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-2xl border border-gray-100">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50/90">
                 <tr>
                   <th className="px-3 py-2 text-left font-semibold text-gray-600">Utilisateur</th>
                   <th className="px-3 py-2 text-left font-semibold text-gray-600">Type</th>
@@ -1854,10 +2026,22 @@ export default function AdminUsers() {
                     return (
                       <tr key={user.id} className="hover:bg-gray-50">
                         <td className="px-3 py-3">
-                          <div className="flex flex-col">
-                            <span className="font-medium text-gray-900">{user.name}</span>
-                            <span className="text-gray-500">{user.email}</span>
-                            <span className="text-gray-400 text-xs">{user.phone}</span>
+                          <div className="flex items-start gap-3">
+                            {resolveUserProfileImage(user) ? (
+                              <img
+                                src={resolveUserProfileImage(user)}
+                                alt={user.name || 'Utilisateur'}
+                                className="mt-0.5 h-10 w-10 rounded-full object-cover ring-1 ring-gray-200"
+                              />
+                            ) : (
+                              <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-500">
+                                {String(user.name || 'U').charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            <div className="flex min-w-0 flex-col">
+                              <span className="font-medium text-gray-900">{user.name}</span>
+                              <span className="text-gray-500">{user.email}</span>
+                              <span className="text-gray-400 text-xs">{user.phone}</span>
                             {user.accountType === 'shop' && user.shopName ? (
                               <div className="text-xs text-gray-500 mt-1 space-y-1">
                                 <span className="text-neutral-600 font-semibold">
@@ -1890,6 +2074,7 @@ export default function AdminUsers() {
                                 </p>
                               </div>
                             ) : null}
+                            </div>
                           </div>
                         </td>
                         <td className="px-3 py-3">
@@ -1903,8 +2088,8 @@ export default function AdminUsers() {
                           </div>
                         </td>
                         <td className="px-3 py-3">
-                          <span className="text-sm text-gray-700">
-                            {roleLabels[user.role] || user.role}
+                          <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${getRoleBadgeClass(user.role)}`}>
+                            {formatRoleLabel(user.role)}
                           </span>
                         </td>
                         <td className="px-3 py-3">
