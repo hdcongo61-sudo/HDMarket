@@ -21,6 +21,7 @@ const defaultOperatorPhones = {
   Airtel: '050237023',
   Other: null
 };
+const ALLOWED_PAYMENT_OPERATORS = new Set(['MTN', 'Airtel', 'Orange', 'Moov', 'Other']);
 
 const emptyCommission = (baseAmount) => ({
   baseAmount,
@@ -159,10 +160,20 @@ export default function PaymentForm({ product, onSubmitted }) {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (hasPayment) return;
+    if (hasPayment || loading) return;
 
     if (normalizedPromoCode && !isValidatedPromo) {
       alert('Veuillez valider le code promo avant de soumettre le paiement.');
+      return;
+    }
+
+    const payerName = String(form.payerName || '').trim();
+    if (hasCommissionDue && payerName.length < 2) {
+      alert('Le nom du payeur doit contenir au moins 2 caractères.');
+      return;
+    }
+    if (hasCommissionDue && !ALLOWED_PAYMENT_OPERATORS.has(form.operator)) {
+      alert('Veuillez sélectionner un opérateur valide.');
       return;
     }
 
@@ -186,9 +197,15 @@ export default function PaymentForm({ product, onSubmitted }) {
 
     setLoading(true);
     try {
+      const safeCommissionDue = Number(Number(commissionDue || 0).toFixed(2));
+      if (!Number.isFinite(safeCommissionDue) || safeCommissionDue < 0) {
+        alert('Montant de commission invalide. Veuillez actualiser la page.');
+        return;
+      }
+
       const payload = {
         productId: product._id,
-        amount: commissionDue
+        amount: safeCommissionDue
       };
 
       if (isValidatedPromo) {
@@ -196,7 +213,7 @@ export default function PaymentForm({ product, onSubmitted }) {
       }
 
       if (hasCommissionDue) {
-        payload.payerName = form.payerName;
+        payload.payerName = payerName;
         payload.operator = form.operator;
         payload.transactionNumber = digitsOnly;
       }
@@ -210,6 +227,13 @@ export default function PaymentForm({ product, onSubmitted }) {
       setLoading(false);
     }
   };
+
+  const isSubmitDisabled =
+    loading ||
+    (hasCommissionDue &&
+      (String(form.payerName || '').trim().length < 2 ||
+        !ALLOWED_PAYMENT_OPERATORS.has(form.operator) ||
+        String(form.transactionNumber || '').replace(/\D/g, '').length !== 10));
 
   const paymentStatusConfig = {
     waiting: {
@@ -536,7 +560,7 @@ export default function PaymentForm({ product, onSubmitted }) {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={isSubmitDisabled}
             className="w-full py-4 bg-gradient-to-r from-neutral-600 to-neutral-600 text-white font-semibold rounded-xl hover:from-neutral-700 hover:to-neutral-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 shadow-lg"
           >
             {loading ? (

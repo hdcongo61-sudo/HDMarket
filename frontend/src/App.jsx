@@ -12,6 +12,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import UserDashboard from './pages/UserDashboard';
+import MyListingDetail from './pages/MyListingDetail';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminPayments from './pages/AdminPayments';
 import AdminUsers from './pages/AdminUsers';
@@ -91,6 +92,8 @@ import { hasAnyPermission } from './utils/permissions';
 
 const LAST_ADMIN_ROUTE_KEY = 'hdmarket:last-admin-route';
 const LAST_COURIER_ROUTE_KEY = 'hdmarket:last-courier-route';
+const LAST_ORDERS_ROUTE_KEY = 'hdmarket:last-orders-route';
+const LAST_SELLER_ORDERS_ROUTE_KEY = 'hdmarket:last-seller-orders-route';
 const COURIER_VIEW_MODE_KEY = 'hdmarket:courier-view-mode';
 
 const getCourierViewMode = () => {
@@ -121,6 +124,47 @@ const normalizeStoredCourierRoute = (value = '') => {
   return normalized;
 };
 
+const normalizeStoredOrdersRoute = (value = '') => {
+  const normalized = String(value || '').trim();
+  if (!normalized.startsWith('/orders')) return '';
+  return normalized;
+};
+
+const normalizeStoredSellerOrdersRoute = (value = '') => {
+  const normalized = String(value || '').trim();
+  if (normalized.startsWith('/seller/orders') || normalized.startsWith('/seller/order')) {
+    return normalized;
+  }
+  return '';
+};
+
+const getRouteModule = (path = '') => {
+  const normalized = String(path || '').trim().toLowerCase();
+  if (!normalized) return '';
+  if (normalized.startsWith('/admin')) return 'admin';
+  if (normalized.startsWith('/delivery') || normalized.startsWith('/courier')) return 'courier';
+  if (normalized.startsWith('/orders') || normalized.startsWith('/order')) return 'orders';
+  if (normalized.startsWith('/seller/orders') || normalized.startsWith('/seller/order')) return 'seller-orders';
+  if (
+    normalized === '/my' ||
+    normalized.startsWith('/profile') ||
+    normalized.startsWith('/settings/preferences') ||
+    normalized.startsWith('/notifications') ||
+    normalized.startsWith('/favorites') ||
+    normalized.startsWith('/stats') ||
+    normalized.startsWith('/reclamations') ||
+    normalized.startsWith('/avis-amelioration')
+  ) {
+    return 'account';
+  }
+  return '';
+};
+
+const getPageTransitionKey = (path = '') => {
+  const moduleKey = getRouteModule(path);
+  return moduleKey ? `module:${moduleKey}` : path;
+};
+
 function LegacyOrderRouteResolver() {
   const { legacyValue = '' } = useParams();
   const value = String(legacyValue).trim();
@@ -136,6 +180,13 @@ function LegacyOrderRouteResolver() {
 }
 
 function AdminIndexRedirect() {
+  const stored =
+    typeof window !== 'undefined'
+      ? normalizeStoredAdminRoute(window.localStorage.getItem(LAST_ADMIN_ROUTE_KEY))
+      : '';
+  if (stored) {
+    return <Navigate to={stored} replace />;
+  }
   return <AdminDashboard />;
 }
 
@@ -152,6 +203,28 @@ function CourierEntryRedirect() {
   return <Navigate to="/delivery/dashboard" replace />;
 }
 
+function OrdersEntryRedirect() {
+  const stored =
+    typeof window !== 'undefined'
+      ? normalizeStoredOrdersRoute(window.localStorage.getItem(LAST_ORDERS_ROUTE_KEY))
+      : '';
+  if (stored && stored !== '/orders') {
+    return <Navigate to={stored} replace />;
+  }
+  return <UserOrders />;
+}
+
+function SellerOrdersEntryRedirect() {
+  const stored =
+    typeof window !== 'undefined'
+      ? normalizeStoredSellerOrdersRoute(window.localStorage.getItem(LAST_SELLER_ORDERS_ROUTE_KEY))
+      : '';
+  if (stored && stored !== '/seller/orders') {
+    return <Navigate to={stored} replace />;
+  }
+  return <SellerOrders />;
+}
+
 const isShopProfileRoute = (path) => /^\/shop\/[^/]+$/.test(path || '');
 
 function AppContent() {
@@ -166,6 +239,7 @@ function AppContent() {
   const [routeLoading, setRouteLoading] = useState(false);
   const [loaderTimedOut, setLoaderTimedOut] = useState(false);
   const firstRouteRef = useRef(true);
+  const previousPathRef = useRef(pathname);
   const isShopRoute = isShopProfileRoute(pathname);
   const showShopProfileLoader = isShopRoute && shopLoad?.isShopProfileLoading;
 
@@ -185,6 +259,16 @@ function AppContent() {
   useEffect(() => {
     if (firstRouteRef.current) {
       firstRouteRef.current = false;
+      previousPathRef.current = pathname;
+      return;
+    }
+    const previousPath = String(previousPathRef.current || '');
+    const previousModule = getRouteModule(previousPath);
+    const currentModule = getRouteModule(pathname);
+    const isIntraModuleNavigation = Boolean(previousModule) && previousModule === currentModule;
+    previousPathRef.current = pathname;
+    if (isIntraModuleNavigation) {
+      setRouteLoading(false);
       return;
     }
     setRouteLoading(true);
@@ -201,9 +285,6 @@ function AppContent() {
   const showLoader = !showSplash && (bootLoading || routeLoading || showShopProfileLoader);
   const chatEnabled = isFeatureEnabled('enable_chat', { defaultValue: true });
   const boostEnabled = isFeatureEnabled('enable_boost', { defaultValue: true });
-  const founderModeEnabled = isFeatureEnabled('enable_founder_mode', {
-    defaultValue: true
-  });
   const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
     defaultValue: true
   });
@@ -230,6 +311,7 @@ function AppContent() {
       'courier_upload_proof'
     ]));
   const isCourierRoute = pathname.startsWith('/courier') || pathname.startsWith('/delivery');
+  const pageTransitionKey = getPageTransitionKey(pathname);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -245,6 +327,24 @@ function AppContent() {
     const route = normalizeStoredCourierRoute(`${pathname}${location.search || ''}${location.hash || ''}`);
     if (!route) return;
     window.localStorage.setItem(LAST_COURIER_ROUTE_KEY, route);
+  }, [pathname, location.search, location.hash]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!pathname.startsWith('/orders')) return;
+    const route = normalizeStoredOrdersRoute(`${pathname}${location.search || ''}${location.hash || ''}`);
+    if (!route) return;
+    window.localStorage.setItem(LAST_ORDERS_ROUTE_KEY, route);
+  }, [pathname, location.search, location.hash]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!(pathname.startsWith('/seller/orders') || pathname.startsWith('/seller/order'))) return;
+    const route = normalizeStoredSellerOrdersRoute(
+      `${pathname}${location.search || ''}${location.hash || ''}`
+    );
+    if (!route) return;
+    window.localStorage.setItem(LAST_SELLER_ORDERS_ROUTE_KEY, route);
   }, [pathname, location.search, location.hash]);
 
   useEffect(() => {
@@ -313,7 +413,7 @@ function AppContent() {
       >
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            key={pathname}
+            key={pageTransitionKey}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
@@ -543,6 +643,14 @@ function AppContent() {
             }
           />
           <Route
+            path="/my/annonce/:listingId"
+            element={
+              <ProtectedRoute>
+                <MyListingDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/stats"
             element={
               <ProtectedRoute>
@@ -623,7 +731,15 @@ function AppContent() {
             }
           />
           <Route
-            path="/orders/:status?"
+            path="/orders"
+            element={
+              <ProtectedRoute>
+                <OrdersEntryRedirect />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders/:status"
             element={
               <ProtectedRoute>
                 <UserOrders />
@@ -634,7 +750,7 @@ function AppContent() {
             path="/order"
             element={
               <ProtectedRoute>
-                <UserOrders />
+                <OrdersEntryRedirect />
               </ProtectedRoute>
             }
           />
@@ -664,10 +780,26 @@ function AppContent() {
             }
           />
           <Route
+            path="/seller/orders"
+            element={
+              <ProtectedRoute>
+                <SellerOrdersEntryRedirect />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/seller/orders/:status?"
             element={
               <ProtectedRoute>
                 <SellerOrders />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seller/order"
+            element={
+              <ProtectedRoute>
+                <SellerOrdersEntryRedirect />
               </ProtectedRoute>
             }
           />
@@ -845,7 +977,7 @@ function AppContent() {
               path="founder-intelligence"
               element={
                 <ProtectedRoute roles={['founder']}>
-                  {founderModeEnabled ? <FounderIntelligence /> : <Navigate to="/admin" replace />}
+                  <FounderIntelligence />
                 </ProtectedRoute>
               }
             />
@@ -853,7 +985,7 @@ function AppContent() {
               path="founder-account-control"
               element={
                 <ProtectedRoute roles={['founder']}>
-                  {founderModeEnabled ? <FounderAccountControl /> : <Navigate to="/admin" replace />}
+                  <FounderAccountControl />
                 </ProtectedRoute>
               }
             />

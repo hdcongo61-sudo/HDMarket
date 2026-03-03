@@ -128,7 +128,7 @@ export default function AdminAppSettings() {
         const [heroRes, logoRes, promoRes, prohibitedRes, splashRes, networksRes] = await Promise.all([
           api.get('/settings/hero-banner'),
           api.get('/settings/app-logo', { skipCache: true }),
-          api.get('/settings/promo-banner'),
+          api.get('/settings/promo-banner', { skipCache: true, headers: { 'x-skip-cache': '1' } }),
           api.get('/admin/prohibited-words').catch(() => ({ data: [] })),
           api.get('/settings/splash').catch(() => ({ data: null })),
           api.get('/admin/networks').catch(() => ({ data: [] }))
@@ -411,6 +411,7 @@ export default function AdminAppSettings() {
       setPromoBannerLink(data?.promoBannerLink ?? promoBannerLink);
       setPromoBannerStartAt(formatDateInput(data?.promoBannerStartAt));
       setPromoBannerEndAt(formatDateInput(data?.promoBannerEndAt));
+      clearCache('/settings/promo-banner').catch(() => {});
       setPromoBannerFile(null);
       setPromoBannerMobileFile(null);
       setPromoBannerSuccess('Bannière publicitaire mise à jour avec succès.');

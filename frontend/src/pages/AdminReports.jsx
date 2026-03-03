@@ -1,25 +1,474 @@
-import React, { useCallback, useState } from 'react';
-import { FileText, Download, Calendar, TrendingUp, Users, Package, DollarSign, MessageSquare, AlertCircle, Store } from 'lucide-react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  FileText,
+  Download,
+  Calendar,
+  Users,
+  Package,
+  DollarSign,
+  Truck,
+  MessageSquare,
+  Sparkles,
+  ShieldAlert,
+  Store,
+  TrendingUp,
+  RefreshCw,
+  CheckSquare,
+  Square,
+  Save,
+  Trash2,
+  CopyPlus
+} from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip
+} from 'recharts';
 import api from '../services/api';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
+import AuthContext from '../context/AuthContext';
 
 const PERIOD_OPTIONS = [
-  { value: 'today', label: 'Aujourd\'hui' },
+  { value: 'today', label: "Aujourd'hui" },
   { value: 'week', label: 'Cette semaine' },
   { value: 'month', label: 'Ce mois' },
   { value: 'year', label: 'Cette année' },
   { value: 'custom', label: 'Période personnalisée' }
 ];
 
-const formatCurrency = (value) => formatPriceWithStoredSettings(value);
+const SECTION_CONFIG = [
+  { id: 'users', label: 'Utilisateurs', icon: Users, description: 'Profils, villes et vérifications' },
+  { id: 'orders', label: 'Commandes', icon: TrendingUp, description: 'Volumes, statuts et valeurs' },
+  { id: 'products', label: 'Produits', icon: Package, description: 'Annonces, catégories et paiements' },
+  { id: 'payments', label: 'Paiements', icon: DollarSign, description: 'Montants, opérateurs et vérification' },
+  { id: 'delivery', label: 'Livraisons', icon: Truck, description: 'Demandes, agents et performance' },
+  { id: 'messaging', label: 'Messages', icon: MessageSquare, description: 'Messages commande et non lus' },
+  { id: 'boosts', label: 'Boosts', icon: Sparkles, description: 'Demandes, revenus et statuts' },
+  { id: 'shopConversions', label: 'Conversions boutique', icon: Store, description: 'Demandes de conversion' },
+  { id: 'feedback', label: "Avis d'amélioration", icon: MessageSquare, description: 'Feedback utilisateur' },
+  { id: 'complaints', label: 'Réclamations', icon: ShieldAlert, description: 'Litiges et suivi' },
+  { id: 'moderation', label: 'Modération & sécurité', icon: ShieldAlert, description: 'Signals, blacklist, actions admin' },
+  { id: 'shops', label: 'Boutiques', icon: Store, description: 'Vérifications et top boutiques' },
+  { id: 'metrics', label: 'Métriques clés', icon: TrendingUp, description: 'Taux globaux de performance' },
+  { id: 'growth', label: 'Croissance', icon: TrendingUp, description: 'Evolution période vs précédente' },
+  { id: 'content', label: 'Contenu', icon: FileText, description: 'Qualité des annonces et prix moyens' }
+];
+
+const CORE_SECTION_IDS = ['users', 'orders', 'products', 'payments', 'delivery', 'metrics'];
+const REPORT_TEMPLATES_KEY = 'hdmarket:admin-report-templates';
+const DEFAULT_TEMPLATE_ID_DELIVERY = 'template-delivery';
+const DEFAULT_TEMPLATE_ID_FINANCE = 'template-finance';
+
+const makeDefaultSelection = () =>
+  SECTION_CONFIG.reduce((acc, section) => {
+    acc[section.id] = true;
+    return acc;
+  }, {});
+
+const formatCurrency = (value) => formatPriceWithStoredSettings(Number(value || 0));
+const formatNumber = (value) => Number(value || 0).toLocaleString('fr-FR');
+const formatPercent = (value) => `${Number(value || 0).toFixed(2)}%`;
+const formatDateTime = (value) => new Date(value || Date.now()).toLocaleString('fr-FR');
+
+const humanizeKey = (value) =>
+  String(value || 'inconnu')
+    .replace(/[_-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^./, (s) => s.toUpperCase());
+
+const topEntries = (map = {}, limit = 8) =>
+  Object.entries(map || {})
+    .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))
+    .slice(0, limit);
+
+const buildTemplateStorageKey = (user) => {
+  const scope = user?._id || user?.id || user?.email || 'anon';
+  return `${REPORT_TEMPLATES_KEY}:${String(scope)}`;
+};
+
+const getDefaultTemplates = () => [
+  {
+    id: DEFAULT_TEMPLATE_ID_DELIVERY,
+    name: 'Template Delivery',
+    period: 'week',
+    selectedSections: SECTION_CONFIG.reduce((acc, section) => {
+      acc[section.id] = ['delivery', 'messaging', 'orders', 'payments', 'shopConversions', 'metrics'].includes(section.id);
+      return acc;
+    }, {})
+  },
+  {
+    id: DEFAULT_TEMPLATE_ID_FINANCE,
+    name: 'Template Finance',
+    period: 'month',
+    selectedSections: SECTION_CONFIG.reduce((acc, section) => {
+      acc[section.id] = ['payments', 'orders', 'boosts', 'products', 'metrics', 'shops'].includes(section.id);
+      return acc;
+    }, {})
+  }
+];
+
+const getSectionChartConfig = (report, id) => {
+  if (!report) return null;
+
+  const makeBar = (rows, color = '#111827') => ({
+    type: 'bar',
+    data: rows.map(([label, value]) => ({ label, value: Number(value || 0) })),
+    series: [{ key: 'value', color, name: 'Valeur' }]
+  });
+
+  const makeLine = (rows, color = '#111827') => ({
+    type: 'line',
+    data: rows.map(([label, value]) => ({ label, value: Number(value || 0) })),
+    series: [{ key: 'value', color, name: 'Tendance' }]
+  });
+
+  switch (id) {
+    case 'users': {
+      const cityRows = topEntries(report.users?.byCity || {}, 6).map(([k, v]) => [humanizeKey(k), v]);
+      const genderRows = topEntries(report.users?.byGender || {}, 4).map(([k, v]) => [humanizeKey(k), v]);
+      return makeBar(cityRows.length ? cityRows : genderRows, '#374151');
+    }
+    case 'orders':
+      return makeBar(topEntries(report.orders?.byStatus || {}, 8).map(([k, v]) => [humanizeKey(k), v]), '#1f2937');
+    case 'products':
+      return makeBar(topEntries(report.products?.byStatus || {}, 8).map(([k, v]) => [humanizeKey(k), v]), '#111827');
+    case 'payments':
+      return makeBar(topEntries(report.payments?.byStatus || {}, 8).map(([k, v]) => [humanizeKey(k), v]), '#059669');
+    case 'delivery':
+      return makeBar(topEntries(report.delivery?.byStatus || {}, 8).map(([k, v]) => [humanizeKey(k), v]), '#4338ca');
+    case 'messaging':
+      return makeBar(
+        [
+          ['Total', report.messaging?.totalMessages || 0],
+          ['Nouveaux', report.messaging?.newMessages || 0],
+          ['Non lus', report.messaging?.unreadMessages || 0],
+          ['PJ', report.messaging?.messagesWithAttachments || 0]
+        ],
+        '#0f766e'
+      );
+    case 'boosts':
+      return makeBar(topEntries(report.boosts?.byStatus || {}, 8).map(([k, v]) => [humanizeKey(k), v]), '#7c3aed');
+    case 'shopConversions':
+      return makeBar(topEntries(report.shopConversions?.byStatus || {}, 8).map(([k, v]) => [humanizeKey(k), v]), '#0369a1');
+    case 'feedback':
+      return makeBar(
+        [
+          ['Total', report.feedback?.total || 0],
+          ['Nouveaux', report.feedback?.new || 0],
+          ['Lus', report.feedback?.read || 0],
+          ['Non lus', report.feedback?.unread || 0]
+        ],
+        '#475569'
+      );
+    case 'complaints':
+      return makeBar(topEntries(report.complaints?.byStatus || {}, 8).map(([k, v]) => [humanizeKey(k), v]), '#b45309');
+    case 'moderation':
+      return makeBar(topEntries(report.moderation?.contentReports?.byStatus || {}, 8).map(([k, v]) => [humanizeKey(k), v]), '#be123c');
+    case 'shops':
+      return makeBar((report.shops?.topShops || []).slice(0, 6).map((shop) => [shop?.name || 'Boutique', shop?.followers || 0]), '#334155');
+    case 'metrics':
+      return makeLine(
+        [
+          ['Approval', report.metrics?.approvalRate || 0],
+          ['Verify', report.metrics?.verificationRate || 0],
+          ['Shop conv', report.metrics?.shopConversionRate || 0],
+          ['Delivery', report.metrics?.deliveryCompletionRate || 0],
+          ['Agents', report.metrics?.activeDeliveryGuysRate || 0],
+          ['Moderation', report.metrics?.contentReportsResolutionRate || 0]
+        ],
+        '#0f172a'
+      );
+    case 'growth':
+      return makeLine(
+        [
+          ['Users', report.growth?.monthlyGrowthRate?.users || 0],
+          ['Products', report.growth?.monthlyGrowthRate?.products || 0],
+          ['Orders', report.growth?.monthlyGrowthRate?.orders || 0],
+          ['Payments', report.growth?.monthlyGrowthRate?.payments || 0]
+        ],
+        '#0f766e'
+      );
+    case 'content':
+      return makeBar(topEntries(report.content?.avgPriceByCategory || {}, 8).map(([k, v]) => [humanizeKey(k), v]), '#4b5563');
+    default:
+      return null;
+  }
+};
+
+const hasSectionData = (report, id) => {
+  if (!report) return false;
+  switch (id) {
+    case 'users':
+      return Boolean(report.users);
+    case 'orders':
+      return Boolean(report.orders);
+    case 'products':
+      return Boolean(report.products);
+    case 'payments':
+      return Boolean(report.payments);
+    case 'delivery':
+      return Boolean(report.delivery);
+    case 'messaging':
+      return Boolean(report.messaging);
+    case 'boosts':
+      return Boolean(report.boosts);
+    case 'shopConversions':
+      return Boolean(report.shopConversions);
+    case 'feedback':
+      return Boolean(report.feedback);
+    case 'complaints':
+      return Boolean(report.complaints);
+    case 'moderation':
+      return Boolean(report.moderation);
+    case 'shops':
+      return Boolean(report.shops);
+    case 'metrics':
+      return Boolean(report.metrics);
+    case 'growth':
+      return Boolean(report.growth);
+    case 'content':
+      return Boolean(report.content);
+    default:
+      return false;
+  }
+};
+
+const getSectionRows = (report, id) => {
+  if (!report) return [];
+
+  switch (id) {
+    case 'users': {
+      const rows = [
+        ['Total utilisateurs', formatNumber(report.users?.total)],
+        ['Nouveaux sur période', formatNumber(report.users?.new)],
+        ['Convertis en boutique', formatNumber(report.users?.convertedToShop)],
+        ['Utilisateurs suspendus', formatNumber(report.users?.suspended)],
+        ['Utilisateurs vérifiés', formatNumber(report.users?.verified)]
+      ];
+      topEntries(report.users?.byGender || {}, 4).forEach(([key, count]) => {
+        rows.push([`Genre: ${humanizeKey(key)}`, formatNumber(count)]);
+      });
+      topEntries(report.users?.byCity || {}, 6).forEach(([key, count]) => {
+        rows.push([`Ville: ${humanizeKey(key)}`, formatNumber(count)]);
+      });
+      return rows;
+    }
+    case 'orders': {
+      const rows = [
+        ['Total commandes', formatNumber(report.orders?.total)],
+        ['Nouvelles sur période', formatNumber(report.orders?.new)],
+        ['Valeur totale', formatCurrency(report.orders?.totalValue)],
+        ['Valeur moyenne', formatCurrency(report.orders?.averageValue)]
+      ];
+      topEntries(report.orders?.byStatus || {}, 8).forEach(([key, count]) => {
+        rows.push([`Statut: ${humanizeKey(key)}`, formatNumber(count)]);
+      });
+      return rows;
+    }
+    case 'products': {
+      const rows = [
+        ['Total produits', formatNumber(report.products?.total)],
+        ['Nouveaux sur période', formatNumber(report.products?.new)],
+        ['Produits avec paiement', formatNumber(report.products?.withPayment)]
+      ];
+      topEntries(report.products?.byStatus || {}, 8).forEach(([key, count]) => {
+        rows.push([`Statut: ${humanizeKey(key)}`, formatNumber(count)]);
+      });
+      topEntries(report.products?.byCategory || {}, 8).forEach(([key, count]) => {
+        rows.push([`Catégorie: ${humanizeKey(key)}`, formatNumber(count)]);
+      });
+      return rows;
+    }
+    case 'payments': {
+      const rows = [
+        ['Total paiements', formatNumber(report.payments?.total)],
+        ['Nouveaux sur période', formatNumber(report.payments?.new)],
+        ['Montant total', formatCurrency(report.payments?.totalValue)],
+        ['Montant moyen', formatCurrency(report.payments?.averageValue)],
+        ['Taux de vérification', formatPercent(report.payments?.verificationRate)]
+      ];
+      topEntries(report.payments?.byOperator || {}, 8).forEach(([key, count]) => {
+        rows.push([`Opérateur: ${humanizeKey(key)}`, formatNumber(count)]);
+      });
+      topEntries(report.payments?.byStatus || {}, 8).forEach(([key, count]) => {
+        rows.push([`Statut paiement: ${humanizeKey(key)}`, formatNumber(count)]);
+      });
+      return rows;
+    }
+    case 'delivery': {
+      const rows = [
+        ['Total demandes livraison', formatNumber(report.delivery?.totalRequests)],
+        ['Nouvelles sur période', formatNumber(report.delivery?.newRequests)],
+        ['Demandes assignées', formatNumber(report.delivery?.assignedRequests)],
+        ['Demandes livrées', formatNumber(report.delivery?.deliveredRequests)],
+        ['Demandes échouées', formatNumber(report.delivery?.failedRequests)],
+        ['Montant total livraison', formatCurrency(report.delivery?.totalDeliveryPrice)],
+        ['Montant moyen livraison', formatCurrency(report.delivery?.averageDeliveryPrice)],
+        ['Livreurs total', formatNumber(report.delivery?.agents?.total)],
+        ['Livreurs actifs', formatNumber(report.delivery?.agents?.active)]
+      ];
+      topEntries(report.delivery?.byStatus || {}, 8).forEach(([key, count]) => {
+        rows.push([`Statut livraison: ${humanizeKey(key)}`, formatNumber(count)]);
+      });
+      topEntries(report.delivery?.byStage || {}, 8).forEach(([key, count]) => {
+        rows.push([`Etape livraison: ${humanizeKey(key)}`, formatNumber(count)]);
+      });
+      return rows;
+    }
+    case 'messaging': {
+      return [
+        ['Total messages commande', formatNumber(report.messaging?.totalMessages)],
+        ['Nouveaux messages', formatNumber(report.messaging?.newMessages)],
+        ['Messages non lus', formatNumber(report.messaging?.unreadMessages)],
+        ['Messages avec pièces jointes', formatNumber(report.messaging?.messagesWithAttachments)]
+      ];
+    }
+    case 'boosts': {
+      const rows = [
+        ['Total demandes boost', formatNumber(report.boosts?.totalRequests)],
+        ['Nouvelles demandes', formatNumber(report.boosts?.newRequests)],
+        ['Revenu total boosts', formatCurrency(report.boosts?.totalRevenue)],
+        ['Revenu moyen boost', formatCurrency(report.boosts?.averageRevenue)]
+      ];
+      topEntries(report.boosts?.byStatus || {}, 8).forEach(([key, count]) => {
+        rows.push([`Statut boost: ${humanizeKey(key)}`, formatNumber(count)]);
+      });
+      return rows;
+    }
+    case 'shopConversions': {
+      const rows = [
+        ['Total demandes conversion', formatNumber(report.shopConversions?.totalRequests)],
+        ['Nouvelles demandes', formatNumber(report.shopConversions?.newRequests)]
+      ];
+      topEntries(report.shopConversions?.byStatus || {}, 8).forEach(([key, count]) => {
+        rows.push([`Statut conversion: ${humanizeKey(key)}`, formatNumber(count)]);
+      });
+      return rows;
+    }
+    case 'feedback': {
+      return [
+        ["Total avis d'amélioration", formatNumber(report.feedback?.total)],
+        ['Nouveaux avis', formatNumber(report.feedback?.new)],
+        ['Avis lus', formatNumber(report.feedback?.read)],
+        ['Avis non lus', formatNumber(report.feedback?.unread)]
+      ];
+    }
+    case 'complaints': {
+      const rows = [
+        ['Total réclamations', formatNumber(report.complaints?.total)],
+        ['Nouvelles réclamations', formatNumber(report.complaints?.new)]
+      ];
+      topEntries(report.complaints?.byStatus || {}, 8).forEach(([key, count]) => {
+        rows.push([`Statut réclamation: ${humanizeKey(key)}`, formatNumber(count)]);
+      });
+      return rows;
+    }
+    case 'moderation': {
+      const rows = [
+        ['Signals contenu total', formatNumber(report.moderation?.contentReports?.total)],
+        ['Nouveaux signals contenu', formatNumber(report.moderation?.contentReports?.new)],
+        ['Numéros blacklist actifs', formatNumber(report.moderation?.phoneBlacklist?.active)],
+        ['Nouveaux numéros blacklist', formatNumber(report.moderation?.phoneBlacklist?.new)],
+        ['Numéros débloqués', formatNumber(report.moderation?.phoneBlacklist?.unblocked)],
+        ['Actions admin (période)', formatNumber(report.moderation?.adminActions?.total)]
+      ];
+      topEntries(report.moderation?.contentReports?.byStatus || {}, 8).forEach(([key, count]) => {
+        rows.push([`Signal contenu: ${humanizeKey(key)}`, formatNumber(count)]);
+      });
+      topEntries(report.moderation?.adminActions?.byType || {}, 8).forEach(([key, count]) => {
+        rows.push([`Action admin: ${humanizeKey(key)}`, formatNumber(count)]);
+      });
+      return rows;
+    }
+    case 'shops': {
+      const rows = [
+        ['Total boutiques', formatNumber(report.shops?.total)],
+        ['Boutiques vérifiées', formatNumber(report.shops?.verified)],
+        ['Taux conversion boutique', formatPercent(report.shops?.conversionRate)]
+      ];
+      (report.shops?.topShops || []).slice(0, 5).forEach((shop, index) => {
+        rows.push([`Top ${index + 1}: ${shop?.name || 'Boutique'}`, formatNumber(shop?.followers)]);
+      });
+      return rows;
+    }
+    case 'metrics': {
+      return [
+        ["Taux d'approbation", formatPercent(report.metrics?.approvalRate)],
+        ['Taux de vérification', formatPercent(report.metrics?.verificationRate)],
+        ['Taux conversion boutique', formatPercent(report.metrics?.shopConversionRate)],
+        ['Taux livraison réussie', formatPercent(report.metrics?.deliveryCompletionRate)],
+        ['Taux livreurs actifs', formatPercent(report.metrics?.activeDeliveryGuysRate)],
+        ['Taux résolution signals', formatPercent(report.metrics?.contentReportsResolutionRate)],
+        ['Panier moyen commande', formatCurrency(report.metrics?.averageOrderValue)],
+        ['Montant moyen paiement', formatCurrency(report.metrics?.averagePaymentValue)]
+      ];
+    }
+    case 'growth': {
+      return [
+        ['Croissance utilisateurs', formatPercent(report.growth?.monthlyGrowthRate?.users)],
+        ['Croissance produits', formatPercent(report.growth?.monthlyGrowthRate?.products)],
+        ['Croissance commandes', formatPercent(report.growth?.monthlyGrowthRate?.orders)],
+        ['Croissance paiements', formatPercent(report.growth?.monthlyGrowthRate?.payments)]
+      ];
+    }
+    case 'content': {
+      const rows = [
+        ['Photos moyennes / annonce', Number(report.content?.avgPhotosPerListing || 0).toFixed(2)],
+        ['Longueur moyenne description', `${formatNumber(report.content?.avgDescriptionLength)} caractères`]
+      ];
+      topEntries(report.content?.avgPriceByCategory || {}, 8).forEach(([key, value]) => {
+        rows.push([`Prix moyen ${humanizeKey(key)}`, formatCurrency(value)]);
+      });
+      return rows;
+    }
+    default:
+      return [];
+  }
+};
 
 export default function AdminReports() {
+  const { user } = useContext(AuthContext);
+  const templateStorageKey = useMemo(() => buildTemplateStorageKey(user), [user]);
   const [period, setPeriod] = useState('month');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedSections, setSelectedSections] = useState(() => makeDefaultSelection());
+  const [templates, setTemplates] = useState(() => getDefaultTemplates());
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [templateName, setTemplateName] = useState('');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem(templateStorageKey);
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setTemplates(parsed);
+        return;
+      }
+      const defaults = getDefaultTemplates();
+      setTemplates(defaults);
+      window.localStorage.setItem(templateStorageKey, JSON.stringify(defaults));
+    } catch (_error) {
+      const defaults = getDefaultTemplates();
+      setTemplates(defaults);
+    }
+  }, [templateStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(templateStorageKey, JSON.stringify(templates));
+  }, [templateStorageKey, templates]);
 
   const generateReport = useCallback(async () => {
     setLoading(true);
@@ -28,396 +477,285 @@ export default function AdminReports() {
       const params = new URLSearchParams({ period });
       if (period === 'custom') {
         if (!startDate || !endDate) {
-          setError('Veuillez sélectionner une date de début et de fin');
+          setError('Veuillez sélectionner une date de début et de fin.');
           setLoading(false);
           return;
         }
         params.set('startDate', startDate);
         params.set('endDate', endDate);
       }
-
       const { data } = await api.get(`/admin/reports?${params.toString()}`);
-      setReport(data);
+      setReport(data || null);
     } catch (err) {
-      console.error('Generate report error:', err);
-      setError(err.response?.data?.message || 'Erreur lors de la génération du rapport');
+      setError(err?.response?.data?.message || 'Erreur lors de la génération du rapport.');
     } finally {
       setLoading(false);
     }
   }, [period, startDate, endDate]);
 
-  const exportPDF = useCallback(async () => {
-    if (!report) return;
+  const toggleSection = useCallback((id) => {
+    setSelectedSections((current) => ({ ...current, [id]: !current[id] }));
+  }, []);
 
+  const setCoreSelection = useCallback(() => {
+    setSelectedSections(
+      SECTION_CONFIG.reduce((acc, section) => {
+        acc[section.id] = CORE_SECTION_IDS.includes(section.id);
+        return acc;
+      }, {})
+    );
+  }, []);
+
+  const setAllSelection = useCallback(() => {
+    setSelectedSections(makeDefaultSelection());
+  }, []);
+
+  const applyTemplate = useCallback(() => {
+    const template = templates.find((item) => item.id === selectedTemplateId);
+    if (!template) return;
+    const baseSelection = SECTION_CONFIG.reduce((acc, section) => {
+      acc[section.id] = Boolean(template.selectedSections?.[section.id]);
+      return acc;
+    }, {});
+    setSelectedSections(baseSelection);
+    if (template.period) {
+      setPeriod(template.period);
+      if (template.period !== 'custom') {
+        setStartDate('');
+        setEndDate('');
+      }
+    }
+    setTemplateName(template.name || '');
+  }, [selectedTemplateId, templates]);
+
+  const saveTemplateAsNew = useCallback(() => {
+    const cleanName = String(templateName || '').trim();
+    if (!cleanName) {
+      setError('Veuillez donner un nom au template.');
+      return;
+    }
+    setError('');
+    const nowIso = new Date().toISOString();
+    const nextTemplate = {
+      id: `template-${Date.now()}`,
+      name: cleanName,
+      period,
+      selectedSections,
+      createdAt: nowIso,
+      updatedAt: nowIso
+    };
+    setTemplates((current) => [nextTemplate, ...current]);
+    setSelectedTemplateId(nextTemplate.id);
+  }, [period, selectedSections, templateName]);
+
+  const updateTemplate = useCallback(() => {
+    const cleanName = String(templateName || '').trim();
+    if (!selectedTemplateId) {
+      setError('Sélectionnez un template à mettre à jour.');
+      return;
+    }
+    if (!cleanName) {
+      setError('Le nom du template est requis.');
+      return;
+    }
+    setError('');
+    setTemplates((current) =>
+      current.map((item) =>
+        item.id === selectedTemplateId
+          ? {
+              ...item,
+              name: cleanName,
+              period,
+              selectedSections,
+              updatedAt: new Date().toISOString()
+            }
+          : item
+      )
+    );
+  }, [period, selectedSections, selectedTemplateId, templateName]);
+
+  const deleteTemplate = useCallback(() => {
+    if (!selectedTemplateId) return;
+    setTemplates((current) => current.filter((item) => item.id !== selectedTemplateId));
+    setSelectedTemplateId('');
+    setTemplateName('');
+  }, [selectedTemplateId]);
+
+  useEffect(() => {
+    if (!selectedTemplateId) return;
+    const template = templates.find((item) => item.id === selectedTemplateId);
+    if (!template) return;
+    setTemplateName(template.name || '');
+  }, [selectedTemplateId, templates]);
+
+  const activeSections = useMemo(
+    () => SECTION_CONFIG.filter((section) => selectedSections[section.id] && hasSectionData(report, section.id)),
+    [report, selectedSections]
+  );
+
+  const summaryCards = useMemo(() => {
+    if (!report) return [];
+    const cards = [];
+    if (selectedSections.users && report.users) {
+      cards.push({ title: 'Utilisateurs', value: formatNumber(report.users.total), sub: `+${formatNumber(report.users.new)}`, icon: Users });
+    }
+    if (selectedSections.orders && report.orders) {
+      cards.push({ title: 'Commandes', value: formatNumber(report.orders.total), sub: `+${formatNumber(report.orders.new)}`, icon: TrendingUp });
+    }
+    if (selectedSections.payments && report.payments) {
+      cards.push({ title: 'Paiements', value: formatCurrency(report.payments.totalValue), sub: `${formatPercent(report.payments.verificationRate)} vérifiés`, icon: DollarSign });
+    }
+    if (selectedSections.delivery && report.delivery) {
+      cards.push({ title: 'Livraisons', value: formatNumber(report.delivery.totalRequests), sub: `${formatNumber(report.delivery.deliveredRequests)} livrées`, icon: Truck });
+    }
+    if (selectedSections.boosts && report.boosts) {
+      cards.push({ title: 'Boosts', value: formatCurrency(report.boosts.totalRevenue), sub: `${formatNumber(report.boosts.totalRequests)} demandes`, icon: Sparkles });
+    }
+    if (selectedSections.messaging && report.messaging) {
+      cards.push({ title: 'Messages', value: formatNumber(report.messaging.totalMessages), sub: `${formatNumber(report.messaging.unreadMessages)} non lus`, icon: MessageSquare });
+    }
+    return cards.slice(0, 6);
+  }, [report, selectedSections]);
+
+  const exportPDF = useCallback(async () => {
+    if (!report || activeSections.length === 0) return;
     try {
       const { jsPDF } = await import('jspdf');
       const { default: autoTable } = await import('jspdf-autotable');
-
       const doc = new jsPDF();
-      let yPos = 20;
+      let yPos = 18;
 
-      // Title
-      doc.setFontSize(20);
+      doc.setFontSize(18);
       doc.setFont(undefined, 'bold');
-      doc.text('Rapport HDMarket', 105, yPos, { align: 'center' });
-      yPos += 10;
-
-      doc.setFontSize(12);
-      doc.setFont(undefined, 'normal');
-      doc.text(report.period.label, 105, yPos, { align: 'center' });
-      yPos += 5;
-
+      doc.text('Rapport HDMarket', 14, yPos);
+      yPos += 7;
       doc.setFontSize(10);
-      doc.text(`Généré le ${new Date(report.generatedAt).toLocaleDateString('fr-FR')}`, 105, yPos, { align: 'center' });
-      yPos += 15;
+      doc.setFont(undefined, 'normal');
+      doc.text(`Période: ${report?.period?.label || '-'}`, 14, yPos);
+      yPos += 5;
+      doc.text(`Généré le: ${formatDateTime(report?.generatedAt)}`, 14, yPos);
+      yPos += 8;
 
-      // Users section
-      doc.setFontSize(14);
-      doc.setFont(undefined, 'bold');
-      doc.text('Utilisateurs', 14, yPos);
-      yPos += 7;
-
-      autoTable(doc, {
-        startY: yPos,
-        head: [['Métrique', 'Valeur']],
-        body: [
-          ['Total utilisateurs', report.users.total.toLocaleString()],
-          ['Nouveaux utilisateurs', report.users.new.toLocaleString()],
-          ['Convertis en boutique', report.users.convertedToShop.toLocaleString()],
-          ['Utilisateurs suspendus', report.users.suspended.toLocaleString()],
-          ['Utilisateurs vérifiés', report.users.verified.toLocaleString()]
-        ],
-        theme: 'grid',
-        headStyles: { fillColor: [79, 70, 229] },
-        margin: { left: 14 }
-      });
-
-      yPos = doc.lastAutoTable.finalY + 10;
-
-      // Orders section
-      if (yPos > 250) {
-        doc.addPage();
-        yPos = 20;
-      }
-
-      doc.setFontSize(14);
-      doc.setFont(undefined, 'bold');
-      doc.text('Commandes', 14, yPos);
-      yPos += 7;
-
-      autoTable(doc, {
-        startY: yPos,
-        head: [['Métrique', 'Valeur']],
-        body: [
-          ['Total commandes', report.orders.total.toLocaleString()],
-          ['Nouvelles commandes', report.orders.new.toLocaleString()],
-          ['Valeur totale', formatCurrency(report.orders.totalValue)],
-          ['Valeur moyenne', formatCurrency(Math.round(report.orders.averageValue))]
-        ],
-        theme: 'grid',
-        headStyles: { fillColor: [79, 70, 229] },
-        margin: { left: 14 }
-      });
-
-      yPos = doc.lastAutoTable.finalY + 10;
-
-      // Products section
-      if (yPos > 250) {
-        doc.addPage();
-        yPos = 20;
-      }
-
-      doc.setFontSize(14);
-      doc.setFont(undefined, 'bold');
-      doc.text('Annonces', 14, yPos);
-      yPos += 7;
-
-      autoTable(doc, {
-        startY: yPos,
-        head: [['Métrique', 'Valeur']],
-        body: [
-          ['Total annonces', report.products.total.toLocaleString()],
-          ['Nouvelles annonces', report.products.new.toLocaleString()],
-          ['Annonces approuvées', (report.products.byStatus.approved || 0).toLocaleString()],
-          ['Annonces en attente', (report.products.byStatus.pending || 0).toLocaleString()],
-          ['Annonces rejetées', (report.products.byStatus.rejected || 0).toLocaleString()]
-        ],
-        theme: 'grid',
-        headStyles: { fillColor: [79, 70, 229] },
-        margin: { left: 14 }
-      });
-
-      yPos = doc.lastAutoTable.finalY + 10;
-
-      // Payments section
-      if (yPos > 250) {
-        doc.addPage();
-        yPos = 20;
-      }
-
-      doc.setFontSize(14);
-      doc.setFont(undefined, 'bold');
-      doc.text('Paiements', 14, yPos);
-      yPos += 7;
-
-      autoTable(doc, {
-        startY: yPos,
-        head: [['Métrique', 'Valeur']],
-        body: [
-          ['Total paiements', report.payments.total.toLocaleString()],
-          ['Nouveaux paiements', report.payments.new.toLocaleString()],
-          ['Montant total', formatCurrency(report.payments.totalValue)],
-          ['Montant moyen', formatCurrency(Math.round(report.payments.averageValue))],
-          ['Taux de vérification', `${report.payments.verificationRate}%`]
-        ],
-        theme: 'grid',
-        headStyles: { fillColor: [79, 70, 229] },
-        margin: { left: 14 }
-      });
-
-      yPos = doc.lastAutoTable.finalY + 10;
-
-      // Growth Metrics section
-      if (yPos > 250) {
-        doc.addPage();
-        yPos = 20;
-      }
-
-      if (report.growth) {
-        doc.setFontSize(14);
-        doc.setFont(undefined, 'bold');
-        doc.text('Croissance', 14, yPos);
-        yPos += 7;
-
-        autoTable(doc, {
-          startY: yPos,
-          head: [['Métrique', 'Taux de croissance']],
-          body: [
-            ['Utilisateurs', `${report.growth.monthlyGrowthRate.users >= 0 ? '+' : ''}${report.growth.monthlyGrowthRate.users}%`],
-            ['Annonces', `${report.growth.monthlyGrowthRate.products >= 0 ? '+' : ''}${report.growth.monthlyGrowthRate.products}%`],
-            ['Commandes', `${report.growth.monthlyGrowthRate.orders >= 0 ? '+' : ''}${report.growth.monthlyGrowthRate.orders}%`],
-            ['Paiements', `${report.growth.monthlyGrowthRate.payments >= 0 ? '+' : ''}${report.growth.monthlyGrowthRate.payments}%`]
-          ],
-          theme: 'grid',
-          headStyles: { fillColor: [79, 70, 229] },
-          margin: { left: 14 }
-        });
-
-        yPos = doc.lastAutoTable.finalY + 10;
-      }
-
-      // Content Metrics section
-      if (yPos > 250) {
-        doc.addPage();
-        yPos = 20;
-      }
-
-      if (report.content) {
-        doc.setFontSize(14);
-        doc.setFont(undefined, 'bold');
-        doc.text('Métriques de contenu', 14, yPos);
-        yPos += 7;
-
-        const contentBody = [
-          ['Photos moyennes par annonce', report.content.avgPhotosPerListing.toFixed(2)],
-          ['Longueur moyenne des descriptions', `${report.content.avgDescriptionLength} caractères`]
-        ];
-
-        if (report.content.avgPriceByCategory && Object.keys(report.content.avgPriceByCategory).length > 0) {
-          contentBody.push(['', '']);
-          contentBody.push(['Prix moyen par catégorie', '']);
-          Object.entries(report.content.avgPriceByCategory)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 8)
-            .forEach(([category, avgPrice]) => {
-              contentBody.push([category, formatCurrency(Math.round(avgPrice))]);
-            });
+      for (const section of activeSections) {
+        const rows = getSectionRows(report, section.id);
+        if (!rows.length) continue;
+        if (yPos > 250) {
+          doc.addPage();
+          yPos = 16;
         }
-
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text(section.label, 14, yPos);
+        yPos += 3;
         autoTable(doc, {
           startY: yPos,
           head: [['Métrique', 'Valeur']],
-          body: contentBody,
+          body: rows,
           theme: 'grid',
-          headStyles: { fillColor: [79, 70, 229] },
-          margin: { left: 14 }
+          headStyles: { fillColor: [34, 34, 34] },
+          styles: { fontSize: 9, cellPadding: 2.5 },
+          margin: { left: 14, right: 14 }
         });
+        yPos = (doc.lastAutoTable?.finalY || yPos) + 7;
       }
 
-      // Footer
       const pageCount = doc.internal.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
+      for (let i = 1; i <= pageCount; i += 1) {
         doc.setPage(i);
         doc.setFontSize(8);
-        doc.setFont(undefined, 'normal');
-        doc.text(
-          `Page ${i} sur ${pageCount} - HDMarket Admin`,
-          105,
-          doc.internal.pageSize.height - 10,
-          { align: 'center' }
-        );
+        doc.text(`Page ${i}/${pageCount}`, 196, 289, { align: 'right' });
       }
 
-      doc.save(`rapport-hdmarket-${report.period.type}-${new Date().toISOString().split('T')[0]}.pdf`);
-    } catch (err) {
-      console.error('PDF export error:', err);
-      alert('Erreur lors de l\'export PDF');
+      doc.save(`rapport-hdmarket-${report.period?.type || 'custom'}-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (_error) {
+      setError("Erreur lors de l'export PDF.");
     }
-  }, [report]);
+  }, [activeSections, report]);
 
   const exportExcel = useCallback(async () => {
-    if (!report) return;
-
+    if (!report || activeSections.length === 0) return;
     try {
       const ExcelJS = (await import('exceljs')).default;
       const workbook = new ExcelJS.Workbook();
-
-      // Summary sheet
-      const summarySheet = workbook.addWorksheet('Résumé');
-      summarySheet.columns = [
-        { header: 'Catégorie', key: 'category', width: 30 },
-        { header: 'Métrique', key: 'metric', width: 30 },
-        { header: 'Valeur', key: 'value', width: 20 }
+      const sheet = workbook.addWorksheet('Rapport');
+      sheet.columns = [
+        { header: 'Section', key: 'section', width: 28 },
+        { header: 'Métrique', key: 'metric', width: 44 },
+        { header: 'Valeur', key: 'value', width: 24 }
       ];
 
-      summarySheet.addRow({ category: 'Période', metric: report.period.label, value: '' });
-      summarySheet.addRow({ category: 'Généré le', metric: new Date(report.generatedAt).toLocaleString('fr-FR'), value: '' });
-      summarySheet.addRow({});
+      sheet.addRow({
+        section: 'Période',
+        metric: report?.period?.label || '-',
+        value: formatDateTime(report?.generatedAt)
+      });
+      sheet.addRow({});
 
-      // Users
-      summarySheet.addRow({ category: 'UTILISATEURS', metric: '', value: '' });
-      summarySheet.addRow({ category: '', metric: 'Total utilisateurs', value: report.users.total });
-      summarySheet.addRow({ category: '', metric: 'Nouveaux utilisateurs', value: report.users.new });
-      summarySheet.addRow({ category: '', metric: 'Convertis en boutique', value: report.users.convertedToShop });
-      summarySheet.addRow({ category: '', metric: 'Utilisateurs suspendus', value: report.users.suspended });
-      summarySheet.addRow({ category: '', metric: 'Utilisateurs vérifiés', value: report.users.verified });
-      summarySheet.addRow({});
-
-      // Orders
-      summarySheet.addRow({ category: 'COMMANDES', metric: '', value: '' });
-      summarySheet.addRow({ category: '', metric: 'Total commandes', value: report.orders.total });
-      summarySheet.addRow({ category: '', metric: 'Nouvelles commandes', value: report.orders.new });
-      summarySheet.addRow({ category: '', metric: 'Valeur totale', value: formatCurrency(report.orders.totalValue) });
-      summarySheet.addRow({ category: '', metric: 'Valeur moyenne', value: formatCurrency(Math.round(report.orders.averageValue)) });
-      summarySheet.addRow({});
-
-      // Products
-      summarySheet.addRow({ category: 'ANNONCES', metric: '', value: '' });
-      summarySheet.addRow({ category: '', metric: 'Total annonces', value: report.products.total });
-      summarySheet.addRow({ category: '', metric: 'Nouvelles annonces', value: report.products.new });
-      summarySheet.addRow({ category: '', metric: 'Annonces approuvées', value: report.products.byStatus.approved || 0 });
-      summarySheet.addRow({ category: '', metric: 'Annonces en attente', value: report.products.byStatus.pending || 0 });
-      summarySheet.addRow({ category: '', metric: 'Annonces rejetées', value: report.products.byStatus.rejected || 0 });
-      summarySheet.addRow({});
-
-      // Payments
-      summarySheet.addRow({ category: 'PAIEMENTS', metric: '', value: '' });
-      summarySheet.addRow({ category: '', metric: 'Total paiements', value: report.payments.total });
-      summarySheet.addRow({ category: '', metric: 'Nouveaux paiements', value: report.payments.new });
-      summarySheet.addRow({ category: '', metric: 'Montant total', value: formatCurrency(report.payments.totalValue) });
-      summarySheet.addRow({ category: '', metric: 'Montant moyen', value: formatCurrency(Math.round(report.payments.averageValue)) });
-      summarySheet.addRow({ category: '', metric: 'Taux de vérification (%)', value: report.payments.verificationRate });
-      summarySheet.addRow({});
-
-      // Growth Metrics
-      if (report.growth) {
-        summarySheet.addRow({ category: 'CROISSANCE', metric: '', value: '' });
-        summarySheet.addRow({ category: '', metric: 'Taux croissance utilisateurs (%)', value: report.growth.monthlyGrowthRate.users });
-        summarySheet.addRow({ category: '', metric: 'Taux croissance annonces (%)', value: report.growth.monthlyGrowthRate.products });
-        summarySheet.addRow({ category: '', metric: 'Taux croissance commandes (%)', value: report.growth.monthlyGrowthRate.orders });
-        summarySheet.addRow({ category: '', metric: 'Taux croissance paiements (%)', value: report.growth.monthlyGrowthRate.payments });
-        summarySheet.addRow({});
-      }
-
-      // Content Metrics
-      if (report.content) {
-        summarySheet.addRow({ category: 'CONTENU', metric: '', value: '' });
-        summarySheet.addRow({ category: '', metric: 'Photos moyennes par annonce', value: report.content.avgPhotosPerListing.toFixed(2) });
-        summarySheet.addRow({ category: '', metric: 'Longueur moyenne descriptions', value: report.content.avgDescriptionLength });
-        summarySheet.addRow({});
-        
-        if (report.content.avgPriceByCategory && Object.keys(report.content.avgPriceByCategory).length > 0) {
-          summarySheet.addRow({ category: 'PRIX MOYEN PAR CATÉGORIE', metric: '', value: '' });
-          Object.entries(report.content.avgPriceByCategory)
-            .sort((a, b) => b[1] - a[1])
-            .forEach(([category, avgPrice]) => {
-              summarySheet.addRow({ category: '', metric: category, value: Math.round(avgPrice) });
-            });
-        }
-      }
-
-      // Style header row
-      summarySheet.getRow(1).font = { bold: true };
-      summarySheet.getRow(1).fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FF4F46E5' }
-      };
-      summarySheet.getRow(1).font = { color: { argb: 'FFFFFFFF' }, bold: true };
-
-      // Users by city sheet
-      const citySheet = workbook.addWorksheet('Par Ville');
-      citySheet.columns = [
-        { header: 'Ville', key: 'city', width: 20 },
-        { header: 'Utilisateurs', key: 'users', width: 15 }
-      ];
-
-      Object.entries(report.users.byCity).forEach(([city, count]) => {
-        citySheet.addRow({ city, users: count });
+      activeSections.forEach((section) => {
+        const rows = getSectionRows(report, section.id);
+        if (!rows.length) return;
+        rows.forEach(([metric, value], index) => {
+          sheet.addRow({
+            section: index === 0 ? section.label : '',
+            metric,
+            value
+          });
+        });
+        sheet.addRow({});
       });
 
-      citySheet.getRow(1).font = { bold: true };
-      citySheet.getRow(1).fill = {
+      const header = sheet.getRow(1);
+      header.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      header.fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FF4F46E5' }
+        fgColor: { argb: 'FF111827' }
       };
-      citySheet.getRow(1).font = { color: { argb: 'FFFFFFFF' }, bold: true };
 
-      // Generate buffer and download
       const buffer = await workbook.xlsx.writeBuffer();
-      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `rapport-hdmarket-${report.period.type}-${new Date().toISOString().split('T')[0]}.xlsx`;
+      a.download = `rapport-hdmarket-${report.period?.type || 'custom'}-${new Date().toISOString().slice(0, 10)}.xlsx`;
       a.click();
       window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Excel export error:', err);
-      alert('Erreur lors de l\'export Excel');
+    } catch (_error) {
+      setError("Erreur lors de l'export Excel.");
     }
-  }, [report]);
+  }, [activeSections, report]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-neutral-50/30 dark:from-gray-900 dark:to-gray-800">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <header className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <FileText className="w-8 h-8 text-neutral-600" />
-            <h1 className="text-3xl font-black bg-gradient-to-r from-neutral-600 to-neutral-600 bg-clip-text text-transparent">
-              Rapports Administratifs
-            </h1>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+      <div className="mx-auto w-full max-w-7xl px-4 py-6 md:py-8 space-y-6">
+        <header className="rounded-2xl bg-white border border-gray-200 p-4 md:p-6 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
+                <FileText className="w-3.5 h-3.5" />
+                Report Builder
+              </div>
+              <h1 className="mt-3 text-2xl md:text-3xl font-black text-gray-900">Rapports Administratifs</h1>
+              <p className="mt-1 text-sm text-gray-600">
+                Sélectionnez les blocs à inclure, puis générez un rapport à jour avec les nouveaux modules.
+              </p>
+            </div>
+            <div className="text-xs text-gray-500">
+              Dernière génération: {report ? formatDateTime(report.generatedAt) : '—'}
+            </div>
           </div>
-          <p className="text-gray-600 dark:text-gray-400">
-            Générez des rapports détaillés sur l'activité de votre plateforme
-          </p>
         </header>
 
-        {/* Report Configuration */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6 mb-6">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Configuration du rapport</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            {/* Period selector */}
+        <section className="rounded-2xl bg-white border border-gray-200 p-4 md:p-6 shadow-sm space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                Période
-              </label>
+              <label className="block text-xs font-semibold uppercase text-gray-500 mb-2">Période</label>
               <select
                 value={period}
-                onChange={(e) => setPeriod(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                onChange={(event) => setPeriod(event.target.value)}
+                className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-800/10"
               >
                 {PERIOD_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -426,376 +764,284 @@ export default function AdminReports() {
                 ))}
               </select>
             </div>
-
-            {/* Custom date range */}
-            {period === 'custom' && (
+            {period === 'custom' ? (
               <>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Date de début
-                  </label>
+                  <label className="block text-xs font-semibold uppercase text-gray-500 mb-2">Date début</label>
                   <input
                     type="date"
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                    onChange={(event) => setStartDate(event.target.value)}
+                    className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-800/10"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Date de fin
-                  </label>
+                  <label className="block text-xs font-semibold uppercase text-gray-500 mb-2">Date fin</label>
                   <input
                     type="date"
                     value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                    onChange={(event) => setEndDate(event.target.value)}
+                    className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-800/10"
                   />
                 </div>
               </>
-            )}
+            ) : null}
           </div>
 
-          {error && (
-            <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
-              {error}
+          <div className="rounded-xl border border-gray-200 bg-white p-3 md:p-4">
+            <p className="text-sm font-semibold text-gray-900 mb-3">Templates de rapport</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+              <div>
+                <label className="block text-xs font-semibold uppercase text-gray-500 mb-2">Template</label>
+                <select
+                  value={selectedTemplateId}
+                  onChange={(event) => setSelectedTemplateId(event.target.value)}
+                  className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-800/10"
+                >
+                  <option value="">Choisir un template</option>
+                  {templates.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase text-gray-500 mb-2">Nom</label>
+                <input
+                  type="text"
+                  value={templateName}
+                  onChange={(event) => setTemplateName(event.target.value)}
+                  placeholder="Ex: Opérations hebdo"
+                  className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-800/10"
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={applyTemplate}
+                  disabled={!selectedTemplateId}
+                  className="w-full rounded-xl bg-gray-900 px-3 py-2.5 text-sm font-semibold text-white hover:bg-black disabled:opacity-50"
+                >
+                  Appliquer template
+                </button>
+              </div>
             </div>
-          )}
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={saveTemplateAsNew}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+              >
+                <CopyPlus className="w-3.5 h-3.5" />
+                Sauvegarder nouveau
+              </button>
+              <button
+                type="button"
+                onClick={updateTemplate}
+                disabled={!selectedTemplateId}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+              >
+                <Save className="w-3.5 h-3.5" />
+                Mettre à jour
+              </button>
+              <button
+                type="button"
+                onClick={deleteTemplate}
+                disabled={!selectedTemplateId}
+                className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Supprimer
+              </button>
+            </div>
+          </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="rounded-xl bg-gray-50 border border-gray-200 p-3 md:p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <p className="text-sm font-semibold text-gray-900">Informations à inclure</p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={setCoreSelection}
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                >
+                  Pack essentiel
+                </button>
+                <button
+                  type="button"
+                  onClick={setAllSelection}
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                >
+                  Tout sélectionner
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5">
+              {SECTION_CONFIG.map((section) => {
+                const Icon = section.icon;
+                const selected = Boolean(selectedSections[section.id]);
+                return (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => toggleSection(section.id)}
+                    className={`text-left rounded-xl border p-3 transition-all ${
+                      selected
+                        ? 'border-gray-900 bg-gray-900 text-white shadow-sm'
+                        : 'border-gray-200 bg-white text-gray-800 hover:bg-gray-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {selected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                      <Icon className="w-4 h-4" />
+                      <span className="text-sm font-semibold">{section.label}</span>
+                    </div>
+                    <p className={`mt-1 text-xs ${selected ? 'text-gray-200' : 'text-gray-500'}`}>
+                      {section.description}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {error ? (
+            <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>
+          ) : null}
+
+          <div className="flex flex-wrap gap-2">
             <button
+              type="button"
               onClick={generateReport}
               disabled={loading}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-neutral-600 text-white text-sm font-semibold hover:bg-neutral-700 active:scale-95 transition-all disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-black disabled:opacity-60"
             >
-              <Calendar className="w-4 h-4" />
+              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Calendar className="w-4 h-4" />}
               {loading ? 'Génération...' : 'Générer le rapport'}
             </button>
-
-            {report && (
-              <>
-                <button
-                  onClick={exportPDF}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 active:scale-95 transition-all"
-                >
-                  <Download className="w-4 h-4" />
-                  Exporter PDF
-                </button>
-
-                <button
-                  onClick={exportExcel}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 active:scale-95 transition-all"
-                >
-                  <Download className="w-4 h-4" />
-                  Exporter Excel
-                </button>
-              </>
-            )}
+            <button
+              type="button"
+              onClick={exportPDF}
+              disabled={!report || activeSections.length === 0}
+              className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              <Download className="w-4 h-4" />
+              Export PDF
+            </button>
+            <button
+              type="button"
+              onClick={exportExcel}
+              disabled={!report || activeSections.length === 0}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              <Download className="w-4 h-4" />
+              Export Excel
+            </button>
           </div>
-        </div>
+        </section>
 
-        {/* Report Display */}
-        {report && (
-          <div className="space-y-6">
-            {/* Overview Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard
-                icon={Users}
-                title="Utilisateurs"
-                value={report.users.total}
-                change={report.users.new}
-                color="blue"
-              />
-              <StatCard
-                icon={Package}
-                title="Annonces"
-                value={report.products.total}
-                change={report.products.new}
-                color="purple"
-              />
-              <StatCard
-                icon={DollarSign}
-                title="Paiements"
-                value={formatCurrency(Math.round(report.payments.totalValue))}
-                change={report.payments.new}
-                color="green"
-              />
-              <StatCard
-                icon={TrendingUp}
-                title="Commandes"
-                value={report.orders.total}
-                change={report.orders.new}
-                color="orange"
-              />
-            </div>
-
-            {/* Detailed Sections */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Users Section */}
-              <ReportSection title="Utilisateurs" icon={Users}>
-                <ReportRow label="Total" value={report.users.total.toLocaleString()} />
-                <ReportRow label="Nouveaux" value={report.users.new.toLocaleString()} highlight />
-                <ReportRow label="Convertis en boutique" value={report.users.convertedToShop.toLocaleString()} />
-                <ReportRow label="Suspendus" value={report.users.suspended.toLocaleString()} />
-                <ReportRow label="Vérifiés" value={report.users.verified.toLocaleString()} />
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Par genre</h4>
-                  {Object.entries(report.users.byGender).map(([gender, count]) => (
-                    <ReportRow key={gender} label={gender === 'homme' ? 'Hommes' : 'Femmes'} value={count.toLocaleString()} small />
-                  ))}
-                </div>
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Par ville</h4>
-                  {Object.entries(report.users.byCity).map(([city, count]) => (
-                    <ReportRow key={city} label={city} value={count.toLocaleString()} small />
-                  ))}
-                </div>
-              </ReportSection>
-
-              {/* Orders Section */}
-              <ReportSection title="Commandes" icon={TrendingUp}>
-                <ReportRow label="Total" value={report.orders.total.toLocaleString()} />
-                <ReportRow label="Nouvelles" value={report.orders.new.toLocaleString()} highlight />
-                <ReportRow label="Valeur totale" value={formatCurrency(Math.round(report.orders.totalValue))} />
-                <ReportRow label="Valeur moyenne" value={formatCurrency(Math.round(report.orders.averageValue))} />
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Par statut</h4>
-                  {Object.entries(report.orders.byStatus).map(([status, count]) => (
-                    <ReportRow key={status} label={status} value={count.toLocaleString()} small />
-                  ))}
-                </div>
-              </ReportSection>
-
-              {/* Products Section */}
-              <ReportSection title="Annonces" icon={Package}>
-                <ReportRow label="Total" value={report.products.total.toLocaleString()} />
-                <ReportRow label="Nouvelles" value={report.products.new.toLocaleString()} highlight />
-                <ReportRow label="Avec paiement" value={report.products.withPayment.toLocaleString()} />
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Par statut</h4>
-                  <ReportRow label="Approuvées" value={(report.products.byStatus.approved || 0).toLocaleString()} small />
-                  <ReportRow label="En attente" value={(report.products.byStatus.pending || 0).toLocaleString()} small />
-                  <ReportRow label="Rejetées" value={(report.products.byStatus.rejected || 0).toLocaleString()} small />
-                </div>
-                {Object.keys(report.products.byCategory).length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Par catégorie</h4>
-                    {Object.entries(report.products.byCategory).slice(0, 5).map(([category, count]) => (
-                      <ReportRow key={category} label={category} value={count.toLocaleString()} small />
-                    ))}
+        {report ? (
+          <>
+            <section className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+              {summaryCards.map((card) => {
+                const Icon = card.icon;
+                return (
+                  <div key={card.title} className="rounded-2xl bg-white border border-gray-200 p-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{card.title}</p>
+                      <Icon className="w-4 h-4 text-gray-500" />
+                    </div>
+                    <p className="mt-2 text-xl font-black text-gray-900">{card.value}</p>
+                    <p className="text-xs text-gray-500">{card.sub}</p>
                   </div>
-                )}
-              </ReportSection>
+                );
+              })}
+            </section>
 
-              {/* Payments Section */}
-              <ReportSection title="Paiements" icon={DollarSign}>
-                <ReportRow label="Total" value={report.payments.total.toLocaleString()} />
-                <ReportRow label="Nouveaux" value={report.payments.new.toLocaleString()} highlight />
-                <ReportRow label="Montant total" value={formatCurrency(Math.round(report.payments.totalValue))} />
-                <ReportRow label="Montant moyen" value={formatCurrency(Math.round(report.payments.averageValue))} />
-                <ReportRow label="Taux de vérification" value={`${report.payments.verificationRate}%`} />
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Par opérateur</h4>
-                  {Object.entries(report.payments.byOperator).map(([operator, count]) => (
-                    <ReportRow key={operator} label={operator} value={count.toLocaleString()} small />
-                  ))}
-                </div>
-              </ReportSection>
-
-              {/* Feedback Section */}
-              <ReportSection title="Avis d'amélioration" icon={MessageSquare}>
-                <ReportRow label="Total" value={report.feedback.total.toLocaleString()} />
-                <ReportRow label="Nouveaux" value={report.feedback.new.toLocaleString()} highlight />
-                <ReportRow label="Lus" value={report.feedback.read.toLocaleString()} />
-                <ReportRow label="Non lus" value={report.feedback.unread.toLocaleString()} />
-              </ReportSection>
-
-              {/* Complaints Section */}
-              <ReportSection title="Réclamations" icon={AlertCircle}>
-                <ReportRow label="Total" value={report.complaints.total.toLocaleString()} />
-                <ReportRow label="Nouvelles" value={report.complaints.new.toLocaleString()} highlight />
-                {Object.keys(report.complaints.byStatus).length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Par statut</h4>
-                    {Object.entries(report.complaints.byStatus).map(([status, count]) => (
-                      <ReportRow key={status} label={status} value={count.toLocaleString()} small />
-                    ))}
-                  </div>
-                )}
-              </ReportSection>
-
-              {/* Shops Section */}
-              <ReportSection title="Boutiques" icon={Store}>
-                <ReportRow label="Total" value={report.shops.total.toLocaleString()} />
-                <ReportRow label="Vérifiées" value={report.shops.verified.toLocaleString()} />
-                <ReportRow label="Taux de conversion" value={`${report.shops.conversionRate}%`} />
-                {report.shops.topShops.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Top boutiques</h4>
-                    {report.shops.topShops.map((shop, i) => (
-                      <ReportRow key={i} label={shop.name} value={`${shop.followers} followers`} small />
-                    ))}
-                  </div>
-                )}
-              </ReportSection>
-
-              {/* Key Metrics */}
-              <ReportSection title="Métriques clés" icon={TrendingUp}>
-                <ReportRow label="Taux d'approbation" value={`${report.metrics.approvalRate}%`} />
-                <ReportRow label="Taux de vérification" value={`${report.metrics.verificationRate}%`} />
-                <ReportRow label="Taux de conversion boutique" value={`${report.metrics.shopConversionRate}%`} />
-                <ReportRow label="Valeur moyenne commande" value={formatCurrency(Math.round(report.metrics.averageOrderValue))} />
-                <ReportRow label="Valeur moyenne paiement" value={formatCurrency(Math.round(report.metrics.averagePaymentValue))} />
-              </ReportSection>
-            </div>
-
-            {/* Growth Metrics Section */}
-            {report.growth && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-                <ReportSection title="Croissance" icon={TrendingUp}>
-                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Taux de croissance mensuel</h4>
-                  <ReportRow label="Utilisateurs" value={`${report.growth.monthlyGrowthRate.users >= 0 ? '+' : ''}${report.growth.monthlyGrowthRate.users}%`} />
-                  <ReportRow label="Annonces" value={`${report.growth.monthlyGrowthRate.products >= 0 ? '+' : ''}${report.growth.monthlyGrowthRate.products}%`} />
-                  <ReportRow label="Commandes" value={`${report.growth.monthlyGrowthRate.orders >= 0 ? '+' : ''}${report.growth.monthlyGrowthRate.orders}%`} />
-                  <ReportRow label="Paiements" value={`${report.growth.monthlyGrowthRate.payments >= 0 ? '+' : ''}${report.growth.monthlyGrowthRate.payments}%`} />
-                  
-                  {report.growth.growthByCity && Object.keys(report.growth.growthByCity).length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Croissance par ville</h4>
-                      {Object.entries(report.growth.growthByCity).slice(0, 5).map(([city, data]) => (
-                        <div key={city} className="mb-2">
-                          <div className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{city}</div>
-                          <ReportRow label="Utilisateurs" value={`${data.users >= 0 ? '+' : ''}${data.users}%`} small />
-                          <ReportRow label="Annonces" value={`${data.products >= 0 ? '+' : ''}${data.products}%`} small />
+            <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {activeSections.map((section) => {
+                const Icon = section.icon;
+                const rows = getSectionRows(report, section.id);
+                const chartConfig = getSectionChartConfig(report, section.id);
+                if (!rows.length) return null;
+                return (
+                  <article key={section.id} className="rounded-2xl bg-white border border-gray-200 p-4 md:p-5 shadow-sm">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="rounded-lg bg-gray-100 p-2">
+                        <Icon className="w-4 h-4 text-gray-700" />
+                      </div>
+                      <h3 className="text-base font-bold text-gray-900">{section.label}</h3>
+                    </div>
+                    <div className="space-y-2">
+                      {rows.map(([label, value]) => (
+                        <div key={`${section.id}-${label}`} className="flex items-start justify-between gap-3 border-b border-gray-100 pb-2">
+                          <span className="text-sm text-gray-600">{label}</span>
+                          <span className="text-sm font-semibold text-gray-900 text-right">{value}</span>
                         </div>
                       ))}
                     </div>
-                  )}
-                </ReportSection>
-
-                {report.growth.seasonalTrends && (
-                  <ReportSection title="Tendances saisonnières" icon={Calendar}>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                      Évolution sur les 12 derniers mois
-                    </p>
-                    {report.growth.seasonalTrends.users && report.growth.seasonalTrends.users.length > 0 && (
-                      <div className="mb-4">
-                        <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Utilisateurs</h4>
-                        <div className="space-y-1 max-h-32 overflow-y-auto">
-                          {report.growth.seasonalTrends.users.slice(-6).map((trend, i) => (
-                            <ReportRow key={i} label={trend.period} value={trend.count.toLocaleString()} small />
-                          ))}
-                        </div>
+                    {chartConfig?.data?.length ? (
+                      <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-3">
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Graphique
+                        </p>
+                        <ResponsiveContainer width="100%" height={220}>
+                          {chartConfig.type === 'line' ? (
+                            <LineChart data={chartConfig.data} margin={{ top: 8, right: 8, left: 8, bottom: 4 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                              <XAxis dataKey="label" stroke="#6b7280" fontSize={11} />
+                              <YAxis stroke="#6b7280" fontSize={11} />
+                              <Tooltip
+                                contentStyle={{
+                                  backgroundColor: 'white',
+                                  border: '1px solid #e5e7eb',
+                                  borderRadius: '8px'
+                                }}
+                              />
+                              <Line
+                                type="monotone"
+                                dataKey={chartConfig.series?.[0]?.key || 'value'}
+                                name={chartConfig.series?.[0]?.name || 'Valeur'}
+                                stroke={chartConfig.series?.[0]?.color || '#111827'}
+                                strokeWidth={2.5}
+                                dot={{ r: 3 }}
+                              />
+                            </LineChart>
+                          ) : (
+                            <BarChart data={chartConfig.data} margin={{ top: 8, right: 8, left: 8, bottom: 4 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                              <XAxis dataKey="label" stroke="#6b7280" fontSize={11} />
+                              <YAxis stroke="#6b7280" fontSize={11} />
+                              <Tooltip
+                                contentStyle={{
+                                  backgroundColor: 'white',
+                                  border: '1px solid #e5e7eb',
+                                  borderRadius: '8px'
+                                }}
+                              />
+                              <Bar
+                                dataKey={chartConfig.series?.[0]?.key || 'value'}
+                                name={chartConfig.series?.[0]?.name || 'Valeur'}
+                                fill={chartConfig.series?.[0]?.color || '#111827'}
+                                radius={[6, 6, 0, 0]}
+                              />
+                            </BarChart>
+                          )}
+                        </ResponsiveContainer>
                       </div>
-                    )}
-                    {report.growth.seasonalTrends.products && report.growth.seasonalTrends.products.length > 0 && (
-                      <div className="mb-4">
-                        <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Annonces</h4>
-                        <div className="space-y-1 max-h-32 overflow-y-auto">
-                          {report.growth.seasonalTrends.products.slice(-6).map((trend, i) => (
-                            <ReportRow key={i} label={trend.period} value={trend.count.toLocaleString()} small />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {report.growth.seasonalTrends.orders && report.growth.seasonalTrends.orders.length > 0 && (
-                      <div>
-                        <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Commandes</h4>
-                        <div className="space-y-1 max-h-32 overflow-y-auto">
-                          {report.growth.seasonalTrends.orders.slice(-6).map((trend, i) => (
-                            <ReportRow key={i} label={trend.period} value={`${trend.count} (${formatCurrency(Math.round(trend.totalValue))})`} small />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </ReportSection>
-                )}
-              </div>
-            )}
-
-            {/* Content Metrics Section */}
-            {report.content && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-                <ReportSection title="Métriques de contenu" icon={Package}>
-                  <ReportRow label="Photos moyennes par annonce" value={report.content.avgPhotosPerListing.toFixed(2)} />
-                  <ReportRow label="Longueur moyenne des descriptions" value={`${report.content.avgDescriptionLength} caractères`} />
-                  
-                  {report.content.avgPriceByCategory && Object.keys(report.content.avgPriceByCategory).length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Prix moyen par catégorie</h4>
-                      {Object.entries(report.content.avgPriceByCategory)
-                        .sort((a, b) => b[1] - a[1])
-                        .slice(0, 8)
-                        .map(([category, avgPrice]) => (
-                          <ReportRow key={category} label={category} value={formatCurrency(Math.round(avgPrice))} small />
-                        ))}
-                    </div>
-                  )}
-                </ReportSection>
-              </div>
-            )}
-          </div>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </section>
+          </>
+        ) : (
+          <section className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center text-gray-500">
+            Génère un rapport pour afficher les données.
+          </section>
         )}
       </div>
-    </div>
-  );
-}
-
-// Stat Card Component
-function StatCard({ icon: Icon, title, value, change, color }) {
-  const colors = {
-    blue: 'bg-neutral-50 dark:bg-neutral-900/20 text-neutral-600 dark:text-neutral-400',
-    purple: 'bg-neutral-50 dark:bg-neutral-900/20 text-neutral-600 dark:text-neutral-400',
-    green: 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400',
-    orange: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
-  };
-
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
-      <div className="flex items-center gap-3 mb-3">
-        <div className={`p-3 rounded-xl ${colors[color]}`}>
-          <Icon className="w-6 h-6" />
-        </div>
-        <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400">{title}</h3>
-      </div>
-      <p className="text-2xl font-black text-gray-900 dark:text-white mb-1">
-        {typeof value === 'number' ? value.toLocaleString() : value}
-      </p>
-      {change !== undefined && (
-        <p className="text-sm text-green-600 dark:text-green-400">
-          +{typeof change === 'number' ? change.toLocaleString() : change} nouveaux
-        </p>
-      )}
-    </div>
-  );
-}
-
-// Report Section Component
-function ReportSection({ title, icon: Icon, children }) {
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
-      <div className="flex items-center gap-3 mb-4">
-        <Icon className="w-5 h-5 text-neutral-600" />
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white">{title}</h3>
-      </div>
-      <div className="space-y-2">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-// Report Row Component
-function ReportRow({ label, value, highlight, small }) {
-  return (
-    <div className={`flex items-center justify-between ${small ? 'text-sm' : ''} ${highlight ? 'font-semibold' : ''}`}>
-      <span className={`${highlight ? 'text-neutral-600 dark:text-neutral-400' : 'text-gray-600 dark:text-gray-400'}`}>
-        {label}
-      </span>
-      <span className={`${highlight ? 'text-neutral-900 dark:text-neutral-300' : 'text-gray-900 dark:text-white'} font-semibold`}>
-        {value}
-      </span>
     </div>
   );
 }

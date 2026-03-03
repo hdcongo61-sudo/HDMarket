@@ -31,10 +31,14 @@ export const FavoriteProvider = ({ children }) => {
     }
     setLoading(true);
     try {
-      const { data } = await api.get('/users/favorites');
+      const { data } = await api.get('/users/favorites', { silentGlobalError: true });
       setFavorites(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('Impossible de récupérer les favoris.', error);
+      const status = Number(error?.response?.status || 0);
+      if (status === 401 || status === 403) {
+        setFavorites([]);
+        return;
+      }
     } finally {
       setLoading(false);
     }

@@ -2627,9 +2627,11 @@ export const getSellerReceivedOrders = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
-    .populate('user', 'name email phone')
+    .populate('customer', 'name email phone')
     .populate('items.product', 'title images price')
     .lean();
+
+  const sellerProductIdSet = new Set(sellerProductIds.map((pid) => String(pid)));
 
   // Filter items to only show this seller's products
   const formattedOrders = orders.map((order) => ({
@@ -2637,26 +2639,33 @@ export const getSellerReceivedOrders = asyncHandler(async (req, res) => {
     orderNumber: order.orderNumber || order._id.toString().slice(-8).toUpperCase(),
     status: order.status,
     createdAt: order.createdAt,
-    buyer: order.user ? {
-      id: order.user._id.toString(),
-      name: order.user.name,
-      email: order.user.email,
-      phone: order.user.phone
-    } : null,
+    buyer: order.customer
+      ? {
+          id: order.customer._id.toString(),
+          name: order.customer.name,
+          email: order.customer.email,
+          phone: order.customer.phone
+        }
+      : null,
     items: order.items
-      .filter((item) => sellerProductIds.some((pid) => pid.equals(item.product?._id)))
+      .filter((item) => {
+        const productId = item?.product?._id || item?.product;
+        return productId ? sellerProductIdSet.has(String(productId)) : false;
+      })
       .map((item) => ({
-        product: item.product ? {
-          id: item.product._id.toString(),
-          title: item.product.title,
-          image: item.product.images?.[0] || null,
-          price: item.product.price
-        } : null,
+        product: item.product
+          ? {
+              id: (item.product._id || item.product).toString(),
+              title: item.product.title || item?.snapshot?.title || 'Produit',
+              image: item.product.images?.[0] || item?.snapshot?.image || null,
+              price: Number(item.product.price || item?.unitPrice || 0)
+            }
+          : null,
         quantity: item.quantity,
-        price: item.price
+        price: Number(item.unitPrice || item.price || 0)
       })),
     totalAmount: order.totalAmount,
-    address: order.address || null
+    address: order.deliveryAddress || order.address || null
   }));
 
   res.json({

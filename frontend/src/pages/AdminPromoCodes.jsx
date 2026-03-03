@@ -618,8 +618,12 @@ export default function AdminPromoCodes() {
               <p className="text-sm text-gray-500">Aucune donnée de performance pour le moment.</p>
             ) : (
               <div className="space-y-3">
-                {topCodes.map((row) => (
-                  <div key={row.promoCodeId} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                {topCodes.map((row, index) => {
+                  const rowKey =
+                    row?.promoCodeId ||
+                    `${row?.code || 'deleted'}-${row?.lastUsedAt || 'na'}-${index}`;
+                  return (
+                  <div key={rowKey} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
                     <div className="flex items-center justify-between gap-3">
                       <p className="font-semibold text-gray-900">{row.code || 'Code supprimé'}</p>
                       <p className="text-xs text-gray-500">{Number(row.usageRate || 0).toLocaleString('fr-FR')}% utilisé</p>
@@ -630,7 +634,8 @@ export default function AdminPromoCodes() {
                       <span>Dernier usage: {formatDateTime(row.lastUsedAt)}</span>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -641,8 +646,12 @@ export default function AdminPromoCodes() {
               <p className="text-sm text-gray-500">Aucune utilisation récente.</p>
             ) : (
               <div className="space-y-3">
-                {usage.map((entry) => (
-                  <div key={entry._id} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-sm">
+                {usage.map((entry, index) => {
+                  const entryKey =
+                    entry?._id ||
+                    `${entry?.promoCode?._id || entry?.promoCode?.code || entry?.codeSnapshot || 'usage'}-${entry?.createdAt || 'na'}-${index}`;
+                  return (
+                  <div key={entryKey} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-sm">
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-semibold text-gray-900">{entry.promoCode?.code || entry.codeSnapshot}</p>
                       <p className="text-xs text-gray-500">{formatDateTime(entry.createdAt)}</p>
@@ -654,7 +663,8 @@ export default function AdminPromoCodes() {
                       Commission annulée: {formatCurrency(entry.discountAmount || 0)}
                     </p>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

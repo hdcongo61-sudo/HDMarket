@@ -1525,7 +1525,7 @@ export default function Navbar() {
     const recentSearches = searchHistory.slice(0, 5);
     const hasRecentSearches = recentSearches.length > 0;
     const topCategories = availableCategories.slice(0, 4);
-    const topShops = shops.filter(s => s.verified).slice(0, 4);
+    const topShops = shops.filter((s) => Boolean(s.shopVerified ?? s.verified)).slice(0, 4);
 
     return (
       <div className="max-h-[400px] overflow-auto">
@@ -1641,7 +1641,7 @@ export default function Navbar() {
                       <span className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                         {shop.shopName}
                       </span>
-                      <VerifiedBadge verified={shop.verified} showLabel={false} />
+                      <VerifiedBadge verified={Boolean(shop.shopVerified ?? shop.verified)} showLabel={false} />
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                       {shop.shopAddress || 'HDMarket'}
@@ -2629,13 +2629,21 @@ export default function Navbar() {
       setShopsError("");
       
       try {
-        const { data } = await api.get("/shops");
+        const { data } = await api.get('/shops', {
+          params: {
+            verified: 'true',
+            limit: 16,
+            withViews: 'false',
+            withRatings: 'false',
+            withProductCounts: 'false'
+          },
+          silentGlobalError: true
+        });
         if (!cancelled) {
           setShops(Array.isArray(data) ? data : []);
         }
       } catch (error) {
         if (!cancelled) {
-          console.error("Shops loading error:", error);
           setShopsError("Impossible de charger les boutiques. Vérifiez votre connexion.");
           setShops([]);
         }

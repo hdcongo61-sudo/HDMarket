@@ -3,11 +3,17 @@ import User from '../models/userModel.js';
 import Product from '../models/productModel.js';
 import Payment from '../models/paymentModel.js';
 import Order from '../models/orderModel.js';
-import Comment from '../models/commentModel.js';
-import Rating from '../models/ratingModel.js';
 import ImprovementFeedback from '../models/improvementFeedbackModel.js';
 import Complaint from '../models/complaintModel.js';
 import AccountTypeChange from '../models/accountTypeChangeModel.js';
+import DeliveryRequest from '../models/deliveryRequestModel.js';
+import DeliveryGuy from '../models/deliveryGuyModel.js';
+import OrderMessage from '../models/orderMessageModel.js';
+import BoostRequest from '../models/boostRequestModel.js';
+import ShopConversionRequest from '../models/shopConversionRequestModel.js';
+import Report from '../models/reportModel.js';
+import PhoneBlacklist from '../models/phoneBlacklistModel.js';
+import AdminAuditLog from '../models/adminAuditLogModel.js';
 
 const getPeriodDates = (period, startDate, endDate) => {
   const now = new Date();
@@ -256,8 +262,150 @@ export const generateReport = asyncHandler(async (req, res) => {
     ])
   ]);
 
+  // Delivery metrics
+  const [
+    totalDeliveryRequests,
+    newDeliveryRequests,
+    deliveryByStatus,
+    deliveryByStage,
+    deliveryPriceStats,
+    assignedDeliveryRequests,
+    deliveredDeliveryRequests,
+    failedDeliveryRequests,
+    totalDeliveryGuys,
+    activeDeliveryGuys
+  ] = await Promise.all([
+    DeliveryRequest.countDocuments(),
+    DeliveryRequest.countDocuments({ createdAt: { $gte: start, $lte: end } }),
+    DeliveryRequest.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+    DeliveryRequest.aggregate([{ $group: { _id: '$currentStage', count: { $sum: 1 } } }]),
+    DeliveryRequest.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalDeliveryPrice: { $sum: { $ifNull: ['$deliveryPrice', 0] } },
+          avgDeliveryPrice: { $avg: { $ifNull: ['$deliveryPrice', 0] } }
+        }
+      }
+    ]),
+    DeliveryRequest.countDocuments({ assignedDeliveryGuyId: { $ne: null } }),
+    DeliveryRequest.countDocuments({ status: 'DELIVERED' }),
+    DeliveryRequest.countDocuments({ status: 'FAILED' }),
+    DeliveryGuy.countDocuments(),
+    DeliveryGuy.countDocuments({ isActive: true })
+  ]);
+
+  const deliveryByStatusMap = deliveryByStatus.reduce((acc, item) => {
+    acc[item._id || 'unknown'] = item.count;
+    return acc;
+  }, {});
+
+  const deliveryByStageMap = deliveryByStage.reduce((acc, item) => {
+    acc[item._id || 'unknown'] = item.count;
+    return acc;
+  }, {});
+
+  // Messaging metrics (order conversations)
+  const [
+    totalOrderMessages,
+    newOrderMessages,
+    unreadOrderMessages,
+    orderMessagesWithAttachments
+  ] = await Promise.all([
+    OrderMessage.countDocuments(),
+    OrderMessage.countDocuments({ createdAt: { $gte: start, $lte: end } }),
+    OrderMessage.countDocuments({ readAt: null }),
+    OrderMessage.countDocuments({ 'attachments.0': { $exists: true } })
+  ]);
+
+  // Boost metrics
+  const [
+    totalBoostRequests,
+    newBoostRequests,
+    boostByStatus,
+    boostRevenueStats
+  ] = await Promise.all([
+    BoostRequest.countDocuments(),
+    BoostRequest.countDocuments({ createdAt: { $gte: start, $lte: end } }),
+    BoostRequest.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+    BoostRequest.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: { $ifNull: ['$totalPrice', 0] } },
+          avgRevenue: { $avg: { $ifNull: ['$totalPrice', 0] } }
+        }
+      }
+    ])
+  ]);
+
+  const boostByStatusMap = boostByStatus.reduce((acc, item) => {
+    acc[item._id || 'unknown'] = item.count;
+    return acc;
+  }, {});
+
+  // Shop conversion request metrics
+  const [
+    totalConversionRequests,
+    newConversionRequests,
+    conversionRequestsByStatus
+  ] = await Promise.all([
+    ShopConversionRequest.countDocuments(),
+    ShopConversionRequest.countDocuments({ createdAt: { $gte: start, $lte: end } }),
+    ShopConversionRequest.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }])
+  ]);
+
+  const conversionRequestsByStatusMap = conversionRequestsByStatus.reduce((acc, item) => {
+    acc[item._id || 'unknown'] = item.count;
+    return acc;
+  }, {});
+
+  // Content moderation & safety metrics
+  const [
+    totalContentReports,
+    newContentReports,
+    contentReportsByStatus,
+    activeBlacklistedPhones,
+    newBlacklistedPhones,
+    unblockedPhones,
+    adminActionsInPeriod,
+    adminActionsByType
+  ] = await Promise.all([
+    Report.countDocuments(),
+    Report.countDocuments({ createdAt: { $gte: start, $lte: end } }),
+    Report.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+    PhoneBlacklist.countDocuments({ isActive: true }),
+    PhoneBlacklist.countDocuments({ blockedAt: { $gte: start, $lte: end } }),
+    PhoneBlacklist.countDocuments({ isActive: false, unblockedAt: { $gte: start, $lte: end } }),
+    AdminAuditLog.countDocuments({ createdAt: { $gte: start, $lte: end } }),
+    AdminAuditLog.aggregate([
+      { $match: { createdAt: { $gte: start, $lte: end } } },
+      { $group: { _id: '$action', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 10 }
+    ])
+  ]);
+
+  const contentReportsByStatusMap = contentReportsByStatus.reduce((acc, item) => {
+    acc[item._id || 'unknown'] = item.count;
+    return acc;
+  }, {});
+
+  const adminActionsByTypeMap = adminActionsByType.reduce((acc, item) => {
+    acc[item._id || 'unknown'] = item.count;
+    return acc;
+  }, {});
+
   // Metrics
   const approvalRate = totalProducts > 0 ? ((productsByStatusMap.approved || 0) / totalProducts * 100).toFixed(2) : 0;
+  const deliveryCompletionRate =
+    totalDeliveryRequests > 0 ? ((deliveredDeliveryRequests / totalDeliveryRequests) * 100).toFixed(2) : 0;
+  const activeDeliveryGuysRate =
+    totalDeliveryGuys > 0 ? ((activeDeliveryGuys / totalDeliveryGuys) * 100).toFixed(2) : 0;
+  const contentReportsResolutionRate =
+    totalContentReports > 0
+      ? ((((contentReportsByStatusMap.resolved || 0) + (contentReportsByStatusMap.dismissed || 0)) / totalContentReports) * 100).toFixed(2)
+      : 0;
 
   // Growth rates (simplified - comparing current period to previous period)
   const prevStart = new Date(start);
@@ -334,6 +482,55 @@ export const generateReport = asyncHandler(async (req, res) => {
       new: newComplaints,
       byStatus: complaintsByStatusMap
     },
+    delivery: {
+      totalRequests: totalDeliveryRequests,
+      newRequests: newDeliveryRequests,
+      byStatus: deliveryByStatusMap,
+      byStage: deliveryByStageMap,
+      assignedRequests: assignedDeliveryRequests,
+      deliveredRequests: deliveredDeliveryRequests,
+      failedRequests: failedDeliveryRequests,
+      totalDeliveryPrice: Number(deliveryPriceStats[0]?.totalDeliveryPrice) || 0,
+      averageDeliveryPrice: Number(deliveryPriceStats[0]?.avgDeliveryPrice) || 0,
+      agents: {
+        total: totalDeliveryGuys,
+        active: activeDeliveryGuys
+      }
+    },
+    messaging: {
+      totalMessages: totalOrderMessages,
+      newMessages: newOrderMessages,
+      unreadMessages: unreadOrderMessages,
+      messagesWithAttachments: orderMessagesWithAttachments
+    },
+    boosts: {
+      totalRequests: totalBoostRequests,
+      newRequests: newBoostRequests,
+      byStatus: boostByStatusMap,
+      totalRevenue: Number(boostRevenueStats[0]?.totalRevenue) || 0,
+      averageRevenue: Number(boostRevenueStats[0]?.avgRevenue) || 0
+    },
+    shopConversions: {
+      totalRequests: totalConversionRequests,
+      newRequests: newConversionRequests,
+      byStatus: conversionRequestsByStatusMap
+    },
+    moderation: {
+      contentReports: {
+        total: totalContentReports,
+        new: newContentReports,
+        byStatus: contentReportsByStatusMap
+      },
+      phoneBlacklist: {
+        active: activeBlacklistedPhones,
+        new: newBlacklistedPhones,
+        unblocked: unblockedPhones
+      },
+      adminActions: {
+        total: adminActionsInPeriod,
+        byType: adminActionsByTypeMap
+      }
+    },
     shops: {
       total: totalShops,
       verified: verifiedShops,
@@ -344,6 +541,9 @@ export const generateReport = asyncHandler(async (req, res) => {
       approvalRate: parseFloat(approvalRate),
       verificationRate: parseFloat(verificationRate),
       shopConversionRate: parseFloat(shopConversionRate),
+      deliveryCompletionRate: parseFloat(deliveryCompletionRate),
+      activeDeliveryGuysRate: parseFloat(activeDeliveryGuysRate),
+      contentReportsResolutionRate: parseFloat(contentReportsResolutionRate),
       averageOrderValue: avgOrderValue,
       averagePaymentValue: avgPaymentValue
     },

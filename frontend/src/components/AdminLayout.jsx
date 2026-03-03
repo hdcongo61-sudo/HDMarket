@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -24,18 +24,73 @@ import {
   Crown,
   UserX,
   Menu,
-  X
+  X,
+  Search,
+  ChevronDown
 } from 'lucide-react';
 import { hasAnyPermission } from '../utils/permissions';
 
+const ADMIN_UI_STATE_KEY = 'hdmarket:admin-ui-state';
+const ADMIN_GROUP_ORDER = ['overview', 'commerce', 'operations', 'system', 'founder'];
+const DEFAULT_COLLAPSED_SECTIONS = {
+  overview: false,
+  commerce: false,
+  operations: false,
+  system: false,
+  founder: false
+};
+
+const buildAdminUiStateStorageKey = (user) => {
+  const userScope = user?._id || user?.id || user?.email || 'anonymous';
+  return `${ADMIN_UI_STATE_KEY}:${String(userScope)}`;
+};
+
+const parseCollapsedSections = (value) => {
+  if (!value || typeof value !== 'object') {
+    return { ...DEFAULT_COLLAPSED_SECTIONS };
+  }
+  return ADMIN_GROUP_ORDER.reduce((acc, key) => {
+    acc[key] = Boolean(value[key]);
+    return acc;
+  }, {});
+};
+
+const readAdminUiState = (storageKey) => {
+  if (typeof window === 'undefined') {
+    return {
+      sidebarCollapsed: false,
+      collapsedSections: { ...DEFAULT_COLLAPSED_SECTIONS }
+    };
+  }
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) {
+      return {
+        sidebarCollapsed: false,
+        collapsedSections: { ...DEFAULT_COLLAPSED_SECTIONS }
+      };
+    }
+    const parsed = JSON.parse(raw);
+    return {
+      sidebarCollapsed: Boolean(parsed?.sidebarCollapsed),
+      collapsedSections: parseCollapsedSections(parsed?.collapsedSections)
+    };
+  } catch (_error) {
+    return {
+      sidebarCollapsed: false,
+      collapsedSections: { ...DEFAULT_COLLAPSED_SECTIONS }
+    };
+  }
+};
+
 const buildNavItems = (t, platformDeliveryEnabled) => [
-  { to: '/admin', end: true, label: t('nav.adminDashboard', 'Tableau de bord'), icon: LayoutDashboard, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || hasAnyPermission(u, ['view_admin_dashboard']) },
-  { to: '/admin/orders', label: t('nav.orders', 'Commandes'), icon: ClipboardList, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || hasAnyPermission(u, ['manage_orders']) },
-  { to: '/admin/payments', label: t('nav.payments', 'Paiements'), icon: DollarSign, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || hasAnyPermission(u, ['verify_payments']) },
-  { to: '/admin/users', label: t('nav.users', 'Utilisateurs'), icon: Users, show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_users']) },
-  { to: '/admin/products', label: t('nav.products', 'Produits'), icon: Package, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageProducts || hasAnyPermission(u, ['manage_products']) },
-  { to: '/admin/delivery-guys', label: t('nav.deliveryGuys', 'Livreurs'), icon: Truck, show: (u) => platformDeliveryEnabled && (u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageDelivery || hasAnyPermission(u, ['manage_delivery'])) },
-  { to: '/admin/delivery-requests', label: t('nav.deliveryRequests', 'Demandes livraison'), icon: Truck, show: (u) => platformDeliveryEnabled && (u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageDelivery || hasAnyPermission(u, ['manage_delivery'])) },
+  { to: '/admin', end: true, label: t('nav.adminDashboard', 'Tableau de bord'), icon: LayoutDashboard, group: 'overview', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || hasAnyPermission(u, ['view_admin_dashboard']) },
+  { to: '/admin/orders', label: t('nav.orders', 'Commandes'), icon: ClipboardList, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || hasAnyPermission(u, ['manage_orders']) },
+  { to: '/admin/payments', label: t('nav.payments', 'Paiements'), icon: DollarSign, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || hasAnyPermission(u, ['verify_payments']) },
+  { to: '/admin/users', label: t('nav.users', 'Utilisateurs'), icon: Users, group: 'operations', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_users']) },
+  { to: '/admin/products', label: t('nav.products', 'Produits'), icon: Package, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageProducts || hasAnyPermission(u, ['manage_products']) },
+  { to: '/admin/delivery-guys', label: t('nav.deliveryGuys', 'Livreurs'), icon: Truck, group: 'operations', show: (u) => platformDeliveryEnabled && (u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageDelivery || hasAnyPermission(u, ['manage_delivery'])) },
+  { to: '/admin/delivery-requests', label: t('nav.deliveryRequests', 'Demandes livraison'), icon: Truck, group: 'operations', show: (u) => platformDeliveryEnabled && (u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageDelivery || hasAnyPermission(u, ['manage_delivery'])) },
   { to: '/delivery/dashboard', label: t('nav.courierMode', 'Mode livreur'), icon: Truck, show: (u) => {
       const role = String(u?.role || '').toLowerCase();
       return (
@@ -43,28 +98,31 @@ const buildNavItems = (t, platformDeliveryEnabled) => [
         (role === 'delivery_agent' ||
           (!['admin', 'manager', 'founder'].includes(role) && hasAnyPermission(u, ['courier_view_assignments'])))
       );
-    } },
-  { to: '/admin/complaints', label: t('nav.complaints', 'Réclamations'), icon: AlertCircle, show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageComplaints || hasAnyPermission(u, ['manage_complaints']) },
-  { to: '/admin/chat-templates', label: t('nav.chatTemplates', 'Modèles de chat'), icon: MessageSquare, show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canManageChatTemplates || hasAnyPermission(u, ['manage_chat_templates']) },
-  { to: '/admin/promo-codes', label: t('nav.promoCodes', 'Codes promo'), icon: Ticket, show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
-  { to: '/admin/settings', label: t('nav.appSettings', 'Paramètres app'), icon: SlidersHorizontal, show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
-  { to: '/admin/system-settings', label: t('nav.systemSettings', 'Paramètres système'), icon: SlidersHorizontal, show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
-  { to: '/admin/settings/categories', label: t('nav.categories', 'Catégories'), icon: FolderTree, show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
-  { to: '/admin/feedback', label: t('nav.feedback', 'Avis amélioration'), icon: MessageSquare, show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canReadFeedback || hasAnyPermission(u, ['read_feedback']) },
-  { to: '/admin/payment-verification', label: t('nav.verifyPayments', 'Vérifier paiements'), icon: CheckCircle, show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canVerifyPayments || hasAnyPermission(u, ['verify_payments']) },
-  { to: '/admin/product-boosts', label: t('nav.productBoosts', 'Boost produits'), icon: Sparkles, show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canManageBoosts || hasAnyPermission(u, ['manage_boosts']) },
-  { to: '/admin/boost-management', label: t('nav.boostPricing', 'Tarification boost'), icon: Sparkles, show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canManageBoosts || hasAnyPermission(u, ['manage_boosts']) },
-  { to: '/admin/payment-verifiers', label: t('nav.paymentVerifiers', 'Vérificateurs'), icon: Shield, show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_permissions']) },
-  { to: '/admin/reports', label: t('nav.reports', 'Rapports'), icon: FileText, show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['view_logs']) },
-  { to: '/admin/founder-intelligence', label: t('nav.founderIntelligence', 'Founder Intelligence'), icon: Crown, show: (u) => u?.role === 'founder' },
-  { to: '/admin/founder-account-control', label: t('nav.founderAccountControl', 'Suppression définitive'), icon: UserX, show: (u) => u?.role === 'founder' }
+    }, group: 'operations' },
+  { to: '/admin/complaints', label: t('nav.complaints', 'Réclamations'), icon: AlertCircle, group: 'operations', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageComplaints || hasAnyPermission(u, ['manage_complaints']) },
+  { to: '/admin/chat-templates', label: t('nav.chatTemplates', 'Modèles de chat'), icon: MessageSquare, group: 'operations', show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canManageChatTemplates || hasAnyPermission(u, ['manage_chat_templates']) },
+  { to: '/admin/promo-codes', label: t('nav.promoCodes', 'Codes promo'), icon: Ticket, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
+  { to: '/admin/settings', label: t('nav.appSettings', 'Paramètres app'), icon: SlidersHorizontal, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
+  { to: '/admin/system-settings', label: t('nav.systemSettings', 'Paramètres système'), icon: SlidersHorizontal, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
+  { to: '/admin/settings/categories', label: t('nav.categories', 'Catégories'), icon: FolderTree, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
+  { to: '/admin/feedback', label: t('nav.feedback', 'Avis amélioration'), icon: MessageSquare, group: 'operations', show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canReadFeedback || hasAnyPermission(u, ['read_feedback']) },
+  { to: '/admin/payment-verification', label: t('nav.verifyPayments', 'Vérifier paiements'), icon: CheckCircle, group: 'operations', show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canVerifyPayments || hasAnyPermission(u, ['verify_payments']) },
+  { to: '/admin/product-boosts', label: t('nav.productBoosts', 'Boost produits'), icon: Sparkles, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canManageBoosts || hasAnyPermission(u, ['manage_boosts']) },
+  { to: '/admin/boost-management', label: t('nav.boostPricing', 'Tarification boost'), icon: Sparkles, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canManageBoosts || hasAnyPermission(u, ['manage_boosts']) },
+  { to: '/admin/payment-verifiers', label: t('nav.paymentVerifiers', 'Vérificateurs'), icon: Shield, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_permissions']) },
+  { to: '/admin/reports', label: t('nav.reports', 'Rapports'), icon: FileText, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['view_logs']) },
+  { to: '/admin/founder-intelligence', label: t('nav.founderIntelligence', 'Founder Intelligence'), icon: Crown, group: 'founder', show: (u) => u?.role === 'founder' },
+  { to: '/admin/founder-account-control', label: t('nav.founderAccountControl', 'Suppression définitive'), icon: UserX, group: 'founder', show: (u) => u?.role === 'founder' }
 ];
 
 export default function AdminLayout() {
   const { user } = useContext(AuthContext);
   const { t, getRuntimeValue } = useAppSettings();
+  const storageKey = useMemo(() => buildAdminUiStateStorageKey(user), [user]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarQuery, setSidebarQuery] = useState('');
+  const [collapsedSections, setCollapsedSections] = useState({ ...DEFAULT_COLLAPSED_SECTIONS });
   const isManager = user?.role === 'manager';
   const isFounder = user?.role === 'founder';
   const platformDeliveryEnabled =
@@ -77,36 +135,118 @@ export default function AdminLayout() {
 
   const navItems = buildNavItems(t, platformDeliveryEnabled);
   const visibleItems = navItems.filter((item) => item.show(user));
+  const normalizedSidebarQuery = String(sidebarQuery || '').trim().toLowerCase();
+  const filteredItems = useMemo(() => {
+    if (!normalizedSidebarQuery) return visibleItems;
+    return visibleItems.filter((item) =>
+      String(item.label || '').toLowerCase().includes(normalizedSidebarQuery)
+    );
+  }, [visibleItems, normalizedSidebarQuery]);
+  const groupedItems = useMemo(() => {
+    const buckets = {
+      overview: [],
+      commerce: [],
+      operations: [],
+      system: [],
+      founder: []
+    };
+    filteredItems.forEach((item) => {
+      const groupKey = item.group && buckets[item.group] ? item.group : 'operations';
+      buckets[groupKey].push(item);
+    });
+    return buckets;
+  }, [filteredItems]);
+  const groupOrder = ADMIN_GROUP_ORDER;
+  const groupLabels = {
+    overview: t('nav.sectionOverview', 'Vue globale'),
+    commerce: t('nav.sectionCommerce', 'Commerce'),
+    operations: t('nav.sectionOperations', 'Opérations'),
+    system: t('nav.sectionSystem', 'Système'),
+    founder: t('nav.sectionFounder', 'Founder')
+  };
+  const roleLabel = isFounder
+    ? t('nav.founder', 'Founder')
+    : isManager
+    ? t('nav.management', 'Gestion')
+    : t('nav.admin', 'Admin');
 
-  const navContent = (
-    <>
-      {visibleItems.map((item) => {
-        const Icon = item.icon;
-        return (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end ?? false}
-            onClick={() => setMobileMenuOpen(false)}
-            className={({ isActive }) =>
-              `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-                isActive
-                  ? 'bg-neutral-600 text-white shadow-md'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-              }`
-            }
-          >
-            <Icon size={20} className="shrink-0" />
-            <span className="truncate">{item.label}</span>
-          </NavLink>
-        );
-      })}
-    </>
-  );
+  useEffect(() => {
+    const persisted = readAdminUiState(storageKey);
+    setSidebarCollapsed(Boolean(persisted.sidebarCollapsed));
+    setCollapsedSections(parseCollapsedSections(persisted.collapsedSections));
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const payload = {
+      sidebarCollapsed: Boolean(sidebarCollapsed),
+      collapsedSections: parseCollapsedSections(collapsedSections)
+    };
+    window.localStorage.setItem(storageKey, JSON.stringify(payload));
+  }, [storageKey, sidebarCollapsed, collapsedSections]);
+
+  const toggleSectionCollapsed = (groupKey) => {
+    setCollapsedSections((current) => ({
+      ...current,
+      [groupKey]: !current[groupKey]
+    }));
+  };
+
+  const renderNavLink = (item, { collapsed = false, onSelect = null } = {}) => {
+    const Icon = item.icon;
+    return (
+      <NavLink
+        key={item.to}
+        to={item.to}
+        end={item.end ?? false}
+        onClick={onSelect || undefined}
+        className={({ isActive }) =>
+          `group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+            isActive
+              ? 'bg-neutral-900 text-white shadow-sm'
+              : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+          } ${collapsed ? 'justify-center px-2' : ''}`
+        }
+      >
+        <Icon size={18} className="shrink-0" />
+        {!collapsed ? <span className="truncate">{item.label}</span> : null}
+      </NavLink>
+    );
+  };
+
+  const renderSectionList = (collapsed = false, onSelect = null) =>
+    groupOrder.map((groupKey) => {
+      const items = groupedItems[groupKey] || [];
+      if (!items.length) return null;
+      const sectionCollapsed =
+        !collapsed && !normalizedSidebarQuery && Boolean(collapsedSections[groupKey]);
+      return (
+        <section key={groupKey} className={collapsed ? 'space-y-1' : 'space-y-1.5'}>
+          {!collapsed ? (
+            <button
+              type="button"
+              onClick={() => toggleSectionCollapsed(groupKey)}
+              className="w-full flex items-center justify-between px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-600 transition-colors"
+              aria-expanded={!sectionCollapsed}
+            >
+              <span>{groupLabels[groupKey]}</span>
+              <ChevronDown
+                size={14}
+                className={`transition-transform ${sectionCollapsed ? '-rotate-90' : 'rotate-0'}`}
+              />
+            </button>
+          ) : null}
+          {sectionCollapsed ? null : (
+            <div className="space-y-1">
+              {items.map((item) => renderNavLink(item, { collapsed, onSelect }))}
+            </div>
+          )}
+        </section>
+      );
+    });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-neutral-50/20 flex flex-col lg:flex-row lg:h-[calc(100vh-5rem)] lg:min-h-0 lg:overflow-hidden">
-      {/* Mobile header with menu button */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-neutral-50/30 flex flex-col lg:flex-row lg:h-[calc(100vh-5rem)] lg:min-h-0 lg:overflow-hidden">
       <header className="lg:hidden flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-200/80 bg-white/95 backdrop-blur-sm shrink-0">
         <button
           type="button"
@@ -116,13 +256,10 @@ export default function AdminLayout() {
         >
           {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
-        <span className="font-bold text-gray-900 text-sm">
-          {isFounder ? t('nav.founder', 'Founder') : isManager ? t('nav.management', 'Gestion') : t('nav.admin', 'Admin')}
-        </span>
+        <span className="font-bold text-gray-900 text-sm">{roleLabel}</span>
         <div className="w-10" />
       </header>
 
-      {/* Mobile sidebar drawer */}
       {mobileMenuOpen && (
         <div
           className="lg:hidden fixed inset-0 z-40 bg-black/40"
@@ -131,83 +268,95 @@ export default function AdminLayout() {
         />
       )}
       <aside
-        className={`lg:hidden fixed top-20 left-0 z-40 h-[calc(100vh-5rem)] w-64 max-w-[85vw] flex flex-col border-r border-gray-200 bg-white shadow-xl transform transition-transform duration-200 ease-out ${
+        className={`lg:hidden fixed top-20 left-0 z-40 h-[calc(100vh-5rem)] w-72 max-w-[88vw] flex flex-col border-r border-gray-200 bg-white shadow-xl transform transition-transform duration-200 ease-out ${
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100">
-          <span className="font-bold text-gray-900 text-sm">
-            {isFounder ? t('nav.founder', 'Founder') : isManager ? t('nav.management', 'Gestion') : t('nav.admin', 'Admin')}
-          </span>
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen(false)}
-            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"
-            aria-label={t('nav.closeMenu', 'Fermer le menu')}
-          >
-            <X size={20} />
-          </button>
-        </div>
-        <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">{navContent}</nav>
-      </aside>
-
-      {/* Desktop sidebar */}
-      <aside
-        className={`hidden lg:flex lg:h-full flex-col border-r border-gray-200/80 bg-white/90 backdrop-blur-sm shrink-0 transition-[width] duration-200 ${
-          sidebarCollapsed ? 'w-[72px]' : 'w-64'
-        }`}
-      >
-        <div className="flex flex-col h-full pt-6 pb-4">
-          <div className={`flex items-center px-3 ${sidebarCollapsed ? 'justify-center' : 'justify-between'} mb-4`}>
-            {!sidebarCollapsed && (
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-neutral-600 to-neutral-600 flex items-center justify-center shrink-0">
-                  <BarChart3 size={18} className="text-white" />
-                </div>
-                <span className="font-bold text-gray-900 truncate text-sm">
-                  {isFounder
-                    ? t('nav.founder', 'Founder')
-                    : isManager
-                    ? t('nav.management', 'Gestion')
-                    : t('nav.admin', 'Admin')}
-                </span>
-              </div>
-            )}
+        <div className="border-b border-gray-100 px-4 py-4">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-gray-900 text-sm">{roleLabel}</span>
             <button
               type="button"
-              onClick={() => setSidebarCollapsed((c) => !c)}
-              className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-              aria-label={sidebarCollapsed ? t('nav.openMenu', 'Ouvrir le menu') : t('nav.closeMenu', 'Réduire le menu')}
+              onClick={() => setMobileMenuOpen(false)}
+              className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"
+              aria-label={t('nav.closeMenu', 'Fermer le menu')}
             >
-              {sidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+              <X size={20} />
             </button>
           </div>
-          <nav className="flex-1 overflow-y-auto overscroll-contain px-2 space-y-0.5">
-            {visibleItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end ?? false}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-neutral-600 text-white shadow-md'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                    } ${sidebarCollapsed ? 'justify-center' : ''}`
-                  }
-                >
-                  <Icon size={20} className="shrink-0" />
-                  {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
-                </NavLink>
-              );
-            })}
+          <div className="mt-3 relative">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={sidebarQuery}
+              onChange={(event) => setSidebarQuery(event.target.value)}
+              placeholder={t('nav.searchMenu', 'Rechercher un menu')}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-700 outline-none focus:border-gray-400"
+            />
+          </div>
+        </div>
+        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
+          {renderSectionList(false, () => setMobileMenuOpen(false))}
+        </nav>
+      </aside>
+
+      <aside
+        className={`hidden lg:flex lg:h-full flex-col border-r border-gray-200/80 bg-white/90 backdrop-blur-sm shrink-0 transition-[width] duration-200 ${
+          sidebarCollapsed ? 'w-[78px]' : 'w-[292px]'
+        }`}
+      >
+        <div className="flex h-full flex-col">
+          <div className="border-b border-gray-100 px-3 py-4">
+            <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} gap-2`}>
+              {!sidebarCollapsed ? (
+                <div className="flex min-w-0 items-center gap-2">
+                  <div className="h-9 w-9 rounded-xl bg-neutral-900 flex items-center justify-center shrink-0">
+                    <BarChart3 size={18} className="text-white" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-gray-900">{roleLabel}</p>
+                    <p className="text-xs text-gray-500">{visibleItems.length} menus</p>
+                  </div>
+                </div>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed((current) => !current)}
+                className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                aria-label={sidebarCollapsed ? t('nav.openMenu', 'Ouvrir le menu') : t('nav.closeMenu', 'Réduire le menu')}
+              >
+                {sidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+              </button>
+            </div>
+            {!sidebarCollapsed ? (
+              <div className="mt-3 relative">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={sidebarQuery}
+                  onChange={(event) => setSidebarQuery(event.target.value)}
+                  placeholder={t('nav.searchMenu', 'Rechercher un menu')}
+                  className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-700 outline-none focus:border-gray-400"
+                />
+              </div>
+            ) : null}
+          </div>
+          <nav className={`flex-1 overflow-y-auto overscroll-contain ${sidebarCollapsed ? 'px-2 py-3 space-y-2' : 'px-2.5 py-3 space-y-4'}`}>
+            {renderSectionList(sidebarCollapsed)}
           </nav>
+          {!sidebarCollapsed ? (
+            <div className="border-t border-gray-100 px-3 py-3">
+              <div className="rounded-xl bg-gray-50 px-3 py-2.5">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                  Navigation
+                </p>
+                <p className="mt-1 text-xs text-gray-600">
+                  Les sections sont filtrables via la barre de recherche.
+                </p>
+              </div>
+            </div>
+          ) : null}
         </div>
       </aside>
 
-      {/* Main content */}
       <main className="flex-1 min-w-0 lg:h-full lg:overflow-y-auto">
         <Outlet />
       </main>

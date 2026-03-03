@@ -19,11 +19,10 @@ export function useNetworks() {
     try {
       setLoading(true);
       setError(null);
-      const res = await api.get('/settings/networks', { skipCache: true });
+      const res = await api.get('/settings/networks', { skipCache: true, silentGlobalError: true });
       const list = Array.isArray(res.data) ? res.data : Array.isArray(res.data?.data) ? res.data.data : [];
       setNetworks(list.length ? list : FALLBACK_NETWORKS);
     } catch (err) {
-      console.error('Failed to fetch networks:', err);
       setError(err.response?.data?.message || 'Erreur lors du chargement des réseaux.');
       setNetworks(FALLBACK_NETWORKS);
     } finally {

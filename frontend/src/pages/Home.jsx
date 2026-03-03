@@ -127,14 +127,16 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
     return parsed;
   }, []);
 
+  const hasPromoAsset = Boolean(promoBanner || promoBannerMobile);
+
   const isPromoActive = useMemo(() => {
-    if (!promoBanner) return false;
+    if (!hasPromoAsset) return false;
     const startDate = parsePromoDate(promoBannerStartAt);
     const endDate = parsePromoDate(promoBannerEndAt);
     if (startDate && promoNow < startDate) return false;
     if (endDate && promoNow > endDate) return false;
     return true;
-  }, [parsePromoDate, promoBanner, promoBannerEndAt, promoBannerStartAt, promoNow]);
+  }, [hasPromoAsset, parsePromoDate, promoBannerEndAt, promoBannerStartAt, promoNow]);
   const showMobileSplash = isMobileView && !splashShown && loading && page === 1;
 
   // === CHARGEMENT DES PRODUITS ===
@@ -265,7 +267,10 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
     let active = true;
     const loadPromoBanner = async () => {
       try {
-        const { data } = await api.get('/settings/promo-banner');
+        const { data } = await api.get('/settings/promo-banner', {
+          skipCache: true,
+          headers: { 'x-skip-cache': '1' }
+        });
         if (!active) return;
         setPromoBanner(data?.promoBanner || '');
         setPromoBannerMobile(data?.promoBannerMobile || '');
@@ -328,10 +333,15 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
   const loadVerifiedShops = async () => {
     setVerifiedLoading(true);
     try {
-      const { data } = await api.get("/shops");
-      const verifiedOnly = Array.isArray(data)
-        ? data.filter((shop) => shop.shopVerified)
-        : [];
+      const { data } = await api.get('/shops', {
+        params: {
+          verified: 'true',
+          limit: 6,
+          withViews: 'false',
+          withRatings: 'false'
+        }
+      });
+      const verifiedOnly = Array.isArray(data) ? data : [];
       setVerifiedShops(verifiedOnly.slice(0, 6));
     } catch (error) {
       console.error("Erreur chargement boutiques vérifiées:", error);
@@ -390,7 +400,7 @@ const loadDiscountProducts = async () => {
 };
 
   const renderPromoBanner = () => {
-    if (!promoBanner) return null;
+    if (!hasPromoAsset) return null;
     const activeBanner = isMobileView && promoBannerMobile ? promoBannerMobile : promoBanner;
     const bannerSrc = isPromoActive ? activeBanner : defaultPromoBanner;
     const bannerLink = isPromoActive ? promoBannerLink : '/products';
@@ -735,7 +745,7 @@ const loadDiscountProducts = async () => {
         </div>
 
         {/* Compact Promo Banner */}
-        {promoBanner && (() => {
+        {hasPromoAsset && (() => {
           const activeBanner = promoBannerMobile || promoBanner;
           const bannerSrc = isPromoActive ? activeBanner : defaultPromoBanner;
           const bannerLink = isPromoActive ? promoBannerLink : '/products';
@@ -1452,7 +1462,7 @@ const loadDiscountProducts = async () => {
 
             {/* Promo Banner (below hero, full width of left column) */}
             {promoBanner && (() => {
-              const bannerSrc = isPromoActive ? promoBanner : defaultPromoBanner;
+              const bannerSrc = isPromoActive ? (promoBanner || defaultPromoBanner) : defaultPromoBanner;
               const bannerLink = isPromoActive ? promoBannerLink : '/products';
               const img = <img src={bannerSrc} alt="Promo" className="h-full w-full object-cover" loading="lazy" />;
               const cls = "block w-full overflow-hidden rounded-xl shadow-sm aspect-[21/7]";

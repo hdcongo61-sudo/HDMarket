@@ -100,41 +100,72 @@ export const listShops = asyncHandler(async (req, res) => {
     if (cityParam && SHOP_CITIES.includes(cityParam)) {
       filters.city = cityParam;
     }
+    const hasLimitParam =
+      req.query?.limit !== undefined &&
+      req.query?.limit !== null &&
+      String(req.query.limit).trim() !== '';
+    const page = hasLimitParam ? Math.max(1, Number(req.query?.page) || 1) : 1;
+    const limit = hasLimitParam ? Math.max(1, Math.min(Number(req.query?.limit) || 20, 200)) : null;
+    const skip = hasLimitParam ? (page - 1) * limit : 0;
     const includeImages = req.query?.withImages === 'true';
+    const includeViews = req.query?.withViews !== 'false';
+    const includeRatings = req.query?.withRatings !== 'false';
+    const includeProductCounts = req.query?.withProductCounts !== 'false';
     const imageLimit = Math.max(1, Math.min(Number(req.query?.imageLimit) || 6, 12));
-    const shops = await User.find(filters)
-      .select('shopName shopAddress shopLogo shopBanner name createdAt shopVerified followersCount shopBoosted shopBoostScore shopBoostStartDate shopBoostEndDate city freeDeliveryEnabled freeDeliveryNote')
-      .sort({ shopBoosted: -1, shopBoostScore: -1, followersCount: -1, shopName: 1, createdAt: -1 })
-      .lean();
+    let shopsQuery = User.find(filters)
+      .select(
+        'shopName shopAddress shopLogo shopBanner name createdAt shopVerified followersCount shopBoosted shopBoostScore shopBoostStartDate shopBoostEndDate city freeDeliveryEnabled freeDeliveryNote slug'
+      )
+      .sort({ shopBoosted: -1, shopBoostScore: -1, followersCount: -1, shopName: 1, createdAt: -1 });
+    if (hasLimitParam) {
+      shopsQuery = shopsQuery.skip(skip).limit(limit);
+    }
+    const shops = await shopsQuery.lean();
 
     if (!shops.length) {
       return res.json([]);
     }
 
     const shopIds = shops.map((shop) => shop._id);
-    const productCounts = await Product.aggregate([
-      {
-        $match: await withVerifiedPublicProductFilter({
-          user: { $in: shopIds },
-          status: 'approved'
-        })
-      },
-      { $group: { _id: '$user', count: { $sum: 1 } } }
-    ]);
+    const productCounts = includeProductCounts
+      ? await Product.aggregate([
+          {
+            $match: await withVerifiedPublicProductFilter({
+              user: { $in: shopIds },
+              status: 'approved'
+            })
+          },
+          { $group: { _id: '$user', count: { $sum: 1 } } }
+        ])
+      : [];
 
     const productCountMap = new Map(productCounts.map((entry) => [String(entry._id), entry.count]));
 
-    const viewsAgg = await ProductView.aggregate([
-      { $lookup: { from: 'products', localField: 'product', foreignField: '_id', as: 'prod' } },
-      { $unwind: '$prod' },
-      { $match: { 'prod.user': { $in: shopIds } } },
-      { $group: { _id: '$prod.user', totalViews: { $sum: '$viewsCount' } } }
-    ]);
-    const totalViewsMap = new Map(viewsAgg.map((entry) => [String(entry._id), Number(entry.totalViews || 0)]));
+    let totalViewsMap = new Map();
+    if (includeViews && shopIds.length) {
+      const shopProducts = await Product.find({ user: { $in: shopIds } })
+        .select('_id user')
+        .lean();
+      if (shopProducts.length) {
+        const productToShop = new Map(shopProducts.map((entry) => [String(entry._id), String(entry.user)]));
+        const productIds = shopProducts.map((entry) => entry._id);
+        const viewsByProduct = await ProductView.aggregate([
+          { $match: { product: { $in: productIds } } },
+          { $group: { _id: '$product', totalViews: { $sum: { $ifNull: ['$viewsCount', 0] } } } }
+        ]);
+        totalViewsMap = viewsByProduct.reduce((acc, entry) => {
+          const shopId = productToShop.get(String(entry._id));
+          if (!shopId) return acc;
+          const current = Number(acc.get(shopId) || 0);
+          acc.set(shopId, current + Number(entry.totalViews || 0));
+          return acc;
+        }, new Map());
+      }
+    }
 
     let ratingMap = new Map();
 
-    if (shopIds.length) {
+    if (includeRatings && shopIds.length) {
       const ratingSummaries = await ShopReview.aggregate([
         { $match: { shop: { $in: shopIds } } },
         { $group: { _id: '$shop', average: { $avg: '$rating' }, count: { $sum: 1 } } }
@@ -200,10 +231,10 @@ export const listShops = asyncHandler(async (req, res) => {
         shopBoostEndDate: shop.shopBoostEndDate || null,
         isCurrentlyBoosted,
         followersCount: Number(shop.followersCount || 0),
-        productCount: productCountMap.get(id) || 0,
-        totalViews: totalViewsMap.get(id) || 0,
-        ratingAverage: ratingStats.average,
-        ratingCount: ratingStats.count,
+        productCount: includeProductCounts ? productCountMap.get(id) || 0 : null,
+        totalViews: includeViews ? totalViewsMap.get(id) || 0 : null,
+        ratingAverage: includeRatings ? ratingStats.average : null,
+        ratingCount: includeRatings ? ratingStats.count : 0,
         createdAt: shop.createdAt,
         city: shop.city || '',
         freeDeliveryEnabled: Boolean(shop.freeDeliveryEnabled),

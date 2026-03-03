@@ -143,7 +143,7 @@ export default function UserDashboard() {
   const [savedFilters, setSavedFilters] = useState([]);
   const [filterName, setFilterName] = useState('');
   const [analyticsProduct, setAnalyticsProduct] = useState(null);
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
+  const [viewMode, setViewMode] = useState('list'); // 'grid' or 'list'
   const [promoAnalytics, setPromoAnalytics] = useState(null);
   const [promoAnalyticsLoading, setPromoAnalyticsLoading] = useState(false);
   const [promoCodes, setPromoCodes] = useState([]);
@@ -1900,6 +1900,13 @@ export default function UserDashboard() {
 
                           {/* Actions - List View */}
                           <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+                            <Link
+                              to={`/my/annonce/${product.slug || productId}`}
+                              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-all"
+                            >
+                              <FileText className="w-4 h-4" />
+                              Detail
+                            </Link>
                             {product.status === 'approved' && (
                               <Link
                                 to={buildProductPath(product)}
@@ -2107,6 +2114,13 @@ export default function UserDashboard() {
 
                       {/* Actions */}
                       <div className="flex flex-wrap gap-2 pt-2">
+                        <Link
+                          to={`/my/annonce/${product.slug || productId}`}
+                          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-all"
+                        >
+                          <FileText className="w-4 h-4" />
+                          Detail
+                        </Link>
                         {product.status === 'approved' && (
                           <Link
                             to={buildProductPath(product)}
