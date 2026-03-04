@@ -74,6 +74,24 @@ const RUNTIME_FEE_KEY_MAP = Object.entries(FEE_RUNTIME_KEY_MAP).reduce((acc, [fe
   return acc;
 }, {});
 
+const NOTIFICATION_RUNTIME_FLAGS = [
+  {
+    key: 'push_enabled',
+    label: 'Push notifications globales',
+    fallbackDescription: 'Active ou coupe l’envoi push côté plateforme.'
+  },
+  {
+    key: 'push_when_online',
+    label: 'Push quand utilisateur en ligne',
+    fallbackDescription: 'Envoie aussi un push même si l’utilisateur est connecté dans l’app.'
+  },
+  {
+    key: 'push_for_priority_high_only',
+    label: 'Push HIGH/CRITICAL uniquement',
+    fallbackDescription: 'Réduit le volume push en limitant aux priorités élevées.'
+  }
+];
+
 const emptyCurrencyForm = {
   code: '',
   symbol: '',
@@ -240,6 +258,7 @@ export default function AdminSystemSettings() {
   const [runtimeSettings, setRuntimeSettings] = useState([]);
   const [runtimeDrafts, setRuntimeDrafts] = useState({});
   const [runtimeSavingKey, setRuntimeSavingKey] = useState('');
+  const [runtimeEnvironment, setRuntimeEnvironment] = useState('');
   const [featureFlags, setFeatureFlags] = useState([]);
   const [featureSavingName, setFeatureSavingName] = useState('');
   const [openSections, setOpenSections] = useState({
@@ -276,16 +295,11 @@ export default function AdminSystemSettings() {
         api
           .get('/admin/config/runtime', {
             params: {
-              includeHidden: isFounder ? 'true' : 'false',
-              environment: 'all'
+              includeHidden: isFounder ? 'true' : 'false'
             }
           })
           .catch(() => ({ data: { items: [] } })),
-        api
-          .get('/admin/config/feature-flags', {
-            params: { environment: 'all' }
-          })
-          .catch(() => ({ data: { items: [] } }))
+        api.get('/admin/config/feature-flags').catch(() => ({ data: { items: [] } }))
       ]);
       const data = settingsResponse?.data || {};
       const feeSource = data?.feesAndRules || data?.app || data?.fees || {};
@@ -312,6 +326,7 @@ export default function AdminSystemSettings() {
       setInitialLanguagesSignature(serializeLanguagesConfig(langs, resolvedDefaultLanguage));
 
       setRuntimeSettings(runtimeItems);
+      setRuntimeEnvironment(String(runtimeResponse?.data?.environment || '').trim().toLowerCase() || 'all');
       setRuntimeDrafts(
         runtimeItems.reduce((acc, item) => {
           if (item?.valueType === 'array' || item?.valueType === 'json') {
@@ -402,6 +417,13 @@ export default function AdminSystemSettings() {
       acc[category].push(item);
       return acc;
     }, {});
+  }, [runtimeSettings]);
+  const notificationRuntimeQuickFlags = useMemo(() => {
+    const byKey = new Map((runtimeSettings || []).map((item) => [String(item?.key || ''), item]));
+    return NOTIFICATION_RUNTIME_FLAGS.map((entry) => ({
+      ...entry,
+      setting: byKey.get(entry.key) || null
+    }));
   }, [runtimeSettings]);
 
   const dirtyFeeKeys = useMemo(
@@ -515,10 +537,9 @@ export default function AdminSystemSettings() {
 
     setRuntimeSavingKey(key);
     try {
-      const { data } = await api.patch(`/admin/config/runtime/${encodeURIComponent(key)}`, {
-        value,
-        environment: 'all'
-      });
+      const payload = { value };
+      if (runtimeEnvironment) payload.environment = runtimeEnvironment;
+      const { data } = await api.patch(`/admin/config/runtime/${encodeURIComponent(key)}`, payload);
       const updatedValue = data?.item?.value ?? value;
       setRuntimeSettings((prev) =>
         prev.map((entry) =>
@@ -574,10 +595,9 @@ export default function AdminSystemSettings() {
     );
     setFeatureSavingName(name);
     try {
-      const { data } = await api.patch(`/admin/config/feature-flags/${encodeURIComponent(name)}`, {
-        ...patch,
-        environment: 'all'
-      });
+      const payload = { ...patch };
+      if (runtimeEnvironment) payload.environment = runtimeEnvironment;
+      const { data } = await api.patch(`/admin/config/feature-flags/${encodeURIComponent(name)}`, payload);
       const updated = data?.item || {};
       setFeatureFlags((prev) =>
         prev.map((entry) => (String(entry?.featureName) === name ? { ...entry, ...updated } : entry))
@@ -1267,7 +1287,7 @@ export default function AdminSystemSettings() {
             <div className="flex items-center gap-2">
               {!isMobile ? (
                 <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-600 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-300">
-                  Environnement: all
+                  Environnement: {runtimeEnvironment || 'auto'}
                 </span>
               ) : null}
               {isMobile ? (
@@ -1283,6 +1303,70 @@ export default function AdminSystemSettings() {
               <p className="text-sm text-gray-500">Aucun paramètre runtime trouvé.</p>
             ) : (
               <div className="space-y-4">
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 dark:border-indigo-900/60 dark:bg-indigo-950/20">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">
+                    Notifications Push
+                  </p>
+                  <p className="mb-3 text-xs text-indigo-700/90 dark:text-indigo-200/90">
+                    Activation rapide des flags runtime pour l’orchestration socket/push.
+                  </p>
+                  <div className="space-y-2.5">
+                    {notificationRuntimeQuickFlags.map((entry) => {
+                      const setting = entry.setting;
+                      const key = entry.key;
+                      const isSaving = runtimeSavingKey === key;
+                      const currentValue = parseBooleanSetting(
+                        runtimeDrafts[key] ?? setting?.value ?? false
+                      );
+                      return (
+                        <div
+                          key={key}
+                          className="rounded-lg border border-indigo-100 bg-white/70 p-2.5 dark:border-indigo-900/70 dark:bg-neutral-950/40"
+                        >
+                          <div className="mb-2">
+                            <p className="text-xs font-semibold text-slate-900 dark:text-neutral-100">{entry.label}</p>
+                            <p className="text-[11px] text-slate-500 dark:text-neutral-400">
+                              {setting?.description || entry.fallbackDescription}
+                            </p>
+                            <p className="mt-1 text-[10px] text-slate-400 dark:text-neutral-500">
+                              key: <code className="rounded bg-white px-1 py-0.5 dark:bg-neutral-900">{key}</code>
+                            </p>
+                          </div>
+                          {setting ? (
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                              <select
+                                value={currentValue ? 'true' : 'false'}
+                                onChange={(event) =>
+                                  setRuntimeDrafts((prev) => ({
+                                    ...prev,
+                                    [key]: event.target.value === 'true'
+                                  }))
+                                }
+                                className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+                              >
+                                <option value="true">Activé</option>
+                                <option value="false">Désactivé</option>
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => saveRuntimeSetting(setting)}
+                                disabled={isSaving}
+                                className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700 disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900/30 dark:text-neutral-200 sm:min-h-9"
+                              >
+                                <Save size={12} />
+                                {isSaving ? '...' : 'Enregistrer'}
+                              </button>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-red-600 dark:text-red-300">
+                              Clé runtime introuvable côté API.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
                 {Object.entries(runtimeSettingsByCategory).map(([category, items]) => (
                   <div key={category} className="rounded-xl border border-gray-200 p-3 dark:border-neutral-700">
                     <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-neutral-400">

@@ -23,6 +23,11 @@ const pushTokenSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    disabledReason: {
+      type: String,
+      default: '',
+      trim: true
+    },
     lastFailureAt: {
       type: Date,
       default: null
@@ -30,6 +35,14 @@ const pushTokenSchema = new mongoose.Schema(
     lastFailureCode: {
       type: String,
       default: ''
+    },
+    lastDeliveredAt: {
+      type: Date,
+      default: null
+    },
+    lastOpenedAt: {
+      type: Date,
+      default: null
     },
     lastSeenAt: { type: Date, default: Date.now }
   },

@@ -186,6 +186,7 @@ export const globalSearch = asyncHandler(async (req, res) => {
         _id: product._id,
         slug: product.slug,
         title: product.title,
+        description: product.description || '',
         category: product.category,
         price: product.price,
         discount: product.discount || 0,

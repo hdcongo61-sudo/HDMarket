@@ -47,6 +47,9 @@ const NETWORK_FIRST_API_PREFIXES = [
   '/api/settings/communes',
   '/api/admin/cities',
   '/api/admin/communes',
+  '/api/admin/tasks',
+  '/api/founder/tasks',
+  '/api/founder/notifications/analytics',
   '/api/users/notifications',
   '/api/users/profile',
   '/api/orders'

@@ -1,9 +1,47 @@
-import React, { useContext, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useNavigate, Navigate, useLocation, Link } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Loader2, ShieldCheck } from 'lucide-react';
 import { useAppSettings } from '../context/AppSettingsContext';
+import AuthTrustPanel from '../components/auth/AuthTrustPanel';
+import AuthSuccessCard from '../components/auth/AuthSuccessCard';
+
+const SLOW_NETWORK_MS = 8000;
+
+const mapRegisterErrorMessage = (error) => {
+  const status = Number(error?.response?.status || 0);
+  const code = String(error?.code || error?.response?.data?.code || '').toUpperCase();
+  const rawMessage = String(error?.response?.data?.message || error?.message || '').toLowerCase();
+
+  if (code.includes('TIMEDOUT') || rawMessage.includes('timeout')) {
+    return 'Connexion lente. Veuillez réessayer.';
+  }
+  if (status === 409 || rawMessage.includes('already') || rawMessage.includes('déjà')) {
+    return 'Un compte existe déjà avec cet email ou ce téléphone.';
+  }
+  if (status >= 500) {
+    return 'Service temporairement indisponible. Veuillez réessayer.';
+  }
+  return 'Impossible de créer le compte pour le moment. Veuillez réessayer.';
+};
+
+const getPasswordChecks = (password = '') => {
+  const value = String(password || '');
+  return {
+    minLength: value.length >= 8,
+    hasUppercase: /[A-Z]/.test(value),
+    hasNumber: /\d/.test(value),
+    hasSymbol: /[^A-Za-z0-9]/.test(value)
+  };
+};
+
+const strengthLabelOf = (score) => {
+  if (score <= 1) return { label: 'Faible', color: 'bg-red-500' };
+  if (score === 2) return { label: 'Moyen', color: 'bg-amber-500' };
+  if (score === 3) return { label: 'Bon', color: 'bg-blue-500' };
+  return { label: 'Fort', color: 'bg-emerald-500' };
+};
 
 export default function Register() {
   const { user, login } = useContext(AuthContext);
@@ -11,10 +49,13 @@ export default function Register() {
   const nav = useNavigate();
   const location = useLocation();
   const from = location.state?.from || '/';
+
+  const [step, setStep] = useState(1);
   const [form, setForm] = useState({
     name: '',
     email: '',
     password: '',
+    confirmPassword: '',
     phone: '',
     accountType: 'person',
     address: '',
@@ -23,14 +64,35 @@ export default function Register() {
     commune: '',
     gender: ''
   });
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [slowNetwork, setSlowNetwork] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
   const [codeSending, setCodeSending] = useState(false);
   const [codeMessage, setCodeMessage] = useState('');
   const [codeError, setCodeError] = useState('');
   const [formError, setFormError] = useState('');
+  const [successPayload, setSuccessPayload] = useState(null);
+  const [finalizing, setFinalizing] = useState(false);
+
+  const nameRef = useRef(null);
+  const emailRef = useRef(null);
+  const phoneRef = useRef(null);
+  const passwordRef = useRef(null);
+  const confirmRef = useRef(null);
+  const slowNetworkTimerRef = useRef(null);
+  const successRedirectTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (slowNetworkTimerRef.current) clearTimeout(slowNetworkTimerRef.current);
+      if (successRedirectTimerRef.current) clearTimeout(successRedirectTimerRef.current);
+    };
+  }, []);
+
   const cityRecords = useMemo(
     () =>
       Array.isArray(cities) && cities.length
@@ -43,6 +105,7 @@ export default function Register() {
           ],
     [cities]
   );
+
   const cityOptions = cityRecords.map((item) => item.name);
   const selectedCityRecord = cityRecords.find((item) => item.name === form.city) || null;
   const availableCommunes = useMemo(() => {
@@ -52,14 +115,58 @@ export default function Register() {
       return String(itemCityId || '') === String(selectedCityRecord._id);
     });
   }, [communes, selectedCityRecord?._id]);
-  const genderOptions = [
-    { value: 'homme', label: 'Homme' },
-    { value: 'femme', label: 'Femme' }
-  ];
+
+  const passwordChecks = useMemo(() => getPasswordChecks(form.password), [form.password]);
+  const passwordScore = [
+    passwordChecks.minLength,
+    passwordChecks.hasUppercase,
+    passwordChecks.hasNumber,
+    passwordChecks.hasSymbol
+  ].filter(Boolean).length;
+  const passwordStrength = strengthLabelOf(passwordScore);
+
+  const canGoToStep2 = Boolean(form.name.trim() && form.email.trim() && form.phone.trim());
+  const canSubmit = Boolean(
+    form.name.trim() &&
+      form.email.trim() &&
+      form.phone.trim() &&
+      form.password &&
+      form.confirmPassword &&
+      form.password === form.confirmPassword &&
+      passwordChecks.minLength &&
+      passwordChecks.hasUppercase &&
+      passwordChecks.hasNumber &&
+      form.address.trim() &&
+      form.city &&
+      form.gender &&
+      acceptedTerms &&
+      !loading
+  );
+
+  const completeRegistration = async (target = from) => {
+    if (!successPayload || finalizing) return;
+    setFinalizing(true);
+    try {
+      await login(successPayload);
+      nav(target, { replace: true });
+    } finally {
+      setFinalizing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!successPayload) return;
+    successRedirectTimerRef.current = setTimeout(() => {
+      completeRegistration(from);
+    }, 1800);
+    return () => {
+      if (successRedirectTimerRef.current) clearTimeout(successRedirectTimerRef.current);
+    };
+  }, [successPayload]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sendVerificationCode = async () => {
     if (!form.email.trim()) {
-      setCodeError("Veuillez renseigner votre adresse email.");
+      setCodeError('Veuillez renseigner votre adresse email.');
       return;
     }
     setCodeSending(true);
@@ -70,39 +177,56 @@ export default function Register() {
       await api.post('/auth/register/send-code', { email: form.email });
       setCodeSent(true);
       setCodeMessage('Code envoyé par email. Vérifiez votre boîte de réception.');
-    } catch (error) {
-      setCodeError(error.response?.data?.message || error.message);
+    } catch (requestError) {
+      setCodeError(mapRegisterErrorMessage(requestError));
     } finally {
       setCodeSending(false);
     }
   };
 
-  const submit = async (e) => {
-    e.preventDefault();
+  const submit = async (event) => {
+    event.preventDefault();
+    if (loading || successPayload) return;
     setFormError('');
-    
+
     if (!form.city || !form.gender) {
-      setFormError("Veuillez sélectionner votre ville et votre genre.");
+      setFormError('Veuillez sélectionner votre ville et votre genre.');
       return;
     }
     if (availableCommunes.length > 0 && !form.commune) {
-      setFormError("Veuillez sélectionner votre commune.");
+      setFormError('Veuillez sélectionner votre commune.');
       return;
     }
     if (!form.address.trim()) {
-      setFormError("Veuillez renseigner votre adresse complète.");
+      setFormError('Veuillez renseigner votre adresse complète.');
       return;
     }
-    // Verification code optional when email is not configured or in production
+    if (form.password !== form.confirmPassword) {
+      setFormError('Les mots de passe ne correspondent pas.');
+      return;
+    }
+    if (!passwordChecks.minLength || !passwordChecks.hasUppercase || !passwordChecks.hasNumber) {
+      setFormError('Le mot de passe ne respecte pas les règles minimales.');
+      return;
+    }
+    if (!acceptedTerms) {
+      setFormError('Vous devez accepter les Conditions et la Politique de confidentialité.');
+      return;
+    }
+
     setLoading(true);
+    setSlowNetwork(false);
+    if (slowNetworkTimerRef.current) clearTimeout(slowNetworkTimerRef.current);
+    slowNetworkTimerRef.current = setTimeout(() => setSlowNetwork(true), SLOW_NETWORK_MS);
+
     try {
       const payload = new FormData();
       payload.append('name', form.name);
       payload.append('email', form.email);
       payload.append('password', form.password);
       payload.append('phone', form.phone);
-      payload.append('accountType', 'person');
-      payload.append('country', 'République du Congo');
+      payload.append('accountType', form.accountType || 'person');
+      payload.append('country', form.country || 'République du Congo');
       payload.append('city', form.city);
       payload.append('commune', form.commune || '');
       payload.append('gender', form.gender);
@@ -112,316 +236,434 @@ export default function Register() {
       const { data } = await api.post('/auth/register', payload, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      login(data);
-      nav(from, { replace: true });
-    } catch (error) {
-      setFormError(error.response?.data?.message || error.message || 'Une erreur est survenue lors de la création du compte.');
+      setSuccessPayload(data || null);
+    } catch (requestError) {
+      setFormError(mapRegisterErrorMessage(requestError));
     } finally {
+      if (slowNetworkTimerRef.current) clearTimeout(slowNetworkTimerRef.current);
       setLoading(false);
     }
   };
 
-  if (user) {
+  if (user && !successPayload && !finalizing) {
     return <Navigate to={from} replace />;
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-[#F2F2F7] dark:bg-black">
-      <div className="w-full max-w-[500px]">
-        <div className="text-center mb-10">
-          <h1 className="text-[28px] font-semibold tracking-tight text-black dark:text-white mb-2">HDMarket</h1>
-          <p className="text-[15px] text-[#8E8E93]">Créez votre compte</p>
-        </div>
+    <main className="glass-page-shell min-h-screen px-4 py-6 sm:py-10">
+      <div className="mx-auto w-full max-w-6xl">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:gap-6">
+          <section className="glass-card rounded-3xl p-5 shadow-sm sm:p-7">
+            {!successPayload ? (
+              <>
+                <header className="mb-6">
+                  <p className="inline-flex items-center gap-2 rounded-full soft-card soft-card-blue px-3 py-1 text-xs font-semibold text-blue-900 dark:text-blue-100">
+                    <ShieldCheck size={14} />
+                    HDMarket
+                  </p>
+                  <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
+                    Create your account
+                  </h1>
+                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                    Join HDMarket to buy, sell and manage your orders easily.
+                  </p>
+                </header>
 
-        <div className="apple-card p-6">
-          <form onSubmit={submit} className="space-y-4">
-            {/* Name */}
-            <div>
-              <input
-                type="text"
-                className="apple-input w-full"
-                placeholder="Nom complet *"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                required
+                <div className="mb-5 grid grid-cols-2 gap-2">
+                  <div className={`rounded-xl px-3 py-2 text-xs font-semibold ${step === 1 ? 'soft-card soft-card-purple text-purple-900 dark:text-purple-100' : 'glass-card text-slate-500 dark:text-slate-300'}`}>
+                    Step 1: Profile
+                  </div>
+                  <div className={`rounded-xl px-3 py-2 text-xs font-semibold ${step === 2 ? 'soft-card soft-card-purple text-purple-900 dark:text-purple-100' : 'glass-card text-slate-500 dark:text-slate-300'}`}>
+                    Step 2: Security
+                  </div>
+                </div>
+
+                <form onSubmit={submit} className="space-y-4">
+                  {step === 1 ? (
+                    <>
+                      <div className="space-y-1.5">
+                        <label htmlFor="register-name" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                          Full name
+                        </label>
+                        <input
+                          id="register-name"
+                          ref={nameRef}
+                          type="text"
+                          autoComplete="name"
+                          className="ui-input min-h-[48px] rounded-xl px-3 text-sm"
+                          placeholder="Votre nom complet"
+                          value={form.name}
+                          onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              emailRef.current?.focus();
+                            }
+                          }}
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label htmlFor="register-email" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                          Email
+                        </label>
+                        <input
+                          id="register-email"
+                          ref={emailRef}
+                          type="email"
+                          autoComplete="email"
+                          className="ui-input min-h-[48px] rounded-xl px-3 text-sm"
+                          placeholder="nom@email.com"
+                          value={form.email}
+                          onChange={(e) => {
+                            setForm((prev) => ({ ...prev, email: e.target.value }));
+                            setCodeError('');
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              phoneRef.current?.focus();
+                            }
+                          }}
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label htmlFor="register-phone" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                          Phone
+                        </label>
+                        <input
+                          id="register-phone"
+                          ref={phoneRef}
+                          type="tel"
+                          inputMode="tel"
+                          autoComplete="tel"
+                          className="ui-input min-h-[48px] rounded-xl px-3 text-sm"
+                          placeholder="060000000"
+                          value={form.phone}
+                          onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (canGoToStep2) setStep(2);
+                            }
+                          }}
+                          required
+                        />
+                      </div>
+
+                      <div className="rounded-2xl glass-card p-3">
+                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-100">
+                          Code de vérification email (optionnel)
+                        </p>
+                        <div className="mt-2 flex gap-2">
+                          <input
+                            type="text"
+                            autoComplete="one-time-code"
+                            className="ui-input min-h-[48px] flex-1 rounded-xl px-3 text-sm"
+                            placeholder="Entrez le code"
+                            value={verificationCode}
+                            onChange={(e) => setVerificationCode(e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            onClick={sendVerificationCode}
+                            disabled={codeSending || !form.email.trim()}
+                            className="glass-card min-h-[48px] rounded-xl px-3 text-xs font-semibold text-slate-700 disabled:opacity-60 dark:text-slate-100"
+                          >
+                            {codeSending ? 'Envoi...' : codeSent ? 'Renvoyer' : 'Envoyer'}
+                          </button>
+                        </div>
+                        {codeError ? <p className="mt-2 text-xs text-red-600 dark:text-red-100">{codeError}</p> : null}
+                        {codeMessage ? <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-100">{codeMessage}</p> : null}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!canGoToStep2) {
+                            setFormError('Renseignez nom, email et téléphone pour continuer.');
+                            return;
+                          }
+                          setFormError('');
+                          setStep(2);
+                          setTimeout(() => passwordRef.current?.focus(), 80);
+                        }}
+                        className="soft-card soft-card-purple inline-flex min-h-[48px] w-full items-center justify-center rounded-xl px-4 text-sm font-semibold text-purple-900 dark:text-purple-100"
+                      >
+                        Continue to Step 2
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="space-y-1.5 sm:col-span-1">
+                          <label htmlFor="register-password" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                            Password
+                          </label>
+                          <div className="relative">
+                            <input
+                              id="register-password"
+                              ref={passwordRef}
+                              type={showPassword ? 'text' : 'password'}
+                              autoComplete="new-password"
+                              className="ui-input min-h-[48px] w-full rounded-xl px-3 pr-12 text-sm"
+                              placeholder="Mot de passe"
+                              value={form.password}
+                              onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+                              required
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword((prev) => !prev)}
+                              className="absolute right-1.5 top-1.5 inline-flex h-9 w-9 items-center justify-center rounded-lg glass-card text-slate-600 dark:text-slate-200"
+                            >
+                              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5 sm:col-span-1">
+                          <label htmlFor="register-confirm-password" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                            Confirm password
+                          </label>
+                          <div className="relative">
+                            <input
+                              id="register-confirm-password"
+                              ref={confirmRef}
+                              type={showConfirmPassword ? 'text' : 'password'}
+                              autoComplete="new-password"
+                              className="ui-input min-h-[48px] w-full rounded-xl px-3 pr-12 text-sm"
+                              placeholder="Confirmer le mot de passe"
+                              value={form.confirmPassword}
+                              onChange={(e) => setForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                              required
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowConfirmPassword((prev) => !prev)}
+                              className="absolute right-1.5 top-1.5 inline-flex h-9 w-9 items-center justify-center rounded-lg glass-card text-slate-600 dark:text-slate-200"
+                            >
+                              {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <section className="glass-card rounded-2xl p-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold text-slate-700 dark:text-slate-100">
+                            Password strength
+                          </p>
+                          <span className="text-xs font-semibold text-slate-600 dark:text-slate-200">
+                            {passwordStrength.label}
+                          </span>
+                        </div>
+                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/55 dark:bg-slate-800">
+                          <div
+                            className={`h-full ${passwordStrength.color} transition-all`}
+                            style={{ width: `${Math.max(8, (passwordScore / 4) * 100)}%` }}
+                          />
+                        </div>
+                        <ul className="mt-3 space-y-1 text-xs">
+                          <li className={passwordChecks.minLength ? 'text-emerald-700 dark:text-emerald-100' : 'text-slate-600 dark:text-slate-300'}>
+                            • At least 8 characters
+                          </li>
+                          <li className={passwordChecks.hasUppercase ? 'text-emerald-700 dark:text-emerald-100' : 'text-slate-600 dark:text-slate-300'}>
+                            • Uppercase letter
+                          </li>
+                          <li className={passwordChecks.hasNumber ? 'text-emerald-700 dark:text-emerald-100' : 'text-slate-600 dark:text-slate-300'}>
+                            • Number
+                          </li>
+                          <li className={passwordChecks.hasSymbol ? 'text-emerald-700 dark:text-emerald-100' : 'text-slate-500 dark:text-slate-300'}>
+                            • Symbol (optional)
+                          </li>
+                        </ul>
+                      </section>
+
+                      <div className="space-y-1.5">
+                        <label htmlFor="register-address" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                          Adresse complète
+                        </label>
+                        <textarea
+                          id="register-address"
+                          rows={2}
+                          className="ui-input min-h-[74px] w-full rounded-xl px-3 py-2.5 text-sm"
+                          placeholder="Adresse complète"
+                          value={form.address}
+                          onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))}
+                          required
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                          <label htmlFor="register-city" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                            Ville
+                          </label>
+                          <select
+                            id="register-city"
+                            className="ui-input min-h-[48px] w-full rounded-xl px-3 text-sm"
+                            value={form.city}
+                            onChange={(e) => setForm((prev) => ({ ...prev, city: e.target.value, commune: '' }))}
+                            required
+                          >
+                            <option value="">Choisir la ville</option>
+                            {cityOptions.map((city) => (
+                              <option key={city} value={city}>
+                                {city}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label htmlFor="register-commune" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                            Commune
+                          </label>
+                          <select
+                            id="register-commune"
+                            className="ui-input min-h-[48px] w-full rounded-xl px-3 text-sm"
+                            value={form.commune}
+                            onChange={(e) => setForm((prev) => ({ ...prev, commune: e.target.value }))}
+                            required={availableCommunes.length > 0}
+                            disabled={!form.city || availableCommunes.length === 0}
+                          >
+                            <option value="">
+                              {form.city ? 'Choisir la commune' : 'Choisir ville d’abord'}
+                            </option>
+                            {availableCommunes.map((commune) => (
+                              <option key={commune._id} value={commune.name}>
+                                {commune.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Genre</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {[
+                            { value: 'homme', label: 'Homme' },
+                            { value: 'femme', label: 'Femme' }
+                          ].map((option) => (
+                            <label
+                              key={option.value}
+                              className={`min-h-[48px] rounded-xl px-3 py-3 text-center text-sm font-semibold transition ${
+                                form.gender === option.value
+                                  ? 'soft-card soft-card-purple text-purple-900 dark:text-purple-100'
+                                  : 'glass-card text-slate-700 dark:text-slate-100'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="gender"
+                                value={option.value}
+                                checked={form.gender === option.value}
+                                onChange={(e) => setForm((prev) => ({ ...prev, gender: e.target.value }))}
+                                className="sr-only"
+                              />
+                              {option.label}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      <label className="flex items-start gap-2 rounded-xl glass-card px-3 py-2.5 text-xs text-slate-700 dark:text-slate-200">
+                        <input
+                          type="checkbox"
+                          checked={acceptedTerms}
+                          onChange={(e) => setAcceptedTerms(e.target.checked)}
+                          className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                        />
+                        <span>
+                          I agree to the{' '}
+                          <Link to="/help" className="font-semibold hover:underline">
+                            Terms
+                          </Link>{' '}
+                          and{' '}
+                          <Link to="/help" className="font-semibold hover:underline">
+                            Privacy Policy
+                          </Link>
+                          .
+                        </span>
+                      </label>
+
+                      {formError ? (
+                        <div className="soft-card soft-card-red rounded-2xl px-3 py-2.5 text-sm text-red-700 dark:text-red-100">
+                          {formError}
+                        </div>
+                      ) : null}
+
+                      {slowNetwork && loading ? (
+                        <p className="text-xs text-amber-700 dark:text-amber-200">
+                          Network is slow, please retry.
+                        </p>
+                      ) : null}
+
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={() => setStep(1)}
+                          className="glass-card min-h-[48px] rounded-xl px-4 text-sm font-semibold text-slate-700 dark:text-slate-100"
+                        >
+                          Back
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={!canSubmit}
+                          className="soft-card soft-card-purple inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-purple-900 disabled:opacity-60 dark:text-purple-100"
+                        >
+                          {loading ? <Loader2 size={16} className="animate-spin" /> : null}
+                          {loading ? 'Création...' : 'Create account'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </form>
+
+                <footer className="mt-6 border-t border-white/35 pt-4 text-sm text-slate-600 dark:text-slate-300">
+                  <p>
+                    Already have an account?{' '}
+                    <Link to="/login" className="font-semibold text-slate-800 hover:underline dark:text-white">
+                      Sign in
+                    </Link>
+                  </p>
+                </footer>
+              </>
+            ) : (
+              <AuthSuccessCard
+                variant="register"
+                loading={loading || finalizing}
+                title="Account created successfully"
+                description="Your account is ready. Let's get started."
+                actions={[
+                  {
+                    key: 'go-dashboard',
+                    label: 'Go to Dashboard',
+                    primary: true,
+                    disabled: finalizing,
+                    onClick: () => completeRegistration(from)
+                  },
+                  {
+                    key: 'complete-profile',
+                    label: 'Complete Profile',
+                    primary: false,
+                    disabled: finalizing,
+                    onClick: () => completeRegistration('/profile')
+                  }
+                ]}
               />
-            </div>
-
-            {/* Phone */}
-            <div>
-              <input
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                className="apple-input w-full"
-                placeholder="060000000"
-                value={form.phone}
-                onChange={(e) => {
-                  setForm({ ...form, phone: e.target.value });
-                  setCodeError('');
-                }}
-                required
-              />
-            </div>
-
-            {/* Verification Code */}
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  className="apple-input flex-1"
-                  placeholder="Code de vérification email (optionnel)"
-                  value={verificationCode}
-                  onChange={(e) => {
-                    setVerificationCode(e.target.value);
-                    setFormError('');
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={sendVerificationCode}
-                  disabled={codeSending || !form.email.trim()}
-                  className="px-4 py-2.5 rounded-full font-medium text-[15px] border border-[#C7C7CC] text-[#0A0A0A] hover:bg-[rgba(10,10,10,0.08)] tap-feedback whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {codeSending ? 'Envoi...' : codeSent ? 'Renvoyer' : 'Envoyer'}
-                </button>
-              </div>
-              {codeError && <p className="text-xs text-red-600">{codeError}</p>}
-              {codeMessage && <p className="text-xs text-green-600">{codeMessage}</p>}
-            </div>
-
-            {/* Address */}
-            <div>
-              <textarea
-                className="w-full px-3 py-2.5 border border-gray-300 focus:outline-none focus:border-neutral-600 text-sm resize-none"
-                rows={2}
-                placeholder="Adresse complète *"
-                value={form.address}
-                onChange={(e) => {
-                  setForm({ ...form, address: e.target.value });
-                  setFormError('');
-                }}
-                required
-              />
-            </div>
-
-            {/* Email */}
-            <div>
-              <input
-                type="email"
-                className="apple-input w-full"
-                placeholder="Adresse email *"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                required
-              />
-            </div>
-
-            {/* Password */}
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                className="apple-input w-full pr-12"
-                placeholder="Mot de passe *"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-
-            {/* Location and Gender */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* Country (disabled) */}
-              <div>
-                <input
-                  className="apple-input w-full bg-[rgba(120,120,128,0.08)] text-[#8E8E93] cursor-not-allowed"
-                  value="République du Congo"
-                  readOnly
-                  disabled
-                />
-              </div>
-
-              {/* City */}
-              <div>
-                <select
-                  className="apple-input w-full bg-white dark:bg-[#1C1C1E]"
-                  value={form.city}
-                  onChange={(e) => {
-                    setForm({ ...form, city: e.target.value, commune: '' });
-                    setFormError('');
-                  }}
-                  required
-                >
-                  <option value="">Ville *</option>
-                  {cityOptions.map((city) => (
-                    <option key={city} value={city}>
-                      {city}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <select
-                className="apple-input w-full bg-white dark:bg-[#1C1C1E]"
-                value={form.commune}
-                onChange={(e) => {
-                  setForm({ ...form, commune: e.target.value });
-                  setFormError('');
-                }}
-                required={availableCommunes.length > 0}
-                disabled={!form.city || availableCommunes.length === 0}
-              >
-                <option value="">
-                  {form.city ? 'Commune *' : 'Choisir ville d’abord'}
-                </option>
-                {availableCommunes.map((commune) => (
-                  <option key={commune._id} value={commune.name}>
-                    {commune.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Gender */}
-            <div>
-              <div className="grid grid-cols-2 gap-3">
-                {genderOptions.map((option) => (
-                  <label
-                    key={option.value}
-                    className={`flex items-center justify-center px-3 py-2.5 border text-sm cursor-pointer ${
-                      form.gender === option.value
-                        ? 'border-neutral-600 bg-neutral-50 text-neutral-700'
-                        : 'border-gray-300 text-gray-700 hover:border-gray-400'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="gender"
-                      value={option.value}
-                      checked={form.gender === option.value}
-                      onChange={(e) => {
-                        setForm({ ...form, gender: e.target.value });
-                        setFormError('');
-                      }}
-                      className="sr-only"
-                    />
-                    {option.label}
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Account Type */}
-            <div className="pt-2 border-t border-gray-200">
-              <div className="text-xs text-gray-600 mb-2">Type de compte</div>
-              <div className="grid grid-cols-2 gap-3">
-                <label className={`flex items-center justify-center px-3 py-2.5 border text-sm cursor-pointer ${
-                  form.accountType === 'person'
-                    ? 'border-neutral-600 bg-neutral-50 text-neutral-700'
-                    : 'border-gray-300 text-gray-700 hover:border-gray-400'
-                }`}>
-                  <input
-                    type="radio"
-                    name="accountType"
-                    value="person"
-                    checked={form.accountType === 'person'}
-                    onChange={(e) => setForm({ ...form, accountType: e.target.value })}
-                    className="sr-only"
-                  />
-                  Particulier
-                </label>
-                <label className={`flex items-center justify-center px-3 py-2.5 border text-sm cursor-pointer ${
-                  form.accountType === 'shop'
-                    ? 'border-neutral-600 bg-neutral-50 text-neutral-700'
-                    : 'border-gray-300 text-gray-700 hover:border-gray-400'
-                }`}>
-                  <input
-                    type="radio"
-                    name="accountType"
-                    value="shop"
-                    checked={form.accountType === 'shop'}
-                    onChange={(e) => setForm({ ...form, accountType: e.target.value })}
-                    className="sr-only"
-                  />
-                  Boutique
-                </label>
-              </div>
-            </div>
-
-            {/* Shop Notice */}
-            {form.accountType === 'shop' && (
-              <div className="text-xs text-gray-600 bg-gray-50 border border-gray-200 p-3">
-                <p className="font-medium mb-1">Boutique sous approbation</p>
-                <p>
-                  Enregistrez-vous d'abord comme particulier puis{' '}
-                  <Link to="/help" className="text-neutral-600 hover:text-neutral-700 underline">
-                    contactez l'équipe HDMarket
-                  </Link>{' '}
-                  pour demander la conversion.
-                </p>
-              </div>
             )}
 
-            {/* Form Error Message */}
-            {formError && (
-              <div className="text-xs text-red-600 bg-red-50 border border-red-200 p-3">
-                {formError}
-              </div>
-            )}
+            {!successPayload ? <AuthTrustPanel compact /> : null}
+          </section>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={
-                loading ||
-                !form.name ||
-                !form.email ||
-                !form.password ||
-                !form.phone ||
-                !form.address ||
-                !form.city ||
-                !form.gender
-              }
-              className="w-full py-3 bg-neutral-600 text-white text-sm font-semibold rounded-3xl hover:bg-neutral-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 active:scale-95 shadow-sm"
-            >
-              {loading ? 'Création du compte...' : 'Créer mon compte'}
-            </button>
-          </form>
-
-          {/* Login Link */}
-          <div className="mt-4 pt-4 border-t border-gray-200 text-center">
-            <p className="text-sm text-gray-600">
-              Déjà un compte ?{' '}
-              <Link to="/login" className="text-neutral-600 hover:text-neutral-700">
-                Se connecter
-              </Link>
-            </p>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="mt-6 text-center">
-          <p className="text-xs text-gray-500">
-            En créant un compte, vous acceptez nos{' '}
-            <Link to="/help" className="text-gray-600 hover:text-neutral-600">
-              conditions d'utilisation
-            </Link>{' '}
-            et notre{' '}
-            <Link to="/privacy" className="text-gray-600 hover:text-neutral-600">
-              politique de confidentialité
-            </Link>
-          </p>
+          <AuthTrustPanel />
         </div>
       </div>
-    </div>
+    </main>
   );
 }

@@ -72,11 +72,13 @@ import AdminAppSettings from './pages/AdminAppSettings';
 import AdminSystemSettings from './pages/AdminSystemSettings';
 import AdminComplaints from './pages/AdminComplaints';
 import AdminPromoCodes from './pages/AdminPromoCodes';
+import AdminTaskCenter from './pages/AdminTaskCenter';
 import AdminBoostManagement from './pages/AdminBoostManagement';
 import SettingsCategoriesPage from './pages/SettingsCategoriesPage';
 import AdminLayout from './components/AdminLayout';
 import FounderIntelligence from './pages/FounderIntelligence';
 import FounderAccountControl from './pages/FounderAccountControl';
+import FounderNotificationsIntelligence from './pages/FounderNotificationsIntelligence';
 import CertifiedProducts from './pages/CertifiedProducts';
 import Suggestions from './pages/Suggestions';
 import AdvancedSearch from './pages/AdvancedSearch';
@@ -975,10 +977,26 @@ function AppContent() {
               }
             />
             <Route
+              path="task-center"
+              element={
+                <ProtectedRoute allowAccess={(u) => u?.role === 'admin' || u?.role === 'founder' || u?.role === 'manager'}>
+                  <AdminTaskCenter />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="founder-intelligence"
               element={
                 <ProtectedRoute roles={['founder']}>
                   <FounderIntelligence />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="founder-notifications-intelligence"
+              element={
+                <ProtectedRoute roles={['founder']}>
+                  <FounderNotificationsIntelligence />
                 </ProtectedRoute>
               }
             />
@@ -1001,6 +1019,14 @@ function AppContent() {
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Route>
           <Route path="/certified-products" element={<CertifiedProducts />} />
+          <Route
+            path="/founder/notifications-intelligence"
+            element={
+              <ProtectedRoute roles={['founder']}>
+                <FounderNotificationsIntelligence />
+              </ProtectedRoute>
+            }
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
           </motion.div>

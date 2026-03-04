@@ -126,7 +126,10 @@ import {
   updateNetwork,
   deleteNetwork
 } from '../controllers/networkSettingController.js';
-import { getOnlineStatsAdmin } from '../controllers/realtimeAnalyticsController.js';
+import {
+  getOnlineStatsAdmin,
+  getRealtimeMonitoringAdmin
+} from '../controllers/realtimeAnalyticsController.js';
 import {
   listReportsAdmin as listContentReportsAdmin,
   updateReportStatus as updateContentReportStatus
@@ -159,6 +162,11 @@ import {
   exportCategoriesAdmin,
   reassignCategoryProductsAdmin
 } from '../controllers/categoryController.js';
+import {
+  getAdminTaskSummary,
+  listRoleValidationTasks,
+  markRoleValidationTaskDone
+} from '../controllers/taskCenterController.js';
 
 const router = express.Router();
 
@@ -172,8 +180,25 @@ router.get('/online-stats', protect, (req, res, next) => {
   next();
 }, getOnlineStatsAdmin);
 
+router.get('/realtime-monitoring', protect, (req, res, next) => {
+  const isAdminManagerOrFounder = ['admin', 'manager', 'founder'].includes(req.user?.role);
+  const canVerifyPayments = req.user?.canVerifyPayments === true;
+  if (!isAdminManagerOrFounder && !canVerifyPayments) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+  next();
+}, getRealtimeMonitoringAdmin);
+
 // Cache stats - admin/founder only (ensureAdminRole inside controller)
 router.get('/cache/stats', protect, requireRole(['admin', 'founder']), getCacheStatsAdmin);
+router.get('/tasks/summary', protect, getAdminTaskSummary);
+router.get('/tasks/validation', protect, listRoleValidationTasks);
+router.patch(
+  '/tasks/validation/:id/done',
+  protect,
+  validate(schemas.idParam, 'params'),
+  markRoleValidationTaskDone
+);
 
 // Feedback routes - accessible by admin OR users with canReadFeedback permission
 router.get('/feedback', protect, requireFeedbackAccess, listImprovementFeedbackAdmin);

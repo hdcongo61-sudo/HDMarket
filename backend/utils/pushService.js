@@ -387,6 +387,17 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
         : `Votre demande de conversion en boutique n'a pas été acceptée. Contactez le support pour plus d'informations.`;
       break;
     }
+    case 'validation_required': {
+      title =
+        metadata.title && String(metadata.title).trim()
+          ? String(metadata.title).trim()
+          : 'Action de validation requise';
+      body =
+        metadata.message && String(metadata.message).trim()
+          ? String(metadata.message).trim()
+          : 'Une action de validation est en attente dans HDMarket.';
+      break;
+    }
     default:
       title = 'Nouvelle notification';
       body = `${actorName} a interagi avec votre compte.`;
@@ -430,13 +441,13 @@ export const sendPushNotification = async ({
   const orderId = notification.metadata?.orderId ? String(notification.metadata.orderId) : '';
   
   // Build deeplink URL based on notification type
-  let url = '';
+  let url = String(notification.deepLink || notification.actionLink || notification.metadata?.deepLink || '').trim();
   const notificationType = notification.type || '';
-  if (notificationType === 'order_message') {
+  if (!url && notificationType === 'order_message') {
     url = '/orders/messages';
-  } else if (notificationType === 'order_delivery_fee_updated' && orderId) {
+  } else if (!url && notificationType === 'order_delivery_fee_updated' && orderId) {
     url = `/orders/detail/${orderId}`;
-  } else if (notificationType.startsWith('order_') || notificationType.startsWith('installment_')) {
+  } else if (!url && (notificationType.startsWith('order_') || notificationType.startsWith('installment_'))) {
     const status = notification.metadata?.status || '';
     if (
       status &&
@@ -456,9 +467,9 @@ export const sendPushNotification = async ({
     } else {
       url = '/orders';
     }
-  } else if (productId) {
+  } else if (!url && productId) {
     url = `/product/${notification.product?.slug || productId}`;
-  } else if (shopId) {
+  } else if (!url && shopId) {
     url = `/shop/${notification.shop?.slug || shopId}`;
   }
   
@@ -512,6 +523,7 @@ export const sendPushNotification = async ({
       {
         $set: {
           isActive: false,
+          disabledReason: 'invalid_registration_token',
           lastFailureAt: new Date(),
           lastFailureCode: 'invalid_registration_token'
         },
@@ -543,6 +555,7 @@ export const sendPushNotification = async ({
       {
         $set: {
           isActive: true,
+          lastDeliveredAt: new Date(),
           lastSeenAt: new Date(),
           lastFailureAt: null,
           lastFailureCode: ''

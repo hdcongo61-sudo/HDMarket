@@ -574,7 +574,7 @@ export default function CourierDashboard() {
 
   return (
     <div
-      className="mx-auto w-full max-w-7xl space-y-4 px-3 pb-28 pt-2 sm:px-5"
+      className="glass-page-shell mx-auto w-full max-w-7xl space-y-4 px-3 pb-28 pt-2 sm:px-5"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -584,7 +584,7 @@ export default function CourierDashboard() {
         className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top,0px)+64px)] z-50 mx-auto w-full max-w-sm px-3 sm:hidden"
         style={{ opacity: pullDistance ? 1 : 0, transform: `translateY(${Math.max(0, pullDistance / 3)}px)` }}
       >
-        <div className="rounded-full bg-gray-900 px-3 py-1 text-center text-xs font-semibold text-white">
+        <div className="glass-card rounded-full px-3 py-1 text-center text-xs font-semibold text-slate-900 dark:text-white">
           {pullDistance >= 70 ? 'Relacher pour rafraichir' : 'Tirer pour rafraichir'}
         </div>
       </div>
@@ -604,15 +604,15 @@ export default function CourierDashboard() {
       />
 
       {previewMode ? (
-        <section className="rounded-2xl bg-indigo-50 p-4 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-indigo-700">Mode preview admin</p>
-          <p className="mt-1 text-xs text-indigo-700/90">Selectionnez un livreur pour simuler son dashboard.</p>
+        <section className="soft-card soft-card-purple rounded-2xl p-4 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-purple-700 dark:text-purple-100">Mode preview admin</p>
+          <p className="mt-1 text-xs text-purple-700/90 dark:text-purple-100/90">Selectionnez un livreur pour simuler son dashboard.</p>
           <label className="mt-3 block text-sm font-medium text-indigo-800">
             Livreur
             <select
               value={selectedDeliveryGuyId}
               onChange={(event) => setSelectedDeliveryGuyId(event.target.value)}
-              className="mt-1 min-h-[44px] w-full rounded-xl border border-indigo-200 bg-white px-3 text-sm text-gray-800"
+              className="ui-input mt-1 min-h-[44px] w-full rounded-xl bg-white/70 px-3 text-sm text-slate-800 dark:text-slate-100"
             >
               <option value="">Choisir un livreur</option>
               {availableDeliveryGuys.map((entry) => (
@@ -623,7 +623,7 @@ export default function CourierDashboard() {
             </select>
           </label>
           {selectedDeliveryGuy ? (
-            <div className="mt-3 flex items-center gap-3 rounded-xl bg-white/80 p-3">
+            <div className="glass-card mt-3 flex items-center gap-3 rounded-xl p-3">
               {resolveDeliveryGuyProfileImage(selectedDeliveryGuy) ? (
                 <img
                   src={resolveDeliveryGuyProfileImage(selectedDeliveryGuy)}
@@ -631,15 +631,15 @@ export default function CourierDashboard() {
                   className="h-11 w-11 rounded-full object-cover"
                 />
               ) : (
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-700">
+                <div className="soft-card soft-card-purple flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold text-purple-700 dark:text-purple-100">
                   {String(selectedDeliveryGuy.fullName || selectedDeliveryGuy.name || 'L').charAt(0).toUpperCase()}
                 </div>
               )}
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-indigo-900">
+                <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
                   {selectedDeliveryGuy.fullName || selectedDeliveryGuy.name || 'Livreur'}
                 </p>
-                <p className="truncate text-xs text-indigo-700/90">
+                <p className="truncate text-xs text-slate-600 dark:text-slate-300">
                   {selectedDeliveryGuy.phone || 'Telephone non renseigne'}
                 </p>
               </div>
@@ -665,8 +665,8 @@ export default function CourierDashboard() {
 
       <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <section className="space-y-3">
-          <div className="rounded-2xl bg-white p-3 shadow-sm">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Date filter</p>
+          <div className="glass-card rounded-2xl p-3 shadow-sm">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">Date filter</p>
             <div className="flex gap-2 overflow-x-auto pb-1">
               {DATE_FILTERS.map((filter) => (
                 <button
@@ -674,7 +674,9 @@ export default function CourierDashboard() {
                   type="button"
                   onClick={() => setDateFilter(filter.key)}
                   className={`min-h-[40px] whitespace-nowrap rounded-xl px-3 text-sm font-semibold transition active:scale-[0.98] ${
-                    dateFilter === filter.key ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'
+                    dateFilter === filter.key
+                      ? 'soft-card soft-card-purple text-purple-900 dark:text-purple-100'
+                      : 'glass-card text-slate-600 dark:text-slate-100'
                   }`}
                 >
                   {filter.label}
@@ -688,37 +690,37 @@ export default function CourierDashboard() {
           {bootstrapQuery.isLoading || assignmentsQuery.isLoading ? (
             <DeliverySkeleton count={4} />
           ) : hardError ? (
-            <div className="rounded-2xl bg-white p-4 shadow-sm">
-              <p className="text-sm font-semibold text-red-700">
+            <div className="glass-card rounded-2xl p-4 shadow-sm">
+              <p className="text-sm font-semibold text-red-700 dark:text-red-100">
                 {extractMessage(hardError, 'Impossible de charger les livraisons.')}
               </p>
               {timeoutDetected ? (
-                <p className="mt-1 text-xs text-red-600">
+                <p className="mt-1 text-xs text-red-600 dark:text-red-100">
                   Requete trop longue (8s max). Verifiez la connexion puis reessayez.
                 </p>
               ) : null}
               <button
                 type="button"
                 onClick={handleRefresh}
-                className="mt-3 inline-flex min-h-[44px] items-center rounded-xl bg-gray-900 px-3 text-sm font-semibold text-white"
+                className="glass-card mt-3 inline-flex min-h-[44px] items-center rounded-xl px-3 text-sm font-semibold text-slate-900 dark:text-white"
               >
                 Reessayer
               </button>
             </div>
           ) : !modeEnabled ? (
-            <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800 shadow-sm">
+            <div className="soft-card soft-card-orange rounded-2xl p-4 text-sm text-amber-800 shadow-sm dark:text-amber-100">
               Le mode livreur est desactive par la configuration systeme.
             </div>
           ) : previewMode && !selectedDeliveryGuyId ? (
-            <div className="rounded-2xl bg-indigo-50 p-4 text-sm text-indigo-800 shadow-sm">
+            <div className="soft-card soft-card-purple rounded-2xl p-4 text-sm text-purple-800 shadow-sm dark:text-purple-100">
               Choisissez un livreur pour afficher ses livraisons.
             </div>
           ) : filteredItems.length === 0 ? (
-            <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
-              <p className="text-sm font-semibold text-gray-800">
+            <div className="glass-card rounded-2xl p-8 text-center shadow-sm">
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                 {feedTab === 'done' ? 'All caught up' : 'No deliveries yet'}
               </p>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
                 {feedTab === 'done'
                   ? 'Aucune livraison terminee pour ce filtre.'
                   : 'Les nouvelles affectations apparaitront ici.'}
@@ -742,14 +744,14 @@ export default function CourierDashboard() {
               <div ref={loadMoreRef} className="h-8" />
 
               {assignmentsQuery.isFetchingNextPage ? (
-                <div className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white p-3 text-xs text-gray-500 shadow-sm">
+                <div className="glass-card inline-flex w-full items-center justify-center gap-2 rounded-xl p-3 text-xs text-slate-500 shadow-sm dark:text-slate-300">
                   <Loader2 size={14} className="animate-spin" />
                   Chargement...
                 </div>
               ) : null}
 
               {!assignmentsQuery.hasNextPage && filteredItems.length > 0 ? (
-                <p className="text-center text-xs text-gray-500">Fin de la liste</p>
+                <p className="text-center text-xs text-slate-500 dark:text-slate-300">Fin de la liste</p>
               ) : null}
             </div>
           )}
@@ -768,9 +770,9 @@ export default function CourierDashboard() {
               secondaryDisabled={nextCardActions.secondaryDisabled}
             />
 
-            <section className="rounded-2xl bg-white p-4 shadow-sm">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Mini stats</p>
-              <div className="mt-3 space-y-2 text-sm text-gray-700">
+            <section className="glass-card rounded-2xl p-4 shadow-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">Mini stats</p>
+              <div className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-100">
                 <p className="flex items-center justify-between"><span>Completed</span><strong>{statsQuery.data?.delivered ?? '—'}</strong></p>
                 <p className="flex items-center justify-between"><span>Failed</span><strong>{statsQuery.data?.failed ?? '—'}</strong></p>
                 <p className="flex items-center justify-between"><span>Acceptance rate</span><strong>{statsQuery.data ? `${statsQuery.data.acceptanceRate || 0}%` : '—'}</strong></p>
@@ -780,7 +782,7 @@ export default function CourierDashboard() {
               {selectedPreviewItem?._id ? (
                 <Link
                   to={buildAssignmentRoute({ basePath: routePrefix, id: selectedPreviewItem._id })}
-                  className="mt-4 inline-flex min-h-[44px] w-full items-center justify-center gap-1 rounded-xl bg-gray-900 px-3 text-sm font-semibold text-white"
+                  className="soft-card soft-card-purple mt-4 inline-flex min-h-[44px] w-full items-center justify-center gap-1 rounded-xl px-3 text-sm font-semibold text-purple-900 dark:text-purple-100"
                 >
                   Open selected
                   <ChevronRight size={14} />
@@ -826,7 +828,7 @@ export default function CourierDashboard() {
             }
             rows={4}
             placeholder="Expliquez la raison du refus"
-            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+            className="ui-input w-full rounded-xl px-3 py-2 text-sm"
           />
           {rejectMutation.isError ? (
             <p className="text-xs text-red-600">{extractMessage(rejectMutation.error, 'Impossible de refuser.')}</p>
@@ -837,7 +839,7 @@ export default function CourierDashboard() {
             <button
               type="button"
               onClick={() => setRejectDialog({ open: false, item: null, reason: '' })}
-              className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700"
+              className="glass-card inline-flex min-h-[44px] items-center justify-center rounded-xl px-4 text-sm font-semibold text-slate-700 dark:text-slate-100"
             >
               Annuler
             </button>

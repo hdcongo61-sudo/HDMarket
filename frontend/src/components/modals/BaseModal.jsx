@@ -188,7 +188,7 @@ export default function BaseModal({
         type="button"
         aria-label="Fermer"
         className={cx(
-          'ui-modal-backdrop absolute inset-0 bg-black/55 backdrop-blur-[2px] transition-opacity',
+          'ui-modal-backdrop glass-modal-backdrop absolute inset-0 transition-opacity',
           backdropClassName
         )}
         onClick={() => {
@@ -205,7 +205,7 @@ export default function BaseModal({
         tabIndex={-1}
         style={panelStyle}
         className={cx(
-          'ui-modal-panel relative z-[1] flex w-full flex-col overflow-hidden border border-slate-200/80 bg-white text-slate-900 shadow-2xl outline-none dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100',
+          'ui-modal-panel glass-modal-panel relative z-[1] flex w-full flex-col overflow-hidden border border-slate-200/70 bg-white/85 text-slate-900 shadow-2xl outline-none dark:border-neutral-800 dark:bg-slate-900/85 dark:text-neutral-100',
           sizeClass,
           mobileSheet ? 'rounded-t-3xl sm:rounded-2xl' : 'rounded-2xl',
           panelClassName
@@ -236,14 +236,14 @@ export function ModalHeader({
   return (
     <header
       className={cx(
-        'ui-modal-header flex items-center justify-between gap-3 border-b border-slate-200/80 px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-5 dark:border-neutral-800',
+        'ui-modal-header flex items-center justify-between gap-3 border-b border-slate-200/70 px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-5 dark:border-neutral-800',
         className
       )}
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2.5">
           {icon ? (
-            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 dark:bg-neutral-900 dark:text-neutral-300">
+            <span className="glass-card inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-700 dark:text-neutral-300">
               {icon}
             </span>
           ) : null}
@@ -264,7 +264,7 @@ export function ModalHeader({
             type="button"
             aria-label={closeLabel}
             onClick={onClose}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-900"
+            className="glass-card inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 transition hover:text-slate-900 dark:text-neutral-300 dark:hover:text-white"
           >
             <X size={18} />
           </button>
@@ -293,7 +293,7 @@ export function ModalFooter({ sticky = true, className = '', children }) {
       className={cx(
         'ui-modal-footer border-t border-slate-200/80 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-3 sm:px-6 sm:pb-4 dark:border-neutral-800',
         sticky
-          ? 'sticky bottom-0 bg-white/95 backdrop-blur-md dark:bg-neutral-950/95'
+          ? 'sticky bottom-0 bg-white/72 backdrop-blur-md dark:bg-slate-950/74'
           : 'bg-transparent',
         className
       )}

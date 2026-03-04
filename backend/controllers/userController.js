@@ -35,6 +35,7 @@ import {
 } from '../utils/firebaseVerification.js';
 import { resolvePermissionsForUser } from '../services/rbacService.js';
 import { getRuntimeConfig } from '../services/configService.js';
+import { recordRealtimeMonitoringEvent } from '../services/realtimeMonitoringService.js';
 
 const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   product_comment: true,
@@ -82,6 +83,7 @@ const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   admin_broadcast: true,
   account_restriction: true,
   account_restriction_lifted: true,
+  validation_required: true,
   shop_conversion_approved: true,
   shop_conversion_rejected: true
 });
@@ -673,6 +675,7 @@ export const registerPushToken = asyncHandler(async (req, res) => {
       deviceId,
       deviceInfo,
       isActive: true,
+      disabledReason: '',
       lastFailureAt: null,
       lastFailureCode: '',
       lastSeenAt: new Date()
@@ -687,8 +690,11 @@ export const unregisterPushToken = asyncHandler(async (req, res) => {
   if (!token) {
     return res.status(400).json({ message: 'Token push requis.' });
   }
-  await PushToken.deleteOne({ user: req.user.id, token });
-  res.json({ message: 'Token supprimé.' });
+  await PushToken.updateOne(
+    { user: req.user.id, token },
+    { $set: { isActive: false, disabledReason: 'user_unregister', lastSeenAt: new Date() } }
+  );
+  res.json({ message: 'Token désactivé.' });
 });
 
 export const addSearchHistory = asyncHandler(async (req, res) => {
@@ -1755,6 +1761,13 @@ export const getNotifications = asyncHandler(async (req, res) => {
         message = `${actorName} a annulé la commande ${orderId}.${reason}${refundText}`;
         break;
       }
+      case 'validation_required': {
+        message =
+          metadata.message && String(metadata.message).trim()
+            ? String(metadata.message).trim()
+            : 'Une action de validation est requise.';
+        break;
+      }
       default:
         message = `${actorName} a interagi avec votre annonce${productLabel}.`;
     }
@@ -1782,6 +1795,21 @@ export const getNotifications = asyncHandler(async (req, res) => {
       actor: displayActor,
       shop: shopInfo,
       metadata,
+      priority: notification.priority || 'NORMAL',
+      audience: notification.audience || 'USER',
+      channels: Array.isArray(notification.channels)
+        ? notification.channels
+        : ['IN_APP', 'PUSH'],
+      deepLink: notification.deepLink || metadata.deepLink || '',
+      actionLink:
+        notification.actionLink || notification.deepLink || metadata.deepLink || '',
+      actionRequired: Boolean(notification.actionRequired),
+      actionType: notification.actionType || 'NONE',
+      actionStatus: notification.actionStatus || 'DONE',
+      actionDueAt: notification.actionDueAt || null,
+      validationType: notification.validationType || '',
+      entityType: notification.entityType || '',
+      entityId: notification.entityId || '',
       parent,
       isNew
     };
@@ -1881,6 +1909,32 @@ export const deleteNotification = asyncHandler(async (req, res) => {
   res.json({ success: true });
 });
 
+export const trackNotificationClick = asyncHandler(async (req, res) => {
+  const notification = await Notification.findOne({
+    _id: req.params.id,
+    user: req.user.id
+  });
+  if (!notification) {
+    return res.status(404).json({ message: 'Notification introuvable.' });
+  }
+
+  const currentMetadata =
+    notification.metadata && typeof notification.metadata === 'object'
+      ? notification.metadata
+      : {};
+  const clickCount = Number(currentMetadata.clickCount || 0) + 1;
+
+  notification.metadata = {
+    ...currentMetadata,
+    clickCount,
+    deepLinkClicked: true,
+    lastClickedAt: new Date()
+  };
+  await notification.save();
+
+  res.json({ success: true, clickCount });
+});
+
 export const getFavorites = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id).select('favorites');
   if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
@@ -1957,7 +2011,7 @@ export const addFavorite = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Produit introuvable ou désactivé.' });
   }
 
-  const user = await User.findById(req.user.id).select('favorites restrictions');
+  const user = await User.findById(req.user.id).select('favorites restrictions role accountType');
   if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
 
   if (isRestricted(user, 'canAddFavorites')) {
@@ -1986,6 +2040,16 @@ export const addFavorite = asyncHandler(async (req, res) => {
         }
       });
     }
+
+    void recordRealtimeMonitoringEvent({
+      eventType: 'like',
+      path: `/products/${String(product?._id || productId)}`,
+      entityType: 'product',
+      entityId: String(product?._id || ''),
+      role: user?.role || req.user?.role || 'user',
+      accountType: user?.accountType || 'unknown',
+      visitorId: String(req.user?.id || '')
+    }).catch(() => {});
   }
 
   res.json({ favorites: user.favorites });

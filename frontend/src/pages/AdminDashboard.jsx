@@ -21,6 +21,10 @@ import { useToast } from '../context/ToastContext';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import { buildProductPath } from '../utils/links';
 import { resolveUserProfileImage } from '../utils/userAvatar';
+import GlassCard from '../components/ui/GlassCard';
+import SoftColorCard from '../components/ui/SoftColorCard';
+import GlassHeader from '../components/ui/GlassHeader';
+import FloatingGlassButton from '../components/ui/FloatingGlassButton';
 import {
   Paperclip,
   Users,
@@ -97,23 +101,23 @@ const formatMonthLabel = (key) => {
   return date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 };
 
-function SectionStatCard({ label, value, helper, icon: Icon }) {
+function SectionStatCard({ label, value, helper, icon: Icon, variant = 'blue' }) {
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-gray-200/60 bg-gradient-to-br from-white to-gray-50/50 px-5 py-4 shadow-sm transition-all duration-300 hover:shadow-md hover:border-neutral-200/60">
+    <SoftColorCard variant={variant} className="group relative overflow-hidden px-5 py-4">
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">{label}</p>
-          <p className="text-2xl font-bold text-gray-900 mb-1">{value}</p>
-          {helper ? <p className="text-xs text-gray-500 mt-1">{helper}</p> : null}
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-200">{label}</p>
+          <p className="mb-1 text-2xl font-bold text-slate-900 dark:text-white">{value}</p>
+          {helper ? <p className="mt-1 text-xs text-slate-600 dark:text-slate-200">{helper}</p> : null}
         </div>
         {Icon && (
-          <div className="ml-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-100 text-neutral-600 transition-transform duration-300 group-hover:scale-110">
+          <div className="glass-card ml-3 flex h-10 w-10 items-center justify-center rounded-xl text-slate-700 transition-transform duration-300 group-hover:scale-110 dark:text-slate-100">
             <Icon size={20} strokeWidth={2} />
           </div>
         )}
       </div>
-      <div className="absolute inset-0 bg-gradient-to-br from-neutral-500/0 to-neutral-500/0 transition-opacity duration-300 group-hover:from-neutral-500/5 group-hover:to-neutral-500/5" />
-    </div>
+      <div className="absolute inset-0 bg-white/0 transition-opacity duration-300 group-hover:bg-white/5 dark:group-hover:bg-black/10" />
+    </SoftColorCard>
   );
 }
 
@@ -226,47 +230,44 @@ const getPaymentSortValue = (payment, prioritizeUpdated = false) => {
 
 const PAYMENTS_PER_PAGE = 10;
 const USERS_PER_PAGE = 10;
+const REALTIME_WINDOW_OPTIONS = [
+  { value: 15, label: '15m' },
+  { value: 60, label: '60m' },
+  { value: 180, label: '180m' }
+];
 
 function StatCard({ title, value, subtitle, highlight, icon: Icon, trend }) {
-  const iconColors = highlight
-    ? 'from-neutral-500 to-neutral-600'
-    : 'from-gray-400 to-gray-500';
-  
   return (
-    <div className={`group relative overflow-hidden rounded-2xl border transition-all duration-300 ${
-      highlight
-        ? 'border-neutral-200/60 bg-gradient-to-br from-neutral-50/50 via-white to-neutral-50/30 shadow-md hover:shadow-lg'
-        : 'border-gray-200/60 bg-gradient-to-br from-white to-gray-50/50 shadow-sm hover:shadow-md hover:border-neutral-200/40'
-    }`}>
-      <div className="p-5">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex-1">
-            <p className={`text-sm font-semibold mb-1 ${highlight ? 'text-neutral-700' : 'text-gray-600'}`}>
-              {title}
+    <GlassCard
+      variant={highlight ? 'green' : 'glass'}
+      interactive
+      className="group relative overflow-hidden p-5 glass-fade-in"
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex-1">
+          <p className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+            {title}
+          </p>
+          <p className="mb-1 text-3xl font-bold text-slate-900 dark:text-white">
+            {value}
+          </p>
+          {subtitle && (
+            <p className="mt-1.5 flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300">
+              {trend && (
+                <TrendingUp size={12} className={trend > 0 ? 'text-green-500' : 'text-red-500'} />
+              )}
+              {subtitle}
             </p>
-            <p className={`text-3xl font-bold mb-1 ${highlight ? 'bg-gradient-to-r from-neutral-600 to-neutral-600 bg-clip-text text-transparent' : 'text-gray-900'}`}>
-              {value}
-            </p>
-            {subtitle && (
-              <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1">
-                {trend && (
-                  <TrendingUp size={12} className={trend > 0 ? 'text-green-500' : 'text-red-500'} />
-                )}
-                {subtitle}
-              </p>
-            )}
-          </div>
-          {Icon && (
-            <div className={`ml-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${iconColors} text-white shadow-sm transition-transform duration-300 group-hover:scale-110 group-hover:shadow-md`}>
-              <Icon size={22} strokeWidth={2.5} />
-            </div>
           )}
         </div>
+        {Icon && (
+          <div className="glass-card ml-3 flex h-12 w-12 items-center justify-center rounded-xl text-slate-700 shadow-sm transition-transform duration-300 group-hover:scale-110 group-hover:shadow-md dark:text-white">
+            <Icon size={22} strokeWidth={2.5} />
+          </div>
+        )}
       </div>
-      {highlight && (
-        <div className="absolute inset-0 bg-gradient-to-br from-neutral-500/0 via-neutral-500/0 to-neutral-500/0 transition-opacity duration-300 group-hover:from-neutral-500/5 group-hover:via-neutral-500/5 group-hover:to-neutral-500/5" />
-      )}
-    </div>
+      <div className="absolute inset-0 bg-white/0 transition-opacity duration-300 group-hover:bg-white/5 dark:group-hover:bg-black/10" />
+    </GlassCard>
   );
 }
 
@@ -284,6 +285,10 @@ export default function AdminDashboard() {
   const [founderMiniError, setFounderMiniError] = useState('');
   const [onlineStats, setOnlineStats] = useState(null);
   const [onlineStatsLoading, setOnlineStatsLoading] = useState(false);
+  const [realtimeMonitoring, setRealtimeMonitoring] = useState(null);
+  const [realtimeMonitoringLoading, setRealtimeMonitoringLoading] = useState(false);
+  const [realtimeMonitoringError, setRealtimeMonitoringError] = useState('');
+  const [realtimeWindowMinutes, setRealtimeWindowMinutes] = useState(60);
   const [cacheStats, setCacheStats] = useState(null);
   const [cacheStatsLoading, setCacheStatsLoading] = useState(false);
   const [cacheStatsError, setCacheStatsError] = useState('');
@@ -449,6 +454,29 @@ export default function AdminDashboard() {
       setOnlineStatsLoading(false);
     }
   }, []);
+
+  const loadRealtimeMonitoring = useCallback(async () => {
+    setRealtimeMonitoringLoading(true);
+    try {
+      const { data } = await api.get('/admin/realtime-monitoring', {
+        params: {
+          windowMinutes: realtimeWindowMinutes,
+          topLimit: 6,
+          recentLimit: 12
+        }
+      });
+      setRealtimeMonitoring(data || null);
+      setRealtimeMonitoringError('');
+    } catch (e) {
+      setRealtimeMonitoringError(
+        e?.response?.data?.message ||
+          e?.message ||
+          'Impossible de charger le monitoring temps réel.'
+      );
+    } finally {
+      setRealtimeMonitoringLoading(false);
+    }
+  }, [realtimeWindowMinutes]);
 
   const loadFounderMini = useCallback(async ({ forceRefresh = false } = {}) => {
     if (!isFounder) return;
@@ -788,6 +816,7 @@ export default function AdminDashboard() {
     if (!canViewStats) return;
     loadStats();
     loadOnlineStats();
+    loadRealtimeMonitoring();
     loadCacheStats();
     loadSalesTrends();
     loadOrderHeatmap();
@@ -796,6 +825,7 @@ export default function AdminDashboard() {
   }, [
     loadStats,
     loadOnlineStats,
+    loadRealtimeMonitoring,
     loadCacheStats,
     loadSalesTrends,
     loadOrderHeatmap,
@@ -817,9 +847,10 @@ export default function AdminDashboard() {
     if (!canViewStats) return undefined;
     const timer = setInterval(() => {
       loadOnlineStats();
+      loadRealtimeMonitoring();
     }, 5000);
     return () => clearInterval(timer);
-  }, [canViewStats, loadOnlineStats]);
+  }, [canViewStats, loadOnlineStats, loadRealtimeMonitoring]);
 
   useEffect(() => {
     if (!canManagePayments) return;
@@ -1107,6 +1138,7 @@ export default function AdminDashboard() {
         tasks.push(
           loadStats(),
           loadOnlineStats(),
+          loadRealtimeMonitoring(),
           loadCacheStats(),
           loadSalesTrends(),
           loadOrderHeatmap(),
@@ -1129,6 +1161,7 @@ export default function AdminDashboard() {
   }, [
     loadStats,
     loadOnlineStats,
+    loadRealtimeMonitoring,
     loadCacheStats,
     loadSalesTrends,
     loadOrderHeatmap,
@@ -1206,6 +1239,18 @@ export default function AdminDashboard() {
     }
   ];
   const totalProductCount = stats?.products?.total || 0;
+  const realtimeTopPages = Array.isArray(realtimeMonitoring?.topPages)
+    ? realtimeMonitoring.topPages
+    : [];
+  const realtimeRecentEvents = Array.isArray(realtimeMonitoring?.recentEvents)
+    ? realtimeMonitoring.recentEvents
+    : [];
+  const realtimeTotals = realtimeMonitoring?.totals || {
+    pageViews: 0,
+    likes: 0,
+    comments: 0,
+    uniqueVisitors: 0
+  };
   const orderStats = stats?.orders || {};
   const orderByStatus = orderStats.byStatus || {};
   const orderStatusCount = (...statuses) =>
@@ -1365,48 +1410,38 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-neutral-50/20 lg:min-h-0 lg:bg-transparent">
-      <div className="max-w-7xl mx-auto px-4 py-8 space-y-8 sm:px-6 lg:px-8">
-      <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between pb-6 border-b border-gray-200/60">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-neutral-600 to-neutral-600 shadow-lg">
-              <Settings size={24} className="text-white" strokeWidth={2.5} />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-neutral-900 to-neutral-900 bg-clip-text text-transparent">
-                {pageTitle}
-              </h1>
-              <p className="text-sm text-gray-600 mt-1">{pageSubtitle}</p>
-            </div>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={refreshAll}
-            disabled={refreshing}
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:border-neutral-300 hover:text-neutral-700 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2 disabled:opacity-60 disabled:pointer-events-none"
-          >
-            <RefreshCw size={16} className={refreshing ? 'animate-spin' : 'transition-transform duration-300 hover:rotate-180'} />
-            {refreshing ? 'Actualisation…' : 'Actualiser'}
-          </button>
-          <Link
-            to="/admin/settings"
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:border-neutral-300 hover:text-neutral-700 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2"
-          >
-            <Settings size={16} />
-            App Settings
-          </Link>
-          <Link
-            to="/admin/products"
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-neutral-600 to-neutral-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 hover:from-neutral-700 hover:to-neutral-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2"
-          >
-            <BarChart3 size={16} />
-            Produits & statistiques
-          </Link>
-        </div>
-      </header>
+    <div className="glass-page-shell min-h-screen lg:min-h-0">
+      <div className="glass-content-spacing mx-auto max-w-7xl space-y-8 py-6 sm:py-8 lg:px-8">
+      <GlassHeader
+        title={pageTitle}
+        subtitle={pageSubtitle}
+        className="glass-fade-in"
+        titleClassName="text-2xl sm:text-3xl"
+      >
+        <button
+          type="button"
+          onClick={refreshAll}
+          disabled={refreshing}
+          className="glass-card inline-flex min-h-[44px] items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 transition-all duration-200 hover:text-slate-900 disabled:pointer-events-none disabled:opacity-60 dark:text-slate-100"
+        >
+          <RefreshCw size={16} className={refreshing ? 'animate-spin' : 'transition-transform duration-300 hover:rotate-180'} />
+          {refreshing ? 'Actualisation…' : 'Actualiser'}
+        </button>
+        <Link
+          to="/admin/settings"
+          className="glass-card inline-flex min-h-[44px] items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:text-slate-900 dark:text-slate-100"
+        >
+          <Settings size={16} />
+          App Settings
+        </Link>
+        <Link
+          to="/admin/products"
+          className="soft-card soft-card-purple inline-flex min-h-[44px] items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-purple-900 transition hover:shadow-md dark:text-purple-100"
+        >
+          <BarChart3 size={16} />
+          Produits & statistiques
+        </Link>
+      </GlassHeader>
       {isMobileView && availableTabs.length > 1 && (
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {availableTabs.map((tab) => (
@@ -1416,8 +1451,8 @@ export default function AdminDashboard() {
               onClick={() => setActiveAdminTab(tab.key)}
               className={`flex-shrink-0 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200 ${
                 activeAdminTab === tab.key
-                  ? 'bg-gradient-to-r from-neutral-600 to-neutral-600 text-white shadow-lg scale-105'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:border-neutral-300 hover:bg-neutral-50/50'
+                  ? 'soft-card soft-card-purple scale-105 text-purple-900 shadow-md dark:text-purple-100'
+                  : 'glass-card text-slate-600 hover:text-slate-900 dark:text-slate-100'
               }`}
             >
               {tab.label}
@@ -1427,28 +1462,28 @@ export default function AdminDashboard() {
       )}
 
       {isFounder && (
-        <section className="rounded-3xl border border-gray-200/70 bg-white p-4 shadow-sm sm:p-5">
+        <section className="glass-card rounded-3xl p-4 shadow-sm sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-neutral-900 text-white">
+              <span className="soft-card soft-card-purple inline-flex h-9 w-9 items-center justify-center rounded-xl text-purple-900 dark:text-purple-100">
                 <Crown size={18} />
               </span>
               <div>
-                <h2 className="text-base font-semibold text-gray-900">Mini widget founder</h2>
-                <p className="text-xs text-gray-500">
+                <h2 className="text-base font-semibold text-slate-900 dark:text-white">Mini widget founder</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-300">
                   Synthèse live des métriques exécutives
                 </p>
               </div>
             </div>
             <Link
               to="/admin/founder-intelligence"
-              className="inline-flex min-h-[40px] items-center rounded-xl border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+              className="glass-card inline-flex min-h-[40px] items-center rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 hover:text-slate-900 dark:text-slate-100"
             >
               Ouvrir la vue complète
             </Link>
           </div>
           {founderMiniError ? (
-            <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            <p className="soft-card soft-card-red mt-3 rounded-xl px-3 py-2 text-xs text-red-700 dark:text-red-100">
               {founderMiniError}
             </p>
           ) : null}
@@ -1580,6 +1615,108 @@ export default function AdminDashboard() {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    Monitoring temps réel ({realtimeWindowMinutes} min)
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Pages les plus visitées, likes et commentaires en continu.
+                  </p>
+                </div>
+                <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700">
+                  {realtimeMonitoringLoading ? 'Mise à jour…' : `MAJ ${formatDateTime(realtimeMonitoring?.updatedAt) || '—'}`}
+                </span>
+              </div>
+              <div className="mt-3 inline-flex items-center rounded-xl bg-gray-100 p-1">
+                {REALTIME_WINDOW_OPTIONS.map((option) => {
+                  const active = realtimeWindowMinutes === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setRealtimeWindowMinutes(option.value)}
+                      className={`min-h-[36px] rounded-lg px-3 text-xs font-semibold transition ${
+                        active
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {realtimeMonitoringError ? (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  {realtimeMonitoringError}
+                </div>
+              ) : null}
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-xl border border-gray-200 bg-gray-50/70 px-3 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Visites pages</p>
+                  <p className="mt-1 text-xl font-bold text-gray-900">{formatNumber(realtimeTotals?.pageViews)}</p>
+                </div>
+                <div className="rounded-xl border border-gray-200 bg-gray-50/70 px-3 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Likes</p>
+                  <p className="mt-1 text-xl font-bold text-gray-900">{formatNumber(realtimeTotals?.likes)}</p>
+                </div>
+                <div className="rounded-xl border border-gray-200 bg-gray-50/70 px-3 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Commentaires</p>
+                  <p className="mt-1 text-xl font-bold text-gray-900">{formatNumber(realtimeTotals?.comments)}</p>
+                </div>
+                <div className="rounded-xl border border-gray-200 bg-gray-50/70 px-3 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Visiteurs uniques</p>
+                  <p className="mt-1 text-xl font-bold text-gray-900">{formatNumber(realtimeTotals?.uniqueVisitors)}</p>
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Top pages</p>
+                  <div className="mt-2 space-y-2">
+                    {realtimeTopPages.length ? (
+                      realtimeTopPages.slice(0, 6).map((item, index) => (
+                        <div
+                          key={`${item.path}-${index}`}
+                          className="flex items-center justify-between rounded-lg bg-white px-2.5 py-2 text-xs text-gray-700"
+                        >
+                          <span className="truncate pr-2 font-medium">{item.path || '/'}</span>
+                          <span className="rounded-full bg-gray-100 px-2 py-0.5 font-semibold text-gray-800">
+                            {formatNumber(item.views)}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-gray-500">Aucune donnée de navigation récente.</p>
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Activité récente</p>
+                  <div className="mt-2 space-y-2">
+                    {realtimeRecentEvents.length ? (
+                      realtimeRecentEvents.slice(0, 6).map((event) => (
+                        <div
+                          key={event.id}
+                          className="rounded-lg bg-white px-2.5 py-2 text-xs text-gray-700"
+                        >
+                          <p className="font-semibold text-gray-900">
+                            {String(event.eventType || '').toUpperCase()}
+                            {event.path ? ` · ${event.path}` : ''}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-gray-500">
+                            {formatDateTime(event.createdAt)} · {event.role || 'guest'}
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-gray-500">Aucun signal capturé.</p>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
@@ -3952,6 +4089,13 @@ export default function AdminDashboard() {
           )}
         </section>
       )}
+      <FloatingGlassButton
+        icon={RefreshCw}
+        label={refreshing ? 'Mise à jour...' : 'Actualiser'}
+        onClick={refreshAll}
+        disabled={refreshing}
+        className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] right-4 z-20 lg:hidden"
+      />
       </div>
     </div>
   );

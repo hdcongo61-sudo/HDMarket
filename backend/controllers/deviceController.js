@@ -30,6 +30,7 @@ export const registerDeviceToken = asyncHandler(async (req, res) => {
       deviceInfo,
       isActive: true,
       lastSeenAt: new Date(),
+      disabledReason: '',
       lastFailureAt: null,
       lastFailureCode: ''
     },
@@ -54,7 +55,7 @@ export const unregisterDeviceToken = asyncHandler(async (req, res) => {
 
   await DeviceToken.updateOne(
     { user: req.user.id, token },
-    { $set: { isActive: false, lastSeenAt: new Date() } }
+    { $set: { isActive: false, disabledReason: 'user_unregister', lastSeenAt: new Date() } }
   );
 
   res.json({ success: true });

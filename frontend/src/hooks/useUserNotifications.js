@@ -44,6 +44,7 @@ const DEFAULT_PREFERENCES = Object.freeze({
   admin_broadcast: true,
   account_restriction: true,
   account_restriction_lifted: true,
+  validation_required: true,
   shop_conversion_approved: true,
   shop_conversion_rejected: true
 });

@@ -1746,6 +1746,11 @@ export default function Navbar() {
                       <div className="font-semibold text-gray-900 dark:text-white text-sm block truncate">
                         {highlightText(product.title, searchQuery)}
                       </div>
+                      {product.description ? (
+                        <p className="mt-0.5 truncate text-[11px] text-gray-500 dark:text-gray-400">
+                          {highlightText(product.description, searchQuery)}
+                        </p>
+                      ) : null}
                       <div className="text-gray-500 text-xs flex items-center gap-2 mt-1 flex-wrap">
                         {product.price && (
                           <span className="font-semibold text-neutral-900 dark:text-neutral-300">
@@ -2041,6 +2046,11 @@ export default function Navbar() {
                         <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">
                           {highlightText(product.title, searchQuery)}
                         </p>
+                        {product.description ? (
+                          <p className="mt-0.5 truncate text-[11px] text-gray-500 dark:text-gray-400">
+                            {highlightText(product.description, searchQuery)}
+                          </p>
+                        ) : null}
                         <div className="text-xs text-gray-500 flex items-center gap-2 mt-1 flex-wrap">
                           {product.price && (
                             <span className="font-semibold text-neutral-900 dark:text-neutral-300">

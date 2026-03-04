@@ -5,7 +5,11 @@ import { hasAnyPermission } from '../utils/permissions';
 
 const initialCounts = {
   waitingPayments: 0,
-  unreadFeedback: 0
+  unreadFeedback: 0,
+  pendingTasks: 0,
+  pendingTasksByType: {},
+  urgentTasks: 0,
+  overdueTasks: 0
 };
 
 export default function useAdminCounts(enabled) {
@@ -14,17 +18,39 @@ export default function useAdminCounts(enabled) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const canLoadCounts = useMemo(
-    () => Boolean(enabled) && hasAnyPermission(user, ['view_admin_dashboard']),
+    () =>
+      Boolean(enabled) &&
+      (['admin', 'manager', 'founder'].includes(String(user?.role || '').toLowerCase()) ||
+        hasAnyPermission(user, ['view_admin_dashboard'])),
     [enabled, user]
   );
 
   const loadCounts = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/admin/stats');
+      const isFounder = String(user?.role || '').toLowerCase() === 'founder';
+      const [statsRes, tasksRes] = await Promise.allSettled([
+        api.get('/admin/stats'),
+        api.get(isFounder ? '/founder/tasks/summary' : '/admin/tasks/summary')
+      ]);
+      const data =
+        statsRes.status === 'fulfilled' && statsRes.value?.data
+          ? statsRes.value.data
+          : {};
+      const taskData =
+        tasksRes.status === 'fulfilled' && tasksRes.value?.data
+          ? tasksRes.value.data
+          : {};
       setCounts({
         waitingPayments: data?.payments?.waiting || 0,
-        unreadFeedback: data?.feedback?.unread || 0
+        unreadFeedback: data?.feedback?.unread || 0,
+        pendingTasks: Number(taskData?.pendingTotal || 0),
+        pendingTasksByType:
+          taskData?.pendingByType && typeof taskData.pendingByType === 'object'
+            ? taskData.pendingByType
+            : {},
+        urgentTasks: Number(taskData?.urgentCount || 0),
+        overdueTasks: Number(taskData?.overdueCount || 0)
       });
       setError('');
     } catch (e) {
@@ -39,7 +65,7 @@ export default function useAdminCounts(enabled) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.role]);
 
   useEffect(() => {
     if (!canLoadCounts) {

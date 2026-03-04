@@ -8,6 +8,7 @@ import { buildIdentifierQuery } from '../utils/idResolver.js';
 import { ensureDocumentSlug } from '../utils/slugUtils.js';
 import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
 import { invalidateProductCache } from '../utils/cache.js';
+import { recordRealtimeMonitoringEvent } from '../services/realtimeMonitoringService.js';
 
 const formatComment = (comment) => {
   const plain = comment.toObject ? comment.toObject() : comment;
@@ -85,7 +86,7 @@ export const addComment = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Produit introuvable ou non publié.' });
   }
 
-  const commenter = await User.findById(req.user.id).select('restrictions');
+  const commenter = await User.findById(req.user.id).select('restrictions role accountType');
   if (!commenter) {
     return res.status(404).json({ message: 'Utilisateur introuvable.' });
   }
@@ -166,6 +167,16 @@ export const addComment = asyncHandler(async (req, res) => {
   if (notifications.length) {
     await Promise.all(notifications);
   }
+
+  void recordRealtimeMonitoringEvent({
+    eventType: 'comment',
+    path: `/products/${String(product?._id || req.params.id || '')}`,
+    entityType: 'product',
+    entityId: String(product?._id || ''),
+    role: commenter?.role || req.user?.role || 'user',
+    accountType: commenter?.accountType || 'unknown',
+    visitorId: String(req.user?.id || '')
+  }).catch(() => {});
 
   // Invalidate product cache (comments are served under /products/public)
   invalidateProductCache();

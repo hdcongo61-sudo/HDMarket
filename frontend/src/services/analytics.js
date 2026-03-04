@@ -6,6 +6,7 @@ import {
   setUserId,
   setUserProperties
 } from 'firebase/analytics';
+import api from './api';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
@@ -19,6 +20,8 @@ const firebaseConfig = {
 
 let analyticsInstance = null;
 let initPromise = null;
+const recentRealtimeEvents = new Map();
+const REALTIME_EVENT_DEDUP_MS = 2500;
 
 const canUseAnalytics = async () => {
   if (typeof window === 'undefined') return false;
@@ -76,4 +79,50 @@ export const setAnalyticsUser = async (user) => {
     account_type: user.accountType || 'person',
     role: user.role || 'user'
   });
+};
+
+export const trackRealtimeMonitoringEvent = async (payload = {}) => {
+  if (typeof window === 'undefined') return;
+
+  const eventType = String(payload?.eventType || '').trim().toLowerCase();
+  if (!eventType) return;
+
+  const rawPath = String(payload?.path || window.location.pathname || '').trim() || '/';
+  const dedupKey = `${eventType}:${rawPath}`;
+  const now = Date.now();
+  const previousAt = Number(recentRealtimeEvents.get(dedupKey) || 0);
+  if (previousAt && now - previousAt < REALTIME_EVENT_DEDUP_MS) return;
+  recentRealtimeEvents.set(dedupKey, now);
+
+  // Keep map compact to avoid unbounded growth in long sessions.
+  if (recentRealtimeEvents.size > 100) {
+    for (const [key, value] of recentRealtimeEvents.entries()) {
+      if (now - Number(value || 0) > 60_000) {
+        recentRealtimeEvents.delete(key);
+      }
+    }
+  }
+
+  try {
+    await api.post(
+      '/analytics/realtime/events',
+      {
+        eventType,
+        path: rawPath,
+        entityType: payload?.entityType || '',
+        entityId: payload?.entityId || '',
+        role: payload?.role || '',
+        accountType: payload?.accountType || ''
+      },
+      {
+        silentGlobalError: true,
+        timeout: 4000,
+        headers: {
+          'x-skip-cache': '1'
+        }
+      }
+    );
+  } catch {
+    // Ignore client-side analytics transport errors.
+  }
 };

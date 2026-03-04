@@ -6,7 +6,10 @@ import Order from '../models/orderModel.js';
 import User from '../models/userModel.js';
 import City from '../models/cityModel.js';
 import Commune from '../models/communeModel.js';
-import { createNotification } from '../utils/notificationService.js';
+import {
+  createNotification,
+  resolveValidationTaskNotifications
+} from '../utils/notificationService.js';
 import {
   assertPlatformDeliveryEnabled,
   canManageDeliveryRequests,
@@ -413,7 +416,14 @@ const emitDeliveryNotifications = async ({
   recipients = [],
   type = 'delivery_request_created',
   extraMetadata = {},
-  priority = 'HIGH'
+  priority = 'HIGH',
+  audience = 'USER',
+  targetRole = [],
+  actionRequired = false,
+  actionType = 'NONE',
+  actionStatus = 'DONE',
+  deepLink = '',
+  validationType = 'other'
 }) => {
   const uniqueRecipients = Array.from(
     new Set((Array.isArray(recipients) ? recipients : []).map((item) => String(item || '')).filter(Boolean))
@@ -433,7 +443,17 @@ const emitDeliveryNotifications = async ({
           ...extraMetadata
         },
         allowSelf: true,
-        priority
+        priority,
+        audience,
+        targetRole,
+        actionRequired,
+        actionType,
+        actionStatus,
+        deepLink,
+        actionLink: deepLink,
+        entityType: deliveryRequestId ? 'deliveryRequest' : '',
+        entityId: deliveryRequestId ? String(deliveryRequestId) : '',
+        validationType
       })
     )
   );
@@ -687,7 +707,14 @@ export const requestPlatformDeliveryForOrder = asyncHandler(async (req, res) => 
       buyerId: String(buyer._id),
       status: 'PENDING'
     },
-    priority: 'HIGH'
+    priority: 'HIGH',
+    audience: 'ROLE_GROUP',
+    targetRole: ['ADMIN', 'FOUNDER', 'DELIVERY_MANAGER'],
+    actionRequired: true,
+    actionType: 'REVIEW',
+    actionStatus: 'PENDING',
+    deepLink: `/admin/delivery-requests?status=PENDING&requestId=${deliveryRequest._id}`,
+    validationType: 'deliveryOps'
   });
 
   await emitDeliveryNotifications({
@@ -1316,6 +1343,14 @@ export const acceptAdminDeliveryRequest = asyncHandler(async (req, res) => {
     priority: 'HIGH'
   });
 
+  await resolveValidationTaskNotifications({
+    entityType: 'deliveryRequest',
+    entityId: String(deliveryRequest._id),
+    actionStatus: 'DONE',
+    actorId: req.user.id,
+    validationType: 'deliveryOps'
+  }).catch(() => {});
+
   if (deliveryGuy?.userId) {
     await emitDeliveryNotifications({
       actorId: req.user.id,
@@ -1417,6 +1452,14 @@ export const rejectAdminDeliveryRequest = asyncHandler(async (req, res) => {
     },
     priority: 'HIGH'
   });
+
+  await resolveValidationTaskNotifications({
+    entityType: 'deliveryRequest',
+    entityId: String(deliveryRequest._id),
+    actionStatus: 'DONE',
+    actorId: req.user.id,
+    validationType: 'deliveryOps'
+  }).catch(() => {});
 
   await createAuditLogEntry({
     performedBy: req.user.id,

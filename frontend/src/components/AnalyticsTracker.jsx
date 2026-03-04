@@ -1,7 +1,11 @@
 import { useContext, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
-import { setAnalyticsUser, trackPageView } from '../services/analytics';
+import {
+  setAnalyticsUser,
+  trackPageView,
+  trackRealtimeMonitoringEvent
+} from '../services/analytics';
 
 export default function AnalyticsTracker() {
   const location = useLocation();
@@ -14,7 +18,13 @@ export default function AnalyticsTracker() {
   useEffect(() => {
     const path = `${location.pathname}${location.search || ''}`;
     trackPageView({ path });
-  }, [location]);
+    trackRealtimeMonitoringEvent({
+      eventType: 'page_view',
+      path,
+      role: user?.role || '',
+      accountType: user?.accountType || ''
+    });
+  }, [location, user?.role, user?.accountType]);
 
   return null;
 }

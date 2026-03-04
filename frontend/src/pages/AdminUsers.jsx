@@ -106,6 +106,12 @@ const formatDateTime = (value) => {
   });
 };
 
+const SYSTEM_SETTINGS_AUDIT_PREFIX = 'admin_system_settings_';
+const FOUNDER_AUDIT_FILTERS = [
+  { value: 'all', label: 'Tout' },
+  { value: 'system_settings', label: 'System settings' }
+];
+
 const getLocationCoordinates = (shopLocation) => {
   if (!shopLocation || !Array.isArray(shopLocation.coordinates) || shopLocation.coordinates.length !== 2) {
     return null;
@@ -260,6 +266,7 @@ export default function AdminUsers() {
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditPage, setAuditPage] = useState(1);
   const [auditTotalPages, setAuditTotalPages] = useState(0);
+  const [auditFilter, setAuditFilter] = useState('all');
 
   // Shop conversion request modal state
   const [conversionModal, setConversionModal] = useState({ open: false, user: null, request: null });
@@ -1109,12 +1116,21 @@ export default function AdminUsers() {
   };
 
   // Audit log handlers
+  const getFounderAuditParams = useCallback((pageValue, filterValue = 'all') => {
+    const params = { page: pageValue, limit: 20 };
+    if (filterValue === 'system_settings') {
+      params.actionPrefix = SYSTEM_SETTINGS_AUDIT_PREFIX;
+    }
+    return params;
+  }, []);
+
   const openAuditModal = useCallback(async (user) => {
     if (!canViewLogs) {
       setActionError("Vous n'avez pas la permission de consulter les logs.");
       return;
     }
     setAuditModal({ open: true, user, mode: 'user' });
+    setAuditFilter('all');
     setAuditLoading(true);
     setAuditPage(1);
     try {
@@ -1133,11 +1149,15 @@ export default function AdminUsers() {
       setActionError("Vous n'avez pas la permission de consulter le timeline founder.");
       return;
     }
+    const nextFilter = 'system_settings';
     setAuditModal({ open: true, user: null, mode: 'founder' });
+    setAuditFilter(nextFilter);
     setAuditLoading(true);
     setAuditPage(1);
     try {
-      const { data } = await api.get('/founder/audit-logs', { params: { page: 1, limit: 20 } });
+      const { data } = await api.get('/founder/audit-logs', {
+        params: getFounderAuditParams(1, nextFilter)
+      });
       setAuditLogs(Array.isArray(data.items) ? data.items : []);
       setAuditTotalPages(Number(data.pages || 1));
     } catch (e) {
@@ -1145,10 +1165,11 @@ export default function AdminUsers() {
     } finally {
       setAuditLoading(false);
     }
-  }, [canViewLogs, isFounder]);
+  }, [canViewLogs, isFounder, getFounderAuditParams]);
 
   const closeAuditModal = useCallback(() => {
     setAuditModal({ open: false, user: null, mode: 'user' });
+    setAuditFilter('all');
     setAuditLogs([]);
   }, []);
 
@@ -1158,7 +1179,7 @@ export default function AdminUsers() {
     try {
       if (auditModal.mode === 'founder') {
         const { data } = await api.get('/founder/audit-logs', {
-          params: { page: newPage, limit: 20 }
+          params: getFounderAuditParams(newPage, auditFilter)
         });
         setAuditLogs(Array.isArray(data.items) ? data.items : []);
         setAuditTotalPages(Number(data.pages || 1));
@@ -1170,6 +1191,25 @@ export default function AdminUsers() {
       setAuditPage(newPage);
     } catch (e) {
       setActionError(e.response?.data?.message || 'Erreur lors du chargement de l\'historique.');
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  const handleFounderAuditFilterChange = async (nextFilter) => {
+    if (auditModal.mode !== 'founder') return;
+    if (nextFilter === auditFilter) return;
+    setAuditFilter(nextFilter);
+    setAuditLoading(true);
+    setAuditPage(1);
+    try {
+      const { data } = await api.get('/founder/audit-logs', {
+        params: getFounderAuditParams(1, nextFilter)
+      });
+      setAuditLogs(Array.isArray(data.items) ? data.items : []);
+      setAuditTotalPages(Number(data.pages || 1));
+    } catch (e) {
+      setActionError(e.response?.data?.message || 'Erreur lors du filtrage du timeline founder.');
     } finally {
       setAuditLoading(false);
     }
@@ -1198,7 +1238,20 @@ export default function AdminUsers() {
       admin_trigger_password_reset: 'Reset mot de passe admin',
       admin_set_password_direct: 'Mot de passe défini (direct)',
       password_reset_link_sent: 'Lien reset envoyé',
-      password_reset_completed: 'Mot de passe réinitialisé'
+      password_reset_completed: 'Mot de passe réinitialisé',
+      admin_system_settings_fee_updated: 'Paramètre frais modifié',
+      admin_system_settings_runtime_updated: 'Runtime modifié',
+      admin_system_settings_runtime_bulk_updated: 'Runtime modifié (bulk)',
+      admin_system_settings_feature_flag_updated: 'Feature flag modifié',
+      admin_system_settings_languages_updated: 'Langues modifiées',
+      admin_system_settings_currency_created: 'Devise créée',
+      admin_system_settings_currency_updated: 'Devise modifiée',
+      admin_system_settings_city_created: 'Ville créée',
+      admin_system_settings_city_updated: 'Ville modifiée',
+      admin_system_settings_city_deleted: 'Ville supprimée',
+      admin_system_settings_commune_created: 'Commune créée',
+      admin_system_settings_commune_updated: 'Commune modifiée',
+      admin_system_settings_commune_deleted: 'Commune supprimée'
     };
     return labels[action] || action;
   };
@@ -3056,6 +3109,25 @@ export default function AdminUsers() {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
+              {auditModal.mode === 'founder' ? (
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  {FOUNDER_AUDIT_FILTERS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => handleFounderAuditFilterChange(option.value)}
+                      disabled={auditLoading}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                        auditFilter === option.value
+                          ? 'bg-neutral-900 text-white'
+                          : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                      } disabled:opacity-60`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               {auditLoading ? (
                 <p className="text-sm text-gray-500 text-center py-8">Chargement...</p>
               ) : auditLogs.length === 0 ? (

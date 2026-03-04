@@ -339,7 +339,7 @@ export default function AdminPayments() {
         </Link>
       </header>
 
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="rounded-xl border bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold text-gray-500 uppercase">Total</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{formatNumber(paymentSummary.total)}</p>
@@ -354,6 +354,11 @@ export default function AdminPayments() {
           <p className="text-xs font-semibold text-gray-500 uppercase">Validés</p>
           <p className="text-2xl font-bold text-green-600 mt-1">{formatNumber(paymentSummary.verified)}</p>
           <p className="text-xs text-gray-500 mt-1">Mises en ligne confirmées</p>
+        </div>
+        <div className="rounded-xl border bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold text-gray-500 uppercase">Rejetés</p>
+          <p className="text-2xl font-bold text-red-600 mt-1">{formatNumber(paymentSummary.rejected)}</p>
+          <p className="text-xs text-gray-500 mt-1">Paiements refusés</p>
         </div>
         <div className="rounded-xl border bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold text-gray-500 uppercase">Revenus cumulés</p>

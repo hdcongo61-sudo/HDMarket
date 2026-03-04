@@ -25,6 +25,7 @@ import {
   invalidateSettingsResolverCache,
   resolvePublicSettings
 } from '../utils/settingsResolver.js';
+import { createAuditLogEntry } from '../services/auditLogService.js';
 
 const normalizeText = (value = '') => String(value || '').trim();
 
@@ -71,6 +72,64 @@ const getSafeFeeSettings = async () =>
     SETTING_KEYS.MAX_DISPUTES_PER_MONTH,
     SETTING_KEYS.MAX_UPLOAD_IMAGES
   ]);
+
+const toCurrencyAuditPayload = (currency = null) => {
+  if (!currency) return null;
+  return {
+    id: String(currency._id || ''),
+    code: String(currency.code || '').toUpperCase(),
+    symbol: String(currency.symbol || ''),
+    name: String(currency.name || ''),
+    decimals: Number(currency.decimals || 0),
+    exchangeRateToDefault: Number(currency.exchangeRateToDefault || 0),
+    isDefault: Boolean(currency.isDefault),
+    isActive: Boolean(currency.isActive)
+  };
+};
+
+const toCityAuditPayload = (city = null) => {
+  if (!city) return null;
+  return {
+    id: String(city._id || ''),
+    name: String(city.name || ''),
+    order: Number(city.order || 0),
+    isDefault: Boolean(city.isDefault),
+    isActive: Boolean(city.isActive),
+    deliveryAvailable: Boolean(city.deliveryAvailable),
+    boostMultiplier: Number(city.boostMultiplier || 0)
+  };
+};
+
+const toCommuneAuditPayload = (commune = null) => {
+  if (!commune) return null;
+  return {
+    id: String(commune._id || ''),
+    name: String(commune.name || ''),
+    cityId: String(commune.cityId?._id || commune.cityId || ''),
+    order: Number(commune.order || 0),
+    isActive: Boolean(commune.isActive),
+    deliveryPolicy: String(commune.deliveryPolicy || 'DEFAULT_RULE'),
+    fixedFee: Number(commune.fixedFee || 0)
+  };
+};
+
+const writeSystemSettingsAudit = async (
+  req,
+  { actionType, previousValue = null, newValue = null, meta = {} } = {}
+) => {
+  if (!req?.user?.id || !actionType) return null;
+  return createAuditLogEntry({
+    performedBy: req.user.id,
+    actionType,
+    previousValue,
+    newValue,
+    req,
+    meta: {
+      scope: 'admin_system_settings',
+      ...(meta && typeof meta === 'object' ? meta : {})
+    }
+  });
+};
 
 export const getPublicSettings = asyncHandler(async (req, res) => {
   try {
@@ -371,6 +430,7 @@ export const updateAdminSetting = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Ce paramètre ne peut pas être modifié via cet endpoint.' });
   }
 
+  const previousValue = await getSettingValue(key, DEFAULT_APP_SETTINGS[key]);
   const value = req.body?.value;
   await AppSetting.findOneAndUpdate(
     { key },
@@ -400,6 +460,15 @@ export const updateAdminSetting = asyncHandler(async (req, res) => {
   }
 
   invalidateAllSettingsCaches();
+  await writeSystemSettingsAudit(req, {
+    actionType: 'admin_system_settings_fee_updated',
+    previousValue,
+    newValue: value,
+    meta: {
+      section: 'fees_rules',
+      key
+    }
+  });
   res.json({ message: 'Paramètre mis à jour.', key, value });
 });
 
@@ -452,6 +521,15 @@ export const createAdminCurrency = asyncHandler(async (req, res) => {
   }
 
   invalidateAllSettingsCaches();
+  await writeSystemSettingsAudit(req, {
+    actionType: 'admin_system_settings_currency_created',
+    previousValue: null,
+    newValue: toCurrencyAuditPayload(currency),
+    meta: {
+      section: 'currencies',
+      currencyCode: String(currency.code || '').toUpperCase()
+    }
+  });
   res.status(201).json(currency);
 });
 
@@ -461,6 +539,7 @@ export const updateAdminCurrency = asyncHandler(async (req, res) => {
   if (!currency) {
     return res.status(404).json({ message: 'Devise introuvable.' });
   }
+  const previousCurrency = toCurrencyAuditPayload(currency);
 
   if (req.body.symbol !== undefined) currency.symbol = normalizeText(req.body.symbol);
   if (req.body.name !== undefined) currency.name = normalizeText(req.body.name);
@@ -507,6 +586,15 @@ export const updateAdminCurrency = asyncHandler(async (req, res) => {
   }
 
   invalidateAllSettingsCaches();
+  await writeSystemSettingsAudit(req, {
+    actionType: 'admin_system_settings_currency_updated',
+    previousValue: previousCurrency,
+    newValue: toCurrencyAuditPayload(currency),
+    meta: {
+      section: 'currencies',
+      currencyCode: String(currency.code || '').toUpperCase()
+    }
+  });
   res.json(currency);
 });
 
@@ -516,6 +604,7 @@ export const getAdminLanguages = asyncHandler(async (req, res) => {
 });
 
 export const patchAdminLanguages = asyncHandler(async (req, res) => {
+  const previousLanguages = await getLanguagesConfig();
   const languagesPayload = Array.isArray(req.body.languages) ? req.body.languages : [];
   if (!languagesPayload.length) {
     return res.status(400).json({ message: 'Au moins une langue est requise.' });
@@ -567,6 +656,15 @@ export const patchAdminLanguages = asyncHandler(async (req, res) => {
   ]);
 
   invalidateAllSettingsCaches();
+  await writeSystemSettingsAudit(req, {
+    actionType: 'admin_system_settings_languages_updated',
+    previousValue: previousLanguages,
+    newValue: { languages: normalized, defaultLanguage },
+    meta: {
+      section: 'languages',
+      languageCount: normalized.length
+    }
+  });
   res.json({ languages: normalized, defaultLanguage });
 });
 
@@ -608,6 +706,15 @@ export const createAdminCity = asyncHandler(async (req, res) => {
   }
 
   invalidateAllSettingsCaches();
+  await writeSystemSettingsAudit(req, {
+    actionType: 'admin_system_settings_city_created',
+    previousValue: null,
+    newValue: toCityAuditPayload(city),
+    meta: {
+      section: 'cities',
+      cityId: String(city._id || '')
+    }
+  });
   res.status(201).json(city);
 });
 
@@ -616,6 +723,7 @@ export const updateAdminCity = asyncHandler(async (req, res) => {
   if (!city) {
     return res.status(404).json({ message: 'Ville introuvable.' });
   }
+  const previousCity = toCityAuditPayload(city);
   const previousName = city.name;
 
   if (req.body.name !== undefined) city.name = normalizeText(req.body.name);
@@ -664,6 +772,15 @@ export const updateAdminCity = asyncHandler(async (req, res) => {
   }
 
   invalidateAllSettingsCaches();
+  await writeSystemSettingsAudit(req, {
+    actionType: 'admin_system_settings_city_updated',
+    previousValue: previousCity,
+    newValue: toCityAuditPayload(city),
+    meta: {
+      section: 'cities',
+      cityId: String(city._id || '')
+    }
+  });
   res.json(city);
 });
 
@@ -672,6 +789,7 @@ export const deleteAdminCity = asyncHandler(async (req, res) => {
   if (!city) {
     return res.status(404).json({ message: 'Ville introuvable.' });
   }
+  const deletedCity = toCityAuditPayload(city);
 
   const linkedCommunesCount = await Commune.countDocuments({ cityId: city._id });
   if (linkedCommunesCount > 0) {
@@ -715,6 +833,16 @@ export const deleteAdminCity = asyncHandler(async (req, res) => {
   }
 
   invalidateAllSettingsCaches();
+  await writeSystemSettingsAudit(req, {
+    actionType: 'admin_system_settings_city_deleted',
+    previousValue: deletedCity,
+    newValue: null,
+    meta: {
+      section: 'cities',
+      cityId: String(city._id || ''),
+      replacementCity: replacementCity ? toCityAuditPayload(replacementCity) : null
+    }
+  });
   res.json({
     message: 'Ville supprimée.',
     deletedId: city._id,
@@ -775,6 +903,15 @@ export const createAdminCommune = asyncHandler(async (req, res) => {
   });
 
   invalidateAllSettingsCaches();
+  await writeSystemSettingsAudit(req, {
+    actionType: 'admin_system_settings_commune_created',
+    previousValue: null,
+    newValue: toCommuneAuditPayload(commune),
+    meta: {
+      section: 'communes',
+      communeId: String(commune._id || '')
+    }
+  });
   res.status(201).json(commune);
 });
 
@@ -783,6 +920,7 @@ export const updateAdminCommune = asyncHandler(async (req, res) => {
   if (!commune) {
     return res.status(404).json({ message: 'Commune introuvable.' });
   }
+  const previousCommune = toCommuneAuditPayload(commune);
 
   if (req.body.name !== undefined) {
     commune.name = normalizeText(req.body.name);
@@ -821,6 +959,15 @@ export const updateAdminCommune = asyncHandler(async (req, res) => {
   commune.updatedBy = req.user.id;
   await commune.save();
   invalidateAllSettingsCaches();
+  await writeSystemSettingsAudit(req, {
+    actionType: 'admin_system_settings_commune_updated',
+    previousValue: previousCommune,
+    newValue: toCommuneAuditPayload(commune),
+    meta: {
+      section: 'communes',
+      communeId: String(commune._id || '')
+    }
+  });
   res.json(commune);
 });
 
@@ -829,9 +976,19 @@ export const deleteAdminCommune = asyncHandler(async (req, res) => {
   if (!commune) {
     return res.status(404).json({ message: 'Commune introuvable.' });
   }
+  const deletedCommune = toCommuneAuditPayload(commune);
 
   await commune.deleteOne();
   invalidateAllSettingsCaches();
+  await writeSystemSettingsAudit(req, {
+    actionType: 'admin_system_settings_commune_deleted',
+    previousValue: deletedCommune,
+    newValue: null,
+    meta: {
+      section: 'communes',
+      communeId: String(commune._id || '')
+    }
+  });
   res.json({
     message: 'Commune supprimée.',
     deletedId: commune._id

@@ -192,6 +192,7 @@ const userSchema = new mongoose.Schema(
       admin_broadcast: { type: Boolean, default: true },
       account_restriction: { type: Boolean, default: true },
       account_restriction_lifted: { type: Boolean, default: true },
+      validation_required: { type: Boolean, default: true },
       shop_conversion_approved: { type: Boolean, default: true },
       shop_conversion_rejected: { type: Boolean, default: true }
     },

@@ -947,6 +947,7 @@ export const schemas = {
     feedback_read: Joi.boolean(),
     account_restriction: Joi.boolean(),
     account_restriction_lifted: Joi.boolean(),
+    validation_required: Joi.boolean(),
     shop_conversion_approved: Joi.boolean(),
     shop_conversion_rejected: Joi.boolean()
   }).min(1),

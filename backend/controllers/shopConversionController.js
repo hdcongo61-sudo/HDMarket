@@ -2,7 +2,10 @@ import asyncHandler from 'express-async-handler';
 import ShopConversionRequest from '../models/shopConversionRequestModel.js';
 import User from '../models/userModel.js';
 import { uploadToCloudinary } from '../utils/cloudinaryUploader.js';
-import { createNotification } from '../utils/notificationService.js';
+import {
+  createNotification,
+  resolveValidationTaskNotifications
+} from '../utils/notificationService.js';
 import { getSettingValue, SETTING_KEYS } from '../utils/settingsResolver.js';
 import {
   isTransactionCodeAlreadyUsed,
@@ -134,7 +137,7 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
     const admins = await User.find({
       role: { $in: ['admin', 'founder', 'manager'] }
     })
-      .select('_id')
+      .select('_id role')
       .lean();
 
     const actorId = user._id;
@@ -153,6 +156,21 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
         userId: admin._id,
         actorId: actorId,
         type: 'shop_conversion_request',
+        audience:
+          String(admin.role || '').toLowerCase() === 'founder'
+            ? 'FOUNDER'
+            : String(admin.role || '').toLowerCase() === 'admin'
+            ? 'ADMIN'
+            : 'ROLE_GROUP',
+        targetRole: [String(admin.role || 'ADMIN').toUpperCase()],
+        actionRequired: true,
+        actionType: 'APPROVE',
+        actionStatus: 'PENDING',
+        deepLink: `/admin/users?shopConversionRequestId=${request._id}`,
+        actionLink: `/admin/users?shopConversionRequestId=${request._id}`,
+        entityType: 'shopConversionRequest',
+        entityId: String(request._id),
+        validationType: 'shopConversion',
         metadata,
         allowSelf: false
       });
@@ -274,6 +292,14 @@ export const approveShopConversionRequest = asyncHandler(async (req, res) => {
     console.error('Failed to send approval notification to user:', error);
   }
 
+  await resolveValidationTaskNotifications({
+    entityType: 'shopConversionRequest',
+    entityId: String(request._id),
+    actionStatus: 'DONE',
+    actorId: req.user.id,
+    validationType: 'shopConversion'
+  }).catch(() => {});
+
   res.json({
     message: 'Demande approuvée. Le compte a été converti en boutique.',
     request
@@ -322,6 +348,14 @@ export const rejectShopConversionRequest = asyncHandler(async (req, res) => {
   } catch (error) {
     console.error('Failed to send rejection notification to user:', error);
   }
+
+  await resolveValidationTaskNotifications({
+    entityType: 'shopConversionRequest',
+    entityId: String(request._id),
+    actionStatus: 'DONE',
+    actorId: req.user.id,
+    validationType: 'shopConversion'
+  }).catch(() => {});
 
   res.json({
     message: 'Demande rejetée.',

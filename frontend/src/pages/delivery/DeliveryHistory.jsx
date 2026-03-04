@@ -120,7 +120,7 @@ export default function DeliveryHistory() {
   }, [historyQuery]);
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-4 px-3 pb-20 pt-2 sm:px-5">
+    <div className="glass-page-shell mx-auto w-full max-w-4xl space-y-4 px-3 pb-20 pt-2 sm:px-5">
       <OfflineBanner offline={isOffline} />
 
       <DeliveryHeader
@@ -133,25 +133,25 @@ export default function DeliveryHistory() {
         ]}
       />
 
-      <section className="rounded-2xl bg-white p-4 shadow-sm">
+      <section className="glass-card rounded-2xl p-4 shadow-sm">
         <div className="grid grid-cols-3 gap-2">
-          <article className="rounded-xl bg-green-50 p-3 text-center">
-            <p className="text-xs text-green-700">Completed</p>
-            <p className="mt-1 text-lg font-semibold text-green-800">{completedCount}</p>
+          <article className="soft-card soft-card-green rounded-xl p-3 text-center">
+            <p className="text-xs text-green-700 dark:text-green-100">Completed</p>
+            <p className="mt-1 text-lg font-semibold text-green-800 dark:text-green-100">{completedCount}</p>
           </article>
-          <article className="rounded-xl bg-gray-100 p-3 text-center">
-            <p className="text-xs text-gray-600">Failed</p>
-            <p className="mt-1 text-lg font-semibold text-gray-800">{failedCount}</p>
+          <article className="glass-card rounded-xl p-3 text-center">
+            <p className="text-xs text-slate-600 dark:text-slate-300">Failed</p>
+            <p className="mt-1 text-lg font-semibold text-slate-800 dark:text-white">{failedCount}</p>
           </article>
-          <article className="rounded-xl bg-indigo-50 p-3 text-center">
-            <p className="text-xs text-indigo-700">Earnings</p>
-            <p className="mt-1 text-sm font-semibold text-indigo-800">{formatCurrency(earnings)}</p>
+          <article className="soft-card soft-card-purple rounded-xl p-3 text-center">
+            <p className="text-xs text-purple-700 dark:text-purple-100">Earnings</p>
+            <p className="mt-1 text-sm font-semibold text-purple-800 dark:text-purple-100">{formatCurrency(earnings)}</p>
           </article>
         </div>
       </section>
 
-      <section className="rounded-2xl bg-white p-3 shadow-sm">
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Date</p>
+      <section className="glass-card rounded-2xl p-3 shadow-sm">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">Date</p>
         <div className="flex gap-2">
           {DATE_FILTERS.map((filter) => (
             <button
@@ -159,7 +159,9 @@ export default function DeliveryHistory() {
               type="button"
               onClick={() => setDateFilter(filter.key)}
               className={`min-h-[40px] rounded-xl px-3 text-sm font-semibold ${
-                dateFilter === filter.key ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'
+                dateFilter === filter.key
+                  ? 'soft-card soft-card-purple text-purple-900 dark:text-purple-100'
+                  : 'glass-card text-slate-700 dark:text-slate-100'
               }`}
             >
               {filter.label}
@@ -171,28 +173,28 @@ export default function DeliveryHistory() {
       {historyQuery.isLoading ? (
         <DeliverySkeleton count={4} />
       ) : historyQuery.isError ? (
-        <div className="rounded-2xl bg-white p-4 shadow-sm">
-          <p className="text-sm font-semibold text-red-700">
+        <div className="glass-card rounded-2xl p-4 shadow-sm">
+          <p className="text-sm font-semibold text-red-700 dark:text-red-100">
             {extractMessage(historyQuery.error, 'Impossible de charger l’historique.')}
           </p>
           <button
             type="button"
             onClick={() => historyQuery.refetch()}
-            className="mt-3 inline-flex min-h-[44px] items-center rounded-xl bg-gray-900 px-3 text-sm font-semibold text-white"
+            className="glass-card mt-3 inline-flex min-h-[44px] items-center rounded-xl px-3 text-sm font-semibold text-slate-900 dark:text-white"
           >
             Reessayer
           </button>
         </div>
       ) : doneItems.length === 0 ? (
-        <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
-          <p className="text-sm font-semibold text-gray-800">Aucune livraison archivee.</p>
-          <p className="mt-1 text-xs text-gray-500">Les livraisons terminees apparaitront ici.</p>
+        <div className="glass-card rounded-2xl p-8 text-center shadow-sm">
+          <p className="text-sm font-semibold text-slate-800 dark:text-white">Aucune livraison archivee.</p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">Les livraisons terminees apparaitront ici.</p>
           {historyQuery.hasNextPage ? (
             <button
               type="button"
               onClick={() => historyQuery.fetchNextPage()}
               disabled={historyQuery.isFetchingNextPage}
-              className="mt-3 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-gray-900 px-3 text-sm font-semibold text-white disabled:opacity-60"
+              className="glass-card mt-3 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-900 disabled:opacity-60 dark:text-white"
             >
               {historyQuery.isFetchingNextPage ? <Loader2 size={14} className="animate-spin" /> : null}
               Charger plus
@@ -208,14 +210,14 @@ export default function DeliveryHistory() {
               `${dropoffAddress} ${item?.dropoff?.communeName || item?.buyer?.commune || ''}`
             );
             return (
-              <article key={item._id} className="rounded-2xl bg-white p-4 shadow-sm">
+              <article key={item._id} className="glass-card rounded-2xl p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs text-gray-500">Commande #{String(item.orderId || '').slice(-6)}</p>
-                    <p className="mt-1 text-sm font-semibold text-gray-900">
+                    <p className="text-xs text-slate-500 dark:text-slate-300">Commande #{String(item.orderId || '').slice(-6)}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
                       {item?.pickup?.communeName || 'Pickup'} → {item?.dropoff?.communeName || item?.buyer?.commune || 'Dropoff'}
                     </p>
-                    <p className="mt-1 text-xs text-gray-500">{fmtDateTime(item.updatedAt || item.createdAt)}</p>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">{fmtDateTime(item.updatedAt || item.createdAt)}</p>
                   </div>
                   <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusPillClassOf(item)}`}>
                     {workflowLabelOf(item)}
@@ -223,7 +225,7 @@ export default function DeliveryHistory() {
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                  <span className="rounded-full bg-gray-100 px-2 py-1 font-semibold text-gray-700">
+                  <span className="glass-card rounded-full px-2 py-1 font-semibold text-slate-700 dark:text-slate-100">
                     {formatCurrency(item.deliveryPrice, item.currency)}
                   </span>
                   {dropoffMap ? (
@@ -231,14 +233,14 @@ export default function DeliveryHistory() {
                       href={dropoffMap}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 font-semibold text-gray-700"
+                      className="glass-card inline-flex items-center gap-1 rounded-full px-2 py-1 font-semibold text-slate-700 dark:text-slate-100"
                     >
                       Maps <ExternalLink size={11} />
                     </a>
                   ) : null}
                   <Link
                     to={buildAssignmentRoute({ basePath: routePrefix, id: item._id })}
-                    className="inline-flex items-center rounded-full bg-gray-900 px-2.5 py-1 font-semibold text-white"
+                    className="soft-card soft-card-purple inline-flex items-center rounded-full px-2.5 py-1 font-semibold text-purple-900 dark:text-purple-100"
                   >
                     Detail
                   </Link>
@@ -249,7 +251,7 @@ export default function DeliveryHistory() {
 
           <div ref={loadMoreRef} className="h-8" />
           {historyQuery.isFetchingNextPage ? (
-            <div className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white p-3 text-xs text-gray-500 shadow-sm">
+            <div className="glass-card inline-flex w-full items-center justify-center gap-2 rounded-xl p-3 text-xs text-slate-500 shadow-sm dark:text-slate-300">
               <Loader2 size={14} className="animate-spin" /> Chargement...
             </div>
           ) : null}

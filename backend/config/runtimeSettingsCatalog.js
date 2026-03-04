@@ -393,6 +393,20 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     defaultValue: true,
     isPublic: true
   },
+  push_when_online: {
+    category: 'notifications',
+    description: 'Envoyer aussi des push quand l’utilisateur est en ligne.',
+    valueType: 'boolean',
+    defaultValue: false,
+    isPublic: false
+  },
+  push_for_priority_high_only: {
+    category: 'notifications',
+    description: 'Limiter les push aux priorités HIGH/CRITICAL.',
+    valueType: 'boolean',
+    defaultValue: false,
+    isPublic: false
+  },
   enable_chat: {
     category: 'feature_flags',
     description: 'Activer la messagerie marketplace.',

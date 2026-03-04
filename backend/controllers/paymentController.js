@@ -2,7 +2,10 @@ import asyncHandler from 'express-async-handler';
 import Payment from '../models/paymentModel.js';
 import Product from '../models/productModel.js';
 import User from '../models/userModel.js';
-import { createNotification } from '../utils/notificationService.js';
+import {
+  createNotification,
+  resolveValidationTaskNotifications
+} from '../utils/notificationService.js';
 import { invalidateProductCache } from '../utils/cache.js';
 import { invalidateVerifiedProductCache } from '../utils/publicProductVisibility.js';
 import { calculateCommissionBreakdown, normalizePromoCode } from '../utils/promoCodeUtils.js';
@@ -155,7 +158,7 @@ export const createPayment = asyncHandler(async (req, res) => {
   try {
     const [moderators, waitingCount] = await Promise.all([
       User.find({ role: { $in: ['admin', 'founder', 'manager'] } })
-        .select('_id')
+        .select('_id role')
         .lean(),
       Payment.countDocuments({ status: 'waiting' })
     ]);
@@ -183,6 +186,21 @@ export const createPayment = asyncHandler(async (req, res) => {
             actorId: req.user.id,
             productId: product._id,
             type: 'payment_pending',
+            audience:
+              String(moderator.role || '').toLowerCase() === 'founder'
+                ? 'FOUNDER'
+                : String(moderator.role || '').toLowerCase() === 'admin'
+                ? 'ADMIN'
+                : 'ROLE_GROUP',
+            targetRole: [String(moderator.role || '').toUpperCase()],
+            actionRequired: true,
+            actionType: 'VERIFY',
+            actionStatus: 'PENDING',
+            deepLink: '/admin/payment-verification?status=waiting',
+            actionLink: '/admin/payment-verification?status=waiting',
+            entityType: 'payment',
+            entityId: String(payment._id),
+            validationType: 'productValidation',
             metadata
           })
         );
@@ -300,6 +318,14 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     }
   });
 
+  await resolveValidationTaskNotifications({
+    entityType: 'payment',
+    entityId: String(payment._id),
+    actionStatus: 'DONE',
+    actorId: req.user.id,
+    validationType: 'productValidation'
+  }).catch(() => {});
+
   res.json({ message: 'Payment verified, product approved' });
 });
 
@@ -329,6 +355,14 @@ export const rejectPayment = asyncHandler(async (req, res) => {
       paymentId: payment._id
     }
   });
+
+  await resolveValidationTaskNotifications({
+    entityType: 'payment',
+    entityId: String(payment._id),
+    actionStatus: 'DONE',
+    actorId: req.user.id,
+    validationType: 'productValidation'
+  }).catch(() => {});
 
   res.json({ message: 'Payment rejected, product rejected' });
 });

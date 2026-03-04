@@ -22,7 +22,10 @@ import {
   isCloudinaryConfigured,
   uploadToCloudinary
 } from '../utils/cloudinaryUploader.js';
-import { createNotification } from '../utils/notificationService.js';
+import {
+  createNotification,
+  resolveValidationTaskNotifications
+} from '../utils/notificationService.js';
 import {
   isTransactionCodeAlreadyUsed,
   TRANSACTION_CODE_REUSED_MESSAGE
@@ -164,22 +167,38 @@ const buildPricingBreakdown = ({
 
 const notifyBoostManagers = async ({ actorId, message, metadata = {} }) => {
   const recipients = await User.find({
-    $or: [{ role: 'admin' }, { canManageBoosts: true }]
+    $or: [{ role: { $in: ['admin', 'founder'] } }, { canManageBoosts: true }]
   })
-    .select('_id')
+    .select('_id role')
     .lean();
   await Promise.all(
     recipients.map((recipient) =>
       createNotification({
         userId: recipient._id,
         actorId,
-        type: 'admin_broadcast',
+        type: 'validation_required',
+        audience:
+          String(recipient.role || '').toLowerCase() === 'founder'
+            ? 'FOUNDER'
+            : String(recipient.role || '').toLowerCase() === 'admin'
+            ? 'ADMIN'
+            : 'ROLE_GROUP',
+        targetRole: [String(recipient.role || 'ADMIN').toUpperCase()],
+        actionRequired: true,
+        actionType: 'APPROVE',
+        actionStatus: 'PENDING',
+        deepLink: metadata?.deepLink || '/admin/product-boosts?status=PENDING',
+        actionLink: metadata?.deepLink || '/admin/product-boosts?status=PENDING',
+        entityType: 'boost',
+        entityId: String(metadata?.boostRequestId || ''),
+        validationType: 'boostApproval',
         metadata: {
-          title: 'Gestion des boosts',
+          title: 'Validation boost requise',
           message,
           ...metadata
         },
-        allowSelf: true
+        allowSelf: true,
+        priority: 'HIGH'
       })
     )
   );
@@ -438,7 +457,8 @@ export const createBoostRequest = asyncHandler(async (req, res) => {
       boostRequestId: boostRequest._id,
       boostType,
       sellerId,
-      totalPrice: computed.totalPrice
+      totalPrice: computed.totalPrice,
+      deepLink: `/admin/product-boosts?status=PENDING&requestId=${boostRequest._id}`
     }
   });
 
@@ -902,6 +922,13 @@ export const updateBoostRequestStatusAdmin = asyncHandler(async (req, res) => {
       },
       allowSelf: true
     });
+    await resolveValidationTaskNotifications({
+      entityType: 'boost',
+      entityId: String(request._id),
+      actionStatus: 'DONE',
+      actorId: adminId,
+      validationType: 'boostApproval'
+    }).catch(() => {});
     return res.json({
       message: 'Demande de boost approuvée et activée.',
       boostRequest: buildBoostRequestResponse(request)
@@ -928,6 +955,13 @@ export const updateBoostRequestStatusAdmin = asyncHandler(async (req, res) => {
       },
       allowSelf: true
     });
+    await resolveValidationTaskNotifications({
+      entityType: 'boost',
+      entityId: String(request._id),
+      actionStatus: 'DONE',
+      actorId: adminId,
+      validationType: 'boostApproval'
+    }).catch(() => {});
     return res.json({
       message: 'Demande de boost rejetée.',
       boostRequest: buildBoostRequestResponse(request)
@@ -937,6 +971,13 @@ export const updateBoostRequestStatusAdmin = asyncHandler(async (req, res) => {
   request.status = BOOST_REQUEST_STATUSES.EXPIRED;
   request.endDate = now;
   await request.save();
+  await resolveValidationTaskNotifications({
+    entityType: 'boost',
+    entityId: String(request._id),
+    actionStatus: 'EXPIRED',
+    actorId: adminId,
+    validationType: 'boostApproval'
+  }).catch(() => {});
   await expireBoostRequests({ now: new Date(now.getTime() + 1000) });
   return res.json({
     message: 'Demande de boost expirée.',

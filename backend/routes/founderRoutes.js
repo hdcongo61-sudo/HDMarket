@@ -1,7 +1,11 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import Joi from 'joi';
-import { founderIntelligence } from '../controllers/founderAnalyticsController.js';
+import {
+  founderIntelligence,
+  founderNotificationsAnalytics
+} from '../controllers/founderAnalyticsController.js';
+import { getRealtimeMonitoringFounder } from '../controllers/realtimeAnalyticsController.js';
 import {
   founderHardDeleteAccount,
   forceLogoutUser,
@@ -18,6 +22,7 @@ import {
 import { protect } from '../middlewares/authMiddleware.js';
 import { requireFounder, requirePermission } from '../middlewares/roleMiddleware.js';
 import { validate, schemas } from '../middlewares/validate.js';
+import { getFounderTaskSummary, listRoleValidationTasks } from '../controllers/taskCenterController.js';
 
 const router = express.Router();
 
@@ -39,6 +44,38 @@ const founderIntelligenceLimiter = rateLimit({
 });
 
 router.get('/intelligence', founderIntelligenceLimiter, protect, requireFounder, requirePermission('access_founder_analytics'), founderIntelligence);
+router.get(
+  '/notifications/analytics',
+  founderIntelligenceLimiter,
+  protect,
+  requireFounder,
+  requirePermission('access_founder_analytics'),
+  founderNotificationsAnalytics
+);
+router.get(
+  '/realtime-monitoring',
+  founderIntelligenceLimiter,
+  protect,
+  requireFounder,
+  requirePermission('access_founder_analytics'),
+  getRealtimeMonitoringFounder
+);
+router.get(
+  '/tasks/summary',
+  founderIntelligenceLimiter,
+  protect,
+  requireFounder,
+  requirePermission('access_founder_analytics'),
+  getFounderTaskSummary
+);
+router.get(
+  '/tasks/validation',
+  founderIntelligenceLimiter,
+  protect,
+  requireFounder,
+  requirePermission('access_founder_analytics'),
+  listRoleValidationTasks
+);
 router.get('/audit-logs', founderLimiter, protect, requireFounder, requirePermission('view_logs'), listFounderAuditLogs);
 router.get('/deletion-candidates', founderLimiter, protect, requireFounder, requirePermission('founder_override'), listFounderDeletionCandidates);
 router.get('/phone-blacklist', founderLimiter, protect, requireFounder, requirePermission('founder_override'), listFounderPhoneBlacklist);

@@ -43,7 +43,7 @@ export default function DeliveryKpiRow({ items = [], loading = false }) {
             return (
               <div
                 key={`kpi-skeleton-${index}`}
-                className="h-[76px] min-w-[142px] flex-1 animate-pulse rounded-2xl bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 p-4"
+                className="glass-skeleton h-[76px] min-w-[142px] flex-1 animate-pulse rounded-2xl p-4"
               />
             );
           }
@@ -52,10 +52,10 @@ export default function DeliveryKpiRow({ items = [], loading = false }) {
           return (
             <article
               key={entry.key || index}
-              className="min-w-[142px] flex-1 rounded-2xl bg-gray-50 p-4 shadow-sm transition hover:shadow-md"
+              className="glass-card min-w-[142px] flex-1 rounded-2xl p-4 shadow-sm transition hover:shadow-md"
             >
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">{entry.label}</p>
-              <p className="mt-2 text-xl font-semibold text-gray-900">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">{entry.label}</p>
+              <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
                 <AnimatedCounter value={entry.value} />
               </p>
               {entry.badge ? (

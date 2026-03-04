@@ -91,7 +91,7 @@ export default function NotificationItem({
               onPointerDown={startLongPress}
               onPointerUp={cancelLongPress}
               onPointerLeave={cancelLongPress}
-              className={`ui-card ui-card-interactive ui-card-fade-in group relative flex items-start gap-3 px-3.5 py-3 text-left transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/70 ${
+              className={`glass-card ui-card-interactive ui-card-fade-in group relative flex items-start gap-3 px-3.5 py-3 text-left transition-colors hover:bg-white/80 dark:hover:bg-neutral-900/70 ${
                 isUnread ? 'ui-unread-accent' : ''
               }`}
             >
@@ -103,11 +103,11 @@ export default function NotificationItem({
                     className="h-10 w-10 rounded-full object-cover"
                   />
                 ) : avatarLetter ? (
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-sm font-semibold text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+                  <div className="glass-card flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold text-neutral-700 dark:text-neutral-200">
                     {avatarLetter}
                   </div>
                 ) : (
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+                  <div className="glass-card flex h-10 w-10 items-center justify-center rounded-full text-neutral-600 dark:text-neutral-300">
                     {meta.icon}
                   </div>
                 )}
@@ -154,7 +154,7 @@ export default function NotificationItem({
                             event.stopPropagation();
                             onNavigateAction?.(item.to);
                           }}
-                          className="inline-flex items-center gap-1 rounded-full border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-700 transition hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                          className="glass-card inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium text-neutral-700 transition hover:bg-white/80 dark:text-neutral-200 dark:hover:bg-neutral-800"
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
                           {item.label || t('notifications.view', 'Voir')}
@@ -167,7 +167,7 @@ export default function NotificationItem({
                             event.stopPropagation();
                             onMarkRead?.();
                           }}
-                          className="inline-flex items-center gap-1 rounded-full border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-600 transition hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                          className="glass-card inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium text-neutral-600 transition hover:bg-white/80 dark:text-neutral-300 dark:hover:bg-neutral-800"
                         >
                           {t('notifications.markAsRead', 'Marquer comme lu')}
                         </button>
@@ -202,7 +202,7 @@ export default function NotificationItem({
             onClick={() => setMenuOpen(false)}
           >
             <motion.div
-              className="ui-card ui-card-lg absolute inset-x-4 bottom-4 p-2 shadow-xl"
+              className="glass-card absolute inset-x-4 bottom-4 rounded-2xl p-2 shadow-xl"
               initial={{ y: 24, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 24, opacity: 0 }}

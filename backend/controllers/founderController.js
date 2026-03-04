@@ -949,9 +949,14 @@ export const listFounderAuditLogs = asyncHandler(async (req, res) => {
   const limit = Math.min(100, Math.max(10, Number(req.query?.limit || 20)));
   const skip = (page - 1) * limit;
   const query = {};
+  const actionType = String(req.query?.actionType || '').trim();
+  const actionPrefix = String(req.query?.actionPrefix || '').trim();
 
-  if (req.query?.actionType) {
-    query.actionType = String(req.query.actionType).trim();
+  if (actionType) {
+    query.actionType = actionType;
+  } else if (actionPrefix) {
+    const escapedPrefix = actionPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    query.actionType = { $regex: `^${escapedPrefix}` };
   }
   if (req.query?.targetUser) {
     query.targetUser = req.query.targetUser;

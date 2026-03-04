@@ -23,6 +23,7 @@ import { buildProductPath, buildShopPath } from '../utils/links';
 import NotificationItem from '../components/notifications/NotificationItem';
 import NotificationSkeleton from '../components/notifications/NotificationSkeleton';
 import { useAppSettings } from '../context/AppSettingsContext';
+import GlassHeader from '../components/ui/GlassHeader';
 
 const SELLER_ORDER_NOTIFICATION_TYPES = new Set([
   'order_received',
@@ -61,6 +62,7 @@ const PLATFORM_DELIVERY_TYPES = new Set([
   'delivery_request_in_progress',
   'delivery_request_delivered'
 ]);
+const VALIDATION_TYPES = new Set(['validation_required']);
 const ADMIN_TYPES = new Set(['admin_broadcast']);
 const SYSTEM_TYPES = new Set([
   'account_restriction',
@@ -71,6 +73,7 @@ const SYSTEM_TYPES = new Set([
 
 const TYPE_PRIORITY = Object.freeze({
   dispute_deadline_near: 110,
+  validation_required: 108,
   account_restriction: 105,
   order_cancelled: 100,
   installment_overdue_warning: 98,
@@ -132,6 +135,7 @@ const resolveCategory = (alert) => {
   if (ORDER_TYPES.has(type)) return 'orders';
   if (DISPUTE_TYPES.has(type)) return 'dispute';
   if (DELIVERY_TYPES.has(type) || PLATFORM_DELIVERY_TYPES.has(type)) return 'delivery';
+  if (VALIDATION_TYPES.has(type)) return 'admin';
   if (ADMIN_TYPES.has(type)) return 'admin';
   if (SYSTEM_TYPES.has(type)) return 'system';
   if (BOOST_TYPES.has(type)) return 'boost';
@@ -146,6 +150,7 @@ const notificationMeta = (alert, t) => {
     return { title: t('notifications.deliveryUpdate', 'Mise à jour livraison'), icon: <Truck className="h-4 w-4" /> };
   }
   if (DISPUTE_TYPES.has(type)) return { title: t('notifications.disputeUpdate', 'Mise à jour litige'), icon: <Gavel className="h-4 w-4" /> };
+  if (VALIDATION_TYPES.has(type)) return { title: t('notifications.validationRequired', 'Action requise'), icon: <ShieldAlert className="h-4 w-4" /> };
   if (type === 'payment_pending') return { title: t('notifications.paymentPending', 'Paiement en attente'), icon: <CreditCard className="h-4 w-4" /> };
   if (type === 'order_message') return { title: t('notifications.orderMessage', 'Message commande'), icon: <MessageSquare className="h-4 w-4" /> };
   if (type === 'admin_broadcast') return { title: t('notifications.adminMessage', 'Message admin'), icon: <ShieldAlert className="h-4 w-4" /> };
@@ -189,6 +194,10 @@ const buildDisputeNotificationPath = (alert, user) => {
 
 const getNotificationActions = (alert, user, t) => {
   const actions = [];
+  const deepLink = String(alert?.actionLink || alert?.deepLink || alert?.metadata?.deepLink || '').trim();
+  if (deepLink) {
+    actions.push({ to: deepLink, label: t('notifications.openTask', 'Ouvrir tâche') });
+  }
   const orderPath = buildOrderNotificationPath(alert, user);
   if (orderPath) actions.push({ to: orderPath, label: t('notifications.viewOrder', 'Voir commande') });
   const disputePath = buildDisputeNotificationPath(alert, user);
@@ -417,9 +426,9 @@ export default function NotificationPage() {
 
   if (!user) {
     return (
-      <main className="min-h-screen bg-white px-5 py-16 text-center dark:bg-neutral-950">
+      <main className="glass-page-shell min-h-screen px-5 py-16 text-center">
         <div className="mx-auto max-w-sm">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800">
+          <div className="glass-card mx-auto flex h-16 w-16 items-center justify-center rounded-full">
             <Bell className="h-7 w-7 text-neutral-500 dark:text-neutral-300" />
           </div>
           <h1 className="mt-5 text-2xl font-semibold text-neutral-950 dark:text-neutral-100">{t('notifications.title', 'Notifications')}</h1>
@@ -432,29 +441,29 @@ export default function NotificationPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
+    <main className="glass-page-shell min-h-screen text-neutral-900 dark:text-neutral-100">
       <div className="mx-auto w-full max-w-3xl">
-        <header className="sticky top-0 z-30 border-b border-neutral-200/90 bg-white/90 px-4 pb-3 pt-4 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/90">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight">{t('notifications.title', 'Notifications')}</h1>
-              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                {unreadCount > 0
-                  ? `${unreadCount} ${t('notifications.newCount', `nouvelle${unreadCount > 1 ? 's' : ''}`)}`
-                  : `${alerts.length} ${t('notifications.notificationCount', `notification${alerts.length > 1 ? 's' : ''}`)}`}
-              </p>
-            </div>
+        <header className="sticky top-0 z-30 px-4 pb-3 pt-4">
+          <GlassHeader
+            title={t('notifications.title', 'Notifications')}
+            subtitle={
+              unreadCount > 0
+                ? `${unreadCount} ${t('notifications.newCount', `nouvelle${unreadCount > 1 ? 's' : ''}`)}`
+                : `${alerts.length} ${t('notifications.notificationCount', `notification${alerts.length > 1 ? 's' : ''}`)}`
+            }
+            className="rounded-2xl"
+          >
             <button
               type="button"
               onClick={handleMarkAllRead}
               disabled={markingAll || unreadCount < 1}
-              className="inline-flex items-center gap-1 rounded-full border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-700 transition hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-45 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-900"
+              className="glass-card inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium text-neutral-700 transition hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-45 dark:text-neutral-200 dark:hover:bg-neutral-900"
             >
               <Check className="h-3.5 w-3.5" />
               {markingAll ? '...' : t('notifications.markAllRead', 'Tout lire')}
             </button>
-          </div>
-          <div className="mt-3 overflow-x-auto pb-1">
+          </GlassHeader>
+          <div className="glass-card mt-3 overflow-x-auto rounded-2xl p-2">
             <div className="flex w-max items-center gap-2">
               {filters.map((filter) => {
                 const isActive = activeFilter === filter.key;
@@ -463,16 +472,16 @@ export default function NotificationPage() {
                     key={filter.key}
                     type="button"
                     onClick={() => setActiveFilter(filter.key)}
-                    className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                    className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition ${
                       isActive
-                        ? 'border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900'
-                        : 'border-neutral-200 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-900'
+                        ? 'soft-card soft-card-purple text-purple-900 dark:text-purple-100'
+                        : 'glass-card text-neutral-600 hover:bg-white/80 dark:text-neutral-300 dark:hover:bg-neutral-900'
                     }`}
                   >
                     {filter.label}
                     <span
                       className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                        isActive ? 'bg-white/20 dark:bg-neutral-900/10' : 'bg-neutral-100 dark:bg-neutral-800'
+                        isActive ? 'bg-white/30 dark:bg-black/20' : 'bg-neutral-100/80 dark:bg-neutral-800/80'
                       }`}
                     >
                       {filterCounts[filter.key] || 0}
@@ -493,7 +502,7 @@ export default function NotificationPage() {
                 exit={{ opacity: 0, y: -8 }}
                 className="flex items-center justify-center py-2"
               >
-                <div className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                <div className="glass-card inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs text-neutral-500 dark:text-neutral-300">
                   <Bell className={`h-3.5 w-3.5 ${refreshing ? 'animate-pulse' : ''}`} />
                   {refreshing ? t('notifications.refreshing', 'Actualisation…') : t('notifications.pullToRefresh', 'Relâchez pour actualiser')}
                 </div>
@@ -502,7 +511,7 @@ export default function NotificationPage() {
           </AnimatePresence>
 
           {actionError && (
-            <div className="mt-4 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-700 dark:border-neutral-900 dark:bg-neutral-950/40 dark:text-neutral-300">
+            <div className="soft-card soft-card-red mt-4 rounded-xl px-3 py-2 text-xs text-red-700 dark:text-red-100">
               {actionError}
             </div>
           )}
@@ -512,7 +521,7 @@ export default function NotificationPage() {
               <NotificationSkeleton count={8} />
             </div>
           ) : error ? (
-            <div className="mt-8 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700 dark:border-neutral-900 dark:bg-neutral-950/40 dark:text-neutral-300">
+            <div className="glass-card mt-8 rounded-2xl p-4 text-sm text-neutral-700 dark:text-neutral-300">
               {error}
             </div>
           ) : visibleAlerts.length ? (
@@ -531,7 +540,7 @@ export default function NotificationPage() {
                     <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-500 dark:text-neutral-400">
                       {title}
                     </h2>
-                    <div className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                    <div className="divide-y divide-white/35 dark:divide-neutral-800">
                       <AnimatePresence initial={false}>
                         {list.map((alert) => {
                           const isUnread = Boolean(alert?.isNew);
@@ -564,6 +573,7 @@ export default function NotificationPage() {
                               onMarkRead={() => handleMarkRead([alert._id])}
                               onDelete={() => handleDelete(alert._id)}
                               onNavigateAction={(to) => {
+                                api.post(`/users/notifications/${alert._id}/click`).catch(() => {});
                                 navigate(to);
                                 if (isUnread) {
                                   handleMarkRead([alert._id]);
@@ -579,14 +589,14 @@ export default function NotificationPage() {
               })}
 
               {visibleCount < filteredAlerts.length && (
-                <div ref={sentinelRef} className="py-6 text-center text-xs text-neutral-500 dark:text-neutral-400">
-                  {t('common.loading', 'Chargement...')}
-                </div>
-              )}
-            </div>
+              <div ref={sentinelRef} className="py-6 text-center text-xs text-neutral-500 dark:text-neutral-400">
+                {t('common.loading', 'Chargement...')}
+              </div>
+            )}
+          </div>
           ) : (
             <div className="mt-14 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800">
+              <div className="glass-card mx-auto flex h-14 w-14 items-center justify-center rounded-full">
                 <Bell className="h-6 w-6 text-neutral-500 dark:text-neutral-300" />
               </div>
               <h3 className="mt-4 text-base font-medium text-neutral-900 dark:text-neutral-100">

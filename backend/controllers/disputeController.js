@@ -9,7 +9,10 @@ import DisputeActionLog from '../models/disputeActionLogModel.js';
 import Order from '../models/orderModel.js';
 import OrderMessage from '../models/orderMessageModel.js';
 import User from '../models/userModel.js';
-import { createNotification } from '../utils/notificationService.js';
+import {
+  createNotification,
+  resolveValidationTaskNotifications
+} from '../utils/notificationService.js';
 import { getManyRuntimeConfigs } from '../services/configService.js';
 
 const ORDER_DISPUTE_STATUS = 'dispute_opened';
@@ -195,6 +198,16 @@ const sendDisputeCreatedNotifications = async ({ dispute, actorId }) => {
         userId: adminId,
         actorId,
         type: 'dispute_created',
+        audience: 'ROLE_GROUP',
+        targetRole: ['ADMIN', 'FOUNDER', 'MANAGER'],
+        actionRequired: true,
+        actionType: 'REVIEW',
+        actionStatus: 'PENDING',
+        deepLink: `/admin/complaints?disputeId=${dispute._id}`,
+        actionLink: `/admin/complaints?disputeId=${dispute._id}`,
+        entityType: 'dispute',
+        entityId: String(dispute._id),
+        validationType: 'disputes',
         metadata: { disputeId: dispute._id, orderId: dispute.orderId, reason: dispute.reason }
       })
     );
@@ -275,6 +288,16 @@ const processDisputeDeadlines = async (thresholds = null) => {
           userId: adminId,
           actorId: updated.clientId,
           type: 'dispute_under_review',
+          audience: 'ROLE_GROUP',
+          targetRole: ['ADMIN', 'FOUNDER', 'MANAGER'],
+          actionRequired: true,
+          actionType: 'REVIEW',
+          actionStatus: 'PENDING',
+          deepLink: `/admin/complaints?disputeId=${updated._id}`,
+          actionLink: `/admin/complaints?disputeId=${updated._id}`,
+          entityType: 'dispute',
+          entityId: String(updated._id),
+          validationType: 'disputes',
           metadata: { disputeId: updated._id, orderId: updated.orderId }
         })
       )
@@ -790,6 +813,14 @@ export const resolveAdminDispute = asyncHandler(async (req, res) => {
       }
     })
   ]);
+
+  await resolveValidationTaskNotifications({
+    entityType: 'dispute',
+    entityId: String(dispute._id),
+    actionStatus: 'DONE',
+    actorId: req.user.id,
+    validationType: 'disputes'
+  }).catch(() => {});
 
   res.json({
     message: 'Litige résolu.',
