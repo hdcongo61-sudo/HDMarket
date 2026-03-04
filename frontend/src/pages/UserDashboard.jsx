@@ -228,8 +228,11 @@ export default function UserDashboard() {
     }
   };
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (options = {}) => {
+    const silent = Boolean(options?.silent);
+    if (!silent) {
+      setLoading(true);
+    }
     setError('');
     if (isShopUser) {
       setPromoAnalyticsLoading(true);
@@ -258,12 +261,16 @@ export default function UserDashboard() {
       } else {
         setPromoAnalytics(null);
       }
-      setCurrentPage(1);
+      if (!silent) {
+        setCurrentPage(1);
+      }
     } catch (e) {
       setError(e.response?.data?.message || e.message || 'Impossible de charger vos annonces.');
       showToast(e.response?.data?.message || e.message || 'Erreur de chargement', { variant: 'error' });
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
       if (isShopUser) {
         setPromoAnalyticsLoading(false);
       }
@@ -1964,7 +1971,7 @@ export default function UserDashboard() {
                           {/* Payment Form - List View */}
                           {product.status !== 'disabled' && (
                             <div className="pt-2 border-t border-gray-100">
-                              <PaymentForm product={product} onSubmitted={load} />
+                              <PaymentForm product={product} onSubmitted={() => load({ silent: true })} />
                             </div>
                           )}
                         </div>
@@ -2178,7 +2185,7 @@ export default function UserDashboard() {
                       {/* Payment Form */}
                       {product.status !== 'disabled' && (
                         <div className="pt-2 border-t border-gray-100">
-                          <PaymentForm product={product} onSubmitted={load} />
+                          <PaymentForm product={product} onSubmitted={() => load({ silent: true })} />
                         </div>
                       )}
                     </div>

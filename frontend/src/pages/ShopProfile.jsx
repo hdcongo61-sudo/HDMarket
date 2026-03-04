@@ -36,6 +36,7 @@ import useIsMobile from '../hooks/useIsMobile';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { useToast } from '../context/ToastContext';
 import { useAppSettings } from '../context/AppSettingsContext';
+import AppLoader from '../components/AppLoader';
 
 const DAY_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const DAY_LABELS = {
@@ -509,6 +510,7 @@ export default function ShopProfile() {
     itemCount: 0
   });
   const [layoutContainerWidth, setLayoutContainerWidth] = useState(0);
+  const [shopLoaderTimedOut, setShopLoaderTimedOut] = useState(false);
 
   const [productsRef, productsInView] = useSectionInView({ rootMargin: '320px' });
   const [reviewsRef, reviewsInView] = useSectionInView({ rootMargin: '240px' });
@@ -1073,6 +1075,17 @@ export default function ShopProfile() {
 
   const isOfflineSnapshot = shopQuery.isError && Boolean(shopQuery.data);
   const isNetworkErrorWithoutResponse = Boolean(shopQuery.isError && !shop && !shopQuery.error?.response);
+
+  useEffect(() => {
+    if (shop) {
+      setShopLoaderTimedOut(false);
+      return undefined;
+    }
+    const timeoutId = window.setTimeout(() => {
+      setShopLoaderTimedOut(true);
+    }, 8000);
+    return () => window.clearTimeout(timeoutId);
+  }, [shop, slug]);
   const debugPayload = useMemo(
     () => ({
       routeSlug: slug || '',
@@ -1237,95 +1250,31 @@ export default function ShopProfile() {
     }
   }, [debugPayload, showToast]);
 
-  if (shopQuery.isLoading && !shop) {
-    return (
-      <main className="bg-slate-50 pb-24 dark:bg-slate-950">
-        <div className="mx-auto max-w-7xl px-3 py-6 sm:px-5 lg:px-8">
-          <ShopHeaderSkeleton />
-          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-            <div className="space-y-4">
-              <div className="h-56 animate-pulse rounded-2xl bg-white" />
-              <div className="h-72 animate-pulse rounded-2xl bg-white" />
-            </div>
-            <div className="h-72 animate-pulse rounded-2xl bg-white" />
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  if (isNetworkErrorWithoutResponse) {
-    return (
-      <main className="bg-slate-50 pb-24 dark:bg-slate-950">
-        <div className="mx-auto max-w-7xl px-3 py-6 sm:px-5 lg:px-8">
-          <ShopHeaderSkeleton />
-          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-            <div className="space-y-4">
-              <div className="h-56 animate-pulse rounded-2xl bg-white" />
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
-                Connexion en cours au serveur. Réessayez dans quelques secondes.
-                <div className="mt-3 flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => shopQuery.refetch()}
-                    className="inline-flex min-h-10 items-center rounded-xl bg-neutral-600 px-3 text-xs font-semibold text-white transition hover:bg-neutral-700 sm:text-sm"
-                  >
-                    Réessayer
-                  </button>
-                  <Link to="/" className="text-xs font-semibold text-neutral-700 hover:text-neutral-900 sm:text-sm">
-                    Retour à l'accueil
-                  </Link>
-                </div>
-              </div>
-            </div>
-            <div className="h-72 animate-pulse rounded-2xl bg-white" />
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  if (shopQuery.isError && !shop) {
-    return (
-      <main className="bg-slate-50 pb-24 dark:bg-slate-950">
-        <div className="mx-auto max-w-4xl px-4 py-10">
-          <div className="rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-semibold text-red-700">
-              {shopQuery.error?.response?.data?.message || shopQuery.error?.message || 'Boutique introuvable.'}
-            </p>
-            <Link to="/" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-neutral-700 hover:text-neutral-900">
-              Retour à l'accueil
-              <ArrowRight size={14} />
-            </Link>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
   if (!shop) {
     return (
-      <main className="bg-slate-50 pb-24 dark:bg-slate-950">
-        <div className="mx-auto max-w-4xl px-4 py-10">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-              Impossible d'afficher cette boutique pour le moment.
-            </p>
-            <div className="mt-4 flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => shopQuery.refetch()}
-                className="inline-flex min-h-11 items-center rounded-xl bg-neutral-600 px-4 text-sm font-semibold text-white transition hover:bg-neutral-700"
-              >
-                Réessayer
-              </button>
-              <Link to="/" className="text-sm font-semibold text-neutral-700 hover:text-neutral-900 dark:text-neutral-300">
-                Retour à l'accueil
-              </Link>
+      <>
+        <main className="bg-slate-50 pb-24 dark:bg-slate-950">
+          <div className="mx-auto max-w-7xl px-3 py-6 sm:px-5 lg:px-8">
+            <ShopHeaderSkeleton />
+            <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+              <div className="space-y-4">
+                <div className="h-56 animate-pulse rounded-2xl bg-white" />
+                <div className="h-72 animate-pulse rounded-2xl bg-white" />
+              </div>
+              <div className="h-72 animate-pulse rounded-2xl bg-white" />
             </div>
           </div>
-        </div>
-      </main>
+        </main>
+        <AppLoader
+          visible
+          label="HDMarket"
+          timedOut={shopLoaderTimedOut || isNetworkErrorWithoutResponse || Boolean(shopQuery.isError)}
+          onRetry={() => {
+            setShopLoaderTimedOut(false);
+            shopQuery.refetch();
+          }}
+        />
+      </>
     );
   }
 

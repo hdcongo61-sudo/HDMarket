@@ -30,8 +30,10 @@ export default function PaymentVerification() {
   const [searchQuery, setSearchQuery] = useState('');
   const [actionId, setActionId] = useState('');
 
-  const loadPayments = useCallback(async () => {
-    setLoading(true);
+  const loadPayments = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       const params = new URLSearchParams();
       params.set('status', 'waiting');
@@ -43,7 +45,9 @@ export default function PaymentVerification() {
       console.error('Load payments error:', err);
       setPayments([]);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [searchQuery]);
 
@@ -54,12 +58,12 @@ export default function PaymentVerification() {
   // Listen for payment status changes from other pages
   useEffect(() => {
     const handlePaymentStatusChange = () => {
-      loadPayments();
+      loadPayments({ silent: true });
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        loadPayments();
+        loadPayments({ silent: true });
       }
     };
 
@@ -77,11 +81,12 @@ export default function PaymentVerification() {
   const handleVerify = async (paymentId) => {
     if (!confirm('Voulez-vous vérifier ce paiement ? Le produit sera approuvé.')) return;
 
+    const previousPayments = payments;
+    setPayments((prev) => prev.filter((item) => item?._id !== paymentId));
     setActionId(paymentId);
     try {
       await api.put(`/payments/admin/${paymentId}/verify`);
       alert('Paiement vérifié avec succès');
-      await loadPayments();
       
       // Emit custom event to notify other pages
       window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
@@ -89,6 +94,7 @@ export default function PaymentVerification() {
       }));
     } catch (err) {
       console.error('Verify payment error:', err);
+      setPayments(previousPayments);
       alert(err.response?.data?.message || 'Erreur lors de la vérification');
     } finally {
       setActionId('');
@@ -98,11 +104,12 @@ export default function PaymentVerification() {
   const handleReject = async (paymentId) => {
     if (!confirm('Voulez-vous rejeter ce paiement ? Le produit sera rejeté.')) return;
 
+    const previousPayments = payments;
+    setPayments((prev) => prev.filter((item) => item?._id !== paymentId));
     setActionId(paymentId);
     try {
       await api.put(`/payments/admin/${paymentId}/reject`);
       alert('Paiement rejeté');
-      await loadPayments();
       
       // Emit custom event to notify other pages
       window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
@@ -110,6 +117,7 @@ export default function PaymentVerification() {
       }));
     } catch (err) {
       console.error('Reject payment error:', err);
+      setPayments(previousPayments);
       alert(err.response?.data?.message || 'Erreur lors du rejet');
     } finally {
       setActionId('');
