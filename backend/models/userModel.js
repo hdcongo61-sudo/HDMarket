@@ -3,6 +3,9 @@ import bcrypt from 'bcryptjs';
 import { WEEK_DAY_ORDER } from '../utils/shopHours.js';
 import { generateUniqueSlug } from '../utils/slugUtils.js';
 
+const SHOP_NAME_SPACES_REGEX = /\s+/g;
+const escapeRegex = (value = '') => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
@@ -268,6 +271,16 @@ userSchema.add({
 userSchema.index({ shopLocation: '2dsphere' }, { sparse: true });
 
 userSchema.pre('validate', async function (next) {
+  if (typeof this.email === 'string') {
+    this.email = this.email.trim().toLowerCase();
+  }
+  if (typeof this.phone === 'string') {
+    this.phone = this.phone.trim();
+  }
+  if (typeof this.shopName === 'string') {
+    this.shopName = this.shopName.replace(SHOP_NAME_SPACES_REGEX, ' ').trim();
+  }
+
   const needsSlug =
     !this.slug ||
     this.isModified('shopName') ||
@@ -282,6 +295,30 @@ userSchema.pre('validate', async function (next) {
     return next(error);
   }
   next();
+});
+
+userSchema.pre('validate', async function (next) {
+  if (this.accountType !== 'shop') return next();
+  if (!this.shopName) return next();
+  if (!this.isNew && !this.isModified('shopName') && !this.isModified('accountType')) return next();
+
+  try {
+    const matcher = new RegExp(`^${escapeRegex(this.shopName)}$`, 'i');
+    const conflict = await this.constructor.findOne({
+      _id: { $ne: this._id },
+      accountType: 'shop',
+      shopName: { $regex: matcher }
+    })
+      .select('_id')
+      .lean();
+    if (conflict) {
+      return next(new Error('Ce nom de boutique est déjà utilisé.'));
+    }
+  } catch (error) {
+    return next(error);
+  }
+
+  return next();
 });
 
 userSchema.pre('save', async function (next) {

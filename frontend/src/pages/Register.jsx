@@ -9,21 +9,27 @@ import AuthSuccessCard from '../components/auth/AuthSuccessCard';
 
 const SLOW_NETWORK_MS = 8000;
 
-const mapRegisterErrorMessage = (error) => {
+const mapRegisterErrorMessage = (error, isFrench = true) => {
   const status = Number(error?.response?.status || 0);
   const code = String(error?.code || error?.response?.data?.code || '').toUpperCase();
   const rawMessage = String(error?.response?.data?.message || error?.message || '').toLowerCase();
 
   if (code.includes('TIMEDOUT') || rawMessage.includes('timeout')) {
-    return 'Connexion lente. Veuillez réessayer.';
+    return isFrench ? 'Connexion lente. Veuillez réessayer.' : 'Network is slow. Please retry.';
   }
   if (status === 409 || rawMessage.includes('already') || rawMessage.includes('déjà')) {
-    return 'Un compte existe déjà avec cet email ou ce téléphone.';
+    return isFrench
+      ? 'Un compte existe déjà avec cet email ou ce téléphone.'
+      : 'An account already exists with this email or phone.';
   }
   if (status >= 500) {
-    return 'Service temporairement indisponible. Veuillez réessayer.';
+    return isFrench
+      ? 'Service temporairement indisponible. Veuillez réessayer.'
+      : 'Service temporarily unavailable. Please retry.';
   }
-  return 'Impossible de créer le compte pour le moment. Veuillez réessayer.';
+  return isFrench
+    ? 'Impossible de créer le compte pour le moment. Veuillez réessayer.'
+    : 'Unable to create account right now. Please retry.';
 };
 
 const getPasswordChecks = (password = '') => {
@@ -45,10 +51,89 @@ const strengthLabelOf = (score) => {
 
 export default function Register() {
   const { user, login } = useContext(AuthContext);
-  const { cities, communes } = useAppSettings();
+  const { cities, communes, language } = useAppSettings();
   const nav = useNavigate();
   const location = useLocation();
   const from = location.state?.from || '/';
+  const isFrench = String(language || 'fr')
+    .toLowerCase()
+    .startsWith('fr');
+
+  const copy = {
+    appBadge: 'HDMarket',
+    title: isFrench ? 'Créer votre compte' : 'Create your account',
+    subtitle: isFrench
+      ? 'Inscrivez-vous pour acheter, vendre et suivre vos commandes facilement.'
+      : 'Join HDMarket to buy, sell and manage your orders easily.',
+    step1: isFrench ? 'Étape 1 : Profil' : 'Step 1: Profile',
+    step2: isFrench ? 'Étape 2 : Sécurité' : 'Step 2: Security',
+    fullName: isFrench ? 'Nom complet' : 'Full name',
+    fullNamePlaceholder: isFrench ? 'Votre nom complet' : 'Your full name',
+    email: 'Email',
+    emailPlaceholder: isFrench ? 'nom@email.com' : 'name@email.com',
+    phone: isFrench ? 'Téléphone' : 'Phone',
+    phonePlaceholder: isFrench ? '060000000' : '060000000',
+    verificationTitle: isFrench ? 'Code de vérification email (optionnel)' : 'Email verification code (optional)',
+    verificationPlaceholder: isFrench ? 'Entrez le code' : 'Enter code',
+    sendCode: isFrench ? 'Envoyer' : 'Send',
+    sendingCode: isFrench ? 'Envoi...' : 'Sending...',
+    resendCode: isFrench ? 'Renvoyer' : 'Resend',
+    codeSentMessage: isFrench
+      ? 'Code envoyé par email. Vérifiez votre boîte de réception.'
+      : 'Code sent by email. Check your inbox.',
+    continueStep2: isFrench ? "Continuer vers l'étape 2" : 'Continue to Step 2',
+    password: isFrench ? 'Mot de passe' : 'Password',
+    passwordPlaceholder: isFrench ? 'Mot de passe' : 'Password',
+    confirmPassword: isFrench ? 'Confirmer le mot de passe' : 'Confirm password',
+    confirmPasswordPlaceholder: isFrench ? 'Confirmer le mot de passe' : 'Confirm password',
+    passwordStrength: isFrench ? 'Force du mot de passe' : 'Password strength',
+    ruleLength: isFrench ? 'Au moins 8 caractères' : 'At least 8 characters',
+    ruleUpper: isFrench ? 'Une lettre majuscule' : 'Uppercase letter',
+    ruleNumber: isFrench ? 'Un chiffre' : 'Number',
+    ruleSymbol: isFrench ? 'Un symbole (optionnel)' : 'Symbol (optional)',
+    address: isFrench ? 'Adresse complète' : 'Full address',
+    addressPlaceholder: isFrench ? 'Adresse complète' : 'Full address',
+    city: isFrench ? 'Ville' : 'City',
+    chooseCity: isFrench ? 'Choisir la ville' : 'Choose city',
+    commune: isFrench ? 'Commune' : 'Commune',
+    chooseCommune: isFrench ? 'Choisir la commune' : 'Choose commune',
+    chooseCityFirst: isFrench ? "Choisir la ville d'abord" : 'Choose city first',
+    gender: isFrench ? 'Genre' : 'Gender',
+    male: isFrench ? 'Homme' : 'Male',
+    female: isFrench ? 'Femme' : 'Female',
+    termsLead: isFrench ? "J'accepte les" : 'I agree to the',
+    terms: isFrench ? 'Conditions' : 'Terms',
+    privacy: isFrench ? 'Politique de confidentialité' : 'Privacy Policy',
+    back: isFrench ? 'Retour' : 'Back',
+    createAccount: isFrench ? 'Créer le compte' : 'Create account',
+    creatingAccount: isFrench ? 'Création...' : 'Creating...',
+    slowNetwork: isFrench ? 'Réseau lent, veuillez réessayer.' : 'Network is slow, please retry.',
+    haveAccount: isFrench ? 'Vous avez déjà un compte ?' : 'Already have an account?',
+    signIn: isFrench ? 'Se connecter' : 'Sign in',
+    nextStepError: isFrench
+      ? 'Renseignez nom, email et téléphone pour continuer.'
+      : 'Enter name, email and phone to continue.',
+    emailRequired: isFrench ? 'Veuillez renseigner votre adresse email.' : 'Please enter your email address.',
+    cityGenderRequired: isFrench
+      ? 'Veuillez sélectionner votre ville et votre genre.'
+      : 'Please select your city and gender.',
+    communeRequired: isFrench ? 'Veuillez sélectionner votre commune.' : 'Please select your commune.',
+    addressRequired: isFrench ? 'Veuillez renseigner votre adresse complète.' : 'Please enter your full address.',
+    passwordsMismatch: isFrench ? 'Les mots de passe ne correspondent pas.' : 'Passwords do not match.',
+    passwordRulesError: isFrench
+      ? 'Le mot de passe ne respecte pas les règles minimales.'
+      : 'Password does not meet minimum requirements.',
+    termsRequired: isFrench
+      ? 'Vous devez accepter les Conditions et la Politique de confidentialité.'
+      : 'You must accept the Terms and Privacy Policy.',
+    successTitle: isFrench ? 'Compte créé avec succès' : 'Account created successfully',
+    successDescription: isFrench
+      ? 'Votre compte est prêt. Commençons.'
+      : "Your account is ready. Let's get started.",
+    successStatus: isFrench ? 'Préparation de votre espace...' : 'Preparing your workspace...',
+    goDashboard: isFrench ? 'Aller au tableau de bord' : 'Go to Dashboard',
+    completeProfile: isFrench ? 'Compléter mon profil' : 'Complete Profile'
+  };
 
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
@@ -124,6 +209,12 @@ export default function Register() {
     passwordChecks.hasSymbol
   ].filter(Boolean).length;
   const passwordStrength = strengthLabelOf(passwordScore);
+  const passwordStrengthLabel = {
+    Faible: isFrench ? 'Faible' : 'Weak',
+    Moyen: isFrench ? 'Moyen' : 'Medium',
+    Bon: isFrench ? 'Bon' : 'Good',
+    Fort: isFrench ? 'Fort' : 'Strong'
+  }[passwordStrength.label] || passwordStrength.label;
 
   const canGoToStep2 = Boolean(form.name.trim() && form.email.trim() && form.phone.trim());
   const canSubmit = Boolean(
@@ -166,7 +257,7 @@ export default function Register() {
 
   const sendVerificationCode = async () => {
     if (!form.email.trim()) {
-      setCodeError('Veuillez renseigner votre adresse email.');
+      setCodeError(copy.emailRequired);
       return;
     }
     setCodeSending(true);
@@ -176,9 +267,9 @@ export default function Register() {
     try {
       await api.post('/auth/register/send-code', { email: form.email });
       setCodeSent(true);
-      setCodeMessage('Code envoyé par email. Vérifiez votre boîte de réception.');
+      setCodeMessage(copy.codeSentMessage);
     } catch (requestError) {
-      setCodeError(mapRegisterErrorMessage(requestError));
+      setCodeError(mapRegisterErrorMessage(requestError, isFrench));
     } finally {
       setCodeSending(false);
     }
@@ -190,27 +281,27 @@ export default function Register() {
     setFormError('');
 
     if (!form.city || !form.gender) {
-      setFormError('Veuillez sélectionner votre ville et votre genre.');
+      setFormError(copy.cityGenderRequired);
       return;
     }
     if (availableCommunes.length > 0 && !form.commune) {
-      setFormError('Veuillez sélectionner votre commune.');
+      setFormError(copy.communeRequired);
       return;
     }
     if (!form.address.trim()) {
-      setFormError('Veuillez renseigner votre adresse complète.');
+      setFormError(copy.addressRequired);
       return;
     }
     if (form.password !== form.confirmPassword) {
-      setFormError('Les mots de passe ne correspondent pas.');
+      setFormError(copy.passwordsMismatch);
       return;
     }
     if (!passwordChecks.minLength || !passwordChecks.hasUppercase || !passwordChecks.hasNumber) {
-      setFormError('Le mot de passe ne respecte pas les règles minimales.');
+      setFormError(copy.passwordRulesError);
       return;
     }
     if (!acceptedTerms) {
-      setFormError('Vous devez accepter les Conditions et la Politique de confidentialité.');
+      setFormError(copy.termsRequired);
       return;
     }
 
@@ -238,7 +329,7 @@ export default function Register() {
       });
       setSuccessPayload(data || null);
     } catch (requestError) {
-      setFormError(mapRegisterErrorMessage(requestError));
+      setFormError(mapRegisterErrorMessage(requestError, isFrench));
     } finally {
       if (slowNetworkTimerRef.current) clearTimeout(slowNetworkTimerRef.current);
       setLoading(false);
@@ -259,22 +350,22 @@ export default function Register() {
                 <header className="mb-6">
                   <p className="inline-flex items-center gap-2 rounded-full soft-card soft-card-blue px-3 py-1 text-xs font-semibold text-blue-900 dark:text-blue-100">
                     <ShieldCheck size={14} />
-                    HDMarket
+                    {copy.appBadge}
                   </p>
                   <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
-                    Create your account
+                    {copy.title}
                   </h1>
                   <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                    Join HDMarket to buy, sell and manage your orders easily.
+                    {copy.subtitle}
                   </p>
                 </header>
 
                 <div className="mb-5 grid grid-cols-2 gap-2">
                   <div className={`rounded-xl px-3 py-2 text-xs font-semibold ${step === 1 ? 'soft-card soft-card-purple text-purple-900 dark:text-purple-100' : 'glass-card text-slate-500 dark:text-slate-300'}`}>
-                    Step 1: Profile
+                    {copy.step1}
                   </div>
                   <div className={`rounded-xl px-3 py-2 text-xs font-semibold ${step === 2 ? 'soft-card soft-card-purple text-purple-900 dark:text-purple-100' : 'glass-card text-slate-500 dark:text-slate-300'}`}>
-                    Step 2: Security
+                    {copy.step2}
                   </div>
                 </div>
 
@@ -283,7 +374,7 @@ export default function Register() {
                     <>
                       <div className="space-y-1.5">
                         <label htmlFor="register-name" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                          Full name
+                          {copy.fullName}
                         </label>
                         <input
                           id="register-name"
@@ -291,7 +382,7 @@ export default function Register() {
                           type="text"
                           autoComplete="name"
                           className="ui-input min-h-[48px] rounded-xl px-3 text-sm"
-                          placeholder="Votre nom complet"
+                          placeholder={copy.fullNamePlaceholder}
                           value={form.name}
                           onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                           onKeyDown={(e) => {
@@ -306,7 +397,7 @@ export default function Register() {
 
                       <div className="space-y-1.5">
                         <label htmlFor="register-email" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                          Email
+                          {copy.email}
                         </label>
                         <input
                           id="register-email"
@@ -314,7 +405,7 @@ export default function Register() {
                           type="email"
                           autoComplete="email"
                           className="ui-input min-h-[48px] rounded-xl px-3 text-sm"
-                          placeholder="nom@email.com"
+                          placeholder={copy.emailPlaceholder}
                           value={form.email}
                           onChange={(e) => {
                             setForm((prev) => ({ ...prev, email: e.target.value }));
@@ -332,7 +423,7 @@ export default function Register() {
 
                       <div className="space-y-1.5">
                         <label htmlFor="register-phone" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                          Phone
+                          {copy.phone}
                         </label>
                         <input
                           id="register-phone"
@@ -341,7 +432,7 @@ export default function Register() {
                           inputMode="tel"
                           autoComplete="tel"
                           className="ui-input min-h-[48px] rounded-xl px-3 text-sm"
-                          placeholder="060000000"
+                          placeholder={copy.phonePlaceholder}
                           value={form.phone}
                           onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
                           onKeyDown={(e) => {
@@ -356,14 +447,14 @@ export default function Register() {
 
                       <div className="rounded-2xl glass-card p-3">
                         <p className="text-xs font-semibold text-slate-700 dark:text-slate-100">
-                          Code de vérification email (optionnel)
+                          {copy.verificationTitle}
                         </p>
                         <div className="mt-2 flex gap-2">
                           <input
                             type="text"
                             autoComplete="one-time-code"
                             className="ui-input min-h-[48px] flex-1 rounded-xl px-3 text-sm"
-                            placeholder="Entrez le code"
+                            placeholder={copy.verificationPlaceholder}
                             value={verificationCode}
                             onChange={(e) => setVerificationCode(e.target.value)}
                           />
@@ -373,7 +464,7 @@ export default function Register() {
                             disabled={codeSending || !form.email.trim()}
                             className="glass-card min-h-[48px] rounded-xl px-3 text-xs font-semibold text-slate-700 disabled:opacity-60 dark:text-slate-100"
                           >
-                            {codeSending ? 'Envoi...' : codeSent ? 'Renvoyer' : 'Envoyer'}
+                            {codeSending ? copy.sendingCode : codeSent ? copy.resendCode : copy.sendCode}
                           </button>
                         </div>
                         {codeError ? <p className="mt-2 text-xs text-red-600 dark:text-red-100">{codeError}</p> : null}
@@ -384,16 +475,16 @@ export default function Register() {
                         type="button"
                         onClick={() => {
                           if (!canGoToStep2) {
-                            setFormError('Renseignez nom, email et téléphone pour continuer.');
+                            setFormError(copy.nextStepError);
                             return;
                           }
-                          setFormError('');
+                            setFormError('');
                           setStep(2);
                           setTimeout(() => passwordRef.current?.focus(), 80);
                         }}
                         className="soft-card soft-card-purple inline-flex min-h-[48px] w-full items-center justify-center rounded-xl px-4 text-sm font-semibold text-purple-900 dark:text-purple-100"
                       >
-                        Continue to Step 2
+                        {copy.continueStep2}
                       </button>
                     </>
                   ) : (
@@ -401,7 +492,7 @@ export default function Register() {
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="space-y-1.5 sm:col-span-1">
                           <label htmlFor="register-password" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                            Password
+                            {copy.password}
                           </label>
                           <div className="relative">
                             <input
@@ -410,7 +501,7 @@ export default function Register() {
                               type={showPassword ? 'text' : 'password'}
                               autoComplete="new-password"
                               className="ui-input min-h-[48px] w-full rounded-xl px-3 pr-12 text-sm"
-                              placeholder="Mot de passe"
+                              placeholder={copy.passwordPlaceholder}
                               value={form.password}
                               onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
                               required
@@ -427,7 +518,7 @@ export default function Register() {
 
                         <div className="space-y-1.5 sm:col-span-1">
                           <label htmlFor="register-confirm-password" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                            Confirm password
+                            {copy.confirmPassword}
                           </label>
                           <div className="relative">
                             <input
@@ -436,7 +527,7 @@ export default function Register() {
                               type={showConfirmPassword ? 'text' : 'password'}
                               autoComplete="new-password"
                               className="ui-input min-h-[48px] w-full rounded-xl px-3 pr-12 text-sm"
-                              placeholder="Confirmer le mot de passe"
+                              placeholder={copy.confirmPasswordPlaceholder}
                               value={form.confirmPassword}
                               onChange={(e) => setForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
                               required
@@ -455,10 +546,10 @@ export default function Register() {
                       <section className="glass-card rounded-2xl p-3">
                         <div className="flex items-center justify-between">
                           <p className="text-xs font-semibold text-slate-700 dark:text-slate-100">
-                            Password strength
+                            {copy.passwordStrength}
                           </p>
                           <span className="text-xs font-semibold text-slate-600 dark:text-slate-200">
-                            {passwordStrength.label}
+                            {passwordStrengthLabel}
                           </span>
                         </div>
                         <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/55 dark:bg-slate-800">
@@ -469,29 +560,29 @@ export default function Register() {
                         </div>
                         <ul className="mt-3 space-y-1 text-xs">
                           <li className={passwordChecks.minLength ? 'text-emerald-700 dark:text-emerald-100' : 'text-slate-600 dark:text-slate-300'}>
-                            • At least 8 characters
+                            • {copy.ruleLength}
                           </li>
                           <li className={passwordChecks.hasUppercase ? 'text-emerald-700 dark:text-emerald-100' : 'text-slate-600 dark:text-slate-300'}>
-                            • Uppercase letter
+                            • {copy.ruleUpper}
                           </li>
                           <li className={passwordChecks.hasNumber ? 'text-emerald-700 dark:text-emerald-100' : 'text-slate-600 dark:text-slate-300'}>
-                            • Number
+                            • {copy.ruleNumber}
                           </li>
                           <li className={passwordChecks.hasSymbol ? 'text-emerald-700 dark:text-emerald-100' : 'text-slate-500 dark:text-slate-300'}>
-                            • Symbol (optional)
+                            • {copy.ruleSymbol}
                           </li>
                         </ul>
                       </section>
 
                       <div className="space-y-1.5">
                         <label htmlFor="register-address" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                          Adresse complète
+                          {copy.address}
                         </label>
                         <textarea
                           id="register-address"
                           rows={2}
                           className="ui-input min-h-[74px] w-full rounded-xl px-3 py-2.5 text-sm"
-                          placeholder="Adresse complète"
+                          placeholder={copy.addressPlaceholder}
                           value={form.address}
                           onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))}
                           required
@@ -501,7 +592,7 @@ export default function Register() {
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="space-y-1.5">
                           <label htmlFor="register-city" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                            Ville
+                            {copy.city}
                           </label>
                           <select
                             id="register-city"
@@ -510,7 +601,7 @@ export default function Register() {
                             onChange={(e) => setForm((prev) => ({ ...prev, city: e.target.value, commune: '' }))}
                             required
                           >
-                            <option value="">Choisir la ville</option>
+                            <option value="">{copy.chooseCity}</option>
                             {cityOptions.map((city) => (
                               <option key={city} value={city}>
                                 {city}
@@ -520,7 +611,7 @@ export default function Register() {
                         </div>
                         <div className="space-y-1.5">
                           <label htmlFor="register-commune" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                            Commune
+                            {copy.commune}
                           </label>
                           <select
                             id="register-commune"
@@ -531,7 +622,7 @@ export default function Register() {
                             disabled={!form.city || availableCommunes.length === 0}
                           >
                             <option value="">
-                              {form.city ? 'Choisir la commune' : 'Choisir ville d’abord'}
+                              {form.city ? copy.chooseCommune : copy.chooseCityFirst}
                             </option>
                             {availableCommunes.map((commune) => (
                               <option key={commune._id} value={commune.name}>
@@ -543,11 +634,11 @@ export default function Register() {
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Genre</label>
+                        <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">{copy.gender}</label>
                         <div className="grid grid-cols-2 gap-2">
                           {[
-                            { value: 'homme', label: 'Homme' },
-                            { value: 'femme', label: 'Femme' }
+                            { value: 'homme', label: copy.male },
+                            { value: 'femme', label: copy.female }
                           ].map((option) => (
                             <label
                               key={option.value}
@@ -579,13 +670,13 @@ export default function Register() {
                           className="mt-0.5 h-4 w-4 rounded border-slate-300"
                         />
                         <span>
-                          I agree to the{' '}
+                          {copy.termsLead}{' '}
                           <Link to="/help" className="font-semibold hover:underline">
-                            Terms
+                            {copy.terms}
                           </Link>{' '}
-                          and{' '}
+                          {isFrench ? 'et' : 'and'}{' '}
                           <Link to="/help" className="font-semibold hover:underline">
-                            Privacy Policy
+                            {copy.privacy}
                           </Link>
                           .
                         </span>
@@ -599,7 +690,7 @@ export default function Register() {
 
                       {slowNetwork && loading ? (
                         <p className="text-xs text-amber-700 dark:text-amber-200">
-                          Network is slow, please retry.
+                          {copy.slowNetwork}
                         </p>
                       ) : null}
 
@@ -609,7 +700,7 @@ export default function Register() {
                           onClick={() => setStep(1)}
                           className="glass-card min-h-[48px] rounded-xl px-4 text-sm font-semibold text-slate-700 dark:text-slate-100"
                         >
-                          Back
+                          {copy.back}
                         </button>
                         <button
                           type="submit"
@@ -617,7 +708,7 @@ export default function Register() {
                           className="soft-card soft-card-purple inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-purple-900 disabled:opacity-60 dark:text-purple-100"
                         >
                           {loading ? <Loader2 size={16} className="animate-spin" /> : null}
-                          {loading ? 'Création...' : 'Create account'}
+                          {loading ? copy.creatingAccount : copy.createAccount}
                         </button>
                       </div>
                     </>
@@ -626,9 +717,9 @@ export default function Register() {
 
                 <footer className="mt-6 border-t border-white/35 pt-4 text-sm text-slate-600 dark:text-slate-300">
                   <p>
-                    Already have an account?{' '}
+                    {copy.haveAccount}{' '}
                     <Link to="/login" className="font-semibold text-slate-800 hover:underline dark:text-white">
-                      Sign in
+                      {copy.signIn}
                     </Link>
                   </p>
                 </footer>
@@ -637,19 +728,20 @@ export default function Register() {
               <AuthSuccessCard
                 variant="register"
                 loading={loading || finalizing}
-                title="Account created successfully"
-                description="Your account is ready. Let's get started."
+                title={copy.successTitle}
+                description={copy.successDescription}
+                statusText={copy.successStatus}
                 actions={[
                   {
                     key: 'go-dashboard',
-                    label: 'Go to Dashboard',
+                    label: copy.goDashboard,
                     primary: true,
                     disabled: finalizing,
                     onClick: () => completeRegistration(from)
                   },
                   {
                     key: 'complete-profile',
-                    label: 'Complete Profile',
+                    label: copy.completeProfile,
                     primary: false,
                     disabled: finalizing,
                     onClick: () => completeRegistration('/profile')

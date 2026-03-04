@@ -3,33 +3,43 @@ import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useNavigate, Navigate, useLocation, Link } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, ShieldCheck } from 'lucide-react';
+import { useAppSettings } from '../context/AppSettingsContext';
 import AuthTrustPanel from '../components/auth/AuthTrustPanel';
 import AuthSuccessCard from '../components/auth/AuthSuccessCard';
 
 const SLOW_NETWORK_MS = 8000;
 
-const mapLoginErrorMessage = (error) => {
+const mapLoginErrorMessage = (error, isFrench = true) => {
   const status = Number(error?.response?.status || 0);
   const code = String(error?.code || error?.response?.data?.code || '').toUpperCase();
   const rawMessage = String(error?.response?.data?.message || error?.message || '').toLowerCase();
 
   if (code.includes('TIMEDOUT') || rawMessage.includes('timeout')) {
-    return 'Connexion lente. Veuillez réessayer.';
+    return isFrench ? 'Connexion lente. Veuillez réessayer.' : 'Network is slow. Please retry.';
   }
   if (status === 401 || status === 403) {
-    return 'Mot de passe incorrect. Veuillez réessayer.';
+    return isFrench
+      ? 'Mot de passe incorrect. Veuillez réessayer.'
+      : 'Incorrect password. Please try again.';
   }
   if (status === 404 || rawMessage.includes('not found') || rawMessage.includes('introuvable')) {
-    return 'Aucun compte trouvé avec cet email ou ce téléphone.';
+    return isFrench
+      ? 'Aucun compte trouvé avec cet email ou ce téléphone.'
+      : 'No account found with this email or phone.';
   }
   if (status >= 500) {
-    return 'Service temporairement indisponible. Veuillez réessayer.';
+    return isFrench
+      ? 'Service temporairement indisponible. Veuillez réessayer.'
+      : 'Service temporarily unavailable. Please retry.';
   }
-  return 'Impossible de vous connecter pour le moment. Veuillez réessayer.';
+  return isFrench
+    ? 'Impossible de vous connecter pour le moment. Veuillez réessayer.'
+    : 'Unable to sign in right now. Please retry.';
 };
 
 export default function Login() {
   const { user, login } = useContext(AuthContext);
+  const { language } = useAppSettings();
   const nav = useNavigate();
   const location = useLocation();
   const from = location.state?.from || '/';
@@ -46,6 +56,40 @@ export default function Login() {
   const [error, setError] = useState('');
   const [successPayload, setSuccessPayload] = useState(null);
   const [finalizing, setFinalizing] = useState(false);
+  const isFrench = String(language || 'fr')
+    .toLowerCase()
+    .startsWith('fr');
+
+  const copy = {
+    appBadge: 'HDMarket',
+    title: isFrench ? 'Bon retour' : 'Welcome back',
+    subtitle: isFrench
+      ? 'Connectez-vous pour accéder à vos commandes, messages et livraisons.'
+      : 'Sign in to access your orders, messages, and deliveries.',
+    identifierLabel: isFrench ? 'Email ou téléphone' : 'Email or phone',
+    identifierPlaceholder: isFrench ? 'nom@email.com ou 060000000' : 'name@email.com or 060000000',
+    passwordLabel: isFrench ? 'Mot de passe' : 'Password',
+    passwordPlaceholder: isFrench ? 'Votre mot de passe' : 'Your password',
+    showPassword: isFrench ? 'Afficher le mot de passe' : 'Show password',
+    hidePassword: isFrench ? 'Masquer le mot de passe' : 'Hide password',
+    rememberMe: isFrench ? 'Se souvenir de moi' : 'Remember me',
+    forgotPassword: isFrench ? 'Mot de passe oublié ?' : 'Forgot password?',
+    submit: isFrench ? 'Se connecter' : 'Sign in',
+    submitting: isFrench ? 'Connexion...' : 'Signing in...',
+    divider: isFrench ? 'ou' : 'or',
+    google: isFrench ? 'Continuer avec Google' : 'Continue with Google',
+    apple: isFrench ? 'Continuer avec Apple' : 'Continue with Apple',
+    noAccount: isFrench ? "Vous n'avez pas de compte ?" : "Don't have an account?",
+    createAccount: isFrench ? 'Créer un compte' : 'Create account',
+    supportLead: isFrench ? 'Besoin d’aide ?' : 'Need help?',
+    support: isFrench ? 'Contacter le support' : 'Contact support',
+    slowNetwork: isFrench ? 'Réseau lent, veuillez réessayer.' : 'Network is slow, please retry.',
+    successTitle: isFrench ? 'Connexion réussie' : 'Login successful',
+    successDescription: isFrench
+      ? 'Bon retour. Préparation de votre espace.'
+      : 'Welcome back. Preparing your dashboard.',
+    successStatus: isFrench ? 'Préparation de votre espace...' : 'Preparing your workspace...'
+  };
 
   useEffect(() => {
     return () => {
@@ -89,7 +133,7 @@ export default function Login() {
       const { data } = await api.post('/auth/login', form);
       setSuccessPayload(data || null);
     } catch (requestError) {
-      setError(mapLoginErrorMessage(requestError));
+      setError(mapLoginErrorMessage(requestError, isFrench));
     } finally {
       if (slowNetworkTimerRef.current) clearTimeout(slowNetworkTimerRef.current);
       setLoading(false);
@@ -110,13 +154,13 @@ export default function Login() {
                 <header className="mb-6">
                   <p className="inline-flex items-center gap-2 rounded-full soft-card soft-card-blue px-3 py-1 text-xs font-semibold text-blue-900 dark:text-blue-100">
                     <ShieldCheck size={14} />
-                    HDMarket
+                    {copy.appBadge}
                   </p>
                   <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
-                    Welcome back
+                    {copy.title}
                   </h1>
                   <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                    Sign in to access your orders, messages, and deliveries.
+                    {copy.subtitle}
                   </p>
                 </header>
 
@@ -129,7 +173,7 @@ export default function Login() {
 
                   <div className="space-y-1.5">
                     <label htmlFor="login-identifier" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                      Email ou téléphone
+                      {copy.identifierLabel}
                     </label>
                     <input
                       id="login-identifier"
@@ -138,7 +182,7 @@ export default function Login() {
                       autoComplete="username"
                       inputMode="email"
                       className="ui-input min-h-[48px] rounded-xl px-3 text-sm"
-                      placeholder="nom@email.com ou 060000000"
+                      placeholder={copy.identifierPlaceholder}
                       value={form.phone}
                       onChange={(e) => {
                         setForm((prev) => ({ ...prev, phone: e.target.value }));
@@ -156,7 +200,7 @@ export default function Login() {
 
                   <div className="space-y-1.5">
                     <label htmlFor="login-password" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                      Mot de passe
+                      {copy.passwordLabel}
                     </label>
                     <div className="relative">
                       <input
@@ -165,7 +209,7 @@ export default function Login() {
                         type={showPassword ? 'text' : 'password'}
                         autoComplete="current-password"
                         className="ui-input min-h-[48px] w-full rounded-xl px-3 pr-12 text-sm"
-                        placeholder="Votre mot de passe"
+                        placeholder={copy.passwordPlaceholder}
                         value={form.password}
                         onChange={(e) => {
                           setForm((prev) => ({ ...prev, password: e.target.value }));
@@ -177,7 +221,7 @@ export default function Login() {
                         type="button"
                         onClick={() => setShowPassword((prev) => !prev)}
                         className="absolute right-1.5 top-1.5 inline-flex h-9 w-9 items-center justify-center rounded-lg glass-card text-slate-600 dark:text-slate-200"
-                        aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                        aria-label={showPassword ? copy.hidePassword : copy.showPassword}
                       >
                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
@@ -192,10 +236,10 @@ export default function Login() {
                         onChange={(e) => setRememberMe(e.target.checked)}
                         className="h-4 w-4 rounded border-slate-300"
                       />
-                      Remember me
+                      {copy.rememberMe}
                     </label>
                     <Link to="/forgot-password" className="text-xs font-semibold text-slate-700 hover:underline dark:text-slate-100">
-                      Forgot password?
+                      {copy.forgotPassword}
                     </Link>
                   </div>
 
@@ -205,19 +249,19 @@ export default function Login() {
                     className="soft-card soft-card-purple inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-purple-900 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 dark:text-purple-100"
                   >
                     {loading ? <Loader2 size={16} className="animate-spin" /> : null}
-                    {loading ? 'Signing in...' : 'Sign In'}
+                    {loading ? copy.submitting : copy.submit}
                   </button>
 
                   {slowNetwork && loading ? (
                     <p className="text-xs text-amber-700 dark:text-amber-200">
-                      Network is slow, please retry.
+                      {copy.slowNetwork}
                     </p>
                   ) : null}
                 </form>
 
                 <div className="my-5 flex items-center gap-3 text-xs text-slate-500 dark:text-slate-300">
                   <span className="h-px flex-1 bg-white/45 dark:bg-slate-700" />
-                  <span>or</span>
+                  <span>{copy.divider}</span>
                   <span className="h-px flex-1 bg-white/45 dark:bg-slate-700" />
                 </div>
 
@@ -227,28 +271,28 @@ export default function Login() {
                     disabled
                     className="glass-card inline-flex min-h-[48px] items-center justify-center rounded-xl px-4 text-sm font-semibold text-slate-500 opacity-80"
                   >
-                    Continue with Google
+                    {copy.google}
                   </button>
                   <button
                     type="button"
                     disabled
                     className="glass-card inline-flex min-h-[48px] items-center justify-center rounded-xl px-4 text-sm font-semibold text-slate-500 opacity-80"
                   >
-                    Continue with Apple
+                    {copy.apple}
                   </button>
                 </div>
 
                 <footer className="mt-6 border-t border-white/35 pt-4 text-sm text-slate-600 dark:text-slate-300">
                   <p>
-                    Don&apos;t have an account?{' '}
+                    {copy.noAccount}{' '}
                     <Link to="/register" className="font-semibold text-slate-800 hover:underline dark:text-white">
-                      Create account
+                      {copy.createAccount}
                     </Link>
                   </p>
                   <p className="mt-2">
-                    Need help?{' '}
+                    {copy.supportLead}{' '}
                     <Link to="/help" className="font-semibold text-slate-800 hover:underline dark:text-white">
-                      Contact support
+                      {copy.support}
                     </Link>
                   </p>
                 </footer>
@@ -257,8 +301,9 @@ export default function Login() {
               <AuthSuccessCard
                 variant="login"
                 loading={finalizing || loading}
-                title="Login successful"
-                description="Welcome back. Preparing your dashboard."
+                title={copy.successTitle}
+                description={copy.successDescription}
+                statusText={copy.successStatus}
               />
             )}
 

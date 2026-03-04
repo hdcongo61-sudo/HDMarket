@@ -12,6 +12,11 @@ import {
   normalizeTransactionCode,
   TRANSACTION_CODE_REUSED_MESSAGE
 } from '../utils/transactionCodeService.js';
+import {
+  buildShopNameExactRegex,
+  findShopNameConflict,
+  normalizeShopName
+} from '../utils/shopNameUtils.js';
 
 /**
  * Create a shop conversion request (for particulier users only)
@@ -40,10 +45,12 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
     });
   }
 
-  const { shopName, shopAddress, shopDescription, paymentAmount, operator, transactionName, transactionNumber } = req.body;
+  const { shopName, shopAddress, shopDescription, paymentAmount, operator, transactionName, transactionNumber } =
+    req.body;
+  const normalizedShopName = normalizeShopName(shopName);
 
   // Validate required fields
-  if (!shopName || !shopName.trim()) {
+  if (!normalizedShopName) {
     return res.status(400).json({ message: 'Le nom de la boutique est requis.' });
   }
   if (!shopAddress || !shopAddress.trim()) {
@@ -54,6 +61,30 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
   }
   if (!transactionNumber || !transactionNumber.trim()) {
     return res.status(400).json({ message: 'Le numéro de transaction est requis.' });
+  }
+
+  const existingShopConflict = await findShopNameConflict({
+    shopName: normalizedShopName
+  });
+  if (existingShopConflict) {
+    return res.status(409).json({ message: 'Ce nom de boutique est déjà utilisé.' });
+  }
+
+  const pendingNameMatcher = buildShopNameExactRegex(normalizedShopName);
+  if (pendingNameMatcher) {
+    const existingPendingName = await ShopConversionRequest.findOne({
+      status: 'pending',
+      user: { $ne: user._id },
+      shopName: { $regex: pendingNameMatcher }
+    })
+      .select('_id')
+      .lean();
+    if (existingPendingName) {
+      return res.status(409).json({
+        message:
+          'Une autre demande de conversion utilise déjà ce nom de boutique. Veuillez choisir un nom différent.'
+      });
+    }
   }
 
   // Validate transaction number (10 digits)
@@ -120,7 +151,7 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
   // Create the request
   const request = await ShopConversionRequest.create({
     user: user._id,
-    shopName: shopName.trim(),
+    shopName: normalizedShopName,
     shopAddress: shopAddress.trim(),
     shopLogo: shopLogoUrl,
     shopDescription: (shopDescription || '').trim(),
@@ -143,7 +174,7 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
     const actorId = user._id;
     const metadata = {
       requestId: request._id.toString(),
-      shopName: shopName.trim(),
+      shopName: normalizedShopName,
       userName: user.name,
       userEmail: user.email,
       userPhone: user.phone
@@ -259,9 +290,24 @@ export const approveShopConversionRequest = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Utilisateur introuvable.' });
   }
 
+  const normalizedShopName = normalizeShopName(request.shopName);
+  if (!normalizedShopName) {
+    return res.status(400).json({ message: 'Le nom de la boutique est invalide.' });
+  }
+  const existingShopConflict = await findShopNameConflict({
+    shopName: normalizedShopName,
+    excludeUserId: user._id
+  });
+  if (existingShopConflict) {
+    return res.status(409).json({
+      message:
+        'Impossible d’approuver: ce nom de boutique est déjà utilisé. Modifiez la demande avant validation.'
+    });
+  }
+
   // Update user account type
   user.accountType = 'shop';
-  user.shopName = request.shopName;
+  user.shopName = normalizedShopName;
   user.shopAddress = request.shopAddress;
   user.shopLogo = request.shopLogo || '';
   user.shopDescription = request.shopDescription || '';

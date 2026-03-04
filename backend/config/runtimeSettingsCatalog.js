@@ -575,6 +575,14 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     min: 1,
     max: 200
   },
+  registration_phone_cg_only: {
+    category: 'security',
+    description:
+      'Limiter l’inscription aux numéros République du Congo (+242) uniquement.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: false
+  },
   seller_max_product_limit: {
     category: 'role_limits',
     description: 'Nombre max de produits par vendeur.',

@@ -219,7 +219,6 @@ export const AppSettingsProvider = ({ children }) => {
         const nextLanguage =
           user?.preferredLanguage ||
           storedLanguage ||
-          payload?.defaultLanguage ||
           'fr';
         const nextCurrency =
           user?.preferredCurrency ||

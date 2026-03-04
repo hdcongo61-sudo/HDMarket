@@ -256,3 +256,10 @@ export const buildPhoneCandidates = (phone) => {
   const candidates = [raw, compact, normalized].filter(Boolean);
   return Array.from(new Set(candidates));
 };
+
+export const isCongoBrazzavillePhone = (phone) => {
+  const normalized = normalizePhone(phone);
+  if (!normalized) return false;
+  const digits = normalized.replace(/\D/g, '');
+  return digits.startsWith('242');
+};

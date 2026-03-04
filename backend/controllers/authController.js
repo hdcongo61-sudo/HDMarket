@@ -13,9 +13,11 @@ import {
   buildPhoneCandidates,
   checkVerificationCode,
   isEmailConfigured,
+  isCongoBrazzavillePhone,
   normalizePhone,
   sendVerificationCode
 } from '../utils/firebaseVerification.js';
+import { getRuntimeConfig } from '../services/configService.js';
 
 const genToken = (user) =>
   jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -78,6 +80,17 @@ const buildAuthResponse = (user, token) => ({
   token
 });
 
+const toBoolean = (value, fallback = false) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'oui', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'non', 'off', ''].includes(normalized)) return false;
+  }
+  return fallback;
+};
+
 export const register = asyncHandler(async (req, res) => {
   const {
     name,
@@ -130,6 +143,17 @@ export const register = asyncHandler(async (req, res) => {
   const normalizedPhone = normalizePhone(trimmedPhone);
   if (!normalizedPhone) {
     return res.status(400).json({ message: 'Numéro de téléphone invalide.' });
+  }
+  const registrationPhoneCgOnlyRaw = await getRuntimeConfig('registration_phone_cg_only', {
+    fallback: true
+  });
+  const registrationPhoneCgOnly = toBoolean(registrationPhoneCgOnlyRaw, true);
+  if (registrationPhoneCgOnly && !isCongoBrazzavillePhone(normalizedPhone)) {
+    return res.status(400).json({
+      message:
+        "Inscription refusée: seuls les numéros de la République du Congo (+242) sont autorisés.",
+      code: 'REGISTRATION_PHONE_COUNTRY_BLOCKED'
+    });
   }
   const phoneCandidates = buildPhoneCandidates(trimmedPhone);
   const phoneTaken = await User.findOne({ phone: { $in: phoneCandidates } });

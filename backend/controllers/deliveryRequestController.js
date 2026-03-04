@@ -978,17 +978,6 @@ export const listAdminDeliveryRequests = asyncHandler(async (req, res) => {
   const pageSize = Math.max(1, Math.min(Number(limit) || 20, 100));
   const skip = (pageNumber - 1) * pageSize;
 
-  // DEBUG: delivery requests list
-  const totalUnfiltered = await DeliveryRequest.countDocuments({});
-  console.log('[delivery-requests] DEBUG listAdminDeliveryRequests', {
-    query: req.query,
-    filter: JSON.stringify(filter, (_, v) => (v instanceof RegExp ? v.toString() : v)),
-    page: pageNumber,
-    pageSize,
-    skip,
-    totalInDb: totalUnfiltered
-  });
-
   const [items, total, orphanOrders] = await Promise.all([
     DeliveryRequest.find(filter)
       .sort({ createdAt: -1 })
@@ -1036,12 +1025,6 @@ export const listAdminDeliveryRequests = asyncHandler(async (req, res) => {
   ]);
 
   const list = Array.isArray(items) ? items : [];
-  // DEBUG: what we're returning
-  console.log('[delivery-requests] DEBUG list result', {
-    totalMatchingFilter: total,
-    itemsReturned: list.length,
-    itemSummaries: list.map((i) => ({ _id: i._id?.toString(), status: i.status, orderId: i.orderId?.toString?.() }))
-  });
 
   return res.json({
     items: list.map((item) => {

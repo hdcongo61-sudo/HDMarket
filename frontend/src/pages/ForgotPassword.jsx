@@ -2,34 +2,43 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff, Loader2, Lock, Mail, ShieldCheck } from 'lucide-react';
 import api from '../services/api';
+import { useAppSettings } from '../context/AppSettingsContext';
 import AuthTrustPanel from '../components/auth/AuthTrustPanel';
 import AuthSuccessCard from '../components/auth/AuthSuccessCard';
 
 const SLOW_NETWORK_MS = 8000;
 
-const mapForgotErrorMessage = (error, scope = 'send') => {
+const mapForgotErrorMessage = (error, scope = 'send', isFrench = true) => {
   const status = Number(error?.response?.status || 0);
   const code = String(error?.code || error?.response?.data?.code || '').toUpperCase();
   const rawMessage = String(error?.response?.data?.message || error?.message || '').toLowerCase();
 
   if (code.includes('TIMEDOUT') || rawMessage.includes('timeout')) {
-    return 'Connexion lente. Veuillez réessayer.';
+    return isFrench ? 'Connexion lente. Veuillez réessayer.' : 'Network is slow. Please retry.';
   }
 
   if (scope === 'send') {
     if (status === 404 || rawMessage.includes('not found') || rawMessage.includes('introuvable')) {
-      return 'Aucun compte trouvé avec cet email.';
+      return isFrench ? 'Aucun compte trouvé avec cet email.' : 'No account found with this email.';
     }
-    return 'Impossible d’envoyer le code pour le moment. Veuillez réessayer.';
+    return isFrench
+      ? 'Impossible d’envoyer le code pour le moment. Veuillez réessayer.'
+      : 'Unable to send code right now. Please retry.';
   }
 
   if (status === 400 || status === 401 || rawMessage.includes('code') || rawMessage.includes('invalid')) {
-    return 'Code invalide ou expiré. Veuillez vérifier puis réessayer.';
+    return isFrench
+      ? 'Code invalide ou expiré. Veuillez vérifier puis réessayer.'
+      : 'Invalid or expired code. Please check and retry.';
   }
   if (status >= 500) {
-    return 'Service temporairement indisponible. Veuillez réessayer.';
+    return isFrench
+      ? 'Service temporairement indisponible. Veuillez réessayer.'
+      : 'Service temporarily unavailable. Please retry.';
   }
-  return 'Impossible de réinitialiser le mot de passe pour le moment.';
+  return isFrench
+    ? 'Impossible de réinitialiser le mot de passe pour le moment.'
+    : 'Unable to reset password right now.';
 };
 
 const getPasswordChecks = (password = '') => {
@@ -50,7 +59,64 @@ const strengthLabelOf = (score) => {
 };
 
 export default function ForgotPassword() {
+  const { language } = useAppSettings();
   const navigate = useNavigate();
+  const isFrench = String(language || 'fr')
+    .toLowerCase()
+    .startsWith('fr');
+  const copy = {
+    appBadge: 'HDMarket',
+    title: isFrench ? 'Réinitialiser votre mot de passe' : 'Reset your password',
+    subtitle: isFrench
+      ? 'Recevez un code par email puis définissez un nouveau mot de passe sécurisé.'
+      : 'Receive a code by email, then set a new secure password.',
+    stepCode: isFrench ? 'Étape 1 : Code' : 'Step 1: Code',
+    stepReset: isFrench ? 'Étape 2 : Réinitialiser' : 'Step 2: Reset',
+    email: isFrench ? 'Adresse email' : 'Email address',
+    emailPlaceholder: isFrench ? 'nom@email.com' : 'name@email.com',
+    sendCode: isFrench ? 'Envoyer le code' : 'Send code',
+    resendCode: isFrench ? 'Renvoyer le code' : 'Resend code',
+    sending: isFrench ? 'Envoi...' : 'Sending...',
+    hasCode: isFrench ? "J'ai déjà un code" : 'I already have a code',
+    verificationCode: isFrench ? 'Code de vérification' : 'Verification code',
+    codePlaceholder: isFrench ? 'Code reçu par email' : 'Code received by email',
+    newPassword: isFrench ? 'Nouveau mot de passe' : 'New password',
+    newPasswordPlaceholder: isFrench ? 'Votre nouveau mot de passe' : 'Your new password',
+    confirmPassword: isFrench ? 'Confirmer le mot de passe' : 'Confirm password',
+    confirmPasswordPlaceholder: isFrench ? 'Confirmer le mot de passe' : 'Confirm password',
+    showPassword: isFrench ? 'Afficher le mot de passe' : 'Show password',
+    hidePassword: isFrench ? 'Masquer le mot de passe' : 'Hide password',
+    passwordStrength: isFrench ? 'Force du mot de passe' : 'Password strength',
+    ruleLength: isFrench ? 'Au moins 8 caractères' : 'At least 8 characters',
+    ruleUpper: isFrench ? 'Une majuscule' : 'Uppercase letter',
+    ruleNumber: isFrench ? 'Un chiffre' : 'Number',
+    ruleSymbol: isFrench ? 'Un symbole (optionnel)' : 'Symbol (optional)',
+    back: isFrench ? 'Retour' : 'Back',
+    updatePassword: isFrench ? 'Mettre à jour le mot de passe' : 'Update password',
+    updating: isFrench ? 'Confirmation...' : 'Confirming...',
+    backToLogin: isFrench ? 'Retour à la connexion' : 'Back to sign in',
+    codeSent: isFrench
+      ? 'Code envoyé par email. Vérifiez votre boîte de réception.'
+      : 'Code sent by email. Check your inbox.',
+    slowNetwork: isFrench ? 'Réseau lent, veuillez réessayer.' : 'Network is slow, please retry.',
+    passwordUpdated: isFrench ? 'Mot de passe mis à jour' : 'Password updated',
+    passwordUpdatedDesc: isFrench
+      ? 'Votre mot de passe a été réinitialisé avec succès.'
+      : 'Your password has been reset successfully.',
+    redirecting: isFrench ? 'Redirection vers la connexion...' : 'Redirecting to login...',
+    signInNow: isFrench ? 'Se connecter maintenant' : 'Sign in now',
+    emailRequired: isFrench ? 'Veuillez saisir votre adresse email.' : 'Please enter your email address.',
+    codeRequired: isFrench
+      ? 'Veuillez saisir le code reçu par email.'
+      : 'Please enter the code received by email.',
+    passwordRequired: isFrench
+      ? 'Veuillez saisir un nouveau mot de passe.'
+      : 'Please enter a new password.',
+    rulesError: isFrench
+      ? 'Le mot de passe doit contenir 8 caractères, une majuscule et un chiffre.'
+      : 'Password must include 8 characters, one uppercase letter and one number.',
+    mismatch: isFrench ? 'Les mots de passe ne correspondent pas.' : 'Passwords do not match.'
+  };
   const [form, setForm] = useState({
     email: '',
     verificationCode: '',
@@ -79,6 +145,12 @@ export default function ForgotPassword() {
     passwordChecks.hasSymbol
   ].filter(Boolean).length;
   const passwordStrength = strengthLabelOf(passwordScore);
+  const passwordStrengthLabel = {
+    Faible: isFrench ? 'Faible' : 'Weak',
+    Moyen: isFrench ? 'Moyen' : 'Medium',
+    Bon: isFrench ? 'Bon' : 'Good',
+    Fort: isFrench ? 'Fort' : 'Strong'
+  }[passwordStrength.label] || passwordStrength.label;
 
   useEffect(() => {
     return () => {
@@ -99,7 +171,7 @@ export default function ForgotPassword() {
 
   const sendCode = async () => {
     if (!form.email.trim()) {
-      setError('Veuillez saisir votre adresse email.');
+      setError(copy.emailRequired);
       return;
     }
     setCodeSending(true);
@@ -112,9 +184,9 @@ export default function ForgotPassword() {
       await api.post('/auth/password/forgot', { email: form.email });
       setCodeSent(true);
       setStep(2);
-      setMessage('Code envoyé par email. Vérifiez votre boîte de réception.');
+      setMessage(copy.codeSent);
     } catch (err) {
-      setError(mapForgotErrorMessage(err, 'send'));
+      setError(mapForgotErrorMessage(err, 'send', isFrench));
     } finally {
       if (slowNetworkTimerRef.current) clearTimeout(slowNetworkTimerRef.current);
       setCodeSending(false);
@@ -130,23 +202,23 @@ export default function ForgotPassword() {
     setSlowNetwork('');
 
     if (!form.email.trim()) {
-      setError('Veuillez saisir votre adresse email.');
+      setError(copy.emailRequired);
       return;
     }
     if (!form.verificationCode.trim()) {
-      setError('Veuillez saisir le code reçu par email.');
+      setError(copy.codeRequired);
       return;
     }
     if (!form.newPassword) {
-      setError('Veuillez saisir un nouveau mot de passe.');
+      setError(copy.passwordRequired);
       return;
     }
     if (!passwordChecks.minLength || !passwordChecks.hasUppercase || !passwordChecks.hasNumber) {
-      setError('Le mot de passe doit contenir 8 caractères, une majuscule et un chiffre.');
+      setError(copy.rulesError);
       return;
     }
     if (form.newPassword !== form.confirmPassword) {
-      setError('Les mots de passe ne correspondent pas.');
+      setError(copy.mismatch);
       return;
     }
 
@@ -162,7 +234,7 @@ export default function ForgotPassword() {
       });
       setSuccess(true);
     } catch (err) {
-      setError(mapForgotErrorMessage(err, 'reset'));
+      setError(mapForgotErrorMessage(err, 'reset', isFrench));
     } finally {
       if (slowNetworkTimerRef.current) clearTimeout(slowNetworkTimerRef.current);
       setLoading(false);
@@ -178,13 +250,13 @@ export default function ForgotPassword() {
               <AuthSuccessCard
                 variant="login"
                 loading
-                title="Password updated"
-                description="Your password has been reset successfully."
-                statusText="Redirecting to login..."
+                title={copy.passwordUpdated}
+                description={copy.passwordUpdatedDesc}
+                statusText={copy.redirecting}
                 actions={[
                   {
                     key: 'go-login',
-                    label: 'Sign In now',
+                    label: copy.signInNow,
                     primary: true,
                     onClick: () => navigate('/login', { replace: true })
                   }
@@ -195,14 +267,12 @@ export default function ForgotPassword() {
                 <header className="mb-6">
                   <p className="inline-flex items-center gap-2 rounded-full soft-card soft-card-blue px-3 py-1 text-xs font-semibold text-blue-900 dark:text-blue-100">
                     <ShieldCheck size={14} />
-                    HDMarket
+                    {copy.appBadge}
                   </p>
                   <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
-                    Reset your password
+                    {copy.title}
                   </h1>
-                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                    Receive a code by email, then set a new secure password.
-                  </p>
+                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{copy.subtitle}</p>
                 </header>
 
                 <div className="mb-5 grid grid-cols-2 gap-2">
@@ -215,7 +285,7 @@ export default function ForgotPassword() {
                         : 'glass-card text-slate-500 dark:text-slate-300'
                     }`}
                   >
-                    Step 1: Code
+                    {copy.stepCode}
                   </button>
                   <button
                     type="button"
@@ -226,7 +296,7 @@ export default function ForgotPassword() {
                         : 'glass-card text-slate-500 dark:text-slate-300'
                     }`}
                   >
-                    Step 2: Reset
+                    {copy.stepReset}
                   </button>
                 </div>
 
@@ -245,7 +315,7 @@ export default function ForgotPassword() {
 
                   <div className="space-y-1.5">
                     <label htmlFor="forgot-email" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                      Adresse email
+                      {copy.email}
                     </label>
                     <div className="relative">
                       <input
@@ -254,7 +324,7 @@ export default function ForgotPassword() {
                         inputMode="email"
                         autoComplete="email"
                         className="ui-input min-h-[48px] w-full rounded-xl px-3 pl-11 text-sm"
-                        placeholder="nom@email.com"
+                        placeholder={copy.emailPlaceholder}
                         value={form.email}
                         onChange={(e) => {
                           setForm((prev) => ({ ...prev, email: e.target.value }));
@@ -275,17 +345,17 @@ export default function ForgotPassword() {
                     {codeSending ? (
                       <span className="inline-flex items-center gap-2">
                         <Loader2 size={16} className="animate-spin" />
-                        Envoi...
+                        {copy.sending}
                       </span>
                     ) : codeSent ? (
-                      'Renvoyer le code'
+                      copy.resendCode
                     ) : (
-                      'Envoyer le code'
+                      copy.sendCode
                     )}
                   </button>
 
                   {slowNetwork === 'send' && codeSending ? (
-                    <p className="text-xs text-amber-700 dark:text-amber-200">Network is slow, please retry.</p>
+                    <p className="text-xs text-amber-700 dark:text-amber-200">{copy.slowNetwork}</p>
                   ) : null}
 
                   {step === 1 ? (
@@ -294,20 +364,20 @@ export default function ForgotPassword() {
                       onClick={() => setStep(2)}
                       className="soft-card soft-card-purple inline-flex min-h-[48px] w-full items-center justify-center rounded-xl px-4 text-sm font-semibold text-purple-900 dark:text-purple-100"
                     >
-                      I already have a code
+                      {copy.hasCode}
                     </button>
                   ) : (
                     <>
                       <div className="space-y-1.5">
                         <label htmlFor="forgot-code" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                          Code de vérification
+                          {copy.verificationCode}
                         </label>
                         <div className="relative">
                           <input
                             id="forgot-code"
                             autoComplete="one-time-code"
                             className="ui-input min-h-[48px] w-full rounded-xl px-3 pl-11 text-sm"
-                            placeholder="Code reçu par email"
+                            placeholder={copy.codePlaceholder}
                             value={form.verificationCode}
                             onChange={(e) => {
                               setForm((prev) => ({ ...prev, verificationCode: e.target.value }));
@@ -322,7 +392,7 @@ export default function ForgotPassword() {
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="space-y-1.5">
                           <label htmlFor="forgot-password" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                            Nouveau mot de passe
+                            {copy.newPassword}
                           </label>
                           <div className="relative">
                             <input
@@ -330,7 +400,7 @@ export default function ForgotPassword() {
                               type={showPassword ? 'text' : 'password'}
                               autoComplete="new-password"
                               className="ui-input min-h-[48px] w-full rounded-xl px-3 pl-11 pr-12 text-sm"
-                              placeholder="Votre nouveau mot de passe"
+                              placeholder={copy.newPasswordPlaceholder}
                               value={form.newPassword}
                               onChange={(e) => {
                                 setForm((prev) => ({ ...prev, newPassword: e.target.value }));
@@ -343,6 +413,7 @@ export default function ForgotPassword() {
                               type="button"
                               onClick={() => setShowPassword((prev) => !prev)}
                               className="absolute right-1.5 top-1.5 inline-flex h-9 w-9 items-center justify-center rounded-lg glass-card text-slate-600 dark:text-slate-200"
+                              aria-label={showPassword ? copy.hidePassword : copy.showPassword}
                             >
                               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                             </button>
@@ -351,7 +422,7 @@ export default function ForgotPassword() {
 
                         <div className="space-y-1.5">
                           <label htmlFor="forgot-confirm-password" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                            Confirmer le mot de passe
+                            {copy.confirmPassword}
                           </label>
                           <div className="relative">
                             <input
@@ -359,7 +430,7 @@ export default function ForgotPassword() {
                               type={showConfirmPassword ? 'text' : 'password'}
                               autoComplete="new-password"
                               className="ui-input min-h-[48px] w-full rounded-xl px-3 pl-11 pr-12 text-sm"
-                              placeholder="Confirmer le mot de passe"
+                              placeholder={copy.confirmPasswordPlaceholder}
                               value={form.confirmPassword}
                               onChange={(e) => {
                                 setForm((prev) => ({ ...prev, confirmPassword: e.target.value }));
@@ -372,6 +443,7 @@ export default function ForgotPassword() {
                               type="button"
                               onClick={() => setShowConfirmPassword((prev) => !prev)}
                               className="absolute right-1.5 top-1.5 inline-flex h-9 w-9 items-center justify-center rounded-lg glass-card text-slate-600 dark:text-slate-200"
+                              aria-label={showConfirmPassword ? copy.hidePassword : copy.showPassword}
                             >
                               {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                             </button>
@@ -382,10 +454,10 @@ export default function ForgotPassword() {
                       <section className="glass-card rounded-2xl p-3">
                         <div className="flex items-center justify-between">
                           <p className="text-xs font-semibold text-slate-700 dark:text-slate-100">
-                            Password strength
+                            {copy.passwordStrength}
                           </p>
                           <span className="text-xs font-semibold text-slate-600 dark:text-slate-200">
-                            {passwordStrength.label}
+                            {passwordStrengthLabel}
                           </span>
                         </div>
                         <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/55 dark:bg-slate-800">
@@ -396,16 +468,16 @@ export default function ForgotPassword() {
                         </div>
                         <ul className="mt-3 space-y-1 text-xs">
                           <li className={passwordChecks.minLength ? 'text-emerald-700 dark:text-emerald-100' : 'text-slate-600 dark:text-slate-300'}>
-                            • At least 8 characters
+                            • {copy.ruleLength}
                           </li>
                           <li className={passwordChecks.hasUppercase ? 'text-emerald-700 dark:text-emerald-100' : 'text-slate-600 dark:text-slate-300'}>
-                            • Uppercase letter
+                            • {copy.ruleUpper}
                           </li>
                           <li className={passwordChecks.hasNumber ? 'text-emerald-700 dark:text-emerald-100' : 'text-slate-600 dark:text-slate-300'}>
-                            • Number
+                            • {copy.ruleNumber}
                           </li>
                           <li className={passwordChecks.hasSymbol ? 'text-emerald-700 dark:text-emerald-100' : 'text-slate-500 dark:text-slate-300'}>
-                            • Symbol (optional)
+                            • {copy.ruleSymbol}
                           </li>
                         </ul>
                       </section>
@@ -416,7 +488,7 @@ export default function ForgotPassword() {
                           onClick={() => setStep(1)}
                           className="glass-card min-h-[48px] rounded-xl px-4 text-sm font-semibold text-slate-700 dark:text-slate-100"
                         >
-                          Back
+                          {copy.back}
                         </button>
                         <button
                           type="submit"
@@ -430,12 +502,12 @@ export default function ForgotPassword() {
                           className="soft-card soft-card-purple inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-purple-900 disabled:opacity-60 dark:text-purple-100"
                         >
                           {loading ? <Loader2 size={16} className="animate-spin" /> : null}
-                          {loading ? 'Confirmation...' : 'Mettre à jour le mot de passe'}
+                          {loading ? copy.updating : copy.updatePassword}
                         </button>
                       </div>
 
                       {slowNetwork === 'reset' && loading ? (
-                        <p className="text-xs text-amber-700 dark:text-amber-200">Network is slow, please retry.</p>
+                        <p className="text-xs text-amber-700 dark:text-amber-200">{copy.slowNetwork}</p>
                       ) : null}
                     </>
                   )}
@@ -447,7 +519,7 @@ export default function ForgotPassword() {
                     className="inline-flex items-center gap-2 font-semibold text-slate-800 hover:underline dark:text-white"
                   >
                     <ArrowLeft size={16} />
-                    Retour à la connexion
+                    {copy.backToLogin}
                   </Link>
                 </footer>
               </>

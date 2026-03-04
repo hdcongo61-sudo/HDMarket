@@ -18,6 +18,7 @@ import {
   getCacheSnapshotHistory
 } from '../utils/cache.js';
 import { createAuditLogEntry } from '../services/auditLogService.js';
+import { findShopNameConflict, normalizeShopName } from '../utils/shopNameUtils.js';
 
 const monthKey = (year, month) => `${year}-${String(month).padStart(2, '0')}`;
 
@@ -990,7 +991,7 @@ export const updateUserAccountType = asyncHandler(async (req, res) => {
   ensureAdminRole(req);
   const { id } = req.params;
   const { accountType, shopName, shopAddress, shopLogo, reason } = req.body;
-  const providedShopName = typeof shopName === 'string' ? shopName.trim() : '';
+  const providedShopName = normalizeShopName(shopName);
   const providedShopAddress = typeof shopAddress === 'string' ? shopAddress.trim() : '';
   const hasShopNameInput = typeof shopName !== 'undefined';
   const hasShopAddressInput = typeof shopAddress !== 'undefined';
@@ -1016,6 +1017,13 @@ export const updateUserAccountType = asyncHandler(async (req, res) => {
     // Allow updating shop details even if accountType hasn't changed
     if (accountType === 'shop' && (hasShopNameInput || hasShopAddressInput || typeof shopLogo !== 'undefined')) {
       if (hasShopNameInput && providedShopName) {
+        const nameConflict = await findShopNameConflict({
+          shopName: providedShopName,
+          excludeUserId: user._id
+        });
+        if (nameConflict) {
+          return res.status(400).json({ message: 'Ce nom de boutique est déjà utilisé.' });
+        }
         user.shopName = providedShopName;
       }
       if (hasShopAddressInput && providedShopAddress) {
@@ -1038,12 +1046,19 @@ export const updateUserAccountType = asyncHandler(async (req, res) => {
   }
 
   if (accountType === 'shop') {
-    const restoredShopName = providedShopName || String(user.shopName || '').trim();
+    const restoredShopName = providedShopName || normalizeShopName(user.shopName);
     const restoredShopAddress = providedShopAddress || String(user.shopAddress || '').trim();
     if (!restoredShopName || !restoredShopAddress) {
       return res
         .status(400)
         .json({ message: "Informations boutique manquantes. Veuillez renseigner le nom et l'adresse de la boutique." });
+    }
+    const nameConflict = await findShopNameConflict({
+      shopName: restoredShopName,
+      excludeUserId: user._id
+    });
+    if (nameConflict) {
+      return res.status(400).json({ message: 'Ce nom de boutique est déjà utilisé.' });
     }
     user.accountType = 'shop';
     user.shopName = restoredShopName;

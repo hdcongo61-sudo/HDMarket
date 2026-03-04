@@ -16,6 +16,7 @@ import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
 import { buildIdentifierQuery } from '../utils/idResolver.js';
 import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
 import { invalidateUserCache } from '../utils/cache.js';
+import { findShopNameConflict, normalizeShopName } from '../utils/shopNameUtils.js';
 import {
   getUnreadCount,
   decrementUnreadCount,
@@ -927,12 +928,19 @@ export const updateProfile = asyncHandler(async (req, res) => {
   } = req.body;
   const hasShopHoursField = Object.prototype.hasOwnProperty.call(req.body, 'shopHours');
 
-  if (email && email !== user.email) {
-    const exists = await User.findOne({ email });
+  const normalizedEmail =
+    typeof email === 'string'
+      ? email.trim().toLowerCase()
+      : email !== null && email !== undefined
+      ? String(email).trim().toLowerCase()
+      : '';
+  const currentEmail = String(user.email || '').trim().toLowerCase();
+  if (normalizedEmail && normalizedEmail !== currentEmail) {
+    const exists = await User.findOne({ email: normalizedEmail });
     if (exists && exists._id.toString() !== user._id.toString()) {
       return res.status(400).json({ message: 'Email déjà utilisé' });
     }
-    user.email = email;
+    user.email = normalizedEmail;
   }
 
   if (typeof phone !== 'undefined') {
@@ -1015,7 +1023,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
     user.shopName = user.shopName || shopName;
     user.shopAddress = user.shopAddress || shopAddress;
     const rawShopName = typeof shopName !== 'undefined' ? shopName : user.shopName;
-    const normalizedShopName = rawShopName ? rawShopName.toString().trim() : '';
+    const normalizedShopName = normalizeShopName(rawShopName);
     user.shopName = normalizedShopName;
     if (!normalizedShopName) {
       return res.status(400).json({ message: 'Le nom de la boutique est requis.' });
@@ -1041,11 +1049,9 @@ export const updateProfile = asyncHandler(async (req, res) => {
         .json({ message: 'Cloudinary n’est pas configuré. Définissez CLOUDINARY_* pour publier des médias.' });
     }
     if (normalizedShopName) {
-      const regex = new RegExp(`^${normalizedShopName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
-      const conflict = await User.findOne({
-        _id: { $ne: user._id },
-        accountType: 'shop',
-        shopName: { $regex: regex }
+      const conflict = await findShopNameConflict({
+        shopName: normalizedShopName,
+        excludeUserId: user._id
       });
       if (conflict) {
         return res.status(400).json({ message: 'Ce nom de boutique est déjà utilisé.' });
