@@ -1,5 +1,7 @@
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
 
+const QUERY_RETRY_DELAY_MS = 2000;
+
 const isRetryableClientError = (error) => {
   const status = Number(error?.response?.status || 0);
   if ([401, 403, 404, 409, 422].includes(status)) return false;
@@ -32,6 +34,44 @@ const dispatchGlobalQueryError = (error, type) => {
   );
 };
 
+const flattenQueryKey = (queryKey = []) => {
+  if (!Array.isArray(queryKey)) return [];
+  return queryKey.flatMap((part) => {
+    if (Array.isArray(part)) return flattenQueryKey(part);
+    if (part && typeof part === 'object') {
+      return Object.entries(part).flatMap(([key, value]) => [String(key), String(value)]);
+    }
+    return [String(part)];
+  });
+};
+
+const getQueryScope = (query) =>
+  flattenQueryKey(query?.queryKey || [])
+    .join(':')
+    .toLowerCase();
+
+const resolveStaleTime = (query) => {
+  const scope = getQueryScope(query);
+  if (scope.includes('categorie') || scope.includes('category') || scope.includes('cities')) {
+    return 30 * 60 * 1000;
+  }
+  if (scope.includes('product') || scope.includes('shop') || scope.includes('home')) {
+    return 5 * 60 * 1000;
+  }
+  if (scope.includes('notification') || scope.includes('task')) {
+    return 30 * 1000;
+  }
+  if (scope.includes('order') || scope.includes('delivery') || scope.includes('cart')) {
+    return 60 * 1000;
+  }
+  return 45 * 1000;
+};
+
+const resolveGcTime = (query) => {
+  const staleTime = resolveStaleTime(query);
+  return Math.max(10 * 60 * 1000, staleTime * 3);
+};
+
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error) => {
@@ -47,9 +87,11 @@ export const queryClient = new QueryClient({
   }),
   defaultOptions: {
     queries: {
-      staleTime: 15 * 1000,
-      gcTime: 10 * 60 * 1000,
+      staleTime: resolveStaleTime,
+      gcTime: resolveGcTime,
       retry: (failureCount, error) => failureCount < 1 && isRetryableClientError(error),
+      retryDelay: () => QUERY_RETRY_DELAY_MS,
+      networkMode: 'online',
       refetchOnWindowFocus: false,
       refetchOnReconnect: true
     },

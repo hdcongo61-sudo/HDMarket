@@ -264,6 +264,9 @@ export default function Navbar() {
   const [showBottomSheet, setShowBottomSheet] = useState(false);
   const [bottomBarExpanded, setBottomBarExpanded] = useState(false);
   const [bottomBarTouchStart, setBottomBarTouchStart] = useState(null);
+  const [bottomNavHidden, setBottomNavHidden] = useState(false);
+  const lastScrollYRef = useRef(0);
+  const navScrollTickRef = useRef(false);
   const [longPressTimer, setLongPressTimer] = useState(null);
   const [showQuickActions, setShowQuickActions] = useState(null); // ID of item showing quick actions
   // Disabled on mobile/PWA: long-press quick actions were creating accidental floating popups.
@@ -507,6 +510,42 @@ export default function Navbar() {
     window.addEventListener('resize', updateViewport);
     return () => window.removeEventListener('resize', updateViewport);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    if (!isMobileLayout) {
+      setBottomNavHidden(false);
+      return undefined;
+    }
+    const onScroll = () => {
+      if (navScrollTickRef.current) return;
+      navScrollTickRef.current = true;
+      window.requestAnimationFrame(() => {
+        const currentY = Math.max(0, Number(window.scrollY || 0));
+        const delta = currentY - Number(lastScrollYRef.current || 0);
+        lastScrollYRef.current = currentY;
+        if (isMenuOpen || isSearchFullScreen || bottomBarExpanded) {
+          setBottomNavHidden(false);
+          navScrollTickRef.current = false;
+          return;
+        }
+        if (Math.abs(delta) < 10) {
+          navScrollTickRef.current = false;
+          return;
+        }
+        if (delta > 0 && currentY > 120) {
+          setBottomNavHidden(true);
+        } else if (delta < 0 || currentY < 72) {
+          setBottomNavHidden(false);
+        }
+        navScrollTickRef.current = false;
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+    };
+  }, [bottomBarExpanded, isMenuOpen, isMobileLayout, isSearchFullScreen]);
 
   useEffect(() => {
     if (shouldHideSearchBar) {
@@ -4251,8 +4290,10 @@ export default function Navbar() {
 
       {/* BARRE DE NAVIGATION FIXE MOBILE - DESIGN MODERNE ET AMÉLIORÉE */}
       <div 
-        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-t border-gray-200/80 dark:border-gray-800/80 shadow-2xl backdrop-blur-xl transition-all duration-300"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        className={`md:hidden fixed bottom-0 left-0 right-0 z-50 min-h-[64px] bg-white dark:bg-gray-900 border-t border-gray-200/80 dark:border-gray-800/80 shadow-2xl backdrop-blur-xl transition-all duration-300 ${
+          bottomNavHidden ? 'translate-y-[calc(100%+env(safe-area-inset-bottom))]' : 'translate-y-0'
+        }`}
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)', willChange: 'transform' }}
         onTouchStart={handleBottomBarTouchStart}
         onTouchMove={handleBottomBarTouchMove}
         onTouchEnd={handleBottomBarTouchEnd}

@@ -3,6 +3,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import ProductCard from "../components/ProductCard";
 import MobileSplash from "../components/MobileSplash";
+import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
+import ShimmerSkeleton from "../components/ui/ShimmerSkeleton";
 import categoryGroups from "../data/categories";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination, Autoplay } from "swiper/modules";
@@ -35,6 +37,7 @@ export default function Home() {
   const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [productsError, setProductsError] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
   const pageParam = Number(searchParams.get('page'));
   const initialPageRef = useRef(Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1);
@@ -142,6 +145,7 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
   // === CHARGEMENT DES PRODUITS ===
   const loadProducts = useCallback(async () => {
     setLoading(true);
+    setProductsError('');
     try {
       const requestParams = { page, limit: 12, sort };
       if (category) requestParams.category = category;
@@ -163,6 +167,7 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
       setTotalPages(pages);
       setTotalProducts(total);
     } catch (error) {
+      setProductsError('Network is slow, please retry.');
       console.error("Erreur chargement produits:", error);
     } finally {
       setLoading(false);
@@ -1267,12 +1272,16 @@ const loadDiscountProducts = async () => {
             </Link>
           </div>
 
-          {loading && page === 1 ? (
-            <div className="grid grid-cols-2 gap-2">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="animate-pulse bg-gray-200 rounded-xl h-52" />
-              ))}
-            </div>
+          {productsError ? (
+            <NetworkFallbackCard
+              title="Unable to load data."
+              message={productsError}
+              onRetry={loadProducts}
+              retryLabel="Retry"
+              refreshLabel="Refresh page"
+            />
+          ) : loading && page === 1 ? (
+            <ShimmerSkeleton rows={3} />
           ) : items.length > 0 ? (
             <>
               <div className="grid grid-cols-2 gap-2">
@@ -2037,12 +2046,16 @@ const loadDiscountProducts = async () => {
           </div>
 
           {/* Product grid - 4-5 columns */}
-          {loading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <div key={i} className="animate-pulse bg-gray-200 rounded-xl h-64" />
-              ))}
-            </div>
+          {productsError ? (
+            <NetworkFallbackCard
+              title="Unable to load data."
+              message={productsError}
+              onRetry={loadProducts}
+              retryLabel="Retry"
+              refreshLabel="Refresh page"
+            />
+          ) : loading ? (
+            <ShimmerSkeleton rows={4} />
           ) : items.length > 0 ? (
             <>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">

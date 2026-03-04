@@ -13,6 +13,7 @@ import DeliverySkeleton from '../components/delivery/DeliverySkeleton';
 import DeliveryTabs from '../components/delivery/DeliveryTabs';
 import NextDeliveryCard from '../components/delivery/NextDeliveryCard';
 import OfflineBanner from '../components/delivery/OfflineBanner';
+import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
 import {
   buildAssignmentRoute,
   buildHistoryRoute,
@@ -690,23 +691,17 @@ export default function CourierDashboard() {
           {bootstrapQuery.isLoading || assignmentsQuery.isLoading ? (
             <DeliverySkeleton count={4} />
           ) : hardError ? (
-            <div className="glass-card rounded-2xl p-4 shadow-sm">
-              <p className="text-sm font-semibold text-red-700 dark:text-red-100">
-                {extractMessage(hardError, 'Impossible de charger les livraisons.')}
-              </p>
-              {timeoutDetected ? (
-                <p className="mt-1 text-xs text-red-600 dark:text-red-100">
-                  Requete trop longue (8s max). Verifiez la connexion puis reessayez.
-                </p>
-              ) : null}
-              <button
-                type="button"
-                onClick={handleRefresh}
-                className="glass-card mt-3 inline-flex min-h-[44px] items-center rounded-xl px-3 text-sm font-semibold text-slate-900 dark:text-white"
-              >
-                Reessayer
-              </button>
-            </div>
+            <NetworkFallbackCard
+              title={extractMessage(hardError, 'Unable to load data.')}
+              message={
+                timeoutDetected
+                  ? 'Network is slow, please retry.'
+                  : 'Unable to load deliveries right now.'
+              }
+              onRetry={handleRefresh}
+              retryLabel="Retry"
+              refreshLabel="Refresh page"
+            />
           ) : !modeEnabled ? (
             <div className="soft-card soft-card-orange rounded-2xl p-4 text-sm text-amber-800 shadow-sm dark:text-amber-100">
               Le mode livreur est desactive par la configuration systeme.

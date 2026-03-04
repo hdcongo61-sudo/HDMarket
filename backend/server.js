@@ -50,6 +50,10 @@ import {
 } from './sockets/chatSocket.js';
 import { registerNotificationSocket, configureSocketRedisAdapter } from './sockets/notificationSocket.js';
 import { requestTracker, getDailyRequestStats } from './middlewares/requestTracker.js';
+import {
+  performanceMetricsMiddleware,
+  getPerformanceSnapshot
+} from './middlewares/performanceMetrics.js';
 import { requestContextMiddleware } from './middlewares/requestContext.js';
 import {
   requestTimeoutMiddleware,
@@ -185,6 +189,7 @@ app.options('*', cors(corsOptions)); // Handle preflight requests
 
 app.use(requestContextMiddleware);
 app.use(requestTracker);
+app.use(performanceMetricsMiddleware);
 app.use(slowRequestLogger);
 
 // Rate limit global (skip long-lived streams + allow higher burst during dev)
@@ -246,6 +251,14 @@ app.get('/api/health/requests', (req, res) => {
   res.json({
     success: true,
     ...getDailyRequestStats()
+  });
+});
+app.get('/api/health/performance', (req, res) => {
+  const windowMinutes = Math.max(5, Number(req.query.windowMinutes || 60));
+  res.json({
+    success: true,
+    windowMinutes,
+    ...getPerformanceSnapshot({ windowMinutes })
   });
 });
 

@@ -57,7 +57,9 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
   const productLabel = safeProductTitle ? ` "${safeProductTitle}"` : '';
   const shopLabel = safeShopName ? ` "${safeShopName}"` : '';
   const rawSnippet =
-    typeof metadata.message === 'string'
+    typeof metadata.messagePreview === 'string'
+      ? metadata.messagePreview
+      : typeof metadata.message === 'string'
       ? metadata.message
       : typeof metadata.comment === 'string'
       ? metadata.comment
@@ -283,7 +285,9 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
     }
     case 'order_message': {
       title = 'Nouveau message';
-      body = `${actorName} vous a envoyé un message concernant la commande ${orderId}.`;
+      body = snippet
+        ? `${actorName} - commande ${orderId}: ${snippet}`
+        : `${actorName} vous a envoye un message concernant la commande ${orderId}.`;
       break;
     }
     case 'order_cancelled': {
@@ -427,11 +431,7 @@ export const sendPushNotification = async ({
   const shouldSend = await shouldSendForPreference(notification.user, notification.type);
   if (!shouldSend) return null;
 
-  // For order messages, only send push to mobile devices (ios/android)
   const tokenFilter = { user: notification.user, isActive: { $ne: false } };
-  if (notification.type === 'order_message') {
-    tokenFilter.platform = { $in: ['ios', 'android'] };
-  }
   const tokens = await PushToken.find(tokenFilter).select('_id token platform failureCount').lean();
   if (!tokens.length) return null;
 
@@ -444,7 +444,7 @@ export const sendPushNotification = async ({
   let url = String(notification.deepLink || notification.actionLink || notification.metadata?.deepLink || '').trim();
   const notificationType = notification.type || '';
   if (!url && notificationType === 'order_message') {
-    url = '/orders/messages';
+    url = orderId ? `/orders/detail/${orderId}` : '/orders/messages';
   } else if (!url && notificationType === 'order_delivery_fee_updated' && orderId) {
     url = `/orders/detail/${orderId}`;
   } else if (!url && (notificationType.startsWith('order_') || notificationType.startsWith('installment_'))) {

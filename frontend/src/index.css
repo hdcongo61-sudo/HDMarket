@@ -205,6 +205,12 @@ select {
   .main-content {
     padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
   }
+  .mobile-nav-safe {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+  .mobile-scroll-safe {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
   /* Ensure buttons and links have minimum touch target on mobile */
   button:not(.no-tap-feedback),
   a:not(.no-tap-feedback) {

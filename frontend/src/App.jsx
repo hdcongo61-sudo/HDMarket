@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import api from './services/api';
+import api, { abortPendingRequests } from './services/api';
 import Navbar from './components/Navbar';
 import SplashScreen from './components/SplashScreen';
 import AppLoader from './components/AppLoader';
@@ -91,6 +91,7 @@ import { useAppSettings } from './context/AppSettingsContext';
 import AuthContext from './context/AuthContext';
 import { ShopProfileLoadProvider, useShopProfileLoad } from './context/ShopProfileLoadContext';
 import { hasAnyPermission } from './utils/permissions';
+import { queryClient } from './lib/queryClient';
 
 const LAST_ADMIN_ROUTE_KEY = 'hdmarket:last-admin-route';
 const LAST_COURIER_ROUTE_KEY = 'hdmarket:last-courier-route';
@@ -349,6 +350,40 @@ function AppContent() {
     window.localStorage.setItem(LAST_SELLER_ORDERS_ROUTE_KEY, route);
   }, [pathname, location.search, location.hash]);
 
+  useEffect(
+    () => () => {
+      abortPendingRequests('REQUEST_ABORT_NAVIGATION');
+    },
+    [pathname, location.search, location.hash]
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handleReconnect = () => {
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const scope = JSON.stringify(query?.queryKey || []).toLowerCase();
+          return (
+            scope.includes('product') ||
+            scope.includes('home') ||
+            scope.includes('shop') ||
+            scope.includes('category') ||
+            scope.includes('order') ||
+            scope.includes('delivery') ||
+            scope.includes('notification') ||
+            scope.includes('admin') ||
+            scope.includes('task')
+          );
+        }
+      });
+      window.dispatchEvent(new CustomEvent('hdmarket:network-recovered'));
+    };
+    window.addEventListener('online', handleReconnect);
+    return () => {
+      window.removeEventListener('online', handleReconnect);
+    };
+  }, []);
+
   useEffect(() => {
     if (!isShopRoute && shopLoad?.setShopLogo) {
       shopLoad.setShopLogo('');
@@ -410,7 +445,7 @@ function AppContent() {
       {!isCourierRoute ? <Navbar /> : null}
       <NetworkStatusBanner />
       <main
-        className="pt-20 sm:pt-24 md:pt-32 pb-24 md:pb-0 main-content no-ios-callout"
+        className="pt-20 sm:pt-24 md:pt-32 pb-24 md:pb-0 main-content mobile-nav-safe no-ios-callout"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 5rem)' }}
       >
         <AnimatePresence mode="wait" initial={false}>

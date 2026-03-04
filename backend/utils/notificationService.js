@@ -31,7 +31,7 @@ const TYPE_PRIORITY_MAP = Object.freeze({
   delivery_request_delivered: 'HIGH',
   installment_overdue_warning: 'HIGH',
   installment_due_reminder: 'HIGH',
-  order_message: 'NORMAL',
+  order_message: 'HIGH',
   product_comment: 'NORMAL',
   favorite: 'LOW',
   promotional: 'LOW'

@@ -21,6 +21,37 @@ import {
   setOrderUnreadTotal
 } from '../utils/orderMessageUnreadCounter.js';
 
+const sanitizeMessagePreview = (value, maxLength = 160) =>
+  String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength);
+
+const buildOrderMessagePreview = ({ text, hasEncrypted, hasVoice, attachments = [] }) => {
+  const safeText = sanitizeMessagePreview(text);
+  if (safeText) return safeText;
+  if (hasEncrypted) return 'Message chiffre';
+  if (hasVoice) return 'Message vocal';
+  if (Array.isArray(attachments) && attachments.length > 0) {
+    if (attachments.length === 1) return 'Piece jointe';
+    return `${attachments.length} pieces jointes`;
+  }
+  return 'Nouveau message';
+};
+
+const resolveOrderMessageDeepLink = ({ recipient, orderId }) => {
+  const normalizedRole = String(recipient?.role || '').toLowerCase();
+  const normalizedAccountType = String(recipient?.accountType || '').toLowerCase();
+
+  if (['admin', 'founder', 'manager'].includes(normalizedRole)) {
+    return `/admin/orders?orderId=${String(orderId)}`;
+  }
+  if (normalizedRole === 'seller' || normalizedAccountType === 'shop') {
+    return `/seller/orders/detail/${String(orderId)}`;
+  }
+  return `/orders/detail/${String(orderId)}`;
+};
+
 /**
  * Get messages for an order
  * Only the customer and sellers of the order can access messages
@@ -210,7 +241,9 @@ export const sendOrderMessage = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: 'Le destinataire n\'est pas associé à cette commande.' });
     }
 
-    recipient = await User.findById(recipientId).select('_id name email shopName profileImage shopLogo');
+    recipient = await User.findById(recipientId).select(
+      '_id name email shopName profileImage shopLogo role accountType'
+    );
     if (!recipient) {
       return res.status(404).json({ message: 'Destinataire introuvable.' });
     }
@@ -228,13 +261,17 @@ export const sendOrderMessage = asyncHandler(async (req, res) => {
           firstSellerId = product?.user;
         }
         if (firstSellerId) {
-          recipient = await User.findById(firstSellerId).select('_id name email shopName profileImage shopLogo');
+          recipient = await User.findById(firstSellerId).select(
+            '_id name email shopName profileImage shopLogo role accountType'
+          );
         }
       } else {
         if (!customerId) {
           return res.status(400).json({ message: 'Cette commande n\'a pas de client associé.' });
         }
-        recipient = await User.findById(customerId).select('_id name email shopName profileImage shopLogo');
+        recipient = await User.findById(customerId).select(
+          '_id name email shopName profileImage shopLogo role accountType'
+        );
       }
       if (!recipient) {
         return res.status(400).json({ message: adminIsCustomer ? 'Impossible de déterminer le vendeur.' : 'Le client de cette commande est introuvable.' });
@@ -248,11 +285,15 @@ export const sendOrderMessage = asyncHandler(async (req, res) => {
         firstSellerId = product?.user;
       }
       if (firstSellerId) {
-        recipient = await User.findById(firstSellerId).select('_id name email shopName profileImage shopLogo');
+        recipient = await User.findById(firstSellerId).select(
+          '_id name email shopName profileImage shopLogo role accountType'
+        );
       }
     } else if (isSeller) {
       // Seller sends to customer
-      recipient = await User.findById(order.customer).select('_id name email shopName profileImage shopLogo');
+      recipient = await User.findById(order.customer).select(
+        '_id name email shopName profileImage shopLogo role accountType'
+      );
     }
 
     if (!recipient) {
@@ -312,6 +353,16 @@ export const sendOrderMessage = asyncHandler(async (req, res) => {
   }
 
   const message = await OrderMessage.create(messageData);
+  const messagePreview = buildOrderMessagePreview({
+    text: messageData?.text,
+    hasEncrypted: Boolean(messageData?.encryptedText),
+    hasVoice: Boolean(messageData?.voiceMessage?.url),
+    attachments: messageData?.attachments || []
+  });
+  const messageDeepLink = resolveOrderMessageDeepLink({
+    recipient,
+    orderId: order._id
+  });
 
   const populated = await OrderMessage.findById(message._id)
     .populate('sender', 'name email shopName profileImage shopLogo')
@@ -327,8 +378,16 @@ export const sendOrderMessage = asyncHandler(async (req, res) => {
       orderId: order._id,
       messageId: message._id,
       orderCode: order.deliveryCode,
-      status: order.status
+      status: order.status,
+      messagePreview,
+      hasAttachments: hasAttachments,
+      hasVoiceMessage: hasVoice,
+      deepLink: messageDeepLink
     },
+    deepLink: messageDeepLink,
+    actionLink: messageDeepLink,
+    entityType: 'order',
+    entityId: String(order._id),
     allowSelf: false
   });
 

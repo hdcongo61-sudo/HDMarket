@@ -22,6 +22,7 @@ import api from '../services/api';
 import { buildProductPath, buildShopPath } from '../utils/links';
 import NotificationItem from '../components/notifications/NotificationItem';
 import NotificationSkeleton from '../components/notifications/NotificationSkeleton';
+import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
 import { useAppSettings } from '../context/AppSettingsContext';
 import GlassHeader from '../components/ui/GlassHeader';
 
@@ -521,8 +522,14 @@ export default function NotificationPage() {
               <NotificationSkeleton count={8} />
             </div>
           ) : error ? (
-            <div className="glass-card mt-8 rounded-2xl p-4 text-sm text-neutral-700 dark:text-neutral-300">
-              {error}
+            <div className="mt-6">
+              <NetworkFallbackCard
+                title={t('notifications.errors.loadTitle', 'Unable to load data.')}
+                message={t('notifications.errors.load', 'Network is slow, please retry.')}
+                onRetry={refresh}
+                retryLabel={t('common.retry', 'Retry')}
+                refreshLabel={t('common.refreshPage', 'Refresh page')}
+              />
             </div>
           ) : visibleAlerts.length ? (
             <div className="mt-2">

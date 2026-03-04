@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { recordNetworkMetric } from '../utils/networkMetrics';
 
 const readConnectionState = () => {
   if (typeof navigator === 'undefined') {
@@ -32,6 +33,18 @@ export default function NetworkStatusBanner() {
       connection?.removeEventListener?.('change', update);
     };
   }, []);
+
+  useEffect(() => {
+    recordNetworkMetric({
+      source: 'network-state',
+      method: 'STATE',
+      endpoint: state.offline ? 'offline' : 'online',
+      status: state.offline ? 0 : 200,
+      durationMs: 0,
+      success: !state.offline,
+      networkError: state.offline
+    });
+  }, [state.offline]);
 
   const content = useMemo(() => {
     if (state.offline) {
@@ -72,4 +85,3 @@ export default function NetworkStatusBanner() {
     </div>
   );
 }
-

@@ -1,8 +1,12 @@
 import axios from 'axios';
 import storage from '../utils/storage.js';
 import indexedDB, { STORES } from '../utils/indexedDB.js';
+import { recordNetworkMetric } from '../utils/networkMetrics.js';
 
-const API_TIMEOUT_MS = Math.max(4000, Number(import.meta.env.VITE_API_TIMEOUT_MS || 12000));
+const API_TIMEOUT_MS = Math.max(3000, Number(import.meta.env.VITE_API_TIMEOUT_MS || 8000));
+const REQUEST_RETRY_MAX = 1;
+const REQUEST_RETRY_DELAY_MS = 2000;
+const RETRYABLE_METHODS = new Set(['get', 'head', 'options']);
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || `http://localhost:5001/api`,
@@ -10,6 +14,9 @@ const api = axios.create({
   timeout: API_TIMEOUT_MS,
   transitional: { clarifyTimeoutError: true }
 });
+
+const pendingRequestControllers = new Map();
+const inFlightGetRequests = new Map();
 
 // Cache configuration
 const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes default
@@ -109,6 +116,63 @@ const normalizeUrl = (config) => {
     }
   }
   return raw.replace(base, '');
+};
+
+const toStableParams = (params) => {
+  if (!params) return '';
+  if (params instanceof URLSearchParams) return params.toString();
+  if (typeof params === 'string') return params;
+  if (typeof params !== 'object') return String(params);
+
+  const keys = Object.keys(params).sort();
+  const serialized = new URLSearchParams();
+  keys.forEach((key) => {
+    const value = params[key];
+    if (value === undefined || value === null || value === '') return;
+    if (Array.isArray(value)) {
+      value.forEach((entry) => serialized.append(key, String(entry)));
+      return;
+    }
+    serialized.set(key, String(value));
+  });
+  return serialized.toString();
+};
+
+const buildInFlightGetKey = (config = {}) => {
+  const method = String(config.method || 'get').toLowerCase();
+  if (method !== 'get') return '';
+  const normalized = normalizeUrl(config);
+  if (!normalized) return '';
+  const params = toStableParams(config.params);
+  return params ? `${normalized}${normalized.includes('?') ? '&' : '?'}${params}` : normalized;
+};
+
+const removePendingController = (requestKey = '') => {
+  if (!requestKey) return;
+  pendingRequestControllers.delete(requestKey);
+};
+
+const trackRequestMetric = ({
+  config = {},
+  status = 0,
+  durationMs = 0,
+  success = false,
+  timeout = false,
+  networkError = false,
+  retried = 0
+}) => {
+  recordNetworkMetric({
+    source: 'api',
+    method: String(config?.method || 'get').toUpperCase(),
+    endpoint: normalizeUrl(config) || String(config?.url || ''),
+    status: Number(status || 0),
+    durationMs: Math.max(0, Number(durationMs || 0)),
+    success: Boolean(success),
+    timeout: Boolean(timeout),
+    networkError: Boolean(networkError),
+    retried: Math.max(0, Number(retried || 0)),
+    timestamp: Date.now()
+  });
 };
 
 const decodeJwtUserId = (token) => {
@@ -333,19 +397,46 @@ const shouldCacheRequest = (config) => {
   return CACHE_ALLOW_PREFIXES.some((prefix) => normalized.startsWith(prefix));
 };
 
+const bindRequestAbortSignal = (config, controller) => {
+  const externalSignal = config.signal;
+  if (!externalSignal) {
+    config.signal = controller.signal;
+    return;
+  }
+
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.any === 'function') {
+    config.signal = AbortSignal.any([externalSignal, controller.signal]);
+    return;
+  }
+
+  if (externalSignal.aborted) {
+    controller.abort(externalSignal.reason || 'REQUEST_ABORT_EXTERNAL');
+  } else if (typeof externalSignal.addEventListener === 'function') {
+    externalSignal.addEventListener(
+      'abort',
+      () => controller.abort(externalSignal.reason || 'REQUEST_ABORT_EXTERNAL'),
+      { once: true }
+    );
+  }
+  config.signal = controller.signal;
+};
+
 api.interceptors.request.use(async (config) => {
   config.headers = config.headers || {};
   config.__requestStartAt = Date.now();
+  config.__requestKey =
+    config.__requestKey || `req-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   const contentType = String(config.headers['Content-Type'] || config.headers['content-type'] || '').toLowerCase();
   if (contentType.includes('multipart/form-data') && Number(config.timeout || 0) < 60_000) {
     config.timeout = 60_000;
   }
-  if (!config.signal && typeof AbortController !== 'undefined') {
+  if (typeof AbortController !== 'undefined') {
     const controller = new AbortController();
-    config.signal = controller.signal;
+    bindRequestAbortSignal(config, controller);
     config.__abortController = controller;
-    const timeoutMs = Math.max(1000, Number(config.timeout || API_TIMEOUT_MS));
-    config.__abortTimer = setTimeout(() => controller.abort('REQUEST_ABORT_TIMEOUT'), timeoutMs + 200);
+    const timeoutMs = Math.max(1000, Number(config.timeout || API_TIMEOUT_MS || 8000));
+    config.__abortTimer = setTimeout(() => controller.abort('REQUEST_ABORT_TIMEOUT'), timeoutMs + 100);
+    pendingRequestControllers.set(config.__requestKey, controller);
   }
   const token = await storage.get('qm_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -380,44 +471,34 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Retry config for network errors (no response = connection/timeout/CORS)
-const NETWORK_ERROR_MAX_RETRIES = 1;
-const NETWORK_ERROR_DELAY_MS = 700;
-// When network changed (e.g. WiFi ↔ mobile), allow more retries with longer delay so connection can stabilize
-const NETWORK_CHANGED_CODES = ['ERR_NETWORK_CHANGED', 'ERR_INTERNET_DISCONNECTED', 'ERR_NETWORK_ACCESS_DENIED'];
-const NETWORK_CHANGED_MAX_RETRIES = 2;
-const NETWORK_CHANGED_DELAY_MS = 1200;
-const RETRYABLE_METHODS = new Set(['get', 'head', 'options']);
-
-const isNetworkChangedError = (err) => {
-  const code = String(err?.code || '');
-  const msg = String(err?.message || '');
-  const combined = (code + ' ' + msg).toLowerCase();
-  if (NETWORK_CHANGED_CODES.some((c) => combined.includes(c.toLowerCase()))) return true;
-  if (/net::err_network_changed|err_network_changed/.test(combined)) return true;
-  if (/net::err_internet_disconnected|err_internet_disconnected/.test(combined)) return true;
-  return false;
-};
-
 api.interceptors.response.use(
   async (response) => {
-    clearAbortTimer(response.config || {});
-    if (shouldCacheRequest(response.config)) {
-      const key = response.config.__cacheKey || buildCacheKey(response.config);
-      const normalized = response.config.__normalizedUrl || normalizeUrl(response.config);
+    const config = response.config || {};
+    clearAbortTimer(config);
+    removePendingController(config.__requestKey);
+    if (shouldCacheRequest(config)) {
+      const key = config.__cacheKey || buildCacheKey(config);
+      const normalized = config.__normalizedUrl || normalizeUrl(config);
       if (key && response.status === 200) {
         await writeCache(key, response.data, normalized);
       }
     }
+    trackRequestMetric({
+      config,
+      status: response.status,
+      durationMs: Math.max(0, Date.now() - Number(config.__requestStartAt || Date.now())),
+      success: true,
+      retried: Number(config.__retryCount || 0)
+    });
     return response;
   },
   async (error) => {
     const config = error.config || {};
     clearAbortTimer(config);
+    removePendingController(config.__requestKey);
     const retryCount = config.__retryCount ?? 0;
     const method = String(config.method || 'get').toLowerCase();
     const isNetworkError = !error.response;
-    const networkChanged = isNetworkError && isNetworkChangedError(error);
     const isTimeoutError =
       error.code === 'ECONNABORTED' ||
       error.name === 'AbortError' ||
@@ -453,19 +534,74 @@ api.interceptors.response.use(
     }
 
     const canRetry = RETRYABLE_METHODS.has(method);
-    const maxRetries = networkChanged ? NETWORK_CHANGED_MAX_RETRIES : NETWORK_ERROR_MAX_RETRIES;
-    const delayMs = networkChanged ? NETWORK_CHANGED_DELAY_MS * (retryCount + 1) : NETWORK_ERROR_DELAY_MS * (retryCount + 1);
+    const shouldRetry = (isNetworkError || isRetryableStatus) && canRetry && retryCount < REQUEST_RETRY_MAX;
 
-    if ((isNetworkError || isRetryableStatus) && canRetry && retryCount < maxRetries) {
+    if (shouldRetry) {
       config.__retryCount = retryCount + 1;
-      await new Promise((r) => setTimeout(r, delayMs));
+      await new Promise((r) => setTimeout(r, REQUEST_RETRY_DELAY_MS));
       return api.request(config);
     }
+
+    trackRequestMetric({
+      config,
+      status: Number(error?.response?.status || 0),
+      durationMs: error.requestDurationMs,
+      success: false,
+      timeout: isTimeoutError,
+      networkError: isNetworkError,
+      retried: Number(config.__retryCount || 0)
+    });
 
     dispatchGlobalApiError(error, config);
     return Promise.reject(error);
   }
 );
+
+const rawApiRequest = api.request.bind(api);
+
+api.request = function requestWithDedup(configOrUrl, maybeConfig) {
+  const config =
+    typeof configOrUrl === 'string'
+      ? { ...(maybeConfig || {}), url: configOrUrl }
+      : { ...(configOrUrl || {}) };
+
+  const method = String(config.method || 'get').toLowerCase();
+  const skipDedupe = Boolean(config.skipDedupe || config.headers?.['x-skip-dedupe']);
+  const dedupeKey = !skipDedupe && method === 'get' ? buildInFlightGetKey(config) : '';
+
+  if (!dedupeKey) {
+    return rawApiRequest(config);
+  }
+
+  const existing = inFlightGetRequests.get(dedupeKey);
+  if (existing) {
+    return existing;
+  }
+
+  const requestPromise = rawApiRequest(config).finally(() => {
+    if (inFlightGetRequests.get(dedupeKey) === requestPromise) {
+      inFlightGetRequests.delete(dedupeKey);
+    }
+  });
+
+  inFlightGetRequests.set(dedupeKey, requestPromise);
+  return requestPromise;
+};
+
+export const abortPendingRequests = (reason = 'REQUEST_ABORT_MANUAL') => {
+  const controllers = Array.from(pendingRequestControllers.values());
+  pendingRequestControllers.clear();
+  controllers.forEach((controller) => {
+    try {
+      controller.abort(reason);
+    } catch {
+      // no-op
+    }
+  });
+  return controllers.length;
+};
+
+export const getPendingRequestsCount = () => pendingRequestControllers.size;
 
 export const isApiTimeoutError = (error) =>
   Boolean(

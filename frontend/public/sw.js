@@ -20,6 +20,7 @@ const DEFAULT_FIREBASE_SDK_BASES = [
 const STATIC_ASSETS = ['/', '/index.html', '/favicon.svg'];
 const DEFAULT_NOTIFICATION_ICON = '/icons/icon-192.svg';
 const DEFAULT_NOTIFICATION_BADGE = '/icons/icon-192.svg';
+const NETWORK_TIMEOUT_MS = 8000;
 
 const DEV_HOSTS = new Set(['localhost', '127.0.0.1']);
 const DEV_BYPASS_PATHS = [
@@ -100,6 +101,16 @@ const offlineJson = (status = 503, message = 'Connexion indisponible.') =>
     status,
     headers: { 'Content-Type': 'application/json' }
   });
+
+const fetchWithTimeout = async (request, options = {}, timeoutMs = NETWORK_TIMEOUT_MS) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort('SW_TIMEOUT'), Math.max(1000, Number(timeoutMs || NETWORK_TIMEOUT_MS)));
+  try {
+    return await fetch(request, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+};
 
 const isPublicCacheableApiRequest = (request, path) => {
   if (!request || request.method !== 'GET') return false;
@@ -236,7 +247,7 @@ const handleNetworkFirstDynamicApi = async (request) => {
   // Privacy safety: never persist authenticated API payloads in SW cache.
   if (isAuthRequest(request)) {
     try {
-      return await fetch(request, { cache: 'no-store' });
+      return await fetchWithTimeout(request, { cache: 'no-store' });
     } catch {
       return offlineJson(503, 'Connexion indisponible. Cette ressource nécessite une connexion active.');
     }
@@ -246,7 +257,7 @@ const handleNetworkFirstDynamicApi = async (request) => {
   const cached = await cache.match(request);
 
   try {
-    const networkResponse = await fetch(request, { cache: 'no-store' });
+    const networkResponse = await fetchWithTimeout(request, { cache: 'no-store' });
     if (networkResponse.ok) {
       await cache.put(request, stampCacheResponse(networkResponse));
     }
@@ -259,7 +270,7 @@ const handleNetworkFirstDynamicApi = async (request) => {
 
 const revalidatePublicApiInBackground = async (request, cache) => {
   try {
-    const networkResponse = await fetch(request);
+    const networkResponse = await fetchWithTimeout(request);
     if (networkResponse.ok) {
       await cache.put(request, stampCacheResponse(networkResponse));
     }
@@ -278,7 +289,7 @@ const handlePublicApiRequest = async (request, event) => {
   }
 
   try {
-    const networkResponse = await fetch(request);
+    const networkResponse = await fetchWithTimeout(request);
     if (networkResponse.ok) {
       await cache.put(request, stampCacheResponse(networkResponse));
     }
@@ -295,7 +306,7 @@ const handleSearchHistoryRequest = async (request) => {
     const cached = await cache.match(request);
     if (cached) return cached;
     try {
-      const networkResponse = await fetch(request);
+      const networkResponse = await fetchWithTimeout(request);
       if (networkResponse.ok) {
         await cache.put(request, networkResponse.clone());
       }
@@ -321,7 +332,7 @@ const handleApiRequest = async (request, event, url) => {
   }
 
   try {
-    return await fetch(request);
+    return await fetchWithTimeout(request);
   } catch {
     return offlineJson(503, 'Connexion indisponible. Cette ressource nécessite une connexion active.');
   }
@@ -333,7 +344,7 @@ const handleStaticRequest = async (request) => {
 
   if (isNavigation) {
     try {
-      const networkResponse = await fetch(request);
+      const networkResponse = await fetchWithTimeout(request);
       if (networkResponse.ok) return networkResponse;
       const fallbackIndex = await staticCache.match('/index.html');
       return fallbackIndex || networkResponse;
@@ -347,7 +358,7 @@ const handleStaticRequest = async (request) => {
   if (cached) return cached;
 
   try {
-    const networkResponse = await fetch(request);
+    const networkResponse = await fetchWithTimeout(request);
     if (networkResponse.ok) {
       await staticCache.put(request, networkResponse.clone());
     }
