@@ -34,6 +34,7 @@ import {
 import { buildAdminOrderFilter as buildAdvancedAdminOrderFilter } from '../services/adminOrderAutomationService.js';
 import { getRuntimeConfig } from '../services/configService.js';
 import { getVerifiedProductIds } from '../utils/publicProductVisibility.js';
+import { safeAsync } from '../utils/safeAsync.js';
 
 const ORDER_STATUS = [
   'pending_payment',
@@ -922,53 +923,6 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
       _id: { $in: createdOrders.map((order) => order._id) }
     });
     await ensureOrderProductSlugs(populated);
-
-    await Promise.all(
-      createdOrders.map((order, index) => {
-        const { sellerId, items } = orderPayloads[index];
-        const itemCount = items.reduce((sum, item) => sum + Number(item.quantity || 1), 0);
-        const totalAmount = Number(order.totalAmount || 0);
-        const productId = items[0]?.product || null;
-        return createNotification({
-          userId: sellerId,
-          actorId: userId,
-          productId,
-          type: 'order_received',
-          metadata: {
-            orderId: order._id,
-            itemCount,
-            totalAmount
-          }
-        });
-      })
-    );
-
-    await Promise.all(
-      createdOrders.map((order) =>
-        createNotification({
-          userId: customer._id,
-          actorId: userId,
-          type: 'order_created',
-          metadata: {
-            orderId: order._id,
-            deliveryCity: order.deliveryCity,
-            deliveryAddress: order.deliveryAddress,
-            status: 'pending'
-          },
-          allowSelf: true
-        })
-      )
-    );
-
-    await Promise.all(
-      createdOrders.map((order) =>
-        sendOrderSms({
-          phone: customer.phone,
-          message: buildOrderPendingMessage(order),
-          context: `order_created:${order._id}`
-        })
-      )
-    );
   } catch (error) {
     if (consumedPromos.length) {
       await Promise.all(
@@ -983,21 +937,95 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     throw error;
   }
 
-  const affectedSellerIds = Array.from(new Set(orderPayloads.map((entry) => String(entry.sellerId || '')).filter(Boolean)));
-  await invalidateUserCache(userId, ['orders', 'cart', 'notifications']);
-  await Promise.all(
-    affectedSellerIds.map((sellerId) =>
-      invalidateSellerCache(sellerId, ['orders', 'dashboard', 'analytics'])
-    )
-  );
-  await invalidateAdminCache(['admin', 'dashboard']);
-
   const responseOrders = populated.map(buildOrderResponse);
   if (responseOrders.length === 1) {
-    return res.status(201).json(responseOrders[0]);
+    res.status(201).json(responseOrders[0]);
+  } else {
+    res.status(201).json({ orders: responseOrders, count: responseOrders.length });
   }
 
-  res.status(201).json({ orders: responseOrders, count: responseOrders.length });
+  // Post-checkout side effects are best-effort and should never delay or fail the checkout response.
+  void safeAsync(async () => {
+    await safeAsync(
+      async () =>
+        Promise.all(
+          createdOrders.map((order, index) => {
+            const { sellerId, items } = orderPayloads[index];
+            const itemCount = items.reduce((sum, item) => sum + Number(item.quantity || 1), 0);
+            const totalAmount = Number(order.totalAmount || 0);
+            const productId = items[0]?.product || null;
+            return createNotification({
+              userId: sellerId,
+              actorId: userId,
+              productId,
+              type: 'order_received',
+              metadata: {
+                orderId: order._id,
+                itemCount,
+                totalAmount
+              }
+            });
+          })
+        ),
+      { label: 'checkout_notify_sellers' }
+    );
+
+    await safeAsync(
+      async () =>
+        Promise.all(
+          createdOrders.map((order) =>
+            createNotification({
+              userId: customer._id,
+              actorId: userId,
+              type: 'order_created',
+              metadata: {
+                orderId: order._id,
+                deliveryCity: order.deliveryCity,
+                deliveryAddress: order.deliveryAddress,
+                status: 'pending'
+              },
+              allowSelf: true
+            })
+          )
+        ),
+      { label: 'checkout_notify_customer' }
+    );
+
+    await safeAsync(
+      async () =>
+        Promise.all(
+          createdOrders.map((order) =>
+            sendOrderSms({
+              phone: customer.phone,
+              message: buildOrderPendingMessage(order),
+              context: `order_created:${order._id}`
+            })
+          )
+        ),
+      { label: 'checkout_sms_customer' }
+    );
+
+    const affectedSellerIds = Array.from(
+      new Set(orderPayloads.map((entry) => String(entry.sellerId || '')).filter(Boolean))
+    );
+
+    await safeAsync(
+      async () => invalidateUserCache(userId, ['orders', 'cart', 'notifications']),
+      { label: 'checkout_invalidate_user_cache' }
+    );
+    await safeAsync(
+      async () =>
+        Promise.all(
+          affectedSellerIds.map((sellerId) =>
+            invalidateSellerCache(sellerId, ['orders', 'dashboard', 'analytics'])
+          )
+        ),
+      { label: 'checkout_invalidate_seller_cache' }
+    );
+    await safeAsync(async () => invalidateAdminCache(['admin', 'dashboard']), {
+      label: 'checkout_invalidate_admin_cache'
+    });
+  }, { label: 'checkout_post_response_side_effects' });
 });
 
 export const adminListOrders = asyncHandler(async (req, res) => {

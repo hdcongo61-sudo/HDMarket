@@ -1500,6 +1500,18 @@ export const getNotifications = asyncHandler(async (req, res) => {
       rawSnippet.length > 180
         ? `${rawSnippet.slice(0, 177)}...`
         : rawSnippet;
+    const orderProductTitle = [
+      metadata.orderProductTitle,
+      metadata.productTitle,
+      metadata.primaryProductTitle,
+      Array.isArray(metadata.productTitles) ? metadata.productTitles[0] : ''
+    ]
+      .map((value) => String(value || '').trim())
+      .find(Boolean);
+    const orderSubject = orderProductTitle ? `la commande "${orderProductTitle}"` : 'la commande';
+    const yourOrderSubject = orderProductTitle
+      ? `votre commande "${orderProductTitle}"`
+      : 'votre commande';
 
     let message;
     switch (notification.type) {
@@ -1573,32 +1585,27 @@ export const getNotifications = asyncHandler(async (req, res) => {
         break;
       }
       case 'dispute_created': {
-        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
-        message = `${actorName} a ouvert un litige pour la commande ${orderId}.`;
+        message = `${actorName} a ouvert un litige pour ${orderSubject}.`;
         break;
       }
       case 'dispute_seller_responded': {
-        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
-        message = `${actorName} a répondu au litige de la commande ${orderId}.`;
+        message = `${actorName} a répondu au litige de ${orderSubject}.`;
         break;
       }
       case 'dispute_deadline_near': {
-        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
         const deadline = metadata.sellerDeadline
           ? ` avant le ${new Date(metadata.sellerDeadline).toLocaleString('fr-FR')}`
           : '';
-        message = `Rappel: vous devez répondre au litige de la commande ${orderId}${deadline}.`;
+        message = `Rappel: vous devez répondre au litige de ${orderSubject}${deadline}.`;
         break;
       }
       case 'dispute_under_review': {
-        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
-        message = `Le litige de la commande ${orderId} est passé en revue admin.`;
+        message = `Le litige de ${orderSubject} est passé en revue admin.`;
         break;
       }
       case 'dispute_resolved': {
-        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
         const resolutionType = metadata.resolutionType ? ` (${metadata.resolutionType})` : '';
-        message = `${actorName} a clôturé le litige de la commande ${orderId}${resolutionType}.`;
+        message = `${actorName} a clôturé le litige de ${orderSubject}${resolutionType}.`;
         break;
       }
       case 'improvement_feedback_created': {
@@ -1639,7 +1646,6 @@ export const getNotifications = asyncHandler(async (req, res) => {
         break;
       }
       case 'order_created': {
-        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
         const city = metadata.deliveryCity ? ` pour ${metadata.deliveryCity}` : '';
         let action = 'créé';
         if (metadata.status === 'confirmed') {
@@ -1647,11 +1653,10 @@ export const getNotifications = asyncHandler(async (req, res) => {
         } else if (metadata.status === 'pending') {
           action = 'mis en attente';
         }
-        message = `${actorName} a ${action} votre commande ${orderId}${city}. Nous vous tiendrons informé des étapes de livraison.`;
+        message = `${actorName} a ${action} ${yourOrderSubject}${city}. Nous vous tiendrons informé des étapes de livraison.`;
         break;
       }
       case 'order_received': {
-        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
         const itemCount = Number(metadata.itemCount || 0);
         const itemsLabel = itemCount > 1 ? `${itemCount} articles` : itemCount === 1 ? '1 article' : 'des articles';
         const totalValue = Number(metadata.totalAmount || 0);
@@ -1659,23 +1664,20 @@ export const getNotifications = asyncHandler(async (req, res) => {
           Number.isFinite(totalValue) && totalValue > 0
             ? ` (${totalValue.toLocaleString('fr-FR')} FCFA)`
             : '';
-        message = `${actorName} a passé une commande ${orderId} pour ${itemsLabel}${totalText}.`;
+        message = `${actorName} a passé ${orderSubject} pour ${itemsLabel}${totalText}.`;
         break;
       }
       case 'order_reminder': {
-        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
         const city = metadata.deliveryCity ? ` pour ${metadata.deliveryCity}` : '';
-        message = `${actorName} vous rappelle d'accélérer la commande ${orderId}${city}.`;
+        message = `${actorName} vous rappelle d'accélérer ${orderSubject}${city}.`;
         break;
       }
       case 'order_delivering': {
-        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
         const city = metadata.deliveryCity ? ` pour ${metadata.deliveryCity}` : '';
-        message = `Votre commande ${orderId} est en cours de livraison${city}.`;
+        message = `${yourOrderSubject} est en cours de livraison${city}.`;
         break;
       }
       case 'order_delivered': {
-        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
         const address = metadata.deliveryAddress ? ` à ${metadata.deliveryAddress}` : '';
         const city = metadata.deliveryCity ? ` (${metadata.deliveryCity})` : '';
         const deliveredAtDate = metadata.deliveredAt ? new Date(metadata.deliveredAt) : null;
@@ -1683,54 +1685,47 @@ export const getNotifications = asyncHandler(async (req, res) => {
           ? ` le ${deliveredAtDate.toLocaleDateString('fr-FR')}`
           : '';
         if (metadata.deliveryProofSubmitted) {
-          message = `${actorName} a soumis la preuve de livraison pour la commande ${orderId}${address}${city}${deliveredAt}. Veuillez confirmer ou ouvrir un litige.`;
+          message = `${actorName} a soumis la preuve de livraison pour ${orderSubject}${address}${city}${deliveredAt}. Veuillez confirmer ou ouvrir un litige.`;
         } else {
-          message = `${actorName} a marqué la commande ${orderId} comme livrée${address}${city}${deliveredAt}. Merci pour votre confiance.`;
+          message = `${actorName} a marqué ${orderSubject} comme livrée${address}${city}${deliveredAt}. Merci pour votre confiance.`;
         }
         break;
       }
       case 'installment_due_reminder': {
-        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
         const dueDate = metadata.dueDate
           ? ` le ${new Date(metadata.dueDate).toLocaleDateString('fr-FR')}`
           : '';
-        message = `Rappel: votre prochaine tranche pour la commande ${orderId} arrive à échéance${dueDate}.`;
+        message = `Rappel: votre prochaine tranche pour ${yourOrderSubject} arrive à échéance${dueDate}.`;
         break;
       }
       case 'installment_overdue_warning': {
-        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
-        message = `Alerte: la commande ${orderId} comporte une tranche en retard. Régularisez rapidement pour éviter les pénalités.`;
+        message = `Alerte: ${yourOrderSubject} comporte une tranche en retard. Régularisez rapidement pour éviter les pénalités.`;
         break;
       }
       case 'installment_payment_submitted': {
-        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
         const amount = Number(metadata.amount || 0);
         const amountLabel = amount > 0 ? ` (${amount.toLocaleString('fr-FR')} FCFA)` : '';
-        message = `${actorName} a soumis une preuve de paiement de tranche${amountLabel} pour la commande ${orderId}.`;
+        message = `${actorName} a soumis une preuve de paiement de tranche${amountLabel} pour ${orderSubject}.`;
         break;
       }
       case 'installment_payment_validated': {
-        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
         const amount = Number(metadata.amount || 0);
         const amountLabel = amount > 0 ? ` de ${amount.toLocaleString('fr-FR')} FCFA` : '';
         const penalty = Number(metadata.penalty || 0);
         const penaltyText = penalty > 0 ? ` (pénalité: ${penalty.toLocaleString('fr-FR')} FCFA)` : '';
-        message = `${actorName} a validé votre tranche${amountLabel} pour la commande ${orderId}${penaltyText}.`;
+        message = `${actorName} a validé votre tranche${amountLabel} pour ${yourOrderSubject}${penaltyText}.`;
         break;
       }
       case 'installment_sale_confirmation_required': {
-        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
-        message = `${actorName} a soumis une demande de paiement par tranche pour la commande ${orderId}. Vérifiez la preuve de vente pour l'activer.`;
+        message = `${actorName} a soumis une demande de paiement par tranche pour ${orderSubject}. Vérifiez la preuve de vente pour l'activer.`;
         break;
       }
       case 'installment_sale_confirmed': {
-        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
-        message = `${actorName} a confirmé votre preuve de vente pour la commande ${orderId}. Votre échéancier est maintenant actif.`;
+        message = `${actorName} a confirmé votre preuve de vente pour ${yourOrderSubject}. Votre échéancier est maintenant actif.`;
         break;
       }
       case 'installment_completed': {
-        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
-        message = `Paiement terminé: toutes les tranches de la commande ${orderId} sont réglées. Vous pouvez générer la facture.`;
+        message = `Paiement terminé: toutes les tranches de ${yourOrderSubject} sont réglées. Vous pouvez générer la facture.`;
         break;
       }
       case 'installment_product_suspended': {
@@ -1738,25 +1733,21 @@ export const getNotifications = asyncHandler(async (req, res) => {
         break;
       }
       case 'review_reminder': {
-        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
         const productCount = metadata.productCount || 1;
         const productText = productCount === 1 ? 'produit' : 'produits';
         const productLabel = productCount > 1 ? `vos ${productCount} ${productText}` : 'votre produit';
-        message = `Votre commande ${orderId} a été livrée il y a plus d'une heure. Partagez votre expérience en notant ${productLabel} !`;
+        message = `${yourOrderSubject} a été livrée il y a plus d'une heure. Partagez votre expérience en notant ${productLabel} !`;
         break;
       }
       case 'order_address_updated': {
-        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
-        message = `L'adresse de livraison de la commande ${orderId} a été modifiée par le client.`;
+        message = `L'adresse de livraison de ${orderSubject} a été modifiée par le client.`;
         break;
       }
       case 'order_message': {
-        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
-        message = `${actorName} vous a envoyé un message concernant la commande ${orderId}.`;
+        message = `${actorName} vous a envoyé un message concernant ${orderSubject}.`;
         break;
       }
       case 'order_cancelled': {
-        const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
         const reason = metadata.reason ? ` Raison: ${metadata.reason}` : '';
         const refundAmount = Number(metadata.refundAmount || 0);
         const refundText = metadata.refundRequested
@@ -1764,7 +1755,7 @@ export const getNotifications = asyncHandler(async (req, res) => {
             ? ` Remboursement demandé: ${refundAmount.toLocaleString('fr-FR')} FCFA.`
             : ' Remboursement demandé.'
           : '';
-        message = `${actorName} a annulé la commande ${orderId}.${reason}${refundText}`;
+        message = `${actorName} a annulé ${orderSubject}.${reason}${refundText}`;
         break;
       }
       case 'validation_required': {

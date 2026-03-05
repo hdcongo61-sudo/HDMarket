@@ -407,6 +407,87 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     defaultValue: false,
     isPublic: false
   },
+  api_request_timeout_ms: {
+    category: 'performance',
+    description: 'Timeout API global côté backend (ms).',
+    valueType: 'number',
+    defaultValue: 30000,
+    isPublic: false,
+    min: 8000,
+    max: 180000
+  },
+  api_checkout_timeout_ms: {
+    category: 'performance',
+    description: 'Timeout backend pour checkout (ms).',
+    valueType: 'number',
+    defaultValue: 60000,
+    isPublic: false,
+    min: 10000,
+    max: 240000
+  },
+  api_payment_submit_timeout_ms: {
+    category: 'performance',
+    description: 'Timeout backend pour soumission paiement (ms).',
+    valueType: 'number',
+    defaultValue: 60000,
+    isPublic: false,
+    min: 10000,
+    max: 240000
+  },
+  api_upload_timeout_ms: {
+    category: 'performance',
+    description: 'Timeout backend pour requêtes upload multipart (ms).',
+    valueType: 'number',
+    defaultValue: 60000,
+    isPublic: false,
+    min: 15000,
+    max: 300000
+  },
+  api_slow_request_threshold_ms: {
+    category: 'performance',
+    description: 'Seuil de log des requêtes lentes backend (ms).',
+    valueType: 'number',
+    defaultValue: 2000,
+    isPublic: false,
+    min: 200,
+    max: 60000
+  },
+  frontend_api_timeout_ms: {
+    category: 'performance',
+    description: 'Timeout API frontend global (ms).',
+    valueType: 'number',
+    defaultValue: 30000,
+    isPublic: true,
+    min: 8000,
+    max: 180000
+  },
+  frontend_checkout_timeout_ms: {
+    category: 'performance',
+    description: 'Timeout frontend checkout (ms).',
+    valueType: 'number',
+    defaultValue: 60000,
+    isPublic: true,
+    min: 10000,
+    max: 240000
+  },
+  frontend_payment_submit_timeout_ms: {
+    category: 'performance',
+    description: 'Timeout frontend soumission paiement (ms).',
+    valueType: 'number',
+    defaultValue: 60000,
+    isPublic: true,
+    min: 10000,
+    max: 240000
+  },
+  frontend_courier_request_timeout_ms: {
+    category: 'performance',
+    description: 'Timeout frontend pour appels dashboard livreur (ms).',
+    valueType: 'number',
+    defaultValue: 30000,
+    isPublic: true,
+    min: 8000,
+    max: 180000
+  },
   enable_chat: {
     category: 'feature_flags',
     description: 'Activer la messagerie marketplace.',

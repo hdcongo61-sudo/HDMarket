@@ -3,10 +3,44 @@ import storage from '../utils/storage.js';
 import indexedDB, { STORES } from '../utils/indexedDB.js';
 import { recordNetworkMetric } from '../utils/networkMetrics.js';
 
-const API_TIMEOUT_MS = Math.max(3000, Number(import.meta.env.VITE_API_TIMEOUT_MS || 8000));
+const parsePositiveInt = (value, fallback, min = 1000, max = 300000) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  const rounded = Math.round(parsed);
+  return Math.min(max, Math.max(min, rounded));
+};
+
+const FRONTEND_TIMEOUT_STORAGE_KEY = 'hd_public_runtime_settings';
+const FRONTEND_TIMEOUT_CACHE_TTL_MS = 5000;
+
+const API_TIMEOUT_DEFAULTS = Object.freeze({
+  default: parsePositiveInt(import.meta.env.VITE_API_TIMEOUT_MS, 30000, 8000),
+  checkout: parsePositiveInt(import.meta.env.VITE_CHECKOUT_TIMEOUT_MS, 60000, 10000),
+  payment: parsePositiveInt(import.meta.env.VITE_PAYMENT_SUBMIT_TIMEOUT_MS, 60000, 10000),
+  courier: parsePositiveInt(import.meta.env.VITE_COURIER_REQUEST_TIMEOUT_MS, 30000, 8000)
+});
+
+const FRONTEND_TIMEOUT_RUNTIME_KEYS = Object.freeze({
+  default: 'frontend_api_timeout_ms',
+  checkout: 'frontend_checkout_timeout_ms',
+  payment: 'frontend_payment_submit_timeout_ms',
+  courier: 'frontend_courier_request_timeout_ms'
+});
+
+const CHECKOUT_TIMEOUT_RULES = [
+  { method: 'POST', path: '/orders/checkout' },
+  { method: 'POST', path: '/orders/installment/checkout' }
+];
+const PAYMENT_TIMEOUT_RULES = [{ method: 'POST', path: '/payments' }];
+const COURIER_TIMEOUT_PREFIXES = ['/delivery', '/courier'];
+
+const API_TIMEOUT_MS = API_TIMEOUT_DEFAULTS.default;
 const REQUEST_RETRY_MAX = 1;
 const REQUEST_RETRY_DELAY_MS = 2000;
 const RETRYABLE_METHODS = new Set(['get', 'head', 'options']);
+
+let timeoutRuntimeCache = null;
+let timeoutRuntimeCacheExpiry = 0;
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || `http://localhost:5001/api`,
@@ -116,6 +150,55 @@ const normalizeUrl = (config) => {
     }
   }
   return raw.replace(base, '');
+};
+
+const normalizeRuntimeConfig = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return value;
+};
+
+const clearTimeoutRuntimeCache = () => {
+  timeoutRuntimeCache = null;
+  timeoutRuntimeCacheExpiry = 0;
+};
+
+const readTimeoutRuntimeConfig = async () => {
+  if (Date.now() < timeoutRuntimeCacheExpiry && timeoutRuntimeCache) {
+    return timeoutRuntimeCache;
+  }
+  try {
+    const runtime = await storage.get(FRONTEND_TIMEOUT_STORAGE_KEY);
+    timeoutRuntimeCache = normalizeRuntimeConfig(runtime);
+  } catch {
+    timeoutRuntimeCache = {};
+  }
+  timeoutRuntimeCacheExpiry = Date.now() + FRONTEND_TIMEOUT_CACHE_TTL_MS;
+  return timeoutRuntimeCache;
+};
+
+const resolveTimeoutProfile = (config = {}) => {
+  const method = String(config.method || 'get').toUpperCase();
+  const rawPath = normalizeUrl(config).split('?')[0];
+  const path = rawPath.startsWith('/api/') ? rawPath.slice(4) : rawPath;
+
+  if (CHECKOUT_TIMEOUT_RULES.some((rule) => rule.method === method && rule.path === path)) {
+    return 'checkout';
+  }
+  if (PAYMENT_TIMEOUT_RULES.some((rule) => rule.method === method && rule.path === path)) {
+    return 'payment';
+  }
+  if (COURIER_TIMEOUT_PREFIXES.some((prefix) => path.startsWith(prefix))) {
+    return 'courier';
+  }
+  return 'default';
+};
+
+const resolveDynamicRequestTimeoutMs = (config = {}, runtimeConfig = {}) => {
+  const profile = resolveTimeoutProfile(config);
+  const runtimeKey = FRONTEND_TIMEOUT_RUNTIME_KEYS[profile] || FRONTEND_TIMEOUT_RUNTIME_KEYS.default;
+  const fallback = API_TIMEOUT_DEFAULTS[profile] || API_TIMEOUT_DEFAULTS.default;
+  const rawValue = runtimeConfig?.[runtimeKey];
+  return parsePositiveInt(rawValue, fallback, 1000, 300000);
 };
 
 const toStableParams = (params) => {
@@ -276,6 +359,12 @@ if (typeof window !== 'undefined') {
   cleanupExpiredCache();
   // Run cleanup every 5 minutes
   setInterval(cleanupExpiredCache, 5 * 60 * 1000);
+  window.addEventListener('hdmarket:runtime-settings-updated', clearTimeoutRuntimeCache);
+  window.addEventListener('storage', (event) => {
+    if (event?.key === FRONTEND_TIMEOUT_STORAGE_KEY) {
+      clearTimeoutRuntimeCache();
+    }
+  });
 }
 
 const readCache = async (key, normalizedUrl) => {
@@ -426,6 +515,10 @@ api.interceptors.request.use(async (config) => {
   config.__requestStartAt = Date.now();
   config.__requestKey =
     config.__requestKey || `req-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const runtimeTimeoutConfig = await readTimeoutRuntimeConfig();
+  const dynamicTimeoutMs = resolveDynamicRequestTimeoutMs(config, runtimeTimeoutConfig);
+  const explicitTimeoutMs = Number(config.timeout || 0);
+  config.timeout = explicitTimeoutMs > 0 ? Math.max(1000, Math.round(explicitTimeoutMs)) : dynamicTimeoutMs;
   const contentType = String(config.headers['Content-Type'] || config.headers['content-type'] || '').toLowerCase();
   if (contentType.includes('multipart/form-data') && Number(config.timeout || 0) < 60_000) {
     config.timeout = 60_000;

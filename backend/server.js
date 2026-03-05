@@ -58,7 +58,8 @@ import { requestContextMiddleware } from './middlewares/requestContext.js';
 import {
   requestTimeoutMiddleware,
   slowRequestLogger,
-  requestReliabilityConfig
+  requestReliabilityConfig,
+  getRequestReliabilityConfig
 } from './middlewares/requestReliability.js';
 import { globalErrorHandler, notFoundApiHandler } from './middlewares/globalErrorHandler.js';
 import { sendReviewReminders } from './utils/reviewReminder.js';
@@ -231,15 +232,22 @@ const __dirname = path.dirname(__filename);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/', (req, res) => res.json({ ok: true, name: 'HDMarket API' }));
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
   const memory = process.memoryUsage();
+  const reliability = await getRequestReliabilityConfig();
   res.json({
     ok: true,
     uptimeSec: Math.round(process.uptime()),
     timestamp: new Date().toISOString(),
-    requestTimeoutMs: requestReliabilityConfig.requestTimeoutMs,
-    uploadRequestTimeoutMs: requestReliabilityConfig.uploadRequestTimeoutMs,
-    slowRequestThresholdMs: requestReliabilityConfig.slowRequestThresholdMs,
+    requestTimeoutMs: reliability?.requestTimeoutMs ?? requestReliabilityConfig.requestTimeoutMs,
+    checkoutRequestTimeoutMs:
+      reliability?.checkoutRequestTimeoutMs ?? requestReliabilityConfig.checkoutRequestTimeoutMs,
+    paymentRequestTimeoutMs:
+      reliability?.paymentRequestTimeoutMs ?? requestReliabilityConfig.paymentRequestTimeoutMs,
+    uploadRequestTimeoutMs:
+      reliability?.uploadRequestTimeoutMs ?? requestReliabilityConfig.uploadRequestTimeoutMs,
+    slowRequestThresholdMs:
+      reliability?.slowRequestThresholdMs ?? requestReliabilityConfig.slowRequestThresholdMs,
     memory: {
       rss: memory.rss,
       heapTotal: memory.heapTotal,

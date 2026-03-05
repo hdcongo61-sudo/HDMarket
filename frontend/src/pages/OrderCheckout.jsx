@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import CartContext from '../context/CartContext';
 import AuthContext from '../context/AuthContext';
-import api, { verifyTransactionCodeAvailability } from '../services/api';
+import api, { isApiTimeoutError, verifyTransactionCodeAvailability } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import {
   CreditCard,
@@ -436,21 +436,32 @@ export default function OrderCheckout() {
       setLoading(true);
       setError('');
       try {
-        await api.post('/orders/installment/checkout', {
-          productId: installmentProduct._id,
-          quantity: Number(items[0]?.quantity || 1),
-          firstPaymentAmount: Number(firstAmount),
-          payerName: paymentEntry.payerName.trim(),
-          transactionCode: cleanTransactionCode,
-          guarantor,
-          deliveryMode,
-          shippingAddress
-        });
+        await api.post(
+          '/orders/installment/checkout',
+          {
+            productId: installmentProduct._id,
+            quantity: Number(items[0]?.quantity || 1),
+            firstPaymentAmount: Number(firstAmount),
+            payerName: paymentEntry.payerName.trim(),
+            transactionCode: cleanTransactionCode,
+            guarantor,
+            deliveryMode,
+            shippingAddress
+          }
+        );
         setOrderConfirmed(true);
         await clearCart();
         showToast('Commande en tranche créée. En attente de validation vendeur.', { variant: 'success' });
         navigate('/orders');
       } catch (err) {
+        if (isApiTimeoutError(err)) {
+          const timeoutMessage =
+            'Le réseau est lent. Vérifiez vos commandes: la confirmation peut déjà être enregistrée.';
+          setError(timeoutMessage);
+          showToast(timeoutMessage, { variant: 'warning' });
+          navigate('/orders');
+          return;
+        }
         const message = err.response?.data?.message || 'Impossible de créer la commande en tranche.';
         setError(message);
         showToast(message, { variant: 'error' });
@@ -529,26 +540,37 @@ export default function OrderCheckout() {
     setLoading(true);
     setError('');
     try {
-      await api.post('/orders/checkout', {
-        deliveryMode,
-        shippingAddress,
-        payments: sellerGroups.map((group) => {
-          const entry = payments[group.sellerId] || {};
-          const normalizedPromoCode = String(entry.promoCode || '').trim().toUpperCase();
-          const promoCode = isPromoAppliedForSeller(group.sellerId) ? normalizedPromoCode : '';
-          return {
-            sellerId: group.sellerId,
-            payerName: entry.payerName.trim(),
-            transactionCode: entry.transactionCode.trim().replace(/\D/g, ''),
-            promoCode
-          };
-        })
-      });
+      await api.post(
+        '/orders/checkout',
+        {
+          deliveryMode,
+          shippingAddress,
+          payments: sellerGroups.map((group) => {
+            const entry = payments[group.sellerId] || {};
+            const normalizedPromoCode = String(entry.promoCode || '').trim().toUpperCase();
+            const promoCode = isPromoAppliedForSeller(group.sellerId) ? normalizedPromoCode : '';
+            return {
+              sellerId: group.sellerId,
+              payerName: entry.payerName.trim(),
+              transactionCode: entry.transactionCode.trim().replace(/\D/g, ''),
+              promoCode
+            };
+          })
+        }
+      );
       setOrderConfirmed(true);
       await clearCart();
       showToast('Commande enregistrée. Elle est en attente de validation.', { variant: 'success' });
       navigate('/orders');
     } catch (err) {
+      if (isApiTimeoutError(err)) {
+        const timeoutMessage =
+          'Le réseau est lent. Vérifiez vos commandes: la confirmation peut déjà être enregistrée.';
+        setError(timeoutMessage);
+        showToast(timeoutMessage, { variant: 'warning' });
+        navigate('/orders');
+        return;
+      }
       const message = err.response?.data?.message || 'Impossible de confirmer la commande.';
       setError(message);
       showToast(message, { variant: 'error' });

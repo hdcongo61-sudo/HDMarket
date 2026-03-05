@@ -13,7 +13,7 @@ import {
 } from '../../utils/deliveryUi';
 import { resolveDeliveryGuyProfileImage } from '../../utils/deliveryGuyAvatar';
 
-const REQUEST_TIMEOUT_MS = 8000;
+const GEOLOCATION_CAPTURE_TIMEOUT_MS = 15000;
 
 const parseCoords = (location) => {
   const coords = Array.isArray(location?.coordinates) ? location.coordinates : null;
@@ -52,7 +52,7 @@ export default function DeliveryProfile() {
   const meQuery = useQuery({
     queryKey: ['delivery', 'profile', apiPrefix],
     queryFn: async () => {
-      const { data } = await api.get(`${apiPrefix}/me`, { timeout: REQUEST_TIMEOUT_MS });
+      const { data } = await api.get(`${apiPrefix}/me`);
       return data || {};
     },
     staleTime: 30_000,
@@ -62,7 +62,7 @@ export default function DeliveryProfile() {
   const statsQuery = useQuery({
     queryKey: ['delivery', 'stats', apiPrefix],
     queryFn: async () => {
-      const { data } = await api.get(`${apiPrefix}/stats`, { timeout: REQUEST_TIMEOUT_MS });
+      const { data } = await api.get(`${apiPrefix}/stats`);
       return data?.stats || null;
     },
     staleTime: 30_000,
@@ -79,8 +79,7 @@ export default function DeliveryProfile() {
         longitude,
         accuracy,
         source
-      },
-      { timeout: REQUEST_TIMEOUT_MS }
+      }
     );
 
     if (data?.user) {
@@ -107,7 +106,7 @@ export default function DeliveryProfile() {
       const position = await new Promise((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, {
           enableHighAccuracy: true,
-          timeout: REQUEST_TIMEOUT_MS,
+          timeout: GEOLOCATION_CAPTURE_TIMEOUT_MS,
           maximumAge: 5000
         });
       });
@@ -155,7 +154,7 @@ export default function DeliveryProfile() {
 
   const handleLogout = async () => {
     try {
-      await api.post(`${apiPrefix}/logout-event`, {}, { timeout: REQUEST_TIMEOUT_MS });
+      await api.post(`${apiPrefix}/logout-event`, {});
     } catch {
       // best effort
     }

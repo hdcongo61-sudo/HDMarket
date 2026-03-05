@@ -39,7 +39,6 @@ const DATE_FILTERS = [
   { key: 'all', label: 'All' }
 ];
 
-const REQUEST_TIMEOUT_MS = 8000;
 const PAGE_SIZE = 12;
 const REVENUE_PAGE_LIMIT = 50;
 const REVENUE_MAX_ITEMS = 200;
@@ -121,7 +120,7 @@ export default function CourierDashboard() {
   const bootstrapQuery = useQuery({
     queryKey: ['delivery', 'bootstrap', apiPrefix],
     queryFn: async () => {
-      const { data } = await api.get(`${apiPrefix}/bootstrap`, { timeout: REQUEST_TIMEOUT_MS });
+      const { data } = await api.get(`${apiPrefix}/bootstrap`);
       return data || {};
     },
     staleTime: 30_000,
@@ -169,7 +168,7 @@ export default function CourierDashboard() {
         deliveryGuyId: previewMode && selectedDeliveryGuyId ? selectedDeliveryGuyId : ''
       });
       const endpoint = useLegacyCourierApi ? `/assignments?${params}` : `/jobs?${params}`;
-      const { data } = await api.get(`${apiPrefix}${endpoint}`, { timeout: REQUEST_TIMEOUT_MS });
+      const { data } = await api.get(`${apiPrefix}${endpoint}`);
       return {
         items: Array.isArray(data?.items) ? data.items : [],
         page: Number(data?.page || pageParam || 1),
@@ -209,7 +208,7 @@ export default function CourierDashboard() {
       if (previewMode && selectedDeliveryGuyId) params.set('deliveryGuyId', selectedDeliveryGuyId);
 
       const endpoint = useLegacyCourierApi ? `/assignments?${params.toString()}` : `/jobs?${params.toString()}`;
-      const { data } = await api.get(`${apiPrefix}${endpoint}`, { timeout: REQUEST_TIMEOUT_MS });
+      const { data } = await api.get(`${apiPrefix}${endpoint}`);
       const chunk = Array.isArray(data?.items) ? data.items : [];
       collected.push(...chunk);
       totalPages = Math.max(1, Number(data?.totalPages || 1));
@@ -238,7 +237,7 @@ export default function CourierDashboard() {
   const statsQuery = useQuery({
     queryKey: ['delivery', 'stats', apiPrefix, previewMode, selectedDeliveryGuyId],
     queryFn: async () => {
-      const { data } = await api.get(`${apiPrefix}/stats`, { timeout: REQUEST_TIMEOUT_MS });
+      const { data } = await api.get(`${apiPrefix}/stats`);
       return data?.stats || null;
     },
     enabled: bootstrapQuery.isSuccess && !previewMode,
@@ -290,7 +289,7 @@ export default function CourierDashboard() {
     mutationFn: async ({ id }) => {
       const endpoint = useLegacyCourierApi ? `/assignments/${id}/accept` : `/jobs/${id}/accept`;
       const payload = previewMode && selectedDeliveryGuyId ? { deliveryGuyId: selectedDeliveryGuyId } : {};
-      const { data } = await api.patch(`${apiPrefix}${endpoint}`, payload, { timeout: REQUEST_TIMEOUT_MS });
+      const { data } = await api.patch(`${apiPrefix}${endpoint}`, payload);
       return data;
     },
     onMutate: async ({ id }) => {
@@ -324,7 +323,7 @@ export default function CourierDashboard() {
         reason,
         ...(previewMode && selectedDeliveryGuyId ? { deliveryGuyId: selectedDeliveryGuyId } : {})
       };
-      const { data } = await api.patch(`${apiPrefix}${endpoint}`, payload, { timeout: REQUEST_TIMEOUT_MS });
+      const { data } = await api.patch(`${apiPrefix}${endpoint}`, payload);
       return data;
     },
     onMutate: async ({ id }) => {
@@ -383,7 +382,7 @@ export default function CourierDashboard() {
 
   const handleLogout = async () => {
     try {
-      await api.post(`${apiPrefix}/logout-event`, {}, { timeout: REQUEST_TIMEOUT_MS });
+      await api.post(`${apiPrefix}/logout-event`, {});
     } catch {
       // best effort event log
     }

@@ -19,8 +19,6 @@ import {
   workflowLabelOf
 } from '../../utils/deliveryUi';
 
-const REQUEST_TIMEOUT_MS = 8000;
-
 const DATE_FILTERS = [
   { key: 'today', label: 'Today' },
   { key: 'all', label: 'All' }
@@ -58,7 +56,7 @@ export default function DeliveryHistory() {
       params.set('page', String(pageParam));
       params.set('limit', String(PAGE_SIZE));
       const endpoint = useLegacyCourierApi ? `/assignments?${params.toString()}` : `/jobs?${params.toString()}`;
-      const { data } = await api.get(`${apiPrefix}${endpoint}`, { timeout: REQUEST_TIMEOUT_MS });
+      const { data } = await api.get(`${apiPrefix}${endpoint}`);
       return {
         items: Array.isArray(data?.items) ? data.items : [],
         page: Number(data?.page || pageParam || 1),

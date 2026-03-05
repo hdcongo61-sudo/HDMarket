@@ -10,7 +10,8 @@ const STORAGE_KEYS = {
   language: 'hd_pref_language',
   currency: 'hd_pref_currency',
   city: 'hd_pref_city',
-  theme: 'hd_pref_theme'
+  theme: 'hd_pref_theme',
+  publicRuntime: 'hd_public_runtime_settings'
 };
 
 const FALLBACK_CURRENCY = {
@@ -282,6 +283,13 @@ export const AppSettingsProvider = ({ children }) => {
       defaultCurrency: publicSettings.defaultCurrency || null
     });
   }, [publicSettings.currencies, publicSettings.defaultCurrency]);
+
+  useEffect(() => {
+    storage.set(STORAGE_KEYS.publicRuntime, publicSettings.runtime || {});
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('hdmarket:runtime-settings-updated'));
+    }
+  }, [publicSettings.runtime]);
 
   useEffect(() => {
     let mounted = true;

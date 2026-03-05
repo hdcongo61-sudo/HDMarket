@@ -51,7 +51,6 @@ const shouldSendForPreference = async (userId, type) => {
 
 const buildPushPayload = ({ notification, actorName, productTitle, shopName }) => {
   const metadata = notification?.metadata || {};
-  const orderId = metadata.orderId ? `#${String(metadata.orderId).slice(-6)}` : '';
   const safeProductTitle = productTitle || metadata.productTitle || '';
   const safeShopName = shopName || metadata.shopName || '';
   const productLabel = safeProductTitle ? ` "${safeProductTitle}"` : '';
@@ -68,6 +67,18 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
     rawSnippet.length > 120
       ? `${rawSnippet.slice(0, 117)}...`
       : rawSnippet;
+  const orderProductTitle = [
+    metadata.orderProductTitle,
+    metadata.productTitle,
+    metadata.primaryProductTitle,
+    Array.isArray(metadata.productTitles) ? metadata.productTitles[0] : ''
+  ]
+    .map((value) => String(value || '').trim())
+    .find(Boolean);
+  const orderSubject = orderProductTitle ? `la commande "${orderProductTitle}"` : 'la commande';
+  const yourOrderSubject = orderProductTitle
+    ? `votre commande "${orderProductTitle}"`
+    : 'votre commande';
 
   let title = 'HDMarket';
   let body = 'Vous avez une nouvelle notification.';
@@ -171,13 +182,13 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       const status = metadata.status;
       if (status === 'confirmed') {
         title = 'Commande confirmée';
-        body = `Votre commande ${orderId} est confirmée.`;
+        body = `${yourOrderSubject} est confirmée.`;
       } else if (status === 'pending') {
         title = 'Commande en attente';
-        body = `Votre commande ${orderId} est en attente de validation.`;
+        body = `${yourOrderSubject} est en attente de validation.`;
       } else {
         title = 'Nouvelle commande';
-        body = `Votre commande ${orderId} est enregistrée.`;
+        body = `${yourOrderSubject} est enregistrée.`;
       }
       break;
     }
@@ -191,44 +202,44 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
           ? ` (${totalValue.toLocaleString('fr-FR')} FCFA)`
           : '';
       title = 'Nouvelle commande';
-      body = `${actorName} a passé une commande ${orderId} pour ${itemsLabel}${totalText}.`;
+      body = `${actorName} a passé ${orderSubject} pour ${itemsLabel}${totalText}.`;
       break;
     }
     case 'order_reminder': {
       const city = metadata.deliveryCity ? ` pour ${metadata.deliveryCity}` : '';
       title = 'Rappel de commande';
-      body = `${actorName} vous rappelle d'accélérer la commande ${orderId}${city}.`;
+      body = `${actorName} vous rappelle d'accélérer ${orderSubject}${city}.`;
       break;
     }
     case 'order_cancellation_window_skipped': {
       title = metadata?.title || 'Délai d’annulation levé';
-      body = metadata?.message || `Le client a autorisé le traitement immédiat de la commande ${orderId}.`;
+      body = metadata?.message || `Le client a autorisé le traitement immédiat de ${orderSubject}.`;
       break;
     }
     case 'order_delivering': {
       const city = metadata.deliveryCity ? ` pour ${metadata.deliveryCity}` : '';
       title = 'Commande en livraison';
-      body = `Votre commande ${orderId} est en cours de livraison${city}.`;
+      body = `${yourOrderSubject} est en cours de livraison${city}.`;
       break;
     }
     case 'order_delivered': {
       if (metadata.deliveryProofSubmitted) {
         title = 'Preuve de livraison reçue';
-        body = `Le vendeur a soumis la preuve pour la commande ${orderId}. Confirmez la livraison.`;
+        body = `Le vendeur a soumis la preuve pour ${orderSubject}. Confirmez la livraison.`;
       } else {
         title = 'Commande livrée';
-        body = `Votre commande ${orderId} a été livrée.`;
+        body = `${yourOrderSubject} a été livrée.`;
       }
       break;
     }
     case 'installment_due_reminder': {
       title = 'Rappel échéance';
-      body = `Votre prochaine tranche pour la commande ${orderId} arrive à échéance dans 3 jours.`;
+      body = `Votre prochaine tranche pour ${yourOrderSubject} arrive à échéance dans 3 jours.`;
       break;
     }
     case 'installment_overdue_warning': {
       title = 'Paiement en retard';
-      body = `La commande ${orderId} contient une tranche en retard. Merci de régulariser rapidement.`;
+      body = `${yourOrderSubject} contient une tranche en retard. Merci de régulariser rapidement.`;
       break;
     }
     case 'installment_payment_submitted': {
@@ -238,27 +249,27 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
           ? ` (${amountValue.toLocaleString('fr-FR')} FCFA)`
           : '';
       title = 'Preuve de tranche reçue';
-      body = `${actorName} a soumis une preuve de paiement${amountText} pour la commande ${orderId}.`;
+      body = `${actorName} a soumis une preuve de paiement${amountText} pour ${orderSubject}.`;
       break;
     }
     case 'installment_payment_validated': {
       title = 'Tranche validée';
-      body = `${actorName} a validé votre paiement de tranche pour la commande ${orderId}.`;
+      body = `${actorName} a validé votre paiement de tranche pour ${yourOrderSubject}.`;
       break;
     }
     case 'installment_sale_confirmation_required': {
       title = 'Confirmation de vente requise';
-      body = `${actorName} a lancé une commande en tranche ${orderId}. Vérifiez la preuve de vente.`;
+      body = `${actorName} a lancé un paiement en tranche pour ${orderSubject}. Vérifiez la preuve de vente.`;
       break;
     }
     case 'installment_sale_confirmed': {
       title = 'Vente confirmée';
-      body = `Votre commande en tranche ${orderId} est confirmée. L’échéancier est actif.`;
+      body = `${yourOrderSubject} en tranche est confirmée. L’échéancier est actif.`;
       break;
     }
     case 'installment_completed': {
       title = 'Paiement terminé';
-      body = `Toutes les tranches de la commande ${orderId} sont réglées.`;
+      body = `Toutes les tranches de ${yourOrderSubject} sont réglées.`;
       break;
     }
     case 'installment_product_suspended': {
@@ -270,24 +281,24 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       const productCount = metadata.productCount || 1;
       const productText = productCount === 1 ? 'produit' : 'produits';
       title = 'Donnez votre avis';
-      body = `Votre commande ${orderId} a été livrée. Partagez votre expérience en notant ${productCount > 1 ? `vos ${productCount} ${productText}` : 'votre produit'} !`;
+      body = `${yourOrderSubject} a été livrée. Partagez votre expérience en notant ${productCount > 1 ? `vos ${productCount} ${productText}` : 'votre produit'} !`;
       break;
     }
     case 'order_address_updated': {
       title = 'Adresse modifiée';
-      body = `L'adresse de livraison de la commande ${orderId} a été modifiée.`;
+      body = `L'adresse de livraison de ${orderSubject} a été modifiée.`;
       break;
     }
     case 'order_delivery_fee_updated': {
       title = 'Frais de livraison modifiés';
-      body = `Le vendeur a modifié les frais de livraison de votre commande ${orderId}. Vérifiez le détail de la commande.`;
+      body = `Le vendeur a modifié les frais de livraison de ${yourOrderSubject}. Vérifiez le détail de la commande.`;
       break;
     }
     case 'order_message': {
       title = 'Nouveau message';
       body = snippet
-        ? `${actorName} - commande ${orderId}: ${snippet}`
-        : `${actorName} vous a envoye un message concernant la commande ${orderId}.`;
+        ? `${actorName} - ${orderSubject}: ${snippet}`
+        : `${actorName} vous a envoye un message concernant ${orderSubject}.`;
       break;
     }
     case 'order_cancelled': {
@@ -299,7 +310,7 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
           : ' Remboursement demandé.'
         : '';
       title = 'Commande annulée';
-      body = `Votre commande ${orderId} a été annulée par le vendeur.${reason}${refundText}`;
+      body = `${yourOrderSubject} a été annulée par le vendeur.${reason}${refundText}`;
       break;
     }
     case 'complaint_resolved': {
@@ -316,27 +327,27 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
     }
     case 'dispute_created': {
       title = 'Nouveau litige';
-      body = `${actorName} a ouvert un litige pour la commande ${orderId}.`;
+      body = `${actorName} a ouvert un litige pour ${orderSubject}.`;
       break;
     }
     case 'dispute_seller_responded': {
       title = 'Réponse du vendeur';
-      body = `${actorName} a répondu au litige de la commande ${orderId}.`;
+      body = `${actorName} a répondu au litige de ${orderSubject}.`;
       break;
     }
     case 'dispute_deadline_near': {
       title = 'Rappel litige';
-      body = `Répondez au litige de la commande ${orderId} avant l’échéance.`;
+      body = `Répondez au litige de ${orderSubject} avant l’échéance.`;
       break;
     }
     case 'dispute_under_review': {
       title = 'Litige en revue';
-      body = `Le litige de la commande ${orderId} est en cours d’arbitrage admin.`;
+      body = `Le litige de ${orderSubject} est en cours d’arbitrage admin.`;
       break;
     }
     case 'dispute_resolved': {
       title = 'Litige résolu';
-      body = `${actorName} a clôturé le litige de la commande ${orderId}.`;
+      body = `${actorName} a clôturé le litige de ${orderSubject}.`;
       break;
     }
     case 'feedback_read': {

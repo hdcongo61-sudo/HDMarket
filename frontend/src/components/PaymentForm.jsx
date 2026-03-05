@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import api, { verifyTransactionCodeAvailability } from '../services/api';
+import api, { isApiTimeoutError, verifyTransactionCodeAvailability } from '../services/api';
 import { useAppSettings } from '../context/AppSettingsContext';
 import {
   CreditCard,
@@ -222,6 +222,19 @@ export default function PaymentForm({ product, onSubmitted }) {
       alert('Paiement soumis. En attente de vérification.');
       if (onSubmitted) await onSubmitted();
     } catch (error) {
+      if (isApiTimeoutError(error)) {
+        alert(
+          'Le réseau est lent. Votre paiement peut déjà être enregistré. Vérifiez le statut avant de renvoyer.'
+        );
+        if (onSubmitted) {
+          try {
+            await onSubmitted();
+          } catch {
+            // no-op
+          }
+        }
+        return;
+      }
       alert(error.response?.data?.message || error.message);
     } finally {
       setLoading(false);

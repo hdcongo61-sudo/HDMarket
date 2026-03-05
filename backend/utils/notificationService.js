@@ -1,4 +1,5 @@
 import Notification from '../models/notificationModel.js';
+import Order from '../models/orderModel.js';
 import { enqueueNotificationJob } from '../queues/notificationQueue.js';
 import { dispatchNotificationPayload } from './notificationDispatcher.js';
 import { initRedis, getRedisClient, isRedisReady } from '../config/redisClient.js';
@@ -70,6 +71,27 @@ const ENTITY_TYPES = new Set([
   'refund',
   'shopConversionRequest'
 ]);
+const ORDER_CONTEXT_NOTIFICATION_TYPES = new Set([
+  'review_reminder',
+  'order_created',
+  'order_received',
+  'order_reminder',
+  'order_cancellation_window_skipped',
+  'order_delivering',
+  'order_delivered',
+  'order_address_updated',
+  'order_delivery_fee_updated',
+  'order_message',
+  'order_cancelled',
+  'installment_due_reminder',
+  'installment_overdue_warning',
+  'installment_payment_submitted',
+  'installment_payment_validated',
+  'installment_sale_confirmation_required',
+  'installment_sale_confirmed',
+  'installment_completed',
+  'installment_product_suspended'
+]);
 
 const sanitizePriority = (priority) => {
   const normalized = String(priority || '').toUpperCase();
@@ -117,6 +139,65 @@ const sanitizeChannels = (channels = []) => {
     )
   );
   return sanitized.length ? sanitized : ['IN_APP', 'PUSH'];
+};
+
+const extractOrderProductTitles = (order = null) => {
+  if (!order) return [];
+  const items = Array.isArray(order.items) ? order.items : [];
+  const titles = items
+    .map((item) => String(item?.snapshot?.title || '').trim())
+    .filter(Boolean);
+  return Array.from(new Set(titles)).slice(0, 5);
+};
+
+const enrichOrderContextMetadata = async ({ type, metadata = {} }) => {
+  const baseMetadata =
+    metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {};
+  if (!ORDER_CONTEXT_NOTIFICATION_TYPES.has(String(type || ''))) {
+    return baseMetadata;
+  }
+
+  const existingProductTitleCandidates = [
+    baseMetadata.orderProductTitle,
+    baseMetadata.productTitle,
+    baseMetadata.primaryProductTitle
+  ]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+  if (existingProductTitleCandidates.length) {
+    return {
+      ...baseMetadata,
+      orderProductTitle: existingProductTitleCandidates[0]
+    };
+  }
+
+  const rawTitles = Array.isArray(baseMetadata.productTitles) ? baseMetadata.productTitles : [];
+  const normalizedTitles = rawTitles
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+  if (normalizedTitles.length) {
+    return {
+      ...baseMetadata,
+      orderProductTitle: normalizedTitles[0],
+      productTitles: normalizedTitles
+    };
+  }
+
+  const orderId = String(baseMetadata.orderId || '').trim();
+  if (!orderId) return baseMetadata;
+
+  try {
+    const order = await Order.findById(orderId).select('items.snapshot.title').lean();
+    const orderTitles = extractOrderProductTitles(order);
+    if (!orderTitles.length) return baseMetadata;
+    return {
+      ...baseMetadata,
+      orderProductTitle: orderTitles[0],
+      productTitles: orderTitles
+    };
+  } catch {
+    return baseMetadata;
+  }
 };
 
 const toDateOrNull = (value) => {
@@ -285,7 +366,8 @@ export const createNotification = async ({
   if (!allowSelf && String(userId) === String(actorId)) return null;
 
   try {
-    const resolvedPriority = resolvePriority({ type, explicitPriority: priority, metadata });
+    const enrichedMetadata = await enrichOrderContextMetadata({ type, metadata });
+    const resolvedPriority = resolvePriority({ type, explicitPriority: priority, metadata: enrichedMetadata });
     const resolvedAudience = sanitizeAudience(audience);
     const resolvedTargetRole = sanitizeTargetRole(targetRole);
     const resolvedActionRequired = Boolean(actionRequired);
@@ -293,22 +375,22 @@ export const createNotification = async ({
     const resolvedActionStatus = sanitizeActionStatus(
       actionStatus ?? (resolvedActionRequired ? 'PENDING' : 'DONE')
     );
-    const resolvedEntityType = sanitizeEntityType(entityType || metadata?.entityType || '');
-    const resolvedEntityId = String(entityId || metadata?.entityId || '').trim();
+    const resolvedEntityType = sanitizeEntityType(entityType || enrichedMetadata?.entityType || '');
+    const resolvedEntityId = String(entityId || enrichedMetadata?.entityId || '').trim();
     const resolvedValidationType = resolveValidationTypeFromPayload({
       type,
-      metadata,
+      metadata: enrichedMetadata,
       validationType
     });
     const resolvedChannels = sanitizeChannels(channels);
-    const normalizedDeepLink = String(deepLink || metadata?.deepLink || '').trim();
+    const normalizedDeepLink = String(deepLink || enrichedMetadata?.deepLink || '').trim();
     const normalizedActionLink = String(actionLink || normalizedDeepLink || '').trim();
-    const normalizedActionDueAt = toDateOrNull(actionDueAt || metadata?.actionDueAt);
-    const normalizedExpiresAt = toDateOrNull(expiresAt || metadata?.expiresAt);
+    const normalizedActionDueAt = toDateOrNull(actionDueAt || enrichedMetadata?.actionDueAt);
+    const normalizedExpiresAt = toDateOrNull(expiresAt || enrichedMetadata?.expiresAt);
 
     let effectivePushEnabled = Boolean(pushEnabled);
     let effectiveSocketEnabled = Boolean(socketEnabled);
-    let effectiveMetadata = metadata || {};
+    let effectiveMetadata = enrichedMetadata || {};
 
     if (
       await isRateLimited({
@@ -329,7 +411,7 @@ export const createNotification = async ({
     const groupingKey = buildGroupingKey({
       userId,
       type,
-      metadata,
+      metadata: enrichedMetadata,
       productId,
       shopId,
       actionRequired: resolvedActionRequired

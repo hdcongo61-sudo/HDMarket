@@ -39,8 +39,6 @@ import {
   workflowStatusOf
 } from '../../utils/deliveryUi';
 
-const REQUEST_TIMEOUT_MS = 8000;
-
 export default function DeliveryAssignmentDetail() {
   const { id } = useParams();
   const location = useLocation();
@@ -87,7 +85,7 @@ export default function DeliveryAssignmentDetail() {
     queryKey: ['delivery', 'detail', apiPrefix, id],
     queryFn: async () => {
       const endpoint = useLegacyCourierApi ? `/assignments/${id}` : `/jobs/${id}`;
-      const { data } = await api.get(`${apiPrefix}${endpoint}`, { timeout: REQUEST_TIMEOUT_MS });
+      const { data } = await api.get(`${apiPrefix}${endpoint}`);
       return data?.item || null;
     },
     enabled: Boolean(id),
@@ -145,8 +143,7 @@ export default function DeliveryAssignmentDetail() {
 
       const endpoint = useLegacyCourierApi ? `/assignments/${id}/proof` : `/jobs/${id}/proof`;
       const { data } = await api.post(`${apiPrefix}${endpoint}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: REQUEST_TIMEOUT_MS
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
       return data;
     },
@@ -170,8 +167,7 @@ export default function DeliveryAssignmentDetail() {
           stage,
           note,
           deliveryPinCode: stage === 'DELIVERED' ? pinCode : undefined
-        },
-        { timeout: REQUEST_TIMEOUT_MS }
+        }
       );
       return data;
     },
@@ -184,7 +180,7 @@ export default function DeliveryAssignmentDetail() {
   const acceptMutation = useMutation({
     mutationFn: async () => {
       const endpoint = useLegacyCourierApi ? `/assignments/${id}/accept` : `/jobs/${id}/accept`;
-      const { data } = await api.patch(`${apiPrefix}${endpoint}`, {}, { timeout: REQUEST_TIMEOUT_MS });
+      const { data } = await api.patch(`${apiPrefix}${endpoint}`, {});
       return data;
     },
     onSuccess: () => {
@@ -195,7 +191,7 @@ export default function DeliveryAssignmentDetail() {
   const rejectMutation = useMutation({
     mutationFn: async ({ reason }) => {
       const endpoint = useLegacyCourierApi ? `/assignments/${id}/reject` : `/jobs/${id}/reject`;
-      const { data } = await api.patch(`${apiPrefix}${endpoint}`, { reason }, { timeout: REQUEST_TIMEOUT_MS });
+      const { data } = await api.patch(`${apiPrefix}${endpoint}`, { reason });
       return data;
     },
     onSuccess: () => {

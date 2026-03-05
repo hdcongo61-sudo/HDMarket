@@ -124,7 +124,7 @@ const getInstallmentSaleStatusClassName = (status) => {
 
 const CLASSIC_ORDER_FLOW = [
   { id: 'pending_payment', label: 'Paiement en attente', description: 'En attente de confirmation du paiement.', icon: Clock, color: 'gray' },
-  { id: 'paid', label: 'Payée', description: 'Commande payée.', icon: CreditCard, color: 'emerald' },
+  { id: 'paid', label: 'Payée', description: 'Paiement soumis par le client. En attente de confirmation.', icon: CreditCard, color: 'emerald' },
   { id: 'ready_for_delivery', label: 'Prête à livrer', description: 'Préparation terminée.', icon: Package, color: 'amber' },
   { id: 'out_for_delivery', label: 'En cours de livraison', description: 'Colis pris en charge.', icon: Truck, color: 'blue' },
   { id: 'delivered', label: 'Livrée', description: 'Livraison signalée.', icon: CheckCircle, color: 'emerald' },
@@ -651,6 +651,14 @@ export default function SellerOrderDetail() {
       (Boolean(order.platformDeliveryRequestId) ||
         String(order.platformDeliveryMode || '').toUpperCase() === 'PLATFORM_DELIVERY') &&
       String(order.platformDeliveryStatus || '').toUpperCase() === 'DELIVERED';
+    if (isPickupOrder && String(order.status || '').toLowerCase() === 'confirmed') {
+      const hasSubmittedPayment = Boolean(
+        Number(order.paidAmount || 0) > 0 ||
+          String(order.paymentTransactionCode || '').trim() ||
+          String(order.paymentName || '').trim()
+      );
+      return hasSubmittedPayment ? 'paid' : 'pending_payment';
+    }
     const map = {
       pending: 'pending_payment',
       ready_for_pickup: 'ready_for_delivery',
