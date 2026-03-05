@@ -59,15 +59,8 @@ export default function NetworkStatusBanner() {
         action: 'Réessayer'
       };
     }
-    if (state.slow) {
-      return {
-        tone: 'border-amber-200 bg-amber-50 text-amber-700',
-        message: 'Connexion lente détectée. Le chargement peut prendre plus de temps.',
-        action: 'Actualiser'
-      };
-    }
     return null;
-  }, [state.offline, state.slow]);
+  }, [state.offline]);
 
   useEffect(() => {
     if (!content) {

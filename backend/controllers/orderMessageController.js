@@ -170,8 +170,9 @@ export const getOrderMessages = asyncHandler(async (req, res) => {
 export const sendOrderMessage = asyncHandler(async (req, res) => {
   const orderId = req.params.orderId || req.params.id;
   const body = req.body ?? {};
-  let { text, recipientId, encryptedText, encryptionData, attachments, voiceMessage } = body;
+  let { text, recipientId, clientMessageId, encryptedText, encryptionData, attachments, voiceMessage } = body;
   const userId = req.user?.id || req.user?._id;
+  const normalizedClientMessageId = String(clientMessageId || '').trim();
 
   // Normalize recipientId (may be object when populated from API)
   if (recipientId != null && typeof recipientId === 'object' && recipientId._id) {
@@ -315,13 +316,55 @@ export const sendOrderMessage = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Vous ne pouvez pas vous envoyer un message.' });
   }
 
+  const toClientPayload = (entry) =>
+    entry
+      ? {
+          ...entry,
+          _id: entry._id,
+          sender: entry.sender
+            ? {
+                _id: entry.sender._id,
+                name: entry.sender.name,
+                email: entry.sender.email,
+                shopName: entry.sender.shopName,
+                profileImage: entry.sender.profileImage || entry.sender.shopLogo || ''
+              }
+            : null,
+          recipient: entry.recipient
+            ? {
+                _id: entry.recipient._id,
+                name: entry.recipient.name,
+                email: entry.recipient.email,
+                shopName: entry.recipient.shopName,
+                profileImage: entry.recipient.profileImage || entry.recipient.shopLogo || ''
+              }
+            : null
+        }
+      : entry;
+
+  if (normalizedClientMessageId) {
+    const existingMessage = await OrderMessage.findOne({
+      order: orderId,
+      sender: userId,
+      'metadata.clientMessageId': normalizedClientMessageId
+    })
+      .populate('sender', 'name email shopName profileImage shopLogo')
+      .populate('recipient', 'name email shopName profileImage shopLogo')
+      .lean();
+
+    if (existingMessage) {
+      return res.status(200).json(toClientPayload(existingMessage));
+    }
+  }
+
   const messageData = {
     order: orderId,
     sender: userId,
     recipient: recipient._id,
     metadata: {
       orderStatus: order.status,
-      orderCode: order.deliveryCode
+      orderCode: order.deliveryCode,
+      ...(normalizedClientMessageId ? { clientMessageId: normalizedClientMessageId } : {})
     }
   };
 
@@ -400,30 +443,7 @@ export const sendOrderMessage = asyncHandler(async (req, res) => {
   });
 
   // Return plain object with explicit _id so both GET and POST have same shape for sender/admin
-  const payload = populated
-    ? {
-        ...populated,
-        _id: populated._id,
-        sender: populated.sender
-          ? {
-              _id: populated.sender._id,
-              name: populated.sender.name,
-              email: populated.sender.email,
-              shopName: populated.sender.shopName,
-              profileImage: populated.sender.profileImage || populated.sender.shopLogo || ''
-            }
-          : null,
-        recipient: populated.recipient
-          ? {
-              _id: populated.recipient._id,
-              name: populated.recipient.name,
-              email: populated.recipient.email,
-              shopName: populated.recipient.shopName,
-              profileImage: populated.recipient.profileImage || populated.recipient.shopLogo || ''
-            }
-          : null
-      }
-    : populated;
+  const payload = toClientPayload(populated);
 
   emitOrderMessageCreated({
     conversationId: orderId,

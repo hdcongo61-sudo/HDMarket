@@ -6,6 +6,7 @@ import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import useIsMobile from '../hooks/useIsMobile';
 import { buildProductPath } from '../utils/links';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
+import useReliableMutation from '../hooks/useReliableMutation';
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('fr-FR');
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
@@ -74,6 +75,7 @@ export default function AdminPayments() {
   const [actionMessage, setActionMessage] = useState('');
   const [actionError, setActionError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [decisionPending, setDecisionPending] = useState({ id: '', type: '' });
   const externalLinkProps = useDesktopExternalLink();
   const isMobileView = useIsMobile(1023);
 
@@ -210,28 +212,72 @@ export default function AdminPayments() {
   const totalPages = Math.max(1, Math.ceil(payments.length / PAYMENTS_PER_PAGE));
 
 
-  const handlePaymentDecision = useCallback(
-    async (id, type) => {
-      if (!id) return;
-      setActionLoading(true);
+  const paymentDecisionMutation = useReliableMutation({
+    mutationFn: async ({ paymentId, decisionType, idempotencyKey }) => {
+      const route = decisionType === 'verify' ? 'verify' : 'reject';
+      const { data } = await api.put(
+        `/payments/admin/${paymentId}/${route}`,
+        {},
+        { headers: { 'Idempotency-Key': idempotencyKey } }
+      );
+      return data;
+    },
+    verifyFn: async ({ paymentId, decisionType }) => {
+      const targetStatus = decisionType === 'verify' ? 'verified' : 'rejected';
+      const { data } = await api.get(`/payments/admin?status=${targetStatus}`, {
+        skipCache: true,
+        skipDedupe: true,
+        headers: { 'x-skip-cache': '1', 'x-skip-dedupe': '1' },
+        timeout: 12_000
+      });
+      const list = Array.isArray(data) ? data : [];
+      return list.some((item) => String(item?._id || item?.id || '') === String(paymentId));
+    },
+    onMutate: ({ paymentId, decisionType }) => {
+      setDecisionPending({ id: String(paymentId || ''), type: String(decisionType || '') });
       setActionMessage('');
       setActionError('');
-      try {
-        await api.put(`/payments/admin/${id}/${type === 'verify' ? 'verify' : 'reject'}`);
-        await Promise.all([loadPayments(), loadStats()]);
-        setActionMessage(type === 'verify' ? 'Paiement validé avec succès.' : 'Paiement rejeté.');
-        
-        // Emit custom event to notify other pages
-        window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
-          detail: { paymentId: id, status: type === 'verify' ? 'verified' : 'rejected' }
-        }));
-      } catch (e) {
-        setActionError(e.response?.data?.message || e.message || 'Action impossible sur ce paiement.');
-      } finally {
-        setActionLoading(false);
-      }
     },
-    [loadPayments, loadStats]
+    onSuccess: async (result, variables) => {
+      await Promise.all([loadPayments(), loadStats()]);
+      const isVerify = variables?.decisionType === 'verify';
+      const statusValue = isVerify ? 'verified' : 'rejected';
+      const successMessage = result?.recovered
+        ? isVerify
+          ? 'Paiement validé (récupéré après délai réseau).'
+          : 'Paiement rejeté (récupéré après délai réseau).'
+        : isVerify
+          ? 'Paiement validé avec succès.'
+          : 'Paiement rejeté.';
+      setActionMessage(successMessage);
+      window.dispatchEvent(
+        new CustomEvent('paymentStatusChanged', {
+          detail: {
+            paymentId: variables?.paymentId || '',
+            status: statusValue
+          }
+        })
+      );
+    },
+    onError: (error) => {
+      setActionError(error?.response?.data?.message || error?.message || 'Action impossible sur ce paiement.');
+    },
+    onSettled: (_data, error) => {
+      if (!error) {
+        setDecisionPending({ id: '', type: '' });
+      }
+    }
+  });
+
+  const handlePaymentDecision = useCallback(
+    async (id, type) => {
+      if (!id || paymentDecisionMutation.isReliablePending) return;
+      await paymentDecisionMutation.mutateAsync({
+        paymentId: id,
+        decisionType: type === 'verify' ? 'verify' : 'reject'
+      });
+    },
+    [paymentDecisionMutation]
   );
 
   const handleDisableListing = useCallback(
@@ -502,6 +548,25 @@ export default function AdminPayments() {
             {actionError}
           </div>
         )}
+        {paymentDecisionMutation.uiPhase === 'stillWorking' && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+            Traitement en cours... merci de patienter.
+          </div>
+        )}
+        {paymentDecisionMutation.uiPhase === 'slow' && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 space-y-2">
+            <p>Réseau lent. Vérification automatique en cours.</p>
+            {decisionPending.id ? (
+              <button
+                type="button"
+                onClick={() => handlePaymentDecision(decisionPending.id, decisionPending.type || 'verify')}
+                className="rounded border border-amber-300 bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900"
+              >
+                Réessayer
+              </button>
+            ) : null}
+          </div>
+        )}
 
         {isMobileView ? (
           <div className="space-y-4">
@@ -619,17 +684,23 @@ export default function AdminPayments() {
                           type="button"
                           onClick={() => handlePaymentDecision(payment._id || payment.id, 'verify')}
                           className="flex-1 min-w-[150px] rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
-                          disabled={actionLoading}
+                          disabled={actionLoading || paymentDecisionMutation.isReliablePending}
                         >
-                          Valider
+                          {paymentDecisionMutation.isReliablePending &&
+                          String(decisionPending.id) === String(payment._id || payment.id)
+                            ? 'Validation...'
+                            : 'Valider'}
                         </button>
                         <button
                           type="button"
                           onClick={() => handlePaymentDecision(payment._id || payment.id, 'reject')}
                           className="flex-1 min-w-[150px] rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
-                          disabled={actionLoading}
+                          disabled={actionLoading || paymentDecisionMutation.isReliablePending}
                         >
-                          Refuser
+                          {paymentDecisionMutation.isReliablePending &&
+                          String(decisionPending.id) === String(payment._id || payment.id)
+                            ? 'Traitement...'
+                            : 'Refuser'}
                         </button>
                       </>
                     ) : (
@@ -759,17 +830,23 @@ export default function AdminPayments() {
                                 type="button"
                                 onClick={() => handlePaymentDecision(payment._id || payment.id, 'verify')}
                                 className="rounded bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
-                                disabled={actionLoading}
+                                disabled={actionLoading || paymentDecisionMutation.isReliablePending}
                               >
-                                Valider
+                                {paymentDecisionMutation.isReliablePending &&
+                                String(decisionPending.id) === String(payment._id || payment.id)
+                                  ? 'Validation...'
+                                  : 'Valider'}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handlePaymentDecision(payment._id || payment.id, 'reject')}
                                 className="rounded bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
-                                disabled={actionLoading}
+                                disabled={actionLoading || paymentDecisionMutation.isReliablePending}
                               >
-                                Refuser
+                                {paymentDecisionMutation.isReliablePending &&
+                                String(decisionPending.id) === String(payment._id || payment.id)
+                                  ? 'Traitement...'
+                                  : 'Refuser'}
                               </button>
                             </>
                           ) : (

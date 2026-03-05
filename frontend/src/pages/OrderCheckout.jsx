@@ -359,6 +359,60 @@ export default function OrderCheckout() {
     };
   }, [isInstallmentProductEligible]);
 
+  const reconcileCheckoutAfterTimeout = async ({
+    transactionCodes = [],
+    expectedCount = 1,
+    paymentType = ''
+  } = {}) => {
+    const normalizedCodes = Array.from(
+      new Set(
+        (Array.isArray(transactionCodes) ? transactionCodes : [])
+          .map((code) => String(code || '').replace(/\D/g, '').trim())
+          .filter((code) => code.length === 10)
+      )
+    );
+    if (!normalizedCodes.length) {
+      return { confirmed: false, matchedCount: 0, expectedCount: Math.max(1, Number(expectedCount || 1)) };
+    }
+
+    try {
+      const { data } = await api.get('/orders', {
+        params: { page: 1, limit: 40 },
+        skipCache: true,
+        skipDedupe: true,
+        timeout: 15_000,
+        headers: { 'x-skip-cache': '1', 'x-skip-dedupe': '1' }
+      });
+      const orders = Array.isArray(data) ? data : data?.items || [];
+      const now = Date.now();
+      const cutoffMs = 20 * 60 * 1000;
+      const matchedCodes = new Set();
+
+      orders.forEach((order) => {
+        const createdAtMs = new Date(order?.createdAt || 0).getTime();
+        if (!Number.isFinite(createdAtMs) || now - createdAtMs > cutoffMs) return;
+        if (paymentType && String(order?.paymentType || '') !== String(paymentType)) return;
+        const orderCode = String(order?.paymentTransactionCode || '').replace(/\D/g, '').trim();
+        if (orderCode && normalizedCodes.includes(orderCode)) {
+          matchedCodes.add(orderCode);
+        }
+      });
+
+      const expected = Math.max(1, Number(expectedCount || normalizedCodes.length || 1));
+      return {
+        confirmed: matchedCodes.size >= Math.min(expected, normalizedCodes.length),
+        matchedCount: matchedCodes.size,
+        expectedCount: expected
+      };
+    } catch {
+      return {
+        confirmed: false,
+        matchedCount: 0,
+        expectedCount: Math.max(1, Number(expectedCount || normalizedCodes.length || 1))
+      };
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!items.length) {
@@ -455,8 +509,22 @@ export default function OrderCheckout() {
         navigate('/orders');
       } catch (err) {
         if (isApiTimeoutError(err)) {
+          const reconciliation = await reconcileCheckoutAfterTimeout({
+            transactionCodes: [cleanTransactionCode],
+            expectedCount: 1,
+            paymentType: 'installment'
+          });
+          if (reconciliation.confirmed) {
+            setOrderConfirmed(true);
+            await clearCart();
+            showToast('Commande confirmée (vérification automatique après délai réseau).', {
+              variant: 'success'
+            });
+            navigate('/orders');
+            return;
+          }
           const timeoutMessage =
-            'Le réseau est lent. Vérifiez vos commandes: la confirmation peut déjà être enregistrée.';
+            'Réseau lent. Vérifiez vos commandes: la confirmation peut déjà être enregistrée.';
           setError(timeoutMessage);
           showToast(timeoutMessage, { variant: 'warning' });
           navigate('/orders');
@@ -564,8 +632,21 @@ export default function OrderCheckout() {
       navigate('/orders');
     } catch (err) {
       if (isApiTimeoutError(err)) {
+        const reconciliation = await reconcileCheckoutAfterTimeout({
+          transactionCodes: normalizedTransactionCodes,
+          expectedCount: sellerGroups.length || normalizedTransactionCodes.length || 1
+        });
+        if (reconciliation.confirmed) {
+          setOrderConfirmed(true);
+          await clearCart();
+          showToast('Commande confirmée (vérification automatique après délai réseau).', {
+            variant: 'success'
+          });
+          navigate('/orders');
+          return;
+        }
         const timeoutMessage =
-          'Le réseau est lent. Vérifiez vos commandes: la confirmation peut déjà être enregistrée.';
+          'Réseau lent. Vérifiez vos commandes: la confirmation peut déjà être enregistrée.';
         setError(timeoutMessage);
         showToast(timeoutMessage, { variant: 'warning' });
         navigate('/orders');

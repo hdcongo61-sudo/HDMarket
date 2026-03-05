@@ -43,6 +43,7 @@ import { encrypt, decrypt, getSharedSecret } from '../utils/chatEncryption.js';
 import { orderChatKeys } from '../queries/orderChatKeys';
 import { fetchOrderMessagePage } from '../queries/orderChatApi';
 import BaseModal from './modals/BaseModal';
+import useReliableMutation from '../hooks/useReliableMutation';
 
 const formatTimestamp = (value) => {
   const date = new Date(value);
@@ -412,10 +413,32 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
     });
   }, [messages, searchQuery]);
 
-  const sendMessageMutation = useMutation({
-    mutationFn: async ({ payload }) => {
-      const { data } = await api.post(`/orders/${orderId}/messages`, payload);
+  const sendMessageMutation = useReliableMutation({
+    mutationFn: async ({ payload, idempotencyKey }) => {
+      const { data } = await api.post(`/orders/${orderId}/messages`, payload, {
+        headers: {
+          'Idempotency-Key': idempotencyKey
+        }
+      });
       return normalizeMessage({ ...data, createdAt: data?.createdAt ?? new Date().toISOString() });
+    },
+    verifyFn: async ({ clientMessageId }) => {
+      if (!orderId || !clientMessageId) return false;
+      const { data } = await api.get(`/orders/${orderId}/messages`, {
+        params: {
+          withMeta: true,
+          limit: 25
+        },
+        skipCache: true,
+        skipDedupe: true,
+        headers: { 'x-skip-cache': '1', 'x-skip-dedupe': '1' },
+        timeout: 12_000
+      });
+      const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+      const matched = items.find(
+        (item) => String(item?.metadata?.clientMessageId || '') === String(clientMessageId)
+      );
+      return matched ? normalizeMessage(matched) : false;
     },
     onMutate: async ({ optimisticMessage }) => {
       await queryClient.cancelQueries({ queryKey: messageQueryKey });
@@ -442,14 +465,20 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
       setError(full);
       setMessageText(variables?.rawText || '');
     },
-    onSuccess: (serverMessage, _variables, context) => {
+    onSuccess: ({ data: serverMessage, recovered }, _variables, context) => {
       queryClient.setQueryData(messageQueryKey, (old) => {
         let next = old;
         if (context?.tempId) {
           next = removeMessageInPages(next, context.tempId);
         }
-        return upsertMessageInPages(next, serverMessage);
+        if (serverMessage?._id) {
+          return upsertMessageInPages(next, serverMessage);
+        }
+        return next;
       });
+      if (recovered && !serverMessage?._id) {
+        queryClient.invalidateQueries({ queryKey: messageQueryKey });
+      }
       setAttachments([]);
       shouldAutoScrollRef.current = true;
       scrollToBottom();
@@ -460,7 +489,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
     }
   });
 
-  const sending = sendMessageMutation.isPending;
+  const sending = sendMessageMutation.isReliablePending;
 
   const sendMessage = async (e, messageAttachments = null, voiceMsg = null, overrideText = null) => {
     e?.preventDefault();
@@ -512,6 +541,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
       recipientId = toId(order?.customer?._id ?? order?.customer);
     }
 
+    const clientMessageId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const optimisticMessage = {
       _id: `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       text: encryptionEnabled && encryptedText ? '[Message chiffré]' : text,
@@ -520,6 +550,9 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
       createdAt: new Date().toISOString(),
       pending: true,
       isDecrypted: !encryptionEnabled,
+      metadata: {
+        clientMessageId
+      },
       attachments: messageAttachments?.length
         ? messageAttachments
         : attachments.length
@@ -539,7 +572,8 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
       encryptionData: encryptionEnabled && encryptionData ? encryptionData : null,
       attachments: messageAttachments?.length ? messageAttachments : attachments.length ? attachments : null,
       voiceMessage: voiceMsg || null,
-      recipientId
+      recipientId,
+      clientMessageId
     };
     if (payload.text == null && !payload.encryptedText && !payload.attachments && !payload.voiceMessage) {
       payload.text = text?.trim() || '[Message chiffré]';
@@ -554,7 +588,8 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
       .mutateAsync({
         payload,
         optimisticMessage,
-        rawText: text
+        rawText: text,
+        clientMessageId
       })
       .catch(() => {});
   };
@@ -1728,6 +1763,22 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
         )}
 
         {/* Error banner */}
+        {sendMessageMutation.uiPhase === 'stillWorking' && !error && (
+          <div className="flex-shrink-0 px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-200 dark:border-amber-800 flex items-center gap-2">
+            <Loader2 className="w-4 h-4 text-amber-600 dark:text-amber-300 flex-shrink-0 animate-spin" />
+            <p className="text-sm text-amber-700 dark:text-amber-300 flex-1 min-w-0">
+              Envoi en cours... merci de patienter.
+            </p>
+          </div>
+        )}
+        {sendMessageMutation.uiPhase === 'slow' && !error && (
+          <div className="flex-shrink-0 px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-200 dark:border-amber-800 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-300 flex-shrink-0" />
+            <p className="text-sm text-amber-700 dark:text-amber-300 flex-1 min-w-0">
+              Réseau lent. Vérification automatique en cours.
+            </p>
+          </div>
+        )}
         {error && (
           <div className="flex-shrink-0 px-4 py-2.5 bg-red-50 dark:bg-red-900/20 border-t border-red-200 dark:border-red-800 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />

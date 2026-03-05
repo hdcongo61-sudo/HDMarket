@@ -2,6 +2,7 @@ import express from 'express';
 import { protect } from '../middlewares/authMiddleware.js';
 import { requireAnyPermission, requireRole } from '../middlewares/roleMiddleware.js';
 import { validate, schemas } from '../middlewares/validate.js';
+import { idempotencyMiddleware } from '../middlewares/idempotencyMiddleware.js';
 import { cacheMiddleware } from '../utils/cache.js';
 import {
   adminCreateOrder,
@@ -100,11 +101,17 @@ adminRouter.post('/:id/reminder', validate(schemas.idParam, 'params'), adminSend
 
 router.use('/admin', adminRouter);
 
-router.post('/checkout', validate(schemas.orderCheckout), userCheckoutOrder);
 router.post(
   '/installment/checkout',
+  idempotencyMiddleware(),
   validate(schemas.installmentCheckout),
   checkoutInstallmentOrder
+);
+router.post(
+  '/checkout',
+  idempotencyMiddleware(),
+  validate(schemas.orderCheckout),
+  userCheckoutOrder
 );
 router.get('/installment/eligibility', getInstallmentEligibility);
 router.post(
@@ -172,6 +179,7 @@ router.post(
 );
 router.post(
   '/:id/confirm-delivery',
+  idempotencyMiddleware(),
   validate(schemas.idParam, 'params'),
   validate(schemas.deliveryConfirm),
   clientConfirmDelivery
@@ -191,6 +199,7 @@ router.post(
 );
 router.patch(
   '/:id/status',
+  idempotencyMiddleware(),
   validate(schemas.idParam, 'params'),
   validate(schemas.orderStatusUpdate),
   userUpdateOrderStatus
@@ -203,17 +212,20 @@ router.patch(
 );
 router.post(
   '/:id/skip-cancellation-window',
+  idempotencyMiddleware(),
   validate(schemas.idParam, 'params'),
   userSkipCancellationWindow
 );
 router.patch(
   '/seller/:id/status',
+  idempotencyMiddleware(),
   validate(schemas.idParam, 'params'),
   validate(schemas.sellerOrderStatusUpdate),
   sellerUpdateOrderStatus
 );
 router.post(
   '/seller/:id/cancel',
+  idempotencyMiddleware(),
   validate(schemas.idParam, 'params'),
   validate(schemas.sellerCancelOrder),
   sellerCancelOrder
@@ -232,13 +244,19 @@ router.get('/:id/review-reminder-check', validate(schemas.idParam, 'params'), ch
 router.get('/:orderId/messages', getOrderMessages);
 router.post(
   '/:orderId/messages',
+  idempotencyMiddleware(),
   validate(schemas.orderMessage),
   sendOrderMessage
 );
-router.patch('/:orderId/messages/:messageId', validate(schemas.orderMessageUpdate, 'body'), updateOrderMessage);
-router.delete('/:orderId/messages/:messageId', deleteOrderMessage);
+router.patch(
+  '/:orderId/messages/:messageId',
+  idempotencyMiddleware(),
+  validate(schemas.orderMessageUpdate, 'body'),
+  updateOrderMessage
+);
+router.delete('/:orderId/messages/:messageId', idempotencyMiddleware(), deleteOrderMessage);
 router.post('/messages/upload', chatUpload.single('file'), uploadOrderMessageAttachment);
-router.post('/messages/:messageId/reactions', addOrderMessageReaction);
-router.delete('/messages/:messageId/reactions', removeOrderMessageReaction);
+router.post('/messages/:messageId/reactions', idempotencyMiddleware(), addOrderMessageReaction);
+router.delete('/messages/:messageId/reactions', idempotencyMiddleware(), removeOrderMessageReaction);
 
 export default router;

@@ -7,12 +7,19 @@ const DEFAULT_SLOW_REQUEST_THRESHOLD_MS = 2_000;
 const DEFAULT_CHECKOUT_REQUEST_TIMEOUT_MS = 60_000;
 const DEFAULT_PAYMENT_REQUEST_TIMEOUT_MS = 60_000;
 const RUNTIME_REFRESH_INTERVAL_MS = 15_000;
+const MIN_REQUEST_TIMEOUT_MS = 15_000;
+const MIN_CHECKOUT_REQUEST_TIMEOUT_MS = 45_000;
+const MIN_PAYMENT_REQUEST_TIMEOUT_MS = 45_000;
+const MIN_UPLOAD_REQUEST_TIMEOUT_MS = 60_000;
+const MIN_SLOW_REQUEST_THRESHOLD_MS = 500;
 
 const parsePositiveInt = (value, fallback) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
   return Math.round(parsed);
 };
+
+const clampMin = (value, min) => Math.max(Number(min || 0), Number(value || 0));
 
 const RUNTIME_KEYS = Object.freeze({
   requestTimeoutMs: 'api_request_timeout_ms',
@@ -53,24 +60,29 @@ const CHECKOUT_TIMEOUT_RULES = [
 const PAYMENT_TIMEOUT_RULES = [{ method: 'POST', path: '/api/payments' }];
 
 const normalizeReliabilityConfig = (raw = {}) => ({
-  requestTimeoutMs: parsePositiveInt(raw.requestTimeoutMs, ENV_DEFAULT_CONFIG.requestTimeoutMs),
-  checkoutRequestTimeoutMs: parsePositiveInt(
-    raw.checkoutRequestTimeoutMs,
-    ENV_DEFAULT_CONFIG.checkoutRequestTimeoutMs
+  requestTimeoutMs: clampMin(
+    parsePositiveInt(raw.requestTimeoutMs, ENV_DEFAULT_CONFIG.requestTimeoutMs),
+    MIN_REQUEST_TIMEOUT_MS
   ),
-  paymentRequestTimeoutMs: parsePositiveInt(
-    raw.paymentRequestTimeoutMs,
-    ENV_DEFAULT_CONFIG.paymentRequestTimeoutMs
+  checkoutRequestTimeoutMs: clampMin(
+    parsePositiveInt(raw.checkoutRequestTimeoutMs, ENV_DEFAULT_CONFIG.checkoutRequestTimeoutMs),
+    MIN_CHECKOUT_REQUEST_TIMEOUT_MS
   ),
-  uploadRequestTimeoutMs: parsePositiveInt(
-    raw.uploadRequestTimeoutMs,
-    ENV_DEFAULT_CONFIG.uploadRequestTimeoutMs
+  paymentRequestTimeoutMs: clampMin(
+    parsePositiveInt(raw.paymentRequestTimeoutMs, ENV_DEFAULT_CONFIG.paymentRequestTimeoutMs),
+    MIN_PAYMENT_REQUEST_TIMEOUT_MS
   ),
-  slowRequestThresholdMs: parsePositiveInt(
-    raw.slowRequestThresholdMs,
-    ENV_DEFAULT_CONFIG.slowRequestThresholdMs
+  uploadRequestTimeoutMs: clampMin(
+    parsePositiveInt(raw.uploadRequestTimeoutMs, ENV_DEFAULT_CONFIG.uploadRequestTimeoutMs),
+    MIN_UPLOAD_REQUEST_TIMEOUT_MS
+  ),
+  slowRequestThresholdMs: clampMin(
+    parsePositiveInt(raw.slowRequestThresholdMs, ENV_DEFAULT_CONFIG.slowRequestThresholdMs),
+    MIN_SLOW_REQUEST_THRESHOLD_MS
   )
 });
+
+activeReliabilityConfig = normalizeReliabilityConfig(activeReliabilityConfig);
 
 const fetchRuntimeReliabilityConfig = async () => {
   const [

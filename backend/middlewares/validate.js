@@ -667,6 +667,7 @@ export const schemas = {
   orderMessage: Joi.object({
     text: Joi.string().trim().min(0).max(1000).allow('', null).optional(),
     recipientId: Joi.any().optional().allow(null, ''),
+    clientMessageId: Joi.string().trim().min(8).max(120).allow('', null).optional(),
     encryptedText: Joi.string().allow('', null).optional(),
     encryptionData: Joi.object({
       iv: Joi.string(),

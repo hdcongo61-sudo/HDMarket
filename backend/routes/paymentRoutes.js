@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { protect } from '../middlewares/authMiddleware.js';
 import { requirePaymentVerification } from '../middlewares/roleMiddleware.js';
 import { validate, schemas } from '../middlewares/validate.js';
+import { idempotencyMiddleware } from '../middlewares/idempotencyMiddleware.js';
 import {
   createPayment,
   getMyPayments,
@@ -52,12 +53,31 @@ router.post(
   validate(schemas.transactionCodeVerify),
   verifyTransactionCodeAvailability
 );
-router.post('/', protect, paymentSubmissionLimiter, validate(schemas.paymentCreate), createPayment);
+router.post(
+  '/',
+  protect,
+  paymentSubmissionLimiter,
+  idempotencyMiddleware(),
+  validate(schemas.paymentCreate),
+  createPayment
+);
 router.get('/me', protect, getMyPayments);
 
 // Payment verification - accessible by admin OR users with canVerifyPayments permission
 router.get('/admin', protect, requirePaymentVerification, listPaymentsAdmin);
-router.put('/admin/:id/verify', protect, requirePaymentVerification, verifyPayment);
-router.put('/admin/:id/reject', protect, requirePaymentVerification, rejectPayment);
+router.put(
+  '/admin/:id/verify',
+  protect,
+  requirePaymentVerification,
+  idempotencyMiddleware(),
+  verifyPayment
+);
+router.put(
+  '/admin/:id/reject',
+  protect,
+  requirePaymentVerification,
+  idempotencyMiddleware(),
+  rejectPayment
+);
 
 export default router;

@@ -118,6 +118,33 @@ export default function PaymentForm({ product, onSubmitted }) {
     }
   }, [normalizedPromoCode, promoState.status, expected]);
 
+  const reconcilePaymentAfterTimeout = async ({ productId, transactionNumber }) => {
+    const normalizedTransaction = String(transactionNumber || '').replace(/\D/g, '').trim();
+    if (!productId) return false;
+    try {
+      const { data } = await api.get('/payments/me', {
+        skipCache: true,
+        skipDedupe: true,
+        timeout: 15_000,
+        headers: { 'x-skip-cache': '1', 'x-skip-dedupe': '1' }
+      });
+      const payments = Array.isArray(data) ? data : [];
+      const now = Date.now();
+      const cutoffMs = 20 * 60 * 1000;
+      return payments.some((payment) => {
+        const paymentProductId = String(payment?.product?._id || payment?.product || '').trim();
+        if (paymentProductId !== String(productId)) return false;
+        const createdAtMs = new Date(payment?.createdAt || 0).getTime();
+        if (Number.isFinite(createdAtMs) && now - createdAtMs > cutoffMs) return false;
+        if (!normalizedTransaction) return true;
+        const paymentTx = String(payment?.transactionNumber || '').replace(/\D/g, '').trim();
+        return paymentTx === normalizedTransaction;
+      });
+    } catch {
+      return false;
+    }
+  };
+
   const paymentStatus = product.payment?.status || null;
   const hasPayment = Boolean(product.payment);
 
@@ -223,9 +250,17 @@ export default function PaymentForm({ product, onSubmitted }) {
       if (onSubmitted) await onSubmitted();
     } catch (error) {
       if (isApiTimeoutError(error)) {
-        alert(
-          'Le réseau est lent. Votre paiement peut déjà être enregistré. Vérifiez le statut avant de renvoyer.'
-        );
+        const alreadyRecorded = await reconcilePaymentAfterTimeout({
+          productId: product?._id,
+          transactionNumber: digitsOnly
+        });
+        if (alreadyRecorded) {
+          alert('Paiement enregistré (vérifié automatiquement). En attente de validation.');
+        } else {
+          alert(
+            'Le réseau est lent. Votre paiement peut déjà être enregistré. Vérifiez le statut avant de renvoyer.'
+          );
+        }
         if (onSubmitted) {
           try {
             await onSubmitted();

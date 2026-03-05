@@ -26,6 +26,12 @@ const FRONTEND_TIMEOUT_RUNTIME_KEYS = Object.freeze({
   payment: 'frontend_payment_submit_timeout_ms',
   courier: 'frontend_courier_request_timeout_ms'
 });
+const FRONTEND_TIMEOUT_PROFILE_MIN_MS = Object.freeze({
+  default: 15_000,
+  checkout: 45_000,
+  payment: 45_000,
+  courier: 20_000
+});
 
 const CHECKOUT_TIMEOUT_RULES = [
   { method: 'POST', path: '/orders/checkout' },
@@ -38,6 +44,7 @@ const API_TIMEOUT_MS = API_TIMEOUT_DEFAULTS.default;
 const REQUEST_RETRY_MAX = 1;
 const REQUEST_RETRY_DELAY_MS = 2000;
 const RETRYABLE_METHODS = new Set(['get', 'head', 'options']);
+const MUTATION_METHODS = new Set(['post', 'put', 'patch', 'delete']);
 
 let timeoutRuntimeCache = null;
 let timeoutRuntimeCacheExpiry = 0;
@@ -197,8 +204,9 @@ const resolveDynamicRequestTimeoutMs = (config = {}, runtimeConfig = {}) => {
   const profile = resolveTimeoutProfile(config);
   const runtimeKey = FRONTEND_TIMEOUT_RUNTIME_KEYS[profile] || FRONTEND_TIMEOUT_RUNTIME_KEYS.default;
   const fallback = API_TIMEOUT_DEFAULTS[profile] || API_TIMEOUT_DEFAULTS.default;
+  const min = FRONTEND_TIMEOUT_PROFILE_MIN_MS[profile] || FRONTEND_TIMEOUT_PROFILE_MIN_MS.default;
   const rawValue = runtimeConfig?.[runtimeKey];
-  return parsePositiveInt(rawValue, fallback, 1000, 300000);
+  return parsePositiveInt(rawValue, fallback, min, 300000);
 };
 
 const toStableParams = (params) => {
@@ -591,7 +599,10 @@ api.interceptors.response.use(
     removePendingController(config.__requestKey);
     const retryCount = config.__retryCount ?? 0;
     const method = String(config.method || 'get').toLowerCase();
+    const isMutationMethod = MUTATION_METHODS.has(method);
     const isNetworkError = !error.response;
+    const networkChanged =
+      typeof navigator !== 'undefined' && navigator.onLine === false;
     const isTimeoutError =
       error.code === 'ECONNABORTED' ||
       error.name === 'AbortError' ||
@@ -602,7 +613,10 @@ api.interceptors.response.use(
 
     if (isTimeoutError) {
       error.isTimeout = true;
-      error.userMessage = 'Le serveur met trop de temps à répondre. Réessayez.';
+      error.userMessage = isMutationMethod
+        ? 'Réseau lent. L’action peut déjà être enregistrée. Vérifiez avant de renvoyer.'
+        : 'Le serveur met trop de temps à répondre. Réessayez.';
+      error.possiblyCommitted = Boolean(isMutationMethod);
       if (!error.response) {
         error.message = error.userMessage;
       }

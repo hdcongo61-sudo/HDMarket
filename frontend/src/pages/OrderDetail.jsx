@@ -40,7 +40,9 @@ import AuthContext from '../context/AuthContext';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { getPickupShopAddress, isPickupOrder } from '../utils/pickupAddress';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { useToast } from '../context/ToastContext';
 import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
+import useReliableMutation from '../hooks/useReliableMutation';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
@@ -266,6 +268,7 @@ export default function OrderDetail() {
   const { addItem } = React.useContext(CartContext);
   const externalLinkProps = useDesktopExternalLink();
   const { isFeatureEnabled } = useAppSettings();
+  const { showToast } = useToast();
   const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
     defaultValue: true
   });
@@ -279,7 +282,6 @@ export default function OrderDetail() {
   const [editAddressModalOpen, setEditAddressModalOpen] = useState(false);
   const [installmentProofForms, setInstallmentProofForms] = useState({});
   const [installmentUploadIndex, setInstallmentUploadIndex] = useState(-1);
-  const [confirmDeliveryLoading, setConfirmDeliveryLoading] = useState(false);
   const [suggestionsProducts, setSuggestionsProducts] = useState([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const isMobile = useIsMobile();
@@ -460,18 +462,55 @@ export default function OrderDetail() {
     }
   };
 
-  const handleConfirmDelivery = async () => {
-    if (!order || confirmDeliveryLoading) return;
-    setConfirmDeliveryLoading(true);
-    try {
-      const { data } = await api.post(`/orders/${order._id}/confirm-delivery`, { confirm: true });
-      setOrder(data?.order || data);
-      alert('Livraison confirmée. La commande est terminée.');
-    } catch (err) {
-      alert(err.response?.data?.message || 'Impossible de confirmer la livraison.');
-    } finally {
-      setConfirmDeliveryLoading(false);
+  const confirmDeliveryMutation = useReliableMutation({
+    mutationFn: async ({ orderId, idempotencyKey }) => {
+      const { data } = await api.post(
+        `/orders/${orderId}/confirm-delivery`,
+        { confirm: true },
+        {
+          headers: {
+            'Idempotency-Key': idempotencyKey
+          }
+        }
+      );
+      return data;
+    },
+    verifyFn: async ({ orderId }) => {
+      if (!orderId) return false;
+      const { data } = await api.get(`/orders/detail/${orderId}`, {
+        skipCache: true,
+        skipDedupe: true,
+        headers: { 'x-skip-cache': '1', 'x-skip-dedupe': '1' },
+        timeout: 12_000
+      });
+      const status = String(data?.status || '').toLowerCase();
+      return ['confirmed_by_client', 'completed'].includes(status);
+    },
+    onSuccess: async (result) => {
+      const payload = result?.data;
+      if (payload && typeof payload === 'object') {
+        setOrder(payload?.order || payload);
+      } else {
+        await loadOrder();
+      }
+      const successMessage = result?.recovered
+        ? 'Livraison confirmée (récupérée après délai réseau).'
+        : 'Livraison confirmée. La commande est terminée.';
+      showToast(successMessage, { variant: 'success' });
+    },
+    onError: (error) => {
+      showToast(error?.response?.data?.message || 'Impossible de confirmer la livraison.', {
+        variant: 'error'
+      });
+    },
+    onSettled: () => {
+      window.dispatchEvent(new Event('hdmarket:orders-refresh'));
     }
+  });
+
+  const handleConfirmDelivery = async () => {
+    if (!order || confirmDeliveryMutation.isReliablePending) return;
+    await confirmDeliveryMutation.mutateAsync({ orderId: order._id });
   };
 
   const handleReorder = async () => {
@@ -864,21 +903,41 @@ export default function OrderDetail() {
                   </div>
                 )}
                 {!deliveryConfirmationDone && (
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={handleConfirmDelivery}
-                      disabled={confirmDeliveryLoading}
-                      className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
-                    >
-                      {confirmDeliveryLoading ? 'Confirmation...' : 'Confirmer la livraison'}
-                    </button>
-                    <Link
-                      to={`/reclamations?orderId=${order._id}`}
-                      className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100"
-                    >
-                      Ouvrir un litige
-                    </Link>
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={handleConfirmDelivery}
+                        disabled={confirmDeliveryMutation.isReliablePending}
+                        className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                      >
+                        {confirmDeliveryMutation.isReliablePending
+                          ? 'Confirmation en cours...'
+                          : 'Confirmer la livraison'}
+                      </button>
+                      <Link
+                        to={`/reclamations?orderId=${order._id}`}
+                        className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100"
+                      >
+                        Ouvrir un litige
+                      </Link>
+                    </div>
+                    {confirmDeliveryMutation.uiPhase === 'stillWorking' && (
+                      <p className="text-xs text-amber-700">
+                        Traitement en cours... merci de patienter.
+                      </p>
+                    )}
+                    {confirmDeliveryMutation.uiPhase === 'slow' && (
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-amber-700">
+                        <span>Réseau lent. Vérification automatique en cours.</span>
+                        <Link
+                          to="/orders"
+                          className="rounded border border-amber-300 bg-amber-50 px-2 py-1 font-semibold text-amber-800"
+                        >
+                          Voir le statut
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
