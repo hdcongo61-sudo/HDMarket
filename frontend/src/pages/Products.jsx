@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { SlidersHorizontal } from 'lucide-react';
-import api from '../services/api';
+import api, { isApiCanceledError } from '../services/api';
 import ProductCard from '../components/ProductCard';
 import { getCategoryMeta } from '../data/categories';
 import { recordProductView } from '../utils/recentViews';
@@ -86,6 +86,9 @@ const fetchProducts = useCallback(async () => {
       setItems((prev) => (isMobileView && page > 1 ? [...prev, ...fetchedItems] : fetchedItems));
       setTotalPages(Math.max(1, Number(paginationMeta.pages) || 1));
     } catch (e) {
+      if (isApiCanceledError(e)) {
+        return;
+      }
       const message = e.response?.data?.message || e.message || 'Impossible de charger les produits.';
       if (isMobileView && page > 1) {
         setLoadMoreError(message);

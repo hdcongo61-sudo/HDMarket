@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import api from '../services/api';
+import api, { isApiCanceledError } from '../services/api';
 import ProductCard from '../components/ProductCard';
 import categoryGroups, { getCategoryMeta } from '../data/categories';
 import { ChevronRight, ArrowLeft } from 'lucide-react';
@@ -119,6 +119,7 @@ export default function CategoryProducts() {
         setTotalPages(Math.max(1, Number(pagination.pages) || 1));
       } catch (e) {
         if (controller.signal.aborted) return;
+        if (isApiCanceledError(e)) return;
         const message =
           e.response?.data?.message || e.message || 'Impossible de charger les produits de cette catégorie.';
         if (isMobileView && page > 1) {

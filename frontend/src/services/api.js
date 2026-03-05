@@ -119,6 +119,25 @@ const resolveRequestId = (error) =>
 const resolveApiErrorMessage = (error, fallback = 'Une erreur est survenue.') =>
   error?.response?.data?.message || error?.userMessage || error?.message || fallback;
 
+const resolveAbortReason = (error, config = {}) => {
+  const signalReason = config?.__abortController?.signal?.reason;
+  if (signalReason != null && String(signalReason).trim()) {
+    return String(signalReason).trim();
+  }
+  if (error?.cause != null && String(error.cause).trim()) {
+    return String(error.cause).trim();
+  }
+  return '';
+};
+
+const isCanceledRequestError = (error, config = {}) =>
+  Boolean(
+    error?.isCanceled ||
+      error?.code === 'ERR_CANCELED' ||
+      error?.name === 'CanceledError' ||
+      (error?.name === 'AbortError' && Boolean(config?.__abortController))
+  );
+
 const clearAbortTimer = (config = {}) => {
   if (!config.__abortTimer) return;
   clearTimeout(config.__abortTimer);
@@ -600,16 +619,24 @@ api.interceptors.response.use(
     const retryCount = config.__retryCount ?? 0;
     const method = String(config.method || 'get').toLowerCase();
     const isMutationMethod = MUTATION_METHODS.has(method);
-    const isNetworkError = !error.response;
+    const abortReason = resolveAbortReason(error, config);
+    const isCanceledRequest = isCanceledRequestError(error, config);
+    const isNetworkError = !error.response && !isCanceledRequest;
     const networkChanged =
       typeof navigator !== 'undefined' && navigator.onLine === false;
+    const message = String(error?.message || '');
     const isTimeoutError =
       error.code === 'ECONNABORTED' ||
-      error.name === 'AbortError' ||
-      (error.code === 'ERR_CANCELED' && Boolean(config.__abortController)) ||
-      /timeout/i.test(String(error.message || ''));
+      (isCanceledRequest && abortReason === 'REQUEST_ABORT_TIMEOUT') ||
+      (!isCanceledRequest && (error.name === 'AbortError' || /timeout/i.test(message)));
     const isRetryableStatus = [502, 503, 504].includes(Number(error?.response?.status || 0));
     error.requestDurationMs = Math.max(0, Date.now() - Number(config.__requestStartAt || Date.now()));
+    if (isCanceledRequest) {
+      error.isCanceled = true;
+      if (abortReason) {
+        error.abortReason = abortReason;
+      }
+    }
 
     if (isTimeoutError) {
       error.isTimeout = true;
@@ -641,7 +668,8 @@ api.interceptors.response.use(
     }
 
     const canRetry = RETRYABLE_METHODS.has(method);
-    const shouldRetry = (isNetworkError || isRetryableStatus) && canRetry && retryCount < REQUEST_RETRY_MAX;
+    const shouldRetry =
+      !isCanceledRequest && (isNetworkError || isRetryableStatus) && canRetry && retryCount < REQUEST_RETRY_MAX;
 
     if (shouldRetry) {
       config.__retryCount = retryCount + 1;
@@ -716,6 +744,14 @@ export const isApiTimeoutError = (error) =>
       error?.code === 'ECONNABORTED' ||
       error?.name === 'AbortError' ||
       /timeout/i.test(String(error?.message || ''))
+  );
+
+export const isApiCanceledError = (error) =>
+  Boolean(
+    error?.isCanceled ||
+      error?.code === 'ERR_CANCELED' ||
+      error?.name === 'CanceledError' ||
+      error?.abortReason
   );
 
 export const getApiErrorMessage = (error, fallback = 'Une erreur est survenue.') =>

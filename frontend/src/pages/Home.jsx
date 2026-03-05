@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import api from "../services/api";
+import api, { isApiCanceledError } from "../services/api";
 import ProductCard from "../components/ProductCard";
 import MobileSplash from "../components/MobileSplash";
 import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
@@ -172,13 +172,15 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
       setTotalPages(pages);
       setTotalProducts(total);
     } catch (error) {
+      if (isApiCanceledError(error)) {
+        return;
+      }
       const slowNetworkMessage = 'Network is slow, please retry.';
       if (isMobileView && page > 1) {
         setLoadMoreError(slowNetworkMessage);
       } else {
         setProductsError(slowNetworkMessage);
       }
-      console.error("Erreur chargement produits:", error);
     } finally {
       setLoading(false);
     }
