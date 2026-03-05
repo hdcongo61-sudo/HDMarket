@@ -25,7 +25,7 @@ const STATUS_CONFIG = {
     Icon: CreditCard
   },
   ready_for_pickup: {
-    label: 'Prête à récupérer',
+    label: 'Prête au retrait',
     className:
       'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
     Icon: Package

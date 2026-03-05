@@ -25,6 +25,7 @@ const installmentOnlyParam = searchParams.get('installmentOnly') === 'true';
 const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [loadMoreError, setLoadMoreError] = useState('');
   const [sort, setSort] = useState(() => {
     const s = sortParam || 'new';
     return s === 'newest' ? 'new' : s;
@@ -65,7 +66,10 @@ const [isMobileView, setIsMobileView] = useState(() =>
 
 const fetchProducts = useCallback(async () => {
   setLoading(true);
-  setError('');
+  if (page <= 1) {
+    setError('');
+  }
+  setLoadMoreError('');
   try {
       const params = {
         sort,
@@ -82,11 +86,16 @@ const fetchProducts = useCallback(async () => {
       setItems((prev) => (isMobileView && page > 1 ? [...prev, ...fetchedItems] : fetchedItems));
       setTotalPages(Math.max(1, Number(paginationMeta.pages) || 1));
     } catch (e) {
-      setError(e.response?.data?.message || e.message || 'Impossible de charger les produits.');
+      const message = e.response?.data?.message || e.message || 'Impossible de charger les produits.';
+      if (isMobileView && page > 1) {
+        setLoadMoreError(message);
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
-  }, [page, sort, searchTerm, categoryFilter, shopVerified, installmentOnly]);
+  }, [page, sort, searchTerm, categoryFilter, shopVerified, installmentOnly, isMobileView]);
 
   useEffect(() => {
     initialPageRef.current = 1;
@@ -98,6 +107,7 @@ const fetchProducts = useCallback(async () => {
   useEffect(() => {
     if (!isMobileView) return;
     if (loading) return;
+    if (loadMoreError) return;
     if (page >= totalPages) return;
     const handleScroll = () => {
       const now = Date.now();
@@ -113,7 +123,7 @@ const fetchProducts = useCallback(async () => {
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [isMobileView, loading, page, totalPages]);
+  }, [isMobileView, loading, loadMoreError, page, totalPages]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -352,7 +362,7 @@ const paginationButtons = useMemo(() => {
           </div>
         )}
 
-        {loading ? (
+        {loading && page === 1 ? (
           <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
               <div key={index} className="rounded-xl border border-gray-200 bg-white p-2 sm:p-4 shadow-sm">
@@ -366,15 +376,34 @@ const paginationButtons = useMemo(() => {
             ))}
           </div>
         ) : items.length ? (
-          <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {items.map((product) => (
-              <ProductCard
-                key={product._id}
-                p={product}
-                onProductClick={recordProductView}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {items.map((product) => (
+                <ProductCard
+                  key={product._id}
+                  p={product}
+                  onProductClick={recordProductView}
+                />
+              ))}
+            </div>
+            {loading && page > 1 && (
+              <div className="flex justify-center py-4">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-neutral-600 border-t-transparent" />
+              </div>
+            )}
+            {loadMoreError && !loading && (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-center">
+                <p className="text-sm text-amber-800">{loadMoreError}</p>
+                <button
+                  type="button"
+                  onClick={fetchProducts}
+                  className="mt-2 inline-flex items-center rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-900 active:scale-95"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
             Aucun produit ne correspond à votre recherche pour le moment.

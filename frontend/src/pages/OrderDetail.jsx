@@ -47,7 +47,7 @@ import useReliableMutation from '../hooks/useReliableMutation';
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
   paid: 'Payée',
-  ready_for_pickup: 'Prête à récupérer',
+  ready_for_pickup: 'Prête au retrait',
   picked_up_confirmed: 'Retrait confirmé',
   ready_for_delivery: 'Prête à livrer',
   out_for_delivery: 'En cours de livraison',
@@ -552,6 +552,7 @@ export default function OrderDetail() {
   const openOrderPdf = (o) => {
     const orderItems = o?.items?.length ? o.items : o?.productSnapshot ? [{ snapshot: o.productSnapshot, quantity: 1 }] : [];
     const itemsSubtotal = orderItems.reduce((s, i) => s + Number(i.snapshot?.price || 0) * Number(i.quantity || 1), 0);
+    const pickupOrderInPdf = isPickupOrder(o);
     const deliveryFeeTotal = Number(o?.deliveryFeeTotal ?? 0);
     const orderTotal = Number(o?.totalAmount ?? itemsSubtotal + deliveryFeeTotal);
     const escapeHtml = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -564,7 +565,7 @@ export default function OrderDetail() {
         return `<tr><td>${idx + 1}</td><td><div class="title">${title}</div>${shopName ? `<div class="meta">Boutique: ${shopName}</div>` : ''}</td><td class="right">x${qty}</td><td class="right">${lineTotal}</td></tr>`;
       })
       .join('');
-    const deliveryRowHtml = deliveryFeeTotal > 0
+    const deliveryRowHtml = !pickupOrderInPdf && deliveryFeeTotal > 0
       ? `<tr><td colspan="3" class="right">Frais de livraison</td><td class="right">${formatCurrency(deliveryFeeTotal)}</td></tr>`
       : '';
     const orderShort = escapeHtml(o?._id?.slice(-6) || '');
@@ -946,7 +947,7 @@ export default function OrderDetail() {
             <div>
               <h4 className="text-sm font-bold text-gray-900 uppercase mb-3 flex items-center gap-2"><CreditCard className="w-4 h-4 text-gray-500" /> Paiement</h4>
               <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 space-y-3">
-                {Number(order.deliveryFeeTotal ?? 0) > 0 && (
+                {!pickupOrder && Number(order.deliveryFeeTotal ?? 0) > 0 && (
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm text-gray-600">Frais de livraison</span>

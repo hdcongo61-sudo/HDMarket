@@ -38,6 +38,7 @@ export default function Home() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [productsError, setProductsError] = useState('');
+  const [loadMoreError, setLoadMoreError] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
   const pageParam = Number(searchParams.get('page'));
   const initialPageRef = useRef(Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1);
@@ -146,7 +147,10 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
   // === CHARGEMENT DES PRODUITS ===
   const loadProducts = useCallback(async () => {
     setLoading(true);
-    setProductsError('');
+    if (page <= 1) {
+      setProductsError('');
+    }
+    setLoadMoreError('');
     try {
       const requestParams = { page, limit: 12, sort };
       if (category) requestParams.category = category;
@@ -168,7 +172,12 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
       setTotalPages(pages);
       setTotalProducts(total);
     } catch (error) {
-      setProductsError('Network is slow, please retry.');
+      const slowNetworkMessage = 'Network is slow, please retry.';
+      if (isMobileView && page > 1) {
+        setLoadMoreError(slowNetworkMessage);
+      } else {
+        setProductsError(slowNetworkMessage);
+      }
       console.error("Erreur chargement produits:", error);
     } finally {
       setLoading(false);
@@ -492,6 +501,7 @@ const loadDiscountProducts = async () => {
   useEffect(() => {
     if (!isMobileView) return;
     if (loading) return;
+    if (loadMoreError) return;
     if (page >= totalPages) return;
     const handleScroll = () => {
       const now = Date.now();
@@ -507,7 +517,7 @@ const loadDiscountProducts = async () => {
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [isMobileView, loading, page, totalPages]);
+  }, [isMobileView, loading, loadMoreError, page, totalPages]);
 
   useEffect(() => {
     if (!installmentSectionRef.current) return undefined;
@@ -1298,6 +1308,18 @@ const loadDiscountProducts = async () => {
               {loading && page > 1 && (
                 <div className="flex justify-center py-4">
                   <div className="w-6 h-6 border-2 border-[#0A0A0A] border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+              {loadMoreError && !loading && (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-center">
+                  <p className="text-xs font-medium text-amber-800">{loadMoreError}</p>
+                  <button
+                    type="button"
+                    onClick={loadProducts}
+                    className="mt-2 inline-flex items-center rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-900 active:scale-95"
+                  >
+                    Retry
+                  </button>
                 </div>
               )}
             </>

@@ -44,7 +44,7 @@ import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
   paid: 'Payée',
-  ready_for_pickup: 'Prête à récupérer',
+  ready_for_pickup: 'Prête au retrait',
   picked_up_confirmed: 'Retrait confirmé',
   ready_for_delivery: 'Prête à livrer',
   out_for_delivery: 'En cours de livraison',
@@ -640,6 +640,22 @@ export default function SellerOrderDetail() {
       order.paymentTransactionCode ||
       order.paymentName
   );
+  const pickupStatusLabel = (() => {
+    if (!isPickupOrder || isInstallmentOrder) return '';
+    const rawStatus = String(order.status || '').toLowerCase();
+    if (rawStatus === 'cancelled') return 'cancelled';
+    if (rawStatus === 'ready_for_pickup') return 'ready_for_pickup';
+    if (['picked_up_confirmed', 'completed', 'confirmed_by_client', 'delivered'].includes(rawStatus)) {
+      return 'picked_up_confirmed';
+    }
+    const hasSubmittedPayment = Boolean(
+      Number(order.paidAmount || 0) > 0 ||
+        String(order.paymentTransactionCode || '').trim() ||
+        String(order.paymentName || '').trim()
+    );
+    return hasSubmittedPayment ? 'paid' : 'pending_payment';
+  })();
+  const displayStatusLabel = pickupStatusLabel || order.status;
   const StatusIcon = STATUS_ICONS[order.status] || Clock;
   const statusStyle = STATUS_STYLES[order.status] || STATUS_STYLES.pending;
   const canManageInstallmentSaleStatus =
@@ -767,7 +783,7 @@ export default function SellerOrderDetail() {
         title={`Commande #${order._id.slice(-6)}`}
         subtitle="Détail vendeur"
         backTo="/seller/orders"
-        right={<StatusBadge status={order.status} compact />}
+        right={<StatusBadge status={displayStatusLabel} compact />}
       />
       <div className="max-w-3xl mx-auto px-4 py-6">
 
@@ -784,7 +800,7 @@ export default function SellerOrderDetail() {
                 </div>
               </div>
               <span className="px-3 py-1.5 rounded-lg bg-white/20 text-xs font-bold uppercase">
-                {STATUS_LABELS[order.status] || order.status}
+                {STATUS_LABELS[displayStatusLabel] || displayStatusLabel}
               </span>
             </div>
           </div>
@@ -935,7 +951,7 @@ export default function SellerOrderDetail() {
             <div>
               <h4 className="text-sm font-bold text-gray-900 uppercase mb-3 flex items-center gap-2"><CreditCard className="w-4 h-4 text-gray-500" /> Paiement</h4>
               <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 space-y-3">
-                {(Number(order.deliveryFeeTotal ?? 0) > 0 || canEditDeliveryFee) && (
+                {!isPickupOrder && (Number(order.deliveryFeeTotal ?? 0) > 0 || canEditDeliveryFee) && (
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -1366,7 +1382,7 @@ export default function SellerOrderDetail() {
                         }
                         className="inline-flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700 hover:bg-orange-100 disabled:opacity-50"
                       >
-                        <Package size={12} /> Prête à récupérer
+                        <Package size={12} /> Prête au retrait
                       </button>
                       <button
                         type="button"
@@ -1425,7 +1441,7 @@ export default function SellerOrderDetail() {
                 </div>
                 {isPickupOrder ? (
                   <p className="text-xs text-orange-700">
-                    Flux retrait: confirmez la commande, marquez-la "Prête à récupérer", puis "Retrait confirmé" quand le client récupère.
+                    Flux retrait: confirmez la commande, marquez-la "Prête au retrait", puis "Retrait confirmé" quand le client récupère.
                   </p>
                 ) : (
                   ['delivering', 'out_for_delivery', 'delivery_proof_submitted'].includes(order.status) && (

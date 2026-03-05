@@ -350,11 +350,19 @@ function AppContent() {
     window.localStorage.setItem(LAST_SELLER_ORDERS_ROUTE_KEY, route);
   }, [pathname, location.search, location.hash]);
 
+  const previousPathnameRef = useRef(pathname);
+  useEffect(() => {
+    if (previousPathnameRef.current !== pathname) {
+      abortPendingRequests('REQUEST_ABORT_NAVIGATION');
+      previousPathnameRef.current = pathname;
+    }
+  }, [pathname]);
+
   useEffect(
     () => () => {
-      abortPendingRequests('REQUEST_ABORT_NAVIGATION');
+      abortPendingRequests('REQUEST_ABORT_UNMOUNT');
     },
-    [pathname, location.search, location.hash]
+    []
   );
 
   useEffect(() => {

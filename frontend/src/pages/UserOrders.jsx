@@ -54,7 +54,7 @@ import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
   paid: 'Payée',
-  ready_for_pickup: 'Prête à récupérer',
+  ready_for_pickup: 'Prête au retrait',
   picked_up_confirmed: 'Retrait confirmé',
   ready_for_delivery: 'Prête à livrer',
   out_for_delivery: 'En cours de livraison',
@@ -233,6 +233,22 @@ const getFullPaymentBadgeStatus = (order) => {
   return paidStatuses.has(rawStatus) ? 'paid' : 'pending_payment';
 };
 
+const getPickupCardStatus = (order) => {
+  if (!order || order.paymentType === 'installment' || !isPickupOrder(order)) return null;
+  const rawStatus = String(order.status || '').toLowerCase();
+  if (rawStatus === 'cancelled') return 'cancelled';
+  if (rawStatus === 'ready_for_pickup') return 'ready_for_pickup';
+  if (['picked_up_confirmed', 'completed', 'confirmed_by_client', 'delivered'].includes(rawStatus)) {
+    return 'picked_up_confirmed';
+  }
+  const hasSubmittedPayment = Boolean(
+    Number(order.paidAmount || 0) > 0 ||
+      String(order.paymentTransactionCode || '').trim() ||
+      String(order.paymentName || '').trim()
+  );
+  return hasSubmittedPayment ? 'paid' : 'pending_payment';
+};
+
 const OrderProgress = ({ status }) => {
   const { t } = useAppSettings();
   const currentIndexRaw = ORDER_FLOW.findIndex((step) => step.id === status);
@@ -317,6 +333,8 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
   const computedTotal = orderItems.reduce((sum, item) => sum + Number(item.snapshot?.price || 0) * Number(item.quantity || 1), 0);
   const totalAmount = Number(order.totalAmount ?? computedTotal);
   const effectiveStatus = getEffectiveOrderStatus(order);
+  const pickupCardStatus = getPickupCardStatus(order);
+  const statusLabelKey = pickupCardStatus || effectiveStatus;
   const pickupOrder = isPickupOrder(order);
   const pickupShopAddress = pickupOrder ? getPickupShopAddress(order) : null;
 
@@ -417,7 +435,7 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
               <div className={`w-2 h-2 rounded-full ${colors.bg} animate-pulse`} />
             )}
             <span className={`font-semibold ${colors.text}`}>
-              {STATUS_LABELS[effectiveStatus] || effectiveStatus}
+              {STATUS_LABELS[statusLabelKey] || statusLabelKey}
             </span>
           </div>
           {order.deliveryGuy && (
@@ -679,6 +697,7 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
 // Compact order summary card - links to order detail page (reference-style layout)
 const OrderSummaryCard = ({ order }) => {
   const { t } = useAppSettings();
+  const pickupOrder = isPickupOrder(order);
   const orderItems = order.items?.length ? order.items : order.productSnapshot ? [{ snapshot: order.productSnapshot, quantity: 1, product: order.product }] : [];
   const computedTotal = orderItems.reduce((s, i) => s + Number(i.snapshot?.price || 0) * Number(i.quantity || 1), 0);
   const totalAmount = Number(order.totalAmount ?? computedTotal);
@@ -691,6 +710,8 @@ const OrderSummaryCard = ({ order }) => {
       ? order.installmentSaleStatus || 'confirmed'
       : order.installmentSaleStatus || '';
   const effectiveStatus = getEffectiveOrderStatus(order);
+  const pickupCardStatus = getPickupCardStatus(order);
+  const statusBadgeKey = pickupCardStatus || effectiveStatus;
   const fullPaymentBadgeStatus = getFullPaymentBadgeStatus(order);
   const installmentProgress =
     installmentTotal > 0 ? Math.min(100, Math.round((installmentPaid / installmentTotal) * 100)) : 0;
@@ -711,7 +732,7 @@ const OrderSummaryCard = ({ order }) => {
           <span className="font-semibold text-gray-900 truncate">{shopName}</span>
           <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
         </div>
-        <StatusBadge status={effectiveStatus} />
+        <StatusBadge status={statusBadgeKey} />
       </div>
       {/* Product summary */}
       <div className="p-4 flex gap-3">
@@ -778,7 +799,7 @@ const OrderSummaryCard = ({ order }) => {
             <span className="text-neutral-800 font-medium text-sm flex items-center gap-0.5">{t('orders.viewDetail', 'Voir le détail')} <ChevronRight className="w-4 h-4" /></span>
           </div>
         </div>
-        {Number(order.deliveryFeeTotal ?? 0) > 0 && (
+        {!pickupOrder && Number(order.deliveryFeeTotal ?? 0) > 0 && (
           <p className="text-xs text-gray-500">
             {t('orders.deliveryFee', 'Frais de livraison')}: {formatCurrency(order.deliveryFeeTotal)}
           </p>
@@ -1488,6 +1509,9 @@ export default function UserOrders() {
                     );
                     const totalAmount = Number(order.totalAmount ?? computedTotal);
                     const effectiveStatus = getEffectiveOrderStatus(order);
+                    const pickupOrder = isPickupOrder(order);
+                    const pickupCardStatus = getPickupCardStatus(order);
+                    const statusBadgeKey = pickupCardStatus || effectiveStatus;
                     const firstItem = orderItems[0];
                     const shopName = firstItem?.snapshot?.shopName || 'N/A';
                     const productTitle = firstItem?.snapshot?.title || t('orders.product', 'Produit');
@@ -1548,7 +1572,7 @@ export default function UserOrders() {
                         <div className="col-span-2 flex flex-col gap-0.5 md:block">
                           <span className="md:hidden text-xs font-medium text-gray-500">{t('orders.amount', 'Montant')}:</span>
                           <span className="font-bold text-gray-900 text-sm">{formatCurrency(totalAmount)}</span>
-                          {Number(order.deliveryFeeTotal ?? 0) > 0 && (
+                          {!pickupOrder && Number(order.deliveryFeeTotal ?? 0) > 0 && (
                             <span className="text-xs text-gray-500">{t('orders.deliveryFee', 'Frais livraison')}: {formatCurrency(order.deliveryFeeTotal)}</span>
                           )}
                         </div>
@@ -1556,7 +1580,7 @@ export default function UserOrders() {
                         {/* Status */}
                         <div className="col-span-2 flex items-center gap-2">
                           <span className="md:hidden text-xs font-medium text-gray-500">{t('orders.status', 'Statut')}:</span>
-                          <StatusBadge status={effectiveStatus} />
+                          <StatusBadge status={statusBadgeKey} />
                         </div>
                       </Link>
                     );

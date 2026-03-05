@@ -29,8 +29,13 @@ const INSTALLMENT_STEPS = [
 ];
 
 const PICKUP_STEPS = [
+  {
+    key: 'pending_payment',
+    label: 'Paiement en attente',
+    hint: 'Paiement en cours de validation',
+    Icon: CreditCard
+  },
   { key: 'paid', label: 'Payée', hint: 'Paiement confirmé', Icon: CreditCard },
-  { key: 'processing', label: 'Préparation', hint: 'Commande en traitement', Icon: Package },
   { key: 'ready_for_pickup', label: 'Prête au retrait', hint: 'Le client peut récupérer', Icon: Package },
   { key: 'completed', label: 'Retrait confirmé', hint: 'Commande finalisée', Icon: CheckCircle2 }
 ];
@@ -60,9 +65,10 @@ function mapPickupStatus(status) {
   const value = String(status || '').toLowerCase();
   if (['completed', 'confirmed_by_client', 'picked_up_confirmed', 'delivered'].includes(value)) return 'completed';
   if (value === 'ready_for_pickup') return 'ready_for_pickup';
-  if (['ready_for_delivery', 'confirmed', 'pending', 'pending_payment'].includes(value)) return 'processing';
+  if (['ready_for_delivery', 'confirmed'].includes(value)) return 'paid';
   if (value === 'paid') return 'paid';
-  return 'paid';
+  if (['pending', 'pending_payment'].includes(value)) return 'pending_payment';
+  return 'pending_payment';
 }
 
 export default function AnimatedOrderTimeline({ status, paymentType = 'full', deliveryMode = 'DELIVERY', className = '' }) {

@@ -26,6 +26,8 @@ export default function CategoryProducts() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [loadMoreError, setLoadMoreError] = useState('');
+  const [loadMoreRetryTick, setLoadMoreRetryTick] = useState(0);
   const [sort, setSort] = useState('new');
   const [page, setPage] = useState(initialPageRef.current);
   const [totalPages, setTotalPages] = useState(1);
@@ -93,7 +95,10 @@ export default function CategoryProducts() {
 
     const fetchProducts = async () => {
       setLoading(true);
-      setError('');
+      if (page <= 1) {
+        setError('');
+      }
+      setLoadMoreError('');
       try {
         const { data } = await api.get('/products/public', {
           params: {
@@ -114,7 +119,13 @@ export default function CategoryProducts() {
         setTotalPages(Math.max(1, Number(pagination.pages) || 1));
       } catch (e) {
         if (controller.signal.aborted) return;
-        setError(e.response?.data?.message || e.message || 'Impossible de charger les produits de cette catégorie.');
+        const message =
+          e.response?.data?.message || e.message || 'Impossible de charger les produits de cette catégorie.';
+        if (isMobileView && page > 1) {
+          setLoadMoreError(message);
+        } else {
+          setError(message);
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -126,7 +137,7 @@ export default function CategoryProducts() {
       active = false;
       controller.abort();
     };
-  }, [categoryMeta, sort, page, isMobileView]);
+  }, [categoryMeta, sort, page, isMobileView, loadMoreRetryTick]);
 
   useEffect(() => {
     setItems([]);
@@ -136,6 +147,7 @@ export default function CategoryProducts() {
   useEffect(() => {
     if (!isMobileView) return;
     if (loading) return;
+    if (loadMoreError) return;
     if (page >= totalPages) return;
     const handleScroll = () => {
       const now = Date.now();
@@ -151,7 +163,7 @@ export default function CategoryProducts() {
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [isMobileView, loading, page, totalPages]);
+  }, [isMobileView, loading, loadMoreError, page, totalPages]);
 
   const renderPagination = () => {
     if (totalPages <= 1) return null;
@@ -310,7 +322,7 @@ export default function CategoryProducts() {
         </div>
       )}
 
-      {loading ? (
+      {loading && page === 1 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
           {Array.from({ length: 8 }).map((_, idx) => (
             <div key={idx} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
@@ -329,6 +341,26 @@ export default function CategoryProducts() {
               <ProductCard key={product._id} p={product} />
             ))}
           </div>
+          {loading && page > 1 && (
+            <div className="flex justify-center py-4">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-neutral-600 border-t-transparent" />
+            </div>
+          )}
+          {loadMoreError && !loading && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-center">
+              <p className="text-sm text-amber-800">{loadMoreError}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoadMoreError('');
+                  setLoadMoreRetryTick((tick) => tick + 1);
+                }}
+                className="mt-2 inline-flex items-center rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-900 active:scale-95"
+              >
+                Retry
+              </button>
+            </div>
+          )}
           {renderPagination()}
         </>
       ) : (

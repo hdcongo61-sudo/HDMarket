@@ -46,7 +46,7 @@ import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
   paid: 'Payée',
-  ready_for_pickup: 'Prête à récupérer',
+  ready_for_pickup: 'Prête au retrait',
   picked_up_confirmed: 'Retrait confirmé',
   ready_for_delivery: 'Prête à livrer',
   out_for_delivery: 'En cours de livraison',
@@ -211,6 +211,22 @@ const getFullPaymentBadgeStatus = (order) => {
   return paidStatuses.has(rawStatus) ? 'paid' : 'pending_payment';
 };
 
+const getPickupCardStatus = (order) => {
+  if (!order || order.paymentType === 'installment' || !resolvePickupOrder(order)) return null;
+  const rawStatus = String(order.status || '').toLowerCase();
+  if (rawStatus === 'cancelled') return 'cancelled';
+  if (rawStatus === 'ready_for_pickup') return 'ready_for_pickup';
+  if (['picked_up_confirmed', 'completed', 'confirmed_by_client', 'delivered'].includes(rawStatus)) {
+    return 'picked_up_confirmed';
+  }
+  const hasSubmittedPayment = Boolean(
+    Number(order.paidAmount || 0) > 0 ||
+      String(order.paymentTransactionCode || '').trim() ||
+      String(order.paymentName || '').trim()
+  );
+  return hasSubmittedPayment ? 'paid' : 'pending_payment';
+};
+
 const OrderProgress = ({ status }) => {
   const { t } = useAppSettings();
   const currentIndexRaw = ORDER_FLOW.findIndex((step) => step.id === status);
@@ -300,6 +316,8 @@ const SellerOrderSummaryCard = ({ order }) => {
   const installmentProgress =
     installmentTotal > 0 ? Math.min(100, Math.round((installmentPaid / installmentTotal) * 100)) : 0;
   const fullPaymentBadgeStatus = getFullPaymentBadgeStatus(order);
+  const pickupCardStatus = getPickupCardStatus(order);
+  const statusBadgeKey = pickupCardStatus || order.status;
   const firstItem = orderItems[0];
   const productTitle = firstItem?.snapshot?.title || t('orders.product', 'Produit');
   const itemCount = orderItems.length;
@@ -316,7 +334,7 @@ const SellerOrderSummaryCard = ({ order }) => {
           <span className="font-semibold text-gray-900 truncate">{customerName}</span>
           <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
         </div>
-        <StatusBadge status={order.status} />
+        <StatusBadge status={statusBadgeKey} />
       </div>
       <div className="p-4 flex gap-3">
         {firstItem?.snapshot?.image ? (
@@ -402,6 +420,8 @@ const SellerMobileOrderCard = ({
   const paidAmount = Number(order.paidAmount || 0);
   const remainingAmount = Number(order.remainingAmount ?? Math.max(0, totalAmount - paidAmount));
   const isPickupOrder = resolvePickupOrder(order);
+  const pickupCardStatus = getPickupCardStatus(order);
+  const statusLabelKey = pickupCardStatus || order.status;
   const pickupShopAddress = isPickupOrder ? getPickupShopAddress(order) : null;
   const normalizedStatus = (() => {
     const value = String(order.status || '').toLowerCase();
@@ -509,7 +529,7 @@ const SellerMobileOrderCard = ({
               <div className={`w-2 h-2 rounded-full ${colors.bg} animate-pulse`} />
             )}
             <span className={`font-semibold ${colors.text}`}>
-              {STATUS_LABELS[order.status]}
+              {STATUS_LABELS[statusLabelKey] || statusLabelKey}
             </span>
           </div>
           {order.deliveryGuy && (
@@ -764,7 +784,7 @@ const SellerMobileOrderCard = ({
               className="flex items-center justify-center gap-2 py-3 rounded-xl bg-neutral-900 text-white font-semibold text-sm hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
               {isPickupOrder ? <Package className="w-4 h-4" /> : <Truck className="w-4 h-4" />}
-              {isPickupOrder ? 'Prête à récupérer' : t('orders.ship', 'Expédier')}
+              {isPickupOrder ? 'Prête au retrait' : t('orders.ship', 'Expédier')}
             </button>
             <button
               type="button"
