@@ -33,6 +33,7 @@ const [items, setItems] = useState([]);
   const [installmentOnly, setInstallmentOnly] = useState(installmentOnlyParam);
 const pageParam = Number(searchParams.get('page'));
 const initialPageRef = useRef(Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1);
+const infiniteScrollLockRef = useRef(0);
 const [page, setPage] = useState(initialPageRef.current);
 const [isMobileView, setIsMobileView] = useState(() =>
   typeof window === 'undefined' ? false : window.innerWidth <= 767
@@ -99,11 +100,14 @@ const fetchProducts = useCallback(async () => {
     if (loading) return;
     if (page >= totalPages) return;
     const handleScroll = () => {
+      const now = Date.now();
+      if (now - infiniteScrollLockRef.current < 400) return;
       const threshold = 200;
       if (
         window.innerHeight + window.scrollY >=
         document.documentElement.scrollHeight - threshold
       ) {
+        infiniteScrollLockRef.current = now;
         setPage((prev) => Math.min(prev + 1, totalPages));
       }
     };
@@ -122,6 +126,10 @@ const fetchProducts = useCallback(async () => {
   }, []);
 
   useEffect(() => {
+    const targetPage = page === 1 ? null : String(page);
+    const currentInUrl = searchParams.get('page');
+    if (currentInUrl === targetPage) return;
+
     if (page === initialPageRef.current) {
       setSearchParams((prev) => {
         const params = new URLSearchParams(prev);
@@ -143,7 +151,7 @@ const fetchProducts = useCallback(async () => {
         return params;
       }, { replace: false });
     }
-  }, [page, setSearchParams]);
+  }, [page, searchParams, setSearchParams]);
 
   useEffect(() => {
     fetchProducts();

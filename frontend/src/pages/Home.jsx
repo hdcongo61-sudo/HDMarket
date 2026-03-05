@@ -85,6 +85,7 @@ export default function Home() {
   const [wholesaleLoading, setWholesaleLoading] = useState(false);
   const [shouldLoadInstallment, setShouldLoadInstallment] = useState(false);
   const installmentSectionRef = useRef(null);
+  const infiniteScrollLockRef = useRef(0);
 const cityList = useMemo(
   () => (Array.isArray(configuredCities) ? configuredCities.map((item) => item.name).filter(Boolean) : []),
   [configuredCities]
@@ -493,11 +494,14 @@ const loadDiscountProducts = async () => {
     if (loading) return;
     if (page >= totalPages) return;
     const handleScroll = () => {
+      const now = Date.now();
+      if (now - infiniteScrollLockRef.current < 400) return;
       const threshold = 200;
       if (
         window.innerHeight + window.scrollY >=
         document.documentElement.scrollHeight - threshold
       ) {
+        infiniteScrollLockRef.current = now;
         setPage((prev) => Math.min(prev + 1, totalPages));
       }
     };

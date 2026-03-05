@@ -21,6 +21,7 @@ export default function CategoryProducts() {
   const [searchParams, setSearchParams] = useSearchParams();
   const pageParam = Number(searchParams.get('page'));
   const initialPageRef = useRef(Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1);
+  const infiniteScrollLockRef = useRef(0);
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -43,6 +44,10 @@ export default function CategoryProducts() {
   }, [sort]);
 
   useEffect(() => {
+    const targetPage = page === 1 ? null : String(page);
+    const currentInUrl = searchParams.get('page');
+    if (currentInUrl === targetPage) return;
+
     if (page === initialPageRef.current) {
       setSearchParams((prev) => {
         const params = new URLSearchParams(prev);
@@ -64,7 +69,7 @@ export default function CategoryProducts() {
       }
       return params;
     }, { replace: false });
-  }, [page, setSearchParams]);
+  }, [page, searchParams, setSearchParams]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -133,11 +138,14 @@ export default function CategoryProducts() {
     if (loading) return;
     if (page >= totalPages) return;
     const handleScroll = () => {
+      const now = Date.now();
+      if (now - infiniteScrollLockRef.current < 400) return;
       const threshold = 200;
       if (
         window.innerHeight + window.scrollY >=
         document.documentElement.scrollHeight - threshold
       ) {
+        infiniteScrollLockRef.current = now;
         setPage((prev) => Math.min(prev + 1, totalPages));
       }
     };

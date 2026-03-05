@@ -1,5 +1,8 @@
 import React from 'react';
 
+const isIgnoredUiError = (error) =>
+  /history\.replaceState\(\).*more than 100 times/i.test(String(error?.message || ''));
+
 export default class GlobalErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -11,6 +14,9 @@ export default class GlobalErrorBoundary extends React.Component {
   }
 
   static getDerivedStateFromError(error) {
+    if (isIgnoredUiError(error)) {
+      return null;
+    }
     return {
       hasError: true,
       errorMessage: String(error?.message || 'Une erreur inattendue est survenue.')
@@ -18,6 +24,9 @@ export default class GlobalErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
+    if (isIgnoredUiError(error)) {
+      return;
+    }
     const payload = {
       message: String(error?.message || 'UNKNOWN_UI_ERROR'),
       stack: String(error?.stack || ''),
@@ -81,4 +90,3 @@ export default class GlobalErrorBoundary extends React.Component {
     );
   }
 }
-

@@ -110,8 +110,9 @@ export default function AdvancedSearch() {
   // Update URL when filters change
   useEffect(() => {
     const params = buildQueryParams();
+    if (params.toString() === searchParams.toString()) return;
     setSearchParams(params, { replace: true });
-  }, [buildQueryParams, setSearchParams]);
+  }, [buildQueryParams, searchParams, setSearchParams]);
 
   // Fetch products
   const fetchProducts = useCallback(async () => {

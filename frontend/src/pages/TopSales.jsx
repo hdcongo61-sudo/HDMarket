@@ -50,6 +50,10 @@ export default function TopSales() {
   }, [page]);
 
   useEffect(() => {
+    const targetPage = page === 1 ? null : String(page);
+    const currentInUrl = searchParams.get('page');
+    if (currentInUrl === targetPage) return;
+
     setSearchParams((prev) => {
       const params = new URLSearchParams(prev);
       if (page === 1) {
@@ -59,7 +63,7 @@ export default function TopSales() {
       }
       return params;
     }, { replace: true });
-  }, [page, setSearchParams]);
+  }, [page, searchParams, setSearchParams]);
 
   const formatCount = (value) => Number(value || 0).toLocaleString('fr-FR');
 

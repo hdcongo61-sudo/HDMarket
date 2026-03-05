@@ -837,6 +837,7 @@ export default function AdminOrders() {
     (orderId) => {
       const normalized = getOrderId(orderId);
       if (!normalized) return;
+      if (searchParams.get('orderId') === normalized) return;
       setPage(1);
       setSearchParams(
         (prev) => {
@@ -847,7 +848,7 @@ export default function AdminOrders() {
         { replace: true }
       );
     },
-    [setSearchParams]
+    [searchParams, setSearchParams]
   );
 
   const openOrderPreviewModal = useCallback(

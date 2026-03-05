@@ -142,10 +142,10 @@ export default function CityProducts() {
   }, [cityHighlights, selectedCity, items.length]);
 
   useEffect(() => {
-    if (selectedCity) {
-      setSearchParams({ city: selectedCity });
-    }
-  }, [selectedCity, setSearchParams]);
+    if (!selectedCity) return;
+    if (selectedCity === queryCity) return;
+    setSearchParams({ city: selectedCity }, { replace: true });
+  }, [selectedCity, queryCity, setSearchParams]);
 
   const title = useMemo(() => {
     if (!selectedCity) return 'Produits par ville';
