@@ -11,7 +11,7 @@ import { getRuntimeConfig } from '../services/configService.js';
 
 const DELIVERY_RULES = Object.freeze({
   LOW: { socketWhenOnline: false, pushWhenOnline: false, pushWhenOffline: false },
-  NORMAL: { socketWhenOnline: true, pushWhenOnline: false, pushWhenOffline: false },
+  NORMAL: { socketWhenOnline: true, pushWhenOnline: false, pushWhenOffline: true },
   HIGH: { socketWhenOnline: true, pushWhenOnline: false, pushWhenOffline: true },
   CRITICAL: { socketWhenOnline: true, pushWhenOnline: true, pushWhenOffline: true }
 });

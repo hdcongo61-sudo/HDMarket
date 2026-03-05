@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { getApp, getApps, initializeApp } from 'firebase/app';
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+import { getMessaging, getToken, isSupported, onMessage } from 'firebase/messaging';
 import api from '../services/api';
 
 const isDev = import.meta.env?.DEV === true;
@@ -47,16 +47,30 @@ function dispatchNotificationEvents(payload) {
 }
 
 export default function usePushNotifications(user) {
-  const initializedRef = useRef(false);
   const webPushUnsubscribeRef = useRef(null);
 
   useEffect(() => {
     if (!user?.token) return;
-    if (initializedRef.current) return;
-    initializedRef.current = true;
     let active = true;
+    const retryTimers = new Set();
+
+    const clearRetryTimers = () => {
+      retryTimers.forEach((timerId) => clearTimeout(timerId));
+      retryTimers.clear();
+    };
+
+    const scheduleRetry = (callback, delayMs) => {
+      if (!active) return;
+      const timerId = setTimeout(() => {
+        retryTimers.delete(timerId);
+        if (!active) return;
+        callback();
+      }, Math.max(500, Number(delayMs || 0)));
+      retryTimers.add(timerId);
+    };
 
     const sendTokenToServer = async (tokenValue, platform, retryCount = 0) => {
+      if (!active) return false;
       try {
         const payload = {
           token: tokenValue,
@@ -79,7 +93,9 @@ export default function usePushNotifications(user) {
       } catch (err) {
         if (debugPush) console.warn('[HDMarket] Push token API error:', err?.response?.status ?? err.message);
         if (active && retryCount < PUSH_TOKEN_MAX_RETRIES) {
-          setTimeout(() => sendTokenToServer(tokenValue, platform, retryCount + 1), PUSH_TOKEN_RETRY_DELAY_MS);
+          scheduleRetry(() => {
+            sendTokenToServer(tokenValue, platform, retryCount + 1);
+          }, PUSH_TOKEN_RETRY_DELAY_MS);
         }
         return false;
       }
@@ -141,6 +157,16 @@ export default function usePushNotifications(user) {
         if (debugPush) console.warn('[HDMarket] Web push: Firebase config missing');
         return;
       }
+      try {
+        const support = await isSupported();
+        if (!support) {
+          if (debugPush) console.warn('[HDMarket] Web push: browser not supported');
+          return;
+        }
+      } catch {
+        if (debugPush) console.warn('[HDMarket] Web push: support check failed');
+        return;
+      }
 
       let permission = Notification.permission;
       if (permission === 'default') {
@@ -160,12 +186,26 @@ export default function usePushNotifications(user) {
         const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
         const messaging = getMessaging(app);
 
-        const registration = await navigator.serviceWorker.ready;
-        const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || undefined;
-        const token = await getToken(messaging, {
-          vapidKey,
-          serviceWorkerRegistration: registration
-        });
+        let registration = null;
+        try {
+          registration = await navigator.serviceWorker.ready;
+        } catch {
+          registration = null;
+        }
+        if (!registration) {
+          registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+        }
+
+        const vapidKey =
+          import.meta.env.VITE_FIREBASE_VAPID_KEY ||
+          import.meta.env.VITE_VAPID_PUBLIC_KEY ||
+          undefined;
+        if (!vapidKey && debugPush) {
+          console.warn('[HDMarket] Web push: VAPID key missing, fallback token strategy in use');
+        }
+        const tokenOptions = { serviceWorkerRegistration: registration };
+        if (vapidKey) tokenOptions.vapidKey = vapidKey;
+        const token = await getToken(messaging, tokenOptions);
         if (!active || !token) return;
         await sendTokenToServer(token, 'web');
 
@@ -181,11 +221,12 @@ export default function usePushNotifications(user) {
 
     return () => {
       active = false;
+      clearRetryTimers();
       const unsub = webPushUnsubscribeRef.current;
       if (typeof unsub === 'function') {
         try { unsub(); } catch (_) {}
         webPushUnsubscribeRef.current = null;
       }
     };
-  }, [user?.token]);
+  }, [user?._id, user?.token]);
 }

@@ -34,8 +34,9 @@ root.render(
 );
 
 // Register service worker for PWA (offline support + web push)
+const swFlagRaw = String(import.meta.env.VITE_ENABLE_SW || '').trim().toLowerCase();
 const enableServiceWorker =
-  import.meta.env.PROD && String(import.meta.env.VITE_ENABLE_SW) === 'true';
+  swFlagRaw === 'true' || (import.meta.env.PROD && swFlagRaw !== 'false');
 if (enableServiceWorker) {
   registerServiceWorker();
 } else if (typeof window !== 'undefined') {

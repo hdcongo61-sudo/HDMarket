@@ -1,5 +1,7 @@
 import asyncHandler from 'express-async-handler';
 import DeviceToken from '../models/deviceTokenModel.js';
+import { isPushConfigured } from '../utils/pushService.js';
+import { getRuntimeConfig } from '../services/configService.js';
 
 const normalizePlatform = (value) => {
   const platform = String(value || 'unknown').toLowerCase();
@@ -59,4 +61,42 @@ export const unregisterDeviceToken = asyncHandler(async (req, res) => {
   );
 
   res.json({ success: true });
+});
+
+export const getPushStatus = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const [pushEnabled, pushWhenOnline, pushHighOnly, tokens] = await Promise.all([
+    getRuntimeConfig('push_enabled', { fallback: true }),
+    getRuntimeConfig('push_when_online', { fallback: false }),
+    getRuntimeConfig('push_for_priority_high_only', { fallback: false }),
+    DeviceToken.find({ user: userId })
+      .select('platform isActive lastSeenAt lastDeliveredAt disabledReason createdAt')
+      .sort({ updatedAt: -1 })
+      .lean()
+  ]);
+
+  const tokensByPlatform = tokens.reduce((acc, item) => {
+    const platform = String(item?.platform || 'unknown');
+    if (!acc[platform]) {
+      acc[platform] = { total: 0, active: 0 };
+    }
+    acc[platform].total += 1;
+    if (item?.isActive !== false) acc[platform].active += 1;
+    return acc;
+  }, {});
+
+  res.json({
+    success: true,
+    pushConfigured: isPushConfigured(),
+    settings: {
+      pushEnabled: Boolean(pushEnabled),
+      pushWhenOnline: Boolean(pushWhenOnline),
+      pushForPriorityHighOnly: Boolean(pushHighOnly)
+    },
+    tokenStats: {
+      total: tokens.length,
+      active: tokens.filter((item) => item?.isActive !== false).length,
+      byPlatform: tokensByPlatform
+    }
+  });
 });
