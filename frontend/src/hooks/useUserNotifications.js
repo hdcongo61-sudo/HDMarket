@@ -134,6 +134,12 @@ const readAuthToken = async () => {
   }
 };
 
+const shouldRefreshOrdersFromNotification = (eventName) => {
+  const normalized = String(eventName || '').trim().toLowerCase();
+  if (!normalized) return false;
+  return normalized.startsWith('order_') || normalized.startsWith('installment_');
+};
+
 export default function useUserNotifications(enabled, options = {}) {
   const { skipRefreshEvent = false } = options;
   const [counts, setCounts] = useState(() => buildInitialState());
@@ -337,7 +343,10 @@ export default function useUserNotifications(enabled, options = {}) {
       });
       socket.on('notifications:refresh', (payload) => {
         scheduleRefresh();
-        if (payload?.event === 'order_cancellation_window_skipped' && typeof window !== 'undefined') {
+        if (
+          typeof window !== 'undefined' &&
+          shouldRefreshOrdersFromNotification(payload?.event)
+        ) {
           window.dispatchEvent(new Event('hdmarket:orders-refresh'));
         }
       });

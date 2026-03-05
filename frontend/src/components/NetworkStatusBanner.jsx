@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { recordNetworkMetric } from '../utils/networkMetrics';
+
+const ACTION_VISIBILITY_MS = 6000;
 
 const readConnectionState = () => {
   if (typeof navigator === 'undefined') {
@@ -16,7 +19,9 @@ const readConnectionState = () => {
 };
 
 export default function NetworkStatusBanner() {
+  const location = useLocation();
   const [state, setState] = useState(() => readConnectionState());
+  const [showAction, setShowAction] = useState(true);
 
   useEffect(() => {
     const update = () => setState(readConnectionState());
@@ -64,6 +69,20 @@ export default function NetworkStatusBanner() {
     return null;
   }, [state.offline, state.slow]);
 
+  useEffect(() => {
+    if (!content) {
+      setShowAction(true);
+      return;
+    }
+
+    setShowAction(true);
+    const timer = setTimeout(() => {
+      setShowAction(false);
+    }, ACTION_VISIBILITY_MS);
+
+    return () => clearTimeout(timer);
+  }, [content, location.pathname]);
+
   if (!content) return null;
 
   return (
@@ -71,15 +90,17 @@ export default function NetworkStatusBanner() {
       <div className={`rounded-xl border px-3 py-2 text-xs shadow-sm ${content.tone}`}>
         <div className="flex items-center justify-between gap-2">
           <p className="font-medium">{content.message}</p>
-          <button
-            type="button"
-            onClick={() => {
-              if (typeof window !== 'undefined') window.location.reload();
-            }}
-            className="inline-flex min-h-8 shrink-0 items-center rounded-lg border border-current/25 bg-white/70 px-2.5 text-[11px] font-semibold"
-          >
-            {content.action}
-          </button>
+          {showAction ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined') window.location.reload();
+              }}
+              className="inline-flex min-h-8 shrink-0 items-center rounded-lg border border-current/25 bg-white/70 px-2.5 text-[11px] font-semibold"
+            >
+              {content.action}
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

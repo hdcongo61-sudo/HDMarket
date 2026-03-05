@@ -810,6 +810,7 @@ export default function UserOrders() {
   const [swipedOrderId, setSwipedOrderId] = useState(null);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
+  const [reloadToken, setReloadToken] = useState(0);
   const pullStartY = useRef(0);
   const pullMoveY = useRef(0);
   const [pullDistance, setPullDistance] = useState(0);
@@ -869,6 +870,12 @@ export default function UserOrders() {
       }
     }
   }, [isOnline, orders.length]);
+
+  useEffect(() => {
+    const handler = () => setReloadToken((value) => value + 1);
+    window.addEventListener('hdmarket:orders-refresh', handler);
+    return () => window.removeEventListener('hdmarket:orders-refresh', handler);
+  }, []);
 
   // Pull-to-refresh handlers
   const handleTouchStart = useCallback((e) => {
@@ -1046,7 +1053,7 @@ export default function UserOrders() {
       }
     };
     loadOrders();
-  }, [activeStatus, page, user?._id]);
+  }, [activeStatus, page, user?._id, reloadToken]);
 
   const emptyMessage =
     activeStatus === 'all'

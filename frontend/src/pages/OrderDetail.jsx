@@ -313,6 +313,12 @@ export default function OrderDetail() {
     loadOrder();
   }, [loadOrder]);
 
+  useEffect(() => {
+    const handler = () => loadOrder();
+    window.addEventListener('hdmarket:orders-refresh', handler);
+    return () => window.removeEventListener('hdmarket:orders-refresh', handler);
+  }, [loadOrder]);
+
   // Load suggestions / similar products for mobile bottom section
   useEffect(() => {
     if (!aiRecommendationsEnabled) {
