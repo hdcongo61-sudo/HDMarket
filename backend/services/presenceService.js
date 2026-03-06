@@ -64,6 +64,14 @@ const detectDevice = (userAgent = '') => {
   return 'unknown';
 };
 
+const normalizeDeviceType = (value = '') => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'mobile' || normalized === 'tablet' || normalized === 'desktop') {
+    return normalized;
+  }
+  return 'unknown';
+};
+
 const classifyPresence = ({ role = 'user', accountType = 'person' } = {}) => {
   const normalizedRole = roleBucket(role);
   const normalizedAccountType = String(accountType || 'person').toLowerCase() === 'shop' ? 'shop' : 'person';
@@ -255,6 +263,7 @@ export const registerPresenceConnection = async ({
         userId: normalizedUserId,
         role: classification.normalizedRole,
         accountType: classification.normalizedAccountType,
+        device: normalizeDeviceType(device),
         connectedAt: nowIso
       }),
       { EX: SOCKET_TTL_SECONDS }
@@ -297,6 +306,7 @@ export const registerPresenceConnection = async ({
       userId: normalizedUserId,
       role: classification.normalizedRole,
       accountType: classification.normalizedAccountType,
+      device: normalizeDeviceType(device),
       connectedAt: nowIso
     });
     addFallbackRoles(normalizedUserId, classification);
@@ -326,16 +336,21 @@ export const touchPresenceConnection = async ({
 
   const touched = await safeRedis(async (client) => {
     await client.expire(USER_SOCKETS_KEY(normalizedUserId), USER_SOCKET_SET_TTL_SECONDS);
-    await client.set(
-      SOCKET_META_KEY(socketRef),
-      JSON.stringify({
-        userId: normalizedUserId,
-        role: classification.normalizedRole,
-        accountType: classification.normalizedAccountType,
-        touchedAt: nowIso
-      }),
-      { EX: SOCKET_TTL_SECONDS }
-    );
+    const socketMetaKey = SOCKET_META_KEY(socketRef);
+    const keepAliveOk = Number(await client.expire(socketMetaKey, SOCKET_TTL_SECONDS)) === 1;
+    if (!keepAliveOk) {
+      await client.set(
+        socketMetaKey,
+        JSON.stringify({
+          userId: normalizedUserId,
+          role: classification.normalizedRole,
+          accountType: classification.normalizedAccountType,
+          device: 'unknown',
+          touchedAt: nowIso
+        }),
+        { EX: SOCKET_TTL_SECONDS }
+      );
+    }
     await client.hSet(ONLINE_USER_KEY(normalizedUserId), {
       lastSeen: nowIso
     });
@@ -644,3 +659,94 @@ export const getPresenceConstants = () => ({
     onlineAdmins: ONLINE_ADMINS_SET_KEY
   }
 });
+
+const buildPresenceContextFromMetaList = (metaList = []) => {
+  const devices = {
+    mobile: 0,
+    tablet: 0,
+    desktop: 0,
+    unknown: 0
+  };
+
+  for (const entry of metaList) {
+    const deviceType = normalizeDeviceType(entry?.device);
+    devices[deviceType] += 1;
+  }
+
+  const socketCount = Number(metaList.length || 0);
+  const hasMobileSession = devices.mobile > 0 || devices.tablet > 0;
+  const hasDesktopSession = devices.desktop > 0;
+
+  return {
+    online: socketCount > 0,
+    socketCount,
+    devices,
+    hasMobileSession,
+    hasDesktopSession
+  };
+};
+
+export const getUserPresenceContext = async (userId) => {
+  const normalizedUserId = String(userId || '').trim();
+  if (!normalizedUserId) {
+    return {
+      online: false,
+      socketCount: 0,
+      devices: { mobile: 0, tablet: 0, desktop: 0, unknown: 0 },
+      hasMobileSession: false,
+      hasDesktopSession: false
+    };
+  }
+
+  const redisContext = await safeRedis(async (client) => {
+    const socketRefs = await client.sMembers(USER_SOCKETS_KEY(normalizedUserId));
+    if (!Array.isArray(socketRefs) || !socketRefs.length) {
+      return null;
+    }
+
+    const rawMetaList = await Promise.all(
+      socketRefs.map((socketRef) => client.get(SOCKET_META_KEY(socketRef)))
+    );
+
+    const parsedMeta = rawMetaList
+      .map((raw) => {
+        if (!raw) return null;
+        try {
+          const parsed = JSON.parse(raw);
+          if (String(parsed?.userId || '') !== normalizedUserId) return null;
+          return parsed;
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
+
+    if (!parsedMeta.length) return null;
+    return buildPresenceContextFromMetaList(parsedMeta);
+  }, null);
+
+  if (redisContext) {
+    return redisContext;
+  }
+
+  const fallbackSockets = fallbackState.userSockets.get(normalizedUserId) || new Set();
+  const fallbackMetaList = [];
+  fallbackSockets.forEach((socketRef) => {
+    const meta = fallbackState.socketMeta.get(socketRef);
+    if (!meta) return;
+    if (String(meta?.userId || '') !== normalizedUserId) return;
+    fallbackMetaList.push(meta);
+  });
+
+  if (!fallbackMetaList.length) {
+    return {
+      online: false,
+      socketCount: 0,
+      devices: { mobile: 0, tablet: 0, desktop: 0, unknown: 0 },
+      hasMobileSession: false,
+      hasDesktopSession: false
+    };
+  }
+
+  return buildPresenceContextFromMetaList(fallbackMetaList);
+};

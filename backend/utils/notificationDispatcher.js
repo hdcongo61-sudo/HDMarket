@@ -5,9 +5,10 @@ import {
   incrementUnreadCount,
   syncUnreadCount
 } from './notificationUnreadCounter.js';
-import { emitSocketNotification, isUserOnline } from '../sockets/notificationSocket.js';
+import { emitSocketNotification } from '../sockets/notificationSocket.js';
 import { invalidateUserCache } from './cache.js';
 import { getRuntimeConfig } from '../services/configService.js';
+import { getUserPresenceContext } from '../services/presenceService.js';
 
 const DELIVERY_RULES = Object.freeze({
   LOW: { socketWhenOnline: false, pushWhenOnline: false, pushWhenOffline: false },
@@ -25,6 +26,7 @@ const resolvePriority = (value) => {
 const resolveDeliveryChannels = ({
   priority,
   online,
+  allowPushWhenOnlineFallback = false,
   pushEnabled = true,
   socketEnabled = true,
   pushWhenOnline = false,
@@ -43,11 +45,17 @@ const resolveDeliveryChannels = ({
     : true;
 
   const viaSocket = Boolean(socketEnabled && supportsInApp && online && rules.socketWhenOnline);
-  const rawPush = Boolean(pushEnabled && supportsPush && (online ? rules.pushWhenOnline : rules.pushWhenOffline));
+  const rawPush = Boolean(
+    pushEnabled &&
+      supportsPush &&
+      (online
+        ? rules.pushWhenOnline || allowPushWhenOnlineFallback
+        : rules.pushWhenOffline)
+  );
   const viaPush = Boolean(
     rawPush &&
       pushByPriorityAllowed &&
-      (!online || pushWhenOnline === true)
+      (!online || pushWhenOnline === true || allowPushWhenOnlineFallback === true)
   );
   return { viaSocket, viaPush };
 };
@@ -73,7 +81,11 @@ export const dispatchNotificationPayload = async ({
   if (!notification) return { delivered: false, reason: 'notification_not_found' };
 
   const targetUserId = String(userId || notification.user || '');
-  const online = await isUserOnline(targetUserId);
+  const presence = await getUserPresenceContext(targetUserId);
+  const online = Boolean(presence?.online);
+  const allowPushWhenOnlineFallback = Boolean(
+    online && presence?.hasDesktopSession && !presence?.hasMobileSession
+  );
   const [pushEnabledGlobal, pushWhenOnline, pushForPriorityHighOnly] = await Promise.all([
     getRuntimeConfig('push_enabled', { fallback: true }),
     getRuntimeConfig('push_when_online', { fallback: false }),
@@ -85,6 +97,7 @@ export const dispatchNotificationPayload = async ({
     pushEnabled: Boolean(pushEnabled) && Boolean(pushEnabledGlobal),
     socketEnabled,
     pushWhenOnline: Boolean(pushWhenOnline),
+    allowPushWhenOnlineFallback,
     pushForPriorityHighOnly: Boolean(pushForPriorityHighOnly),
     channels: notification?.channels || ['IN_APP', 'PUSH']
   });
@@ -134,6 +147,7 @@ export const dispatchNotificationPayload = async ({
       pushError = error?.message || 'push_failed';
     }
   }
+  const webOnlineFallbackUsed = Boolean(allowPushWhenOnlineFallback && channels.viaPush);
 
   notification.delivery = {
     ...(notification.delivery || {}),
@@ -143,6 +157,8 @@ export const dispatchNotificationPayload = async ({
     deliveredAt: new Date(),
     socketDelivered: Boolean(channels.viaSocket),
     pushDelivered: Boolean(pushSent),
+    pushFallbackWebOnline: webOnlineFallbackUsed,
+    pushFallbackReason: webOnlineFallbackUsed ? 'web_online_without_mobile_session' : '',
     pushError: pushError || '',
     status: pushError ? 'failed' : 'delivered'
   };
@@ -151,6 +167,7 @@ export const dispatchNotificationPayload = async ({
   return {
     delivered: !pushError,
     online,
+    presence,
     channels,
     pushError
   };

@@ -80,6 +80,13 @@ const formatDate = (value) => {
   return parsed.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
+const formatPercentLabel = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  if (parsed <= 1) return `${Math.round(parsed * 100)}%`;
+  return `${Math.round(parsed)}%`;
+};
+
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
 const coerceFlag = (value) => {
@@ -502,6 +509,7 @@ export default function ShopProfile() {
 
   const [activeCategory, setActiveCategory] = useState('all');
   const [promoOnly, setPromoOnly] = useState(false);
+  const [productFeed, setProductFeed] = useState('all');
   const [reviewForm, setReviewForm] = useState({ rating: 0, comment: '' });
   const [reviewSuccess, setReviewSuccess] = useState('');
   const [reviewError, setReviewError] = useState('');
@@ -678,6 +686,7 @@ export default function ShopProfile() {
   useEffect(() => {
     setActiveCategory('all');
     setPromoOnly(false);
+    setProductFeed('all');
     setReviewSuccess('');
     setReviewError('');
   }, [slug]);
@@ -718,7 +727,35 @@ export default function ShopProfile() {
       .slice(0, 6);
   }, [products]);
 
+  const featuredProducts = useMemo(
+    () =>
+      filteredProducts.filter((product) =>
+        Boolean(
+          product?.isFeatured ||
+            product?.featured ||
+            product?.boosted ||
+            product?.isBoosted ||
+            product?.boostActive
+        )
+      ),
+    [filteredProducts]
+  );
+
+  const latestProducts = useMemo(
+    () =>
+      [...filteredProducts]
+        .sort((a, b) => new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime())
+        .slice(0, 24),
+    [filteredProducts]
+  );
+
   const hasPromoProducts = useMemo(() => products.some((product) => Boolean(product?.hasActivePromo)), [products]);
+  const displayProducts = useMemo(() => {
+    if (productFeed === 'featured') return featuredProducts;
+    if (productFeed === 'latest') return latestProducts;
+    if (productFeed === 'popular') return topSellingProducts;
+    return filteredProducts;
+  }, [featuredProducts, filteredProducts, latestProducts, productFeed, topSellingProducts]);
 
   const isFollowing = useMemo(() => {
     if (!shop?._id || !Array.isArray(user?.followingShops)) return false;
@@ -1044,6 +1081,82 @@ export default function ShopProfile() {
     return yearDiff <= 0 ? 'Nouveau' : `${yearDiff} an${yearDiff > 1 ? 's' : ''}`;
   }, [shop?.createdAt]);
   const customerSatisfaction = ratingCount > 0 ? `${Math.round((ratingAverage / 5) * 100)}%` : 'Nouveau';
+  const responseRateLabel = useMemo(
+    () => formatPercentLabel(shop?.responseRate ?? shop?.replyRate ?? shop?.messageResponseRate),
+    [shop?.messageResponseRate, shop?.replyRate, shop?.responseRate]
+  );
+  const responseTimeLabel = useMemo(() => {
+    const raw =
+      shop?.responseTimeLabel ||
+      shop?.responseTime ||
+      shop?.avgResponseTime ||
+      shop?.averageResponseTime;
+    if (!raw) return null;
+    return String(raw);
+  }, [shop?.averageResponseTime, shop?.avgResponseTime, shop?.responseTime, shop?.responseTimeLabel]);
+  const shopCategoryLabel = String(shop?.shopCategory || shop?.category || '').trim();
+  const deliveryAvailableLabel = hasFreeDelivery
+    ? 'Livraison gratuite'
+    : products.some((product) => product?.deliveryAvailable !== false)
+      ? 'Livraison disponible'
+      : null;
+  const pickupAvailableLabel = products.some((product) => product?.pickupAvailable !== false)
+    ? 'Retrait en boutique'
+    : null;
+  const trustQuickInfo = [
+    {
+      id: 'verification',
+      icon: <ShieldCheck size={14} className="text-emerald-600" />,
+      label: 'Boutique',
+      value: isCertifiedShop ? 'Vérifiée' : 'Standard'
+    },
+    responseRateLabel
+      ? {
+          id: 'response-rate',
+          icon: <MessageCircle size={14} className="text-blue-600" />,
+          label: 'Taux réponse',
+          value: responseRateLabel
+        }
+      : null,
+    responseTimeLabel
+      ? {
+          id: 'response-time',
+          icon: <Clock size={14} className="text-violet-600" />,
+          label: 'Temps réponse',
+          value: responseTimeLabel
+        }
+      : null,
+    deliveryAvailableLabel
+      ? {
+          id: 'delivery',
+          icon: <Navigation size={14} className="text-indigo-600" />,
+          label: 'Livraison',
+          value: deliveryAvailableLabel
+        }
+      : null,
+    pickupAvailableLabel
+      ? {
+          id: 'pickup',
+          icon: <Store size={14} className="text-slate-600" />,
+          label: 'Retrait',
+          value: pickupAvailableLabel
+        }
+      : null,
+    shopCategoryLabel
+      ? {
+          id: 'category',
+          icon: <Package size={14} className="text-amber-600" />,
+          label: 'Catégorie',
+          value: shopCategoryLabel
+        }
+      : null,
+    {
+      id: 'seniority',
+      icon: <Calendar size={14} className="text-slate-600" />,
+      label: 'Ancienneté',
+      value: yearsActiveLabel
+    }
+  ].filter(Boolean);
   const ownCommentExists = Boolean(currentUserReview?.comment?.trim());
   const showReviewForm = !ownCommentExists || isEditingReview;
   const sectionCardClass = useMobileLayout
@@ -1306,35 +1419,47 @@ export default function ShopProfile() {
         style={useMobileLayout ? { maxWidth: '430px' } : undefined}
       >
         <header className={compactHeaderClass}>
-          <div className="flex items-center justify-between gap-2.5 max-[375px]:gap-2">
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 sm:text-[11px] sm:tracking-[0.2em]">
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl border border-slate-200/90 bg-white/90 text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-200 dark:hover:bg-slate-800 sm:min-h-11 sm:min-w-11"
+              aria-label="Retour"
+            >
+              <ArrowRight size={16} className="rotate-180" />
+            </button>
+
+            <div className="min-w-0 flex-1 px-1 text-center">
+              <p className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 sm:text-[11px]">
                 {isCertifiedShop ? 'Boutique certifiée' : 'Boutique'}
               </p>
-              <h1 className="truncate text-[15px] font-semibold text-slate-900 dark:text-white max-[375px]:text-sm sm:text-lg">{shop.shopName}</h1>
+              <h1 className="truncate text-[15px] font-semibold text-slate-900 dark:text-white max-[375px]:text-sm sm:text-lg">
+                {shop.shopName}
+              </h1>
             </div>
-            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-              {useMobileLayout && isCertifiedShop && (
-                <span className="inline-flex min-h-8 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-2 text-[10px] font-semibold text-emerald-700 sm:min-h-9 sm:text-[11px]">
-                  Certifiée
-                </span>
-              )}
+
+            <div className="flex shrink-0 items-center gap-1.5">
               <button
                 type="button"
-                onClick={() => navigate(-1)}
-                className="min-h-10 rounded-xl border border-slate-200 px-2.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 sm:min-h-11 sm:px-3 sm:text-sm"
+                onClick={handleShareShop}
+                className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl border border-slate-200/90 bg-white/90 text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-200 dark:hover:bg-slate-800 sm:min-h-11 sm:min-w-11"
+                aria-label="Partager la boutique"
               >
-                Retour
+                <Share2 size={15} />
               </button>
-              {!useMobileLayout && (
-                <button
-                  type="button"
-                  onClick={goToMessage}
-                  className="min-h-11 rounded-xl bg-neutral-600 px-4 text-sm font-semibold text-white transition hover:bg-neutral-700"
-                >
-                  Message
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handleFollowToggle}
+                disabled={followDisabled}
+                className={`inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl border transition sm:min-h-11 sm:min-w-11 ${
+                  isFollowing
+                    ? 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100'
+                    : 'border-slate-200/90 bg-white/90 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-200 dark:hover:bg-slate-800'
+                } ${followDisabled ? 'cursor-not-allowed opacity-60' : ''}`}
+                aria-label={isFollowing ? 'Boutique suivie' : 'Suivre la boutique'}
+              >
+                <Heart size={15} className={isFollowing ? 'fill-current' : ''} />
+              </button>
             </div>
           </div>
         </header>
@@ -1393,7 +1518,15 @@ export default function ShopProfile() {
                     {formatRatingLabel(ratingAverage)} · {formatCount(ratingCount)} avis
                   </span>
                 </div>
-                <p className="mt-1 text-xs text-white/85 sm:text-sm">Gérée par {shop.ownerName}</p>
+                <div className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-white/85 sm:justify-start sm:text-sm">
+                  <span>Gérée par {shop.ownerName}</span>
+                  {(shop?.city || shop?.commune) && (
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin size={12} />
+                      {[shop?.commune, shop?.city].filter(Boolean).join(', ')}
+                    </span>
+                  )}
+                </div>
                 <p className="mt-1.5 line-clamp-2 text-xs text-white/80 sm:mt-2 sm:text-sm sm:line-clamp-3">
                   {shop.shopDescription || 'Cette boutique n\'a pas encore ajouté de description publique.'}
                 </p>
@@ -1453,6 +1586,45 @@ export default function ShopProfile() {
                 Satisfaction: {customerSatisfaction}
               </span>
             </div>
+          </div>
+        </section>
+
+        <section
+          className={useMobileLayout ? 'mt-3 shop-panel rounded-xl p-2.5' : 'mt-4 shop-panel rounded-2xl p-4 sm:p-5'}
+          aria-label="Confiance et informations rapides"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className={useMobileLayout ? 'text-[15px] font-semibold text-slate-900' : 'text-lg font-semibold text-slate-900'}>
+                Confiance & infos rapides
+              </h3>
+              <p className={useMobileLayout ? 'mt-0.5 text-[11px] text-slate-500' : 'mt-1 text-sm text-slate-500'}>
+                Informations en direct de la boutique.
+              </p>
+            </div>
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                openingSummary.isOpen ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+              }`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${openingSummary.isOpen ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+              {openingSummary.isOpen ? 'Ouvert maintenant' : 'Fermé'}
+            </span>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            {trustQuickInfo.map((item) => (
+              <article
+                key={item.id}
+                className="rounded-xl border border-slate-200/80 bg-slate-50/80 px-2.5 py-2.5 transition hover:border-slate-300 hover:bg-white"
+              >
+                <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  {item.icon}
+                  {item.label}
+                </p>
+                <p className="mt-1 text-[13px] font-semibold text-slate-800 sm:text-sm">{item.value}</p>
+              </article>
+            ))}
           </div>
         </section>
 
@@ -1596,9 +1768,11 @@ export default function ShopProfile() {
             >
               <div className={useMobileLayout ? 'flex flex-wrap items-start justify-between gap-2' : 'flex flex-wrap items-start justify-between gap-2.5 sm:gap-3'}>
                 <div>
-                  <h3 className={useMobileLayout ? 'text-[15px] font-semibold text-slate-900' : 'text-lg font-semibold text-slate-900 sm:text-xl'}>Produits</h3>
+                  <h3 className={useMobileLayout ? 'text-[15px] font-semibold text-slate-900' : 'text-lg font-semibold text-slate-900 sm:text-xl'}>
+                    Produits de la boutique
+                  </h3>
                   <p className={useMobileLayout ? 'mt-0.5 text-[11px] text-slate-500' : 'mt-1 text-xs text-slate-500 sm:text-sm'}>
-                    {formatCount(filteredProducts.length)} produit{filteredProducts.length > 1 ? 's' : ''} visible{filteredProducts.length > 1 ? 's' : ''}
+                    {formatCount(displayProducts.length)} produit{displayProducts.length > 1 ? 's' : ''} visible{displayProducts.length > 1 ? 's' : ''}
                   </p>
                 </div>
                 <button
@@ -1612,6 +1786,40 @@ export default function ShopProfile() {
                   Aller aux avis
                   <ArrowRight size={14} />
                 </button>
+              </div>
+
+              <div className="mt-3 -mx-1 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex w-max items-center gap-2">
+                  {[
+                    { id: 'all', label: 'Tous', count: filteredProducts.length },
+                    { id: 'featured', label: 'En vedette', count: featuredProducts.length },
+                    { id: 'latest', label: 'Nouveautés', count: latestProducts.length },
+                    { id: 'popular', label: 'Populaires', count: topSellingProducts.length }
+                  ].map((item) => {
+                    const isActive = productFeed === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setProductFeed(item.id)}
+                        className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-[11px] font-semibold transition ${
+                          isActive
+                            ? 'bg-slate-900 text-white shadow-sm'
+                            : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        {item.label}
+                        <span
+                          className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                            isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {formatCount(item.count)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className={useMobileLayout ? 'mt-3 rounded-xl border border-slate-200/80 bg-white/80 p-2 shadow-sm' : 'mt-4 rounded-2xl border border-slate-200/80 bg-white/80 p-2.5 shadow-sm sm:border-transparent sm:bg-transparent sm:p-0 sm:shadow-none'}>
@@ -1705,9 +1913,9 @@ export default function ShopProfile() {
 
               <div className="mt-4">
                 {!shouldRenderProductsGrid && <ProductsSkeleton />}
-                {shouldRenderProductsGrid && filteredProducts.length > 0 && (
+                {shouldRenderProductsGrid && displayProducts.length > 0 && (
                   <div ref={productGridDebugRef} className={productGridClass} style={productGridStyle}>
-                    {filteredProducts.map((product) => (
+                    {displayProducts.map((product) => (
                       <ProductCard
                         key={`${product._id}-${useCompactProductCards ? 'compact' : 'regular'}`}
                         p={product}
@@ -1718,10 +1926,14 @@ export default function ShopProfile() {
                     ))}
                   </div>
                 )}
-                {shouldRenderProductsGrid && filteredProducts.length === 0 && (
+                {shouldRenderProductsGrid && displayProducts.length === 0 && (
                   <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center">
                     <p className="text-sm font-medium text-slate-700">
-                      {promoOnly
+                      {productFeed === 'featured'
+                        ? 'Aucun produit en vedette pour le moment.'
+                        : productFeed === 'popular'
+                          ? 'Aucun produit populaire pour le moment.'
+                          : promoOnly
                         ? 'Aucun produit en promo dans ce filtre.'
                         : activeCategory !== 'all'
                           ? `Aucun produit dans la catégorie ${activeCategory}.`
@@ -1760,7 +1972,26 @@ export default function ShopProfile() {
             </section>
 
             <section className="shop-panel rounded-2xl p-3.5 sm:p-5" aria-label="Informations boutique">
-              <h3 className="text-base font-semibold text-slate-900 sm:text-lg">Informations</h3>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-semibold text-slate-900 sm:text-lg">À propos de la boutique</h3>
+                  <p className="mt-1 text-xs text-slate-500 sm:text-sm">
+                    Coordonnées, présentation et informations publiques.
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                  <Store size={12} />
+                  {shopCategoryLabel || 'Marketplace'}
+                </span>
+              </div>
+
+              <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Description</p>
+                <p className="mt-1.5 text-sm text-slate-700">
+                  {shop.shopDescription || 'Cette boutique n’a pas encore ajouté de description détaillée.'}
+                </p>
+              </div>
+
               <dl className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
                   <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Adresse</dt>
@@ -2184,14 +2415,50 @@ export default function ShopProfile() {
       {useMobileLayout && (
         <div className="shop-glass-head fixed inset-x-0 bottom-0 z-40 border-t px-2.5 py-2.5 safe-area-pb max-[375px]:px-2 max-[375px]:py-2">
           <div className="space-y-1.5 sm:space-y-2">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={goToMessage}
+                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-neutral-600 text-xs font-semibold text-white sm:min-h-12 sm:gap-2 sm:text-sm"
+              >
+                <MessageCircle size={15} />
+                Message
+              </button>
+              {user && shop.phone ? (
+                <a
+                  href={`tel:${shop.phone}`}
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 text-xs font-semibold text-emerald-700 sm:min-h-12 sm:gap-2 sm:text-sm"
+                >
+                  <Phone size={15} />
+                  Appeler
+                </a>
+              ) : (
+                <Link
+                  to="/login"
+                  state={{ from: `/shop/${slug}` }}
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700 sm:min-h-12 sm:gap-2 sm:text-sm"
+                >
+                  <Phone size={15} />
+                  Appeler
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={handleDirections}
+                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 sm:min-h-12 sm:gap-2 sm:text-sm"
+              >
+                <Navigation size={15} />
+                GPS
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={handlePrimaryAction}
                 className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-neutral-900 text-xs font-semibold text-white sm:min-h-12 sm:gap-2 sm:text-sm"
               >
                 {isOwnShop ? <Pencil size={15} /> : <Store size={15} />}
-                <span>{isOwnShop ? 'Modifier' : 'Produits'}</span>
+                {isOwnShop ? 'Profil' : 'Produits'}
               </button>
               <button
                 type="button"
@@ -2201,37 +2468,19 @@ export default function ShopProfile() {
                 <Share2 size={15} />
                 Partager
               </button>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={goToMessage}
-                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-neutral-600 text-xs font-semibold text-white sm:min-h-12 sm:gap-2 sm:text-sm"
+                onClick={handleFollowToggle}
+                disabled={followDisabled}
+                className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border text-xs font-semibold sm:min-h-12 sm:gap-2 sm:text-sm ${
+                  isFollowing
+                    ? 'border-rose-200 bg-rose-50 text-rose-700'
+                    : 'border-slate-200 bg-slate-50 text-slate-700'
+                } ${followDisabled ? 'cursor-not-allowed opacity-60' : ''}`}
               >
-                <MessageCircle size={15} />
-                <span className="max-[375px]:hidden">Message</span>
-                <span className="hidden max-[375px]:inline">Msg</span>
+                <Heart size={15} className={isFollowing ? 'fill-current' : ''} />
+                Suivre
               </button>
-              {user && shop.phone ? (
-                <a
-                  href={`tel:${shop.phone}`}
-                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 text-xs font-semibold text-emerald-700 sm:min-h-12 sm:gap-2 sm:text-sm"
-                >
-                  <Phone size={15} />
-                  <span className="max-[375px]:hidden">Appeler</span>
-                  <span className="hidden max-[375px]:inline">Appel</span>
-                </a>
-              ) : (
-                <Link
-                  to="/login"
-                  state={{ from: `/shop/${slug}` }}
-                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700 sm:min-h-12 sm:gap-2 sm:text-sm"
-                >
-                  <Phone size={15} />
-                  <span className="max-[375px]:hidden">Appeler</span>
-                  <span className="hidden max-[375px]:inline">Appel</span>
-                </Link>
-              )}
             </div>
 
           </div>

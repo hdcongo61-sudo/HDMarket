@@ -163,6 +163,8 @@ const notificationSchema = new mongoose.Schema(
       deliveredAt: { type: Date, default: null },
       socketDelivered: { type: Boolean, default: false },
       pushDelivered: { type: Boolean, default: false },
+      pushFallbackWebOnline: { type: Boolean, default: false },
+      pushFallbackReason: { type: String, default: '' },
       pushError: { type: String, default: '' },
       status: {
         type: String,
