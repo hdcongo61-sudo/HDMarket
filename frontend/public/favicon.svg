@@ -1,21 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#6366f1" />
-      <stop offset="100%" stop-color="#a855f7" />
+    <linearGradient id="bagGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2a2a2a"/>
+      <stop offset="100%" stop-color="#111111"/>
     </linearGradient>
   </defs>
-  <rect width="64" height="64" rx="14" fill="url(#grad)" />
-  <text
-    x="50%"
-    y="50%"
-    dominant-baseline="middle"
-    text-anchor="middle"
-    font-family="Poppins, 'Segoe UI', sans-serif"
-    font-size="34"
-    font-weight="700"
-    fill="#fff"
-  >
-    HD
-  </text>
+  <!-- Background circle for favicon visibility -->
+  <rect width="64" height="64" rx="14" fill="#000000"/>
+  <!-- Bag handle -->
+  <path d="M24 20 Q24 10 32 10 Q40 10 40 20" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Handle rings -->
+  <circle cx="24" cy="20" r="2" fill="#ffffff"/>
+  <circle cx="40" cy="20" r="2" fill="#ffffff"/>
+  <!-- Bag body -->
+  <path d="M16 22 L48 22 L46 52 Q46 54 44 54 L20 54 Q18 54 18 52 Z" fill="url(#bagGrad)" stroke="#ffffff" stroke-width="2"/>
+  <!-- Horizontal texture lines on bag -->
+  <line x1="19" y1="30" x2="45" y2="30" stroke="#3a3a3a" stroke-width="0.8"/>
+  <line x1="19" y1="34" x2="45" y2="34" stroke="#3a3a3a" stroke-width="0.8"/>
+  <line x1="18.5" y1="38" x2="45.5" y2="38" stroke="#3a3a3a" stroke-width="0.8"/>
+  <line x1="18.5" y1="42" x2="46" y2="42" stroke="#3a3a3a" stroke-width="0.8"/>
+  <line x1="18.5" y1="46" x2="46" y2="46" stroke="#3a3a3a" stroke-width="0.8"/>
+  <!-- HD text -->
+  <text x="32" y="43" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="18" fill="#ffffff" letter-spacing="-1">HD</text>
 </svg>

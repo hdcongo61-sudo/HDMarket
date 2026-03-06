@@ -238,6 +238,17 @@ const parseGeoPoint = (location) => {
   return { latitude, longitude };
 };
 
+const buildFullShopAddress = (shop = {}) => {
+  const parts = [
+    shop?.shopAddress,
+    shop?.commune,
+    shop?.city
+  ]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+  return Array.from(new Set(parts)).join(', ');
+};
+
 const haversineDistanceKm = (from, to) => {
   if (!from || !to) return null;
   const toRad = (value) => (value * Math.PI) / 180;
@@ -590,6 +601,7 @@ export default function ShopProfile() {
   });
 
   const shop = shopQuery.data?.shop || null;
+  const shopFullAddress = useMemo(() => buildFullShopAddress(shop), [shop]);
   const products = useMemo(() => (Array.isArray(shopQuery.data?.products) ? shopQuery.data.products : []), [shopQuery.data?.products]);
   const recentReviews = useMemo(
     () => (Array.isArray(shopQuery.data?.recentReviews) ? shopQuery.data.recentReviews : []),
@@ -1754,7 +1766,7 @@ export default function ShopProfile() {
                   <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Adresse</dt>
                   <dd className="mt-1 flex items-start gap-2 text-sm text-slate-700">
                     <MapPin size={15} className="mt-0.5 shrink-0 text-slate-500" />
-                    <span>{shop.shopAddress || 'Adresse non renseignée'}</span>
+                    <span>{shopFullAddress || 'Adresse non renseignée'}</span>
                   </dd>
                 </div>
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
@@ -1794,6 +1806,15 @@ export default function ShopProfile() {
                       <MapPin size={12} />
                       {shop?.locationVerified ? 'Position vérifiée' : 'Position déclarée'}
                     </span>
+                  </div>
+
+                  <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      Adresse (texte)
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-slate-800">
+                      {shopFullAddress || 'Adresse non renseignée'}
+                    </p>
                   </div>
 
                   <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">

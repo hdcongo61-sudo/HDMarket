@@ -73,3 +73,38 @@ export const emitOrderUnreadUpdate = ({
     conversationUnread: Number(conversationUnread || 0)
   });
 };
+
+export const emitOrderStatusUpdated = ({
+  orderId,
+  status,
+  installmentSaleStatus,
+  customerId,
+  sellerIds = [],
+  updatedBy,
+  updatedAt
+}) => {
+  if (!ioInstance || !orderId) return;
+
+  const payload = {
+    orderId: String(orderId),
+    status: String(status || ''),
+    installmentSaleStatus: String(installmentSaleStatus || ''),
+    updatedBy: updatedBy ? String(updatedBy) : '',
+    updatedAt: updatedAt || new Date().toISOString()
+  };
+
+  const recipients = new Set();
+  if (customerId) recipients.add(String(customerId));
+  if (Array.isArray(sellerIds)) {
+    sellerIds
+      .map((id) => String(id || '').trim())
+      .filter(Boolean)
+      .forEach((id) => recipients.add(id));
+  }
+
+  recipients.forEach((userId) => {
+    ioInstance.to(buildOrderUserRoom(userId)).emit('orders:status:updated', payload);
+  });
+
+  ioInstance.to(buildOrderConversationRoom(orderId)).emit('orders:status:updated', payload);
+};

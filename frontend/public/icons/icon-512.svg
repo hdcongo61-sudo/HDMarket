@@ -1,10 +1,47 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="grad512" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#6366f1" />
-      <stop offset="100%" stop-color="#a855f7" />
+    <linearGradient id="bagGrad512" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2a2a2a"/>
+      <stop offset="100%" stop-color="#111111"/>
     </linearGradient>
+    <linearGradient id="reflectGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#555555" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow512">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <filter id="shadow512">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
   </defs>
-  <rect width="512" height="512" rx="112" fill="url(#grad512)" />
-  <text x="256" y="308" dominant-baseline="middle" text-anchor="middle" font-family="system-ui, sans-serif" font-size="256" font-weight="700" fill="#fff">HD</text>
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="#000000"/>
+  <!-- Bag handle -->
+  <path d="M180 140 Q180 68 256 68 Q332 68 332 140" fill="none" stroke="#ffffff" stroke-width="10" stroke-linecap="round"/>
+  <!-- Handle rings -->
+  <circle cx="180" cy="140" r="10" fill="#ffffff"/>
+  <circle cx="332" cy="140" r="10" fill="#ffffff"/>
+  <!-- Bag body with shadow -->
+  <g filter="url(#shadow512)">
+    <path d="M120 155 L392 155 L380 370 Q380 384 366 384 L146 384 Q132 384 132 370 Z" fill="url(#bagGrad512)" stroke="#ffffff" stroke-width="7"/>
+  </g>
+  <!-- Horizontal texture lines on bag -->
+  <line x1="134" y1="185" x2="378" y2="185" stroke="#3a3a3a" stroke-width="2"/>
+  <line x1="134" y1="205" x2="378" y2="205" stroke="#3a3a3a" stroke-width="2"/>
+  <line x1="133" y1="225" x2="379" y2="225" stroke="#3a3a3a" stroke-width="2"/>
+  <line x1="133" y1="245" x2="379" y2="245" stroke="#3a3a3a" stroke-width="2"/>
+  <line x1="133" y1="265" x2="380" y2="265" stroke="#3a3a3a" stroke-width="2"/>
+  <line x1="132" y1="285" x2="380" y2="285" stroke="#3a3a3a" stroke-width="2"/>
+  <line x1="132" y1="305" x2="380" y2="305" stroke="#3a3a3a" stroke-width="2"/>
+  <line x1="132" y1="325" x2="380" y2="325" stroke="#3a3a3a" stroke-width="2"/>
+  <line x1="132" y1="345" x2="380" y2="345" stroke="#3a3a3a" stroke-width="2"/>
+  <line x1="132" y1="365" x2="380" y2="365" stroke="#3a3a3a" stroke-width="2"/>
+  <!-- HD text -->
+  <text x="256" y="300" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="130" fill="#ffffff" letter-spacing="-5" filter="url(#glow512)">HD</text>
+  <!-- market CG subtitle -->
+  <text x="256" y="440" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="48" fill="#888888" letter-spacing="4">market CG</text>
+  <!-- Reflection of subtitle -->
+  <text x="256" y="478" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="48" fill="url(#reflectGrad)" letter-spacing="4" transform="scale(1,-1) translate(0,-916)" opacity="0.3">market CG</text>
 </svg>

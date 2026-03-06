@@ -330,6 +330,7 @@ export default function SellerOrderDetail() {
       const { data } = await api.patch(`/orders/seller/${order._id}/status`, { status: nextStatus });
       setOrder(data);
       showToast('Statut mis à jour.', { variant: 'success' });
+      window.dispatchEvent(new Event('hdmarket:orders-refresh'));
     } catch (err) {
       const message = err.response?.data?.message || 'Impossible de mettre à jour le statut.';
       setStatusUpdateError({ id: order._id, message });

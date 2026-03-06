@@ -35,6 +35,7 @@ import { buildAdminOrderFilter as buildAdvancedAdminOrderFilter } from '../servi
 import { getRuntimeConfig } from '../services/configService.js';
 import { getVerifiedProductIds } from '../utils/publicProductVisibility.js';
 import { safeAsync } from '../utils/safeAsync.js';
+import { emitOrderStatusUpdated } from '../sockets/chatSocket.js';
 
 const ORDER_STATUS = [
   'pending_payment',
@@ -1836,6 +1837,20 @@ export const userUpdateOrderStatus = asyncHandler(async (req, res) => {
   await order.save();
   const populated = await baseOrderQuery().findById(order._id);
   await ensureOrderProductSlugs([populated]);
+  const sellerIds = Array.isArray(order.items)
+    ? order.items
+        .map((item) => item?.snapshot?.shopId)
+        .filter(Boolean)
+    : [];
+  emitOrderStatusUpdated({
+    orderId: order._id,
+    status: order.status,
+    installmentSaleStatus: order.installmentSaleStatus,
+    customerId: order.customer,
+    sellerIds,
+    updatedBy: userId,
+    updatedAt: order.cancelledAt?.toISOString?.() || new Date().toISOString()
+  });
 
   // Send cancellation notification
   if (status === 'cancelled' && previousStatus !== 'cancelled') {
@@ -2553,6 +2568,20 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
     await order.save();
     const populatedInstallment = await baseOrderQuery().findById(order._id);
     await ensureOrderProductSlugs([populatedInstallment]);
+    const installmentSellerIds = Array.isArray(order.items)
+      ? order.items
+          .map((item) => item?.snapshot?.shopId)
+          .filter(Boolean)
+      : [];
+    emitOrderStatusUpdated({
+      orderId: order._id,
+      status: order.status,
+      installmentSaleStatus: order.installmentSaleStatus,
+      customerId: order.customer,
+      sellerIds: installmentSellerIds,
+      updatedBy: userId,
+      updatedAt: saleStatusChangedAt.toISOString()
+    });
 
     if (notifyConfirmed) {
       await createNotification({
@@ -2748,6 +2777,20 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   await order.save();
   const populated = await baseOrderQuery().findById(order._id);
   await ensureOrderProductSlugs([populated]);
+  const sellerIds = Array.isArray(order.items)
+    ? order.items
+        .map((item) => item?.snapshot?.shopId)
+        .filter(Boolean)
+    : [];
+  emitOrderStatusUpdated({
+    orderId: order._id,
+    status: order.status,
+    installmentSaleStatus: order.installmentSaleStatus,
+    customerId: order.customer,
+    sellerIds,
+    updatedBy: userId,
+    updatedAt: statusChangedAt.toISOString()
+  });
 
   if (notifyPending && previousStatus !== 'pending') {
     await createNotification({
@@ -2910,6 +2953,20 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
   await order.save();
   const populated = await baseOrderQuery().findById(order._id);
   await ensureOrderProductSlugs([populated]);
+  const sellerIds = Array.isArray(order.items)
+    ? order.items
+        .map((item) => item?.snapshot?.shopId)
+        .filter(Boolean)
+    : [];
+  emitOrderStatusUpdated({
+    orderId: order._id,
+    status: order.status,
+    installmentSaleStatus: order.installmentSaleStatus,
+    customerId: order.customer,
+    sellerIds,
+    updatedBy: userId,
+    updatedAt: order.cancelledAt?.toISOString?.() || new Date().toISOString()
+  });
 
   // Update product salesCount when order is cancelled (decrease count)
   if (Array.isArray(order.items)) {

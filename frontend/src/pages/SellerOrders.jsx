@@ -1055,6 +1055,7 @@ export default function SellerOrders() {
         }
       }));
       showToast('Statut de la commande mis à jour.', { variant: 'success' });
+      window.dispatchEvent(new Event('hdmarket:orders-refresh'));
     } catch (err) {
       const message =
         err.response?.data?.message || 'Impossible de mettre à jour le statut.';

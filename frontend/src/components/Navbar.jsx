@@ -439,6 +439,16 @@ export default function Navbar() {
         if (String(payload?.userId || '') !== String(user?._id)) return;
         setUnreadOrderMessages(Number(payload?.totalUnread || 0));
       });
+
+      socket.on('orders:status:updated', (payload) => {
+        if (!payload?.orderId) return;
+        window.dispatchEvent(
+          new CustomEvent('hdmarket:orders-status-updated', {
+            detail: payload
+          })
+        );
+        window.dispatchEvent(new Event('hdmarket:orders-refresh'));
+      });
     };
 
     initSocket();

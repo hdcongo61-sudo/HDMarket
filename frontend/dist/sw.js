@@ -5,7 +5,7 @@
  * - Auth API responses are never cached to avoid cross-user data leaks
  */
 
-const SW_VERSION = 'v4-2026-02-23';
+const SW_VERSION = new URL(self.location.href).searchParams.get('v') || 'v4-2026-03-06';
 const CACHE_NAME = `hdmarket-${SW_VERSION}`;
 const STATIC_CACHE_NAME = `hdmarket-static-${SW_VERSION}`;
 const API_CACHE_NAME = `hdmarket-api-${SW_VERSION}`;
@@ -20,7 +20,7 @@ const DEFAULT_FIREBASE_SDK_BASES = [
 const STATIC_ASSETS = ['/', '/index.html', '/favicon.svg'];
 const DEFAULT_NOTIFICATION_ICON = '/icons/icon-192.svg';
 const DEFAULT_NOTIFICATION_BADGE = '/icons/icon-192.svg';
-const NETWORK_TIMEOUT_MS = 8000;
+const NETWORK_TIMEOUT_MS = 30000;
 
 const DEV_HOSTS = new Set(['localhost', '127.0.0.1']);
 const DEV_BYPASS_PATHS = [
@@ -33,6 +33,7 @@ const DEV_BYPASS_PATHS = [
   /^\/__vite_ping/
 ];
 
+const ENABLE_PUBLIC_API_SW_CACHE = true;
 const PUBLIC_CACHEABLE_API_PREFIXES = [
   '/api/products/public',
   '/api/shops',
@@ -113,6 +114,7 @@ const fetchWithTimeout = async (request, options = {}, timeoutMs = NETWORK_TIMEO
 };
 
 const isPublicCacheableApiRequest = (request, path) => {
+  if (!ENABLE_PUBLIC_API_SW_CACHE) return false;
   if (!request || request.method !== 'GET') return false;
   if (isAuthRequest(request)) return false;
   if (NON_CACHEABLE_API_PATTERNS.some((pattern) => pattern.test(path))) return false;

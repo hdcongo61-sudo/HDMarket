@@ -1,10 +1,33 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
   <defs>
-    <linearGradient id="grad192" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#6366f1" />
-      <stop offset="100%" stop-color="#a855f7" />
+    <linearGradient id="bagGrad192" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2a2a2a"/>
+      <stop offset="100%" stop-color="#111111"/>
     </linearGradient>
+    <filter id="glow192">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
   </defs>
-  <rect width="192" height="192" rx="42" fill="url(#grad192)" />
-  <text x="96" y="116" dominant-baseline="middle" text-anchor="middle" font-family="system-ui, sans-serif" font-size="96" font-weight="700" fill="#fff">HD</text>
+  <!-- Background -->
+  <rect width="192" height="192" rx="38" fill="#000000"/>
+  <!-- Bag handle -->
+  <path d="M68 58 Q68 30 96 30 Q124 30 124 58" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>
+  <!-- Handle rings -->
+  <circle cx="68" cy="58" r="4.5" fill="#ffffff"/>
+  <circle cx="124" cy="58" r="4.5" fill="#ffffff"/>
+  <!-- Bag body -->
+  <path d="M46 64 L146 64 L142 142 Q142 148 136 148 L56 148 Q50 148 50 142 Z" fill="url(#bagGrad192)" stroke="#ffffff" stroke-width="4"/>
+  <!-- Horizontal texture lines on bag -->
+  <line x1="52" y1="78" x2="140" y2="78" stroke="#3a3a3a" stroke-width="1.5"/>
+  <line x1="52" y1="88" x2="140" y2="88" stroke="#3a3a3a" stroke-width="1.5"/>
+  <line x1="51" y1="98" x2="141" y2="98" stroke="#3a3a3a" stroke-width="1.5"/>
+  <line x1="51" y1="108" x2="141" y2="108" stroke="#3a3a3a" stroke-width="1.5"/>
+  <line x1="51" y1="118" x2="142" y2="118" stroke="#3a3a3a" stroke-width="1.5"/>
+  <line x1="50" y1="128" x2="142" y2="128" stroke="#3a3a3a" stroke-width="1.5"/>
+  <line x1="50" y1="138" x2="142" y2="138" stroke="#3a3a3a" stroke-width="1.5"/>
+  <!-- HD text -->
+  <text x="96" y="118" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="52" fill="#ffffff" letter-spacing="-2" filter="url(#glow192)">HD</text>
+  <!-- market CG subtitle -->
+  <text x="96" y="174" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="20" fill="#888888" letter-spacing="2">market CG</text>
 </svg>

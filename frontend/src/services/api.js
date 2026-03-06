@@ -95,6 +95,19 @@ const CACHE_EXCLUDE_PREFIXES = [
   '/chat',
   '/settings/networks'
 ];
+const SW_MANAGED_CACHE_PREFIXES = [
+  '/products/public',
+  '/shops',
+  '/settings',
+  '/categories',
+  '/cities',
+  '/search'
+];
+const SW_MANAGED_CACHE_EXCLUDE_PATTERNS = [
+  /^\/shops\/[^/?]+$/,
+  /^\/products\/public\/[^/]+\/comments(?:\/|$)/,
+  /^\/products\/public\/[^/]+\/ratings(?:\/|$)/
+];
 const USER_SCOPED_CACHE_PREFIXES = [
   '/users/profile',
   '/users/notifications',
@@ -312,7 +325,7 @@ const getUserScopeSuffix = (config, normalizedUrl) => {
 
 const buildCacheKey = (config) => {
   const normalized = normalizeUrl(config);
-  const params = config.params ? new URLSearchParams(config.params).toString() : '';
+  const params = toStableParams(config.params);
   const query = params ? (normalized.includes('?') ? `&${params}` : `?${params}`) : '';
   const userScope = getUserScopeSuffix(config, normalized);
   return `${CACHE_PREFIX}${normalized}${query}${userScope}`;
@@ -509,6 +522,12 @@ const shouldCacheRequest = (config) => {
   if (config.skipCache || config.headers?.['x-skip-cache']) return false;
   const normalized = normalizeUrl(config);
   if (!normalized.startsWith('/')) return false;
+  if (typeof navigator !== 'undefined' && navigator.serviceWorker?.controller) {
+    const managedBySw =
+      SW_MANAGED_CACHE_PREFIXES.some((prefix) => normalized.startsWith(prefix)) &&
+      !SW_MANAGED_CACHE_EXCLUDE_PATTERNS.some((pattern) => pattern.test(normalized));
+    if (managedBySw) return false;
+  }
   if (CACHE_EXCLUDE_PREFIXES.some((prefix) => normalized.startsWith(prefix))) return false;
   return CACHE_ALLOW_PREFIXES.some((prefix) => normalized.startsWith(prefix));
 };

@@ -1,6 +1,7 @@
 /**
  * Service Worker registration utility
  */
+/* global __HDMARKET_BUILD_ID__ */
 
 const isLocalHost = () => {
   if (typeof window === 'undefined') return false;
@@ -9,15 +10,22 @@ const isLocalHost = () => {
 
 const shouldLogSwDebug =
   import.meta.env?.DEV === true && String(import.meta.env.VITE_DEBUG_SW) === 'true';
+const allowLocalhostServiceWorker =
+  String(import.meta.env.VITE_ENABLE_SW_ON_LOCALHOST || '').trim().toLowerCase() === 'true';
+const SW_BUILD_ID =
+  typeof __HDMARKET_BUILD_ID__ !== 'undefined'
+    ? String(__HDMARKET_BUILD_ID__)
+    : String(import.meta.env.VITE_APP_BUILD_ID || 'dev');
 
 export const registerServiceWorker = async () => {
-  if (isLocalHost()) {
+  if (isLocalHost() && !allowLocalhostServiceWorker) {
     await unregisterServiceWorker();
     return null;
   }
   if ('serviceWorker' in navigator) {
     try {
-      const registration = await navigator.serviceWorker.register('/sw.js', {
+      const swScriptUrl = `/sw.js?v=${encodeURIComponent(SW_BUILD_ID)}`;
+      const registration = await navigator.serviceWorker.register(swScriptUrl, {
         scope: '/'
       });
       
