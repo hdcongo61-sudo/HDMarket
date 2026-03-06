@@ -43,6 +43,42 @@ const normalizeBoolean = (value, fallback = false) => {
 
 const normalizeText = (value) => String(value || '').trim().toLowerCase();
 
+const getOrderId = (value) => {
+  const raw = value?._id || value?.id;
+  return raw ? String(raw) : '';
+};
+
+const extractFirstOrderId = (payload) => {
+  if (!payload) return '';
+
+  const directId = getOrderId(payload);
+  if (directId) return directId;
+
+  if (Array.isArray(payload)) {
+    for (const entry of payload) {
+      const id = getOrderId(entry);
+      if (id) return id;
+    }
+  }
+
+  const objectCandidates = [payload?.order, payload?.item, payload?.result, payload?.data];
+  for (const entry of objectCandidates) {
+    const id = getOrderId(entry);
+    if (id) return id;
+  }
+
+  const listCandidates = [payload?.orders, payload?.items, payload?.data?.orders, payload?.data?.items];
+  for (const list of listCandidates) {
+    if (!Array.isArray(list)) continue;
+    for (const entry of list) {
+      const id = getOrderId(entry);
+      if (id) return id;
+    }
+  }
+
+  return '';
+};
+
 export default function OrderCheckout() {
   const { cart, clearCart } = useContext(CartContext);
   const { user } = useContext(AuthContext);
@@ -372,7 +408,12 @@ export default function OrderCheckout() {
       )
     );
     if (!normalizedCodes.length) {
-      return { confirmed: false, matchedCount: 0, expectedCount: Math.max(1, Number(expectedCount || 1)) };
+      return {
+        confirmed: false,
+        matchedCount: 0,
+        expectedCount: Math.max(1, Number(expectedCount || 1)),
+        orderId: ''
+      };
     }
 
     try {
@@ -387,14 +428,26 @@ export default function OrderCheckout() {
       const now = Date.now();
       const cutoffMs = 20 * 60 * 1000;
       const matchedCodes = new Set();
+      let orderId = '';
 
-      orders.forEach((order) => {
+      const recentOrders = orders
+        .filter((order) => {
+          const createdAtMs = new Date(order?.createdAt || 0).getTime();
+          if (!Number.isFinite(createdAtMs) || now - createdAtMs > cutoffMs) return false;
+          if (paymentType && String(order?.paymentType || '') !== String(paymentType)) return false;
+          return true;
+        })
+        .sort((a, b) => new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime());
+
+      recentOrders.forEach((order) => {
         const createdAtMs = new Date(order?.createdAt || 0).getTime();
         if (!Number.isFinite(createdAtMs) || now - createdAtMs > cutoffMs) return;
-        if (paymentType && String(order?.paymentType || '') !== String(paymentType)) return;
         const orderCode = String(order?.paymentTransactionCode || '').replace(/\D/g, '').trim();
         if (orderCode && normalizedCodes.includes(orderCode)) {
           matchedCodes.add(orderCode);
+          if (!orderId) {
+            orderId = getOrderId(order);
+          }
         }
       });
 
@@ -402,13 +455,15 @@ export default function OrderCheckout() {
       return {
         confirmed: matchedCodes.size >= Math.min(expected, normalizedCodes.length),
         matchedCount: matchedCodes.size,
-        expectedCount: expected
+        expectedCount: expected,
+        orderId
       };
     } catch {
       return {
         confirmed: false,
         matchedCount: 0,
-        expectedCount: Math.max(1, Number(expectedCount || normalizedCodes.length || 1))
+        expectedCount: Math.max(1, Number(expectedCount || normalizedCodes.length || 1)),
+        orderId: ''
       };
     }
   };
@@ -490,7 +545,7 @@ export default function OrderCheckout() {
       setLoading(true);
       setError('');
       try {
-        await api.post(
+        const { data } = await api.post(
           '/orders/installment/checkout',
           {
             productId: installmentProduct._id,
@@ -503,10 +558,15 @@ export default function OrderCheckout() {
             shippingAddress
           }
         );
+        const createdOrderId = extractFirstOrderId(data);
         setOrderConfirmed(true);
         await clearCart();
         showToast('Commande en tranche créée. En attente de validation vendeur.', { variant: 'success' });
-        navigate('/orders');
+        if (createdOrderId) {
+          navigate(`/order/detail/${createdOrderId}`);
+        } else {
+          navigate('/orders');
+        }
       } catch (err) {
         if (isApiTimeoutError(err)) {
           const reconciliation = await reconcileCheckoutAfterTimeout({
@@ -520,7 +580,11 @@ export default function OrderCheckout() {
             showToast('Commande confirmée (vérification automatique après délai réseau).', {
               variant: 'success'
             });
-            navigate('/orders');
+            if (reconciliation.orderId) {
+              navigate(`/order/detail/${reconciliation.orderId}`);
+            } else {
+              navigate('/orders');
+            }
             return;
           }
           const timeoutMessage =
@@ -608,7 +672,7 @@ export default function OrderCheckout() {
     setLoading(true);
     setError('');
     try {
-      await api.post(
+      const { data } = await api.post(
         '/orders/checkout',
         {
           deliveryMode,
@@ -626,10 +690,15 @@ export default function OrderCheckout() {
           })
         }
       );
+      const createdOrderId = extractFirstOrderId(data);
       setOrderConfirmed(true);
       await clearCart();
       showToast('Commande enregistrée. Elle est en attente de validation.', { variant: 'success' });
-      navigate('/orders');
+      if (createdOrderId) {
+        navigate(`/order/detail/${createdOrderId}`);
+      } else {
+        navigate('/orders');
+      }
     } catch (err) {
       if (isApiTimeoutError(err)) {
         const reconciliation = await reconcileCheckoutAfterTimeout({
@@ -642,7 +711,11 @@ export default function OrderCheckout() {
           showToast('Commande confirmée (vérification automatique après délai réseau).', {
             variant: 'success'
           });
-          navigate('/orders');
+          if (reconciliation.orderId) {
+            navigate(`/order/detail/${reconciliation.orderId}`);
+          } else {
+            navigate('/orders');
+          }
           return;
         }
         const timeoutMessage =
