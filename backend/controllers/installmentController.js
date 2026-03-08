@@ -210,6 +210,29 @@ const getNextDueDate = (schedule = []) => {
   return next?.dueDate || null;
 };
 
+const roundMoney = (value) => Number(Number(value || 0).toFixed(2));
+
+const isPastDueDate = (dueDate, now = new Date()) => {
+  if (!dueDate) return false;
+  const deadline = new Date(dueDate);
+  if (Number.isNaN(deadline.getTime())) return false;
+  deadline.setHours(23, 59, 59, 999);
+  return now.getTime() > deadline.getTime();
+};
+
+const isScheduleEntrySettled = (entry) => ['paid', 'waived'].includes(String(entry?.status || ''));
+
+const getNextPayableInstallmentIndex = (schedule = [], fromIndex = -1) =>
+  schedule.findIndex((entry, index) => index > fromIndex && !isScheduleEntrySettled(entry));
+
+const getRemainingScheduleAmount = (schedule = []) =>
+  roundMoney(
+    schedule.reduce((sum, entry) => {
+      if (isScheduleEntrySettled(entry)) return sum;
+      return sum + Number(entry?.amount || 0);
+    }, 0)
+  );
+
 const parseGuarantorPayload = (body = {}) => {
   if (body?.guarantor && typeof body.guarantor === 'object') {
     return body.guarantor;
@@ -631,6 +654,9 @@ export const sellerValidateInstallmentPayment = asyncHandler(async (req, res) =>
   if (!current) {
     return res.status(404).json({ message: 'Tranche introuvable.' });
   }
+  if (isScheduleEntrySettled(current)) {
+    return res.status(400).json({ message: 'Cette tranche est déjà finalisée.' });
+  }
 
   if (!approve) {
     current.status = 'pending';
@@ -638,6 +664,7 @@ export const sellerValidateInstallmentPayment = asyncHandler(async (req, res) =>
     current.validatedBy = null;
     current.validatedAt = null;
     current.paidAt = null;
+    current.penaltyAmount = 0;
     order.installmentPlan.nextDueDate = getNextDueDate(schedule);
     order.markModified('installmentPlan');
     await order.save();
@@ -648,13 +675,20 @@ export const sellerValidateInstallmentPayment = asyncHandler(async (req, res) =>
   if (!current?.transactionProof?.senderName || !current?.transactionProof?.transactionCode) {
     return res.status(400).json({ message: 'Aucune preuve transactionnelle valide pour cette tranche.' });
   }
+  if (current.status !== 'proof_uploaded') {
+    return res.status(400).json({
+      message: 'Cette tranche doit être soumise avec preuve avant validation.'
+    });
+  }
 
   const now = new Date();
-  const isLate = current.dueDate && new Date(current.dueDate) < now;
+  // Penalty applies only once the due calendar date is fully passed.
+  const isLate = isPastDueDate(current.dueDate, now);
   const baseAmount = Number(current.amount || 0);
   const penalty = isLate
-    ? Number(((baseAmount * Number(order.installmentPlan.latePenaltyRate || 0)) / 100).toFixed(2))
+    ? roundMoney((baseAmount * Number(order.installmentPlan.latePenaltyRate || 0)) / 100)
     : 0;
+  let penaltyForwardedToIndex = -1;
 
   current.status = 'paid';
   current.validatedBy = userId;
@@ -662,24 +696,53 @@ export const sellerValidateInstallmentPayment = asyncHandler(async (req, res) =>
   current.paidAt = now;
   current.penaltyAmount = penalty;
 
-  const paidIncrement = Number((baseAmount + penalty).toFixed(2));
-  order.installmentPlan.amountPaid = Number(
-    (Number(order.installmentPlan.amountPaid || 0) + paidIncrement).toFixed(2)
+  // Business rule: penalties are not counted as principal paid; they are forwarded
+  // to the next installment due. If no next installment exists, create one.
+  if (penalty > 0) {
+    const nextIndex = getNextPayableInstallmentIndex(schedule, index);
+    if (nextIndex >= 0) {
+      schedule[nextIndex].amount = roundMoney(Number(schedule[nextIndex].amount || 0) + penalty);
+      penaltyForwardedToIndex = nextIndex;
+    } else {
+      schedule.push({
+        dueDate: addDays(now, 7),
+        amount: penalty,
+        status: 'pending',
+        proofOfPayment: {},
+        transactionProof: {},
+        validatedBy: null,
+        validatedAt: null,
+        paidAt: null,
+        penaltyAmount: 0,
+        reminderSentAt: null,
+        overdueNotifiedAt: null
+      });
+      penaltyForwardedToIndex = schedule.length - 1;
+    }
+  }
+
+  const paidIncrement = roundMoney(baseAmount);
+  order.installmentPlan.amountPaid = roundMoney(
+    Math.min(
+      Number(order.installmentPlan.totalAmount || 0),
+      Number(order.installmentPlan.amountPaid || 0) + paidIncrement
+    )
   );
-  order.installmentPlan.totalPenaltyAccrued = Number(
-    (Number(order.installmentPlan.totalPenaltyAccrued || 0) + penalty).toFixed(2)
+  order.installmentPlan.totalPenaltyAccrued = roundMoney(
+    Number(order.installmentPlan.totalPenaltyAccrued || 0) + penalty
   );
-  order.installmentPlan.remainingAmount = Math.max(
-    0,
-    Number((Number(order.installmentPlan.totalAmount || 0) - Number(order.installmentPlan.amountPaid || 0)).toFixed(2))
-  );
+  order.installmentPlan.remainingAmount = getRemainingScheduleAmount(schedule);
   order.installmentPlan.nextDueDate = getNextDueDate(schedule);
+  order.installmentPlan.overdueCount = schedule.filter((entry) => entry?.status === 'overdue').length;
   order.markModified('installmentPlan');
 
   order.paidAmount = Number(order.installmentPlan.amountPaid || 0);
   order.remainingAmount = Number(order.installmentPlan.remainingAmount || 0);
 
-  if (order.installmentPlan.remainingAmount <= 0) {
+  const hasOpenInstallments = schedule.some((entry) => !isScheduleEntrySettled(entry));
+  const hasOverdueInstallments = schedule.some((entry) => entry?.status === 'overdue');
+
+  if (!hasOpenInstallments) {
     order.status = 'completed';
     if (!order.completedAt) {
       order.completedAt = now;
@@ -699,6 +762,12 @@ export const sellerValidateInstallmentPayment = asyncHandler(async (req, res) =>
         })
       );
     }
+  } else if (hasOverdueInstallments) {
+    order.status = 'overdue_installment';
+    if (!order.confirmedAt) {
+      order.confirmedAt = now;
+    }
+    await order.save();
   } else {
     order.status = 'installment_active';
     if (!order.confirmedAt) {
@@ -716,7 +785,8 @@ export const sellerValidateInstallmentPayment = asyncHandler(async (req, res) =>
       orderId: order._id,
       scheduleIndex: index,
       amount: baseAmount,
-      penalty
+      penalty,
+      penaltyForwardedToIndex: penaltyForwardedToIndex >= 0 ? penaltyForwardedToIndex : undefined
     },
     allowSelf: true
   });

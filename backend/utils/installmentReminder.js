@@ -23,6 +23,14 @@ const getNextDueDate = (schedule = []) => {
   return next?.dueDate || null;
 };
 
+const isPastDueDate = (dueDate, now = new Date()) => {
+  if (!dueDate) return false;
+  const deadline = new Date(dueDate);
+  if (Number.isNaN(deadline.getTime())) return false;
+  deadline.setHours(23, 59, 59, 999);
+  return now.getTime() > deadline.getTime();
+};
+
 export const processInstallmentReminders = async () => {
   const now = new Date();
   const envFallback = Math.max(1, Number(process.env.INSTALLMENT_REMINDER_LEAD_DAYS || 3));
@@ -64,7 +72,7 @@ export const processInstallmentReminders = async () => {
       if (entry.status === 'paid' || entry.status === 'waived') continue;
 
       const dueDate = new Date(entry.dueDate);
-      if (dueDate <= now) {
+      if (isPastDueDate(dueDate, now)) {
         if (entry.status !== 'overdue') {
           entry.status = 'overdue';
           changed = true;

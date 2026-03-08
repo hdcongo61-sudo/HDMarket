@@ -233,6 +233,12 @@ const hasValidDeliveryEvidence = (order) =>
 const hasMinimumDeliveryProofImages = (order, minCount = 1) =>
   Array.isArray(order?.deliveryProofImages) && order.deliveryProofImages.length >= Math.max(1, Number(minCount) || 1);
 
+const hasAllInstallmentsSettled = (order) => {
+  const schedule = Array.isArray(order?.installmentPlan?.schedule) ? order.installmentPlan.schedule : [];
+  if (!schedule.length) return false;
+  return schedule.every((entry) => ['paid', 'waived'].includes(String(entry?.status || '')));
+};
+
 const extractDeliveryLocation = (body = {}) => {
   const location = body?.location || {};
   const latitude = Number(location.latitude ?? body.locationLatitude);
@@ -2222,6 +2228,11 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
       message: 'La preuve de livraison est disponible après la complétion du paiement en tranches.'
     });
   }
+  if (order.paymentType === 'installment' && !hasAllInstallmentsSettled(order)) {
+    return res.status(400).json({
+      message: 'La livraison est disponible uniquement après paiement complet de toutes les tranches.'
+    });
+  }
   const isPickupOrder = String(order.deliveryMode || '').toUpperCase() === 'PICKUP';
   if (
     order.paymentType !== 'installment' &&
@@ -2557,7 +2568,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   }
 
   if (order.paymentType === 'installment') {
-    if (order.status !== 'completed') {
+    if (order.status !== 'completed' || !hasAllInstallmentsSettled(order)) {
       return res.status(400).json({
         message:
           'Le statut de vente de la commande tranche peut être mis à jour uniquement après paiement complet des tranches.'

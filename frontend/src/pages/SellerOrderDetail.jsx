@@ -41,6 +41,7 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { getPickupShopAddress, isPickupOrder as resolvePickupOrder } from '../utils/pickupAddress';
 import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
+import { getInstallmentWorkflow } from '../utils/installmentTracking';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
@@ -572,11 +573,14 @@ export default function SellerOrderDetail() {
       return;
     }
     const isInstallmentOrder = order.paymentType === 'installment';
+    const installmentWorkflowStatus = isInstallmentOrder
+      ? getInstallmentWorkflow(order)?.workflowStatus || order.status
+      : order.status;
     const installmentSaleStatus = order.installmentSaleStatus || '';
     const canRequestDeliveryProof =
       ((!isInstallmentOrder && ['delivering', 'out_for_delivery'].includes(order.status)) ||
         (isInstallmentOrder &&
-          order.status === 'completed' &&
+          installmentWorkflowStatus === 'completed' &&
           (installmentSaleStatus || 'confirmed') === 'delivering')) &&
       !['submitted', 'verified'].includes(order.deliveryStatus);
     const canRequestPickupProof =
@@ -629,14 +633,17 @@ export default function SellerOrderDetail() {
   const pickupShopAddress = isPickupOrder ? getPickupShopAddress(order) : null;
   const installmentPlan = isInstallmentOrder ? order.installmentPlan || {} : null;
   const installmentSchedule = Array.isArray(installmentPlan?.schedule) ? installmentPlan.schedule : [];
+  const installmentWorkflow = isInstallmentOrder ? getInstallmentWorkflow(order) : null;
   const installmentTotal = Number(installmentPlan?.totalAmount ?? totalAmount);
   const installmentPaid = Number(installmentPlan?.amountPaid ?? paidAmount);
   const installmentRemaining = Number(
-    installmentPlan?.remainingAmount ?? Math.max(0, installmentTotal - installmentPaid)
+    installmentPlan?.remainingAmount ??
+      installmentWorkflow?.remainingFromSchedule ??
+      Math.max(0, installmentTotal - installmentPaid)
   );
   const installmentProgressPercent =
     installmentTotal > 0 ? Math.min(100, Math.round((installmentPaid / installmentTotal) * 100)) : 0;
-  const saleConfirmationConfirmed = Boolean(installmentPlan?.saleConfirmationConfirmedAt);
+  const saleConfirmationConfirmed = Boolean(installmentWorkflow?.saleConfirmed);
   const installmentSaleStatus =
     isInstallmentOrder && order.status === 'completed'
       ? order.installmentSaleStatus || 'confirmed'
@@ -662,12 +669,15 @@ export default function SellerOrderDetail() {
     );
     return hasSubmittedPayment ? 'paid' : 'pending_payment';
   })();
-  const displayStatusLabel = pickupStatusLabel || order.status;
-  const StatusIcon = STATUS_ICONS[order.status] || Clock;
-  const statusStyle = STATUS_STYLES[order.status] || STATUS_STYLES.pending;
+  const displayStatusLabel = isInstallmentOrder
+    ? installmentWorkflow?.workflowStatus || order.status
+    : pickupStatusLabel || order.status;
+  const StatusIcon = STATUS_ICONS[displayStatusLabel] || STATUS_ICONS[order.status] || Clock;
+  const statusStyle =
+    STATUS_STYLES[displayStatusLabel] || STATUS_STYLES[order.status] || STATUS_STYLES.pending;
   const canManageInstallmentSaleStatus =
     isInstallmentOrder &&
-    order.status === 'completed' &&
+    (installmentWorkflow?.workflowStatus || order.status) === 'completed' &&
     !['delivered', 'cancelled'].includes(installmentSaleStatus);
   const normalizedOrderStatusForTimeline = (() => {
     const platformAutoConfirmed =
@@ -698,7 +708,7 @@ export default function SellerOrderDetail() {
   const canRequestDeliveryProof =
     ((!isInstallmentOrder && ['delivering', 'out_for_delivery'].includes(order.status)) ||
       (isInstallmentOrder &&
-        order.status === 'completed' &&
+        (installmentWorkflow?.workflowStatus || order.status) === 'completed' &&
         (installmentSaleStatus || 'confirmed') === 'delivering')) &&
     !['submitted', 'verified'].includes(order.deliveryStatus);
   const canRequestPickupProof =
@@ -1045,9 +1055,15 @@ export default function SellerOrderDetail() {
                           <p>
                             Prochaine échéance:{' '}
                             <span className="font-semibold text-gray-900">
-                              {installmentPlan?.nextDueDate
-                                ? formatOrderTimestamp(installmentPlan.nextDueDate)
+                              {installmentWorkflow?.nextDueDate
+                                ? formatOrderTimestamp(installmentWorkflow.nextDueDate)
                                 : 'Aucune'}
+                            </span>
+                          </p>
+                          <p>
+                            Prochaine tranche à payer:{' '}
+                            <span className="font-semibold text-gray-900">
+                              {formatCurrency(installmentWorkflow?.nextInstallmentAmount || 0)}
                             </span>
                           </p>
                           <p>
@@ -1247,6 +1263,11 @@ export default function SellerOrderDetail() {
                           </div>
                         ) : (
                           <p className="text-xs text-gray-500">Aucune preuve transactionnelle déposée.</p>
+                        )}
+                        {Number(entry?.penaltyAmount || 0) > 0 && (
+                          <p className="text-xs text-amber-700">
+                            Pénalité appliquée: {formatCurrency(entry?.penaltyAmount || 0)}
+                          </p>
                         )}
                         {canValidate && (
                           <div className="flex flex-wrap gap-2">
@@ -1682,11 +1703,18 @@ export default function SellerOrderDetail() {
             )}
 
             {order.status !== 'cancelled' && (
-              <AnimatedOrderTimeline
-                status={normalizedOrderStatusForTimeline}
-                paymentType={order.paymentType}
-                deliveryMode={order.deliveryMode}
-              />
+              isInstallmentOrder ? (
+                <OrderProgress
+                  status={installmentWorkflow?.workflowStatus || order.status}
+                  paymentType="installment"
+                />
+              ) : (
+                <AnimatedOrderTimeline
+                  status={normalizedOrderStatusForTimeline}
+                  paymentType={order.paymentType}
+                  deliveryMode={order.deliveryMode}
+                />
+              )
             )}
 
             <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100 text-xs text-gray-600">

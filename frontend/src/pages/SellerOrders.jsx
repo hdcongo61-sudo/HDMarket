@@ -228,6 +228,13 @@ const getPickupCardStatus = (order) => {
   return hasSubmittedPayment ? 'paid' : 'pending_payment';
 };
 
+const isInstallmentFullyPaid = (order) => {
+  if (String(order?.paymentType || '') !== 'installment') return false;
+  const schedule = Array.isArray(order?.installmentPlan?.schedule) ? order.installmentPlan.schedule : [];
+  if (!schedule.length) return false;
+  return schedule.every((entry) => ['paid', 'waived'].includes(String(entry?.status || '')));
+};
+
 const OrderProgress = ({ status }) => {
   const { t } = useAppSettings();
   const currentIndexRaw = ORDER_FLOW.findIndex((step) => step.id === status);
@@ -421,6 +428,9 @@ const SellerMobileOrderCard = ({
   const paidAmount = Number(order.paidAmount || 0);
   const remainingAmount = Number(order.remainingAmount ?? Math.max(0, totalAmount - paidAmount));
   const isPickupOrder = resolvePickupOrder(order);
+  const isInstallmentOrder = String(order?.paymentType || '') === 'installment';
+  const installmentSaleStatus = String(order?.installmentSaleStatus || 'confirmed');
+  const installmentFullyPaid = isInstallmentFullyPaid(order);
   const pickupCardStatus = getPickupCardStatus(order);
   const statusLabelKey = pickupCardStatus || order.status;
   const pickupShopAddress = isPickupOrder ? getPickupShopAddress(order) : null;
@@ -472,7 +482,8 @@ const SellerMobileOrderCard = ({
   const canUpdateStatus =
     !isCancelled &&
     !['delivered', 'picked_up_confirmed'].includes(String(order.status || '').toLowerCase()) &&
-    !order.cancellationWindow?.isActive;
+    !order.cancellationWindow?.isActive &&
+    (!isInstallmentOrder || installmentFullyPaid);
 
   const formatTime = (date) => {
     if (!date) return null;
@@ -764,43 +775,76 @@ const SellerMobileOrderCard = ({
             <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{t('orders.actions', 'Actions')}</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => onStatusUpdate(order._id, 'confirmed')}
-              disabled={!['pending', 'pending_payment', 'paid'].includes(String(order.status || '').toLowerCase()) || statusUpdatingId === order._id}
-              className="flex items-center justify-center gap-2 py-3 rounded-xl bg-neutral-900 text-white font-semibold text-sm hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            >
-              <Package className="w-4 h-4" />
-              {t('orders.confirm', 'Confirmer')}
-            </button>
-            <button
-              type="button"
-              onClick={() => onStatusUpdate(order._id, isPickupOrder ? 'ready_for_pickup' : 'delivering')}
-              disabled={
-                (isPickupOrder
-                  ? !['confirmed'].includes(String(order.status || '').toLowerCase())
-                  : !['confirmed', 'ready_for_delivery'].includes(String(order.status || '').toLowerCase())) ||
-                statusUpdatingId === order._id
-              }
-              className="flex items-center justify-center gap-2 py-3 rounded-xl bg-neutral-900 text-white font-semibold text-sm hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            >
-              {isPickupOrder ? <Package className="w-4 h-4" /> : <Truck className="w-4 h-4" />}
-              {isPickupOrder ? 'Prête au retrait' : t('orders.ship', 'Expédier')}
-            </button>
-            <button
-              type="button"
-              onClick={() => onStatusUpdate(order._id, isPickupOrder ? 'picked_up_confirmed' : 'delivered')}
-              disabled={
-                (isPickupOrder
-                  ? !['confirmed', 'ready_for_pickup'].includes(String(order.status || '').toLowerCase())
-                  : !['delivering', 'out_for_delivery'].includes(String(order.status || '').toLowerCase())) ||
-                statusUpdatingId === order._id
-              }
-              className="flex items-center justify-center gap-2 py-3 rounded-xl bg-neutral-900 text-white font-semibold text-sm hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            >
-              <CheckCircle className="w-4 h-4" />
-              {isPickupOrder ? 'Retrait confirmé' : t('orders.delivered', 'Livrée')}
-            </button>
+            {isInstallmentOrder ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onStatusUpdate(order._id, 'delivering')}
+                  disabled={
+                    !installmentFullyPaid ||
+                    installmentSaleStatus !== 'confirmed' ||
+                    statusUpdatingId === order._id
+                  }
+                  className="flex items-center justify-center gap-2 py-3 rounded-xl bg-neutral-900 text-white font-semibold text-sm hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  <Truck className="w-4 h-4" />
+                  En livraison
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onStatusUpdate(order._id, 'delivered')}
+                  disabled={
+                    !installmentFullyPaid ||
+                    installmentSaleStatus !== 'delivering' ||
+                    statusUpdatingId === order._id
+                  }
+                  className="flex items-center justify-center gap-2 py-3 rounded-xl bg-neutral-900 text-white font-semibold text-sm hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  {t('orders.delivered', 'Livrée')}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onStatusUpdate(order._id, 'confirmed')}
+                  disabled={!['pending', 'pending_payment', 'paid'].includes(String(order.status || '').toLowerCase()) || statusUpdatingId === order._id}
+                  className="flex items-center justify-center gap-2 py-3 rounded-xl bg-neutral-900 text-white font-semibold text-sm hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  <Package className="w-4 h-4" />
+                  {t('orders.confirm', 'Confirmer')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onStatusUpdate(order._id, isPickupOrder ? 'ready_for_pickup' : 'delivering')}
+                  disabled={
+                    (isPickupOrder
+                      ? !['confirmed'].includes(String(order.status || '').toLowerCase())
+                      : !['confirmed', 'ready_for_delivery'].includes(String(order.status || '').toLowerCase())) ||
+                    statusUpdatingId === order._id
+                  }
+                  className="flex items-center justify-center gap-2 py-3 rounded-xl bg-neutral-900 text-white font-semibold text-sm hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  {isPickupOrder ? <Package className="w-4 h-4" /> : <Truck className="w-4 h-4" />}
+                  {isPickupOrder ? 'Prête au retrait' : t('orders.ship', 'Expédier')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onStatusUpdate(order._id, isPickupOrder ? 'picked_up_confirmed' : 'delivered')}
+                  disabled={
+                    (isPickupOrder
+                      ? !['confirmed', 'ready_for_pickup'].includes(String(order.status || '').toLowerCase())
+                      : !['delivering', 'out_for_delivery'].includes(String(order.status || '').toLowerCase())) ||
+                    statusUpdatingId === order._id
+                  }
+                  className="flex items-center justify-center gap-2 py-3 rounded-xl bg-neutral-900 text-white font-semibold text-sm hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  {isPickupOrder ? 'Retrait confirmé' : t('orders.delivered', 'Livrée')}
+                </button>
+              </>
+            )}
             <button
               type="button"
               onClick={() => onOpenCancelModal(order._id)}

@@ -43,6 +43,7 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { useToast } from '../context/ToastContext';
 import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
 import useReliableMutation from '../hooks/useReliableMutation';
+import { getInstallmentWorkflow } from '../utils/installmentTracking';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
@@ -151,9 +152,6 @@ const getEffectiveOrderStatus = (order) => {
     (Boolean(order.platformDeliveryRequestId) ||
       String(order.platformDeliveryMode || '').toUpperCase() === 'PLATFORM_DELIVERY') &&
     String(order.platformDeliveryStatus || '').toUpperCase() === 'DELIVERED';
-  if (order.paymentType === 'installment' && order.status === 'completed') {
-    return order.installmentSaleStatus || 'confirmed';
-  }
   if (pickupOrder && String(order.status || '').toLowerCase() === 'confirmed') {
     const hasSubmittedPayment = Boolean(
       Number(order.paidAmount || 0) > 0 ||
@@ -611,6 +609,7 @@ export default function OrderDetail() {
   const isInstallmentOrder = order.paymentType === 'installment';
   const installmentPlan = isInstallmentOrder ? order.installmentPlan || {} : null;
   const installmentSchedule = Array.isArray(installmentPlan?.schedule) ? installmentPlan.schedule : [];
+  const installmentWorkflow = isInstallmentOrder ? getInstallmentWorkflow(order) : null;
   const installmentCurrentIndex = installmentSchedule.findIndex(
     (entry) => !['paid', 'waived'].includes(entry?.status)
   );
@@ -623,18 +622,20 @@ export default function OrderDetail() {
   const installmentTotal = Number(installmentPlan?.totalAmount ?? totalAmount);
   const installmentPaid = Number(installmentPlan?.amountPaid ?? paidAmount);
   const installmentRemaining = Number(
-    installmentPlan?.remainingAmount ?? Math.max(0, installmentTotal - installmentPaid)
+    installmentPlan?.remainingAmount ??
+      installmentWorkflow?.remainingFromSchedule ??
+      Math.max(0, installmentTotal - installmentPaid)
   );
   const installmentProgressPercent =
     installmentTotal > 0 ? Math.min(100, Math.round((installmentPaid / installmentTotal) * 100)) : 0;
-  const saleConfirmationConfirmed = Boolean(installmentPlan?.saleConfirmationConfirmedAt);
+  const saleConfirmationConfirmed = Boolean(installmentWorkflow?.saleConfirmed);
   const installmentSaleStatus =
     isInstallmentOrder && order.status === 'completed'
       ? order.installmentSaleStatus || 'confirmed'
       : order.installmentSaleStatus || '';
-  const effectiveOrderStatus = getEffectiveOrderStatus(order);
-  const progressPaymentType =
-    isInstallmentOrder && order.status === 'completed' ? 'full' : order.paymentType;
+  const effectiveOrderStatus = isInstallmentOrder
+    ? installmentWorkflow?.workflowStatus || order.status
+    : getEffectiveOrderStatus(order);
   const showPayment = Boolean(
     isInstallmentOrder ||
       paidAmount ||
@@ -1003,9 +1004,15 @@ export default function OrderDetail() {
                           <p>
                             Prochaine échéance:{' '}
                             <span className="font-semibold text-gray-900">
-                              {installmentPlan?.nextDueDate
-                                ? formatOrderTimestamp(installmentPlan.nextDueDate)
+                              {installmentWorkflow?.nextDueDate
+                                ? formatOrderTimestamp(installmentWorkflow.nextDueDate)
                                 : 'Aucune'}
+                            </span>
+                          </p>
+                          <p>
+                            Prochaine tranche à payer:{' '}
+                            <span className="font-semibold text-gray-900">
+                              {formatCurrency(installmentWorkflow?.nextInstallmentAmount || 0)}
                             </span>
                           </p>
                           <p>
@@ -1101,9 +1108,9 @@ export default function OrderDetail() {
                     return (
                       <div key={`${order._id}-installment-${index}`} className="rounded-xl border border-gray-200 p-3 space-y-2">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-sm font-semibold text-gray-900">
-                            Tranche {index + 1} • {formatCurrency(entry?.amount || 0)}
-                          </p>
+                            <p className="text-sm font-semibold text-gray-900">
+                              Tranche {index + 1} • {formatCurrency(entry?.amount || 0)}
+                            </p>
                           <span className={`inline-flex items-center rounded-full border px-2 py-1 text-xs font-semibold ${getScheduleStatusClassName(entry?.status)}`}>
                             {getScheduleStatusLabel(entry?.status)}
                           </span>
@@ -1131,6 +1138,11 @@ export default function OrderDetail() {
                               </p>
                             )}
                           </div>
+                        )}
+                        {Number(entry?.penaltyAmount || 0) > 0 && (
+                          <p className="text-xs text-amber-700">
+                            Pénalité appliquée: {formatCurrency(entry?.penaltyAmount || 0)}
+                          </p>
                         )}
                         {!saleConfirmationConfirmed && (
                           <p className="text-xs text-amber-700">
@@ -1236,11 +1248,15 @@ export default function OrderDetail() {
             )}
 
             {effectiveOrderStatus !== 'cancelled' && (
-              <AnimatedOrderTimeline
-                status={effectiveOrderStatus}
-                paymentType={progressPaymentType}
-                deliveryMode={order.deliveryMode}
-              />
+              isInstallmentOrder ? (
+                <OrderProgress status={effectiveOrderStatus} paymentType="installment" />
+              ) : (
+                <AnimatedOrderTimeline
+                  status={effectiveOrderStatus}
+                  paymentType={order.paymentType}
+                  deliveryMode={order.deliveryMode}
+                />
+              )
             )}
 
             <div className="space-y-3">
