@@ -34,7 +34,7 @@ const emptyCommission = (baseAmount) => ({
 const statusColor = (status) => {
   if (status === 'valid') return 'text-emerald-700 bg-emerald-50 border-emerald-200';
   if (status === 'invalid') return 'text-red-700 bg-red-50 border-red-200';
-  return 'text-gray-600 bg-gray-50 border-gray-200';
+  return 'text-gray-600 dark:text-slate-300 bg-gray-50 dark:bg-slate-900/70 border-gray-200 dark:border-slate-700';
 };
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
@@ -300,8 +300,8 @@ export default function PaymentForm({ product, onSubmitted }) {
     title: 'Paiement enregistré',
     description: 'Statut en cours de mise à jour.',
     icon: Clock,
-    tone: 'bg-gray-50 border-gray-200 text-gray-700',
-    iconColor: 'text-gray-500'
+    tone: 'bg-gray-50 dark:bg-slate-900/70 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200',
+    iconColor: 'text-gray-500 dark:text-slate-400'
   };
 
   if (hasPayment) {
@@ -316,8 +316,8 @@ export default function PaymentForm({ product, onSubmitted }) {
           <div className="w-16 h-16 bg-gradient-to-br from-neutral-500 to-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Shield className="w-8 h-8 text-white" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Statut de paiement</h2>
-          <p className="text-gray-500">Suivi de votre transaction</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-2">Statut de paiement</h2>
+          <p className="text-gray-500 dark:text-slate-400">Suivi de votre transaction</p>
         </div>
 
         <div className={`rounded-2xl border-2 p-6 ${statusConfig.tone} mb-6`}>
@@ -332,46 +332,46 @@ export default function PaymentForm({ product, onSubmitted }) {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Détails de la transaction</h3>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">Détails de la transaction</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-gray-500">Produit:</span>
-                <span className="font-medium text-gray-900">{product.title}</span>
+                <span className="text-gray-500 dark:text-slate-400">Produit:</span>
+                <span className="font-medium text-gray-900 dark:text-slate-100">{product.title}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Prix du produit:</span>
-                <span className="font-medium text-gray-900">{formatCurrency(product.price)}</span>
+                <span className="text-gray-500 dark:text-slate-400">Prix du produit:</span>
+                <span className="font-medium text-gray-900 dark:text-slate-100">{formatCurrency(product.price)}</span>
               </div>
               {product.payment?.promoCodeValue && (
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Code promo:</span>
+                  <span className="text-gray-500 dark:text-slate-400">Code promo:</span>
                   <span className="font-semibold text-emerald-700">{product.payment.promoCodeValue}</span>
                 </div>
               )}
               {product.confirmationNumber && (
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Code produit:</span>
-                  <span className="font-semibold text-gray-900">{product.confirmationNumber}</span>
+                  <span className="text-gray-500 dark:text-slate-400">Code produit:</span>
+                  <span className="font-semibold text-gray-900 dark:text-slate-100">{product.confirmationNumber}</span>
                 </div>
               )}
             </div>
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-gray-500">Commission (base {commissionRateLabel}%):</span>
-                <span className="font-medium text-gray-900">{formatCurrency(paidCommissionBase)}</span>
+                <span className="text-gray-500 dark:text-slate-400">Commission (base {commissionRateLabel}%):</span>
+                <span className="font-medium text-gray-900 dark:text-slate-100">{formatCurrency(paidCommissionBase)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Réduction promo:</span>
+                <span className="text-gray-500 dark:text-slate-400">Réduction promo:</span>
                 <span className="font-medium text-emerald-700">-{formatCurrency(paidCommissionDiscount)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Commission à payer:</span>
+                <span className="text-gray-500 dark:text-slate-400">Commission à payer:</span>
                 <span className="font-semibold text-neutral-700">{formatCurrency(paidCommissionDue)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Statut actuel:</span>
+                <span className="text-gray-500 dark:text-slate-400">Statut actuel:</span>
                 <span
                   className={`font-medium px-2 py-1 rounded-full text-xs ${
                     paymentStatus === 'verified'
@@ -397,47 +397,47 @@ export default function PaymentForm({ product, onSubmitted }) {
         <div className="w-16 h-16 bg-gradient-to-br from-neutral-500 to-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <CreditCard className="w-8 h-8 text-white" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Validation de l'annonce</h1>
-        <p className="text-gray-500">Finalisez votre publication en payant la commission</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-2">Validation de l'annonce</h1>
+        <p className="text-gray-500 dark:text-slate-400">Finalisez votre publication en payant la commission</p>
       </div>
 
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-6">
-        <div className="rounded-2xl bg-gradient-to-r from-neutral-50 to-neutral-50 border border-neutral-100 p-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-700 space-y-6">
+        <div className="rounded-2xl border border-neutral-100 bg-gradient-to-r from-neutral-50 to-neutral-50 p-4 dark:border-slate-700 dark:from-slate-900/70 dark:to-slate-900/50">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-neutral-900 text-sm">Commission de publication</h3>
-              <p className="text-neutral-700 text-xs">Base {commissionRateLabel}% du prix du produit</p>
+              <h3 className="text-sm font-semibold text-neutral-900 dark:text-slate-100">Commission de publication</h3>
+              <p className="text-xs text-neutral-700 dark:text-slate-300">Base {commissionRateLabel}% du prix du produit</p>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold text-neutral-600">{formatCurrency(commissionDue)}</div>
-              <div className="text-neutral-500 text-xs">sur {formatCurrency(product.price)}</div>
+              <div className="text-2xl font-bold text-neutral-600 dark:text-slate-200">{formatCurrency(commissionDue)}</div>
+              <div className="text-xs text-neutral-500 dark:text-slate-400">sur {formatCurrency(product.price)}</div>
             </div>
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-            <div className="rounded-xl border border-neutral-200 bg-white/70 px-3 py-2">
-              <p className="text-neutral-500">Base</p>
-              <p className="font-semibold text-neutral-800">{formatCurrency(commission.baseAmount || 0)}</p>
+            <div className="rounded-xl border border-neutral-200 bg-white/70 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70">
+              <p className="text-neutral-500 dark:text-slate-400">Base</p>
+              <p className="font-semibold text-neutral-800 dark:text-slate-100">{formatCurrency(commission.baseAmount || 0)}</p>
             </div>
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
               <p className="text-emerald-600">Réduction</p>
               <p className="font-semibold text-emerald-700">-{formatCurrency(commission.discountAmount || 0)}</p>
             </div>
-            <div className="rounded-xl border border-neutral-200 bg-white/70 px-3 py-2">
-              <p className="text-neutral-500">À payer</p>
-              <p className="font-semibold text-neutral-800">{formatCurrency(commissionDue)}</p>
+            <div className="rounded-xl border border-neutral-200 bg-white/70 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70">
+              <p className="text-neutral-500 dark:text-slate-400">À payer</p>
+              <p className="font-semibold text-neutral-800 dark:text-slate-100">{formatCurrency(commissionDue)}</p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 space-y-3">
-          <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+        <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/70 p-4 space-y-3">
+          <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-slate-200">
             <Ticket className="w-4 h-4 text-neutral-600" />
             Code promo commission
           </label>
           <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="text"
-              className="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400"
+              className="flex-1 px-4 py-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-slate-400 dark:placeholder-slate-500"
               placeholder="Ex: FIRST10"
               value={form.promoCode}
               onChange={(e) => setForm((prev) => ({ ...prev, promoCode: e.target.value.toUpperCase() }))}
@@ -481,8 +481,8 @@ export default function PaymentForm({ product, onSubmitted }) {
         </div>
 
         {product.confirmationNumber && (
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-600">
-            <p className="font-semibold text-gray-900 text-[12px] mb-1">
+          <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/70 px-4 py-3 text-xs text-gray-600 dark:text-slate-300">
+            <p className="font-semibold text-gray-900 dark:text-slate-100 text-[12px] mb-1">
               Code produit : <span className="text-neutral-600">{product.confirmationNumber}</span>
             </p>
             <p>
@@ -496,12 +496,12 @@ export default function PaymentForm({ product, onSubmitted }) {
           {hasCommissionDue && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-slate-200">
                   <User className="w-4 h-4 text-neutral-500" />
                   <span>Nom du payeur *</span>
                 </label>
                 <input
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400"
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-900/70 border border-gray-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-slate-400 dark:placeholder-slate-500"
                   placeholder="Votre nom complet"
                   value={form.payerName}
                   onChange={(e) => setForm({ ...form, payerName: e.target.value })}
@@ -511,12 +511,12 @@ export default function PaymentForm({ product, onSubmitted }) {
               </div>
 
               <div className="space-y-2">
-                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-slate-200">
                   <CreditCard className="w-4 h-4 text-neutral-500" />
                   <span>Opérateur mobile *</span>
                 </label>
                 <select
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-900/70 border border-gray-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
                   value={form.operator}
                   onChange={(e) => setForm({ ...form, operator: e.target.value })}
                   disabled={loading}
@@ -527,30 +527,30 @@ export default function PaymentForm({ product, onSubmitted }) {
                   <option value="Other">Autre</option>
                 </select>
                 {sendMoneyNumber && (
-                  <p className="text-sm text-neutral-700 bg-neutral-50 rounded-xl px-3 py-2 border border-neutral-100">
+                  <p className="rounded-xl border border-neutral-100 bg-neutral-50 px-3 py-2 text-sm text-neutral-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300">
                     Envoyer l&apos;argent au numéro : <span className="font-bold">{sendMoneyNumber}</span>
                   </p>
                 )}
               </div>
 
               <div className="md:col-span-2 space-y-2">
-                <p className="text-sm font-medium text-gray-700">
+                <p className="text-sm font-medium text-gray-700 dark:text-slate-200">
                   Exemple : où trouver l&apos;ID de la transaction dans le SMS
                 </p>
                 <div className="rounded-xl border-2 border-neutral-100 bg-neutral-50/50 p-3 overflow-hidden">
                   <img
                     src="/images/transaction-id-sms-example.png"
                     alt="Exemple de SMS Mobile Money montrant l'ID de la transaction (ex: 7232173826)"
-                    className="w-full max-w-md mx-auto rounded-lg border border-gray-200 bg-white shadow-sm object-contain"
+                    className="w-full max-w-md mx-auto rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm object-contain"
                   />
-                  <p className="text-xs text-gray-600 mt-2 text-center">
+                  <p className="text-xs text-gray-600 dark:text-slate-300 mt-2 text-center">
                     Saisissez le numéro indiqué à côté de « ID » ou « ID de la transaction » dans le SMS de confirmation.
                   </p>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-slate-200">
                   <Hash className="w-4 h-4 text-neutral-500" />
                   <span>Numéro de transaction *</span>
                 </label>
@@ -558,7 +558,7 @@ export default function PaymentForm({ product, onSubmitted }) {
                   type="text"
                   inputMode="numeric"
                   maxLength={10}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400"
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-900/70 border border-gray-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-slate-400 dark:placeholder-slate-500"
                   placeholder="10 chiffres (ex: 7232173826)"
                   value={form.transactionNumber}
                   onChange={(e) => {
@@ -572,13 +572,13 @@ export default function PaymentForm({ product, onSubmitted }) {
               </div>
 
               <div className="space-y-2">
-                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-slate-200">
                   <DollarSign className="w-4 h-4 text-neutral-500" />
                   <span>Montant payé</span>
                 </label>
                 <input
                   type="number"
-                  className="w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-xl text-gray-600"
+                  className="w-full px-4 py-3 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-gray-600 dark:text-slate-300"
                   value={commissionDue}
                   disabled
                 />
@@ -610,7 +610,7 @@ export default function PaymentForm({ product, onSubmitted }) {
             )}
           </button>
 
-          <p className="text-center text-xs text-gray-500">
+          <p className="text-center text-xs text-gray-500 dark:text-slate-400">
             Votre annonce sera approuvée sous 24h après vérification administrative
           </p>
         </form>

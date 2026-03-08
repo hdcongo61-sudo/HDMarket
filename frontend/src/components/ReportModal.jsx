@@ -63,39 +63,39 @@ export default function ReportModal({ isOpen, onClose, type, commentId, productI
         titleId={titleId}
         title="Signaler du contenu"
         subtitle={type === 'comment' ? 'Signaler un commentaire' : 'Signaler une photo'}
-        icon={<Flag className="w-5 h-5 text-red-600" />}
+        icon={<Flag className="w-5 h-5 text-red-600 dark:text-red-400" />}
         onClose={onClose}
       />
       <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
         <ModalBody className="space-y-4">
           {productTitle && (
-            <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
-              <p className="text-xs text-gray-500 mb-1">Produit concerné</p>
-              <p className="text-sm font-semibold text-gray-900">{productTitle}</p>
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-slate-700 dark:bg-slate-900/70">
+              <p className="mb-1 text-xs text-gray-500 dark:text-slate-400">Produit concerné</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{productTitle}</p>
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Raison du signalement <span className="text-gray-400">(optionnel)</span>
+            <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-slate-200">
+              Raison du signalement <span className="text-gray-400 dark:text-slate-500">(optionnel)</span>
             </label>
             <textarea
               data-autofocus
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Décrivez pourquoi vous signalez ce contenu..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm resize-none"
+              className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-red-500 focus:ring-2 focus:ring-red-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
               rows={4}
               maxLength={500}
               disabled={submitting}
             />
-            <p className="text-xs text-gray-400 mt-1">{reason.length}/500 caractères</p>
+            <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">{reason.length}/500 caractères</p>
           </div>
 
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700">{error}</p>
+            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 dark:border-red-900/60 dark:bg-red-900/20">
+              <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-300" />
+              <p className="text-sm text-red-700 dark:text-red-200">{error}</p>
             </div>
           )}
         </ModalBody>
@@ -105,7 +105,7 @@ export default function ReportModal({ isOpen, onClose, type, commentId, productI
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              className="flex-1 rounded-xl border border-gray-300 px-4 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               Annuler
             </button>

@@ -47,7 +47,7 @@ const STATUS_STYLES = {
   pending: 'bg-yellow-100 text-yellow-800',
   approved: 'bg-emerald-100 text-emerald-800',
   rejected: 'bg-red-100 text-red-800',
-  disabled: 'bg-gray-100 text-gray-600'
+  disabled: 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300'
 };
 
 const SORT_OPTIONS = [
@@ -76,9 +76,9 @@ const ACTION_STYLES = {
   disabled: 'bg-amber-50 text-amber-700',
   enabled: 'bg-green-50 text-green-700',
   certified: 'bg-neutral-50 text-neutral-700',
-  uncertified: 'bg-gray-100 text-gray-600',
+  uncertified: 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300',
   boosted: 'bg-neutral-50 text-neutral-700',
-  unboosted: 'bg-gray-100 text-gray-600'
+  unboosted: 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300'
 };
 
 const PER_PAGE = 20;
@@ -154,19 +154,19 @@ const StatCard = ({ title, value, helper, icon: Icon, highlight, trend }) => {
     <div className={`group relative overflow-hidden rounded-2xl border transition-all duration-300 ${
       highlight
         ? 'border-neutral-200/60 bg-gradient-to-br from-neutral-50/50 via-white to-neutral-50/30 shadow-md hover:shadow-lg'
-        : 'border-gray-200/60 bg-gradient-to-br from-white to-gray-50/50 shadow-sm hover:shadow-md hover:border-neutral-200/40'
+        : 'border-gray-200/60 dark:border-slate-700 bg-gradient-to-br from-white to-gray-50/50 dark:from-slate-900 dark:to-slate-950 shadow-sm hover:shadow-md hover:border-neutral-200/40'
     }`}>
       <div className="p-5">
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
-            <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${highlight ? 'text-neutral-700' : 'text-gray-600'}`}>
+            <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${highlight ? 'text-neutral-700' : 'text-gray-600 dark:text-slate-300'}`}>
               {title}
             </p>
-            <p className={`text-3xl font-bold mb-1 ${highlight ? 'bg-gradient-to-r from-neutral-600 to-neutral-600 bg-clip-text text-transparent' : 'text-gray-900'}`}>
+            <p className={`text-3xl font-bold mb-1 ${highlight ? 'bg-gradient-to-r from-neutral-600 to-neutral-600 bg-clip-text text-transparent' : 'text-gray-900 dark:text-slate-100'}`}>
               {value}
             </p>
             {helper && (
-              <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1">
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1.5 flex items-center gap-1">
                 {trend && (
                   <TrendingUp size={12} className={trend > 0 ? 'text-green-500' : 'text-red-500'} />
                 )}
@@ -518,19 +518,19 @@ export default function AdminProducts() {
   const topCategories = stats?.topCategories || [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-neutral-50/20">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-neutral-50/20 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-8 sm:px-6 lg:px-8">
-        <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between pb-6 border-b border-gray-200/60">
+        <header className="flex flex-col gap-4 border-b border-gray-200/60 pb-6 dark:border-slate-700 md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-neutral-600 to-neutral-600 shadow-lg">
                 <Package size={24} className="text-white" strokeWidth={2.5} />
               </div>
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-neutral-900 to-neutral-900 bg-clip-text text-transparent">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-neutral-900 to-neutral-900 bg-clip-text text-transparent dark:from-slate-100 dark:via-slate-200 dark:to-slate-300">
                   Gestion des produits
                 </h1>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm text-gray-600 dark:text-slate-300 mt-1">
                   Visualisez les annonces, filtrez-les et certifiez celles qui respectent la charte HDMarket.
                 </p>
               </div>
@@ -539,7 +539,7 @@ export default function AdminProducts() {
           <div className="flex flex-wrap gap-3">
             <Link
               to="/admin"
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:border-neutral-300 hover:text-neutral-700 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2"
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-slate-200 shadow-sm transition-all duration-200 hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-neutral-300 hover:text-neutral-700 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2"
             >
               <ArrowLeft size={16} />
               Retour au tableau
@@ -584,16 +584,16 @@ export default function AdminProducts() {
         </section>
 
         {isAdminUser && (
-          <section className="rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm space-y-4">
+          <section className="rounded-2xl border border-neutral-100 bg-white dark:bg-slate-900 p-6 shadow-sm space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-neutral-50 flex items-center justify-center text-neutral-600">
                 <Users size={18} />
               </div>
               <div>
-                <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wide">
                   Accès gestion des produits
                 </h2>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-slate-400">
                   Autorisez un utilisateur à gérer et certifier les produits.
                 </p>
               </div>
@@ -613,7 +613,7 @@ export default function AdminProducts() {
                 value={userSearchQuery}
                 onChange={(e) => setUserSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
-                className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                className="flex-1 rounded-xl border border-gray-200 dark:border-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
               />
               <button
                 type="button"
@@ -635,11 +635,11 @@ export default function AdminProducts() {
                   return (
                     <div
                       key={id}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3"
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/70 p-3"
                     >
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{userItem.name}</p>
-                        <p className="text-xs text-gray-500 truncate">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">{userItem.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
                           {userItem.email} · {userItem.phone}
                         </p>
                       </div>
@@ -668,24 +668,24 @@ export default function AdminProducts() {
               </div>
             )}
 
-            <div className="border-t border-gray-100 pt-4">
-              <p className="text-xs font-semibold text-gray-500 mb-2">
+            <div className="border-t border-gray-100 dark:border-slate-700 pt-4">
+              <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-2">
                 Gestionnaires actuels ({managers.length})
               </p>
               {loadingManagers ? (
-                <p className="text-sm text-gray-500">Chargement…</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">Chargement…</p>
               ) : managers.length === 0 ? (
-                <p className="text-sm text-gray-500">Aucun gestionnaire pour le moment.</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">Aucun gestionnaire pour le moment.</p>
               ) : (
                 <div className="space-y-2">
                   {managers.map((manager) => (
                     <div
                       key={manager.id || manager._id}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white p-3"
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900 p-3"
                     >
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{manager.name}</p>
-                        <p className="text-xs text-gray-500 truncate">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">{manager.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
                           {manager.email} · {manager.phone}
                         </p>
                       </div>
@@ -710,7 +710,7 @@ export default function AdminProducts() {
           </section>
         )}
 
-        <section className="rounded-2xl border border-gray-200/60 bg-gradient-to-br from-white to-neutral-50/20 p-6 shadow-sm">
+        <section className="rounded-2xl border border-gray-200/60 dark:border-slate-700 bg-gradient-to-br from-white to-neutral-50/20 dark:from-slate-900 dark:to-slate-950 p-6 shadow-sm">
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -718,14 +718,14 @@ export default function AdminProducts() {
                   <Filter size={20} className="text-neutral-600" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">Filtres rapides</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">Recherchez et filtrez les produits</p>
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">Filtres rapides</h2>
+                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Recherchez et filtrez les produits</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={resetFilters}
-                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-600 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:border-neutral-300 hover:text-neutral-700"
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-xs font-semibold text-gray-600 dark:text-slate-300 shadow-sm transition-all duration-200 hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-neutral-300 hover:text-neutral-700"
               >
                 <X size={14} />
                 Réinitialiser
@@ -733,7 +733,7 @@ export default function AdminProducts() {
             </div>
             <div className="flex flex-col gap-4">
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={18} />
                 <input
                   value={searchTerm}
                   onChange={(e) => {
@@ -741,7 +741,7 @@ export default function AdminProducts() {
                     setPage(1);
                   }}
                   placeholder="Rechercher par titre ou description..."
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 pl-11 text-sm shadow-sm transition-all duration-200 focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-100"
+                  className="w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 pl-11 text-sm shadow-sm transition-all duration-200 focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-100"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -751,7 +751,7 @@ export default function AdminProducts() {
                     setStatusFilter(e.target.value);
                     setPage(1);
                   }}
-                  className="rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+                  className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
                 >
                   <option value="">Tous les statuts</option>
                   <option value="pending">En attente</option>
@@ -765,7 +765,7 @@ export default function AdminProducts() {
                     setCertifiedFilter(e.target.value);
                     setPage(1);
                   }}
-                  className="rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+                  className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
                 >
                   <option value="">Tous les produits</option>
                   <option value="true">Certifiés</option>
@@ -777,7 +777,7 @@ export default function AdminProducts() {
                     setCategoryFilter(e.target.value);
                     setPage(1);
                   }}
-                  className="rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+                  className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
                 >
                   <option value="">Toutes les catégories</option>
                   {categoryOptions.map((option) => (
@@ -792,7 +792,7 @@ export default function AdminProducts() {
                     setSortBy(e.target.value);
                     setPage(1);
                   }}
-                  className="rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+                  className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
                 >
                   {SORT_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -817,7 +817,7 @@ export default function AdminProducts() {
               {Array.from({ length: 3 }).map((_, idx) => (
                 <div
                   key={idx}
-                  className="animate-pulse rounded-2xl border border-gray-100 bg-white px-4 py-5"
+                  className="animate-pulse rounded-2xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-5"
                 >
                   <div className="h-4 w-2/5 bg-gray-200 mb-3 rounded"></div>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -833,11 +833,11 @@ export default function AdminProducts() {
                 {products.map((product) => (
                   <article
                     key={product._id}
-                    className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
+                    className="rounded-2xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 shadow-sm"
                   >
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div className="flex items-start gap-3">
-                        <div className="h-20 w-20 rounded-2xl bg-gray-100 overflow-hidden">
+                        <div className="h-20 w-20 rounded-2xl bg-gray-100 dark:bg-slate-800 overflow-hidden">
                           <img
                             src={product.images?.[0] || '/api/placeholder/120/120'}
                             alt={product.title}
@@ -846,37 +846,37 @@ export default function AdminProducts() {
                           />
                         </div>
                         <div>
-                          <p className="text-xs uppercase tracking-wide text-gray-500">
+                          <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400">
                             {product.category || '—'}
                           </p>
-                          <h3 className="text-lg font-semibold text-gray-900">{product.title}</h3>
-                          <p className="text-xs text-gray-500">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">{product.title}</h3>
+                          <p className="text-xs text-gray-500 dark:text-slate-400">
                             {product.user?.shopName || product.user?.name || 'Vendeur indisponible'}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3 text-right">
                         <div>
-                          <p className="text-sm text-gray-500">Prix</p>
-                          <p className="text-lg font-semibold text-gray-900">{formatCurrency(product.price)}</p>
+                          <p className="text-sm text-gray-500 dark:text-slate-400">Prix</p>
+                          <p className="text-lg font-semibold text-gray-900 dark:text-slate-100">{formatCurrency(product.price)}</p>
                         </div>
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            STATUS_STYLES[product.status] || 'bg-gray-100 text-gray-600'
+                            STATUS_STYLES[product.status] || 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300'
                           }`}
                         >
                           {STATUS_LABELS[product.status] || product.status}
                         </span>
                       </div>
                     </div>
-                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500">
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500 dark:text-slate-400">
                       {product.certified ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-emerald-600">
                           <ShieldCheck className="w-4 h-4" />
                           Certifié
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-gray-600">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 dark:bg-slate-800 px-3 py-1 text-gray-600 dark:text-slate-300">
                           <Shield className="w-4 h-4" />
                           Non certifié
                         </span>
@@ -922,7 +922,7 @@ export default function AdminProducts() {
                   </article>
                 ))}
               </div>
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 text-xs text-gray-500">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-xs text-gray-500 dark:text-slate-400">
                 <span>
                   Page {page} / {totalPages} · {totalProducts} annonce{totalProducts > 1 ? 's' : ''}
                 </span>
@@ -931,7 +931,7 @@ export default function AdminProducts() {
                     type="button"
                     onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                     disabled={page <= 1}
-                    className="rounded-full border border-gray-200 px-3 py-1 font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-full border border-gray-200 dark:border-slate-700 px-3 py-1 font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Précédent
                   </button>
@@ -939,7 +939,7 @@ export default function AdminProducts() {
                     type="button"
                     onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
                     disabled={page >= totalPages}
-                    className="rounded-full border border-gray-200 px-3 py-1 font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-full border border-gray-200 dark:border-slate-700 px-3 py-1 font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Suivant
                   </button>
@@ -947,23 +947,23 @@ export default function AdminProducts() {
               </div>
             </>
           ) : (
-            <p className="rounded-2xl border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
+            <p className="rounded-2xl border border-dashed border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 p-6 text-center text-sm text-gray-500 dark:text-slate-400">
               Aucun produit ne correspond aux filtres actuels.
             </p>
           )}
         </section>
 
         {topCategories.length > 0 && (
-          <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-3 text-xs uppercase tracking-wide text-gray-500">
+          <section className="rounded-2xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3 text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400">
               <span>Catégories les plus populaires</span>
               <TagIcon className="h-4 w-4 text-neutral-500" />
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {topCategories.map((category) => (
-                <div key={category.category} className="rounded-2xl border border-gray-100 p-3 text-xs font-semibold text-gray-700">
-                  <p className="text-sm text-gray-900">{category.category}</p>
-                  <p className="text-xs text-gray-500">{category.count} annonces</p>
+                <div key={category.category} className="rounded-2xl border border-gray-100 dark:border-slate-700 p-3 text-xs font-semibold text-gray-700 dark:text-slate-200">
+                  <p className="text-sm text-gray-900 dark:text-slate-100">{category.category}</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">{category.count} annonces</p>
                 </div>
               ))}
             </div>
@@ -996,47 +996,47 @@ export default function AdminProducts() {
                         key={`modal-img-${index}`}
                         src={image}
                         alt={`${selectedProduct.title} ${index + 1}`}
-                        className="h-24 w-full rounded-xl border border-gray-200 object-cover sm:h-28"
+                        className="h-24 w-full rounded-xl border border-gray-200 dark:border-slate-700 object-cover sm:h-28"
                       />
                     ))}
                     {!selectedProduct.images?.length && (
-                      <div className="col-span-2 h-24 rounded-xl border border-gray-200 bg-gray-100 sm:col-span-3 sm:h-28" />
+                      <div className="col-span-2 h-24 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-100 dark:bg-slate-800 sm:col-span-3 sm:h-28" />
                     )}
                   </div>
 
-                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <div className="rounded-xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/70 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
                       Description
                     </p>
-                    <p className="mt-1.5 break-words text-sm text-gray-700">
+                    <p className="mt-1.5 break-words text-sm text-gray-700 dark:text-slate-200">
                       {selectedProduct.description || 'Aucune description.'}
                     </p>
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  <div className="rounded-xl border border-gray-100 bg-white p-3">
-                    <div className="flex items-center justify-between text-xs text-gray-500">
+                  <div className="rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
+                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-slate-400">
                       <span>Prix</span>
-                      <span className="text-sm font-semibold text-gray-900">
+                      <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">
                         {formatCurrency(selectedProduct.price)}
                       </span>
                     </div>
                     <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                          STATUS_STYLES[selectedProduct.status] || 'bg-gray-100 text-gray-700'
+                          STATUS_STYLES[selectedProduct.status] || 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200'
                         }`}
                       >
                         {STATUS_LABELS[selectedProduct.status] || selectedProduct.status}
                       </span>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-500 dark:text-slate-400">
                         Créé le {formatDate(selectedProduct.createdAt)}
                       </span>
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-gray-100 bg-white p-3 text-xs text-gray-500">
+                  <div className="rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 text-xs text-gray-500 dark:text-slate-400">
                     <p className="break-words">
                       Vendeur: {selectedProduct.user?.shopName || selectedProduct.user?.name || '—'}
                     </p>
@@ -1044,7 +1044,7 @@ export default function AdminProducts() {
                     <p className="mt-1 break-all">Téléphone: {selectedProduct.user?.phone || '—'}</p>
                   </div>
 
-                  <div className="rounded-xl border border-gray-100 bg-white p-3">
+                  <div className="rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
                     {selectedProduct.certified ? (
                       <div className="text-xs text-emerald-700">
                         <span className="flex items-center gap-2 text-emerald-600">
@@ -1060,7 +1060,7 @@ export default function AdminProducts() {
                         {selectedProduct.certifiedAt ? <p className="mt-1">Le {formatDate(selectedProduct.certifiedAt)}</p> : null}
                       </div>
                     ) : (
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-500 dark:text-slate-400">
                         <span className="flex items-center gap-2">
                           <Shield className="h-4 w-4" />
                           Produit non certifié
@@ -1069,7 +1069,7 @@ export default function AdminProducts() {
                     )}
                   </div>
 
-                  <div className="space-y-2 rounded-xl border border-gray-100 bg-white p-3">
+                  <div className="space-y-2 rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
                     {canManageProducts ? (
                       selectedProduct.status !== 'disabled' ? (
                         <button
@@ -1113,8 +1113,8 @@ export default function AdminProducts() {
                   </div>
 
                   {selectedProduct.payment ? (
-                    <div className="rounded-xl border border-gray-100 bg-white p-3 text-xs text-gray-500">
-                      <p className="text-sm font-semibold text-gray-900">Paiement</p>
+                    <div className="rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 text-xs text-gray-500 dark:text-slate-400">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">Paiement</p>
                       <p className="mt-1">Status: {selectedProduct.payment.status}</p>
                       <p>Montant: {formatCurrency(selectedProduct.payment.amount)}</p>
                       <p>Opérateur: {selectedProduct.payment.operator}</p>
@@ -1123,9 +1123,9 @@ export default function AdminProducts() {
                 </div>
               </div>
 
-              <div className="space-y-2 rounded-xl border border-gray-100 bg-white p-3">
+              <div className="space-y-2 rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Historique</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Historique</p>
                   <button
                     type="button"
                     onClick={() => loadHistory(selectedProduct._id || selectedProduct.slug)}
@@ -1135,34 +1135,34 @@ export default function AdminProducts() {
                   </button>
                 </div>
                 {historyLoading ? (
-                  <p className="text-xs text-gray-500">Chargement...</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Chargement...</p>
                 ) : historyError ? (
                   <p className="text-xs text-red-600">{historyError}</p>
                 ) : historyItems.length === 0 ? (
-                  <p className="text-xs text-gray-500">Aucune action enregistrée.</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Aucune action enregistrée.</p>
                 ) : (
                   <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
                     {historyItems.map((entry) => {
                       const detailsLines = buildHistoryDetails(entry.details);
                       const actionLabel = ACTION_LABELS[entry.action] || entry.action || 'Action';
-                      const badgeStyle = ACTION_STYLES[entry.action] || 'bg-gray-100 text-gray-600';
+                      const badgeStyle = ACTION_STYLES[entry.action] || 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300';
                       const actorName = entry.performedBy?.name || entry.performedBy?.email || 'Système';
                       return (
-                        <div key={entry.id} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                        <div key={entry.id} className="rounded-xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/70 px-3 py-2">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeStyle}`}>
                               {actionLabel}
                             </span>
-                            <span className="text-[11px] text-gray-400">{formatDateTime(entry.createdAt)}</span>
+                            <span className="text-[11px] text-gray-400 dark:text-slate-500">{formatDateTime(entry.createdAt)}</span>
                           </div>
-                          <p className="mt-1 text-xs text-gray-700">
+                          <p className="mt-1 text-xs text-gray-700 dark:text-slate-200">
                             Par {actorName}
                             {entry.performedBy?.role ? ` · ${entry.performedBy.role}` : ''}
                           </p>
                           {detailsLines.length > 0 ? (
                             <div className="mt-1 space-y-0.5">
                               {detailsLines.map((line, index) => (
-                                <p key={`${entry.id}-detail-${index}`} className="text-[11px] text-gray-500">
+                                <p key={`${entry.id}-detail-${index}`} className="text-[11px] text-gray-500 dark:text-slate-400">
                                   {line}
                                 </p>
                               ))}
@@ -1181,7 +1181,7 @@ export default function AdminProducts() {
                 <button
                   type="button"
                   onClick={closeDetailModal}
-                  className="min-h-[44px] rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                  className="min-h-[44px] rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-xs font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800"
                 >
                   Fermer
                 </button>

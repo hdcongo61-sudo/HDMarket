@@ -751,7 +751,7 @@ export default function ShopProfile() {
     pickupAvailableLabel
       ? {
           id: 'pickup',
-          icon: <Store size={14} className="text-slate-600" />,
+          icon: <Store size={14} className="text-slate-600 dark:text-slate-300" />,
           label: t('shop_profile.pickup', 'Retrait'),
           value: pickupAvailableLabel
         }
@@ -766,7 +766,7 @@ export default function ShopProfile() {
       : null,
     {
       id: 'seniority',
-      icon: <Calendar size={14} className="text-slate-600" />,
+      icon: <Calendar size={14} className="text-slate-600 dark:text-slate-300" />,
       label: t('shop_profile.seniority', 'Ancienneté'),
       value: yearsActiveLabel
     }

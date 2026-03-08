@@ -71,6 +71,13 @@
   --ui-modal-z: 120;
   --ui-modal-backdrop: rgba(2, 6, 23, 0.56);
   --ui-modal-shadow: 0 24px 58px rgba(15, 23, 42, 0.28);
+  --ui-form-bg: #ffffff;
+  --ui-form-border: #d1d5db;
+  --ui-form-text: #0f172a;
+  --ui-form-placeholder: #6b7280;
+  --ui-form-option-bg: #ffffff;
+  --ui-surface-text: #0f172a;
+  --ui-surface-muted: #475569;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -100,11 +107,92 @@ body {
   color: #FFFFFF;
 }
 
+.dark {
+  --ui-form-bg: #111827;
+  --ui-form-border: #374151;
+  --ui-form-text: #f8fafc;
+  --ui-form-placeholder: #94a3b8;
+  --ui-form-option-bg: #0f172a;
+  --ui-surface-text: #f8fafc;
+  --ui-surface-muted: #cbd5e1;
+}
+
 button,
 input,
 textarea,
 select {
   font-family: inherit;
+}
+
+/* Theme readability guardrails for native forms */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+textarea,
+select {
+  background-color: var(--ui-form-bg);
+  border-color: var(--ui-form-border);
+  color: var(--ui-form-text);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"])::placeholder,
+textarea::placeholder {
+  color: var(--ui-form-placeholder);
+  opacity: 1;
+}
+
+select option,
+select optgroup {
+  background-color: var(--ui-form-option-bg);
+  color: var(--ui-form-text);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):disabled,
+textarea:disabled,
+select:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+/* Ensure card/surface content keeps readable default text color */
+.apple-card,
+.ui-card,
+.shop-panel,
+.glass-card,
+.glass-modal-panel {
+  color: var(--ui-surface-text);
+}
+
+.apple-card :where(p, span, small, label, dt, dd),
+.ui-card :where(p, span, small, label, dt, dd),
+.shop-panel :where(p, span, small, label, dt, dd),
+.glass-card :where(p, span, small, label, dt, dd),
+.glass-modal-panel :where(p, span, small, label, dt, dd) {
+  color: var(--ui-surface-muted);
+}
+
+/* Dark-mode fallback for legacy pages that still use light-only utility classes */
+.dark :where(.bg-white) {
+  background-color: #111827;
+}
+.dark :where(.bg-gray-50, .bg-slate-50, .bg-gray-100) {
+  background-color: #0f172a;
+}
+.dark :where(.border-gray-100, .border-gray-200, .border-slate-100, .border-slate-200) {
+  border-color: #334155;
+}
+.dark :where(.text-gray-900, .text-slate-900) {
+  color: #f8fafc;
+}
+.dark :where(.text-gray-800, .text-slate-800) {
+  color: #f1f5f9;
+}
+.dark :where(.text-gray-700, .text-slate-700) {
+  color: #e2e8f0;
+}
+.dark :where(.text-gray-600, .text-slate-600) {
+  color: #cbd5e1;
+}
+.dark :where(.text-gray-500, .text-slate-500) {
+  color: #94a3b8;
 }
 
 /* Accessibility: visible keyboard focus ring across interactive controls */
