@@ -737,6 +737,13 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     isPublic: true,
     allowedValues: ['osm', 'google']
   },
+  enable_long_press_image_preview: {
+    category: 'ui',
+    description: 'Activer l’aperçu image via appui long sur les cartes produit.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
 
   // Backward-compatible legacy keys currently used in existing business logic.
   commissionRate: {

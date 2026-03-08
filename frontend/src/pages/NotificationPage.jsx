@@ -20,6 +20,7 @@ import useUserNotifications, { triggerNotificationsRefresh } from '../hooks/useU
 import usePullToRefresh from '../hooks/usePullToRefresh';
 import api from '../services/api';
 import { buildProductPath, buildShopPath } from '../utils/links';
+import { resolveNotificationLink } from '../utils/notificationLinks';
 import NotificationItem from '../components/notifications/NotificationItem';
 import NotificationSkeleton from '../components/notifications/NotificationSkeleton';
 import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
@@ -131,6 +132,28 @@ const getDateBucket = (value) => {
   return 'Earlier';
 };
 
+const OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
+
+const extractObjectId = (value, depth = 0) => {
+  if (depth > 3 || value == null) return '';
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (OBJECT_ID_REGEX.test(trimmed)) return trimmed;
+    return '';
+  }
+
+  if (typeof value === 'object') {
+    const candidates = [value._id, value.id, value.$oid, value.orderId, value.value];
+    for (const candidate of candidates) {
+      const resolved = extractObjectId(candidate, depth + 1);
+      if (resolved) return resolved;
+    }
+  }
+
+  return '';
+};
+
 const resolveCategory = (alert) => {
   const type = alert?.type || '';
   if (ORDER_TYPES.has(type)) return 'orders';
@@ -171,12 +194,27 @@ const notificationMeta = (alert, t) => {
 };
 
 const buildOrderNotificationPath = (alert, user) => {
-  const orderId = String(alert?.metadata?.orderId || '').trim();
-  if (!orderId) return '';
-  if (user?.role === 'admin' || user?.role === 'founder' || user?.role === 'manager') {
+  const orderId =
+    extractObjectId(alert?.metadata?.orderId) ||
+    extractObjectId(alert?.entityId) ||
+    extractObjectId(alert?.metadata?.entityId);
+  const normalizedRole = String(user?.role || '').toLowerCase();
+  const normalizedAccountType = String(user?.accountType || '').toLowerCase();
+  const isBackOffice = ['admin', 'founder', 'manager'].includes(normalizedRole);
+  const isSeller = normalizedRole === 'seller' || normalizedAccountType === 'shop';
+
+  if (alert?.type === 'order_message') {
+    if (!orderId) return '/orders/messages';
+    return `/orders/messages?orderId=${encodeURIComponent(orderId)}`;
+  }
+
+  if (!orderId) {
+    return '';
+  }
+  if (isBackOffice) {
     return `/admin/orders?orderId=${encodeURIComponent(orderId)}`;
   }
-  if (SELLER_ORDER_NOTIFICATION_TYPES.has(alert?.type)) {
+  if (isSeller && (SELLER_ORDER_NOTIFICATION_TYPES.has(alert?.type) || alert?.type === 'order_message')) {
     return `/seller/orders/detail/${orderId}`;
   }
   return `/orders/detail/${orderId}`;
@@ -195,11 +233,9 @@ const buildDisputeNotificationPath = (alert, user) => {
 
 const getNotificationActions = (alert, user, t) => {
   const actions = [];
-  const deepLink = String(alert?.actionLink || alert?.deepLink || alert?.metadata?.deepLink || '').trim();
-  if (deepLink) {
-    actions.push({ to: deepLink, label: t('notifications.openTask', 'Ouvrir tâche') });
-  }
   const orderPath = buildOrderNotificationPath(alert, user);
+  const primaryLink = resolveNotificationLink(alert, user);
+  if (primaryLink) actions.push({ to: primaryLink, label: t('notifications.openTask', 'Ouvrir tâche') });
   if (orderPath) actions.push({ to: orderPath, label: t('notifications.viewOrder', 'Voir commande') });
   const disputePath = buildDisputeNotificationPath(alert, user);
   if (disputePath) actions.push({ to: disputePath, label: t('notifications.viewDispute', 'Voir litige') });
@@ -581,7 +617,11 @@ export default function NotificationPage() {
                               onDelete={() => handleDelete(alert._id)}
                               onNavigateAction={(to) => {
                                 api.post(`/users/notifications/${alert._id}/click`).catch(() => {});
-                                navigate(to);
+                                if (/^https?:\/\//i.test(String(to || ''))) {
+                                  window.location.assign(to);
+                                } else {
+                                  navigate(to);
+                                }
                                 if (isUnread) {
                                   handleMarkRead([alert._id]);
                                 }

@@ -52,6 +52,8 @@ import useIsMobile from '../hooks/useIsMobile';
 import { buildProductPath } from '../utils/links';
 import categoryGroups from '../data/categories';
 import storage from '../utils/storage';
+import BaseModal from '../components/modals/BaseModal';
+import PreviewableImage from '../components/media/PreviewableImage';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -1823,12 +1825,16 @@ export default function UserDashboard() {
                         )}
 
                         {/* Product Image - List View */}
-                        <div className="relative w-full sm:w-48 h-48 bg-gray-100 overflow-hidden rounded-lg flex-shrink-0">
+                        <div className="group relative w-full sm:w-48 h-48 bg-gray-100 overflow-hidden rounded-lg flex-shrink-0">
                           {mainImage ? (
-                            <img
+                            <PreviewableImage
                               src={mainImage}
                               alt={product.title}
-                              className="w-full h-full object-cover"
+                              images={Array.isArray(product.images) && product.images.length > 0 ? product.images : [mainImage]}
+                              startIndex={0}
+                              openOnClick
+                              showHint={false}
+                              className="h-full w-full cursor-zoom-in object-cover transition-transform duration-300 group-hover:scale-105"
                               loading="lazy"
                             />
                           ) : (
@@ -2032,12 +2038,16 @@ export default function UserDashboard() {
                     </div>
 
                     {/* Product Image - Grid View */}
-                    <div className="relative aspect-square bg-gray-100 overflow-hidden">
+                    <div className="group relative aspect-square bg-gray-100 overflow-hidden">
                       {mainImage ? (
-                        <img
+                        <PreviewableImage
                           src={mainImage}
                           alt={product.title}
-                          className="w-full h-full object-cover"
+                          images={Array.isArray(product.images) && product.images.length > 0 ? product.images : [mainImage]}
+                          startIndex={0}
+                          openOnClick
+                          showHint={false}
+                          className="h-full w-full cursor-zoom-in object-cover transition-transform duration-300 group-hover:scale-105"
                           loading="lazy"
                         />
                       ) : (
@@ -2235,17 +2245,15 @@ export default function UserDashboard() {
       </div>
 
       {/* Product Form Modal — full-screen on mobile for easier use */}
-      {isProductModalOpen && (
-        <div className={`fixed inset-0 z-50 flex ${isMobile ? 'flex-col' : 'items-center justify-center px-4 py-6'}`}>
-          <div
-            className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity"
-            onClick={handleModalClose}
-            aria-hidden
-          />
-          <div
-            className={`relative flex flex-col bg-white shadow-2xl overflow-hidden ${isMobile ? 'w-full h-full max-h-full rounded-none border-0' : 'w-full max-w-5xl rounded-3xl border border-gray-100 max-h-[90vh]'}`}
-            onClick={(event) => event.stopPropagation()}
-          >
+      <BaseModal
+        isOpen={isProductModalOpen}
+        onClose={handleModalClose}
+        size="full"
+        mobileSheet
+        ariaLabel={editingProduct ? 'Modifier une annonce' : 'Publier une annonce'}
+        rootClassName={isMobile ? '!p-0' : ''}
+        panelClassName={isMobile ? 'h-[100dvh] max-h-[100dvh] rounded-none border-0 sm:rounded-none' : 'sm:max-w-5xl sm:max-h-[90vh] sm:rounded-3xl'}
+      >
             {/* Modal Header */}
             <div className={`bg-neutral-600 text-white flex-shrink-0 ${isMobile ? 'px-4 py-4 safe-area-top' : 'px-6 py-5'}`}>
               <div className="flex items-center justify-between gap-3">
@@ -2294,9 +2302,7 @@ export default function UserDashboard() {
                 }}
               />
             </div>
-          </div>
-        </div>
-      )}
+      </BaseModal>
 
       {analyticsProduct && (
         <ProductAnalytics

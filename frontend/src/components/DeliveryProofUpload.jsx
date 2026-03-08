@@ -13,7 +13,17 @@ const buildFileUrl = (url) => {
   return `${host}/${String(url).replace(/^\/+/, '')}`;
 };
 
-export default function DeliveryProofUpload({ orderId, initialProofs = [], onSuccess }) {
+export default function DeliveryProofUpload({
+  orderId,
+  initialProofs = [],
+  onSuccess,
+  mode = 'delivery',
+  minFiles = 1
+}) {
+  const normalizedMode = String(mode || 'delivery').toLowerCase() === 'pickup' ? 'pickup' : 'delivery';
+  const minimumFilesRequired = Math.max(1, Number(minFiles) || 1);
+  const isPickupMode = normalizedMode === 'pickup';
+  const proofLabel = isPickupMode ? 'retrait' : 'livraison';
   const [files, setFiles] = useState([]);
   const [signatureImage, setSignatureImage] = useState('');
   const [deliveryNote, setDeliveryNote] = useState('');
@@ -59,8 +69,10 @@ export default function DeliveryProofUpload({ orderId, initialProofs = [], onSuc
 
   const submit = async () => {
     if (!orderId || loading) return;
-    if (files.length < 1) {
-      setError('Ajoutez au moins une photo de livraison.');
+    if (files.length < minimumFilesRequired) {
+      setError(
+        `Ajoutez au moins ${minimumFilesRequired} photo${minimumFilesRequired > 1 ? 's' : ''} de ${proofLabel}.`
+      );
       return;
     }
     if (!signatureImage) {
@@ -89,7 +101,12 @@ export default function DeliveryProofUpload({ orderId, initialProofs = [], onSuc
       setDeliveryNote('');
       if (typeof onSuccess === 'function') onSuccess(data?.order || null);
     } catch (err) {
-      setError(err.response?.data?.message || 'Impossible d’envoyer la preuve de livraison.');
+      setError(
+        err.response?.data?.message ||
+          (isPickupMode
+            ? 'Impossible d’envoyer la preuve de retrait.'
+            : 'Impossible d’envoyer la preuve de livraison.')
+      );
     } finally {
       setLoading(false);
     }
@@ -99,7 +116,9 @@ export default function DeliveryProofUpload({ orderId, initialProofs = [], onSuc
     <div className="rounded-2xl border border-neutral-200 bg-neutral-50/40 p-4 space-y-4">
       <div className="flex items-center gap-2">
         <Camera className="w-4 h-4 text-neutral-600" />
-        <h4 className="text-sm font-bold text-gray-900 uppercase">Soumettre la preuve de livraison</h4>
+        <h4 className="text-sm font-bold text-gray-900 uppercase">
+          {isPickupMode ? 'Soumettre la preuve de retrait' : 'Soumettre la preuve de livraison'}
+        </h4>
       </div>
 
       {Array.isArray(initialProofs) && initialProofs.length > 0 && (
@@ -123,7 +142,9 @@ export default function DeliveryProofUpload({ orderId, initialProofs = [], onSuc
       )}
 
       <div>
-        <label className="block text-xs font-semibold text-gray-700 mb-1">Photos de livraison (max {MAX_FILES})</label>
+        <label className="block text-xs font-semibold text-gray-700 mb-1">
+          Photos de {proofLabel} ({files.length}/{MAX_FILES}, min {minimumFilesRequired})
+        </label>
         <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs font-semibold text-neutral-700">
           <Camera className="w-4 h-4" />
           Ajouter des photos
@@ -157,13 +178,19 @@ export default function DeliveryProofUpload({ orderId, initialProofs = [], onSuc
       </div>
 
       <div>
-        <label className="block text-xs font-semibold text-gray-700 mb-1">Note de livraison (optionnel)</label>
+        <label className="block text-xs font-semibold text-gray-700 mb-1">
+          {isPickupMode ? 'Note de retrait (optionnel)' : 'Note de livraison (optionnel)'}
+        </label>
         <textarea
           rows={3}
           value={deliveryNote}
           onChange={(event) => setDeliveryNote(event.target.value.slice(0, 1000))}
           className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
-          placeholder="Ex: Remis en main propre, colis intact."
+          placeholder={
+            isPickupMode
+              ? 'Ex: Retrait en boutique, article vérifié et signé.'
+              : 'Ex: Remis en main propre, colis intact.'
+          }
         />
       </div>
 
@@ -195,7 +222,7 @@ export default function DeliveryProofUpload({ orderId, initialProofs = [], onSuc
           className="inline-flex items-center gap-2 rounded-lg bg-neutral-600 px-3 py-2 text-xs font-semibold text-white hover:bg-neutral-700 disabled:opacity-60"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          {loading ? 'Envoi...' : 'Soumettre la preuve'}
+          {loading ? 'Envoi...' : isPickupMode ? 'Confirmer le retrait' : 'Soumettre la preuve'}
         </button>
       </div>
     </div>

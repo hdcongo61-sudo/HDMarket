@@ -1161,6 +1161,7 @@ export default function AdminAppSettings() {
                   <option value="all">Tous les types</option>
                   <option value="comment">Commentaires</option>
                   <option value="photo">Photos</option>
+                  <option value="preview_image">Images (preview)</option>
                 </select>
               </div>
               <button
@@ -1193,7 +1194,11 @@ export default function AdminAppSettings() {
                             <FileImage size={16} className="text-neutral-600" />
                           )}
                           <span className="font-semibold text-gray-900">
-                            {report.type === 'comment' ? 'Commentaire signalé' : 'Photo signalée'}
+                            {report.type === 'comment'
+                              ? 'Commentaire signalé'
+                              : report.type === 'preview_image'
+                              ? 'Image signalée (preview)'
+                              : 'Photo signalée'}
                           </span>
                           {getStatusBadge(report.status)}
                         </div>
@@ -1206,23 +1211,37 @@ export default function AdminAppSettings() {
                             <span className="font-medium">Utilisateur signalé:</span>{' '}
                             {report.reportedUser?.name || '—'} ({report.reportedUser?.email || '—'})
                           </p>
-                          <p>
-                            <span className="font-medium">Produit:</span>{' '}
-                            <Link
-                              to={`/product/${report.product?.slug || report.product?._id}`}
-                              target="_blank"
-                              className="text-neutral-600 hover:underline"
-                            >
-                              {report.product?.title || '—'}
-                            </Link>
-                          </p>
+                          {report.product?._id ? (
+                            <p>
+                              <span className="font-medium">Produit:</span>{' '}
+                              <Link
+                                to={`/product/${report.product?.slug || report.product?._id}`}
+                                target="_blank"
+                                className="text-neutral-600 hover:underline"
+                              >
+                                {report.product?.title || '—'}
+                              </Link>
+                            </p>
+                          ) : null}
+                          {report.shop?._id ? (
+                            <p>
+                              <span className="font-medium">Boutique:</span>{' '}
+                              <Link
+                                to={`/shop/${report.shop?.slug || report.shop?._id}`}
+                                target="_blank"
+                                className="text-neutral-600 hover:underline"
+                              >
+                                {report.shop?.shopName || report.shop?.name || '—'}
+                              </Link>
+                            </p>
+                          ) : null}
                           {report.type === 'comment' && report.comment && (
                             <div className="mt-2 p-2 bg-white rounded-lg border border-gray-200">
                               <p className="text-xs text-gray-500 mb-1">Commentaire:</p>
                               <p className="text-sm text-gray-700">{report.comment?.message || '—'}</p>
                             </div>
                           )}
-                          {report.type === 'photo' && report.photoUrl && (
+                          {(report.type === 'photo' || report.type === 'preview_image') && report.photoUrl && (
                             <div className="mt-2">
                               <img
                                 src={report.photoUrl}
@@ -1231,6 +1250,11 @@ export default function AdminAppSettings() {
                               />
                             </div>
                           )}
+                          {report.reasonCategory && report.reasonCategory !== 'other' ? (
+                            <p>
+                              <span className="font-medium">Catégorie:</span> {report.reasonCategory}
+                            </p>
+                          ) : null}
                           {report.reason && (
                             <div className="mt-2 p-2 bg-white rounded-lg border border-gray-200">
                               <p className="text-xs text-gray-500 mb-1">Raison:</p>

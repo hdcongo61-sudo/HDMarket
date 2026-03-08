@@ -191,6 +191,92 @@ const normalizeUrl = (config) => {
   return raw.replace(base, '');
 };
 
+const readUrlQueryParam = (config = {}, key) => {
+  const rawUrl = String(config?.url || '');
+  const queryIndex = rawUrl.indexOf('?');
+  if (queryIndex === -1) return '';
+  try {
+    const params = new URLSearchParams(rawUrl.slice(queryIndex + 1));
+    return String(params.get(key) || '').trim();
+  } catch {
+    return '';
+  }
+};
+
+const readParamValue = (config = {}, key) => {
+  const params = config?.params;
+  if (params instanceof URLSearchParams) {
+    const value = params.get(key);
+    return value == null ? '' : String(value).trim();
+  }
+  if (params && typeof params === 'object' && !Array.isArray(params)) {
+    const value = params[key];
+    return value == null ? '' : String(value).trim();
+  }
+  return readUrlQueryParam(config, key);
+};
+
+const hasParamValue = (value) => String(value || '').trim() !== '';
+
+const resolvePreferredUserCity = async () => {
+  try {
+    const [storedUser, storedPreferredCity] = await Promise.all([
+      storage.get('qm_user'),
+      storage.get('hd_pref_city')
+    ]);
+    const city =
+      storedUser?.preferredCity ||
+      storedUser?.city ||
+      storedPreferredCity ||
+      '';
+    return String(city || '').trim();
+  } catch {
+    return '';
+  }
+};
+
+const injectLocationPriorityParams = async (config = {}, hasAuthToken = false) => {
+  const method = String(config?.method || 'get').toLowerCase();
+  if (method !== 'get') return;
+
+  const path = normalizeUrl(config).split('?')[0];
+  if (path !== '/products/public') return;
+
+  const explicitCity = readParamValue(config, 'city');
+  if (hasParamValue(explicitCity)) return;
+
+  const explicitLocationPriority = readParamValue(config, 'locationPriority');
+  if (explicitLocationPriority.toLowerCase() === 'false') return;
+
+  let userCity = readParamValue(config, 'userCity');
+  if (!hasParamValue(userCity) && hasAuthToken) {
+    userCity = await resolvePreferredUserCity();
+  }
+  if (!hasParamValue(userCity)) return;
+
+  if (config.params instanceof URLSearchParams) {
+    if (!hasParamValue(config.params.get('userCity'))) {
+      config.params.set('userCity', userCity);
+    }
+    if (!hasParamValue(config.params.get('locationPriority'))) {
+      config.params.set('locationPriority', 'true');
+    }
+    return;
+  }
+
+  const currentParams =
+    config.params && typeof config.params === 'object' && !Array.isArray(config.params)
+      ? { ...config.params }
+      : {};
+  if (!hasParamValue(currentParams.userCity)) {
+    currentParams.userCity = userCity;
+  }
+  if (!hasParamValue(currentParams.locationPriority)) {
+    currentParams.locationPriority = true;
+  }
+  config.params = currentParams;
+};
+
 const normalizeRuntimeConfig = (value) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   return value;
@@ -579,6 +665,7 @@ api.interceptors.request.use(async (config) => {
   }
   const token = await storage.get('qm_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  await injectLocationPriorityParams(config, Boolean(token));
   const method = String(config.method || 'get').toLowerCase();
   if (
     ['post', 'put', 'patch', 'delete'].includes(method) &&

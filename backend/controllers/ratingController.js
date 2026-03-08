@@ -12,15 +12,25 @@ const ensureProductVisible = async (identifier, fallbackId = null) => {
   if (!Object.keys(query).length && !fallbackId) {
     throw Object.assign(new Error('Identifiant de produit invalide.'), { status: 400 });
   }
-  let product = Object.keys(query).length ? await Product.findOne(query).select('status user title') : null;
+  let product = Object.keys(query).length
+    ? await Product.findOne(query).select('status user title slug')
+    : null;
   if (!product && fallbackId && mongoose.Types.ObjectId.isValid(fallbackId)) {
-    product = await Product.findById(fallbackId).select('status user title');
+    product = await Product.findById(fallbackId).select('status user title slug');
   }
   if (!product || product.status !== 'approved') {
     throw Object.assign(new Error('Produit introuvable ou non publié.'), { status: 404 });
   }
   await ensureDocumentSlug({ document: product, sourceValue: product.title });
   return product;
+};
+
+const buildProductReviewsDeepLink = (product) => {
+  const productSlug = String(product?.slug || '').trim();
+  const productId = String(product?._id || '').trim();
+  const base = productSlug || productId ? `/product/${encodeURIComponent(productSlug || productId)}` : '/products';
+  const params = new URLSearchParams({ tab: 'reviews', open: 'comments' });
+  return `${base}?${params.toString()}#comments`;
 };
 
 export const getRatingSummary = asyncHandler(async (req, res) => {
@@ -71,13 +81,20 @@ export const upsertRating = asyncHandler(async (req, res) => {
   );
 
   if (String(product.user) !== req.user.id) {
+    const targetLink = buildProductReviewsDeepLink(product);
     await createNotification({
       userId: product.user,
       actorId: req.user.id,
       productId: product._id,
       type: 'rating',
+      deepLink: targetLink,
+      actionLink: targetLink,
+      entityType: 'product',
+      entityId: String(product._id),
       metadata: {
-        value
+        value,
+        productSlug: product.slug || '',
+        deepLink: targetLink
       }
     });
   }

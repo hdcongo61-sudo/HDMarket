@@ -9,7 +9,8 @@
     "seed:admin": "node ./seed/seedAdmin.js",
     "seed:settings": "node ./seed/seedSettings.js",
     "normalize:phones": "node ./scripts/normalizePhones.js",
-    "migrate:categories": "node ./scripts/migrateCategories.js"
+    "migrate:categories": "node ./scripts/migrateCategories.js",
+    "migrate:order-message-deeplinks": "node ./scripts/migrateOrderMessageDeepLinks.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

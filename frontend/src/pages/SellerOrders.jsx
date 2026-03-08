@@ -38,6 +38,7 @@ import GlassHeader from '../components/orders/GlassHeader';
 import StatusBadge from '../components/orders/StatusBadge';
 import { OrderListSkeleton } from '../components/orders/OrderSkeletons';
 import usePullToRefresh from '../hooks/usePullToRefresh';
+import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { getPickupShopAddress, isPickupOrder as resolvePickupOrder } from '../utils/pickupAddress';
@@ -1335,86 +1336,69 @@ export default function SellerOrders() {
             </div>
 
             {/* Cancel Order Modal */}
-            {cancelModalOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-                <div
-                  className="absolute inset-0 bg-neutral-900/60 backdrop-blur-md"
-                  onClick={closeCancelModal}
-                />
-                <div
-                  className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-100 p-6"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-neutral-700">
-                        <AlertCircle className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-gray-900">{t('orders.cancelOrderTitle', 'Annuler la commande')}</h3>
-                        <p className="text-xs text-gray-500">{t('orders.order', 'Commande')} #{cancelOrderId?.slice(-6)}</p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={closeCancelModal}
-                      className="h-9 w-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                      aria-label={t('common.cancel', 'Fermer')}
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800 p-3">
-                      <p className="text-xs font-semibold text-neutral-800 dark:text-neutral-100 mb-1">⚠️ {t('orders.warning', 'Attention')}</p>
-                      <p className="text-xs text-neutral-700">
-                        {t('orders.cancelOrderWarning', "Cette action est irréversible. Le client sera notifié de l'annulation.")}
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2">
-                        {t('orders.cancelReason', "Raison de l'annulation")} <span className="text-red-600">*</span>
-                      </label>
-                      <textarea
-                        value={cancelReason}
-                        onChange={(e) => setCancelReason(e.target.value)}
-                        placeholder={t('orders.cancelReasonPlaceholder', "Expliquez la raison de l'annulation (minimum 5 caractères)...")}
-                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
-                        rows={4}
-                        required
-                        minLength={5}
-                      />
-                      {cancelReason.length > 0 && cancelReason.length < 5 && (
-                        <p className="mt-1 text-xs text-red-600">
-                          {t('orders.cancelReasonMinLength', 'La raison doit contenir au moins 5 caractères.')}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex gap-3">
-                      <button
-                        type="button"
-                        onClick={closeCancelModal}
-                        disabled={cancelLoading}
-                        className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        {t('common.cancel', 'Annuler')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleCancelOrder}
-                        disabled={cancelLoading || !cancelReason.trim() || cancelReason.trim().length < 5}
-                        className="flex-1 px-4 py-2.5 rounded-xl bg-neutral-700 text-white text-sm font-semibold hover:bg-red-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {cancelLoading ? t('orders.cancelling', 'Annulation...') : t('orders.confirmCancellation', "Confirmer l'annulation")}
-                      </button>
-                    </div>
-                  </div>
+            <BaseModal
+              isOpen={cancelModalOpen}
+              onClose={closeCancelModal}
+              size="md"
+              mobileSheet
+              ariaLabel={t('orders.cancelOrderTitle', 'Annuler la commande')}
+            >
+              <ModalHeader
+                icon={<AlertCircle className="h-5 w-5" />}
+                title={t('orders.cancelOrderTitle', 'Annuler la commande')}
+                subtitle={`${t('orders.order', 'Commande')} #${cancelOrderId?.slice(-6) || '—'}`}
+                onClose={closeCancelModal}
+                closeLabel={t('common.cancel', 'Fermer')}
+              />
+              <ModalBody className="space-y-4">
+                <div className="rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800 p-3">
+                  <p className="text-xs font-semibold text-neutral-800 dark:text-neutral-100 mb-1">⚠️ {t('orders.warning', 'Attention')}</p>
+                  <p className="text-xs text-neutral-700">
+                    {t('orders.cancelOrderWarning', "Cette action est irréversible. Le client sera notifié de l'annulation.")}
+                  </p>
                 </div>
-              </div>
-            )}
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    {t('orders.cancelReason', "Raison de l'annulation")} <span className="text-red-600">*</span>
+                  </label>
+                  <textarea
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    placeholder={t('orders.cancelReasonPlaceholder', "Expliquez la raison de l'annulation (minimum 5 caractères)...")}
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                    rows={4}
+                    required
+                    minLength={5}
+                  />
+                  {cancelReason.length > 0 && cancelReason.length < 5 && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {t('orders.cancelReasonMinLength', 'La raison doit contenir au moins 5 caractères.')}
+                    </p>
+                  )}
+                </div>
+              </ModalBody>
+              <ModalFooter>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={closeCancelModal}
+                    disabled={cancelLoading}
+                    className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    {t('common.cancel', 'Annuler')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelOrder}
+                    disabled={cancelLoading || !cancelReason.trim() || cancelReason.trim().length < 5}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-neutral-700 text-white text-sm font-semibold hover:bg-red-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {cancelLoading ? t('orders.cancelling', 'Annulation...') : t('orders.confirmCancellation', "Confirmer l'annulation")}
+                  </button>
+                </div>
+              </ModalFooter>
+            </BaseModal>
 
             {/* Pagination */}
             {meta.totalPages > 1 && (

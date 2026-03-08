@@ -5,6 +5,175 @@ import User from '../models/userModel.js';
 let firebaseApp;
 let pushNotConfiguredWarned = false;
 
+const OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
+const ABSOLUTE_URL_REGEX = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
+const URL_BASE = 'https://hdmarket.local';
+
+const extractObjectId = (value, depth = 0) => {
+  if (depth > 3 || value == null) return '';
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return OBJECT_ID_REGEX.test(trimmed) ? trimmed : '';
+  }
+
+  if (typeof value === 'object') {
+    const candidates = [value._id, value.id, value.$oid, value.orderId, value.value];
+    for (const candidate of candidates) {
+      const resolved = extractObjectId(candidate, depth + 1);
+      if (resolved) return resolved;
+    }
+  }
+
+  return '';
+};
+
+const normalizeNotificationUrl = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (raw.includes('[object Object]')) return '';
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+  return raw.startsWith('/') ? raw : `/${raw}`;
+};
+
+const appendQueryAndHash = (link, params = {}, hash = '') => {
+  const normalized = normalizeNotificationUrl(link);
+  if (!normalized) return '';
+  try {
+    const isAbsolute = ABSOLUTE_URL_REGEX.test(normalized);
+    const url = new URL(normalized, URL_BASE);
+    Object.entries(params).forEach(([key, value]) => {
+      if (value == null || value === '') return;
+      url.searchParams.set(key, String(value));
+    });
+    if (hash) {
+      url.hash = hash.startsWith('#') ? hash : `#${hash}`;
+    }
+    return isAbsolute ? url.toString() : `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return normalized;
+  }
+};
+
+const buildProductReviewsUrl = ({ notification, productId }) => {
+  const metadata = notification?.metadata || {};
+  const deepLink = normalizeNotificationUrl(
+    notification?.deepLink || notification?.actionLink || metadata.deepLink || ''
+  );
+  const productSlug = String(
+    metadata.productSlug || notification?.product?.slug || notification?.product?.id || ''
+  ).trim();
+  const baseProductPath = productSlug || productId ? `/product/${encodeURIComponent(productSlug || String(productId))}` : '';
+  const base =
+    deepLink && deepLink.includes('/product/')
+      ? deepLink
+      : baseProductPath;
+  if (!base) return '';
+  const commentId =
+    extractObjectId(metadata.commentId) ||
+    extractObjectId(metadata.parentId) ||
+    extractObjectId(metadata.replyId);
+  return appendQueryAndHash(
+    base,
+    {
+      tab: 'reviews',
+      open: 'comments',
+      ...(commentId ? { commentId } : {})
+    },
+    'comments'
+  );
+};
+
+const buildShopReviewsUrl = ({ notification, shopId }) => {
+  const metadata = notification?.metadata || {};
+  const deepLink = normalizeNotificationUrl(
+    notification?.deepLink || notification?.actionLink || metadata.deepLink || ''
+  );
+  const shopSlug = String(metadata.shopSlug || notification?.shop?.slug || '').trim();
+  const baseShopPath = shopSlug || shopId ? `/shop/${encodeURIComponent(shopSlug || String(shopId))}` : '';
+  const base =
+    deepLink && deepLink.includes('/shop/')
+      ? deepLink
+      : baseShopPath;
+  if (!base) return '';
+  const reviewId = extractObjectId(metadata.reviewId);
+  return appendQueryAndHash(base, reviewId ? { reviewId } : {}, 'reviews');
+};
+
+const resolveNotificationClickUrl = ({ notification, orderId, productId, shopId }) => {
+  const metadata = notification?.metadata || {};
+  const notificationType = String(notification?.type || '').trim();
+  let url = normalizeNotificationUrl(
+    notification?.deepLink || notification?.actionLink || metadata.deepLink || ''
+  );
+
+  if (notificationType === 'order_message') {
+    const fallbackOrderMessageUrl = orderId
+      ? `/orders/messages?orderId=${encodeURIComponent(orderId)}`
+      : '/orders/messages';
+    const hasLegacyOrderDetailPath =
+      url.includes('/orders/detail/') ||
+      url.includes('/seller/orders/detail/') ||
+      url.includes('/admin/orders?orderId=');
+    if (!url || hasLegacyOrderDetailPath) {
+      url = fallbackOrderMessageUrl;
+    }
+    return url;
+  }
+
+  if (notificationType === 'product_comment' || notificationType === 'reply' || notificationType === 'rating' || notificationType === 'review_reminder') {
+    return buildProductReviewsUrl({ notification, productId }) || url || '/products';
+  }
+
+  if (notificationType === 'shop_review') {
+    return buildShopReviewsUrl({ notification, shopId }) || url || '/shops/verified';
+  }
+
+  if (!url && notificationType === 'payment_pending') {
+    return '/admin/payment-verification?status=waiting';
+  }
+
+  if (!url && notificationType.startsWith('dispute_')) {
+    const disputeId =
+      extractObjectId(metadata.disputeId) ||
+      extractObjectId(notification?.entityType === 'dispute' ? notification?.entityId : '');
+    return disputeId ? `/admin/complaints?disputeId=${encodeURIComponent(disputeId)}` : '/admin/complaints';
+  }
+
+  if (!url && notificationType === 'order_delivery_fee_updated' && orderId) {
+    return `/orders/detail/${orderId}`;
+  }
+
+  if (!url && (notificationType.startsWith('order_') || notificationType.startsWith('installment_'))) {
+    const status = String(metadata.status || '').trim();
+    if (
+      status &&
+      [
+        'pending',
+        'pending_installment',
+        'installment_active',
+        'overdue_installment',
+        'confirmed',
+        'delivering',
+        'delivered',
+        'completed',
+        'cancelled'
+      ].includes(status)
+    ) {
+      return `/orders/${status}`;
+    }
+    return '/orders';
+  }
+
+  if (!url && productId) {
+    return `/product/${notification?.product?.slug || productId}`;
+  }
+  if (!url && shopId) {
+    return `/shop/${notification?.shop?.slug || shopId}`;
+  }
+  return url;
+};
+
 const parseServiceAccount = () => {
   const raw =
     process.env.FIREBASE_SERVICE_ACCOUNT ||
@@ -449,40 +618,31 @@ export const sendPushNotification = async ({
   const { title, body } = buildPushPayload({ notification, actorName, productTitle, shopName });
   const productId = notification.product?._id || notification.product || '';
   const shopId = notification.shop?._id || notification.shop || '';
-  const orderId = notification.metadata?.orderId ? String(notification.metadata.orderId) : '';
+  const orderId =
+    extractObjectId(notification.metadata?.orderId) ||
+    extractObjectId(notification.entityId) ||
+    '';
   
-  // Build deeplink URL based on notification type
-  let url = String(notification.deepLink || notification.actionLink || notification.metadata?.deepLink || '').trim();
-  const notificationType = notification.type || '';
-  if (!url && notificationType === 'order_message') {
-    url = orderId ? `/orders/detail/${orderId}` : '/orders/messages';
-  } else if (!url && notificationType === 'order_delivery_fee_updated' && orderId) {
-    url = `/orders/detail/${orderId}`;
-  } else if (!url && (notificationType.startsWith('order_') || notificationType.startsWith('installment_'))) {
-    const status = notification.metadata?.status || '';
-    if (
-      status &&
-      [
-        'pending',
-        'pending_installment',
-        'installment_active',
-        'overdue_installment',
-        'confirmed',
-        'delivering',
-        'delivered',
-        'completed',
-        'cancelled'
-      ].includes(status)
-    ) {
-      url = `/orders/${status}`;
-    } else {
-      url = '/orders';
-    }
-  } else if (!url && productId) {
-    url = `/product/${notification.product?.slug || productId}`;
-  } else if (!url && shopId) {
-    url = `/shop/${notification.shop?.slug || shopId}`;
-  }
+  const url = resolveNotificationClickUrl({
+    notification,
+    orderId,
+    productId,
+    shopId
+  });
+
+  const metadata = notification?.metadata || {};
+  const commentId =
+    extractObjectId(metadata.commentId) ||
+    extractObjectId(metadata.parentId) ||
+    extractObjectId(metadata.replyId);
+  const reviewId = extractObjectId(metadata.reviewId);
+  const disputeId =
+    extractObjectId(metadata.disputeId) ||
+    extractObjectId(notification?.entityType === 'dispute' ? notification?.entityId : '');
+  const deliveryRequestId =
+    extractObjectId(metadata.requestId) ||
+    extractObjectId(metadata.deliveryRequestId) ||
+    extractObjectId(notification?.entityType === 'deliveryRequest' ? notification?.entityId : '');
   
   // FCM data payload: all values must be strings
   const data = {
@@ -491,6 +651,16 @@ export const sendPushNotification = async ({
     orderId,
     productId: productId ? String(productId) : '',
     shopId: shopId ? String(shopId) : '',
+    productSlug: String(notification?.product?.slug || metadata.productSlug || ''),
+    shopSlug: String(notification?.shop?.slug || metadata.shopSlug || ''),
+    entityType: String(notification?.entityType || ''),
+    entityId: String(notification?.entityId || ''),
+    commentId: commentId ? String(commentId) : '',
+    reviewId: reviewId ? String(reviewId) : '',
+    disputeId: disputeId ? String(disputeId) : '',
+    deliveryRequestId: deliveryRequestId ? String(deliveryRequestId) : '',
+    deepLink: String(notification?.deepLink || metadata.deepLink || ''),
+    actionLink: String(notification?.actionLink || notification?.deepLink || metadata.deepLink || ''),
     ...(url ? { url } : {})
   };
 

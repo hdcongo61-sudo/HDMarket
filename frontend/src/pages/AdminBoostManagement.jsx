@@ -38,6 +38,7 @@ export default function AdminBoostManagement() {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState('pricing');
   const [loading, setLoading] = useState(false);
+  const [requestAction, setRequestAction] = useState({ id: null, status: null });
   const [pricingItems, setPricingItems] = useState([]);
   const [seasonalItems, setSeasonalItems] = useState([]);
   const [requestItems, setRequestItems] = useState([]);
@@ -141,6 +142,7 @@ export default function AdminBoostManagement() {
   };
 
   const handleRequestStatusUpdate = async (requestId, status) => {
+    setRequestAction({ id: requestId, status });
     try {
       const payload = { status };
       if (status === 'REJECTED') {
@@ -155,6 +157,8 @@ export default function AdminBoostManagement() {
       showToast(error.response?.data?.message || 'Impossible de modifier cette demande.', {
         variant: 'error'
       });
+    } finally {
+      setRequestAction({ id: null, status: null });
     }
   };
 
@@ -444,20 +448,41 @@ export default function AdminBoostManagement() {
                       </span>
                       {item.status === 'PENDING' && (
                         <>
-                          <button
-                            type="button"
-                            onClick={() => handleRequestStatusUpdate(item.id, 'APPROVED')}
-                            className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700"
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5" /> Approuver
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleRequestStatusUpdate(item.id, 'REJECTED')}
-                            className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700"
-                          >
-                            <XCircle className="h-3.5 w-3.5" /> Rejeter
-                          </button>
+                          {(() => {
+                            const isActionInProgress = requestAction.id === item.id;
+                            const isApproving = isActionInProgress && requestAction.status === 'APPROVED';
+                            const isRejecting = isActionInProgress && requestAction.status === 'REJECTED';
+                            return (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRequestStatusUpdate(item.id, 'APPROVED')}
+                                  disabled={isActionInProgress}
+                                  className="inline-flex min-h-[32px] items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+                                >
+                                  {isApproving ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                  )}{' '}
+                                  {isApproving ? 'Validation...' : 'Approuver'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRequestStatusUpdate(item.id, 'REJECTED')}
+                                  disabled={isActionInProgress}
+                                  className="inline-flex min-h-[32px] items-center gap-1 rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+                                >
+                                  {isRejecting ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <XCircle className="h-3.5 w-3.5" />
+                                  )}{' '}
+                                  {isRejecting ? 'Rejet...' : 'Rejeter'}
+                                </button>
+                              </>
+                            );
+                          })()}
                         </>
                       )}
                     </div>

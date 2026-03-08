@@ -22,6 +22,11 @@ const KNOWN_EVENT_TYPES = new Set([
   'delivery',
   'payment',
   'message',
+  'image_preview_open',
+  'image_preview_zoom',
+  'image_preview_share',
+  'image_preview_download',
+  'image_preview_report',
   'other'
 ]);
 
@@ -175,11 +180,17 @@ const buildTimeline = ({ events = [], windowMinutes = 60 }) => {
       pageViews: 0,
       likes: 0,
       comments: 0,
+      previewOpens: 0,
+      previewInteractions: 0,
       total: 0
     };
     if (event.eventType === 'page_view') current.pageViews += 1;
     if (event.eventType === 'like') current.likes += 1;
     if (event.eventType === 'comment') current.comments += 1;
+    if (event.eventType === 'image_preview_open') current.previewOpens += 1;
+    if (event.eventType.startsWith('image_preview_') && event.eventType !== 'image_preview_open') {
+      current.previewInteractions += 1;
+    }
     current.total += 1;
     minuteMap.set(key, current);
   });
@@ -194,6 +205,8 @@ const buildTimeline = ({ events = [], windowMinutes = 60 }) => {
       pageViews: 0,
       likes: 0,
       comments: 0,
+      previewOpens: 0,
+      previewInteractions: 0,
       total: 0
     };
     timeline.push(minuteMap.get(key) || fallback);
@@ -211,6 +224,8 @@ const aggregateSnapshot = ({ events = [], windowMinutes = 60, topLimit = 8, rece
   let pageViews = 0;
   let likes = 0;
   let comments = 0;
+  let previewOpens = 0;
+  let previewInteractions = 0;
 
   const pageMap = new Map();
   const typeMap = new Map();
@@ -228,6 +243,10 @@ const aggregateSnapshot = ({ events = [], windowMinutes = 60, topLimit = 8, rece
       likes += 1;
     } else if (eventType === 'comment') {
       comments += 1;
+    } else if (eventType === 'image_preview_open') {
+      previewOpens += 1;
+    } else if (eventType.startsWith('image_preview_')) {
+      previewInteractions += 1;
     }
 
     if (event.visitorId) visitorSet.add(event.visitorId);
@@ -264,6 +283,8 @@ const aggregateSnapshot = ({ events = [], windowMinutes = 60, topLimit = 8, rece
       pageViews,
       likes,
       comments,
+      previewOpens,
+      previewInteractions,
       uniqueVisitors: visitorSet.size
     },
     topPages,

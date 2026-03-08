@@ -64,6 +64,20 @@ const NON_CACHEABLE_API_PATTERNS = [
   /^\/api\/shops\/[^/]+$/
 ];
 
+const normalizeNotificationUrl = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw || raw.includes('[object Object]')) return '';
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+  return raw.startsWith('/') ? raw : `/${raw}`;
+};
+
+const resolvePushClickUrl = (data = {}) => {
+  const raw = data.url || data.link || data.actionLink || data.deepLink || data.deeplink || data.path || '/';
+  const normalized = normalizeNotificationUrl(raw) || '/';
+  if (normalized.startsWith('http://') || normalized.startsWith('https://')) return normalized;
+  return `${self.location.origin}${normalized}`;
+};
+
 let firebaseConfig = null;
 let firebaseMessaging = null;
 let firebaseInitialized = false;
@@ -168,7 +182,7 @@ const initFirebaseMessaging = (config, sdkBaseUrl) => {
         const body = notification.body || data.body || '';
         const icon = notification.icon || data.icon || DEFAULT_NOTIFICATION_ICON;
         const image = notification.image || data.image;
-        const url = data.url || data.link || data.deeplink || data.path || '/';
+        const url = resolvePushClickUrl(data);
 
         const options = {
           body,
@@ -407,17 +421,13 @@ self.addEventListener('push', (event) => {
   const data = payload.data || payload.notification?.data || {};
   const title = notification.title || data.title || 'HDMarket';
   const body = notification.body || data.body || '';
-  const url = data.url || data.link || data.deeplink || data.path || '/';
+  const url = resolvePushClickUrl(data);
 
   const options = {
     body: body || undefined,
     icon: DEFAULT_NOTIFICATION_ICON,
     badge: DEFAULT_NOTIFICATION_BADGE,
-    data: {
-      url: url.startsWith('http')
-        ? url
-        : `${self.location.origin}${url.startsWith('/') ? url : `/${url}`}`
-    },
+    data: { url },
     tag: 'hdmarket-push',
     renotify: true
   };

@@ -34,6 +34,7 @@ import {
 import api from '../services/api';
 import categoryGroups from '../data/categories';
 import AuthContext from '../context/AuthContext';
+import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
 
 const STATUS_LABELS = {
   pending: 'En attente',
@@ -300,6 +301,12 @@ export default function AdminProducts() {
     setSortBy('recent');
     setPage(1);
   };
+
+  const closeDetailModal = useCallback(() => {
+    setSelectedProduct(null);
+    setDetailMessage('');
+    setDetailError('');
+  }, []);
 
   const handleCertificationToggle = async () => {
     if (!selectedProduct || detailBusy || !canManageProducts) return;
@@ -964,113 +971,112 @@ export default function AdminProducts() {
         )}
       </div>
 
-      {selectedProduct && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4"
-          onClick={() => {
-            setSelectedProduct(null);
-            setDetailMessage('');
-            setDetailError('');
-          }}
-        >
-          <div
-            className="w-full max-w-4xl rounded-2xl bg-white p-6 shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-gray-500">Détail produit</p>
-                <h2 className="text-lg font-bold text-gray-900">{selectedProduct.title}</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedProduct(null);
-                  setDetailMessage('');
-                  setDetailError('');
-                }}
-                className="text-xs font-semibold uppercase tracking-wide text-gray-500 transition hover:text-gray-900"
-              >
-                Fermer <X className="inline-block h-4 w-4" />
-              </button>
-            </div>
-            <div className="mt-4 grid gap-4 lg:grid-cols-[1fr,1fr]">
-              <div className="space-y-3">
-                <div className="grid grid-cols-3 gap-2">
-                  {(selectedProduct.images || []).slice(0, 3).map((image, index) => (
-                    <img
-                      key={`modal-img-${index}`}
-                      src={image}
-                      alt={`${selectedProduct.title} ${index + 1}`}
-                      className="h-24 w-full rounded-2xl object-cover border border-gray-200"
-                    />
-                  ))}
-                  {!selectedProduct.images?.length && (
-                    <div className="col-span-3 h-24 rounded-2xl border border-gray-200 bg-gray-100" />
-                  )}
+      <BaseModal
+        isOpen={Boolean(selectedProduct)}
+        onClose={closeDetailModal}
+        size="xl"
+        mobileSheet
+        ariaLabel="Détail produit"
+      >
+        {selectedProduct ? (
+          <>
+            <ModalHeader
+              title={selectedProduct.title}
+              subtitle={`Détail produit${selectedProduct.category ? ` · ${selectedProduct.category}` : ''}`}
+              icon={<Package className="h-4 w-4" />}
+              onClose={closeDetailModal}
+            />
+
+            <ModalBody className="space-y-4 sm:space-y-5">
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {(selectedProduct.images || []).slice(0, 3).map((image, index) => (
+                      <img
+                        key={`modal-img-${index}`}
+                        src={image}
+                        alt={`${selectedProduct.title} ${index + 1}`}
+                        className="h-24 w-full rounded-xl border border-gray-200 object-cover sm:h-28"
+                      />
+                    ))}
+                    {!selectedProduct.images?.length && (
+                      <div className="col-span-2 h-24 rounded-xl border border-gray-200 bg-gray-100 sm:col-span-3 sm:h-28" />
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Description
+                    </p>
+                    <p className="mt-1.5 break-words text-sm text-gray-700">
+                      {selectedProduct.description || 'Aucune description.'}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  {selectedProduct.category}
-                </p>
-                <p className="text-sm text-gray-600">{selectedProduct.description}</p>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <span>Prix</span>
-                  <span className="text-gray-900 font-semibold">
-                    {formatCurrency(selectedProduct.price)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="rounded-full px-3 py-1 text-xs font-semibold">
-                    {STATUS_LABELS[selectedProduct.status] || selectedProduct.status}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    Créé le {formatDate(selectedProduct.createdAt)}
-                  </span>
-                </div>
-                <div className="border-t border-gray-100 pt-3 space-y-2 text-xs text-gray-500">
-                  <p>
-                    Vendeur: {selectedProduct.user?.shopName || selectedProduct.user?.name || '—'}
-                  </p>
-                  <p>Email: {selectedProduct.user?.email || '—'}</p>
-                  <p>Téléphone: {selectedProduct.user?.phone || '—'}</p>
-                </div>
-                <div className="border-t border-gray-100 pt-3">
-                  {selectedProduct.certified ? (
-                    <div className="text-xs text-emerald-700">
-                      <span className="flex items-center gap-2 text-emerald-600">
-                        <ShieldCheck className="w-4 h-4" />
-                        Produit certifié
-                      </span>
-                      {selectedProduct.certifiedBy ? (
-                        <p>
-                          Validé par {selectedProduct.certifiedBy.name || 'Admin'} (
-                          {selectedProduct.certifiedBy.email || '—'})
-                        </p>
-                      ) : null}
-                      {selectedProduct.certifiedAt ? (
-                        <p>Le {formatDate(selectedProduct.certifiedAt)}</p>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <div className="text-xs text-gray-500">
-                      <span className="flex items-center gap-2">
-                        <Shield className="w-4 h-4" />
-                        Produit non certifié
+
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-gray-100 bg-white p-3">
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <span>Prix</span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {formatCurrency(selectedProduct.price)}
                       </span>
                     </div>
-                  )}
-                </div>
-                <div className="border-t border-gray-100 pt-3 space-y-2">
-                  {canManageProducts && (
-                    <>
-                      {selectedProduct.status !== 'disabled' ? (
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                          STATUS_STYLES[selectedProduct.status] || 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        {STATUS_LABELS[selectedProduct.status] || selectedProduct.status}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Créé le {formatDate(selectedProduct.createdAt)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-gray-100 bg-white p-3 text-xs text-gray-500">
+                    <p className="break-words">
+                      Vendeur: {selectedProduct.user?.shopName || selectedProduct.user?.name || '—'}
+                    </p>
+                    <p className="mt-1 break-all">Email: {selectedProduct.user?.email || '—'}</p>
+                    <p className="mt-1 break-all">Téléphone: {selectedProduct.user?.phone || '—'}</p>
+                  </div>
+
+                  <div className="rounded-xl border border-gray-100 bg-white p-3">
+                    {selectedProduct.certified ? (
+                      <div className="text-xs text-emerald-700">
+                        <span className="flex items-center gap-2 text-emerald-600">
+                          <ShieldCheck className="h-4 w-4" />
+                          Produit certifié
+                        </span>
+                        {selectedProduct.certifiedBy ? (
+                          <p className="mt-1 break-words">
+                            Validé par {selectedProduct.certifiedBy.name || 'Admin'} (
+                            {selectedProduct.certifiedBy.email || '—'})
+                          </p>
+                        ) : null}
+                        {selectedProduct.certifiedAt ? <p className="mt-1">Le {formatDate(selectedProduct.certifiedAt)}</p> : null}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-gray-500">
+                        <span className="flex items-center gap-2">
+                          <Shield className="h-4 w-4" />
+                          Produit non certifié
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 rounded-xl border border-gray-100 bg-white p-3">
+                    {canManageProducts ? (
+                      selectedProduct.status !== 'disabled' ? (
                         <button
                           type="button"
                           onClick={() => handleDisableProduct(selectedProduct)}
                           disabled={actionBusyId === selectedProduct._id || detailBusy}
-                          className="w-full rounded-full border border-red-200 px-4 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
+                          className="min-h-[44px] w-full rounded-xl border border-red-200 px-4 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
                         >
                           Désactiver l&apos;annonce
                         </button>
@@ -1079,105 +1085,111 @@ export default function AdminProducts() {
                           type="button"
                           onClick={() => handleEnableProduct(selectedProduct)}
                           disabled={actionBusyId === selectedProduct._id || detailBusy}
-                          className="w-full rounded-full border border-green-200 px-4 py-2 text-xs font-semibold text-green-700 hover:bg-green-50 disabled:opacity-60"
+                          className="min-h-[44px] w-full rounded-xl border border-green-200 px-4 py-2 text-xs font-semibold text-green-700 hover:bg-green-50 disabled:opacity-60"
                         >
                           Activer l&apos;annonce
                         </button>
-                      )}
-                    </>
-                  )}
-                  {(actionMessage || actionError) && (
-                    <p className={`text-xs ${actionError ? 'text-red-600' : 'text-green-600'}`}>
-                      {actionError || actionMessage}
-                    </p>
-                  )}
-                </div>
-                {canManageProducts && (
-                  <div className="space-y-2">
-                    <button
-                      type="button"
-                      onClick={handleCertificationToggle}
-                      disabled={detailBusy}
-                      className="w-full rounded-full bg-neutral-600 px-4 py-2 text-xs font-semibold text-white hover:bg-neutral-500 disabled:opacity-60"
-                    >
-                      {selectedProduct.certified ? 'Retirer la certification' : 'Certifier ce produit'}
-                    </button>
-                    {(detailMessage || detailError) && (
-                      <p className={`text-xs ${detailError ? 'text-red-600' : 'text-green-600'}`}>
-                        {detailError || detailMessage}
+                      )
+                    ) : null}
+
+                    {canManageProducts ? (
+                      <button
+                        type="button"
+                        onClick={handleCertificationToggle}
+                        disabled={detailBusy}
+                        className="min-h-[44px] w-full rounded-xl bg-neutral-600 px-4 py-2 text-xs font-semibold text-white hover:bg-neutral-500 disabled:opacity-60"
+                      >
+                        {selectedProduct.certified ? 'Retirer la certification' : 'Certifier ce produit'}
+                      </button>
+                    ) : null}
+
+                    {(actionMessage || actionError || detailMessage || detailError) && (
+                      <p className={`text-xs ${
+                        actionError || detailError ? 'text-red-600' : 'text-green-600'
+                      }`}>
+                        {actionError || detailError || actionMessage || detailMessage}
                       </p>
                     )}
                   </div>
-                )}
-                {selectedProduct.payment && (
-                  <div className="border-t border-gray-100 pt-3 text-xs text-gray-500 space-y-1">
-                    <p className="font-semibold text-gray-900 text-sm">Paiement</p>
-                    <p>Status: {selectedProduct.payment.status}</p>
-                    <p>Montant: {formatCurrency(selectedProduct.payment.amount)}</p>
-                    <p>Opérateur: {selectedProduct.payment.operator}</p>
-                  </div>
-                )}
-                <div className="border-t border-gray-100 pt-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Historique
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => loadHistory(selectedProduct._id || selectedProduct.slug)}
-                      className="text-[11px] font-semibold text-neutral-600 hover:text-neutral-500"
-                    >
-                      Actualiser
-                    </button>
-                  </div>
-                  {historyLoading ? (
-                    <p className="text-xs text-gray-500">Chargement...</p>
-                  ) : historyError ? (
-                    <p className="text-xs text-red-600">{historyError}</p>
-                  ) : historyItems.length === 0 ? (
-                    <p className="text-xs text-gray-500">Aucune action enregistrée.</p>
-                  ) : (
-                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                      {historyItems.map((entry) => {
-                        const detailsLines = buildHistoryDetails(entry.details);
-                        const actionLabel = ACTION_LABELS[entry.action] || entry.action || 'Action';
-                        const badgeStyle = ACTION_STYLES[entry.action] || 'bg-gray-100 text-gray-600';
-                        const actorName =
-                          entry.performedBy?.name || entry.performedBy?.email || 'Système';
-                        return (
-                          <div key={entry.id} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeStyle}`}>
-                                {actionLabel}
-                              </span>
-                              <span className="text-[11px] text-gray-400">
-                                {formatDateTime(entry.createdAt)}
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-700 mt-1">
-                              Par {actorName}
-                              {entry.performedBy?.role ? ` · ${entry.performedBy.role}` : ''}
-                            </p>
-                            {detailsLines.length > 0 && (
-                              <div className="mt-1 space-y-0.5">
-                                {detailsLines.map((line, index) => (
-                                  <p key={`${entry.id}-detail-${index}`} className="text-[11px] text-gray-500">
-                                    {line}
-                                  </p>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+
+                  {selectedProduct.payment ? (
+                    <div className="rounded-xl border border-gray-100 bg-white p-3 text-xs text-gray-500">
+                      <p className="text-sm font-semibold text-gray-900">Paiement</p>
+                      <p className="mt-1">Status: {selectedProduct.payment.status}</p>
+                      <p>Montant: {formatCurrency(selectedProduct.payment.amount)}</p>
+                      <p>Opérateur: {selectedProduct.payment.operator}</p>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+
+              <div className="space-y-2 rounded-xl border border-gray-100 bg-white p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Historique</p>
+                  <button
+                    type="button"
+                    onClick={() => loadHistory(selectedProduct._id || selectedProduct.slug)}
+                    className="text-[11px] font-semibold text-neutral-600 hover:text-neutral-500"
+                  >
+                    Actualiser
+                  </button>
+                </div>
+                {historyLoading ? (
+                  <p className="text-xs text-gray-500">Chargement...</p>
+                ) : historyError ? (
+                  <p className="text-xs text-red-600">{historyError}</p>
+                ) : historyItems.length === 0 ? (
+                  <p className="text-xs text-gray-500">Aucune action enregistrée.</p>
+                ) : (
+                  <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                    {historyItems.map((entry) => {
+                      const detailsLines = buildHistoryDetails(entry.details);
+                      const actionLabel = ACTION_LABELS[entry.action] || entry.action || 'Action';
+                      const badgeStyle = ACTION_STYLES[entry.action] || 'bg-gray-100 text-gray-600';
+                      const actorName = entry.performedBy?.name || entry.performedBy?.email || 'Système';
+                      return (
+                        <div key={entry.id} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeStyle}`}>
+                              {actionLabel}
+                            </span>
+                            <span className="text-[11px] text-gray-400">{formatDateTime(entry.createdAt)}</span>
+                          </div>
+                          <p className="mt-1 text-xs text-gray-700">
+                            Par {actorName}
+                            {entry.performedBy?.role ? ` · ${entry.performedBy.role}` : ''}
+                          </p>
+                          {detailsLines.length > 0 ? (
+                            <div className="mt-1 space-y-0.5">
+                              {detailsLines.map((line, index) => (
+                                <p key={`${entry.id}-detail-${index}`} className="text-[11px] text-gray-500">
+                                  {line}
+                                </p>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </ModalBody>
+
+            <ModalFooter>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={closeDetailModal}
+                  className="min-h-[44px] rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  Fermer
+                </button>
+              </div>
+            </ModalFooter>
+          </>
+        ) : null}
+      </BaseModal>
     </div>
   );
 }

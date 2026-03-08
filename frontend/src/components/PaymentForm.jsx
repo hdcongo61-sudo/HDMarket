@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import api, { isApiTimeoutError, verifyTransactionCodeAvailability } from '../services/api';
-import { useAppSettings } from '../context/AppSettingsContext';
+import useCommissionRate from '../hooks/useCommissionRate';
 import {
   CreditCard,
   CheckCircle,
@@ -40,21 +40,7 @@ const statusColor = (status) => {
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
 export default function PaymentForm({ product, onSubmitted }) {
-  const { runtime, app } = useAppSettings();
-  const commissionRatePercent = useMemo(() => {
-    const candidates = [runtime?.commission_rate, runtime?.commissionRate, app?.commissionRate, 3];
-    for (const candidate of candidates) {
-      const parsed = Number(candidate);
-      if (Number.isFinite(parsed) && parsed >= 0) {
-        return parsed;
-      }
-    }
-    return 3;
-  }, [app?.commissionRate, runtime?.commissionRate, runtime?.commission_rate]);
-  const commissionRateLabel = useMemo(() => {
-    const rounded = Number(commissionRatePercent.toFixed(2));
-    return Number.isInteger(rounded) ? String(rounded) : String(rounded).replace(/\.?0+$/, '');
-  }, [commissionRatePercent]);
+  const { commissionRatePercent, commissionRateLabel } = useCommissionRate();
   const expected = useMemo(
     () => Math.round(product.price * (commissionRatePercent / 100) * 100) / 100,
     [commissionRatePercent, product.price]

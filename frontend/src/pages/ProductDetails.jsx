@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useLocation, useParams, useNavigate } from "react-router-dom";
 import {
   Heart,
   Star,
@@ -41,6 +41,7 @@ import { resolveUserProfileImage } from "../utils/userAvatar";
 import VerifiedBadge from "../components/VerifiedBadge";
 import OrderChat from "../components/OrderChat";
 import ReportModal from "../components/ReportModal";
+import BaseModal, { ModalBody, ModalHeader } from "../components/modals/BaseModal";
 import { useToast } from "../context/ToastContext";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
 import useIsMobile from "../hooks/useIsMobile";
@@ -52,6 +53,7 @@ import "swiper/css/pagination";
 
 export default function ProductDetails() {
   const { slug } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const authContextValue = useContext(AuthContext);
   const user = authContextValue?.user;
@@ -75,6 +77,7 @@ export default function ProductDetails() {
   const [isFollowingShop, setIsFollowingShop] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("description");
+  const [highlightedCommentId, setHighlightedCommentId] = useState("");
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [rating, setRating] = useState(0);
@@ -92,6 +95,8 @@ export default function ProductDetails() {
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isReviewsModalOpen, setIsReviewsModalOpen] = useState(false);
   const trackedProductViewsRef = useRef(new Set());
+  const pendingFocusCommentIdRef = useRef('');
+  const commentHighlightTimerRef = useRef(null);
   const mobileGallerySwiperRef = useRef(null);
   const isMobileView = useIsMobile();
   const externalLinkProps = useDesktopExternalLink();
@@ -358,6 +363,56 @@ export default function ProductDetails() {
     setSellerExpanded(false);
     setExpandedSections({ description: false, specifications: false, shipping: false });
   }, [slug]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const openParam = String(params.get('open') || params.get('tab') || '').trim().toLowerCase();
+    const hashValue = String(location.hash || '').trim().toLowerCase();
+    const shouldOpenReviews =
+      ['reviews', 'review', 'comments', 'comment'].includes(openParam) ||
+      hashValue === '#comments' ||
+      hashValue === '#reviews';
+
+    if (shouldOpenReviews) {
+      setActiveTab('reviews');
+    }
+
+    const commentId = String(params.get('commentId') || params.get('focusCommentId') || '').trim();
+    if (commentId) {
+      pendingFocusCommentIdRef.current = commentId;
+      setHighlightedCommentId(commentId);
+    }
+  }, [location.hash, location.search]);
+
+  useEffect(() => {
+    if (activeTab !== 'reviews') return;
+    const targetCommentId = String(pendingFocusCommentIdRef.current || '').trim();
+    if (!targetCommentId) return;
+
+    const node =
+      document.getElementById(`comment-${targetCommentId}`) ||
+      document.getElementById(`reply-${targetCommentId}`);
+    if (!node) return;
+
+    pendingFocusCommentIdRef.current = '';
+    node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (commentHighlightTimerRef.current) {
+      clearTimeout(commentHighlightTimerRef.current);
+    }
+    commentHighlightTimerRef.current = setTimeout(() => {
+      setHighlightedCommentId('');
+      commentHighlightTimerRef.current = null;
+    }, 2200);
+  }, [activeTab, comments]);
+
+  useEffect(
+    () => () => {
+      if (commentHighlightTimerRef.current) {
+        clearTimeout(commentHighlightTimerRef.current);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     if (!isMobileView || !product || !isProfessional) {
@@ -3148,7 +3203,7 @@ export default function ProductDetails() {
               )}
 
               {activeTab === 'reviews' && (
-                <div className="space-y-8">
+                <div className="space-y-8" id="comments">
                   {/* SECTION NOTES ENHANCED */}
                   <div className="bg-neutral-50 rounded-2xl p-6 sm:p-8 border border-neutral-200 shadow-md">
                     <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -3291,6 +3346,7 @@ export default function ProductDetails() {
                             productId={product?._id}
                             onDelete={handleDeleteComment}
                             deletingCommentId={deletingCommentId}
+                            highlightedCommentId={highlightedCommentId}
                           />
                         ))
                       )}
@@ -3547,26 +3603,18 @@ export default function ProductDetails() {
     <>
       {isMobileView ? renderMobileProductDetails() : renderDesktopProductDetails()}
 
-      {isReviewsModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 px-4 py-6 sm:items-center"
-          onClick={() => setIsReviewsModalOpen(false)}
-        >
-          <div
-            className="w-full max-w-lg rounded-2xl bg-white p-4 shadow-md max-h-[85vh] overflow-y-auto"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900">Avis & notes</h3>
-              <button
-                type="button"
-                onClick={() => setIsReviewsModalOpen(false)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200"
-                aria-label="Fermer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+      <BaseModal
+        isOpen={isReviewsModalOpen}
+        onClose={() => setIsReviewsModalOpen(false)}
+        size="md"
+        mobileSheet
+        ariaLabel="Avis et notes"
+      >
+        <ModalHeader
+          title="Avis & notes"
+          onClose={() => setIsReviewsModalOpen(false)}
+        />
+        <ModalBody className="space-y-4">
             <div className="mt-3 flex items-center gap-4 text-xs text-gray-600">
               <div className="flex items-center gap-1">
                 <Star className="h-4 w-4 text-neutral-400" />
@@ -3630,7 +3678,7 @@ export default function ProductDetails() {
                 <p className="text-xs text-gray-500">Vous ne pouvez pas noter votre propre produit.</p>
               )}
             </div>
-            <div className="mt-4 space-y-4">
+            <div className="space-y-4">
               {comments.length === 0 ? (
                 <p className="text-xs text-gray-500">Aucun avis pour le moment.</p>
               ) : (
@@ -3649,24 +3697,25 @@ export default function ProductDetails() {
                     productId={product?._id}
                     onDelete={handleDeleteComment}
                     deletingCommentId={deletingCommentId}
+                    highlightedCommentId={highlightedCommentId}
                   />
                 ))
               )}
             </div>
-          </div>
-        </div>
-      )}
+        </ModalBody>
+      </BaseModal>
 
       {/* IMAGE MODAL (shared) */}
-      {isImageModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm px-4 py-6"
-          onClick={closeImageModal}
-        >
-          <div
-            className="relative w-full max-w-5xl"
-            onClick={(event) => event.stopPropagation()}
-          >
+      <BaseModal
+        isOpen={isImageModalOpen}
+        onClose={closeImageModal}
+        size="full"
+        mobileSheet={false}
+        ariaLabel="Image produit"
+        backdropClassName="!bg-black/95 backdrop-blur-sm"
+        panelClassName="sm:max-w-5xl border-black/40 bg-black/95 text-white"
+      >
+          <div className="relative w-full">
             <div
               className="max-h-[85vh] overflow-hidden rounded-2xl bg-black shadow-lg"
             >
@@ -3744,8 +3793,7 @@ export default function ProductDetails() {
               </div>
             )}
           </div>
-        </div>
-      )}
+      </BaseModal>
 
       {/* Chat commande inline (depuis la fiche produit) */}
       {inquiryOrder && (
@@ -3784,11 +3832,19 @@ function CommentThread({
   onReport,
   productId,
   onDelete,
-  deletingCommentId
+  deletingCommentId,
+  highlightedCommentId
 }) {
   const isAdmin = user?.role === 'admin' || user?.role === 'founder';
+  const isHighlightedComment =
+    highlightedCommentId && String(highlightedCommentId) === String(comment?._id || '');
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-lg hover:shadow-md transition-shadow">
+    <div
+      id={`comment-${comment?._id}`}
+      className={`bg-white rounded-2xl border overflow-hidden shadow-lg transition-shadow hover:shadow-md ${
+        isHighlightedComment ? 'border-neutral-500 ring-2 ring-neutral-300' : 'border-gray-200'
+      }`}
+    >
       {/* Commentaire principal */}
       <div className="p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
@@ -3896,8 +3952,17 @@ function CommentThread({
       {/* Réponses ENHANCED */}
       {comment.replies && comment.replies.length > 0 && (
         <div className="bg-neutral-50 border-t border-gray-200">
-          {comment.replies.map((reply) => (
-            <div key={reply._id} className="p-4 sm:p-4 border-b border-gray-200 last:border-b-0">
+          {comment.replies.map((reply) => {
+            const isHighlightedReply =
+              highlightedCommentId && String(highlightedCommentId) === String(reply?._id || '');
+            return (
+            <div
+              key={reply._id}
+              id={`reply-${reply?._id}`}
+              className={`p-4 sm:p-4 border-b border-gray-200 last:border-b-0 ${
+                isHighlightedReply ? 'bg-neutral-50 ring-1 ring-neutral-300' : ''
+              }`}
+            >
               <div className="flex items-center gap-3 mb-2">
                 <CornerDownLeft size={16} className="text-neutral-700" />
                 {resolveUserProfileImage(reply.user) ? (
@@ -3954,7 +4019,8 @@ function CommentThread({
               </div>
               <p className="text-gray-700 text-sm ml-14 leading-relaxed">{reply.message}</p>
             </div>
-          ))}
+          );
+          })}
         </div>
       )}
     </div>

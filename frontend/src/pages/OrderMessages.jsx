@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -31,6 +31,7 @@ import api from '../services/api';
 import storage from '../utils/storage';
 import AuthContext from '../context/AuthContext';
 import OrderChat from '../components/OrderChat';
+import BaseModal, { ModalBody } from '../components/modals/BaseModal';
 import { buildProductPath } from '../utils/links';
 import { resolveUserProfileImage } from '../utils/userAvatar';
 import { fetchOrderConversations, fetchOrderUnreadCount } from '../queries/orderChatApi';
@@ -75,8 +76,13 @@ export default function OrderMessages() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all'); // all, unread, archived
   const socketRef = useRef(null);
+  const handledQueryOrderRef = useRef('');
   const queryClient = useQueryClient();
   const userScopeId = user?._id || user?.id;
+  const requestedOrderId = useMemo(() => {
+    const value = new URLSearchParams(location.search).get('orderId');
+    return String(value || '').trim();
+  }, [location.search]);
 
   const conversationsQuery = useQuery({
     queryKey: orderChatKeys.conversations(userScopeId, {
@@ -307,6 +313,17 @@ export default function OrderMessages() {
     return true;
   });
 
+  const buildOrderFromConversation = useCallback((conv) => {
+    const customerId = conv.customerId?._id ?? conv.customerId;
+    return {
+      _id: conv.orderId != null ? String(conv.orderId) : conv.orderId,
+      items: [{ snapshot: conv.productInfo }],
+      customer: customerId != null ? { _id: String(customerId) } : undefined,
+      status: conv.status,
+      deliveryCode: conv.orderCode
+    };
+  }, []);
+
   const closeChat = () => {
     setSelectedOrder(null);
     queryClient.invalidateQueries({ queryKey: orderChatKeys.conversationsRoot(userScopeId) });
@@ -336,21 +353,22 @@ export default function OrderMessages() {
     setSelectedOrder(null);
   };
 
-  const buildOrderFromConversation = (conv) => {
-    const customerId = conv.customerId?._id ?? conv.customerId;
-    return {
-      _id: conv.orderId != null ? String(conv.orderId) : conv.orderId,
-      items: [{ snapshot: conv.productInfo }],
-      customer: customerId != null ? { _id: String(customerId) } : undefined,
-      status: conv.status,
-      deliveryCode: conv.orderCode
-    };
-  };
-
   const openConversation = (conversation) => {
     setSelectedOrder(buildOrderFromConversation(conversation));
     setError('');
   };
+
+  useEffect(() => {
+    if (!requestedOrderId || !conversations.length) return;
+    if (handledQueryOrderRef.current === requestedOrderId) return;
+    const matchedConversation = conversations.find(
+      (conversation) => String(conversation?.orderId || '') === requestedOrderId
+    );
+    if (!matchedConversation) return;
+    handledQueryOrderRef.current = requestedOrderId;
+    setSelectedOrder(buildOrderFromConversation(matchedConversation));
+    setError('');
+  }, [requestedOrderId, conversations, buildOrderFromConversation]);
 
   useEffect(() => {
     if (!user?._id) {
@@ -463,12 +481,22 @@ export default function OrderMessages() {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 relative">
         {inquiryLoading && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl px-8 py-6 flex flex-col items-center gap-4">
-              <div className="w-12 h-12 border-4 border-neutral-500 border-t-transparent rounded-full animate-spin" />
-              <p className="text-gray-700 dark:text-gray-200 font-medium">Ouverture de la conversation avec le vendeur...</p>
-            </div>
-          </div>
+          <BaseModal
+            isOpen={inquiryLoading}
+            onClose={() => {}}
+            size="sm"
+            mobileSheet
+            closeOnEsc={false}
+            closeOnBackdrop={false}
+            ariaLabel="Ouverture conversation"
+          >
+            <ModalBody className="px-8 py-6">
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-12 h-12 border-4 border-neutral-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-center text-gray-700 dark:text-gray-200 font-medium">Ouverture de la conversation avec le vendeur...</p>
+              </div>
+            </ModalBody>
+          </BaseModal>
         )}
         {loading && conversations.length === 0 && !inquiryLoading && (
           <div className="max-w-6xl mx-auto px-4 py-8">

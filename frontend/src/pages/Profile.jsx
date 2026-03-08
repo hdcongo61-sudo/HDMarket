@@ -2562,100 +2562,95 @@ export default function Profile() {
         )}
 
         {/* Orders modal — opened from Commandes card in stats */}
-        {showOrdersModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowOrdersModal(false)}>
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <ClipboardList className="w-5 h-5 text-neutral-800" />
-                  Mes commandes
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setShowOrdersModal(false)}
-                  className="p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-                  aria-label="Fermer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+        <BaseModal
+          isOpen={showOrdersModal}
+          onClose={() => setShowOrdersModal(false)}
+          size="lg"
+          mobileSheet
+          ariaLabel="Mes commandes"
+        >
+          <ModalHeader
+            icon={<ClipboardList className="w-5 h-5 text-neutral-700" />}
+            title="Mes commandes"
+            onClose={() => setShowOrdersModal(false)}
+          />
+          <ModalBody className="space-y-4">
+            {ordersError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-600 mb-4">
+                {ordersError}
               </div>
-              <div className="flex-1 overflow-y-auto px-6 py-4">
-                {ordersError && (
-                  <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-600 mb-4">
-                    {ordersError}
-                  </div>
-                )}
-                {ordersLoading && orders.length === 0 ? (
-                  <div className="space-y-4">
-                    {Array.from({ length: 3 }).map((_, index) => (
-                      <div key={index} className="animate-pulse border border-gray-100 rounded-2xl p-5 bg-gray-50 h-28" />
-                    ))}
-                  </div>
-                ) : orders.length === 0 ? (
-                  <div className="text-center py-10 text-gray-500">
-                    <ClipboardList className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p className="font-medium text-gray-700">Aucune commande</p>
-                    <p className="text-sm">Vos commandes apparaîtront ici.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4 pb-2">
-                    {orders.map((order) => {
-                      const orderItems =
-                        order.items && order.items.length
-                          ? order.items
-                          : order.productSnapshot
-                            ? [{ snapshot: order.productSnapshot, quantity: 1 }]
-                            : [];
-                      return (
-                        <div key={order._id} className="border border-gray-100 rounded-2xl p-5 shadow-sm bg-gray-50/50">
-                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                              <p className="text-sm text-gray-500">Commande #{order._id.slice(-6)}</p>
-                              <div className="mt-1 space-y-1 text-sm text-gray-700">
-                                {orderItems.map((item, idx) => (
-                                  <div key={`${order._id}-${idx}`}>
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-medium text-gray-900">{item.snapshot?.title || 'Produit'}</span>
-                                      <span className="text-xs text-gray-500">
-                                        x{item.quantity} · {Number(item.snapshot?.price || 0).toLocaleString()}
-                                      </span>
-                                    </div>
-                                  </div>
-                                ))}
+            )}
+            {ordersLoading && orders.length === 0 ? (
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className="animate-pulse border border-gray-100 rounded-2xl p-5 bg-gray-50 h-28" />
+                ))}
+              </div>
+            ) : orders.length === 0 ? (
+              <div className="text-center py-10 text-gray-500">
+                <ClipboardList className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p className="font-medium text-gray-700">Aucune commande</p>
+                <p className="text-sm">Vos commandes apparaîtront ici.</p>
+              </div>
+            ) : (
+              <div className="space-y-4 pb-2">
+                {orders.map((order) => {
+                  const orderItems =
+                    order.items && order.items.length
+                      ? order.items
+                      : order.productSnapshot
+                        ? [{ snapshot: order.productSnapshot, quantity: 1 }]
+                        : [];
+                  return (
+                    <div key={order._id} className="border border-gray-100 rounded-2xl p-5 shadow-sm bg-gray-50/50">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm text-gray-500">Commande #{order._id.slice(-6)}</p>
+                          <div className="mt-1 space-y-1 text-sm text-gray-700">
+                            {orderItems.map((item, idx) => (
+                              <div key={`${order._id}-${idx}`}>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-gray-900">{item.snapshot?.title || 'Produit'}</span>
+                                  <span className="text-xs text-gray-500">
+                                    x{item.quantity} · {Number(item.snapshot?.price || 0).toLocaleString()}
+                                  </span>
+                                </div>
                               </div>
-                              <p className="mt-2 text-xs text-gray-500">
-                                Statut : {ORDER_STATUS_LABELS[order.status] || 'Enregistrée'}
-                              </p>
-                            </div>
-                            <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border ${ORDER_STATUS_STYLES[order.status] || 'border-gray-200 bg-gray-50 text-gray-600'}`}>
-                              {order.status === 'pending' && <Clock size={14} />}
-                              {order.status === 'confirmed' && <Package size={14} />}
-                              {order.status === 'delivering' && <Truck size={14} />}
-                              {order.status === 'delivered' && <CheckCircle size={14} />}
-                              {ORDER_STATUS_LABELS[order.status] || 'Statut inconnu'}
-                            </span>
+                            ))}
                           </div>
-                          <p className="mt-3 text-xs text-gray-500">
-                            Créée le {new Date(order.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          <p className="mt-2 text-xs text-gray-500">
+                            Statut : {ORDER_STATUS_LABELS[order.status] || 'Enregistrée'}
                           </p>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border ${ORDER_STATUS_STYLES[order.status] || 'border-gray-200 bg-gray-50 text-gray-600'}`}>
+                          {order.status === 'pending' && <Clock size={14} />}
+                          {order.status === 'confirmed' && <Package size={14} />}
+                          {order.status === 'delivering' && <Truck size={14} />}
+                          {order.status === 'delivered' && <CheckCircle size={14} />}
+                          {ORDER_STATUS_LABELS[order.status] || 'Statut inconnu'}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-xs text-gray-500">
+                        Créée le {new Date(order.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="px-6 py-3 border-t border-gray-100 flex justify-end">
-                <Link
-                  to="/profile"
-                  onClick={() => setShowOrdersModal(false)}
-                  className="text-sm font-medium text-neutral-800 hover:text-neutral-700"
-                >
-                  Voir tout l'historique →
-                </Link>
-              </div>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <div className="flex justify-end">
+              <Link
+                to="/profile"
+                onClick={() => setShowOrdersModal(false)}
+                className="text-sm font-medium text-neutral-800 hover:text-neutral-700"
+              >
+                Voir tout l'historique →
+              </Link>
             </div>
-          </div>
-        )}
+          </ModalFooter>
+        </BaseModal>
 
         {activeTab === 'orders' && (
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
@@ -2989,19 +2984,20 @@ export default function Profile() {
             )}
 
             {/* Modal Détails commande avec timeline */}
-            {selectedOrderDetail && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setSelectedOrderDetail(null)}>
-                <div className="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                      <ClipboardList className="w-5 h-5 text-neutral-800" />
-                      Commande #{selectedOrderDetail._id?.slice(-6)}
-                    </h3>
-                    <button type="button" onClick={() => setSelectedOrderDetail(null)} className="p-2 rounded-full text-gray-500 hover:bg-gray-100" aria-label="Fermer">
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                  <div className="p-6 space-y-6">
+            {selectedOrderDetail ? (
+            <BaseModal
+              isOpen
+              onClose={() => setSelectedOrderDetail(null)}
+              size="lg"
+              mobileSheet
+              ariaLabel="Détail commande"
+            >
+              <ModalHeader
+                icon={<ClipboardList className="w-5 h-5 text-neutral-700" />}
+                title={`Commande #${selectedOrderDetail?._id?.slice(-6) || '—'}`}
+                onClose={() => setSelectedOrderDetail(null)}
+              />
+              <ModalBody className="space-y-6">
                     <div>
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Statut</p>
                       <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold border ${ORDER_STATUS_STYLES[selectedOrderDetail.status] || 'border-gray-200 bg-gray-50'}`}>
@@ -3079,26 +3075,27 @@ export default function Profile() {
                         )}
                       </div>
                     </div>
-                  </div>
-                  <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
-                    <Link
-                      to="/orders/messages"
-                      onClick={() => setSelectedOrderDetail(null)}
-                      className="px-4 py-2 rounded-xl border border-neutral-200 text-neutral-800 font-medium hover:bg-neutral-50"
-                    >
-                      Messages
-                    </Link>
-                    <Link
-                      to="/orders"
-                      onClick={() => setSelectedOrderDetail(null)}
-                      className="px-4 py-2 rounded-xl bg-neutral-900 text-white font-medium hover:bg-neutral-800"
-                    >
-                      Page commandes
-                    </Link>
-                  </div>
+              </ModalBody>
+              <ModalFooter>
+                <div className="flex justify-end gap-2">
+                  <Link
+                    to="/orders/messages"
+                    onClick={() => setSelectedOrderDetail(null)}
+                    className="px-4 py-2 rounded-xl border border-neutral-200 text-neutral-800 font-medium hover:bg-neutral-50"
+                  >
+                    Messages
+                  </Link>
+                  <Link
+                    to="/orders"
+                    onClick={() => setSelectedOrderDetail(null)}
+                    className="px-4 py-2 rounded-xl bg-neutral-900 text-white font-medium hover:bg-neutral-800"
+                  >
+                    Page commandes
+                  </Link>
                 </div>
-              </div>
-            )}
+              </ModalFooter>
+            </BaseModal>
+            ) : null}
           </div>
         )}
 

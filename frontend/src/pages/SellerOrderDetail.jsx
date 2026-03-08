@@ -34,6 +34,7 @@ import StatusBadge from '../components/orders/StatusBadge';
 import AnimatedOrderTimeline from '../components/orders/AnimatedOrderTimeline';
 import InstallmentReminder from '../components/orders/InstallmentReminder';
 import { OrderDetailSkeleton } from '../components/orders/OrderSkeletons';
+import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
 import { useToast } from '../context/ToastContext';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -578,8 +579,13 @@ export default function SellerOrderDetail() {
           order.status === 'completed' &&
           (installmentSaleStatus || 'confirmed') === 'delivering')) &&
       !['submitted', 'verified'].includes(order.deliveryStatus);
+    const canRequestPickupProof =
+      !isInstallmentOrder &&
+      resolvePickupOrder(order) &&
+      ['confirmed', 'ready_for_pickup'].includes(order.status) &&
+      !['submitted', 'verified'].includes(order.deliveryStatus);
 
-    if (!canRequestDeliveryProof && showDeliveryProofForm) {
+    if (!(canRequestDeliveryProof || canRequestPickupProof) && showDeliveryProofForm) {
       setShowDeliveryProofForm(false);
     }
   }, [order, showDeliveryProofForm]);
@@ -695,7 +701,13 @@ export default function SellerOrderDetail() {
         order.status === 'completed' &&
         (installmentSaleStatus || 'confirmed') === 'delivering')) &&
     !['submitted', 'verified'].includes(order.deliveryStatus);
-  const canShowDeliveryProofForm = canRequestDeliveryProof && showDeliveryProofForm;
+  const canRequestPickupProof =
+    !isInstallmentOrder &&
+    isPickupOrder &&
+    ['confirmed', 'ready_for_pickup'].includes(order.status) &&
+    !['submitted', 'verified'].includes(order.deliveryStatus);
+  const canRequestProof = canRequestDeliveryProof || canRequestPickupProof;
+  const canShowDeliveryProofForm = canRequestProof && showDeliveryProofForm;
   const sellerCity = String(user?.city || '').trim();
   const platformDeliveryEnabled =
     ['true', '1', 'yes', 'on'].includes(
@@ -1127,10 +1139,18 @@ export default function SellerOrderDetail() {
               </div>
             )}
 
-            {canRequestDeliveryProof && !showDeliveryProofForm && (
+            {canRequestProof && !showDeliveryProofForm && (
               <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
                 <p className="text-xs text-neutral-800">
-                  Cliquez sur <span className="font-semibold">Livrer</span> pour soumettre la preuve de livraison.
+                  {canRequestPickupProof ? (
+                    <>
+                      Cliquez sur <span className="font-semibold">Retrait confirmé</span> pour soumettre la preuve de retrait (3 photos + signature client).
+                    </>
+                  ) : (
+                    <>
+                      Cliquez sur <span className="font-semibold">Livrer</span> pour soumettre la preuve de livraison.
+                    </>
+                  )}
                 </p>
               </div>
             )}
@@ -1139,11 +1159,18 @@ export default function SellerOrderDetail() {
               <DeliveryProofUpload
                 orderId={order._id}
                 initialProofs={order.deliveryProofImages || []}
+                mode={canRequestPickupProof ? 'pickup' : 'delivery'}
+                minFiles={canRequestPickupProof ? 3 : 1}
                 onSuccess={(updatedOrder) => {
                   if (updatedOrder?._id) {
                     setOrder(updatedOrder);
                     setShowDeliveryProofForm(false);
-                    showToast('Preuve de livraison envoyée au client.', { variant: 'success' });
+                    showToast(
+                      canRequestPickupProof
+                        ? 'Preuve de retrait enregistrée et retrait confirmé.'
+                        : 'Preuve de livraison envoyée au client.',
+                      { variant: 'success' }
+                    );
                   } else {
                     loadOrder();
                   }
@@ -1387,15 +1414,15 @@ export default function SellerOrderDetail() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleStatusUpdate('picked_up_confirmed')}
+                        onClick={() => setShowDeliveryProofForm((prev) => !prev)}
                         disabled={
-                          !['confirmed', 'ready_for_pickup'].includes(order.status) ||
+                          !canRequestPickupProof ||
                           statusUpdatingId === order._id ||
                           order.cancellationWindow?.isActive
                         }
                         className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
                       >
-                        <CheckCircle size={12} /> Retrait confirmé
+                        <ClipboardList size={12} /> {showDeliveryProofForm ? 'Masquer preuve' : 'Retrait confirmé'}
                       </button>
                     </>
                   ) : (
@@ -1442,7 +1469,7 @@ export default function SellerOrderDetail() {
                 </div>
                 {isPickupOrder ? (
                   <p className="text-xs text-orange-700">
-                    Flux retrait: confirmez la commande, marquez-la "Prête au retrait", puis "Retrait confirmé" quand le client récupère.
+                    Flux retrait: confirmez la commande, marquez-la "Prête au retrait", puis "Retrait confirmé" avec 3 photos + signature client.
                   </p>
                 ) : (
                   ['delivering', 'out_for_delivery', 'delivery_proof_submitted'].includes(order.status) && (
@@ -1677,82 +1704,70 @@ export default function SellerOrderDetail() {
         </div>
       </div>
 
-      {cancelModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-          <div
-            className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
-            onClick={closeCancelModal}
-          />
-          <div className="relative w-full max-w-md rounded-3xl bg-white shadow-2xl border border-gray-100 p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-red-600">
-                  <AlertCircle className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900">Annuler la commande</h3>
-                  <p className="text-xs text-gray-500">Commande #{order._id?.slice(-6)}</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={closeCancelModal}
-                className="h-9 w-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                <p className="text-xs font-semibold text-amber-800 mb-1">⚠️ Attention</p>
-                <p className="text-xs text-amber-700">Cette action est irréversible. Le client sera notifié.</p>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Raison de l'annulation <span className="text-red-600">*</span></label>
-                <textarea
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                  placeholder="Expliquez la raison (minimum 5 caractères)..."
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
-                  rows={4}
-                  minLength={5}
-                />
-                {cancelReason.length > 0 && cancelReason.length < 5 && <p className="mt-1 text-xs text-red-600">Minimum 5 caractères.</p>}
-              </div>
-              <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-3">
-                <label className="flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    checked={cancelIssueRefund}
-                    disabled={Number(order?.paidAmount || 0) <= 0}
-                    onChange={(e) => setCancelIssueRefund(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-neutral-600 focus:ring-neutral-500 disabled:opacity-50"
-                  />
-                  <span className="text-xs text-neutral-900">
-                    Demander le remboursement de l'acheteur
-                    {Number(order?.paidAmount || 0) > 0 ? (
-                      <>
-                        {' '}
-                        (<span className="font-semibold">{formatCurrency(order?.paidAmount || 0)}</span>)
-                      </>
-                    ) : (
-                      ' (aucun paiement reçu)'
-                    )}
-                  </span>
-                </label>
-              </div>
-              <div className="flex gap-3">
-                <button type="button" onClick={closeCancelModal} disabled={cancelLoading} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">
-                  Annuler
-                </button>
-                <button type="button" onClick={handleCancelOrder} disabled={cancelLoading || !cancelReason.trim() || cancelReason.trim().length < 5} className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
-                  {cancelLoading ? 'Annulation...' : 'Confirmer l\'annulation'}
-                </button>
-              </div>
-            </div>
+      <BaseModal
+        isOpen={cancelModalOpen}
+        onClose={closeCancelModal}
+        size="md"
+        mobileSheet
+        ariaLabel="Annuler la commande"
+      >
+        <ModalHeader
+          icon={<AlertCircle className="h-5 w-5" />}
+          title="Annuler la commande"
+          subtitle={`Commande #${order?._id?.slice(-6) || '—'}`}
+          onClose={closeCancelModal}
+        />
+        <ModalBody className="space-y-4">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <p className="text-xs font-semibold text-amber-800 mb-1">⚠️ Attention</p>
+            <p className="text-xs text-amber-700">Cette action est irréversible. Le client sera notifié.</p>
           </div>
-        </div>
-      )}
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-2">Raison de l'annulation <span className="text-red-600">*</span></label>
+            <textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Expliquez la raison (minimum 5 caractères)..."
+              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+              rows={4}
+              minLength={5}
+            />
+            {cancelReason.length > 0 && cancelReason.length < 5 && <p className="mt-1 text-xs text-red-600">Minimum 5 caractères.</p>}
+          </div>
+          <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-3">
+            <label className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={cancelIssueRefund}
+                disabled={Number(order?.paidAmount || 0) <= 0}
+                onChange={(e) => setCancelIssueRefund(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-neutral-600 focus:ring-neutral-500 disabled:opacity-50"
+              />
+              <span className="text-xs text-neutral-900">
+                Demander le remboursement de l'acheteur
+                {Number(order?.paidAmount || 0) > 0 ? (
+                  <>
+                    {' '}
+                    (<span className="font-semibold">{formatCurrency(order?.paidAmount || 0)}</span>)
+                  </>
+                ) : (
+                  ' (aucun paiement reçu)'
+                )}
+              </span>
+            </label>
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <div className="flex gap-3">
+            <button type="button" onClick={closeCancelModal} disabled={cancelLoading} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+              Annuler
+            </button>
+            <button type="button" onClick={handleCancelOrder} disabled={cancelLoading || !cancelReason.trim() || cancelReason.trim().length < 5} className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+              {cancelLoading ? 'Annulation...' : 'Confirmer l\'annulation'}
+            </button>
+          </div>
+        </ModalFooter>
+      </BaseModal>
     </div>
   );
 }

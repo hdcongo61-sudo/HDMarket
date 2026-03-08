@@ -6,7 +6,9 @@ import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, 
 import categoryGroups from '../data/categories';
 import ProductCard from './ProductCard';
 import useIsMobile from '../hooks/useIsMobile';
+import useCommissionRate from '../hooks/useCommissionRate';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
+import BaseModal from './modals/BaseModal';
 
 const DEFAULT_MAX_IMAGES = 3;
 const MAX_VIDEO_SIZE_MB = 20;
@@ -28,6 +30,7 @@ const DeleteIcon = ({ className = '' }) => (
 export default function ProductForm(props) {
   const { onCreated, onUpdated, initialValues, productId, submitLabel } = props;
   const { runtime, app } = useAppSettings();
+  const { commissionRatePercent, commissionRateLabel } = useCommissionRate();
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -109,20 +112,6 @@ export default function ProductForm(props) {
     }
     return DEFAULT_MAX_IMAGES;
   }, [app?.maxUploadImages, runtime?.maxUploadImages, runtime?.max_image_upload]);
-  const commissionRatePercent = useMemo(() => {
-    const candidates = [runtime?.commission_rate, runtime?.commissionRate, app?.commissionRate, 3];
-    for (const candidate of candidates) {
-      const parsed = Number(candidate);
-      if (Number.isFinite(parsed) && parsed >= 0) {
-        return parsed;
-      }
-    }
-    return 3;
-  }, [app?.commissionRate, runtime?.commissionRate, runtime?.commission_rate]);
-  const commissionRateLabel = useMemo(() => {
-    const rounded = Number(commissionRatePercent.toFixed(2));
-    return Number.isInteger(rounded) ? String(rounded) : String(rounded).replace(/\.?0+$/, '');
-  }, [commissionRatePercent]);
   const [expandedSections, setExpandedSections] = useState({
     info: true,
     images: true,
@@ -2221,7 +2210,16 @@ export default function ProductForm(props) {
 
       {/* Image Crop Modal — full-screen on mobile */}
       {croppingImage && (
-        <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm ${isMobile ? 'p-0' : 'p-4'}`}>
+        <BaseModal
+          isOpen={Boolean(croppingImage)}
+          onClose={handleCropCancel}
+          size="full"
+          mobileSheet
+          ariaLabel="Recadrer image"
+          rootClassName={isMobile ? '!p-0' : ''}
+          panelClassName="border-0 bg-transparent shadow-none sm:max-w-none"
+          backdropClassName="!bg-black/70 backdrop-blur-sm"
+        >
           <div className={`bg-white shadow-2xl overflow-hidden flex flex-col ${isMobile ? 'w-full h-full max-h-none rounded-none' : 'rounded-2xl max-w-4xl w-full max-h-[90vh]'}`}>
             <div className={`flex items-center justify-between border-b border-gray-200 flex-shrink-0 ${isMobile ? 'p-4 min-h-[56px] safe-area-top' : 'p-4'}`}>
               <div className="flex items-center gap-3">
@@ -2389,7 +2387,7 @@ export default function ProductForm(props) {
               </button>
             </div>
           </div>
-        </div>
+        </BaseModal>
       )}
     </div>
   );

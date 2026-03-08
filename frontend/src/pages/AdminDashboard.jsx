@@ -23,8 +23,8 @@ import { buildProductPath } from '../utils/links';
 import { resolveUserProfileImage } from '../utils/userAvatar';
 import GlassCard from '../components/ui/GlassCard';
 import SoftColorCard from '../components/ui/SoftColorCard';
-import GlassHeader from '../components/ui/GlassHeader';
 import FloatingGlassButton from '../components/ui/FloatingGlassButton';
+import BaseModal, { ModalBody, ModalHeader } from '../components/modals/BaseModal';
 import {
   Paperclip,
   Users,
@@ -271,6 +271,37 @@ function StatCard({ title, value, subtitle, highlight, icon: Icon, trend }) {
   );
 }
 
+function AdminQuickKpiCard({ label, value, helper, icon: Icon, tone = 'slate' }) {
+  const toneClasses = {
+    blue: 'bg-blue-500/10 border-blue-200 text-blue-900 dark:border-blue-900/70 dark:bg-blue-500/20 dark:text-blue-100',
+    green:
+      'bg-emerald-500/10 border-emerald-200 text-emerald-900 dark:border-emerald-900/70 dark:bg-emerald-500/20 dark:text-emerald-100',
+    purple:
+      'bg-purple-500/10 border-purple-200 text-purple-900 dark:border-purple-900/70 dark:bg-purple-500/20 dark:text-purple-100',
+    orange:
+      'bg-orange-500/10 border-orange-200 text-orange-900 dark:border-orange-900/70 dark:bg-orange-500/20 dark:text-orange-100',
+    slate: 'bg-slate-500/10 border-slate-200 text-slate-900 dark:border-slate-700 dark:bg-slate-500/20 dark:text-slate-100'
+  };
+  const colorClass = toneClasses[tone] || toneClasses.slate;
+
+  return (
+    <article className={`rounded-2xl border p-3 shadow-sm ${colorClass}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-wide opacity-80">{label}</p>
+          <p className="mt-1 text-xl font-bold leading-none">{value}</p>
+          {helper ? <p className="mt-1 text-xs opacity-80">{helper}</p> : null}
+        </div>
+        {Icon ? (
+          <span className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white/70 shadow-sm dark:bg-slate-900/60">
+            <Icon size={18} />
+          </span>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
 export default function AdminDashboard() {
   const [payments, setPayments] = useState([]);
   const [filter, setFilter] = useState('waiting');
@@ -380,6 +411,15 @@ export default function AdminDashboard() {
     if (canManageComplaints) tabs.push({ key: 'complaints', label: 'Réclamations' });
     return tabs;
   }, [canViewStats, canManageUsers, canManagePayments, canManageComplaints]);
+  const adminTabMeta = useMemo(
+    () => ({
+      overview: { icon: Activity, helper: 'Vue globale' },
+      users: { icon: Users, helper: 'Comptes & roles' },
+      payments: { icon: DollarSign, helper: 'Validations' },
+      complaints: { icon: AlertCircle, helper: 'Support & litiges' }
+    }),
+    []
+  );
 
   const complaintStatusLabels = {
     pending: 'En attente',
@@ -1204,6 +1244,7 @@ export default function AdminDashboard() {
   }, [remindersOpen, loadReminderOrders]);
 
   const totalUserCount = stats?.users?.total || 0;
+  const pendingComplaintsCount = complaints.filter((item) => item?.status === 'pending').length;
   const deviceDistribution = onlineStats?.deviceDistribution || {};
   const deviceCounts = {
     mobile: Number(deviceDistribution?.mobile || 0),
@@ -1296,6 +1337,42 @@ export default function AdminDashboard() {
   }, [payments, paymentsPage]);
   const paymentsRangeStart = payments.length ? (paymentsPage - 1) * PAYMENTS_PER_PAGE + 1 : 0;
   const paymentsRangeEnd = payments.length ? Math.min(paymentsPage * PAYMENTS_PER_PAGE, payments.length) : 0;
+  const heroQuickKpis = [
+    {
+      key: 'live',
+      label: 'Actifs maintenant',
+      value: formatNumber(onlineStats?.totalOnline),
+      helper: onlineStatsLoading
+        ? 'Synchronisation...'
+        : `DAU ${formatNumber(onlineStats?.dau)} · Pic ${formatNumber(onlineStats?.peakToday)}`,
+      icon: Wifi,
+      tone: 'blue'
+    },
+    {
+      key: 'users',
+      label: 'Utilisateurs',
+      value: formatNumber(totalUserCount),
+      helper: `${formatNumber(stats?.users?.shops)} boutiques`,
+      icon: Users,
+      tone: 'purple'
+    },
+    {
+      key: 'payments',
+      label: 'Paiements attente',
+      value: formatNumber(stats?.payments?.waiting),
+      helper: `${formatNumber(stats?.payments?.verified)} verifies`,
+      icon: DollarSign,
+      tone: 'green'
+    },
+    {
+      key: 'complaints',
+      label: 'Reclamations',
+      value: formatNumber(pendingComplaintsCount),
+      helper: complaintsLoading ? 'Chargement...' : `${formatNumber(complaints.length)} total`,
+      icon: AlertCircle,
+      tone: 'orange'
+    }
+  ];
 
   const { overdueReminderOrders, regularReminderOrders } = useMemo(() => {
     if (!reminderOrders.length) {
@@ -1412,54 +1489,110 @@ export default function AdminDashboard() {
   return (
     <div className="glass-page-shell min-h-screen lg:min-h-0">
       <div className="glass-content-spacing mx-auto max-w-7xl space-y-8 py-6 sm:py-8 lg:px-8">
-      <GlassHeader
-        title={pageTitle}
-        subtitle={pageSubtitle}
-        className="glass-fade-in"
-        titleClassName="text-2xl sm:text-3xl"
-      >
-        <button
-          type="button"
-          onClick={refreshAll}
-          disabled={refreshing}
-          className="glass-card inline-flex min-h-[44px] items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 transition-all duration-200 hover:text-slate-900 disabled:pointer-events-none disabled:opacity-60 dark:text-slate-100"
-        >
-          <RefreshCw size={16} className={refreshing ? 'animate-spin' : 'transition-transform duration-300 hover:rotate-180'} />
-          {refreshing ? 'Actualisation…' : 'Actualiser'}
-        </button>
-        <Link
-          to="/admin/settings"
-          className="glass-card inline-flex min-h-[44px] items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:text-slate-900 dark:text-slate-100"
-        >
-          <Settings size={16} />
-          App Settings
-        </Link>
-        <Link
-          to="/admin/products"
-          className="soft-card soft-card-purple inline-flex min-h-[44px] items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-purple-900 transition hover:shadow-md dark:text-purple-100"
-        >
-          <BarChart3 size={16} />
-          Produits & statistiques
-        </Link>
-      </GlassHeader>
-      {isMobileView && availableTabs.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          {availableTabs.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveAdminTab(tab.key)}
-              className={`flex-shrink-0 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200 ${
-                activeAdminTab === tab.key
-                  ? 'soft-card soft-card-purple scale-105 text-purple-900 shadow-md dark:text-purple-100'
-                  : 'glass-card text-slate-600 hover:text-slate-900 dark:text-slate-100'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      )}
+        <section className="glass-card relative overflow-hidden rounded-3xl p-4 shadow-sm sm:p-6 dark:border-slate-700 dark:bg-slate-900/80">
+          <div className="pointer-events-none absolute -top-16 right-0 h-40 w-40 rounded-full bg-blue-500/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 left-12 h-40 w-40 rounded-full bg-purple-500/10 blur-3xl" />
+          <div className="relative space-y-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="space-y-2">
+                <p className="inline-flex items-center rounded-full bg-slate-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
+                  Admin Command Center
+                </p>
+                <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white sm:text-3xl">{pageTitle}</h1>
+                <p className="max-w-2xl text-sm text-slate-600 dark:text-slate-300">{pageSubtitle}</p>
+                {stats?.generatedAt ? (
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Derniere mise a jour: {formatDateTime(stats.generatedAt)}
+                  </p>
+                ) : null}
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:w-auto">
+                <button
+                  type="button"
+                  onClick={refreshAll}
+                  disabled={refreshing}
+                  className="glass-card inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 transition-all duration-200 hover:text-slate-900 disabled:pointer-events-none disabled:opacity-60 dark:text-slate-100"
+                >
+                  <RefreshCw
+                    size={16}
+                    className={
+                      refreshing ? 'animate-spin' : 'transition-transform duration-300 hover:rotate-180'
+                    }
+                  />
+                  {refreshing ? 'Actualisation...' : 'Actualiser'}
+                </button>
+                <Link
+                  to="/admin/settings"
+                  className="glass-card inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:text-slate-900 dark:text-slate-100"
+                >
+                  <Settings size={16} />
+                  Parametres
+                </Link>
+                <Link
+                  to="/admin/products"
+                  className="soft-card soft-card-purple inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-purple-900 transition hover:shadow-md dark:text-purple-100"
+                >
+                  <BarChart3 size={16} />
+                  Produits
+                </Link>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {heroQuickKpis.map((kpi) => (
+                <AdminQuickKpiCard
+                  key={kpi.key}
+                  label={kpi.label}
+                  value={kpi.value}
+                  helper={kpi.helper}
+                  icon={kpi.icon}
+                  tone={kpi.tone}
+                />
+              ))}
+            </div>
+
+            {isMobileView && availableTabs.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                {availableTabs.map((tab) => {
+                  const TabIcon = adminTabMeta[tab.key]?.icon || Activity;
+                  const tabHelper = adminTabMeta[tab.key]?.helper;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setActiveAdminTab(tab.key)}
+                      className={`flex min-w-[142px] flex-shrink-0 items-center gap-2 rounded-2xl border px-3 py-2.5 text-left text-sm transition-all duration-200 ${
+                        activeAdminTab === tab.key
+                          ? 'border-slate-900 bg-slate-900 text-white shadow-md'
+                          : 'border-slate-200 bg-white/80 text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-100'
+                      }`}
+                    >
+                      <span
+                        className={`inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl ${
+                          activeAdminTab === tab.key
+                            ? 'bg-white/20'
+                            : 'bg-slate-100 dark:bg-slate-700'
+                        }`}
+                      >
+                        <TabIcon size={16} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate font-semibold">{tab.label}</span>
+                        <span
+                          className={`block truncate text-[11px] ${
+                            activeAdminTab === tab.key ? 'text-white/80' : 'text-slate-500'
+                          }`}
+                        >
+                          {tabHelper}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </section>
 
       {isFounder && (
         <section className="glass-card rounded-3xl p-4 shadow-sm sm:p-5">
@@ -2101,37 +2234,21 @@ export default function AdminDashboard() {
             </>
           )}
 
-          {remindersOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-              <div
-                className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-                onClick={() => setRemindersOpen(false)}
-              />
-              <div
-                className="relative w-full max-w-3xl rounded-3xl bg-white shadow-xl border border-gray-100 p-6"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-gray-500">Relances commandes</p>
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      Suivi des statuts alignés sur /admin/orders
-                    </h3>
-                    <p className="mt-1 text-xs text-gray-500">
-                      Les statuts livrés, paiement terminé et annulé sont exclus automatiquement.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setRemindersOpen(false)}
-                    className="h-9 w-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                    aria-label="Fermer"
-                  >
-                    X
-                  </button>
-                </div>
-
-                <div className="mb-4 rounded-2xl border border-gray-200 bg-gray-50/80 p-3">
+          <BaseModal
+            isOpen={remindersOpen}
+            onClose={() => setRemindersOpen(false)}
+            size="xl"
+            mobileSheet
+            ariaLabel="Relances commandes"
+            panelClassName="sm:max-w-3xl"
+          >
+            <ModalHeader
+              title="Suivi des statuts alignés sur /admin/orders"
+              subtitle="Les statuts livrés, paiement terminé et annulé sont exclus automatiquement."
+              onClose={() => setRemindersOpen(false)}
+            />
+            <ModalBody className="space-y-4">
+              <div className="rounded-2xl border border-gray-200 bg-gray-50/80 p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">
                       Filtres commandes
@@ -2270,51 +2387,50 @@ export default function AdminDashboard() {
                       ))}
                     </select>
                   </div>
-                </div>
-
-                {remindersLoading ? (
-                  <p className="text-sm text-gray-500">Chargement des commandes…</p>
-                ) : remindersError ? (
-                  <p className="text-sm text-red-600">{remindersError}</p>
-                ) : reminderOrders.length === 0 ? (
-                  <p className="text-sm text-gray-500">Aucune commande à relancer.</p>
-                ) : (
-                  <div className="space-y-4 max-h-[60vh] overflow-auto pr-1">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs uppercase tracking-wide text-neutral-600">
-                          Commandes +48h non livrées
-                        </p>
-                        <span className="text-xs font-semibold text-neutral-600">
-                          {overdueReminderOrders.length}
-                        </span>
-                      </div>
-                      {overdueReminderOrders.length === 0 ? (
-                        <p className="text-sm text-gray-500">
-                          Aucune commande en retard pour le moment.
-                        </p>
-                      ) : (
-                        overdueReminderOrders.map(renderReminderOrderCard)
-                      )}
-                    </div>
-
-                    <div className="space-y-3">
-                      <p className="text-xs uppercase tracking-wide text-gray-500">
-                        Autres commandes à relancer
-                      </p>
-                      {regularReminderOrders.length === 0 ? (
-                        <p className="text-sm text-gray-500">
-                          Aucune autre commande à relancer.
-                        </p>
-                      ) : (
-                        regularReminderOrders.map(renderReminderOrderCard)
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
-            </div>
-          )}
+
+              {remindersLoading ? (
+                <p className="text-sm text-gray-500">Chargement des commandes…</p>
+              ) : remindersError ? (
+                <p className="text-sm text-red-600">{remindersError}</p>
+              ) : reminderOrders.length === 0 ? (
+                <p className="text-sm text-gray-500">Aucune commande à relancer.</p>
+              ) : (
+                <div className="space-y-4 max-h-[60vh] overflow-auto pr-1">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs uppercase tracking-wide text-neutral-600">
+                        Commandes +48h non livrées
+                      </p>
+                      <span className="text-xs font-semibold text-neutral-600">
+                        {overdueReminderOrders.length}
+                      </span>
+                    </div>
+                    {overdueReminderOrders.length === 0 ? (
+                      <p className="text-sm text-gray-500">
+                        Aucune commande en retard pour le moment.
+                      </p>
+                    ) : (
+                      overdueReminderOrders.map(renderReminderOrderCard)
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <p className="text-xs uppercase tracking-wide text-gray-500">
+                      Autres commandes à relancer
+                    </p>
+                    {regularReminderOrders.length === 0 ? (
+                      <p className="text-sm text-gray-500">
+                        Aucune autre commande à relancer.
+                      </p>
+                    ) : (
+                      regularReminderOrders.map(renderReminderOrderCard)
+                    )}
+                  </div>
+                </div>
+              )}
+            </ModalBody>
+          </BaseModal>
 
           {/* Analytics Charts Section */}
           {canViewStats && (
@@ -2539,43 +2655,26 @@ export default function AdminDashboard() {
           )}
 
           {/* Orders by Hour Modal */}
-          {selectedHour !== null && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-              <div
-                className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-                onClick={() => {
-                  setSelectedHour(null);
-                  setHourOrders([]);
-                }}
-              />
-              <div
-                className="relative w-full max-w-4xl max-h-[90vh] rounded-3xl bg-white shadow-xl border border-gray-100 p-6 flex flex-col"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-gray-500">Commandes par heure</p>
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      Commandes créées à {String(selectedHour).padStart(2, '0')}:00
-                    </h3>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Derniers 30 jours · {hourOrders.length} commande{hourOrders.length > 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedHour(null);
-                      setHourOrders([]);
-                    }}
-                    className="h-9 w-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors"
-                    aria-label="Fermer"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto pr-2">
+          <BaseModal
+            isOpen={selectedHour !== null}
+            onClose={() => {
+              setSelectedHour(null);
+              setHourOrders([]);
+            }}
+            size="xl"
+            mobileSheet
+            ariaLabel="Commandes par heure"
+            panelClassName="sm:max-w-4xl"
+          >
+            <ModalHeader
+              title={`Commandes créées à ${String(selectedHour ?? '').padStart(2, '0')}:00`}
+              subtitle={`Derniers 30 jours · ${hourOrders.length} commande${hourOrders.length > 1 ? 's' : ''}`}
+              onClose={() => {
+                setSelectedHour(null);
+                setHourOrders([]);
+              }}
+            />
+            <ModalBody className="pr-2">
                   {hourOrdersLoading ? (
                     <div className="flex items-center justify-center py-12">
                       <div className="h-8 w-8 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
@@ -2684,10 +2783,8 @@ export default function AdminDashboard() {
                       ))}
                     </div>
                   )}
-                </div>
-              </div>
-            </div>
-          )}
+            </ModalBody>
+          </BaseModal>
 
           {(cityStats.length > 0 || genderStats.length > 0 || productCityStats.length > 0 || productGenderStats.length > 0) && (
             <section className="grid grid-cols-1 gap-4 2xl:grid-cols-2">

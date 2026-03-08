@@ -39,7 +39,7 @@ import {
   exportSearchHistory
 } from '../controllers/userController.js';
 import { createComplaint, getUserComplaints } from '../controllers/complaintController.js';
-import { createReport } from '../controllers/contentReportController.js';
+import { createPreviewImageReport, createReport } from '../controllers/contentReportController.js';
 import {
   createImprovementFeedback,
   listMyImprovementFeedback
@@ -137,6 +137,11 @@ router.post(
   createComplaint
 );
 router.post('/reports', validate(schemas.reportCreate), createReport);
+router.post(
+  '/reports/preview-image',
+  validate(schemas.reportPreviewImageCreate),
+  createPreviewImageReport
+);
 router.post('/shops/:id/follow', validate(schemas.idParam, 'params'), followShop);
 router.delete('/shops/:id/follow', validate(schemas.idParam, 'params'), unfollowShop);
 router.get('/shops/following', getFollowingShops);

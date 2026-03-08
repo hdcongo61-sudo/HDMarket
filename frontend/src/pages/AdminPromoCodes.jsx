@@ -12,6 +12,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import api from '../services/api';
+import useCommissionRate from '../hooks/useCommissionRate';
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 const formatDateTime = (value) => {
@@ -54,6 +55,7 @@ const initialForm = {
 };
 
 export default function AdminPromoCodes() {
+  const { commissionRateLabel } = useCommissionRate();
   const [items, setItems] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
   const [analytics, setAnalytics] = useState(null);
@@ -239,7 +241,7 @@ export default function AdminPromoCodes() {
               Codes Promo Commission
             </h1>
             <p className="text-sm text-gray-600 mt-1">
-              Administration des exonérations de commission (3%) pour validation des produits.
+              Administration des exonérations de commission ({commissionRateLabel}%) pour validation des produits.
             </p>
           </div>
           <button

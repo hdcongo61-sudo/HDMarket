@@ -31,6 +31,7 @@ import {
   Grid3x3
 } from 'lucide-react';
 import VerifiedBadge from '../components/VerifiedBadge';
+import BaseModal, { ModalBody, ModalHeader } from '../components/modals/BaseModal';
 
 export default function VerifiedShops() {
   const { user } = useContext(AuthContext);
@@ -706,45 +707,29 @@ export default function VerifiedShops() {
       </div>
 
       {/* All Shops Modal */}
-      {allShopsModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 backdrop-blur-sm p-4"
-          onClick={() => {
+      <BaseModal
+        isOpen={allShopsModalOpen}
+        onClose={() => {
+          setAllShopsModalOpen(false);
+          setAllShopsSearch('');
+        }}
+        size="xl"
+        mobileSheet
+        ariaLabel="Toutes les boutiques"
+        panelClassName="sm:max-w-5xl"
+      >
+        <ModalHeader
+          title="Toutes les boutiques"
+          subtitle={`${allShopsForModal.length} boutique${allShopsForModal.length > 1 ? 's' : ''} au total`}
+          icon={<Store size={18} className="text-neutral-600" />}
+          onClose={() => {
             setAllShopsModalOpen(false);
             setAllShopsSearch('');
           }}
-        >
-          <div
-            className="relative w-full max-w-5xl rounded-3xl bg-white shadow-2xl border border-gray-200 max-h-[90vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="sticky top-0 z-10 flex items-center justify-between gap-4 p-6 border-b border-gray-200 bg-white rounded-t-3xl">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-100">
-                  <Store size={24} className="text-neutral-600" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">Toutes les boutiques</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {allShopsForModal.length} boutique{allShopsForModal.length > 1 ? 's' : ''} au total
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setAllShopsModalOpen(false);
-                  setAllShopsSearch('');
-                }}
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200"
-                aria-label="Fermer"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Search Bar */}
-            <div className="p-6 border-b border-gray-100 bg-gray-50/50">
+        />
+        <ModalBody className="space-y-6">
+          {/* Search Bar */}
+          <div className="rounded-2xl border border-gray-100 bg-gray-50/50 p-4 sm:p-5">
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input
@@ -755,10 +740,9 @@ export default function VerifiedShops() {
                   className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-white text-sm focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-100 transition-all duration-200"
                 />
               </div>
-            </div>
-
-            {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-8">
+          </div>
+          {/* Modal Content */}
+          <div className="space-y-8">
               {/* Certified Shops Section */}
               {certifiedShopsInModal.length > 0 && (
                 <section className="space-y-4">
@@ -909,10 +893,9 @@ export default function VerifiedShops() {
                   </p>
                 </div>
               )}
-            </div>
           </div>
-        </div>
-      )}
+        </ModalBody>
+      </BaseModal>
     </div>
   );
 }

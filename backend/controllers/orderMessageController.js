@@ -39,17 +39,10 @@ const buildOrderMessagePreview = ({ text, hasEncrypted, hasVoice, attachments = 
   return 'Nouveau message';
 };
 
-const resolveOrderMessageDeepLink = ({ recipient, orderId }) => {
-  const normalizedRole = String(recipient?.role || '').toLowerCase();
-  const normalizedAccountType = String(recipient?.accountType || '').toLowerCase();
-
-  if (['admin', 'founder', 'manager'].includes(normalizedRole)) {
-    return `/admin/orders?orderId=${String(orderId)}`;
-  }
-  if (normalizedRole === 'seller' || normalizedAccountType === 'shop') {
-    return `/seller/orders/detail/${String(orderId)}`;
-  }
-  return `/orders/detail/${String(orderId)}`;
+const resolveOrderMessageDeepLink = ({ orderId }) => {
+  const safeOrderId = String(orderId || '').trim();
+  if (!safeOrderId) return '/orders/messages';
+  return `/orders/messages?orderId=${encodeURIComponent(safeOrderId)}`;
 };
 
 /**

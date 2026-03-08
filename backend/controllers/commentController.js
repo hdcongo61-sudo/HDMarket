@@ -43,6 +43,15 @@ const formatComment = (comment) => {
   };
 };
 
+const buildProductCommentsDeepLink = ({ product, commentId = '' }) => {
+  const productSlug = String(product?.slug || '').trim();
+  const productId = String(product?._id || '').trim();
+  const base = productSlug || productId ? `/product/${encodeURIComponent(productSlug || productId)}` : '/products';
+  const params = new URLSearchParams({ tab: 'reviews', open: 'comments' });
+  if (commentId) params.set('commentId', String(commentId));
+  return `${base}?${params.toString()}#comments`;
+};
+
 const loadProductForComments = async (
   identifier,
   fallbackId = null,
@@ -80,7 +89,7 @@ export const addComment = asyncHandler(async (req, res) => {
   const product = await loadProductForComments(
     req.params.id,
     req.body.productId,
-    '_id status user title'
+    '_id status user title slug'
   );
   if (!product || product.status !== 'approved') {
     return res.status(404).json({ message: 'Produit introuvable ou non publié.' });
@@ -126,16 +135,23 @@ export const addComment = asyncHandler(async (req, res) => {
 
   const notifications = [];
   if (String(product.user) !== req.user.id) {
+    const targetLink = buildProductCommentsDeepLink({ product, commentId: comment._id });
     notifications.push(
       createNotification({
         userId: product.user,
         actorId: req.user.id,
         productId: product._id,
         type: 'product_comment',
+        deepLink: targetLink,
+        actionLink: targetLink,
+        entityType: 'product',
+        entityId: String(product._id),
         metadata: {
           commentId: comment._id,
           message,
-          productTitle: product.title || ''
+          productTitle: product.title || '',
+          productSlug: product.slug || '',
+          deepLink: targetLink
         }
       })
     );
@@ -147,18 +163,25 @@ export const addComment = asyncHandler(async (req, res) => {
     String(parent.user) !== req.user.id &&
     String(parent.user) !== String(product.user)
   ) {
+    const targetLink = buildProductCommentsDeepLink({ product, commentId: comment._id });
     notifications.push(
       createNotification({
         userId: parent.user,
         actorId: req.user.id,
         productId: product._id,
         type: 'reply',
+        deepLink: targetLink,
+        actionLink: targetLink,
+        entityType: 'product',
+        entityId: String(product._id),
         metadata: {
           commentId: comment._id,
           parentId: parent._id,
           parentMessage: parent.message || '',
           message,
-          productTitle: product.title || ''
+          productTitle: product.title || '',
+          productSlug: product.slug || '',
+          deepLink: targetLink
         }
       })
     );

@@ -858,12 +858,14 @@ export default function OrderDetail() {
               order.status === 'delivery_proof_submitted') && (
               <div className="rounded-2xl border border-neutral-200 bg-neutral-50/50 p-4 space-y-3">
                 <h4 className="text-sm font-bold text-gray-900 uppercase flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-neutral-700" /> Preuve de livraison
+                  <ShieldCheck className="w-4 h-4 text-neutral-700" /> {pickupOrder ? 'Preuve de retrait' : 'Preuve de livraison'}
                 </h4>
                 <p className="text-sm text-gray-700">
                   Statut:{' '}
                   <span className="font-semibold">
-                    {deliveryConfirmationDone
+                    {pickupOrder
+                      ? 'Retrait confirmé par le vendeur'
+                      : deliveryConfirmationDone
                       ? 'Livraison confirmée'
                       : 'Soumise par le vendeur (en attente de votre confirmation)'}
                   </span>

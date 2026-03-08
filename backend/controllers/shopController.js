@@ -578,7 +578,7 @@ export const getMyShopReview = asyncHandler(async (req, res) => {
 });
 
 export const upsertShopReview = asyncHandler(async (req, res) => {
-  const shop = await loadShopByIdentifier(req.params.id, 'accountType shopName name');
+  const shop = await loadShopByIdentifier(req.params.id, 'accountType shopName name slug');
   if (!shop || shop.accountType !== 'shop') {
     return res.status(404).json({ message: 'Boutique introuvable.' });
   }
@@ -606,16 +606,28 @@ export const upsertShopReview = asyncHandler(async (req, res) => {
   await review.populate('user', 'name shopName shopLogo slug');
 
   if (isNew) {
+    const shopIdentifier = String(shop.slug || shop._id || '').trim();
+    const reviewLink = shopIdentifier
+      ? `/shop/${encodeURIComponent(shopIdentifier)}?reviewId=${encodeURIComponent(
+          String(review._id)
+        )}#reviews`
+      : '/shop';
     await createNotification({
       userId: shop._id,
       actorId: req.user.id,
       shopId: shop._id,
       type: 'shop_review',
+      deepLink: reviewLink,
+      actionLink: reviewLink,
+      entityType: 'shop',
+      entityId: String(shop._id),
       metadata: {
         rating: review.rating,
         comment: review.comment,
         shopName: shop.shopName || shop.name,
-        reviewId: review._id
+        reviewId: review._id,
+        shopSlug: shop.slug || '',
+        deepLink: reviewLink
       }
     });
   }

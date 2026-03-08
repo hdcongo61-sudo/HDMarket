@@ -1,6 +1,6 @@
 import React, { memo, useContext, useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Heart, Star, Eye, ShoppingCart, MessageCircle, Zap, Clock, ShieldCheck, TrendingUp, Award, ChevronLeft, ChevronRight, Package, MapPin, Boxes } from 'lucide-react';
+import { Heart, Star, Eye, ShoppingCart, MessageCircle, Zap, Clock, ShieldCheck, TrendingUp, Award, ChevronLeft, ChevronRight, Package, MapPin, Boxes, Expand } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import CartContext from '../context/CartContext';
 import FavoriteContext from '../context/FavoriteContext';
@@ -13,6 +13,7 @@ import VerifiedBadge from './VerifiedBadge';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import useIsMobile from '../hooks/useIsMobile';
 import { useAppSettings } from '../context/AppSettingsContext';
+import ImagePreviewModal from './media/ImagePreviewModal';
 
 /**
  * 🎨 PRODUCT CARD PREMIUM HDMarket
@@ -31,7 +32,7 @@ function ProductCard({
   shopProfileCompact = false
 }) {
   const { user } = useContext(AuthContext);
-  const { formatPrice } = useAppSettings();
+  const { formatPrice, getRuntimeValue } = useAppSettings();
   const { addItem, cart } = useContext(CartContext);
   const navigate = useNavigate();
   const location = useLocation();
@@ -46,6 +47,11 @@ function ProductCard({
   const touchEndX = useRef(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [imagesLoaded, setImagesLoaded] = useState({});
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [previewImageIndex, setPreviewImageIndex] = useState(0);
+  const longPressTimerRef = useRef(null);
+  const longPressTriggeredRef = useRef(false);
+  const pointerStartRef = useRef({ x: 0, y: 0 });
   const isMobile = useIsMobile();
   // ShopProfile already decides when compact mode must be enforced.
   const useCompactMobile = Boolean(compactMobile);
@@ -70,6 +76,19 @@ function ProductCard({
   const shouldShowCarousel = hasMultipleImages; // Enable carousel for multiple images
   const shouldAutoCarousel = false; // Auto-carousel disabled - manual only
   const hideDenseMobileBadges = Boolean(isShopProfileCompact || (useCompactMobile && hideMobileDiscountBadge));
+  const LONG_PRESS_DELAY_MS = 430;
+  const LONG_PRESS_MOVE_THRESHOLD_PX = 14;
+  const longPressPreviewEnabled = useMemo(() => {
+    const raw = getRuntimeValue('enable_long_press_image_preview', true);
+    if (typeof raw === 'boolean') return raw;
+    if (typeof raw === 'number') return raw !== 0;
+    if (typeof raw === 'string') {
+      const normalized = raw.trim().toLowerCase();
+      if (['true', '1', 'yes', 'oui', 'on'].includes(normalized)) return true;
+      if (['false', '0', 'no', 'non', 'off', ''].includes(normalized)) return false;
+    }
+    return true;
+  }, [getRuntimeValue]);
   const mediaFrameClass = isShopProfileCompact
     ? `ui-media-frame relative overflow-hidden aspect-[3/2] ${hasMultipleImages ? 'touch-pan-y' : ''}`
     : useCompactMobile
@@ -197,6 +216,58 @@ function ProductCard({
     touchStartX.current = 0;
     touchEndX.current = 0;
   };
+
+  const clearLongPressTimer = useCallback(() => {
+    if (longPressTimerRef.current) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  const cancelLongPress = useCallback(() => {
+    clearLongPressTimer();
+  }, [clearLongPressTimer]);
+
+  const openPreview = useCallback((index = 0) => {
+    const safeIndex = Number.isFinite(Number(index)) ? Number(index) : 0;
+    setPreviewImageIndex(Math.max(0, Math.min(safeIndex, Math.max(0, productImages.length - 1))));
+    setIsPreviewModalOpen(true);
+  }, [productImages.length]);
+
+  const startLongPress = useCallback((index) => (event) => {
+    if (!longPressPreviewEnabled) return;
+    if (event?.pointerType === 'mouse' && event.button !== 0) return;
+    longPressTriggeredRef.current = false;
+    pointerStartRef.current = {
+      x: Number(event?.clientX || 0),
+      y: Number(event?.clientY || 0)
+    };
+    clearLongPressTimer();
+    longPressTimerRef.current = window.setTimeout(() => {
+      longPressTriggeredRef.current = true;
+      openPreview(index);
+      if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+        navigator.vibrate(10);
+      }
+    }, LONG_PRESS_DELAY_MS);
+  }, [LONG_PRESS_DELAY_MS, clearLongPressTimer, longPressPreviewEnabled, openPreview]);
+
+  const handleLongPressMove = useCallback((event) => {
+    if (!longPressTimerRef.current) return;
+    const currentX = Number(event?.clientX || 0);
+    const currentY = Number(event?.clientY || 0);
+    const deltaX = Math.abs(currentX - pointerStartRef.current.x);
+    const deltaY = Math.abs(currentY - pointerStartRef.current.y);
+    if (deltaX > LONG_PRESS_MOVE_THRESHOLD_PX || deltaY > LONG_PRESS_MOVE_THRESHOLD_PX) {
+      clearLongPressTimer();
+    }
+  }, [LONG_PRESS_MOVE_THRESHOLD_PX, clearLongPressTimer]);
+
+  useEffect(() => {
+    return () => {
+      clearLongPressTimer();
+    };
+  }, [clearLongPressTimer]);
   
   const whatsappLink = useMemo(
     () => buildWhatsappLink(p, p?.user?.phone || p?.contactPhone),
@@ -319,6 +390,21 @@ function ProductCard({
   const conditionColor = p?.condition === 'new' 
     ? 'bg-neutral-900' 
     : 'bg-amber-600';
+  const imageReportContext = useMemo(() => {
+    const shopIdCandidate =
+      (p?.user && typeof p.user === 'object' ? p.user?._id : null) ||
+      (typeof p?.user === 'string' ? p.user : null);
+    return {
+      contextType: 'product',
+      productId: p?._id || '',
+      productSlug: p?.slug || '',
+      productTitle: p?.title || '',
+      shopId: shopIdCandidate || '',
+      shopSlug: p?.user?.slug || '',
+      shopName: p?.user?.shopName || p?.user?.name || '',
+      deepLink: resolvedProductLink || ''
+    };
+  }, [p?._id, p?.slug, p?.title, p?.user, resolvedProductLink]);
 
   // === GESTION DES INTERACTIONS ===
   const handleFavoriteToggle = async (event) => {
@@ -415,7 +501,8 @@ function ProductCard({
   const isBestSeller = salesCount >= 10000;
 
   return (
-    <div
+    <>
+      <div
       className={`ui-card ui-card-interactive ui-hover-scale ui-card-fade-in group relative flex h-full w-full flex-col overflow-hidden ${
         isShopProfileCompact ? '!rounded-xl' : ''
       }`}
@@ -426,7 +513,13 @@ function ProductCard({
       <Link
         to={resolvedProductLink}
         {...externalLinkProps}
-        onClick={() => {
+        onClick={(event) => {
+          if (longPressTriggeredRef.current) {
+            event.preventDefault();
+            event.stopPropagation();
+            longPressTriggeredRef.current = false;
+            return;
+          }
           trackBoostClick();
           handleProductClick?.(p);
         }}
@@ -461,6 +554,11 @@ function ProductCard({
                       minWidth: '100%',
                       width: '100%'
                     }}
+                    onPointerDown={startLongPress(index)}
+                    onPointerMove={handleLongPressMove}
+                    onPointerUp={cancelLongPress}
+                    onPointerLeave={cancelLongPress}
+                    onPointerCancel={cancelLongPress}
                   >
                     {/* Show loading skeleton while image loads */}
                     {!isImageLoaded && !isImageError && (
@@ -500,6 +598,12 @@ function ProductCard({
                 );
               })}
             </div>
+
+            {longPressPreviewEnabled ? (
+              <span className="pointer-events-none absolute right-2 top-2 z-20 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm">
+                <Expand className="h-3.5 w-3.5" />
+              </span>
+            ) : null}
 
             {/* Carousel Indicators - Only for multiple images */}
             <div className="absolute bottom-2 sm:bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 sm:gap-2 z-30 bg-black/40 backdrop-blur-sm px-2 sm:px-3 py-1 sm:py-1.5 rounded-full">
@@ -556,7 +660,14 @@ function ProductCard({
           </div>
         ) : (
           /* Single Image - No carousel */
-          <div className="relative w-full h-full">
+          <div
+            className="relative w-full h-full"
+            onPointerDown={startLongPress(0)}
+            onPointerMove={handleLongPressMove}
+            onPointerUp={cancelLongPress}
+            onPointerLeave={cancelLongPress}
+            onPointerCancel={cancelLongPress}
+          >
             <img
               src={imageError ? "https://via.placeholder.com/400x400?text=HDMarket" : productImages[0]}
               alt={p.title}
@@ -567,6 +678,12 @@ function ProductCard({
               decoding="async"
               fetchpriority="low"
             />
+
+            {longPressPreviewEnabled ? (
+              <span className="pointer-events-none absolute right-2 top-2 z-20 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm">
+                <Expand className="h-3.5 w-3.5" />
+              </span>
+            ) : null}
             
             {/* Skeleton loader */}
             {!imageLoaded && <div className="ui-skeleton absolute inset-0 z-10" />}
@@ -860,7 +977,17 @@ function ProductCard({
           <p className="text-[10px] text-neutral-950 dark:text-white">{addError}</p>
         )}
       </div>
-    </div>
+      </div>
+
+      <ImagePreviewModal
+        isOpen={isPreviewModalOpen}
+        onClose={() => setIsPreviewModalOpen(false)}
+        images={productImages}
+        initialIndex={previewImageIndex}
+        title={p.title || 'Produit'}
+        reportContext={imageReportContext}
+      />
+    </>
   );
 }
 

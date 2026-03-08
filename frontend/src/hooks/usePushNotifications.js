@@ -4,6 +4,7 @@ import { PushNotifications } from '@capacitor/push-notifications';
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getMessaging, getToken, isSupported, onMessage } from 'firebase/messaging';
 import api from '../services/api';
+import { resolvePushPayloadLink } from '../utils/notificationLinks';
 
 const isDev = import.meta.env?.DEV === true;
 const debugPush = isDev && String(import.meta.env?.VITE_DEBUG_PUSH) === 'true';
@@ -21,14 +22,8 @@ const firebaseConfig = {
 };
 
 function resolveNotificationLink(payload) {
-  const data = payload?.notification?.data || payload?.data || payload || {};
-  const rawLink = data.url || data.link || data.deeplink || data.path;
-  if (!rawLink || typeof rawLink !== 'string') return null;
-  const trimmed = rawLink.trim();
-  if (!trimmed) return null;
-  if (trimmed.startsWith('http')) return trimmed;
-  if (trimmed.startsWith('/')) return trimmed;
-  return `/${trimmed}`;
+  const resolved = resolvePushPayloadLink(payload);
+  return resolved || null;
 }
 
 function dispatchNotificationEvents(payload) {

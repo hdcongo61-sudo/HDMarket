@@ -10,6 +10,7 @@ import {
   User,
   X
 } from 'lucide-react';
+import BaseModal, { ModalBody, ModalHeader } from '../components/modals/BaseModal';
 
 const formatDate = (value) =>
   value
@@ -288,32 +289,21 @@ export default function MyFeedback() {
         </div>
       </div>
 
-      {modalItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-          <div
-            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-            onClick={() => setModalItem(null)}
-            aria-hidden
-          />
-          <div
-            className="relative w-full max-w-lg rounded-3xl bg-white shadow-xl border border-gray-100 p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">Avis sur l’amélioration</p>
-                <h3 className="text-lg font-semibold text-gray-900">{modalItem.subject}</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setModalItem(null)}
-                className="h-9 w-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                aria-label="Fermer"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="mt-4 space-y-3">
+      <BaseModal
+        isOpen={Boolean(modalItem)}
+        onClose={() => setModalItem(null)}
+        size="md"
+        mobileSheet
+        ariaLabel="Détail avis"
+      >
+        {modalItem ? (
+          <>
+            <ModalHeader
+              title={modalItem.subject}
+              subtitle="Avis sur l’amélioration"
+              onClose={() => setModalItem(null)}
+            />
+            <ModalBody className="space-y-3">
               <div className="flex items-center justify-between text-xs text-gray-500">
                 <span>{formatDate(modalItem.createdAt)}</span>
                 <span
@@ -324,14 +314,14 @@ export default function MyFeedback() {
                   {modalItem.readAt ? 'Lu' : 'Non lu'}
                 </span>
               </div>
-              <p className="text-sm text-gray-700 whitespace-pre-line">{modalItem.body}</p>
-              {modalItem.readAt && (
+              <p className="whitespace-pre-line text-sm text-gray-700">{modalItem.body}</p>
+              {modalItem.readAt ? (
                 <p className="text-xs text-gray-500">Lu le {formatDate(modalItem.readAt)}</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+              ) : null}
+            </ModalBody>
+          </>
+        ) : null}
+      </BaseModal>
     </div>
   );
 }

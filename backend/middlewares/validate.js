@@ -898,6 +898,29 @@ export const schemas = {
     }),
     reason: Joi.string().max(500).allow('', null)
   }),
+  reportPreviewImageCreate: Joi.object({
+    imageUrl: Joi.string().max(500).required(),
+    contextType: Joi.string().valid('product', 'shop').required(),
+    productId: Joi.string().hex().length(24).allow(null, ''),
+    shopId: Joi.string().hex().length(24).allow(null, ''),
+    reasonCategory: Joi.string().valid('fraud', 'copyright', 'adult', 'violent', 'spam', 'other').default('other'),
+    reason: Joi.string().max(500).allow('', null),
+    imageIndex: Joi.number().integer().min(0).max(1000).allow(null),
+    sourcePath: Joi.string().max(240).allow('', null),
+    deepLink: Joi.string().max(500).allow('', null),
+    productSlug: Joi.string().max(140).allow('', null),
+    shopSlug: Joi.string().max(140).allow('', null),
+    productTitle: Joi.string().max(200).allow('', null),
+    shopName: Joi.string().max(200).allow('', null)
+  }).custom((value, helpers) => {
+    if (value.contextType === 'product' && !String(value.productId || '').trim()) {
+      return helpers.message('productId requis pour un signalement produit.');
+    }
+    if (value.contextType === 'shop' && !String(value.shopId || '').trim()) {
+      return helpers.message('shopId requis pour un signalement boutique.');
+    }
+    return value;
+  }),
   reportStatusUpdate: Joi.object({
     status: Joi.string().valid('pending', 'reviewed', 'resolved', 'dismissed').required(),
     adminNote: Joi.string().max(1000).allow('', null)

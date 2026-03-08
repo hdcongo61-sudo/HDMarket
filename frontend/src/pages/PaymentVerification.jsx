@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { CheckCircle, XCircle, Search, DollarSign, ExternalLink } from 'lucide-react';
+import { CheckCircle, XCircle, Search, DollarSign, ExternalLink, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
@@ -28,7 +28,7 @@ export default function PaymentVerification() {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [actionId, setActionId] = useState('');
+  const [actionState, setActionState] = useState({ id: '', type: '' });
 
   const loadPayments = useCallback(async ({ silent = false } = {}) => {
     if (!silent) {
@@ -83,7 +83,7 @@ export default function PaymentVerification() {
 
     const previousPayments = payments;
     setPayments((prev) => prev.filter((item) => item?._id !== paymentId));
-    setActionId(paymentId);
+    setActionState({ id: paymentId, type: 'verify' });
     try {
       await api.put(`/payments/admin/${paymentId}/verify`);
       alert('Paiement vérifié avec succès');
@@ -97,7 +97,7 @@ export default function PaymentVerification() {
       setPayments(previousPayments);
       alert(err.response?.data?.message || 'Erreur lors de la vérification');
     } finally {
-      setActionId('');
+      setActionState({ id: '', type: '' });
     }
   };
 
@@ -106,7 +106,7 @@ export default function PaymentVerification() {
 
     const previousPayments = payments;
     setPayments((prev) => prev.filter((item) => item?._id !== paymentId));
-    setActionId(paymentId);
+    setActionState({ id: paymentId, type: 'reject' });
     try {
       await api.put(`/payments/admin/${paymentId}/reject`);
       alert('Paiement rejeté');
@@ -120,7 +120,7 @@ export default function PaymentVerification() {
       setPayments(previousPayments);
       alert(err.response?.data?.message || 'Erreur lors du rejet');
     } finally {
-      setActionId('');
+      setActionState({ id: '', type: '' });
     }
   };
 
@@ -286,22 +286,39 @@ export default function PaymentVerification() {
 
                     {/* Actions */}
                     <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => handleVerify(payment._id)}
-                        disabled={actionId === payment._id}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 active:scale-95 transition-all disabled:opacity-60"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        {actionId === payment._id ? 'Vérification...' : 'Vérifier'}
-                      </button>
-                      <button
-                        onClick={() => handleReject(payment._id)}
-                        disabled={actionId === payment._id}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 active:scale-95 transition-all disabled:opacity-60"
-                      >
-                        <XCircle className="w-4 h-4" />
-                        {actionId === payment._id ? 'Rejet...' : 'Rejeter'}
-                      </button>
+                      {(() => {
+                        const isRowLoading = actionState.id === payment._id;
+                        const isVerifyLoading = isRowLoading && actionState.type === 'verify';
+                        const isRejectLoading = isRowLoading && actionState.type === 'reject';
+                        return (
+                          <>
+                            <button
+                              onClick={() => handleVerify(payment._id)}
+                              disabled={isRowLoading}
+                              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                              {isVerifyLoading ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CheckCircle className="w-4 h-4" />
+                              )}
+                              {isVerifyLoading ? 'Vérification...' : 'Vérifier'}
+                            </button>
+                            <button
+                              onClick={() => handleReject(payment._id)}
+                              disabled={isRowLoading}
+                              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                              {isRejectLoading ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <XCircle className="w-4 h-4" />
+                              )}
+                              {isRejectLoading ? 'Rejet...' : 'Rejeter'}
+                            </button>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

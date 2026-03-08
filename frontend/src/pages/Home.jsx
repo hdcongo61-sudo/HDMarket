@@ -2,6 +2,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } 
 import { Link, useSearchParams } from "react-router-dom";
 import api, { isApiCanceledError } from "../services/api";
 import ProductCard from "../components/ProductCard";
+import PreviewableImage from "../components/media/PreviewableImage";
 import MobileSplash from "../components/MobileSplash";
 import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
 import ShimmerSkeleton from "../components/ui/ShimmerSkeleton";
@@ -16,6 +17,45 @@ import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
 import { buildProductPath, buildShopPath } from "../utils/links";
 import AuthContext from "../context/AuthContext";
 import { useAppSettings } from "../context/AppSettingsContext";
+import BaseModal, { ModalBody, ModalHeader } from "../components/modals/BaseModal";
+
+const normalizeCityName = (value) =>
+  typeof value === 'string' ? value.trim().toLowerCase() : '';
+
+const resolveProductCity = (product) => {
+  if (!product || typeof product !== 'object') return '';
+  const rawCity =
+    product.city ||
+    product.deliveryCity ||
+    product?.user?.city ||
+    product?.user?.preferredCity ||
+    '';
+  return typeof rawCity === 'string' ? rawCity.trim() : '';
+};
+
+const resolveProductImageSet = (product) => {
+  const images = Array.isArray(product?.images) ? product.images.filter(Boolean) : [];
+  if (images.length) return images;
+  if (product?.image) return [product.image];
+  return ['/api/placeholder/400/400'];
+};
+
+const resolveProductPrimaryImage = (product) => resolveProductImageSet(product)[0];
+
+const buildImageReportContext = (product, deepLink = '') => {
+  const seller = product?.user && typeof product.user === 'object' ? product.user : null;
+  const shopId = seller?._id || (typeof product?.user === 'string' ? product.user : '');
+  return {
+    contextType: 'product',
+    productId: product?._id || '',
+    productSlug: product?.slug || '',
+    productTitle: product?.title || '',
+    shopId: shopId || '',
+    shopSlug: seller?.slug || '',
+    shopName: seller?.shopName || seller?.name || '',
+    deepLink: deepLink || buildProductPath(product)
+  };
+};
 
 /**
  * 🎨 PAGE D'ACCUEIL HDMarket - Design Alibaba Mobile First
@@ -607,6 +647,45 @@ const loadDiscountProducts = async () => {
   }, [flashDeals.length]);
 
   const cityHighlights = highlights.cityHighlights || {};
+  const cityFallbackProductsByCity = useMemo(() => {
+    const map = new Map();
+    const seenByCity = new Map();
+    const pooledProducts = [
+      ...(Array.isArray(items) ? items : []),
+      ...(Array.isArray(topSalesCityTodayProducts) ? topSalesCityTodayProducts : []),
+      ...(Array.isArray(topSalesProducts) ? topSalesProducts : []),
+      ...(Array.isArray(highlights.favorites) ? highlights.favorites : []),
+      ...(Array.isArray(highlights.topRated) ? highlights.topRated : []),
+      ...(Array.isArray(highlights.topDeals) ? highlights.topDeals : []),
+      ...(Array.isArray(highlights.topDiscounts) ? highlights.topDiscounts : []),
+      ...(Array.isArray(highlights.newProducts) ? highlights.newProducts : []),
+      ...(Array.isArray(highlights.usedProducts) ? highlights.usedProducts : []),
+      ...(Array.isArray(highlights.installmentProducts) ? highlights.installmentProducts : [])
+    ];
+
+    pooledProducts.forEach((product) => {
+      const productId = product?._id || product?.id;
+      if (!productId) return;
+      const cityName = resolveProductCity(product);
+      const normalizedCity = normalizeCityName(cityName);
+      if (!normalizedCity) return;
+
+      if (!map.has(normalizedCity)) {
+        map.set(normalizedCity, []);
+      }
+      if (!seenByCity.has(normalizedCity)) {
+        seenByCity.set(normalizedCity, new Set());
+      }
+
+      const seenSet = seenByCity.get(normalizedCity);
+      const productKey = String(productId);
+      if (seenSet.has(productKey)) return;
+      seenSet.add(productKey);
+      map.get(normalizedCity).push(product);
+    });
+
+    return map;
+  }, [highlights, items, topSalesCityTodayProducts, topSalesProducts]);
 
   // === PAGINATION SIMPLIFIÉE ===
   const renderPagination = () => {
@@ -800,11 +879,14 @@ const loadDiscountProducts = async () => {
                   className="flex-shrink-0 w-[140px] flex flex-col bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden active:scale-[0.97] transition-transform"
                 >
                   <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
-                    <img
-                      src={product.images?.[0] || '/api/placeholder/400/400'}
+                    <PreviewableImage
+                      src={resolveProductPrimaryImage(product)}
+                      images={resolveProductImageSet(product)}
                       alt={product.title}
                       className="w-full h-full object-cover object-center"
                       loading="lazy"
+                      reportContext={buildImageReportContext(product, buildHomeProductLink(product))}
+                      showHint={false}
                     />
                     {product.flashPromo?.endDate && (
                       <span className="absolute bottom-1.5 left-1.5 bg-black/75 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md">
@@ -914,11 +996,14 @@ const loadDiscountProducts = async () => {
                     className="flex-shrink-0 w-[140px] flex flex-col bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden active:scale-[0.97] transition-transform"
                   >
                     <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
-                      <img
-                        src={product.images?.[0] || '/api/placeholder/400/400'}
+                      <PreviewableImage
+                        src={resolveProductPrimaryImage(product)}
+                        images={resolveProductImageSet(product)}
                         alt={product.title}
                         className="w-full h-full object-cover object-center"
                         loading="lazy"
+                        reportContext={buildImageReportContext(product, buildHomeProductLink(product))}
+                        showHint={false}
                       />
                       <span className="absolute top-1.5 right-1.5 rounded-md bg-neutral-900/90 px-1.5 py-0.5 text-[9px] font-semibold text-white">
                         {Number(product.totalSoldToday || 0)} vendu(s)
@@ -960,11 +1045,14 @@ const loadDiscountProducts = async () => {
                   className="flex-shrink-0 w-[140px] flex flex-col bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden active:scale-[0.97] transition-transform"
                 >
                   <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
-                    <img
-                      src={product.images?.[0] || '/api/placeholder/400/400'}
+                    <PreviewableImage
+                      src={resolveProductPrimaryImage(product)}
+                      images={resolveProductImageSet(product)}
                       alt={product.title}
                       className="w-full h-full object-cover object-center"
                       loading="lazy"
+                      reportContext={buildImageReportContext(product, buildHomeProductLink(product))}
+                      showHint={false}
                     />
                     {idx < 3 && (
                       <span className={`absolute top-1.5 left-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow ${
@@ -1024,13 +1112,40 @@ const loadDiscountProducts = async () => {
 
         {/* City section: connected user's city + products + sellers from same city */}
         {(() => {
-          const firstCityWithData = cityList.find(c => (cityHighlights[c] || []).length > 0);
+          const firstCityWithData = cityList.find((c) => (cityHighlights[c] || []).length > 0);
+          const firstFallbackCityWithData =
+            cityList.find((cityName) => {
+              const normalizedCity = normalizeCityName(cityName);
+              return (cityFallbackProductsByCity.get(normalizedCity) || []).length > 0;
+            }) || null;
+          const anyFallbackCityKey = cityFallbackProductsByCity.keys().next().value || null;
+
           // Prefer connected user's city when set (show their city even if no data yet)
-          const displayCity =
+          const rawDisplayCity =
             effectiveUserCity && (cityList.length === 0 || cityList.includes(effectiveUserCity))
               ? effectiveUserCity
-              : firstCityWithData;
-          const cityProds = displayCity ? (cityHighlights[displayCity] || []).slice(0, 8) : [];
+              : firstCityWithData || firstFallbackCityWithData || anyFallbackCityKey;
+          const normalizedDisplayCity = normalizeCityName(rawDisplayCity);
+          const highlightCityKey =
+            Object.keys(cityHighlights).find(
+              (key) => normalizeCityName(key) === normalizedDisplayCity
+            ) || rawDisplayCity;
+          const highlightCityProducts = highlightCityKey
+            ? (cityHighlights[highlightCityKey] || [])
+            : [];
+          const fallbackCityProducts = normalizedDisplayCity
+            ? (cityFallbackProductsByCity.get(normalizedDisplayCity) || [])
+            : [];
+          const fallbackCityLabel =
+            resolveProductCity(fallbackCityProducts[0]) ||
+            resolveProductCity(highlightCityProducts[0]) ||
+            '';
+          const displayCity =
+            cityList.find((cityName) => normalizeCityName(cityName) === normalizedDisplayCity) ||
+            (typeof highlightCityKey === 'string' ? highlightCityKey : '') ||
+            fallbackCityLabel ||
+            rawDisplayCity;
+          const cityProds = (highlightCityProducts.length > 0 ? highlightCityProducts : fallbackCityProducts).slice(0, 8);
           const uniqueSellers = [];
           const seenIds = new Set();
           for (const p of cityProds) {
@@ -1106,11 +1221,14 @@ const loadDiscountProducts = async () => {
                       className="flex-shrink-0 w-[140px] flex flex-col bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden active:scale-[0.97] transition-transform"
                     >
                       <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
-                        <img
-                          src={product.images?.[0] || '/api/placeholder/400/400'}
+                        <PreviewableImage
+                          src={resolveProductPrimaryImage(product)}
+                          images={resolveProductImageSet(product)}
                           alt={product.title}
                           className="w-full h-full object-cover object-center"
                           loading="lazy"
+                          reportContext={buildImageReportContext(product, buildHomeProductLink(product))}
+                          showHint={false}
                         />
                         <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 text-[9px] font-semibold rounded-md bg-white/90 text-gray-600">
                           {product.condition === 'new' ? 'Neuf' : 'Occasion'}
@@ -1538,11 +1656,14 @@ const loadDiscountProducts = async () => {
                     className="group flex flex-col bg-gray-50 rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-neutral-200 transition-all"
                   >
                     <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
-                      <img
-                        src={product.images?.[0] || '/api/placeholder/400/400'}
+                      <PreviewableImage
+                        src={resolveProductPrimaryImage(product)}
+                        images={resolveProductImageSet(product)}
                         alt={product.title}
                         className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
                         loading="lazy"
+                        reportContext={buildImageReportContext(product, buildHomeProductLink(product))}
+                        showHint={false}
                       />
                       {product.flashPromo?.endDate && (
                         <span className="absolute bottom-1.5 left-1.5 bg-black/75 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md">
@@ -1609,11 +1730,14 @@ const loadDiscountProducts = async () => {
                     className="group flex flex-col bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md hover:border-neutral-200 transition-all"
                   >
                     <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100">
-                      <img
-                        src={product.images?.[0] || '/api/placeholder/400/400'}
+                      <PreviewableImage
+                        src={resolveProductPrimaryImage(product)}
+                        images={resolveProductImageSet(product)}
                         alt={product.title}
                         className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
                         loading="lazy"
+                        reportContext={buildImageReportContext(product, buildHomeProductLink(product))}
+                        showHint={false}
                       />
                       <span className="absolute top-2 right-2 rounded-md bg-neutral-900/90 px-2 py-0.5 text-[10px] font-semibold text-white">
                         {Number(product.totalSoldToday || 0)} vendu(s)
@@ -1655,11 +1779,14 @@ const loadDiscountProducts = async () => {
                   className="group flex flex-col bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md hover:border-neutral-200 transition-all"
                 >
                   <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100">
-                    <img
-                      src={product.images?.[0] || '/api/placeholder/400/400'}
+                    <PreviewableImage
+                      src={resolveProductPrimaryImage(product)}
+                      images={resolveProductImageSet(product)}
                       alt={product.title}
                       className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
                       loading="lazy"
+                      reportContext={buildImageReportContext(product, buildHomeProductLink(product))}
+                      showHint={false}
                     />
                     {idx < 3 && (
                       <span className={`absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg ${
@@ -1777,11 +1904,14 @@ const loadDiscountProducts = async () => {
                     className="group flex flex-col bg-gray-50 rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-neutral-200 transition-all"
                   >
                     <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
-                      <img
-                        src={product.images?.[0] || '/api/placeholder/400/400'}
+                      <PreviewableImage
+                        src={resolveProductPrimaryImage(product)}
+                        images={resolveProductImageSet(product)}
                         alt={product.title}
                         className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
                         loading="lazy"
+                        reportContext={buildImageReportContext(product, buildHomeProductLink(product))}
+                        showHint={false}
                       />
                       <span className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow ${
                         index === 0 ? 'bg-neutral-500' : index === 1 ? 'bg-gray-400' : 'bg-neutral-600'
@@ -2119,74 +2249,63 @@ const loadDiscountProducts = async () => {
       {isMobileView ? renderMobileHome() : renderDesktopHome()}
 
       {/* Category Modal (shared between mobile and desktop) */}
-      {isCategoryModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6"
-          onClick={() => setCategoryModalOpen(false)}
-        >
-          <div
-            className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl bg-white dark:bg-gray-800 border border-gray-200/60 dark:border-gray-700/50 shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="sticky top-0 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-gray-700/50 px-6 py-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="space-y-1">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-neutral-100/80 dark:bg-neutral-900/60 border border-neutral-200/50 dark:border-neutral-700/70 w-fit mb-2">
-                    <LayoutGrid className="w-4 h-4 text-neutral-800 dark:text-neutral-500" />
-                    <span className="text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">{t('home.allCategories', 'Toutes les catégories')}</span>
-                  </div>
-                  <h3 className="text-xl font-black text-gray-900 dark:text-white">{t('home.exploreCategoriesTitle', 'Explorer nos univers')}</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{t('home.exploreCategoriesSubtitle', 'Sélectionnez une catégorie pour découvrir nos produits')}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCategoryModalOpen(false)}
-                  className="flex-shrink-0 w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center transition-colors text-gray-600 dark:text-gray-400"
-                  aria-label={t('common.cancel', 'Fermer')}
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-            <div className="max-h-[calc(90vh-120px)] overflow-y-auto px-6 py-6">
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {categoryGroups.map((group, index) => {
-                  const Icon = group.icon;
-                  const categoryStyles = [
-                    { bg: 'from-[#0A0A0A]/10 to-[#6B7280]/10', icon: 'text-[#0A0A0A]', border: 'border-[#0A0A0A]/20', hover: 'hover:from-[#0A0A0A]/20 hover:to-[#6B7280]/20' },
-                    { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-600 dark:text-neutral-400', border: 'border-neutral-200/50 dark:border-neutral-800/50', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
-                    { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-600 dark:text-neutral-400', border: 'border-neutral-200/50 dark:border-neutral-800/50', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
-                    { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-600 dark:text-neutral-400', border: 'border-neutral-200/50 dark:border-neutral-800/50', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
-                    { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-800 dark:text-neutral-500', border: 'border-neutral-200/50 dark:border-neutral-700/70', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
-                    { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-800 dark:text-neutral-600', border: 'border-neutral-200/50 dark:border-neutral-700/70', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
-                    { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-800 dark:text-neutral-500', border: 'border-neutral-200/50 dark:border-neutral-700/70', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
-                    { bg: 'from-neutral-500/10 to-gray-500/10', icon: 'text-neutral-600 dark:text-neutral-400', border: 'border-neutral-200/50 dark:border-neutral-800/50', hover: 'hover:from-neutral-500/20 hover:to-gray-500/20' }
-                  ];
-                  const style = categoryStyles[index % categoryStyles.length];
-                  return (
-                    <Link
-                      key={group.id}
-                      to={`/categories/${group.options?.[0]?.value || ''}`}
-                      onClick={() => setCategoryModalOpen(false)}
-                      className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${style.bg} border ${style.border} backdrop-blur-sm transition-all duration-300 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98] ${style.hover}`}
-                    >
-                      <div className="p-4 flex flex-col items-center gap-3 text-center">
-                        <div className={`relative w-16 h-16 rounded-2xl bg-white/80 dark:bg-gray-800/80 border-2 ${style.border} flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:rotate-3 group-hover:scale-110`}>
-                          {Icon ? <Icon className={`relative w-8 h-8 ${style.icon}`} /> : null}
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">{group.label}</p>
-                          <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">{group.description}</p>
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
+      <BaseModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setCategoryModalOpen(false)}
+        size="xl"
+        mobileSheet
+        ariaLabel={t('home.allCategories', 'Toutes les catégories')}
+        panelClassName="sm:max-w-4xl"
+      >
+        <ModalHeader
+          title={t('home.exploreCategoriesTitle', 'Explorer nos univers')}
+          subtitle={t('home.exploreCategoriesSubtitle', 'Sélectionnez une catégorie pour découvrir nos produits')}
+          icon={<LayoutGrid className="w-4 h-4 text-neutral-700 dark:text-neutral-300" />}
+          onClose={() => setCategoryModalOpen(false)}
+        />
+        <ModalBody className="space-y-4">
+          <div className="inline-flex items-center gap-2 rounded-full border border-neutral-200/60 bg-neutral-100/80 px-3 py-1.5 dark:border-neutral-700/70 dark:bg-neutral-900/60">
+            <LayoutGrid className="w-4 h-4 text-neutral-800 dark:text-neutral-400" />
+            <span className="text-xs font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-200">
+              {t('home.allCategories', 'Toutes les catégories')}
+            </span>
           </div>
-        </div>
-      )}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {categoryGroups.map((group, index) => {
+              const Icon = group.icon;
+              const categoryStyles = [
+                { bg: 'from-[#0A0A0A]/10 to-[#6B7280]/10', icon: 'text-[#0A0A0A]', border: 'border-[#0A0A0A]/20', hover: 'hover:from-[#0A0A0A]/20 hover:to-[#6B7280]/20' },
+                { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-600 dark:text-neutral-400', border: 'border-neutral-200/50 dark:border-neutral-800/50', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
+                { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-600 dark:text-neutral-400', border: 'border-neutral-200/50 dark:border-neutral-800/50', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
+                { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-600 dark:text-neutral-400', border: 'border-neutral-200/50 dark:border-neutral-800/50', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
+                { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-800 dark:text-neutral-500', border: 'border-neutral-200/50 dark:border-neutral-700/70', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
+                { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-800 dark:text-neutral-600', border: 'border-neutral-200/50 dark:border-neutral-700/70', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
+                { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-800 dark:text-neutral-500', border: 'border-neutral-200/50 dark:border-neutral-700/70', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
+                { bg: 'from-neutral-500/10 to-gray-500/10', icon: 'text-neutral-600 dark:text-neutral-400', border: 'border-neutral-200/50 dark:border-neutral-800/50', hover: 'hover:from-neutral-500/20 hover:to-gray-500/20' }
+              ];
+              const style = categoryStyles[index % categoryStyles.length];
+              return (
+                <Link
+                  key={group.id}
+                  to={`/categories/${group.options?.[0]?.value || ''}`}
+                  onClick={() => setCategoryModalOpen(false)}
+                  className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br ${style.bg} ${style.border} backdrop-blur-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] ${style.hover}`}
+                >
+                  <div className="flex flex-col items-center gap-3 p-4 text-center">
+                    <div className={`relative flex h-14 w-14 items-center justify-center rounded-2xl border-2 bg-white/80 shadow-md transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 dark:bg-gray-800/80 ${style.border}`}>
+                      {Icon ? <Icon className={`relative h-7 w-7 ${style.icon}`} /> : null}
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold leading-tight text-gray-900 dark:text-white">{group.label}</p>
+                      <p className="line-clamp-2 text-xs leading-relaxed text-gray-600 dark:text-gray-400">{group.description}</p>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </ModalBody>
+      </BaseModal>
     </div>
   );
 }

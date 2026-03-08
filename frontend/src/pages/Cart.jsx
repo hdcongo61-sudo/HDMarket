@@ -7,6 +7,7 @@ import api from '../services/api';
 import { buildProductPath } from '../utils/links';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
+import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
 
 const TrashIcon = ({ className }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -201,87 +202,96 @@ export default function Cart() {
       </header>
 
       {/* Clear Cart Confirmation Modal Enhanced */}
-      {showClearConfirm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-6 shadow-2xl border-2 border-gray-100">
-            <div className="w-16 h-16 bg-red-100 rounded-3xl flex items-center justify-center mx-auto">
-              <TrashIcon className="w-8 h-8 text-red-600" />
-            </div>
-            <div className="text-center space-y-2">
-              <h3 className="text-xl font-black text-gray-900">Vider le panier</h3>
-              <p className="text-gray-600 text-sm font-medium">
-                Êtes-vous sûr de vouloir supprimer tous les articles de votre panier ? Cette action est irréversible.
-              </p>
-            </div>
-            <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => setShowClearConfirm(false)}
-                className="flex-1 px-5 py-3 text-sm font-semibold text-[#8E8E93] bg-[rgba(120,120,128,0.12)] rounded-full hover:bg-[rgba(120,120,128,0.18)] tap-feedback transition-all"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleClear}
-                disabled={pending.all}
-                className="flex-1 px-5 py-3 text-sm font-semibold text-white bg-red-600 rounded-3xl hover:bg-red-700 transition-all duration-200 active:scale-95 shadow-sm disabled:opacity-60"
-              >
-                {pending.all ? 'Suppression...' : 'Vider le panier'}
-              </button>
-            </div>
+      <BaseModal
+        isOpen={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        size="md"
+        mobileSheet
+        ariaLabel="Vider le panier"
+      >
+        <ModalHeader
+          title="Vider le panier"
+          subtitle="Action irréversible"
+          onClose={() => setShowClearConfirm(false)}
+        />
+        <ModalBody className="space-y-4 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-red-100">
+            <TrashIcon className="h-8 w-8 text-red-600" />
           </div>
-        </div>
-      )}
+          <p className="text-sm font-medium text-gray-600">
+            Êtes-vous sûr de vouloir supprimer tous les articles de votre panier ? Cette action est irréversible.
+          </p>
+        </ModalBody>
+        <ModalFooter>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowClearConfirm(false)}
+              className="flex-1 rounded-xl bg-[rgba(120,120,128,0.12)] px-5 py-3 text-sm font-semibold text-[#8E8E93] transition-all hover:bg-[rgba(120,120,128,0.18)]"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleClear}
+              disabled={pending.all}
+              className="flex-1 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-red-700 active:scale-95 disabled:opacity-60"
+            >
+              {pending.all ? 'Suppression...' : 'Vider le panier'}
+            </button>
+          </div>
+        </ModalFooter>
+      </BaseModal>
 
       {/* Distance Warning Modal */}
-      {showDistanceWarning && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full space-y-5 shadow-2xl border-2 border-amber-200">
-            <div className="w-16 h-16 bg-amber-100 rounded-3xl flex items-center justify-center mx-auto">
-              <span className="text-3xl">⚠️</span>
-            </div>
-            <div className="text-center space-y-2">
-              <h3 className="text-xl font-black text-gray-900">Attention à la distance</h3>
-              <p className="text-sm text-gray-700 font-medium">
-                Certains vendeurs sont dans une autre ville que la vôtre. Votre commande peut subir
-                des retards liés à la distance ou à la logistique. Les articles peuvent aussi être
-                endommagés pendant le transport et le vendeur ne pourra pas en être tenu responsable.
-              </p>
-              {sellerCityData.mismatchedCities.length > 0 && (
-                <p className="text-xs text-gray-600">
-                  Vendeurs :{' '}
-                  <span className="font-semibold text-gray-900">
-                    {sellerCityData.mismatchedCities.join(', ')}
-                  </span>
-                </p>
-              )}
-              {sellerCityData.buyerDisplay && (
-                <p className="text-xs text-gray-600">
-                  Votre ville :{' '}
-                  <span className="font-semibold text-gray-900">{sellerCityData.buyerDisplay}</span>
-                </p>
-              )}
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <button
-                type="button"
-                onClick={handleCancelCheckout}
-                disabled={pending.all}
-                className="flex-1 px-5 py-3 text-sm font-semibold text-gray-700 bg-gray-100 rounded-full hover:bg-gray-200 transition-all disabled:opacity-60"
-              >
-                {pending.all ? 'Annulation…' : 'Annuler'}
-              </button>
-              <button
-                type="button"
-                onClick={handleProceedCheckout}
-                disabled={pending.all}
-                className="flex-1 px-5 py-3 text-sm font-semibold text-white bg-amber-600 rounded-3xl hover:bg-amber-700 transition-all duration-200 active:scale-95 shadow-sm disabled:opacity-60"
-              >
-                Continuer quand même
-              </button>
-            </div>
+      <BaseModal
+        isOpen={showDistanceWarning}
+        onClose={handleCancelCheckout}
+        size="lg"
+        mobileSheet
+        ariaLabel="Attention à la distance"
+      >
+        <ModalHeader
+          title="Attention à la distance"
+          subtitle="Vérifiez les villes des vendeurs avant de confirmer"
+          onClose={handleCancelCheckout}
+        />
+        <ModalBody className="space-y-3">
+          <p className="text-sm font-medium text-gray-700">
+            Certains vendeurs sont dans une autre ville que la vôtre. Votre commande peut subir
+            des retards liés à la distance ou à la logistique. Les articles peuvent aussi être
+            endommagés pendant le transport et le vendeur ne pourra pas en être tenu responsable.
+          </p>
+          {sellerCityData.mismatchedCities.length > 0 ? (
+            <p className="text-xs text-gray-600">
+              Vendeurs : <span className="font-semibold text-gray-900">{sellerCityData.mismatchedCities.join(', ')}</span>
+            </p>
+          ) : null}
+          {sellerCityData.buyerDisplay ? (
+            <p className="text-xs text-gray-600">
+              Votre ville : <span className="font-semibold text-gray-900">{sellerCityData.buyerDisplay}</span>
+            </p>
+          ) : null}
+        </ModalBody>
+        <ModalFooter>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={handleCancelCheckout}
+              disabled={pending.all}
+              className="flex-1 rounded-xl bg-gray-100 px-5 py-3 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-200 disabled:opacity-60"
+            >
+              {pending.all ? 'Annulation…' : 'Annuler'}
+            </button>
+            <button
+              type="button"
+              onClick={handleProceedCheckout}
+              disabled={pending.all}
+              className="flex-1 rounded-xl bg-amber-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-amber-700 active:scale-95 disabled:opacity-60"
+            >
+              Continuer quand même
+            </button>
           </div>
-        </div>
-      )}
+        </ModalFooter>
+      </BaseModal>
 
       {error && (
         <div className="bg-red-50 border-2 border-red-200 rounded-3xl p-4 sm:p-6 shadow-sm">

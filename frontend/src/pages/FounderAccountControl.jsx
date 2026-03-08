@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
+import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
 
 const CONFIRM_WORD = 'SUPPRIMER';
 
@@ -453,128 +454,125 @@ export default function FounderAccountControl() {
         </section>
       </div>
 
-      {deleteModal.open ? (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/50 p-3 md:items-center md:justify-center">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-4 shadow-xl">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-red-700 inline-flex items-center gap-1">
-                  <AlertTriangle size={14} />
-                  Action irréversible
-                </p>
-                <h3 className="mt-1 text-lg font-bold text-gray-900">Suppression définitive</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDeleteModal({ open: false, target: null, reason: '', confirmValue: '' })}
-                className="rounded-lg p-1 text-gray-500 hover:bg-gray-100"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <p className="mt-3 text-sm text-gray-700">
-              Vous allez supprimer définitivement{' '}
-              <span className="font-semibold">{deleteModal.target?.name}</span>. Son numéro sera blacklisté.
-            </p>
-            <textarea
-              value={deleteModal.reason}
-              onChange={(event) =>
-                setDeleteModal((prev) => ({ ...prev, reason: event.target.value }))
+      <BaseModal
+        isOpen={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, target: null, reason: '', confirmValue: '' })}
+        size="lg"
+        mobileSheet
+        ariaLabel="Suppression définitive"
+      >
+        <ModalHeader
+          title="Suppression définitive"
+          subtitle="Action irréversible"
+          icon={<AlertTriangle size={16} className="text-red-600" />}
+          onClose={() => setDeleteModal({ open: false, target: null, reason: '', confirmValue: '' })}
+        />
+        <ModalBody className="space-y-3">
+          <p className="text-sm text-gray-700">
+            Vous allez supprimer définitivement{' '}
+            <span className="font-semibold">{deleteModal.target?.name}</span>. Son numéro sera blacklisté.
+          </p>
+          <textarea
+            value={deleteModal.reason}
+            onChange={(event) =>
+              setDeleteModal((prev) => ({ ...prev, reason: event.target.value }))
+            }
+            rows={3}
+            placeholder="Motif obligatoire..."
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-900 outline-none focus:border-gray-400"
+          />
+          <input
+            value={deleteModal.confirmValue}
+            onChange={(event) =>
+              setDeleteModal((prev) => ({ ...prev, confirmValue: event.target.value }))
+            }
+            placeholder={`Tapez ${CONFIRM_WORD} pour confirmer`}
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-gray-400"
+          />
+        </ModalBody>
+        <ModalFooter>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setDeleteModal({ open: false, target: null, reason: '', confirmValue: '' })}
+              className="min-h-[44px] rounded-xl bg-gray-100 text-sm font-semibold text-gray-700"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              disabled={
+                deleteMutation.isPending ||
+                !deleteModal.reason.trim() ||
+                deleteModal.confirmValue.trim().toUpperCase() !== CONFIRM_WORD
               }
-              rows={3}
-              placeholder="Motif obligatoire..."
-              className="mt-3 w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-900 outline-none focus:border-gray-400"
-            />
-            <input
-              value={deleteModal.confirmValue}
-              onChange={(event) =>
-                setDeleteModal((prev) => ({ ...prev, confirmValue: event.target.value }))
+              onClick={() =>
+                deleteMutation.mutate({
+                  target: deleteModal.target,
+                  reason: deleteModal.reason.trim()
+                })
               }
-              placeholder={`Tapez ${CONFIRM_WORD} pour confirmer`}
-              className="mt-3 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-gray-400"
-            />
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setDeleteModal({ open: false, target: null, reason: '', confirmValue: '' })}
-                className="min-h-[44px] rounded-xl bg-gray-100 text-sm font-semibold text-gray-700"
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                disabled={
-                  deleteMutation.isPending ||
-                  !deleteModal.reason.trim() ||
-                  deleteModal.confirmValue.trim().toUpperCase() !== CONFIRM_WORD
-                }
-                onClick={() =>
-                  deleteMutation.mutate({
-                    target: deleteModal.target,
-                    reason: deleteModal.reason.trim()
-                  })
-                }
-                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-red-600 text-sm font-semibold text-white disabled:opacity-60"
-              >
-                {deleteMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                Supprimer
-              </button>
-            </div>
+              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-red-600 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {deleteMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+              Supprimer
+            </button>
           </div>
-        </div>
-      ) : null}
+        </ModalFooter>
+      </BaseModal>
 
-      {reverseModal.open ? (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/50 p-3 md:items-center md:justify-center">
-          <div className="w-full max-w-md rounded-2xl bg-white p-4 shadow-xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-gray-900">Reverse blacklist</h3>
-              <button
-                type="button"
-                onClick={() => setReverseModal({ open: false, target: null, reason: '' })}
-                className="rounded-lg p-1 text-gray-500 hover:bg-gray-100"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <p className="mt-3 text-sm text-gray-700">
-              Retirer {reverseModal.target?.phoneNormalized} de la blacklist.
-            </p>
-            <textarea
-              value={reverseModal.reason}
-              onChange={(event) =>
-                setReverseModal((prev) => ({ ...prev, reason: event.target.value }))
+      <BaseModal
+        isOpen={reverseModal.open}
+        onClose={() => setReverseModal({ open: false, target: null, reason: '' })}
+        size="md"
+        mobileSheet
+        ariaLabel="Reverse blacklist"
+      >
+        <ModalHeader
+          title="Reverse blacklist"
+          subtitle="Retirer un numéro de la blacklist"
+          onClose={() => setReverseModal({ open: false, target: null, reason: '' })}
+        />
+        <ModalBody className="space-y-3">
+          <p className="text-sm text-gray-700">
+            Retirer {reverseModal.target?.phoneNormalized} de la blacklist.
+          </p>
+          <textarea
+            value={reverseModal.reason}
+            onChange={(event) =>
+              setReverseModal((prev) => ({ ...prev, reason: event.target.value }))
+            }
+            rows={3}
+            placeholder="Motif optionnel..."
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-900 outline-none focus:border-gray-400"
+          />
+        </ModalBody>
+        <ModalFooter>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setReverseModal({ open: false, target: null, reason: '' })}
+              className="min-h-[44px] rounded-xl bg-gray-100 text-sm font-semibold text-gray-700"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              disabled={reverseMutation.isPending}
+              onClick={() =>
+                reverseMutation.mutate({
+                  target: reverseModal.target,
+                  reason: reverseModal.reason.trim()
+                })
               }
-              rows={3}
-              placeholder="Motif optionnel..."
-              className="mt-3 w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-900 outline-none focus:border-gray-400"
-            />
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setReverseModal({ open: false, target: null, reason: '' })}
-                className="min-h-[44px] rounded-xl bg-gray-100 text-sm font-semibold text-gray-700"
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                disabled={reverseMutation.isPending}
-                onClick={() =>
-                  reverseMutation.mutate({
-                    target: reverseModal.target,
-                    reason: reverseModal.reason.trim()
-                  })
-                }
-                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-gray-900 text-sm font-semibold text-white disabled:opacity-60"
-              >
-                {reverseMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <UserRound size={16} />}
-                Confirmer
-              </button>
-            </div>
+              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-gray-900 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {reverseMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <UserRound size={16} />}
+              Confirmer
+            </button>
           </div>
-        </div>
-      ) : null}
+        </ModalFooter>
+      </BaseModal>
     </div>
   );
 }

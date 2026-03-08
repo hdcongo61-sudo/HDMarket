@@ -1452,7 +1452,7 @@ export const getNotifications = asyncHandler(async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(50)
       .populate('product', 'title status slug')
-      .populate('shop', 'shopName name')
+      .populate('shop', 'shopName name slug')
       .populate('actor', 'name email profileImage shopLogo'),
     User.findById(req.user.id).select('notificationPreferences')
   ]);

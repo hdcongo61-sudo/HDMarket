@@ -37,6 +37,7 @@ import RevenueByCityChart from '../components/analytics/RevenueByCityChart';
 import TopProductsAnalyticsTable from '../components/analytics/TopProductsAnalyticsTable';
 import SmartSuggestionsPanel from '../components/analytics/SmartSuggestionsPanel';
 import PeriodComparisonIndicator from '../components/analytics/PeriodComparisonIndicator';
+import BaseModal from '../components/modals/BaseModal';
 
 const numberFormatter = new Intl.NumberFormat('fr-FR');
 const formatNumber = (value) => {
@@ -1640,16 +1641,14 @@ export default function UserStats() {
       </div>
 
       {/* Followed Shops Modal */}
-      {showFollowedModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-          <div
-            className="absolute inset-0 bg-neutral-900/60 backdrop-blur-md transition-opacity"
-            onClick={() => setShowFollowedModal(false)}
-          />
-          <div
-            className="relative w-full max-w-3xl rounded-2xl bg-white shadow-2xl border border-gray-100 max-h-[90vh] overflow-hidden flex flex-col"
-            onClick={(event) => event.stopPropagation()}
-          >
+      <BaseModal
+        isOpen={showFollowedModal}
+        onClose={() => setShowFollowedModal(false)}
+        size="xl"
+        mobileSheet
+        ariaLabel="Boutiques suivies"
+        panelClassName="sm:max-w-3xl max-h-[90vh]"
+      >
             {/* Modal Header */}
             <div className="bg-neutral-600 text-white px-6 py-4">
               <div className="flex items-center justify-between">
@@ -1747,21 +1746,17 @@ export default function UserStats() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
+      </BaseModal>
 
       {/* Ordered Products Modal */}
-      {showOrdersModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-          <div
-            className="absolute inset-0 bg-neutral-900/60 backdrop-blur-md transition-opacity"
-            onClick={() => setShowOrdersModal(false)}
-          />
-          <div
-            className="relative w-full max-w-4xl rounded-2xl bg-white shadow-2xl border border-gray-100 max-h-[90vh] overflow-hidden flex flex-col"
-            onClick={(event) => event.stopPropagation()}
-          >
+      <BaseModal
+        isOpen={showOrdersModal}
+        onClose={() => setShowOrdersModal(false)}
+        size="xl"
+        mobileSheet
+        ariaLabel="Produits commandés"
+        panelClassName="sm:max-w-4xl max-h-[90vh]"
+      >
             {/* Modal Header */}
             <div className="bg-neutral-600 text-white px-6 py-4">
               <div className="flex items-center justify-between">
@@ -1879,21 +1874,17 @@ export default function UserStats() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
+      </BaseModal>
 
       {/* Sold Products Modal */}
-      {showSalesModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-          <div
-            className="absolute inset-0 bg-neutral-900/60 backdrop-blur-md transition-opacity"
-            onClick={() => setShowSalesModal(false)}
-          />
-          <div
-            className="relative w-full max-w-4xl rounded-2xl bg-white shadow-2xl border border-gray-100 max-h-[90vh] overflow-hidden flex flex-col"
-            onClick={(event) => event.stopPropagation()}
-          >
+      <BaseModal
+        isOpen={showSalesModal}
+        onClose={() => setShowSalesModal(false)}
+        size="xl"
+        mobileSheet
+        ariaLabel="Produits vendus"
+        panelClassName="sm:max-w-4xl max-h-[90vh]"
+      >
             {/* Modal Header */}
             <div className="bg-neutral-600 text-white px-6 py-4">
               <div className="flex items-center justify-between">
@@ -2011,9 +2002,7 @@ export default function UserStats() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
+      </BaseModal>
     </div>
   );
 }
