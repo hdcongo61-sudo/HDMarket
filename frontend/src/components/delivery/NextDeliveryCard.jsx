@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowRight, Package, Route } from 'lucide-react';
+import LiquidGlassCard from '../ui/liquid-notification';
 import {
   formatCurrency,
   normalizeFileUrl,
@@ -19,10 +20,17 @@ export default function NextDeliveryCard({
 }) {
   if (!assignment?._id) {
     return (
-      <section className="rounded-2xl bg-gray-50 p-4 shadow-sm">
+      <LiquidGlassCard
+        draggable={false}
+        blurIntensity="md"
+        glowIntensity="xs"
+        shadowIntensity="xs"
+        borderRadius="16px"
+        className="p-4 shadow-sm"
+      >
         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">{title}</p>
         <p className="mt-2 text-sm text-gray-600">Aucune livraison prioritaire pour le moment.</p>
-      </section>
+      </LiquidGlassCard>
     );
   }
 
@@ -34,7 +42,14 @@ export default function NextDeliveryCard({
   }`;
 
   return (
-    <section className="rounded-2xl bg-white p-4 shadow-sm transition hover:shadow-md">
+    <LiquidGlassCard
+      draggable={false}
+      blurIntensity="lg"
+      glowIntensity="sm"
+      shadowIntensity="sm"
+      borderRadius="16px"
+      className="p-4 shadow-sm transition hover:shadow-md"
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">{title}</p>
@@ -89,6 +104,6 @@ export default function NextDeliveryCard({
           </button>
         ) : null}
       </div>
-    </section>
+    </LiquidGlassCard>
   );
 }

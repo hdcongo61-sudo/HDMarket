@@ -7,6 +7,7 @@ import { clearSearchCache } from '../utils/searchCache';
 import { clearUserDataOnLogout } from '../utils/clearUserDataOnLogout';
 import { queryClient } from '../lib/queryClient';
 import { normalizePermissions } from '../utils/permissions';
+import { appAlert } from '../utils/appDialog';
 
 const AuthContext = createContext();
 
@@ -246,7 +247,7 @@ export const AuthProvider = ({ children }) => {
             e.response?.data?.message ||
             'Votre compte est suspendu. Contactez l’administrateur pour plus d’informations.';
           logout();
-          alert(message);
+          appAlert(message);
         }
       }
     };

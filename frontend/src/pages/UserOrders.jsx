@@ -55,6 +55,7 @@ import useReliableMutation from '../hooks/useReliableMutation';
 import useOrderRealtimeSync from '../hooks/useOrderRealtimeSync';
 import useBuyerOrdersListQuery from '../hooks/useBuyerOrdersListQuery';
 import { orderQueryKeys } from '../hooks/useOrderQueryKeys';
+import { appAlert, appConfirm } from '../utils/appDialog';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
@@ -1071,7 +1072,7 @@ export default function UserOrders() {
     setTouchEnd(e.targetTouches[0].clientX);
   };
 
-  const onSwipeEnd = (order) => {
+  const onSwipeEnd = async (order) => {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
     const isLeftSwipe = distance > minSwipeDistance;
@@ -1079,8 +1080,8 @@ export default function UserOrders() {
 
     if (isLeftSwipe && order.cancellationWindow?.isActive && getEffectiveOrderStatus(order) !== 'cancelled') {
       // Show cancel confirmation
-      if (confirm('Annuler cette commande ?')) {
-        handleCancelOrder(order._id);
+      if (await appConfirm('Annuler cette commande ?')) {
+        await handleCancelOrder(order._id);
       }
     }
 
@@ -1233,7 +1234,7 @@ export default function UserOrders() {
   });
 
   const handleSkipCancellationWindow = async (orderId) => {
-    if (!confirm('En confirmant, vous autorisez le vendeur à traiter immédiatement cette commande. Vous ne pourrez plus l\'annuler.')) {
+    if (!(await appConfirm('En confirmant, vous autorisez le vendeur à traiter immédiatement cette commande. Vous ne pourrez plus l\'annuler.'))) {
       return;
     }
 
@@ -1243,21 +1244,21 @@ export default function UserOrders() {
       mergeOrderUpdate(data);
       await invalidateOrderItem(orderId);
     } catch (err) {
-      alert(err.response?.data?.message || 'Impossible de lever le délai d\'annulation.');
+      appAlert(err.response?.data?.message || 'Impossible de lever le délai d\'annulation.');
     } finally {
       setSkipLoadingId(null);
     }
   };
 
   const handleCancelOrder = async (orderId) => {
-    if (!confirm('Êtes-vous sûr de vouloir annuler cette commande ? Cette action est irréversible.')) {
+    if (!(await appConfirm('Êtes-vous sûr de vouloir annuler cette commande ? Cette action est irréversible.'))) {
       return;
     }
 
     try {
       await cancelOrderMutation.mutateAsync({ orderId });
     } catch (err) {
-      alert(err.response?.data?.message || 'Impossible d\'annuler la commande.');
+      appAlert(err.response?.data?.message || 'Impossible d\'annuler la commande.');
     }
   };
 
@@ -1312,17 +1313,17 @@ export default function UserOrders() {
         const message = failedItems.length > 0
           ? `${addedItems.length} article(s) ajouté(s) au panier. ${failedItems.length} article(s) non disponible(s).`
           : 'Tous les articles ont été ajoutés au panier !';
-        alert(message);
+        appAlert(message);
         
         // Navigate to cart if items were added
         if (addedItems.length > 0) {
           navigate('/cart');
         }
       } else if (failedItems.length > 0) {
-        alert('Aucun article n\'a pu être ajouté au panier. Les produits peuvent être indisponibles ou supprimés.');
+        appAlert('Aucun article n\'a pu être ajouté au panier. Les produits peuvent être indisponibles ou supprimés.');
       }
     } catch (err) {
-      alert('Erreur lors de l\'ajout des articles au panier. Veuillez réessayer.');
+      appAlert('Erreur lors de l\'ajout des articles au panier. Veuillez réessayer.');
     } finally {
       setReordering(false);
     }

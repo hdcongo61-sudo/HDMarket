@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, Image, Layout, Smartphone, Upload, Shield, Search, X, Sparkles, Plus, Trash2, Edit, Save, Flag, MessageSquare, FileImage, User, Package, CheckCircle, XCircle, Clock } from 'lucide-react';
 import api, { clearCache } from '../services/api';
 import { useToast } from '../context/ToastContext';
+import { appConfirm } from '../utils/appDialog';
 
 const formatDateInput = (value) => {
   if (!value) return '';
@@ -1100,7 +1101,7 @@ export default function AdminAppSettings() {
                           <button
                             type="button"
                             onClick={async () => {
-                              if (!window.confirm(`Supprimer le réseau "${network.name}" ?`)) return;
+                              if (!(await appConfirm(`Supprimer le réseau "${network.name}" ?`))) return;
                               setNetworkLoading(true);
                               setNetworkError('');
                               try {

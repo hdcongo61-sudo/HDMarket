@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useNetworks, getNetworkPhoneByName, getFirstNetworkPhone } from '../hooks/useNetworks';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
+import { appAlert } from '../utils/appDialog';
 
 const defaultOperatorPhones = {
   MTN: '069822930',
@@ -176,34 +177,34 @@ export default function PaymentForm({ product, onSubmitted }) {
     if (hasPayment || loading) return;
 
     if (normalizedPromoCode && !isValidatedPromo) {
-      alert('Veuillez valider le code promo avant de soumettre le paiement.');
+      appAlert('Veuillez valider le code promo avant de soumettre le paiement.');
       return;
     }
 
     const payerName = String(form.payerName || '').trim();
     if (hasCommissionDue && payerName.length < 2) {
-      alert('Le nom du payeur doit contenir au moins 2 caractères.');
+      appAlert('Le nom du payeur doit contenir au moins 2 caractères.');
       return;
     }
     if (hasCommissionDue && !ALLOWED_PAYMENT_OPERATORS.has(form.operator)) {
-      alert('Veuillez sélectionner un opérateur valide.');
+      appAlert('Veuillez sélectionner un opérateur valide.');
       return;
     }
 
     const digitsOnly = (form.transactionNumber || '').replace(/\D/g, '');
     if (hasCommissionDue && digitsOnly.length !== 10) {
-      alert('Le numéro de transaction doit contenir exactement 10 chiffres.');
+      appAlert('Le numéro de transaction doit contenir exactement 10 chiffres.');
       return;
     }
     if (hasCommissionDue) {
       try {
         const verification = await verifyTransactionCodeAvailability(digitsOnly);
         if (!verification.available) {
-          alert(verification.message || 'Ce code de transaction est déjà utilisé.');
+          appAlert(verification.message || 'Ce code de transaction est déjà utilisé.');
           return;
         }
       } catch (error) {
-        alert(error?.response?.data?.message || 'Impossible de vérifier le code de transaction.');
+        appAlert(error?.response?.data?.message || 'Impossible de vérifier le code de transaction.');
         return;
       }
     }
@@ -212,7 +213,7 @@ export default function PaymentForm({ product, onSubmitted }) {
     try {
       const safeCommissionDue = Number(Number(commissionDue || 0).toFixed(2));
       if (!Number.isFinite(safeCommissionDue) || safeCommissionDue < 0) {
-        alert('Montant de commission invalide. Veuillez actualiser la page.');
+        appAlert('Montant de commission invalide. Veuillez actualiser la page.');
         return;
       }
 
@@ -232,7 +233,7 @@ export default function PaymentForm({ product, onSubmitted }) {
       }
 
       await api.post('/payments', payload);
-      alert('Paiement soumis. En attente de vérification.');
+      appAlert('Paiement soumis. En attente de vérification.');
       if (onSubmitted) await onSubmitted();
     } catch (error) {
       if (isApiTimeoutError(error)) {
@@ -241,9 +242,9 @@ export default function PaymentForm({ product, onSubmitted }) {
           transactionNumber: digitsOnly
         });
         if (alreadyRecorded) {
-          alert('Paiement enregistré (vérifié automatiquement). En attente de validation.');
+          appAlert('Paiement enregistré (vérifié automatiquement). En attente de validation.');
         } else {
-          alert(
+          appAlert(
             'Le réseau est lent. Votre paiement peut déjà être enregistré. Vérifiez le statut avant de renvoyer.'
           );
         }
@@ -256,7 +257,7 @@ export default function PaymentForm({ product, onSubmitted }) {
         }
         return;
       }
-      alert(error.response?.data?.message || error.message);
+      appAlert(error.response?.data?.message || error.message);
     } finally {
       setLoading(false);
     }

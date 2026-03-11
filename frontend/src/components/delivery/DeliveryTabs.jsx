@@ -1,8 +1,16 @@
 import React from 'react';
+import LiquidGlassCard from '../ui/liquid-notification';
 
 export default function DeliveryTabs({ value = 'new', onChange, tabs = [] }) {
   return (
-    <div className="rounded-2xl bg-gray-50 p-1">
+    <LiquidGlassCard
+      draggable={false}
+      blurIntensity="md"
+      glowIntensity="xs"
+      shadowIntensity="xs"
+      borderRadius="16px"
+      className="p-1"
+    >
       <div className="grid grid-cols-3 gap-1">
         {(Array.isArray(tabs) ? tabs : []).map((tab) => {
           const active = value === tab.key;
@@ -20,6 +28,6 @@ export default function DeliveryTabs({ value = 'new', onChange, tabs = [] }) {
           );
         })}
       </div>
-    </div>
+    </LiquidGlassCard>
   );
 }

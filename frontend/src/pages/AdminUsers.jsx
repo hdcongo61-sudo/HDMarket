@@ -10,6 +10,7 @@ import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import AuthContext from '../context/AuthContext';
 import { hasAnyPermission } from '../utils/permissions';
 import { resolveUserProfileImage } from '../utils/userAvatar';
+import { appConfirm } from '../utils/appDialog';
 
 const RESTRICTION_TYPES = [
   { key: 'canComment', label: 'Commentaires', icon: MessageSquareOff, color: 'orange', shopOnly: false },
@@ -618,7 +619,7 @@ export default function AdminUsers() {
       setActionError("Vous n'avez pas la permission de gérer les boutiques.");
       return;
     }
-    const confirmed = window.confirm(
+    const confirmed = await appConfirm(
       `Êtes-vous sûr de vouloir reconvertir "${user.name}" (${user.shopName || 'Boutique'}) en compte particulier ?\n\nLes informations de boutique seront conservées pour une reconversion ultérieure.`
     );
     if (!confirmed) return;

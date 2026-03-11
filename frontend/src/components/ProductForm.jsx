@@ -9,6 +9,7 @@ import useIsMobile from '../hooks/useIsMobile';
 import useCommissionRate from '../hooks/useCommissionRate';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import BaseModal from './modals/BaseModal';
+import { appAlert } from '../utils/appDialog';
 
 const DEFAULT_MAX_IMAGES = 3;
 const MAX_VIDEO_SIZE_MB = 20;
@@ -865,7 +866,7 @@ export default function ProductForm(props) {
     }
 
     if (!form.deliveryAvailable && !form.pickupAvailable) {
-      alert('Activez au moins un mode de réception: retrait boutique ou livraison.');
+      await appAlert('Activez au moins un mode de réception: retrait boutique ou livraison.');
       return;
     }
     if (!form.deliveryAvailable) {
@@ -874,7 +875,7 @@ export default function ProductForm(props) {
     if (form.deliveryAvailable && form.deliveryFeeEnabled) {
       const deliveryFeeValue = Number(form.deliveryFee || 0);
       if (!Number.isFinite(deliveryFeeValue) || deliveryFeeValue < 0) {
-        alert('Les frais de livraison doivent être un montant positif ou nul.');
+        await appAlert('Les frais de livraison doivent être un montant positif ou nul.');
         return;
       }
     }
@@ -985,7 +986,7 @@ export default function ProductForm(props) {
       setWholesaleError('');
       
     } catch (e) {
-      alert(e.response?.data?.message || e.message);
+      await appAlert(e.response?.data?.message || e.message);
     } finally {
       setLoading(false);
       setIsUploadingVideo(false);

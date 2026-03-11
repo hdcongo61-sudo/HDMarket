@@ -50,6 +50,7 @@ import { Pagination } from "swiper/modules";
 import { motion, AnimatePresence } from "framer-motion";
 import "swiper/css";
 import "swiper/css/pagination";
+import { appAlert, appConfirm } from "../utils/appDialog";
 
 export default function ProductDetails() {
   const { slug } = useParams();
@@ -728,7 +729,7 @@ export default function ProductDetails() {
   // 🗑️ SUPPRESSION D'UN COMMENTAIRE (ADMIN)
   const handleDeleteComment = async (commentId) => {
     if (!user || !['admin', 'founder'].includes(String(user.role || ''))) return;
-    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce commentaire ? Cette action supprimera également toutes les réponses associées.')) {
+    if (!(await appConfirm('Êtes-vous sûr de vouloir supprimer ce commentaire ? Cette action supprimera également toutes les réponses associées.'))) {
       return;
     }
 
@@ -851,7 +852,7 @@ export default function ProductDetails() {
         error.response?.data?.message ||
         error.message ||
         'Une erreur est survenue lors de l’envoi de votre note.';
-      alert(`Erreur lors de l'ajout de la note : ${serverMessage}`);
+      appAlert(`Erreur lors de l'ajout de la note : ${serverMessage}`);
     } finally {
       setSubmittingRating(false);
     }
@@ -956,7 +957,7 @@ export default function ProductDetails() {
 
     if (!user) {
       if (event?.preventDefault) event.preventDefault();
-      alert('Veuillez vous connecter pour contacter le vendeur via WhatsApp.');
+      appAlert('Veuillez vous connecter pour contacter le vendeur via WhatsApp.');
       navigate('/login', { state: { from: `/product/${slug}` } });
       return;
     }

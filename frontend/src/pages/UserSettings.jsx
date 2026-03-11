@@ -12,6 +12,7 @@ import { unregisterServiceWorker } from '../utils/serviceWorker';
 import { clearAllCache } from '../services/api';
 import indexedDB, { STORES } from '../utils/indexedDB';
 import { clearSearchCache } from '../utils/searchCache';
+import { appConfirm } from '../utils/appDialog';
 
 export default function UserSettings() {
   const { user } = useContext(AuthContext);
@@ -40,7 +41,7 @@ export default function UserSettings() {
     const shouldContinue =
       typeof window === 'undefined'
         ? true
-        : window.confirm(
+        : await appConfirm(
             t(
               'settings.cache.confirm',
               'Cette action vide tout le cache utilisateur (PWA + donnees locales) puis recharge l’application. Continuer ?'

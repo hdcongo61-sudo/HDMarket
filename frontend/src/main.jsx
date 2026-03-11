@@ -7,6 +7,7 @@ import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { FavoriteProvider } from './context/FavoriteContext';
 import { ToastProvider } from './context/ToastContext';
+import { AlertDialogProvider } from './context/AlertDialogContext';
 import { AppSettingsProvider } from './context/AppSettingsContext';
 import { queryClient } from './lib/queryClient';
 import { registerServiceWorker, unregisterServiceWorker } from './utils/serviceWorker';
@@ -22,7 +23,9 @@ root.render(
             <CartProvider>
               <FavoriteProvider>
                 <ToastProvider>
-                  <App />
+                  <AlertDialogProvider>
+                    <App />
+                  </AlertDialogProvider>
                 </ToastProvider>
               </FavoriteProvider>
             </CartProvider>

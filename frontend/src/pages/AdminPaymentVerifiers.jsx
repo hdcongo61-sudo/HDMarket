@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Search, UserPlus, UserMinus, DollarSign } from 'lucide-react';
 import api from '../services/api';
+import { appAlert } from '../utils/appDialog';
 
 export default function AdminPaymentVerifiers() {
   const [verifiers, setVerifiers] = useState([]);
@@ -27,24 +28,24 @@ export default function AdminPaymentVerifiers() {
 
   const handleToggleVerifier = async (userId) => {
     if (!userId || typeof userId !== 'string') {
-      alert('ID utilisateur invalide');
+      appAlert('ID utilisateur invalide');
       return;
     }
 
     if (!/^[0-9a-fA-F]{24}$/.test(userId)) {
-      alert(`Format d'ID invalide: ${userId}`);
+      appAlert(`Format d'ID invalide: ${userId}`);
       return;
     }
 
     try {
       const { data } = await api.patch(`/admin/payment-verifiers/${userId}/toggle`);
-      alert(data.message || 'Statut mis à jour');
+      appAlert(data.message || 'Statut mis à jour');
       await loadVerifiers();
       setFoundUsers([]);
       setUserSearchQuery('');
     } catch (err) {
       console.error('Toggle verifier error:', err);
-      alert(err.response?.data?.message || 'Erreur lors de la mise à jour');
+      appAlert(err.response?.data?.message || 'Erreur lors de la mise à jour');
     }
   };
 

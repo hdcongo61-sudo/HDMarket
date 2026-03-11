@@ -2,6 +2,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useState } from 're
 import { CheckCircle, Filter, MessageSquare, Search, User, FileText, UserPlus, UserMinus, Download, FileDown } from 'lucide-react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
+import { appAlert } from '../utils/appDialog';
 
 const STATUS_FILTERS = [
   { key: 'all', label: 'Tous' },
@@ -169,7 +170,7 @@ export default function AdminFeedback() {
       doc.save(filename);
     } catch (err) {
       console.error('Export PDF error:', err);
-      alert('Impossible d\'exporter en PDF: ' + (err.response?.data?.message || err.message));
+      await appAlert('Impossible d\'exporter en PDF: ' + (err.response?.data?.message || err.message));
     } finally {
       setExporting(false);
     }
@@ -255,7 +256,7 @@ export default function AdminFeedback() {
       doc.save(filename);
     } catch (err) {
       console.error('Export single PDF error:', err);
-      alert('Impossible d\'exporter en PDF: ' + err.message);
+      await appAlert('Impossible d\'exporter en PDF: ' + err.message);
     } finally {
       setExportingItemId('');
     }
@@ -280,28 +281,28 @@ export default function AdminFeedback() {
 
     if (!userId || typeof userId !== 'string') {
       console.error('Invalid userId - not a string:', userId);
-      alert('ID utilisateur invalide');
+      await appAlert('ID utilisateur invalide');
       return;
     }
 
     // Check if userId is a valid MongoDB ObjectId (24 hex characters)
     if (!/^[0-9a-fA-F]{24}$/.test(userId)) {
       console.error('Invalid MongoDB ObjectId format:', userId);
-      alert(`Format d'ID invalide: ${userId}`);
+      await appAlert(`Format d'ID invalide: ${userId}`);
       return;
     }
 
     try {
       console.log('Making API request to:', `/admin/feedback-readers/${userId}/toggle`);
       const { data } = await api.patch(`/admin/feedback-readers/${userId}/toggle`);
-      alert(data.message || 'Statut mis a jour');
+      await appAlert(data.message || 'Statut mis a jour');
       await loadFeedbackReaders();
       setFoundUsers([]);
       setUserSearchQuery('');
     } catch (err) {
       console.error('Toggle feedback reader error:', err);
       console.error('Error response:', err.response?.data);
-      alert(err.response?.data?.message || 'Erreur lors de la mise a jour');
+      await appAlert(err.response?.data?.message || 'Erreur lors de la mise a jour');
     }
   };
 

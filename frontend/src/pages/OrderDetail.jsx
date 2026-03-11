@@ -49,6 +49,7 @@ import useBuyerOrderDetailQuery from '../hooks/useBuyerOrderDetailQuery';
 import useBuyerOrderStatusMutation from '../hooks/useBuyerOrderStatusMutation';
 import useOrderRealtimeSync from '../hooks/useOrderRealtimeSync';
 import { orderQueryKeys } from '../hooks/useOrderQueryKeys';
+import { appAlert, appConfirm } from '../utils/appDialog';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
@@ -439,21 +440,21 @@ export default function OrderDetail() {
   }, [aiRecommendationsEnabled, order?._id, order?.items?.length]);
 
   const handleSkipCancellationWindow = async () => {
-    if (!order || !confirm('En confirmant, vous autorisez le vendeur à traiter immédiatement cette commande.')) return;
+    if (!order || !(await appConfirm('En confirmant, vous autorisez le vendeur à traiter immédiatement cette commande.'))) return;
     setSkipLoadingId(order._id);
     try {
       const { data } = await api.post(`/orders/${order._id}/skip-cancellation-window`);
       applyOrderSnapshot(data);
       await invalidateOrderQueries();
     } catch (err) {
-      alert(err.response?.data?.message || 'Impossible de lever le délai.');
+      appAlert(err.response?.data?.message || 'Impossible de lever le délai.');
     } finally {
       setSkipLoadingId(null);
     }
   };
 
   const handleCancelOrder = async () => {
-    if (!order || !confirm('Êtes-vous sûr de vouloir annuler cette commande ?')) return;
+    if (!order || !(await appConfirm('Êtes-vous sûr de vouloir annuler cette commande ?'))) return;
     try {
       await buyerStatusMutation.mutateAsync({ nextStatus: 'cancelled' });
     } catch {
@@ -497,25 +498,25 @@ export default function OrderDetail() {
     const amount = Number(entry?.amount || 0);
 
     if (!cleanPayerName) {
-      alert('Le nom de l’expéditeur est requis.');
+      appAlert('Le nom de l’expéditeur est requis.');
       return;
     }
     if (cleanTransactionCode.length !== 10) {
-      alert('L’ID de transaction doit contenir exactement 10 chiffres.');
+      appAlert('L’ID de transaction doit contenir exactement 10 chiffres.');
       return;
     }
     try {
       const verification = await verifyTransactionCodeAvailability(cleanTransactionCode);
       if (!verification.available) {
-        alert(verification.message || 'Ce code de transaction est déjà utilisé.');
+        appAlert(verification.message || 'Ce code de transaction est déjà utilisé.');
         return;
       }
     } catch (error) {
-      alert(error?.response?.data?.message || 'Impossible de vérifier le code de transaction.');
+      appAlert(error?.response?.data?.message || 'Impossible de vérifier le code de transaction.');
       return;
     }
     if (!Number.isFinite(amount) || amount <= 0) {
-      alert('Montant de tranche invalide.');
+      appAlert('Montant de tranche invalide.');
       return;
     }
     setInstallmentUploadIndex(index);
@@ -534,10 +535,10 @@ export default function OrderDetail() {
         delete next[index];
         return next;
       });
-      alert('Preuve transactionnelle transmise au vendeur. En attente de validation.');
+      appAlert('Preuve transactionnelle transmise au vendeur. En attente de validation.');
       await invalidateOrderQueries();
     } catch (err) {
-      alert(err.response?.data?.message || 'Impossible de transmettre la preuve.');
+      appAlert(err.response?.data?.message || 'Impossible de transmettre la preuve.');
     } finally {
       setInstallmentUploadIndex(-1);
     }
@@ -616,13 +617,13 @@ export default function OrderDetail() {
         const message = failedItems.length > 0
           ? `${addedItems.length} article(s) ajouté(s). ${failedItems.length} non disponible(s).`
           : 'Tous les articles ont été ajoutés au panier !';
-        alert(message);
+        appAlert(message);
         navigate('/cart');
       } else if (failedItems.length > 0) {
-        alert('Aucun article disponible pour le moment.');
+        appAlert('Aucun article disponible pour le moment.');
       }
     } catch {
-      alert('Erreur lors de l\'ajout au panier.');
+      appAlert('Erreur lors de l\'ajout au panier.');
     } finally {
       setReordering(false);
     }

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { buildProductPath } from '../utils/links';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
+import { appAlert, appConfirm } from '../utils/appDialog';
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
@@ -48,14 +49,14 @@ export default function DraftOrders() {
   };
 
   const handleDeleteDraft = async (draftId) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce brouillon ?')) return;
+    if (!(await appConfirm('Êtes-vous sûr de vouloir supprimer ce brouillon ?'))) return;
     
     setDeleting((prev) => ({ ...prev, [draftId]: true }));
     try {
       await api.delete(`/orders/draft/${draftId}`);
       setDrafts((prev) => prev.filter((draft) => draft._id !== draftId));
     } catch (err) {
-      alert(err.response?.data?.message || 'Impossible de supprimer le brouillon.');
+      appAlert(err.response?.data?.message || 'Impossible de supprimer le brouillon.');
     } finally {
       setDeleting((prev) => ({ ...prev, [draftId]: false }));
     }
@@ -68,7 +69,7 @@ export default function DraftOrders() {
       // Draft payments will be restored when user visits checkout
       navigate('/orders/checkout');
     } catch (error) {
-      alert('Impossible de restaurer le brouillon.');
+      appAlert('Impossible de restaurer le brouillon.');
     }
   };
 

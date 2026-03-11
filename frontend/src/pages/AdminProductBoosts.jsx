@@ -25,6 +25,7 @@ import {
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
+import { appAlert } from '../utils/appDialog';
 
 const PAGE_SIZE = 12;
 
@@ -416,7 +417,7 @@ export default function AdminProductBoosts() {
       await Promise.all([fetchBoostManagers(), fetchUsers(userSearchQuery)]);
     } catch (err) {
       console.error('Toggle boost manager error', err);
-      alert(err.response?.data?.message || 'Erreur lors de la modification de la permission.');
+      await appAlert(err.response?.data?.message || 'Erreur lors de la modification de la permission.');
     }
   };
 

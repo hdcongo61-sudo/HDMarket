@@ -28,6 +28,7 @@ import {
   getPlainTextFromHtml,
   sanitizeHelpHtml
 } from '../utils/helpEditorContent';
+import { appConfirm } from '../utils/appDialog';
 
 const HELP_CATEGORIES = [
   { value: 'orders', label: 'Orders' },
@@ -469,7 +470,7 @@ export default function HelpPage() {
 
   const deleteCondition = async (index) => {
     if (!canUseRichEditor || conditionActionLoading) return;
-    const confirmed = window.confirm('Supprimer cette condition utile ?');
+    const confirmed = await appConfirm('Supprimer cette condition utile ?');
     if (!confirmed) return;
 
     setConditionActionLoading(true);

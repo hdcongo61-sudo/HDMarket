@@ -54,6 +54,7 @@ import categoryGroups from '../data/categories';
 import storage from '../utils/storage';
 import BaseModal from '../components/modals/BaseModal';
 import PreviewableImage from '../components/media/PreviewableImage';
+import { appConfirm } from '../utils/appDialog';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -666,7 +667,7 @@ export default function UserDashboard() {
   // Bulk actions
   const handleBulkEnable = async () => {
     if (selectedProducts.size === 0) return;
-    if (!confirm(`Réactiver ${selectedProducts.size} produit(s) ?`)) return;
+    if (!(await appConfirm(`Réactiver ${selectedProducts.size} produit(s) ?`))) return;
 
     setBulkActionLoading(true);
     try {
@@ -685,7 +686,7 @@ export default function UserDashboard() {
 
   const handleBulkDisable = async () => {
     if (selectedProducts.size === 0) return;
-    if (!confirm(`Désactiver ${selectedProducts.size} produit(s) ?`)) return;
+    if (!(await appConfirm(`Désactiver ${selectedProducts.size} produit(s) ?`))) return;
 
     setBulkActionLoading(true);
     try {
@@ -704,7 +705,7 @@ export default function UserDashboard() {
 
   const handleBulkDelete = async () => {
     if (selectedProducts.size === 0) return;
-    if (!confirm(`Supprimer définitivement ${selectedProducts.size} produit(s) ? Cette action est irréversible.`)) return;
+    if (!(await appConfirm(`Supprimer définitivement ${selectedProducts.size} produit(s) ? Cette action est irréversible.`))) return;
 
     setBulkActionLoading(true);
     try {

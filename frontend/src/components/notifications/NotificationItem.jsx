@@ -91,7 +91,7 @@ export default function NotificationItem({
               onPointerDown={startLongPress}
               onPointerUp={cancelLongPress}
               onPointerLeave={cancelLongPress}
-              className={`glass-card ui-card-interactive ui-card-fade-in group relative flex items-start gap-3 px-3.5 py-3 text-left transition-colors hover:bg-white/80 dark:hover:bg-neutral-900/70 ${
+              className={`glass-card ui-card-interactive ui-card-fade-in group relative flex w-full items-start gap-3 rounded-2xl px-3.5 py-3 text-left shadow-sm transition-all hover:scale-[1.005] ${
                 isUnread ? 'ui-unread-accent' : ''
               }`}
             >

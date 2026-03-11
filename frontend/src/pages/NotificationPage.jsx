@@ -559,13 +559,15 @@ export default function NotificationPage() {
             </div>
           ) : error ? (
             <div className="mt-6">
-              <NetworkFallbackCard
-                title={t('notifications.errors.loadTitle', 'Unable to load data.')}
-                message={t('notifications.errors.load', 'Network is slow, please retry.')}
-                onRetry={refresh}
-                retryLabel={t('common.retry', 'Retry')}
-                refreshLabel={t('common.refreshPage', 'Refresh page')}
-              />
+              <div className="glass-card rounded-2xl p-1 shadow-sm">
+                <NetworkFallbackCard
+                  title={t('notifications.errors.loadTitle', 'Unable to load data.')}
+                  message={t('notifications.errors.load', 'Network is slow, please retry.')}
+                  onRetry={refresh}
+                  retryLabel={t('common.retry', 'Retry')}
+                  refreshLabel={t('common.refreshPage', 'Refresh page')}
+                />
+              </div>
             </div>
           ) : visibleAlerts.length ? (
             <div className="mt-2">
@@ -643,15 +645,17 @@ export default function NotificationPage() {
           </div>
           ) : (
             <div className="mt-14 text-center">
-              <div className="glass-card mx-auto flex h-14 w-14 items-center justify-center rounded-full">
-                <Bell className="h-6 w-6 text-neutral-500 dark:text-neutral-300" />
+              <div className="glass-card mx-auto max-w-md rounded-2xl p-6 shadow-sm">
+                <div className="glass-card mx-auto flex h-14 w-14 items-center justify-center rounded-full">
+                  <Bell className="h-6 w-6 text-neutral-500 dark:text-neutral-300" />
+                </div>
+                <h3 className="mt-4 text-base font-medium text-neutral-900 dark:text-neutral-100">
+                  {t('notifications.emptyTitle', 'Aucune notification')}
+                </h3>
+                <p className="mx-auto mt-1 max-w-sm text-sm text-neutral-500 dark:text-neutral-400">
+                  {t('notifications.emptySubtitle', 'Votre flux est à jour. Les nouveaux événements apparaîtront ici.')}
+                </p>
               </div>
-              <h3 className="mt-4 text-base font-medium text-neutral-900 dark:text-neutral-100">
-                {t('notifications.emptyTitle', 'Aucune notification')}
-              </h3>
-              <p className="mx-auto mt-1 max-w-sm text-sm text-neutral-500 dark:text-neutral-400">
-                {t('notifications.emptySubtitle', 'Votre flux est à jour. Les nouveaux événements apparaîtront ici.')}
-              </p>
             </div>
           )}
         </section>

@@ -12,6 +12,7 @@ import ImportWizard from '../components/categories/ImportWizard';
 import ReassignProductsModal from '../components/categories/ReassignProductsModal';
 import ActivityPanel from '../components/categories/ActivityPanel';
 import categoryGroups from '../data/categories';
+import { appConfirm } from '../utils/appDialog';
 
 const buildImportTemplate = () => ({
   tree: [
@@ -332,7 +333,7 @@ export default function SettingsCategoriesPage() {
   };
 
   const handleSoftDelete = async (node) => {
-    if (!window.confirm(`Supprimer (soft) ${node.name} ?`)) return;
+    if (!(await appConfirm(`Supprimer (soft) ${node.name} ?`))) return;
     setSaving(true);
     try {
       await api.post(`/admin/categories/${node.id}/soft-delete`, {});
@@ -389,7 +390,7 @@ export default function SettingsCategoriesPage() {
     const baseResult = reorderNodes(tree, draggedNode, targetNode, null, false);
     if (!baseResult) return;
     if (baseResult.needsParentConfirm) {
-      const confirmed = window.confirm(
+      const confirmed = await appConfirm(
         'Déplacer cette sous-catégorie vers un autre parent ? Cette action modifie le path.'
       );
       if (!confirmed) return;

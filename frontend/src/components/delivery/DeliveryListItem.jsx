@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Check, Clock3, Package, X } from 'lucide-react';
+import LiquidGlassCard from '../ui/liquid-notification';
 import {
   formatCurrency,
   getRelativeTime,
@@ -60,7 +61,7 @@ export default function DeliveryListItem({
   };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl glass-card shadow-sm transition hover:shadow-md">
+    <div className="relative overflow-hidden rounded-2xl shadow-sm transition hover:shadow-md">
       <div className="pointer-events-none absolute inset-0 flex">
         <div className="flex flex-1 items-center justify-start soft-card soft-card-green pl-4 text-emerald-700 dark:text-emerald-100">
           <span className="inline-flex items-center gap-1 text-xs font-semibold">
@@ -74,7 +75,7 @@ export default function DeliveryListItem({
         </div>
       </div>
 
-      <article
+      <LiquidGlassCard
         role="button"
         tabIndex={0}
         onClick={() => onOpen?.(item)}
@@ -85,8 +86,13 @@ export default function DeliveryListItem({
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchEnd}
+        draggable={false}
+        blurIntensity="md"
+        glowIntensity="xs"
+        shadowIntensity="xs"
+        borderRadius="16px"
         style={{ transform: `translateX(${offset}px)` }}
-        className="glass-card relative z-10 rounded-2xl p-4 transition-transform"
+        className="relative z-10 p-4 transition-transform"
       >
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -120,7 +126,7 @@ export default function DeliveryListItem({
           </div>
           <p className="text-xs font-semibold text-slate-700 dark:text-slate-100">{formatCurrency(item?.deliveryPrice, item?.currency)}</p>
         </div>
-      </article>
+      </LiquidGlassCard>
     </div>
   );
 }

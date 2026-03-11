@@ -11,6 +11,7 @@ import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
+import { appAlert } from '../utils/appDialog';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement',
@@ -333,13 +334,13 @@ export default function AdminOrders() {
         // @ts-ignore - Dynamic import for optional dependency
         XLSX = (await import('xlsx')).default || await import('xlsx');
       } catch (importError) {
-        alert('Veuillez installer la bibliothèque xlsx: npm install xlsx');
+        appAlert('Veuillez installer la bibliothèque xlsx: npm install xlsx');
         console.error('xlsx library not found:', importError);
         return;
       }
       
       if (!XLSX || !XLSX.utils) {
-        alert('La bibliothèque xlsx n\'est pas correctement installée.');
+        appAlert('La bibliothèque xlsx n\'est pas correctement installée.');
         return;
       }
       
@@ -434,9 +435,9 @@ export default function AdminOrders() {
       console.error('Erreur export Excel:', error);
       if (error?.message?.includes('Failed to fetch dynamically imported module') || 
           error?.message?.includes('Cannot find module')) {
-        alert('Veuillez installer la bibliothèque xlsx: npm install xlsx');
+        appAlert('Veuillez installer la bibliothèque xlsx: npm install xlsx');
       } else {
-        alert('Impossible d\'exporter vers Excel. ' + (error?.message || ''));
+        appAlert('Impossible d\'exporter vers Excel. ' + (error?.message || ''));
       }
     }
   };
@@ -1083,7 +1084,7 @@ export default function AdminOrders() {
       }
       return updatedOrder;
     } catch (error) {
-      alert(error.response?.data?.message || 'Impossible de mettre à jour la commande.');
+      appAlert(error.response?.data?.message || 'Impossible de mettre à jour la commande.');
       return null;
     }
   };
@@ -1113,7 +1114,7 @@ export default function AdminOrders() {
       setDeleteOrder(null);
       await Promise.all([loadStats(), loadCommandCenter(), loadAlerts()]);
     } catch (error) {
-      alert(error.response?.data?.message || 'Impossible de supprimer la commande.');
+      appAlert(error.response?.data?.message || 'Impossible de supprimer la commande.');
     } finally {
       setDeleteLoading(false);
     }

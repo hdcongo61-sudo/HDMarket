@@ -2,10 +2,11 @@ import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useNavigate, Navigate, useLocation, Link } from 'react-router-dom';
-import { Eye, EyeOff, Loader2, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAppSettings } from '../context/AppSettingsContext';
 import AuthTrustPanel from '../components/auth/AuthTrustPanel';
 import AuthSuccessCard from '../components/auth/AuthSuccessCard';
+import useAppBrandLogo from '../hooks/useAppBrandLogo';
 
 const SLOW_NETWORK_MS = 8000;
 
@@ -52,6 +53,7 @@ const strengthLabelOf = (score) => {
 export default function Register() {
   const { user, login } = useContext(AuthContext);
   const { cities, communes, language } = useAppSettings();
+  const { isMobile, logoSrc } = useAppBrandLogo();
   const nav = useNavigate();
   const location = useLocation();
   const from = location.state?.from || '/';
@@ -341,17 +343,25 @@ export default function Register() {
   }
 
   return (
-    <main className="glass-page-shell min-h-screen px-4 py-6 sm:py-10">
+    <main className="glass-page-shell min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 px-4 py-6 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 sm:py-10">
       <div className="mx-auto w-full max-w-6xl">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:gap-6">
-          <section className="glass-card rounded-3xl p-5 shadow-sm sm:p-7">
+          <section className="glass-card relative overflow-hidden rounded-3xl border border-white/65 bg-white/85 p-5 shadow-xl dark:border-slate-700/60 dark:bg-slate-900/80 sm:p-7">
+            <div className="pointer-events-none absolute left-0 right-0 top-0 h-44 -translate-y-1/3 bg-gradient-to-b from-blue-100/70 via-blue-50/50 to-transparent blur-3xl dark:from-blue-800/25 dark:via-blue-900/10" />
             {!successPayload ? (
               <>
-                <header className="mb-6">
-                  <p className="inline-flex items-center gap-2 rounded-full soft-card soft-card-blue px-3 py-1 text-xs font-semibold text-blue-900 dark:text-blue-100">
-                    <ShieldCheck size={14} />
-                    {copy.appBadge}
-                  </p>
+                <header className="relative mb-6">
+                  <div className="mb-4 flex justify-center lg:justify-start">
+                    <div className="inline-flex flex-col items-center lg:items-start">
+                      <div className="inline-flex h-20 w-20 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                        <img
+                          src={logoSrc}
+                          alt={copy.appBadge}
+                          className={`${isMobile ? 'h-12 w-12' : 'h-14 w-14'} object-contain`}
+                        />
+                      </div>
+                    </div>
+                  </div>
                   <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
                     {copy.title}
                   </h1>
@@ -482,7 +492,7 @@ export default function Register() {
                           setStep(2);
                           setTimeout(() => passwordRef.current?.focus(), 80);
                         }}
-                        className="soft-card soft-card-purple inline-flex min-h-[48px] w-full items-center justify-center rounded-xl px-4 text-sm font-semibold text-purple-900 dark:text-purple-100"
+                        className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-gradient-to-t from-blue-600 via-blue-500 to-blue-400 px-4 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:from-blue-700 hover:via-blue-600 hover:to-blue-500 active:scale-[0.98]"
                       >
                         {copy.continueStep2}
                       </button>
@@ -705,7 +715,7 @@ export default function Register() {
                         <button
                           type="submit"
                           disabled={!canSubmit}
-                          className="soft-card soft-card-purple inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-purple-900 disabled:opacity-60 dark:text-purple-100"
+                          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-gradient-to-t from-blue-600 via-blue-500 to-blue-400 px-4 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:from-blue-700 hover:via-blue-600 hover:to-blue-500 disabled:opacity-60"
                         >
                           {loading ? <Loader2 size={16} className="animate-spin" /> : null}
                           {loading ? copy.creatingAccount : copy.createAccount}

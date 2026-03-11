@@ -18,6 +18,7 @@ import { useToast } from '../context/ToastContext';
 import AuthContext from '../context/AuthContext';
 import { emitSettingsRefresh } from '../utils/settingsRefresh';
 import useIsMobile from '../hooks/useIsMobile';
+import { appConfirm } from '../utils/appDialog';
 
 const FEE_FIELDS = [
   { key: 'commissionRate', label: 'Taux commission (%)', type: 'number', step: 0.1 },
@@ -760,7 +761,7 @@ export default function AdminSystemSettings() {
       showToast('Supprimez d\'abord les communes rattachées à cette ville.', { variant: 'error' });
       return;
     }
-    const accepted = window.confirm(`Supprimer la ville "${city?.name || ''}" ?`);
+    const accepted = await appConfirm(`Supprimer la ville "${city?.name || ''}" ?`);
     if (!accepted) return;
 
     const previousCities = cities;
@@ -903,7 +904,7 @@ export default function AdminSystemSettings() {
   const deleteCommune = async (commune) => {
     const communeId = String(commune?._id || '');
     if (!communeId) return;
-    const accepted = window.confirm(`Supprimer la commune "${commune?.name || ''}" ?`);
+    const accepted = await appConfirm(`Supprimer la commune "${commune?.name || ''}" ?`);
     if (!accepted) return;
 
     const previousCommunes = communes;

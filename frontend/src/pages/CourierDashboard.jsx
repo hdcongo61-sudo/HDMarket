@@ -14,6 +14,7 @@ import DeliveryTabs from '../components/delivery/DeliveryTabs';
 import NextDeliveryCard from '../components/delivery/NextDeliveryCard';
 import OfflineBanner from '../components/delivery/OfflineBanner';
 import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
+import LiquidGlassCard from '../components/ui/liquid-notification';
 import {
   buildAssignmentRoute,
   buildHistoryRoute,
@@ -665,7 +666,14 @@ export default function CourierDashboard() {
 
       <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <section className="space-y-3">
-          <div className="glass-card rounded-2xl p-3 shadow-sm">
+          <LiquidGlassCard
+            draggable={false}
+            blurIntensity="md"
+            glowIntensity="xs"
+            shadowIntensity="xs"
+            borderRadius="16px"
+            className="p-3 shadow-sm"
+          >
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">Date filter</p>
             <div className="flex gap-2 overflow-x-auto pb-1">
               {DATE_FILTERS.map((filter) => (
@@ -683,34 +691,64 @@ export default function CourierDashboard() {
                 </button>
               ))}
             </div>
-          </div>
+          </LiquidGlassCard>
 
           <DeliveryTabs value={feedTab} onChange={setFeedTab} tabs={FEED_TABS} />
 
           {bootstrapQuery.isLoading || assignmentsQuery.isLoading ? (
             <DeliverySkeleton count={4} />
           ) : hardError ? (
-            <NetworkFallbackCard
-              title={extractMessage(hardError, 'Unable to load data.')}
-              message={
-                timeoutDetected
-                  ? 'Network is slow, please retry.'
-                  : 'Unable to load deliveries right now.'
-              }
-              onRetry={handleRefresh}
-              retryLabel="Retry"
-              refreshLabel="Refresh page"
-            />
+            <LiquidGlassCard
+              draggable={false}
+              blurIntensity="md"
+              glowIntensity="xs"
+              shadowIntensity="xs"
+              borderRadius="16px"
+              className="p-1"
+            >
+              <NetworkFallbackCard
+                title={extractMessage(hardError, 'Unable to load data.')}
+                message={
+                  timeoutDetected
+                    ? 'Network is slow, please retry.'
+                    : 'Unable to load deliveries right now.'
+                }
+                onRetry={handleRefresh}
+                retryLabel="Retry"
+                refreshLabel="Refresh page"
+              />
+            </LiquidGlassCard>
           ) : !modeEnabled ? (
-            <div className="soft-card soft-card-orange rounded-2xl p-4 text-sm text-amber-800 shadow-sm dark:text-amber-100">
+            <LiquidGlassCard
+              draggable={false}
+              blurIntensity="md"
+              glowIntensity="xs"
+              shadowIntensity="xs"
+              borderRadius="16px"
+              className="soft-card soft-card-orange p-4 text-sm text-amber-800 shadow-sm dark:text-amber-100"
+            >
               Le mode livreur est desactive par la configuration systeme.
-            </div>
+            </LiquidGlassCard>
           ) : previewMode && !selectedDeliveryGuyId ? (
-            <div className="soft-card soft-card-purple rounded-2xl p-4 text-sm text-purple-800 shadow-sm dark:text-purple-100">
+            <LiquidGlassCard
+              draggable={false}
+              blurIntensity="md"
+              glowIntensity="xs"
+              shadowIntensity="xs"
+              borderRadius="16px"
+              className="soft-card soft-card-purple p-4 text-sm text-purple-800 shadow-sm dark:text-purple-100"
+            >
               Choisissez un livreur pour afficher ses livraisons.
-            </div>
+            </LiquidGlassCard>
           ) : filteredItems.length === 0 ? (
-            <div className="glass-card rounded-2xl p-8 text-center shadow-sm">
+            <LiquidGlassCard
+              draggable={false}
+              blurIntensity="lg"
+              glowIntensity="sm"
+              shadowIntensity="sm"
+              borderRadius="16px"
+              className="p-8 text-center shadow-sm"
+            >
               <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                 {feedTab === 'done' ? 'All caught up' : 'No deliveries yet'}
               </p>
@@ -719,7 +757,7 @@ export default function CourierDashboard() {
                   ? 'Aucune livraison terminee pour ce filtre.'
                   : 'Les nouvelles affectations apparaitront ici.'}
               </p>
-            </div>
+            </LiquidGlassCard>
           ) : (
             <div className="space-y-3">
               {filteredItems.map((item) => (
@@ -738,10 +776,17 @@ export default function CourierDashboard() {
               <div ref={loadMoreRef} className="h-8" />
 
               {assignmentsQuery.isFetchingNextPage ? (
-                <div className="glass-card inline-flex w-full items-center justify-center gap-2 rounded-xl p-3 text-xs text-slate-500 shadow-sm dark:text-slate-300">
+                <LiquidGlassCard
+                  draggable={false}
+                  blurIntensity="md"
+                  glowIntensity="xs"
+                  shadowIntensity="xs"
+                  borderRadius="12px"
+                  className="inline-flex w-full items-center justify-center gap-2 p-3 text-xs text-slate-500 shadow-sm dark:text-slate-300"
+                >
                   <Loader2 size={14} className="animate-spin" />
                   Chargement...
-                </div>
+                </LiquidGlassCard>
               ) : null}
 
               {!assignmentsQuery.hasNextPage && filteredItems.length > 0 ? (
@@ -764,7 +809,14 @@ export default function CourierDashboard() {
               secondaryDisabled={nextCardActions.secondaryDisabled}
             />
 
-            <section className="glass-card rounded-2xl p-4 shadow-sm">
+            <LiquidGlassCard
+              draggable={false}
+              blurIntensity="md"
+              glowIntensity="xs"
+              shadowIntensity="xs"
+              borderRadius="16px"
+              className="p-4 shadow-sm"
+            >
               <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">Mini stats</p>
               <div className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-100">
                 <p className="flex items-center justify-between"><span>Completed</span><strong>{statsQuery.data?.delivered ?? '—'}</strong></p>
@@ -782,7 +834,7 @@ export default function CourierDashboard() {
                   <ChevronRight size={14} />
                 </Link>
               ) : null}
-            </section>
+            </LiquidGlassCard>
           </div>
         </aside>
       </div>

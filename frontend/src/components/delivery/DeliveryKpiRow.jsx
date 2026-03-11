@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import LiquidGlassCard from '../ui/liquid-notification';
 
 function AnimatedCounter({ value }) {
   const numeric = Number(value);
@@ -41,18 +42,30 @@ export default function DeliveryKpiRow({ items = [], loading = false }) {
         {(loading ? new Array(5).fill(0) : content).map((entry, index) => {
           if (loading) {
             return (
-              <div
+              <LiquidGlassCard
                 key={`kpi-skeleton-${index}`}
-                className="glass-skeleton h-[76px] min-w-[142px] flex-1 animate-pulse rounded-2xl p-4"
-              />
+                draggable={false}
+                blurIntensity="md"
+                glowIntensity="xs"
+                shadowIntensity="xs"
+                borderRadius="16px"
+                className="h-[76px] min-w-[142px] flex-1 p-4"
+              >
+                <div className="glass-skeleton h-full w-full animate-pulse rounded-xl" />
+              </LiquidGlassCard>
             );
           }
 
           const toneClass = entry.toneClass || 'bg-gray-100 text-gray-700';
           return (
-            <article
+            <LiquidGlassCard
               key={entry.key || index}
-              className="glass-card min-w-[142px] flex-1 rounded-2xl p-4 shadow-sm transition hover:shadow-md"
+              draggable={false}
+              blurIntensity="md"
+              glowIntensity="sm"
+              shadowIntensity="sm"
+              borderRadius="16px"
+              className="min-w-[142px] flex-1 p-4 shadow-sm transition hover:shadow-md"
             >
               <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">{entry.label}</p>
               <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
@@ -63,7 +76,7 @@ export default function DeliveryKpiRow({ items = [], loading = false }) {
                   {entry.badge}
                 </span>
               ) : null}
-            </article>
+            </LiquidGlassCard>
           );
         })}
       </div>

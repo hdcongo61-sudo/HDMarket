@@ -96,7 +96,7 @@ export default function SwipeActions({
         dragMomentum={false}
         onDragEnd={handleDragEnd}
         style={{ x }}
-        className="relative bg-white dark:bg-neutral-950"
+        className="relative bg-transparent"
         onClick={() => {
           if (openSide !== 'none') {
             closeActions();

@@ -6,6 +6,7 @@ import api from '../../services/api';
 import DeliveryHeader from '../../components/delivery/DeliveryHeader';
 import DeliverySkeleton from '../../components/delivery/DeliverySkeleton';
 import OfflineBanner from '../../components/delivery/OfflineBanner';
+import LiquidGlassCard from '../../components/ui/liquid-notification';
 import {
   buildAssignmentRoute,
   buildGoogleMapHref,
@@ -131,7 +132,14 @@ export default function DeliveryHistory() {
         ]}
       />
 
-      <section className="glass-card rounded-2xl p-4 shadow-sm">
+      <LiquidGlassCard
+        draggable={false}
+        blurIntensity="md"
+        glowIntensity="xs"
+        shadowIntensity="xs"
+        borderRadius="16px"
+        className="p-4 shadow-sm"
+      >
         <div className="grid grid-cols-3 gap-2">
           <article className="soft-card soft-card-green rounded-xl p-3 text-center">
             <p className="text-xs text-green-700 dark:text-green-100">Completed</p>
@@ -146,9 +154,16 @@ export default function DeliveryHistory() {
             <p className="mt-1 text-sm font-semibold text-purple-800 dark:text-purple-100">{formatCurrency(earnings)}</p>
           </article>
         </div>
-      </section>
+      </LiquidGlassCard>
 
-      <section className="glass-card rounded-2xl p-3 shadow-sm">
+      <LiquidGlassCard
+        draggable={false}
+        blurIntensity="md"
+        glowIntensity="xs"
+        shadowIntensity="xs"
+        borderRadius="16px"
+        className="p-3 shadow-sm"
+      >
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">Date</p>
         <div className="flex gap-2">
           {DATE_FILTERS.map((filter) => (
@@ -166,12 +181,19 @@ export default function DeliveryHistory() {
             </button>
           ))}
         </div>
-      </section>
+      </LiquidGlassCard>
 
       {historyQuery.isLoading ? (
         <DeliverySkeleton count={4} />
       ) : historyQuery.isError ? (
-        <div className="glass-card rounded-2xl p-4 shadow-sm">
+        <LiquidGlassCard
+          draggable={false}
+          blurIntensity="md"
+          glowIntensity="xs"
+          shadowIntensity="xs"
+          borderRadius="16px"
+          className="p-4 shadow-sm"
+        >
           <p className="text-sm font-semibold text-red-700 dark:text-red-100">
             {extractMessage(historyQuery.error, 'Impossible de charger l’historique.')}
           </p>
@@ -182,9 +204,16 @@ export default function DeliveryHistory() {
           >
             Reessayer
           </button>
-        </div>
+        </LiquidGlassCard>
       ) : doneItems.length === 0 ? (
-        <div className="glass-card rounded-2xl p-8 text-center shadow-sm">
+        <LiquidGlassCard
+          draggable={false}
+          blurIntensity="lg"
+          glowIntensity="sm"
+          shadowIntensity="sm"
+          borderRadius="16px"
+          className="p-8 text-center shadow-sm"
+        >
           <p className="text-sm font-semibold text-slate-800 dark:text-white">Aucune livraison archivee.</p>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">Les livraisons terminees apparaitront ici.</p>
           {historyQuery.hasNextPage ? (
@@ -198,7 +227,7 @@ export default function DeliveryHistory() {
               Charger plus
             </button>
           ) : null}
-        </div>
+        </LiquidGlassCard>
       ) : (
         <div className="space-y-3">
           {doneItems.map((item) => {
@@ -208,7 +237,15 @@ export default function DeliveryHistory() {
               `${dropoffAddress} ${item?.dropoff?.communeName || item?.buyer?.commune || ''}`
             );
             return (
-              <article key={item._id} className="glass-card rounded-2xl p-4 shadow-sm">
+              <LiquidGlassCard
+                key={item._id}
+                draggable={false}
+                blurIntensity="md"
+                glowIntensity="xs"
+                shadowIntensity="xs"
+                borderRadius="16px"
+                className="p-4 shadow-sm"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs text-slate-500 dark:text-slate-300">Commande #{String(item.orderId || '').slice(-6)}</p>
@@ -243,15 +280,22 @@ export default function DeliveryHistory() {
                     Detail
                   </Link>
                 </div>
-              </article>
+              </LiquidGlassCard>
             );
           })}
 
           <div ref={loadMoreRef} className="h-8" />
           {historyQuery.isFetchingNextPage ? (
-            <div className="glass-card inline-flex w-full items-center justify-center gap-2 rounded-xl p-3 text-xs text-slate-500 shadow-sm dark:text-slate-300">
+            <LiquidGlassCard
+              draggable={false}
+              blurIntensity="md"
+              glowIntensity="xs"
+              shadowIntensity="xs"
+              borderRadius="12px"
+              className="inline-flex w-full items-center justify-center gap-2 p-3 text-xs text-slate-500 shadow-sm dark:text-slate-300"
+            >
               <Loader2 size={14} className="animate-spin" /> Chargement...
-            </div>
+            </LiquidGlassCard>
           ) : null}
         </div>
       )}

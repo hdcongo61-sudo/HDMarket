@@ -3,6 +3,7 @@ import { CheckCircle, XCircle, Search, DollarSign, ExternalLink, Loader2 } from 
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
+import { appAlert, appConfirm } from '../utils/appDialog';
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 const formatDateTime = (value) =>
@@ -79,14 +80,14 @@ export default function PaymentVerification() {
   }, [loadPayments]);
 
   const handleVerify = async (paymentId) => {
-    if (!confirm('Voulez-vous vérifier ce paiement ? Le produit sera approuvé.')) return;
+    if (!(await appConfirm('Voulez-vous vérifier ce paiement ? Le produit sera approuvé.'))) return;
 
     const previousPayments = payments;
     setPayments((prev) => prev.filter((item) => item?._id !== paymentId));
     setActionState({ id: paymentId, type: 'verify' });
     try {
       await api.put(`/payments/admin/${paymentId}/verify`);
-      alert('Paiement vérifié avec succès');
+      appAlert('Paiement vérifié avec succès');
       
       // Emit custom event to notify other pages
       window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
@@ -95,21 +96,21 @@ export default function PaymentVerification() {
     } catch (err) {
       console.error('Verify payment error:', err);
       setPayments(previousPayments);
-      alert(err.response?.data?.message || 'Erreur lors de la vérification');
+      appAlert(err.response?.data?.message || 'Erreur lors de la vérification');
     } finally {
       setActionState({ id: '', type: '' });
     }
   };
 
   const handleReject = async (paymentId) => {
-    if (!confirm('Voulez-vous rejeter ce paiement ? Le produit sera rejeté.')) return;
+    if (!(await appConfirm('Voulez-vous rejeter ce paiement ? Le produit sera rejeté.'))) return;
 
     const previousPayments = payments;
     setPayments((prev) => prev.filter((item) => item?._id !== paymentId));
     setActionState({ id: paymentId, type: 'reject' });
     try {
       await api.put(`/payments/admin/${paymentId}/reject`);
-      alert('Paiement rejeté');
+      appAlert('Paiement rejeté');
       
       // Emit custom event to notify other pages
       window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
@@ -118,7 +119,7 @@ export default function PaymentVerification() {
     } catch (err) {
       console.error('Reject payment error:', err);
       setPayments(previousPayments);
-      alert(err.response?.data?.message || 'Erreur lors du rejet');
+      appAlert(err.response?.data?.message || 'Erreur lors du rejet');
     } finally {
       setActionState({ id: '', type: '' });
     }

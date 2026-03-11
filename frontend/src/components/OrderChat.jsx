@@ -43,6 +43,7 @@ import { encrypt, decrypt, getSharedSecret } from '../utils/chatEncryption.js';
 import { orderChatKeys } from '../queries/orderChatKeys';
 import { fetchOrderMessagePage } from '../queries/orderChatApi';
 import BaseModal from './modals/BaseModal';
+import { appConfirm } from '../utils/appDialog';
 import useReliableMutation from '../hooks/useReliableMutation';
 
 const formatTimestamp = (value) => {
@@ -830,7 +831,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
   const handleDeleteMessage = async (messageId) => {
     if (!messageId || !orderId) return;
-    if (!window.confirm('Supprimer ce message pour tout le monde ?')) return;
+    if (!(await appConfirm('Supprimer ce message pour tout le monde ?'))) return;
     setDeletingMessageId(messageId);
     setError('');
     await deleteMessageMutation.mutateAsync({ messageId }).catch(() => {});

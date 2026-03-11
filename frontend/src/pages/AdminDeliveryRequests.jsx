@@ -21,6 +21,7 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
+import { appConfirm } from '../utils/appDialog';
 
 const STATUS_TABS = [
   { key: 'all', label: 'Toutes' },
@@ -530,7 +531,7 @@ export default function AdminDeliveryRequests() {
       await loadDeliveryRequests({ silent: true });
       return;
     }
-    const confirmed = typeof window === 'undefined' ? true : window.confirm('Retirer ce livreur de la demande ?');
+    const confirmed = typeof window === 'undefined' ? true : await appConfirm('Retirer ce livreur de la demande ?');
     if (!confirmed) return;
     setSavingAction(true);
     setActionError('');
