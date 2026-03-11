@@ -118,6 +118,16 @@ export const ensureOrderAutomationSchedules = async () => {
     { source: 'schedule', reminderType: 'escalation' },
     { jobId: 'schedule:escalation-reminders', repeat: { every: every60m } }
   );
+  await queue.add(
+    'installment-reminders',
+    { source: 'schedule' },
+    { jobId: 'schedule:installment-reminders', repeat: { every: every60m } }
+  );
+  await queue.add(
+    'installment-proof-sla',
+    { source: 'schedule' },
+    { jobId: 'schedule:installment-proof-sla', repeat: { every: every60m } }
+  );
 
   return true;
 };

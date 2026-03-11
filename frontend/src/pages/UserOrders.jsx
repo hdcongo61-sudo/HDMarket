@@ -1,5 +1,6 @@
-import React, { useContext, useEffect, useState, useRef, useCallback } from 'react';
+import React, { useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import {
   ClipboardList,
@@ -50,6 +51,10 @@ import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { getPickupShopAddress, isPickupOrder } from '../utils/pickupAddress';
 import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
+import useReliableMutation from '../hooks/useReliableMutation';
+import useOrderRealtimeSync from '../hooks/useOrderRealtimeSync';
+import useBuyerOrdersListQuery from '../hooks/useBuyerOrdersListQuery';
+import { orderQueryKeys } from '../hooks/useOrderQueryKeys';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
@@ -132,6 +137,20 @@ const STATUS_TABS = [
 ];
 
 const PAGE_SIZE = 6;
+const ACTIVE_LIVE_STATUSES = new Set([
+  'pending_payment',
+  'paid',
+  'ready_for_pickup',
+  'ready_for_delivery',
+  'out_for_delivery',
+  'delivery_proof_submitted',
+  'pending',
+  'pending_installment',
+  'installment_active',
+  'overdue_installment',
+  'confirmed',
+  'delivering'
+]);
 
 const normalizeStatusFilter = (value) => {
   if (!value) return 'all';
@@ -247,6 +266,36 @@ const getPickupCardStatus = (order) => {
       String(order.paymentName || '').trim()
   );
   return hasSubmittedPayment ? 'paid' : 'pending_payment';
+};
+
+const applyRealtimeStatusPatch = (order, payload = {}) => {
+  if (!order || typeof order !== 'object') return order;
+  if (String(order._id || '') !== String(payload.orderId || '')) return order;
+  return {
+    ...order,
+    ...(payload.status ? { status: payload.status } : {}),
+    ...(payload.installmentSaleStatus
+      ? { installmentSaleStatus: payload.installmentSaleStatus }
+      : {})
+  };
+};
+
+const patchOrdersListPayload = (payload, nextOrder) => {
+  if (!nextOrder?._id) return payload;
+  if (Array.isArray(payload)) {
+    return payload.map((entry) =>
+      String(entry?._id || '') === String(nextOrder._id) ? nextOrder : entry
+    );
+  }
+  if (payload && Array.isArray(payload.items)) {
+    return {
+      ...payload,
+      items: payload.items.map((entry) =>
+        String(entry?._id || '') === String(nextOrder._id) ? nextOrder : entry
+      )
+    };
+  }
+  return payload;
 };
 
 const OrderProgress = ({ status }) => {
@@ -813,9 +862,8 @@ export default function UserOrders() {
   const externalLinkProps = useDesktopExternalLink();
   const { user } = useContext(AuthContext);
   const { t } = useAppSettings();
+  const queryClient = useQueryClient();
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
   const [stats, setStats] = useState({ total: 0, totalAmount: 0, byStatus: {} });
@@ -831,7 +879,6 @@ export default function UserOrders() {
   const [swipedOrderId, setSwipedOrderId] = useState(null);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
-  const [reloadToken, setReloadToken] = useState(0);
   const pullStartY = useRef(0);
   const pullMoveY = useRef(0);
   const [pullDistance, setPullDistance] = useState(0);
@@ -841,6 +888,7 @@ export default function UserOrders() {
   const navigate = useNavigate();
   const isMobile = useIsMobile(768);
   const [activeStatus, setActiveStatus] = useState(() => normalizeStatusFilter(statusParam));
+  const [initialLoadingDone, setInitialLoadingDone] = useState(false);
 
   useEffect(() => {
     const normalizedStatus = normalizeStatusFilter(statusParam);
@@ -849,6 +897,60 @@ export default function UserOrders() {
     );
     setPage(1);
   }, [statusParam]);
+
+  const ordersListQuery = useBuyerOrdersListQuery({
+    page,
+    limit: PAGE_SIZE,
+    status: activeStatus,
+    enabled: Boolean(user?._id || user?.id)
+  });
+
+  const mergeOrderUpdate = useCallback(
+    (updatedOrder) => {
+      if (!updatedOrder?._id) return;
+      setOrders((prev) => {
+        const patched = prev.map((entry) =>
+          String(entry?._id || '') === String(updatedOrder._id) ? updatedOrder : entry
+        );
+        if (activeStatus === 'all') return patched;
+        return patched.filter(
+          (entry) => String(entry?.status || '').trim() === String(activeStatus).trim()
+        );
+      });
+      queryClient.setQueriesData(
+        { queryKey: orderQueryKeys.listRoot('user') },
+        (existing) => patchOrdersListPayload(existing, updatedOrder)
+      );
+      queryClient.setQueryData(
+        orderQueryKeys.detail('user', String(updatedOrder._id)),
+        (existing) => ({
+          ...(existing || {}),
+          order: updatedOrder,
+          unreadCount: Number(existing?.unreadCount || 0)
+        })
+      );
+    },
+    [activeStatus, queryClient]
+  );
+
+  const invalidateOrderItem = useCallback(
+    async (orderId) => {
+      if (!orderId) return;
+      await queryClient.invalidateQueries({
+        queryKey: orderQueryKeys.detail('user', String(orderId)),
+        refetchType: 'inactive'
+      });
+      await queryClient.invalidateQueries({
+        queryKey: orderQueryKeys.list('user', {
+          page,
+          limit: PAGE_SIZE,
+          status: activeStatus
+        }),
+        refetchType: 'active'
+      });
+    },
+    [activeStatus, page, queryClient]
+  );
 
   // Online/Offline detection
   useEffect(() => {
@@ -861,6 +963,38 @@ export default function UserOrders() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  const hasActiveOrders = useMemo(
+    () =>
+      orders.some((order) => ACTIVE_LIVE_STATUSES.has(String(order?.status || '').trim())),
+    [orders]
+  );
+
+  useOrderRealtimeSync({
+    scope: 'user',
+    enabled: Boolean(user?._id || user?.id),
+    pollIntervalMs: 15000,
+    currentStatus: hasActiveOrders ? 'pending_payment' : 'delivered'
+  });
+
+  useEffect(() => {
+    const onStatusUpdated = (event) => {
+      const payload = event?.detail || {};
+      const incomingOrderId = String(payload?.orderId || '').trim();
+      if (!incomingOrderId) return;
+      setOrders((prev) => {
+        const patched = prev.map((entry) => applyRealtimeStatusPatch(entry, payload));
+        if (activeStatus === 'all') return patched;
+        return patched.filter(
+          (entry) => String(entry?.status || '').trim() === String(activeStatus).trim()
+        );
+      });
+    };
+
+    window.addEventListener('hdmarket:orders-status-updated', onStatusUpdated);
+    return () =>
+      window.removeEventListener('hdmarket:orders-status-updated', onStatusUpdated);
+  }, [activeStatus]);
 
   // Cache orders for offline access
   useEffect(() => {
@@ -892,12 +1026,6 @@ export default function UserOrders() {
     }
   }, [isOnline, orders.length]);
 
-  useEffect(() => {
-    const handler = () => setReloadToken((value) => value + 1);
-    window.addEventListener('hdmarket:orders-refresh', handler);
-    return () => window.removeEventListener('hdmarket:orders-refresh', handler);
-  }, []);
-
   // Pull-to-refresh handlers
   const handleTouchStart = useCallback((e) => {
     if (containerRef.current?.scrollTop === 0) {
@@ -918,19 +1046,7 @@ export default function UserOrders() {
     if (pullDistance > 80 && !isRefreshing && isOnline) {
       setIsRefreshing(true);
       try {
-        const params = new URLSearchParams();
-        params.set('page', page);
-        params.set('limit', PAGE_SIZE);
-        if (activeStatus !== 'all') {
-          params.set('status', activeStatus);
-        }
-        const { data } = await api.get(`/orders?${params.toString()}`);
-        const items = Array.isArray(data) ? data : data?.items || [];
-        setOrders(items);
-        setMeta({
-          total: data?.total ?? items.length,
-          totalPages: Math.max(1, Number(data?.totalPages) || 1)
-        });
+        await ordersListQuery.refetch();
       } catch (err) {
         console.error('Refresh failed:', err);
       } finally {
@@ -940,7 +1056,7 @@ export default function UserOrders() {
     pullStartY.current = 0;
     pullMoveY.current = 0;
     setPullDistance(0);
-  }, [pullDistance, isRefreshing, isOnline, page, activeStatus]);
+  }, [pullDistance, isRefreshing, isOnline, ordersListQuery]);
 
   // Swipe action handlers
   const minSwipeDistance = 50;
@@ -1032,54 +1148,89 @@ export default function UserOrders() {
     }
   };
 
-  const initialLoadDone = useRef(false);
   useEffect(() => {
-    const loadOrders = async () => {
-      if (!initialLoadDone.current) {
-        setLoading(true);
-      }
-      setError('');
-      try {
-        const params = new URLSearchParams();
-        params.set('page', page);
-        params.set('limit', PAGE_SIZE);
-        if (activeStatus !== 'all') {
-          params.set('status', activeStatus);
-        }
-        const { data } = await api.get(`/orders?${params.toString()}`);
-        const items = Array.isArray(data) ? data : data?.items || [];
-        const totalPages = Math.max(1, Number(data?.totalPages) || 1);
-        setOrders(items);
-        
-        // Load unread message counts
-        const orderIds = items.map((order) => order._id);
-        const unreadCounts = await loadUnreadCounts(orderIds);
+    if (!ordersListQuery.data) return;
+    const items = Array.isArray(ordersListQuery.data.items)
+      ? ordersListQuery.data.items
+      : [];
+    setOrders(items);
+    setMeta({
+      total: Number(ordersListQuery.data.total || items.length),
+      totalPages: Math.max(1, Number(ordersListQuery.data.totalPages || 1))
+    });
+    const incomingPage = Number(ordersListQuery.data.page || page);
+    if (Number.isFinite(incomingPage) && incomingPage > 0 && incomingPage !== page) {
+      setPage(incomingPage);
+    }
+    if (!initialLoadingDone) {
+      setInitialLoadingDone(true);
+    }
+  }, [initialLoadingDone, ordersListQuery.data, page]);
+
+  useEffect(() => {
+    if (!orders.length || !user?._id) {
+      setOrderUnreadCounts({});
+      return;
+    }
+    let active = true;
+    const run = async () => {
+      const orderIds = orders.map((order) => order._id).filter(Boolean);
+      const unreadCounts = await loadUnreadCounts(orderIds);
+      if (active) {
         setOrderUnreadCounts(unreadCounts);
-        
-        setMeta({
-          total: data?.total ?? items.length,
-          totalPages
-        });
-        const incomingPage = Number(data?.page);
-        if (Number.isFinite(incomingPage) && incomingPage > 0 && incomingPage !== page) {
-          setPage(incomingPage);
-        }
-      } catch (err) {
-        setError(err.response?.data?.message || 'Impossible de charger vos commandes.');
-        setOrders([]);
-        setMeta({ total: 0, totalPages: 1 });
-      } finally {
-        setLoading(false);
-        initialLoadDone.current = true;
       }
     };
-    loadOrders();
-  }, [activeStatus, page, user?._id, reloadToken]);
+    run();
+    return () => {
+      active = false;
+    };
+  }, [orders, user?._id]);
 
   const emptyMessage =
     activeStatus === 'all'
       ? 'Vous n\'avez pas encore de commande.'
       : `Aucune commande ${STATUS_LABELS[activeStatus].toLowerCase()} pour le moment.`;
+
+  const cancelOrderMutation = useReliableMutation({
+    mutationFn: async ({ orderId, idempotencyKey }) => {
+      const { data } = await api.patch(
+        `/orders/${orderId}/status`,
+        { status: 'cancelled' },
+        {
+          headers: {
+            'Idempotency-Key': idempotencyKey
+          }
+        }
+      );
+      return data;
+    },
+    verifyFn: async ({ orderId }) => {
+      if (!orderId) return false;
+      const { data } = await api.get(`/orders/detail/${orderId}`, {
+        skipCache: true,
+        skipDedupe: true,
+        headers: { 'x-skip-cache': '1', 'x-skip-dedupe': '1' },
+        timeout: 12_000
+      });
+      return String(data?.status || '') === 'cancelled' ? data : false;
+    },
+    onSuccess: async (result, variables) => {
+      const payload = result?.data;
+      const nextOrder =
+        payload?.order && typeof payload.order === 'object' ? payload.order : payload;
+      if (nextOrder?._id) {
+        mergeOrderUpdate(nextOrder);
+      } else if (variables?.orderId) {
+        await queryClient.invalidateQueries({
+          queryKey: orderQueryKeys.detail('user', String(variables.orderId)),
+          refetchType: 'active'
+        });
+      }
+    },
+    onSettled: async (_data, _error, variables) => {
+      await invalidateOrderItem(variables?.orderId);
+    }
+  });
 
   const handleSkipCancellationWindow = async (orderId) => {
     if (!confirm('En confirmant, vous autorisez le vendeur à traiter immédiatement cette commande. Vous ne pourrez plus l\'annuler.')) {
@@ -1089,7 +1240,8 @@ export default function UserOrders() {
     setSkipLoadingId(orderId);
     try {
       const { data } = await api.post(`/orders/${orderId}/skip-cancellation-window`);
-      setOrders((prev) => prev.map((o) => (o._id === orderId ? data : o)));
+      mergeOrderUpdate(data);
+      await invalidateOrderItem(orderId);
     } catch (err) {
       alert(err.response?.data?.message || 'Impossible de lever le délai d\'annulation.');
     } finally {
@@ -1103,8 +1255,7 @@ export default function UserOrders() {
     }
 
     try {
-      const { data } = await api.patch(`/orders/${orderId}/status`, { status: 'cancelled' });
-      setOrders((prev) => prev.map((o) => (o._id === orderId ? data : o)));
+      await cancelOrderMutation.mutateAsync({ orderId });
     } catch (err) {
       alert(err.response?.data?.message || 'Impossible d\'annuler la commande.');
     }
@@ -1120,7 +1271,8 @@ export default function UserOrders() {
     
     try {
       const { data } = await api.patch(`/orders/${selectedOrderForEdit._id}/address`, addressData);
-      setOrders((prev) => prev.map((o) => (o._id === selectedOrderForEdit._id ? data : o)));
+      mergeOrderUpdate(data);
+      await invalidateOrderItem(selectedOrderForEdit._id);
       setEditAddressModalOpen(false);
       setSelectedOrderForEdit(null);
     } catch (err) {
@@ -1301,6 +1453,13 @@ export default function UserOrders() {
     pdfWindow.document.close();
     pdfWindow.focus();
   };
+
+  const loading = !initialLoadingDone && ordersListQuery.isLoading && orders.length === 0;
+  const queryErrorMessage =
+    ordersListQuery.error?.response?.data?.message ||
+    ordersListQuery.error?.message ||
+    '';
+  const error = !isOnline && orders.length > 0 ? '' : queryErrorMessage;
 
   if (loading && orders.length === 0) {
     return (

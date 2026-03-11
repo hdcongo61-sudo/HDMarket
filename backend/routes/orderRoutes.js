@@ -42,6 +42,8 @@ import {
   adminApplyOrderAction,
   adminOrderAlerts,
   adminOrderCommandCenter,
+  adminRunInstallmentProofSlaSweep,
+  adminRunInstallmentReminderSweep,
   adminOrderTimeline,
   adminRunDelayDetection,
   adminRunReminderSweep,
@@ -91,6 +93,8 @@ adminRouter.get('/:id/timeline', validate(schemas.idParam, 'params'), adminOrder
 adminRouter.post('/:id/actions', validate(schemas.idParam, 'params'), adminApplyOrderAction);
 adminRouter.post('/automation/detect-delays', adminRunDelayDetection);
 adminRouter.post('/automation/reminder-sweep', adminRunReminderSweep);
+adminRouter.post('/automation/installment-reminders', adminRunInstallmentReminderSweep);
+adminRouter.post('/automation/installment-proof-sla', adminRunInstallmentProofSlaSweep);
 adminRouter.get('/customers', adminSearchCustomers);
 adminRouter.get('/products', adminSearchProducts);
 adminRouter.get('/', adminListOrders);

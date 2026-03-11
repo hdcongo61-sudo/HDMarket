@@ -1,6 +1,10 @@
 import { safeAsync } from '../utils/safeAsync.js';
 import { orderAutomationQueueName } from '../queues/orderAutomationQueue.js';
 import { runAutomatedReminderSweep, runDelayedOrderDetection } from '../services/adminOrderAutomationService.js';
+import {
+  runInstallmentProofValidationSlaSweep,
+  runInstallmentReminderSweep
+} from '../services/orderReliabilityAutomationService.js';
 
 let WorkerClass = null;
 let orderAutomationWorker = null;
@@ -72,6 +76,17 @@ export const initOrderAutomationWorker = async () => {
         return runAutomatedReminderSweep({
           reminderType: data?.reminderType || reminderTypeMap[name] || 'seller',
           limit: Number(data?.limit || 120),
+          actorId: data?.actorId || null
+        });
+      }
+
+      if (name === 'installment-reminders') {
+        return runInstallmentReminderSweep();
+      }
+
+      if (name === 'installment-proof-sla') {
+        return runInstallmentProofValidationSlaSweep({
+          limit: Number(data?.limit || 200),
           actorId: data?.actorId || null
         });
       }

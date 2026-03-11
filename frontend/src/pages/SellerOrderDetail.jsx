@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useContext } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api from '../services/api';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Package,
   Truck,
@@ -42,6 +43,9 @@ import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { getPickupShopAddress, isPickupOrder as resolvePickupOrder } from '../utils/pickupAddress';
 import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
 import { getInstallmentWorkflow } from '../utils/installmentTracking';
+import useSellerOrderDetailQuery from '../hooks/useSellerOrderDetailQuery';
+import useSellerOrderStatusMutation from '../hooks/useSellerOrderStatusMutation';
+import useOrderRealtimeSync from '../hooks/useOrderRealtimeSync';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
@@ -121,6 +125,97 @@ const getInstallmentSaleStatusClassName = (status) => {
     case 'confirmed':
     default:
       return 'bg-amber-50 text-amber-700 border-amber-200';
+  }
+};
+
+const getPrimaryActionMeta = (order) => {
+  const nextAction = order?.nextAction?.seller;
+  if (!nextAction || typeof nextAction !== 'object') return null;
+  const actionKey = String(nextAction.key || '').trim();
+  const nextStatus = String(nextAction.nextStatus || '').trim();
+
+  const base = {
+    key: actionKey,
+    nextStatus: nextStatus || null,
+    disabled: false,
+    intent: 'primary',
+    mode: 'status',
+    label: 'Mettre à jour le statut'
+  };
+
+  switch (actionKey) {
+    case 'confirm_order':
+      return { ...base, label: 'Confirmer la commande' };
+    case 'mark_ready_for_delivery':
+      return { ...base, label: 'Passer: Prête à livrer' };
+    case 'start_delivery':
+      return { ...base, label: 'Passer: En livraison' };
+    case 'mark_ready_for_pickup':
+      return { ...base, label: 'Passer: Prête au retrait' };
+    case 'submit_delivery_proof':
+      return {
+        ...base,
+        mode: 'proof_delivery',
+        nextStatus: null,
+        intent: 'success',
+        label: 'Preuve livraison'
+      };
+    case 'submit_pickup_proof':
+      return {
+        ...base,
+        mode: 'proof_pickup',
+        nextStatus: null,
+        intent: 'success',
+        label: 'Preuve retrait'
+      };
+    case 'confirm_installment_sale':
+      return {
+        ...base,
+        mode: 'confirm_sale',
+        nextStatus: null,
+        intent: 'primary',
+        label: 'Confirmer la vente tranche'
+      };
+    case 'wait_installment_settlement':
+      return {
+        ...base,
+        mode: 'none',
+        nextStatus: null,
+        disabled: true,
+        intent: 'muted',
+        label: 'En attente du paiement complet'
+      };
+    case 'wait_client_confirmation':
+      return {
+        ...base,
+        mode: 'none',
+        nextStatus: null,
+        disabled: true,
+        intent: 'muted',
+        label: 'En attente de confirmation client'
+      };
+    default:
+      if (nextStatus) {
+        return {
+          ...base,
+          label: `Passer: ${nextStatus}`
+        };
+      }
+      return null;
+  }
+};
+
+const getPrimaryActionClassName = (intent = 'primary') => {
+  switch (intent) {
+    case 'success':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100';
+    case 'muted':
+      return 'border-gray-200 bg-gray-100 text-gray-500';
+    case 'warning':
+      return 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100';
+    case 'primary':
+    default:
+      return 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100';
   }
 };
 
@@ -243,10 +338,9 @@ export default function SellerOrderDetail() {
   const { user } = useContext(AuthContext);
   const { getRuntimeValue } = useAppSettings();
   const externalLinkProps = useDesktopExternalLink();
+  const queryClient = useQueryClient();
 
   const [order, setOrder] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
   const [statusUpdatingId, setStatusUpdatingId] = useState('');
   const [statusUpdateError, setStatusUpdateError] = useState({ id: '', message: '' });
@@ -292,51 +386,68 @@ export default function SellerOrderDetail() {
     return `${host}/${String(url).replace(/^\/+/, '')}`;
   }, []);
 
+  const sellerOrderDetailQuery = useSellerOrderDetailQuery({
+    orderId,
+    userId: user?._id || user?.id || '',
+    enabled: Boolean(orderId)
+  });
+
   const loadOrder = useCallback(async () => {
-    if (!orderId) return;
-    setLoading(true);
-    setError('');
-    try {
-      const { data } = await api.get(`/orders/seller/detail/${orderId}`);
-      setOrder(data);
-      setDeliveryFeeEditValue('');
-      const { data: messages } = await api.get(`/orders/${orderId}/messages`);
-      const currentUserId = user?._id || user?.id || '';
-      const unread = Array.isArray(messages)
-        ? messages.filter((m) => String(m.recipient?._id) === String(currentUserId) && !m.readAt)
-        : [];
-      setUnreadCount(unread.length);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Commande introuvable.');
-      setOrder(null);
-    } finally {
-      setLoading(false);
+    await sellerOrderDetailQuery.refetch();
+  }, [sellerOrderDetailQuery.refetch]);
+
+  useEffect(() => {
+    const nextOrder = sellerOrderDetailQuery.data?.order || null;
+    setOrder(nextOrder);
+    setUnreadCount(Number(sellerOrderDetailQuery.data?.unreadCount || 0));
+  }, [sellerOrderDetailQuery.data]);
+
+  useOrderRealtimeSync({
+    scope: 'seller',
+    orderId,
+    enabled: Boolean(orderId),
+    pollIntervalMs: 15000,
+    currentStatus: order?.status || ''
+  });
+
+  const statusMutation = useSellerOrderStatusMutation({
+    orderId,
+    onApplied: async (result) => {
+      const payload = result?.data?.data || result?.data;
+      if (payload?.order?._id) {
+        setOrder(payload.order);
+      } else if (payload?._id) {
+        setOrder(payload);
+      }
+      showToast('Statut mis à jour.', { variant: 'success' });
+    },
+    onFailed: async (error) => {
+      const message = error?.response?.data?.message || 'Impossible de mettre à jour le statut.';
+      setStatusUpdateError({ id: orderId || '', message });
+      showToast(message, { variant: 'error' });
     }
-  }, [orderId, user?._id, user?.id]);
+  });
 
-  useEffect(() => {
-    loadOrder();
-  }, [loadOrder]);
-
-  useEffect(() => {
-    const handler = () => loadOrder();
-    window.addEventListener('hdmarket:orders-refresh', handler);
-    return () => window.removeEventListener('hdmarket:orders-refresh', handler);
-  }, [loadOrder]);
+  const invalidateOrderQueries = useCallback(async () => {
+    await queryClient.invalidateQueries({
+      queryKey: ['orders', 'detail', 'seller', String(orderId || '')],
+      refetchType: 'active'
+    });
+    await queryClient.invalidateQueries({
+      queryKey: ['orders', 'list', 'seller'],
+      refetchType: 'inactive'
+    });
+    window.dispatchEvent(new Event('hdmarket:orders-refresh'));
+  }, [orderId, queryClient]);
 
   const handleStatusUpdate = async (nextStatus) => {
     if (!order) return;
     setStatusUpdatingId(order._id);
     setStatusUpdateError({ id: '', message: '' });
     try {
-      const { data } = await api.patch(`/orders/seller/${order._id}/status`, { status: nextStatus });
-      setOrder(data);
-      showToast('Statut mis à jour.', { variant: 'success' });
-      window.dispatchEvent(new Event('hdmarket:orders-refresh'));
-    } catch (err) {
-      const message = err.response?.data?.message || 'Impossible de mettre à jour le statut.';
-      setStatusUpdateError({ id: order._id, message });
-      showToast(message, { variant: 'error' });
+      await statusMutation.mutateAsync({ nextStatus });
+    } catch {
+      // handled in mutation callbacks
     } finally {
       setStatusUpdatingId('');
     }
@@ -357,6 +468,7 @@ export default function SellerOrderDetail() {
       setOrder(data);
       setDeliveryFeeEditValue('');
       showToast('Frais de livraison mis à jour. Le client a été notifié.', { variant: 'success' });
+      await invalidateOrderQueries();
     } catch (err) {
       showToast(err.response?.data?.message || 'Impossible de modifier les frais.', { variant: 'error' });
     } finally {
@@ -382,6 +494,7 @@ export default function SellerOrderDetail() {
           : 'Commande tranche refusée et annulée.',
         { variant: 'success' }
       );
+      await invalidateOrderQueries();
     } catch (err) {
       const message = err.response?.data?.message || 'Impossible de traiter la preuve de vente.';
       showToast(message, { variant: 'error' });
@@ -403,6 +516,7 @@ export default function SellerOrderDetail() {
         approve ? 'Tranche validée.' : 'Tranche rejetée. Le client doit renvoyer une preuve.',
         { variant: 'success' }
       );
+      await invalidateOrderQueries();
     } catch (err) {
       const message = err.response?.data?.message || 'Impossible de valider cette tranche.';
       showToast(message, { variant: 'error' });
@@ -435,6 +549,7 @@ export default function SellerOrderDetail() {
         { variant: 'success' }
       );
       closeCancelModal({ force: true });
+      await invalidateOrderQueries();
     } catch (err) {
       const message = err.response?.data?.message || err.response?.data?.details?.[0] || 'Impossible d\'annuler la commande.';
       showToast(message, { variant: 'error' });
@@ -513,6 +628,7 @@ export default function SellerOrderDetail() {
       setRequestPlatformDeliveryNote('');
       setRequestPlatformDeliveryInvoiceUrl('');
       await loadOrder();
+      await invalidateOrderQueries();
     } catch (err) {
       const message =
         err.response?.data?.message ||
@@ -555,6 +671,7 @@ export default function SellerOrderDetail() {
       }
       showToast(data?.message || 'Code de livraison mis à jour.', { variant: 'success' });
       await loadOrder();
+      await invalidateOrderQueries();
     } catch (err) {
       const message =
         err.response?.data?.message ||
@@ -603,6 +720,12 @@ export default function SellerOrderDetail() {
     }
   }, [order?.platformDeliveryRequestId]);
 
+  const loading = sellerOrderDetailQuery.isLoading && !order;
+  const queryErrorMessage =
+    sellerOrderDetailQuery.error?.response?.data?.message ||
+    sellerOrderDetailQuery.error?.message ||
+    '';
+
   if (loading && !order) {
     return (
       <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
@@ -612,13 +735,13 @@ export default function SellerOrderDetail() {
     );
   }
 
-  if (error || !order) {
+  if (queryErrorMessage || !order) {
     return (
       <div className="min-h-screen bg-gray-50 p-4">
         <Link to="/seller/orders" className="inline-flex items-center gap-2 text-neutral-600 font-medium mb-4">
           <ArrowLeft className="w-4 h-4" /> Retour aux commandes
         </Link>
-        <p className="text-red-600">{error || 'Commande introuvable.'}</p>
+        <p className="text-red-600">{queryErrorMessage || 'Commande introuvable.'}</p>
       </div>
     );
   }
@@ -758,6 +881,21 @@ export default function SellerOrderDetail() {
     Boolean(sellerCity && buyerCity) && sellerCity.toLowerCase() !== buyerCity.toLowerCase();
   const cancellationBlockedByStatus = ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(order.status);
   const canCancelOrder = !cancellationBlockedByStatus && order.status !== 'cancelled' && !order.cancellationWindow?.isActive;
+  const sellerPrimaryAction = getPrimaryActionMeta(order);
+  const handlePrimarySellerAction = async () => {
+    if (!sellerPrimaryAction || sellerPrimaryAction.disabled) return;
+    if (sellerPrimaryAction.mode === 'status' && sellerPrimaryAction.nextStatus) {
+      await handleStatusUpdate(sellerPrimaryAction.nextStatus);
+      return;
+    }
+    if (sellerPrimaryAction.mode === 'confirm_sale') {
+      await handleConfirmInstallmentSale(true);
+      return;
+    }
+    if (sellerPrimaryAction.mode === 'proof_delivery' || sellerPrimaryAction.mode === 'proof_pickup') {
+      setShowDeliveryProofForm((prev) => !prev);
+    }
+  };
   const statusTimelineEntries = [
     { key: 'created', label: 'Créée', icon: Calendar, time: order.createdAt },
     { key: 'confirmed', label: 'Confirmée', icon: Package, time: order.confirmedAt },
@@ -1132,15 +1270,17 @@ export default function SellerOrderDetail() {
                 )}
                 {!saleConfirmationConfirmed && order.status === 'pending_installment' && (
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleConfirmInstallmentSale(true)}
-                      disabled={saleConfirmationLoading}
-                      className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                      {saleConfirmationLoading ? 'Traitement...' : 'Confirmer la vente'}
-                    </button>
+                    {sellerPrimaryAction?.key !== 'confirm_installment_sale' ? (
+                      <button
+                        type="button"
+                        onClick={() => handleConfirmInstallmentSale(true)}
+                        disabled={saleConfirmationLoading}
+                        className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        {saleConfirmationLoading ? 'Traitement...' : 'Confirmer la vente'}
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => handleConfirmInstallmentSale(false)}
@@ -1318,7 +1458,43 @@ export default function SellerOrderDetail() {
               <OrderChat order={order} buttonText="Contacter l'acheteur" unreadCount={unreadCount} />
             </div>
 
-            {canManageInstallmentSaleStatus && (
+            {sellerPrimaryAction ? (
+              <div className="rounded-2xl border border-gray-100 bg-white p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-gray-500" />
+                  <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                    Action suivante
+                  </h4>
+                </div>
+                <button
+                  type="button"
+                  onClick={handlePrimarySellerAction}
+                  disabled={
+                    sellerPrimaryAction.disabled ||
+                    Boolean(statusUpdatingId) ||
+                    statusMutation.isReliablePending ||
+                    saleConfirmationLoading ||
+                    paymentValidationLoadingIndex >= 0 ||
+                    order.cancellationWindow?.isActive
+                  }
+                  className={`inline-flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${getPrimaryActionClassName(
+                    sellerPrimaryAction.intent
+                  )}`}
+                >
+                  {statusMutation.isReliablePending || Boolean(statusUpdatingId) ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : null}
+                  {sellerPrimaryAction.label}
+                </button>
+                {sellerPrimaryAction.mode === 'proof_pickup' ? (
+                  <p className="text-xs text-gray-500">
+                    La preuve de retrait exige 3 photos et la signature du client.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            {canManageInstallmentSaleStatus && !sellerPrimaryAction && (
               <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-gray-500" />
@@ -1396,6 +1572,7 @@ export default function SellerOrderDetail() {
             )}
 
             {!isInstallmentOrder &&
+              !sellerPrimaryAction &&
               !['cancelled', 'delivery_proof_submitted', 'confirmed_by_client', 'completed', 'delivered', 'picked_up_confirmed'].includes(
                 order.status
               ) && (

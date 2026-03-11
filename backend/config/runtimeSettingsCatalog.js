@@ -323,6 +323,16 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     min: 1,
     max: 30
   },
+  installment_payment_validation_sla_hours: {
+    category: 'order_automation',
+    description:
+      'Délai max (heures) avant escalade admin si preuve de tranche non validée par le vendeur.',
+    valueType: 'number',
+    defaultValue: 48,
+    isPublic: false,
+    min: 12,
+    max: 240
+  },
   delivery_proof_resubmission_limit: {
     category: 'order_automation',
     description: 'Nombre max de resoumissions de preuve de livraison.',

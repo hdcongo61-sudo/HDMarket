@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import api, { verifyTransactionCodeAvailability } from '../services/api';
 import {
   Package,
@@ -44,6 +45,10 @@ import { useToast } from '../context/ToastContext';
 import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
 import useReliableMutation from '../hooks/useReliableMutation';
 import { getInstallmentWorkflow } from '../utils/installmentTracking';
+import useBuyerOrderDetailQuery from '../hooks/useBuyerOrderDetailQuery';
+import useBuyerOrderStatusMutation from '../hooks/useBuyerOrderStatusMutation';
+import useOrderRealtimeSync from '../hooks/useOrderRealtimeSync';
+import { orderQueryKeys } from '../hooks/useOrderQueryKeys';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
@@ -204,6 +209,46 @@ const getScheduleStatusClassName = (status) => {
   }
 };
 
+const getBuyerPrimaryActionMeta = (order = {}) => {
+  const nextAction = order?.nextAction?.buyer;
+  if (!nextAction || typeof nextAction !== 'object') return null;
+  const actionKey = String(nextAction.key || '').trim();
+  const nextStatus = String(nextAction.nextStatus || '').trim();
+
+  switch (actionKey) {
+    case 'cancel_order':
+      return {
+        key: actionKey,
+        mode: 'cancel',
+        nextStatus: nextStatus || 'cancelled',
+        intent: 'danger',
+        label: 'Annuler la commande'
+      };
+    case 'confirm_delivery':
+      return {
+        key: actionKey,
+        mode: 'confirm_delivery',
+        nextStatus: nextStatus || null,
+        intent: 'success',
+        label: 'Confirmer la livraison'
+      };
+    default:
+      return null;
+  }
+};
+
+const getPrimaryActionClassName = (intent = 'primary') => {
+  switch (intent) {
+    case 'success':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100';
+    case 'danger':
+      return 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100';
+    case 'primary':
+    default:
+      return 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100';
+  }
+};
+
 const OrderProgress = ({ status, paymentType }) => {
   const flow = paymentType === 'installment' ? INSTALLMENT_ORDER_FLOW : CLASSIC_ORDER_FLOW;
   const currentIndexRaw = flow.findIndex((step) => step.id === status);
@@ -270,10 +315,9 @@ export default function OrderDetail() {
   const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
     defaultValue: true
   });
+  const queryClient = useQueryClient();
 
   const [order, setOrder] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
   const [skipLoadingId, setSkipLoadingId] = useState(null);
   const [reordering, setReordering] = useState(false);
@@ -291,33 +335,70 @@ export default function OrderDetail() {
     return `${host}/${String(url).replace(/^\/+/, '')}`;
   }, []);
 
+  const buyerOrderDetailQuery = useBuyerOrderDetailQuery({
+    orderId,
+    userId: user?._id || user?.id || '',
+    enabled: Boolean(orderId)
+  });
+
   const loadOrder = useCallback(async () => {
-    if (!orderId) return;
-    setLoading(true);
-    setError('');
-    try {
-      const { data } = await api.get(`/orders/detail/${orderId}`);
-      setOrder(data);
-      const { data: messages } = await api.get(`/orders/${orderId}/messages`);
-      const unread = Array.isArray(messages) ? messages.filter((m) => String(m.recipient?._id) === String(user?._id) && !m.readAt) : [];
-      setUnreadCount(unread.length);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Commande introuvable.');
-      setOrder(null);
-    } finally {
-      setLoading(false);
+    await buyerOrderDetailQuery.refetch();
+  }, [buyerOrderDetailQuery.refetch]);
+
+  useEffect(() => {
+    const nextOrder = buyerOrderDetailQuery.data?.order || null;
+    setOrder(nextOrder);
+    setUnreadCount(Number(buyerOrderDetailQuery.data?.unreadCount || 0));
+  }, [buyerOrderDetailQuery.data]);
+
+  useOrderRealtimeSync({
+    scope: 'user',
+    orderId,
+    enabled: Boolean(orderId),
+    pollIntervalMs: 15000,
+    currentStatus: order?.status || ''
+  });
+
+  const applyOrderSnapshot = useCallback(
+    (payload) => {
+      const nextOrder =
+        payload?.order && typeof payload.order === 'object' ? payload.order : payload;
+      if (!nextOrder?._id) return false;
+      setOrder(nextOrder);
+      queryClient.setQueryData(orderQueryKeys.detail('user', String(orderId || '')), (existing) => ({
+        ...(existing || {}),
+        order: nextOrder,
+        unreadCount: Number(existing?.unreadCount || 0)
+      }));
+      return true;
+    },
+    [orderId, queryClient]
+  );
+
+  const invalidateOrderQueries = useCallback(async () => {
+    await queryClient.invalidateQueries({
+      queryKey: orderQueryKeys.detail('user', String(orderId || '')),
+      refetchType: 'active'
+    });
+    await queryClient.invalidateQueries({
+      queryKey: orderQueryKeys.listRoot('user'),
+      refetchType: 'inactive'
+    });
+    window.dispatchEvent(new Event('hdmarket:orders-refresh'));
+  }, [orderId, queryClient]);
+
+  const buyerStatusMutation = useBuyerOrderStatusMutation({
+    orderId,
+    onApplied: async (result) => {
+      applyOrderSnapshot(result?.data);
+      showToast('Statut mis à jour.', { variant: 'success' });
+    },
+    onFailed: async (error) => {
+      showToast(error?.response?.data?.message || 'Impossible de mettre à jour la commande.', {
+        variant: 'error'
+      });
     }
-  }, [orderId, user?._id]);
-
-  useEffect(() => {
-    loadOrder();
-  }, [loadOrder]);
-
-  useEffect(() => {
-    const handler = () => loadOrder();
-    window.addEventListener('hdmarket:orders-refresh', handler);
-    return () => window.removeEventListener('hdmarket:orders-refresh', handler);
-  }, [loadOrder]);
+  });
 
   // Load suggestions / similar products for mobile bottom section
   useEffect(() => {
@@ -362,7 +443,8 @@ export default function OrderDetail() {
     setSkipLoadingId(order._id);
     try {
       const { data } = await api.post(`/orders/${order._id}/skip-cancellation-window`);
-      setOrder(data);
+      applyOrderSnapshot(data);
+      await invalidateOrderQueries();
     } catch (err) {
       alert(err.response?.data?.message || 'Impossible de lever le délai.');
     } finally {
@@ -373,10 +455,9 @@ export default function OrderDetail() {
   const handleCancelOrder = async () => {
     if (!order || !confirm('Êtes-vous sûr de vouloir annuler cette commande ?')) return;
     try {
-      const { data } = await api.patch(`/orders/${order._id}/status`, { status: 'cancelled' });
-      setOrder(data);
-    } catch (err) {
-      alert(err.response?.data?.message || 'Impossible d\'annuler la commande.');
+      await buyerStatusMutation.mutateAsync({ nextStatus: 'cancelled' });
+    } catch {
+      // handled by mutation callbacks
     }
   };
 
@@ -384,8 +465,9 @@ export default function OrderDetail() {
     if (!order) return;
     try {
       const { data } = await api.patch(`/orders/${order._id}/address`, addressData);
-      setOrder(data);
+      applyOrderSnapshot(data);
       setEditAddressModalOpen(false);
+      await invalidateOrderQueries();
     } catch (err) {
       throw err;
     }
@@ -446,13 +528,14 @@ export default function OrderDetail() {
           amount
         }
       );
-      setOrder(data);
+      applyOrderSnapshot(data);
       setInstallmentProofForms((prev) => {
         const next = { ...prev };
         delete next[index];
         return next;
       });
       alert('Preuve transactionnelle transmise au vendeur. En attente de validation.');
+      await invalidateOrderQueries();
     } catch (err) {
       alert(err.response?.data?.message || 'Impossible de transmettre la preuve.');
     } finally {
@@ -486,9 +569,7 @@ export default function OrderDetail() {
     },
     onSuccess: async (result) => {
       const payload = result?.data;
-      if (payload && typeof payload === 'object') {
-        setOrder(payload?.order || payload);
-      } else {
+      if (!applyOrderSnapshot(payload)) {
         await loadOrder();
       }
       const successMessage = result?.recovered
@@ -501,8 +582,8 @@ export default function OrderDetail() {
         variant: 'error'
       });
     },
-    onSettled: () => {
-      window.dispatchEvent(new Event('hdmarket:orders-refresh'));
+    onSettled: async () => {
+      await invalidateOrderQueries();
     }
   });
 
@@ -581,6 +662,12 @@ export default function OrderDetail() {
     }
   };
 
+  const loading = buyerOrderDetailQuery.isLoading && !order;
+  const queryErrorMessage =
+    buyerOrderDetailQuery.error?.response?.data?.message ||
+    buyerOrderDetailQuery.error?.message ||
+    '';
+
   if (loading && !order) {
     return (
       <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
@@ -590,13 +677,13 @@ export default function OrderDetail() {
     );
   }
 
-  if (error || !order) {
+  if (queryErrorMessage || !order) {
     return (
       <div className="min-h-screen bg-gray-50 p-4">
         <Link to="/orders" className="inline-flex items-center gap-2 text-neutral-600 font-medium mb-4">
           <ArrowLeft className="w-4 h-4" /> Retour aux commandes
         </Link>
-        <p className="text-red-600">{error || 'Commande introuvable.'}</p>
+        <p className="text-red-600">{queryErrorMessage || 'Commande introuvable.'}</p>
       </div>
     );
   }
@@ -653,6 +740,20 @@ export default function OrderDetail() {
       String(order.platformDeliveryMode || '').toUpperCase() === 'PLATFORM_DELIVERY') &&
     String(order.platformDeliveryStatus || '').toUpperCase() === 'DELIVERED';
   const deliveryConfirmationDone = order.deliveryStatus === 'verified' || platformDeliveryAutoConfirmed;
+  const buyerPrimaryAction = getBuyerPrimaryActionMeta(order);
+  const handlePrimaryBuyerAction = async () => {
+    if (!buyerPrimaryAction || buyerPrimaryAction.mode === 'none') return;
+    if (buyerPrimaryAction.mode === 'cancel') {
+      await handleCancelOrder();
+      return;
+    }
+    if (buyerPrimaryAction.mode === 'confirm_delivery') {
+      await handleConfirmDelivery();
+    }
+  };
+  const isPrimaryActionPending =
+    (buyerPrimaryAction?.mode === 'cancel' && buyerStatusMutation.isReliablePending) ||
+    (buyerPrimaryAction?.mode === 'confirm_delivery' && confirmDeliveryMutation.isReliablePending);
   const statusTimelineEntries = [
     { key: 'created', label: 'Créée', icon: Calendar, time: order.createdAt },
     { key: 'confirmed', label: 'Confirmée', icon: Package, time: order.confirmedAt },
@@ -732,9 +833,11 @@ export default function OrderDetail() {
                   <ShieldCheck className="w-5 h-5 inline mr-2" />
                   {skipLoadingId === order._id ? 'En cours...' : 'Autoriser le vendeur à traiter'}
                 </button>
-                <button type="button" onClick={handleCancelOrder} className="w-full px-6 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700">
-                  <X className="w-5 h-5 inline mr-2" /> Annuler la commande
-                </button>
+                {buyerPrimaryAction?.key !== 'cancel_order' ? (
+                  <button type="button" onClick={handleCancelOrder} className="w-full px-6 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700">
+                    <X className="w-5 h-5 inline mr-2" /> Annuler la commande
+                  </button>
+                ) : null}
               </div>
             )}
 
@@ -909,16 +1012,18 @@ export default function OrderDetail() {
                 {!deliveryConfirmationDone && (
                   <div className="space-y-2">
                     <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={handleConfirmDelivery}
-                        disabled={confirmDeliveryMutation.isReliablePending}
-                        className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
-                      >
-                        {confirmDeliveryMutation.isReliablePending
-                          ? 'Confirmation en cours...'
-                          : 'Confirmer la livraison'}
-                      </button>
+                      {buyerPrimaryAction?.key !== 'confirm_delivery' ? (
+                        <button
+                          type="button"
+                          onClick={handleConfirmDelivery}
+                          disabled={confirmDeliveryMutation.isReliablePending}
+                          className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                        >
+                          {confirmDeliveryMutation.isReliablePending
+                            ? 'Confirmation en cours...'
+                            : 'Confirmer la livraison'}
+                        </button>
+                      ) : null}
                       <Link
                         to={`/reclamations?orderId=${order._id}`}
                         className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100"
@@ -1258,6 +1363,30 @@ export default function OrderDetail() {
                 />
               )
             )}
+
+            {buyerPrimaryAction ? (
+              <div className="rounded-2xl border border-gray-100 bg-white p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-gray-500" />
+                  <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                    Action suivante
+                  </h4>
+                </div>
+                <button
+                  type="button"
+                  onClick={handlePrimaryBuyerAction}
+                  disabled={isPrimaryActionPending || skipLoadingId === order._id}
+                  className={`inline-flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${getPrimaryActionClassName(
+                    buyerPrimaryAction.intent
+                  )}`}
+                >
+                  {isPrimaryActionPending ? (
+                    <Clock className="h-4 w-4 animate-spin" />
+                  ) : null}
+                  {buyerPrimaryAction.label}
+                </button>
+              </div>
+            ) : null}
 
             <div className="space-y-3">
               <OrderChat order={order} buttonText="Contacter le vendeur" unreadCount={unreadCount} />

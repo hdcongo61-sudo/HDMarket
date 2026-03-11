@@ -22,6 +22,13 @@ import {
   TRANSACTION_CODE_REUSED_MESSAGE
 } from '../utils/transactionCodeService.js';
 import { getVerifiedProductIds } from '../utils/publicProductVisibility.js';
+import {
+  calculateInstallmentPenalty,
+  deriveInstallmentOrderStatus,
+  forwardPenaltyToNextInstallment
+} from '../services/installmentPolicyService.js';
+import { getOrderAllowedActions } from '../services/orderStatusFlowService.js';
+import { emitOrderStatusUpdated } from '../sockets/chatSocket.js';
 
 const ensureObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -73,6 +80,7 @@ const ensureOrderProductSlugs = async (orders = []) => {
 const buildOrderResponse = (order) => {
   if (!order) return null;
   const obj = order.toObject ? order.toObject() : order;
+  const orderActionState = getOrderAllowedActions(obj);
   const installmentProgress =
     obj.paymentType === 'installment' ? getInstallmentProgress(obj.installmentPlan || {}) : null;
   return {
@@ -122,7 +130,9 @@ const buildOrderResponse = (order) => {
             ''
         }
       : null,
-    installmentProgress
+    installmentProgress,
+    allowedActions: orderActionState.allowedActions,
+    nextAction: orderActionState.nextAction
   };
 };
 
@@ -212,18 +222,7 @@ const getNextDueDate = (schedule = []) => {
 
 const roundMoney = (value) => Number(Number(value || 0).toFixed(2));
 
-const isPastDueDate = (dueDate, now = new Date()) => {
-  if (!dueDate) return false;
-  const deadline = new Date(dueDate);
-  if (Number.isNaN(deadline.getTime())) return false;
-  deadline.setHours(23, 59, 59, 999);
-  return now.getTime() > deadline.getTime();
-};
-
 const isScheduleEntrySettled = (entry) => ['paid', 'waived'].includes(String(entry?.status || ''));
-
-const getNextPayableInstallmentIndex = (schedule = [], fromIndex = -1) =>
-  schedule.findIndex((entry, index) => index > fromIndex && !isScheduleEntrySettled(entry));
 
 const getRemainingScheduleAmount = (schedule = []) =>
   roundMoney(
@@ -252,6 +251,22 @@ const parseGuarantorPayload = (body = {}) => {
     nationalId: body['guarantor.nationalId'] || body['guarantor[nationalId]'] || '',
     address: body['guarantor.address'] || body['guarantor[address]'] || ''
   };
+};
+
+const emitInstallmentOrderUpdate = ({ order, updatedBy, updatedAt = new Date() }) => {
+  if (!order) return;
+  const sellerIds = Array.isArray(order.items)
+    ? order.items.map((item) => resolveItemShopId(item)).filter(Boolean)
+    : [];
+  emitOrderStatusUpdated({
+    orderId: order._id,
+    status: order.status,
+    installmentSaleStatus: order.installmentSaleStatus,
+    customerId: order.customer,
+    sellerIds,
+    updatedBy,
+    updatedAt: updatedAt instanceof Date ? updatedAt.toISOString() : new Date(updatedAt).toISOString()
+  });
 };
 
 export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
@@ -539,6 +554,11 @@ export const uploadInstallmentPaymentProof = asyncHandler(async (req, res) => {
   }
   order.markModified('installmentPlan');
   await order.save();
+  emitInstallmentOrderUpdate({
+    order,
+    updatedBy: userId,
+    updatedAt: order.updatedAt || new Date()
+  });
 
   const sellerId = resolveItemShopId(order.items?.[0]);
   if (sellerId) {
@@ -601,6 +621,11 @@ export const sellerConfirmInstallmentSale = asyncHandler(async (req, res) => {
   }
   order.markModified('installmentPlan');
   await order.save();
+  emitInstallmentOrderUpdate({
+    order,
+    updatedBy: userId,
+    updatedAt: order.updatedAt || new Date()
+  });
 
   await createNotification({
     userId: order.customer,
@@ -668,6 +693,11 @@ export const sellerValidateInstallmentPayment = asyncHandler(async (req, res) =>
     order.installmentPlan.nextDueDate = getNextDueDate(schedule);
     order.markModified('installmentPlan');
     await order.save();
+    emitInstallmentOrderUpdate({
+      order,
+      updatedBy: userId,
+      updatedAt: order.updatedAt || new Date()
+    });
     const populated = await baseOrderQuery().findById(order._id);
     await ensureOrderProductSlugs([populated]);
     return res.json(buildOrderResponse(populated));
@@ -682,12 +712,12 @@ export const sellerValidateInstallmentPayment = asyncHandler(async (req, res) =>
   }
 
   const now = new Date();
-  // Penalty applies only once the due calendar date is fully passed.
-  const isLate = isPastDueDate(current.dueDate, now);
   const baseAmount = Number(current.amount || 0);
-  const penalty = isLate
-    ? roundMoney((baseAmount * Number(order.installmentPlan.latePenaltyRate || 0)) / 100)
-    : 0;
+  const penalty = calculateInstallmentPenalty({
+    order,
+    scheduleEntry: current,
+    now
+  });
   let penaltyForwardedToIndex = -1;
 
   current.status = 'paid';
@@ -699,26 +729,12 @@ export const sellerValidateInstallmentPayment = asyncHandler(async (req, res) =>
   // Business rule: penalties are not counted as principal paid; they are forwarded
   // to the next installment due. If no next installment exists, create one.
   if (penalty > 0) {
-    const nextIndex = getNextPayableInstallmentIndex(schedule, index);
-    if (nextIndex >= 0) {
-      schedule[nextIndex].amount = roundMoney(Number(schedule[nextIndex].amount || 0) + penalty);
-      penaltyForwardedToIndex = nextIndex;
-    } else {
-      schedule.push({
-        dueDate: addDays(now, 7),
-        amount: penalty,
-        status: 'pending',
-        proofOfPayment: {},
-        transactionProof: {},
-        validatedBy: null,
-        validatedAt: null,
-        paidAt: null,
-        penaltyAmount: 0,
-        reminderSentAt: null,
-        overdueNotifiedAt: null
-      });
-      penaltyForwardedToIndex = schedule.length - 1;
-    }
+    penaltyForwardedToIndex = forwardPenaltyToNextInstallment({
+      schedule,
+      fromIndex: index,
+      penalty,
+      now
+    });
   }
 
   const paidIncrement = roundMoney(baseAmount);
@@ -739,10 +755,9 @@ export const sellerValidateInstallmentPayment = asyncHandler(async (req, res) =>
   order.paidAmount = Number(order.installmentPlan.amountPaid || 0);
   order.remainingAmount = Number(order.installmentPlan.remainingAmount || 0);
 
-  const hasOpenInstallments = schedule.some((entry) => !isScheduleEntrySettled(entry));
-  const hasOverdueInstallments = schedule.some((entry) => entry?.status === 'overdue');
+  const lifecycleStatus = deriveInstallmentOrderStatus(schedule);
 
-  if (!hasOpenInstallments) {
+  if (lifecycleStatus === 'completed') {
     order.status = 'completed';
     if (!order.completedAt) {
       order.completedAt = now;
@@ -762,7 +777,7 @@ export const sellerValidateInstallmentPayment = asyncHandler(async (req, res) =>
         })
       );
     }
-  } else if (hasOverdueInstallments) {
+  } else if (lifecycleStatus === 'overdue_installment') {
     order.status = 'overdue_installment';
     if (!order.confirmedAt) {
       order.confirmedAt = now;
@@ -775,6 +790,11 @@ export const sellerValidateInstallmentPayment = asyncHandler(async (req, res) =>
     }
     await order.save();
   }
+  emitInstallmentOrderUpdate({
+    order,
+    updatedBy: userId,
+    updatedAt: order.updatedAt || now
+  });
 
   await createNotification({
     userId: order.customer,

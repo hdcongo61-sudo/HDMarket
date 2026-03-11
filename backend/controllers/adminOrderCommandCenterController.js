@@ -9,6 +9,10 @@ import {
   runAutomatedReminderSweep,
   runDelayedOrderDetection
 } from '../services/adminOrderAutomationService.js';
+import {
+  runInstallmentProofValidationSlaSweep,
+  runInstallmentReminderSweep
+} from '../services/orderReliabilityAutomationService.js';
 
 export const adminOrderCommandCenter = asyncHandler(async (req, res) => {
   const data = await getOrderCommandCenterSnapshot(req.query || {});
@@ -95,4 +99,18 @@ export const adminRunReminderSweep = asyncHandler(async (req, res) => {
   });
 
   res.json({ message: 'Reminder sweep completed.', ...result });
+});
+
+export const adminRunInstallmentReminderSweep = asyncHandler(async (req, res) => {
+  const result = await runInstallmentReminderSweep();
+  res.json({ message: 'Installment reminder sweep completed.', ...result });
+});
+
+export const adminRunInstallmentProofSlaSweep = asyncHandler(async (req, res) => {
+  const result = await runInstallmentProofValidationSlaSweep({
+    limit: Number(req.body?.limit || req.query?.limit || 200),
+    actorId: req.user?.id || req.user?._id || null,
+    slaHours: Number(req.body?.slaHours || req.query?.slaHours || 0) || null
+  });
+  res.json({ message: 'Installment proof SLA sweep completed.', ...result });
 });

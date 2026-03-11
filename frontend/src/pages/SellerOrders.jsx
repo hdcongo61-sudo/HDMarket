@@ -1,5 +1,6 @@
-import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useState, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   ClipboardList,
   Package,
@@ -43,6 +44,10 @@ import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { getPickupShopAddress, isPickupOrder as resolvePickupOrder } from '../utils/pickupAddress';
 import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
+import useReliableMutation from '../hooks/useReliableMutation';
+import useOrderRealtimeSync from '../hooks/useOrderRealtimeSync';
+import useSellerOrdersListQuery from '../hooks/useSellerOrdersListQuery';
+import { orderQueryKeys } from '../hooks/useOrderQueryKeys';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
@@ -127,6 +132,20 @@ const STATUS_TABS = [
 ];
 
 const PAGE_SIZE = 6;
+const ACTIVE_LIVE_STATUSES = new Set([
+  'pending_payment',
+  'paid',
+  'ready_for_pickup',
+  'ready_for_delivery',
+  'out_for_delivery',
+  'delivery_proof_submitted',
+  'pending',
+  'pending_installment',
+  'installment_active',
+  'overdue_installment',
+  'confirmed',
+  'delivering'
+]);
 
 const normalizeStatusFilter = (value) => {
   if (!value) return 'all';
@@ -233,6 +252,46 @@ const isInstallmentFullyPaid = (order) => {
   const schedule = Array.isArray(order?.installmentPlan?.schedule) ? order.installmentPlan.schedule : [];
   if (!schedule.length) return false;
   return schedule.every((entry) => ['paid', 'waived'].includes(String(entry?.status || '')));
+};
+
+const dedupeOrders = (items = []) => {
+  const seen = new Set();
+  return (Array.isArray(items) ? items : []).filter((entry) => {
+    const id = String(entry?._id || '').trim();
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+};
+
+const applyRealtimeStatusPatch = (order, payload = {}) => {
+  if (!order || typeof order !== 'object') return order;
+  if (String(order._id || '') !== String(payload.orderId || '')) return order;
+  return {
+    ...order,
+    ...(payload.status ? { status: payload.status } : {}),
+    ...(payload.installmentSaleStatus
+      ? { installmentSaleStatus: payload.installmentSaleStatus }
+      : {})
+  };
+};
+
+const patchOrdersListPayload = (payload, nextOrder) => {
+  if (!nextOrder?._id) return payload;
+  if (Array.isArray(payload)) {
+    return payload.map((entry) =>
+      String(entry?._id || '') === String(nextOrder._id) ? nextOrder : entry
+    );
+  }
+  if (payload && Array.isArray(payload.items)) {
+    return {
+      ...payload,
+      items: payload.items.map((entry) =>
+        String(entry?._id || '') === String(nextOrder._id) ? nextOrder : entry
+      )
+    };
+  }
+  return payload;
 };
 
 const OrderProgress = ({ status }) => {
@@ -877,11 +936,10 @@ export default function SellerOrders() {
   const { user } = useContext(AuthContext);
   const { t } = useAppSettings();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const externalLinkProps = useDesktopExternalLink();
   const isMobile = useIsMobile(768);
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
   const [statusUpdatingId, setStatusUpdatingId] = useState('');
@@ -889,8 +947,6 @@ export default function SellerOrders() {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelOrderId, setCancelOrderId] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
-  const [cancelLoading, setCancelLoading] = useState(false);
-  const [reloadToken, setReloadToken] = useState(0);
   const [stats, setStats] = useState({ total: 0, totalAmount: 0, byStatus: {} });
   const [statsLoading, setStatsLoading] = useState(false);
   const [installmentAnalytics, setInstallmentAnalytics] = useState({
@@ -905,14 +961,7 @@ export default function SellerOrders() {
   const [orderUnreadCounts, setOrderUnreadCounts] = useState({});
   const { status: statusParam } = useParams();
   const [activeStatus, setActiveStatus] = useState(() => normalizeStatusFilter(statusParam));
-
-  const refreshOrders = useCallback(async () => {
-    setReloadToken((value) => value + 1);
-  }, []);
-
-  const { pullDistance, refreshing, bind } = usePullToRefresh(refreshOrders, {
-    enabled: isMobile
-  });
+  const [initialLoadingDone, setInitialLoadingDone] = useState(false);
 
   useEffect(() => {
     const normalizedStatus = normalizeStatusFilter(statusParam);
@@ -921,6 +970,125 @@ export default function SellerOrders() {
     );
     setPage(1);
   }, [statusParam]);
+
+  const sellerOrdersListQuery = useSellerOrdersListQuery({
+    page,
+    limit: PAGE_SIZE,
+    status: activeStatus,
+    enabled: Boolean(user?._id || user?.id)
+  });
+
+  const mergeOrderUpdate = useCallback(
+    (updatedOrder) => {
+      if (!updatedOrder?._id) return;
+      setOrders((prev) => {
+        const patched = dedupeOrders(
+          prev.map((entry) =>
+            String(entry?._id || '') === String(updatedOrder._id) ? updatedOrder : entry
+          )
+        );
+        if (activeStatus === 'all') return patched;
+        return patched.filter(
+          (entry) => String(entry?.status || '').trim() === String(activeStatus).trim()
+        );
+      });
+
+      queryClient.setQueriesData(
+        { queryKey: orderQueryKeys.listRoot('seller') },
+        (existing) => patchOrdersListPayload(existing, updatedOrder)
+      );
+
+      queryClient.setQueryData(
+        orderQueryKeys.detail('seller', String(updatedOrder._id)),
+        (existing) => ({
+          ...(existing || {}),
+          order: updatedOrder,
+          unreadCount: Number(existing?.unreadCount || 0)
+        })
+      );
+    },
+    [activeStatus, queryClient]
+  );
+
+  const invalidateOrderItem = useCallback(
+    async (orderId) => {
+      if (!orderId) return;
+      await queryClient.invalidateQueries({
+        queryKey: orderQueryKeys.detail('seller', String(orderId)),
+        refetchType: 'inactive'
+      });
+      await queryClient.invalidateQueries({
+        queryKey: orderQueryKeys.list('seller', {
+          page,
+          limit: PAGE_SIZE,
+          status: activeStatus
+        }),
+        refetchType: 'active'
+      });
+    },
+    [activeStatus, page, queryClient]
+  );
+
+  const refreshOrders = useCallback(async () => {
+    await sellerOrdersListQuery.refetch();
+  }, [sellerOrdersListQuery.refetch]);
+
+  const { pullDistance, refreshing, bind } = usePullToRefresh(refreshOrders, {
+    enabled: isMobile
+  });
+
+  useEffect(() => {
+    if (!sellerOrdersListQuery.data) return;
+    const items = Array.isArray(sellerOrdersListQuery.data.items)
+      ? dedupeOrders(sellerOrdersListQuery.data.items)
+      : [];
+    setOrders(items);
+    setMeta({
+      total: Number(sellerOrdersListQuery.data.total || items.length),
+      totalPages: Math.max(1, Number(sellerOrdersListQuery.data.totalPages || 1))
+    });
+    const incomingPage = Number(sellerOrdersListQuery.data.page || page);
+    if (Number.isFinite(incomingPage) && incomingPage > 0 && incomingPage !== page) {
+      setPage(incomingPage);
+    }
+    if (!initialLoadingDone) {
+      setInitialLoadingDone(true);
+    }
+  }, [initialLoadingDone, page, sellerOrdersListQuery.data]);
+
+  const hasActiveOrders = useMemo(
+    () =>
+      orders.some((order) => ACTIVE_LIVE_STATUSES.has(String(order?.status || '').trim())),
+    [orders]
+  );
+
+  useOrderRealtimeSync({
+    scope: 'seller',
+    enabled: Boolean(user?._id || user?.id),
+    pollIntervalMs: 15000,
+    currentStatus: hasActiveOrders ? 'pending_payment' : 'delivered'
+  });
+
+  useEffect(() => {
+    const onStatusUpdated = (event) => {
+      const payload = event?.detail || {};
+      const incomingOrderId = String(payload?.orderId || '').trim();
+      if (!incomingOrderId) return;
+      setOrders((prev) => {
+        const patched = dedupeOrders(
+          prev.map((entry) => applyRealtimeStatusPatch(entry, payload))
+        );
+        if (activeStatus === 'all') return patched;
+        return patched.filter(
+          (entry) => String(entry?.status || '').trim() === String(activeStatus).trim()
+        );
+      });
+    };
+
+    window.addEventListener('hdmarket:orders-status-updated', onStatusUpdated);
+    return () =>
+      window.removeEventListener('hdmarket:orders-status-updated', onStatusUpdated);
+  }, [activeStatus]);
 
   // Load order statistics
   useEffect(() => {
@@ -1015,112 +1183,181 @@ export default function SellerOrders() {
     }
   };
 
-  const initialLoadDone = useRef(false);
   useEffect(() => {
-    const loadOrders = async () => {
-      if (!initialLoadDone.current) {
-        setLoading(true);
-      }
-      setError('');
-      try {
-        const params = new URLSearchParams();
-        params.set('page', page);
-        params.set('limit', PAGE_SIZE);
-        if (activeStatus !== 'all') {
-          params.set('status', activeStatus);
-        }
-        const { data } = await api.get(`/orders/seller?${params.toString()}`);
-        const items = Array.isArray(data) ? data : data?.items || [];
-        // Deduplicate orders by _id to prevent any duplicate display issues
-        const seenIds = new Set();
-        const uniqueOrders = items.filter((order) => {
-          if (!order?._id || seenIds.has(order._id)) return false;
-          seenIds.add(order._id);
-          return true;
-        });
-        const totalPages = Math.max(1, Number(data?.totalPages) || 1);
-        setOrders(uniqueOrders);
-        
-        // Load unread message counts
-        const orderIds = items.map((order) => order._id);
-        const unreadCounts = await loadUnreadCounts(orderIds);
+    if (!orders.length || !user?._id) {
+      setOrderUnreadCounts({});
+      return;
+    }
+    let active = true;
+    const run = async () => {
+      const orderIds = orders.map((order) => order._id).filter(Boolean);
+      const unreadCounts = await loadUnreadCounts(orderIds);
+      if (active) {
         setOrderUnreadCounts(unreadCounts);
-        
-        setMeta({
-          total: data?.total ?? items.length,
-          totalPages
-        });
-        const incomingPage = Number(data?.page);
-        if (Number.isFinite(incomingPage) && incomingPage > 0 && incomingPage !== page) {
-          setPage(incomingPage);
-        }
-      } catch (err) {
-        setError(err.response?.data?.message || 'Impossible de charger les commandes clients.');
-        setOrders([]);
-        setMeta({ total: 0, totalPages: 1 });
-      } finally {
-        setLoading(false);
-        initialLoadDone.current = true;
       }
     };
-    loadOrders();
-  }, [activeStatus, page, user?._id, reloadToken]);
+    run();
+    return () => {
+      active = false;
+    };
+  }, [orders, user?._id]);
 
-  useEffect(() => {
-    const handler = () => setReloadToken((v) => v + 1);
-    window.addEventListener('hdmarket:orders-refresh', handler);
-    return () => window.removeEventListener('hdmarket:orders-refresh', handler);
+  const openCancelModal = useCallback((orderId) => {
+    setCancelOrderId(orderId);
+    setCancelReason('');
+    setCancelModalOpen(true);
   }, []);
+
+  const closeCancelModal = useCallback(() => {
+    setCancelModalOpen(false);
+    setCancelOrderId(null);
+    setCancelReason('');
+  }, []);
+
+  const matchesSellerTargetStatus = (order, nextStatus) => {
+    if (!order || !nextStatus) return false;
+    const normalizedTarget = String(nextStatus || '');
+    const isInstallmentCompleted =
+      String(order?.paymentType || '') === 'installment' &&
+      String(order?.status || '') === 'completed';
+    if (isInstallmentCompleted) {
+      return String(order?.installmentSaleStatus || '') === normalizedTarget;
+    }
+    return String(order?.status || '') === normalizedTarget;
+  };
+
+  const normalizeOrderPayload = (payload) => {
+    if (!payload || typeof payload !== 'object') return null;
+    if (payload?.order && payload.order._id) return payload.order;
+    if (payload?._id) return payload;
+    return null;
+  };
+
+  const bumpStatusCounters = useCallback((previousStatus, nextStatus) => {
+    const prev = String(previousStatus || '').trim();
+    const next = String(nextStatus || '').trim();
+    if (!prev || !next || prev === next) return;
+    setStats((s) => ({
+      ...s,
+      byStatus: {
+        ...s.byStatus,
+        [prev]: Math.max(0, (s.byStatus[prev] || 1) - 1),
+        [next]: (s.byStatus[next] || 0) + 1
+      }
+    }));
+  }, []);
+
+  const statusUpdateMutation = useReliableMutation({
+    mutationFn: async ({ orderId, nextStatus, idempotencyKey }) => {
+      const { data } = await api.patch(
+        `/orders/seller/${orderId}/status`,
+        { status: nextStatus },
+        {
+          headers: {
+            'Idempotency-Key': idempotencyKey
+          }
+        }
+      );
+      return data;
+    },
+    verifyFn: async ({ orderId, nextStatus }) => {
+      if (!orderId || !nextStatus) return false;
+      const { data } = await api.get(`/orders/seller/detail/${orderId}`, {
+        skipCache: true,
+        skipDedupe: true,
+        headers: { 'x-skip-cache': '1', 'x-skip-dedupe': '1' },
+        timeout: 12_000
+      });
+      return matchesSellerTargetStatus(data, nextStatus) ? data : false;
+    },
+    onMutate: ({ orderId }) => {
+      const prevOrder = orders.find((order) => String(order?._id) === String(orderId));
+      return {
+        prevStatus: String(prevOrder?.status || 'pending')
+      };
+    },
+    onSuccess: async (result, variables, context) => {
+      const nextOrder = normalizeOrderPayload(result?.data);
+      if (nextOrder?._id) {
+        mergeOrderUpdate(nextOrder);
+        bumpStatusCounters(context?.prevStatus, nextOrder?.status);
+      }
+      showToast('Statut de la commande mis à jour.', { variant: 'success' });
+    },
+    onError: async (err, variables) => {
+      const message =
+        err?.response?.data?.message || 'Impossible de mettre à jour le statut.';
+      setStatusUpdateError({ id: variables?.orderId || '', message });
+      showToast(message, { variant: 'error' });
+    },
+    onSettled: async (_data, _error, variables) => {
+      await invalidateOrderItem(variables?.orderId);
+    }
+  });
+
+  const cancelOrderMutation = useReliableMutation({
+    mutationFn: async ({ orderId, reason, idempotencyKey }) => {
+      const { data } = await api.post(
+        `/orders/seller/${orderId}/cancel`,
+        { reason },
+        {
+          headers: {
+            'Idempotency-Key': idempotencyKey
+          }
+        }
+      );
+      return data;
+    },
+    verifyFn: async ({ orderId }) => {
+      if (!orderId) return false;
+      const { data } = await api.get(`/orders/seller/detail/${orderId}`, {
+        skipCache: true,
+        skipDedupe: true,
+        headers: { 'x-skip-cache': '1', 'x-skip-dedupe': '1' },
+        timeout: 12_000
+      });
+      return String(data?.status || '') === 'cancelled' ? data : false;
+    },
+    onMutate: ({ orderId }) => {
+      const prevOrder = orders.find((order) => String(order?._id) === String(orderId));
+      return {
+        prevStatus: String(prevOrder?.status || 'pending')
+      };
+    },
+    onSuccess: async (result, variables, context) => {
+      const nextOrder = normalizeOrderPayload(result?.data);
+      if (nextOrder?._id) {
+        mergeOrderUpdate(nextOrder);
+        bumpStatusCounters(context?.prevStatus, 'cancelled');
+      }
+      showToast(
+        t('orders.cancelSuccess', 'Commande annulée avec succès. Le client a été notifié.'),
+        { variant: 'success' }
+      );
+      closeCancelModal();
+    },
+    onError: async (err) => {
+      const message =
+        err?.response?.data?.message ||
+        err?.response?.data?.details?.[0] ||
+        t('orders.cancelError', "Impossible d'annuler la commande.");
+      showToast(message, { variant: 'error' });
+    },
+    onSettled: async (_data, _error, variables) => {
+      await invalidateOrderItem(variables?.orderId);
+    }
+  });
 
   const handleStatusUpdate = async (orderId, nextStatus) => {
     setStatusUpdatingId(orderId);
     setStatusUpdateError({ id: '', message: '' });
     try {
-      const { data } = await api.patch(`/orders/seller/${orderId}/status`, {
-        status: nextStatus
-      });
-      const prevOrder = orders.find((o) => o._id === orderId);
-      const prevStatus = prevOrder?.status || 'pending';
-      setOrders((prev) => {
-        const updated = prev.map((order) => (order._id === orderId ? data : order));
-        // Deduplicate by _id
-        const seenIds = new Set();
-        return updated.filter((order) => {
-          if (!order?._id || seenIds.has(order._id)) return false;
-          seenIds.add(order._id);
-          return true;
-        });
-      });
-      setStats((s) => ({
-        ...s,
-        byStatus: {
-          ...s.byStatus,
-          [prevStatus]: Math.max(0, (s.byStatus[prevStatus] || 1) - 1),
-          [nextStatus]: (s.byStatus[nextStatus] || 0) + 1
-        }
-      }));
-      showToast('Statut de la commande mis à jour.', { variant: 'success' });
-      window.dispatchEvent(new Event('hdmarket:orders-refresh'));
-    } catch (err) {
-      const message =
-        err.response?.data?.message || 'Impossible de mettre à jour le statut.';
-      setStatusUpdateError({ id: orderId, message });
-      showToast(message, { variant: 'error' });
+      await statusUpdateMutation.mutateAsync({ orderId, nextStatus });
+    } catch {
+      // handled by mutation callbacks
     } finally {
       setStatusUpdatingId('');
     }
-  };
-
-  const openCancelModal = (orderId) => {
-    setCancelOrderId(orderId);
-    setCancelReason('');
-    setCancelModalOpen(true);
-  };
-
-  const closeCancelModal = () => {
-    setCancelModalOpen(false);
-    setCancelOrderId(null);
-    setCancelReason('');
   };
 
   const handleCancelOrder = async () => {
@@ -1133,38 +1370,10 @@ export default function SellerOrders() {
       return;
     }
     
-    setCancelLoading(true);
     try {
-      const { data } = await api.post(`/orders/seller/${cancelOrderId}/cancel`, {
-        reason: trimmedReason
-      });
-      const prevOrder = orders.find((o) => o._id === cancelOrderId);
-      const prevStatus = prevOrder?.status || 'pending';
-      setOrders((prev) => {
-        const updated = prev.map((order) => (order._id === cancelOrderId ? data : order));
-        // Deduplicate by _id
-        const seenIds = new Set();
-        return updated.filter((order) => {
-          if (!order?._id || seenIds.has(order._id)) return false;
-          seenIds.add(order._id);
-          return true;
-        });
-      });
-      setStats((s) => ({
-        ...s,
-        byStatus: {
-          ...s.byStatus,
-          [prevStatus]: Math.max(0, (s.byStatus[prevStatus] || 1) - 1),
-          cancelled: (s.byStatus.cancelled || 0) + 1
-        }
-      }));
-      showToast(t('orders.cancelSuccess', 'Commande annulée avec succès. Le client a été notifié.'), { variant: 'success' });
-      closeCancelModal();
-    } catch (err) {
-      const message = err.response?.data?.message || err.response?.data?.details?.[0] || t('orders.cancelError', "Impossible d'annuler la commande.");
-      showToast(message, { variant: 'error' });
-    } finally {
-      setCancelLoading(false);
+      await cancelOrderMutation.mutateAsync({ orderId: cancelOrderId, reason: trimmedReason });
+    } catch {
+      // handled by mutation callbacks
     }
   };
 
@@ -1172,6 +1381,12 @@ export default function SellerOrders() {
     activeStatus === 'all'
       ? t('orders.noCustomerOrdersYet', 'Aucune commande client pour le moment.')
       : t('orders.noOrdersWithStatusYet', `Aucune commande ${STATUS_LABELS[activeStatus].toLowerCase()} pour le moment.`);
+
+  const loading = !initialLoadingDone && sellerOrdersListQuery.isLoading && orders.length === 0;
+  const error =
+    sellerOrdersListQuery.error?.response?.data?.message ||
+    sellerOrdersListQuery.error?.message ||
+    '';
 
   if (loading && orders.length === 0) {
     return (
@@ -1427,7 +1642,7 @@ export default function SellerOrders() {
                   <button
                     type="button"
                     onClick={closeCancelModal}
-                    disabled={cancelLoading}
+                    disabled={cancelOrderMutation.isReliablePending}
                     className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                   >
                     {t('common.cancel', 'Annuler')}
@@ -1435,10 +1650,16 @@ export default function SellerOrders() {
                   <button
                     type="button"
                     onClick={handleCancelOrder}
-                    disabled={cancelLoading || !cancelReason.trim() || cancelReason.trim().length < 5}
+                    disabled={
+                      cancelOrderMutation.isReliablePending ||
+                      !cancelReason.trim() ||
+                      cancelReason.trim().length < 5
+                    }
                     className="flex-1 px-4 py-2.5 rounded-xl bg-neutral-700 text-white text-sm font-semibold hover:bg-red-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {cancelLoading ? t('orders.cancelling', 'Annulation...') : t('orders.confirmCancellation', "Confirmer l'annulation")}
+                    {cancelOrderMutation.isReliablePending
+                      ? t('orders.cancelling', 'Annulation...')
+                      : t('orders.confirmCancellation', "Confirmer l'annulation")}
                   </button>
                 </div>
               </ModalFooter>

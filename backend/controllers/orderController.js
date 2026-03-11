@@ -33,6 +33,12 @@ import {
 } from '../utils/cache.js';
 import { buildAdminOrderFilter as buildAdvancedAdminOrderFilter } from '../services/adminOrderAutomationService.js';
 import { getRuntimeConfig } from '../services/configService.js';
+import {
+  assertSellerCanSubmitDeliveryProof,
+  assertSellerStatusTransition,
+  getOrderAllowedActions,
+  isPlatformDeliveryOrder
+} from '../services/orderStatusFlowService.js';
 import { getVerifiedProductIds } from '../utils/publicProductVisibility.js';
 import { safeAsync } from '../utils/safeAsync.js';
 import { emitOrderStatusUpdated } from '../sockets/chatSocket.js';
@@ -232,12 +238,6 @@ const hasValidDeliveryEvidence = (order) =>
 
 const hasMinimumDeliveryProofImages = (order, minCount = 1) =>
   Array.isArray(order?.deliveryProofImages) && order.deliveryProofImages.length >= Math.max(1, Number(minCount) || 1);
-
-const hasAllInstallmentsSettled = (order) => {
-  const schedule = Array.isArray(order?.installmentPlan?.schedule) ? order.installmentPlan.schedule : [];
-  if (!schedule.length) return false;
-  return schedule.every((entry) => ['paid', 'waived'].includes(String(entry?.status || '')));
-};
 
 const extractDeliveryLocation = (body = {}) => {
   const location = body?.location || {};
@@ -486,6 +486,7 @@ const getCancellationWindowRemaining = (order) => {
 const buildOrderResponse = (order) => {
   if (!order) return null;
   const obj = order.toObject ? order.toObject() : order;
+  const orderActionState = getOrderAllowedActions(obj);
   const installmentProgress =
     obj.paymentType === 'installment' ? getInstallmentProgress(obj.installmentPlan || {}) : null;
   return {
@@ -568,7 +569,9 @@ const buildOrderResponse = (order) => {
       deadline: obj.createdAt ? new Date(new Date(obj.createdAt).getTime() + 30 * 60 * 1000).toISOString() : null,
       skippedAt: obj.cancellationWindowSkippedAt || null
     },
-    installmentProgress
+    installmentProgress,
+    allowedActions: orderActionState.allowedActions,
+    nextAction: orderActionState.nextAction
   };
 };
 
@@ -2220,59 +2223,23 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
   if (!order) {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
-  if (order.status === 'cancelled') {
-    return res.status(400).json({ message: 'Impossible de soumettre une preuve pour une commande annulée.' });
-  }
-  if (order.paymentType === 'installment' && order.status !== 'completed') {
-    return res.status(400).json({
-      message: 'La preuve de livraison est disponible après la complétion du paiement en tranches.'
+  let proofFlow;
+  try {
+    proofFlow = assertSellerCanSubmitDeliveryProof({
+      order,
+      deliveryProofResubmissionLimit
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 400).json({
+      message: error.message || 'Impossible de soumettre la preuve de livraison.',
+      ...(error.code ? { code: error.code } : {})
     });
   }
-  if (order.paymentType === 'installment' && !hasAllInstallmentsSettled(order)) {
-    return res.status(400).json({
-      message: 'La livraison est disponible uniquement après paiement complet de toutes les tranches.'
-    });
-  }
-  const isPickupOrder = String(order.deliveryMode || '').toUpperCase() === 'PICKUP';
-  if (
-    order.paymentType !== 'installment' &&
-    !(
-      isPickupOrder
-        ? ['paid', 'confirmed', 'ready_for_pickup', 'picked_up_confirmed']
-        : [
-            'paid',
-            'confirmed',
-            'ready_for_delivery',
-            'delivering',
-            'out_for_delivery',
-            'delivery_proof_submitted'
-          ]
-    ).includes(order.status)
-  ) {
-    return res.status(400).json({
-      message: isPickupOrder
-        ? 'La commande doit être prête au retrait avant la preuve de retrait.'
-        : 'La commande doit être prête/en cours de livraison avant la preuve de livraison.'
-    });
-  }
-  if (isPickupOrder && order.status === 'picked_up_confirmed' && order.deliveryStatus === 'verified') {
-    return res.status(409).json({ message: 'Le retrait est déjà confirmé.' });
-  }
-  if (order.deliveryStatus === 'verified') {
-    return res.status(409).json({ message: 'La livraison est déjà confirmée par le client.' });
-  }
-  if (order.deliveryProofAttemptCount >= deliveryProofResubmissionLimit) {
-    return res.status(429).json({
-      message: `Limite atteinte: ${deliveryProofResubmissionLimit} soumissions de preuve maximum.`,
-      code: 'DELIVERY_PROOF_LIMIT'
-    });
-  }
-  const isPlatformDeliveryOrder =
-    String(order.platformDeliveryMode || '').toUpperCase() === 'PLATFORM_DELIVERY' ||
-    Boolean(order.platformDeliveryRequestId) ||
-    ['REQUESTED', 'ACCEPTED', 'IN_PROGRESS', 'DELIVERED'].includes(
-      String(order.platformDeliveryStatus || '').toUpperCase()
-    );
+  const {
+    isPickupOrder,
+    isPlatformDeliveryOrder: isPlatformDeliveryOrderFlow,
+    minimumProofImages
+  } = proofFlow;
 
   const signatureImage = String(req.body?.clientSignatureImage || '').trim();
   if (!signatureImage || !signatureImage.startsWith('data:image/')) {
@@ -2283,7 +2250,6 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
   }
 
   const proofImages = normalizeDeliveryProofFiles(req.files);
-  const minimumProofImages = isPickupOrder ? 3 : 1;
   if (proofImages.length < minimumProofImages) {
     return res.status(400).json({
       message: isPickupOrder
@@ -2302,14 +2268,14 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
   order.deliveryDate = now;
   order.deliverySubmittedBy = userId;
   order.deliverySubmittedAt = now;
-  order.deliveryStatus = isPlatformDeliveryOrder || isPickupOrder ? 'verified' : 'submitted';
+  order.deliveryStatus = isPlatformDeliveryOrderFlow || isPickupOrder ? 'verified' : 'submitted';
   order.deliveryProofAttemptCount = Number(order.deliveryProofAttemptCount || 0) + 1;
   order.status = isPickupOrder
     ? 'picked_up_confirmed'
-    : isPlatformDeliveryOrder
+    : isPlatformDeliveryOrderFlow
     ? 'delivered'
     : 'delivery_proof_submitted';
-  if (isPlatformDeliveryOrder || isPickupOrder) {
+  if (isPlatformDeliveryOrderFlow || isPickupOrder) {
     order.clientDeliveryConfirmedAt = order.clientDeliveryConfirmedAt || now;
   }
   if (isPickupOrder && !order.readyForPickupAt) {
@@ -2359,7 +2325,7 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
       deliveryCity: order.deliveryCity,
       status: isPickupOrder
         ? 'picked_up_confirmed'
-        : isPlatformDeliveryOrder
+        : isPlatformDeliveryOrderFlow
         ? 'delivered'
         : 'delivery_proof_submitted',
       deliveredAt: order.deliveredAt,
@@ -2389,7 +2355,7 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
   res.json({
     message: isPickupOrder
       ? 'Preuve de retrait enregistrée. Retrait confirmé.'
-      : isPlatformDeliveryOrder
+      : isPlatformDeliveryOrderFlow
       ? 'Preuve de livraison enregistrée. Livraison validée automatiquement (plateforme).'
       : 'Preuve de livraison soumise. En attente de confirmation client.',
     order: buildOrderResponse(populated)
@@ -2413,13 +2379,8 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
   if (order.status === 'dispute_opened') {
     return res.status(400).json({ message: 'Commande en litige, confirmation impossible.' });
   }
-  const isPlatformDeliveryOrder =
-    String(order.platformDeliveryMode || '').toUpperCase() === 'PLATFORM_DELIVERY' ||
-    Boolean(order.platformDeliveryRequestId) ||
-    ['REQUESTED', 'ACCEPTED', 'IN_PROGRESS', 'DELIVERED'].includes(
-      String(order.platformDeliveryStatus || '').toUpperCase()
-    );
-  if (isPlatformDeliveryOrder) {
+  const isPlatformDeliveryOrderFlow = isPlatformDeliveryOrder(order);
+  if (isPlatformDeliveryOrderFlow) {
     const now = new Date();
     if (order.deliveryStatus !== 'verified') {
       order.deliveryStatus = 'verified';
@@ -2568,39 +2529,17 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   }
 
   if (order.paymentType === 'installment') {
-    if (order.status !== 'completed' || !hasAllInstallmentsSettled(order)) {
-      return res.status(400).json({
-        message:
-          'Le statut de vente de la commande tranche peut être mis à jour uniquement après paiement complet des tranches.'
+    let transitionContext;
+    try {
+      transitionContext = assertSellerStatusTransition({ order, nextStatus: status });
+    } catch (error) {
+      return res.status(error.statusCode || 400).json({
+        message: error.message || 'Transition de statut invalide.'
       });
     }
 
-    const sellerAllowedInstallmentSaleStatuses = ['confirmed', 'delivering', 'delivered', 'cancelled'];
-    if (!sellerAllowedInstallmentSaleStatuses.includes(status)) {
-      return res.status(400).json({ message: 'Statut de vente invalide pour une commande tranche complétée.' });
-    }
-
-    const previousSaleStatus = order.installmentSaleStatus || 'confirmed';
+    const previousSaleStatus = transitionContext.previousSaleStatus || order.installmentSaleStatus || 'confirmed';
     order.installmentSaleStatus = previousSaleStatus;
-
-    if (status === 'delivering' && previousSaleStatus !== 'confirmed') {
-      return res.status(400).json({
-        message: 'La vente doit être confirmée avant de passer en livraison.'
-      });
-    }
-    if (status === 'delivered' && previousSaleStatus !== 'delivering') {
-      return res.status(400).json({
-        message: 'La commande doit être en cours de livraison avant d’être marquée livrée.'
-      });
-    }
-    if (status === 'delivered' && !hasValidDeliveryEvidence(order)) {
-      return res.status(400).json({
-        message: 'Preuve de livraison obligatoire avant le statut livré.'
-      });
-    }
-    if (status === 'cancelled' && previousSaleStatus === 'delivered') {
-      return res.status(400).json({ message: 'Impossible d\'annuler une commande déjà livrée.' });
-    }
 
     const notifyConfirmed = status === 'confirmed' && previousSaleStatus !== 'confirmed';
     const notifyDelivering = status === 'delivering' && previousSaleStatus !== 'delivering';
@@ -2744,66 +2683,11 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   let notifyPending = false;
   let notifyConfirmed = false;
   let notifyDelivering = false;
-  const sellerAllowedStatuses = [
-    'pending',
-    'pending_payment',
-    'paid',
-    'confirmed',
-    'ready_for_pickup',
-    'picked_up_confirmed',
-    'ready_for_delivery',
-    'delivering',
-    'out_for_delivery',
-    'delivered',
-    'cancelled'
-  ];
-  if (!sellerAllowedStatuses.includes(status)) {
-    return res.status(400).json({ message: 'Statut invalide.' });
-  }
-
-  if (status === 'delivery_proof_submitted' || status === 'confirmed_by_client') {
-    return res.status(400).json({
-      message: 'Utilisez le workflow de preuve de livraison pour ce statut.'
-    });
-  }
-
-  if (
-    order.deliveryMode === 'PICKUP' &&
-    ['ready_for_delivery', 'delivering', 'out_for_delivery', 'delivery_proof_submitted', 'delivered', 'confirmed_by_client'].includes(status)
-  ) {
-    return res.status(400).json({
-      message: 'Cette commande est en retrait boutique. Utilisez les statuts de retrait.'
-    });
-  }
-
-  // Prevent cancelling already delivered orders
-  if (
-    status === 'cancelled' &&
-    ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(order.status)
-  ) {
-    return res.status(400).json({ message: 'Impossible d\'annuler une commande déjà livrée.' });
-  }
-  if (status === 'delivered' && order.deliveryMode !== 'PICKUP' && !hasValidDeliveryEvidence(order)) {
-    return res.status(400).json({
-      message: 'Preuve de livraison obligatoire: photo(s) + signature client.'
-    });
-  }
-  if (
-    order.deliveryMode === 'PICKUP' &&
-    status === 'picked_up_confirmed' &&
-    (!hasValidDeliveryEvidence(order) || !hasMinimumDeliveryProofImages(order, 3))
-  ) {
-    return res.status(400).json({
-      message: 'Retrait impossible sans preuve complète (signature client + 3 photos minimum).'
-    });
-  }
-  if (
-    order.deliveryMode === 'PICKUP' &&
-    status === 'picked_up_confirmed' &&
-    !['confirmed', 'ready_for_pickup'].includes(order.status)
-  ) {
-    return res.status(400).json({
-      message: 'La commande doit être prête à récupérer avant validation du retrait.'
+  try {
+    assertSellerStatusTransition({ order, nextStatus: status });
+  } catch (error) {
+    return res.status(error.statusCode || 400).json({
+      message: error.message || 'Transition de statut invalide.'
     });
   }
 
