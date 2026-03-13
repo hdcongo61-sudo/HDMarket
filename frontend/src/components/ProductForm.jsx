@@ -29,7 +29,16 @@ const DeleteIcon = ({ className = '' }) => (
 );
 
 export default function ProductForm(props) {
-  const { onCreated, onUpdated, initialValues, productId, submitLabel } = props;
+  const {
+    onCreated,
+    onUpdated,
+    initialValues,
+    productId,
+    submitLabel,
+    embeddedInModal = false,
+    hideHeader = false,
+    onCancel
+  } = props;
   const { runtime, app } = useAppSettings();
   const { commissionRatePercent, commissionRateLabel } = useCommissionRate();
   const [form, setForm] = useState({
@@ -1096,6 +1105,24 @@ export default function ProductForm(props) {
     : 'Remplissez les détails de votre produit pour commencer à vendre';
   const buttonLabel =
     submitLabel || (isEditing ? 'Mettre à jour l’annonce' : 'Publier l’annonce');
+  const isEmbeddedMobile = Boolean(isMobile && embeddedInModal);
+  const requiredFields = useMemo(
+    () => ({
+      title: Boolean(String(form.title || '').trim()),
+      description: Boolean(String(form.description || '').trim()),
+      category: Boolean(String(form.category || '').trim()),
+      price: Number(form.price || 0) > 0
+    }),
+    [form.category, form.description, form.price, form.title]
+  );
+  const requiredCompletedCount = useMemo(
+    () => Object.values(requiredFields).filter(Boolean).length,
+    [requiredFields]
+  );
+  const requiredTotalCount = 4;
+  const completionPercent = Math.round((requiredCompletedCount / requiredTotalCount) * 100);
+  const submitDisabled =
+    loading || !requiredFields.title || !requiredFields.description || !requiredFields.category || !requiredFields.price;
   const priceGridClass = isEditing ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2';
   const normalizedWholesalePreviewTiers = (Array.isArray(form.wholesaleTiers) ? form.wholesaleTiers : [])
     .map((tier) => ({
@@ -1108,28 +1135,73 @@ export default function ProductForm(props) {
   const wholesalePreviewBasePrice = Number(form.price || 0);
 
   return (
-    <div className={`max-w-2xl mx-auto ${isMobile ? 'px-0 pb-28 bg-[#f2f2f7] min-h-screen' : ''}`}>
+    <div
+      className={`max-w-2xl mx-auto ${
+        isMobile
+          ? isEmbeddedMobile
+            ? 'px-0 pb-24'
+            : 'px-0 pb-28 bg-[#f2f2f7] min-h-screen'
+          : ''
+      }`}
+    >
       {/* En-tête du formulaire — Apple-style on mobile */}
-      <div className={isMobile ? 'text-left px-4 pt-2 pb-4 bg-[#f2f2f7]' : 'text-center mb-8'}>
-        {!isMobile && (
-          <div className="w-16 h-16 bg-gradient-to-br from-neutral-500 to-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Package className="w-8 h-8 text-white" />
-          </div>
-        )}
-        <div className={isMobile ? 'flex items-center gap-3' : ''}>
-          {isMobile && (
-            <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm border border-gray-200/80">
-              <Package className="w-6 h-6 text-neutral-600" />
+      {!hideHeader && (
+        <div
+          className={
+            isMobile
+              ? `text-left ${isEmbeddedMobile ? 'px-0 pt-1 pb-3' : 'px-4 pt-2 pb-4 bg-[#f2f2f7]'}`
+              : 'text-center mb-8'
+          }
+        >
+          {!isMobile && (
+            <div className="w-16 h-16 bg-gradient-to-br from-neutral-500 to-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Package className="w-8 h-8 text-white" />
             </div>
           )}
-          <div className="min-w-0">
-            <h1 className={`font-bold text-gray-900 ${isMobile ? 'text-[22px] leading-tight' : 'text-2xl mb-2'}`}>{headerTitle}</h1>
-            <p className={`text-gray-500 ${isMobile ? 'text-[13px] mt-0.5' : 'text-sm'}`}>{headerSubtitle}</p>
+          <div className={isMobile ? 'flex items-center gap-3' : ''}>
+            {isMobile && (
+              <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm border border-gray-200/80">
+                <Package className="w-6 h-6 text-neutral-600" />
+              </div>
+            )}
+            <div className="min-w-0">
+              <h1 className={`font-bold text-gray-900 ${isMobile ? 'text-[22px] leading-tight' : 'text-2xl mb-2'}`}>{headerTitle}</h1>
+              <p className={`text-gray-500 ${isMobile ? 'text-[13px] mt-0.5' : 'text-sm'}`}>{headerSubtitle}</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <form onSubmit={submit} className={`space-y-6 bg-white rounded-2xl border border-gray-100 ${isMobile ? 'p-4 pb-6 shadow-sm rounded-2xl mx-4 border-0' : 'p-6 shadow-sm'}`}>
+      {isMobile && (
+        <div className={isEmbeddedMobile ? 'mb-3' : 'mb-3 px-4'}>
+          <div className="rounded-xl border border-neutral-200 bg-white/95 px-3 py-2.5">
+            <div className="mb-1.5 flex items-center justify-between text-xs">
+              <span className="font-semibold text-gray-900">Champs obligatoires</span>
+              <span className="font-medium text-gray-600">
+                {requiredCompletedCount}/{requiredTotalCount}
+              </span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+              <div
+                className="h-full rounded-full bg-neutral-600 transition-all duration-300"
+                style={{ width: `${completionPercent}%` }}
+              />
+            </div>
+            <p className="mt-1.5 text-[11px] text-gray-500">Titre, description, catégorie, prix</p>
+          </div>
+        </div>
+      )}
+
+      <form
+        onSubmit={submit}
+        className={`space-y-6 bg-white rounded-2xl border border-gray-100 ${
+          isMobile
+            ? isEmbeddedMobile
+              ? 'p-4 pb-6 shadow-sm rounded-2xl mx-0'
+              : 'p-4 pb-6 shadow-sm rounded-2xl mx-4 border-0'
+            : 'p-6 shadow-sm'
+        }`}
+      >
         {/* Section Informations de base */}
         <div className="space-y-4">
           {isMobile ? (
@@ -2169,10 +2241,27 @@ export default function ProductForm(props) {
 
         {/* Bouton de soumission — sticky sur mobile (Apple-style primary) */}
         {isMobile ? (
-          <div className="fixed bottom-0 left-0 right-0 z-40 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-[#f2f2f7]/95 backdrop-blur-xl border-t border-gray-200/50 safe-area-pb">
+          <div
+            className={
+              isEmbeddedMobile
+                ? 'sticky bottom-0 z-30 -mx-4 mt-4 border-t border-gray-200/80 bg-white/95 px-4 pt-3 pb-[calc(0.9rem+env(safe-area-inset-bottom))] backdrop-blur-md safe-area-pb'
+                : 'fixed bottom-0 left-0 right-0 z-40 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-[#f2f2f7]/95 backdrop-blur-xl border-t border-gray-200/50 safe-area-pb'
+            }
+          >
+            {isEmbeddedMobile && onCancel ? (
+              <div className="mb-2">
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="w-full min-h-[46px] rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 active:bg-gray-100"
+                >
+                  Annuler
+                </button>
+              </div>
+            ) : null}
             <button
               type="submit"
-              disabled={loading || !form.title || !form.description || !form.price || !form.category}
+              disabled={submitDisabled}
               className="w-full min-h-[52px] py-4 bg-neutral-500 text-white text-[17px] font-semibold rounded-xl active:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm touch-manipulation transition-opacity"
             >
               {loading ? (
@@ -2191,7 +2280,7 @@ export default function ProductForm(props) {
         ) : (
           <button
             type="submit"
-            disabled={loading || !form.title || !form.description || !form.price || !form.category}
+            disabled={submitDisabled}
             className="w-full py-4 bg-gradient-to-r from-neutral-600 to-neutral-600 text-white font-semibold rounded-xl hover:from-neutral-700 hover:to-neutral-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 shadow-lg"
           >
             {loading ? (

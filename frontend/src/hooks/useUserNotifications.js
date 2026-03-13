@@ -137,7 +137,11 @@ const readAuthToken = async () => {
 const shouldRefreshOrdersFromNotification = (eventName) => {
   const normalized = String(eventName || '').trim().toLowerCase();
   if (!normalized) return false;
-  return normalized.startsWith('order_') || normalized.startsWith('installment_');
+  return (
+    normalized.startsWith('order_') ||
+    normalized.startsWith('installment_') ||
+    normalized.startsWith('delivery_request_')
+  );
 };
 
 export default function useUserNotifications(enabled, options = {}) {

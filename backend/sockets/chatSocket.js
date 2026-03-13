@@ -78,6 +78,16 @@ export const emitOrderStatusUpdated = ({
   orderId,
   status,
   installmentSaleStatus,
+  platformDeliveryStatus,
+  platformDeliveryRequestId,
+  deliveryStatus,
+  currentStage,
+  outForDeliveryAt,
+  shippedAt,
+  deliverySubmittedAt,
+  deliveryDate,
+  deliveredAt,
+  clientDeliveryConfirmedAt,
   customerId,
   sellerIds = [],
   updatedBy,
@@ -92,6 +102,38 @@ export const emitOrderStatusUpdated = ({
     updatedBy: updatedBy ? String(updatedBy) : '',
     updatedAt: updatedAt || new Date().toISOString()
   };
+  if (typeof platformDeliveryStatus !== 'undefined') {
+    payload.platformDeliveryStatus = String(platformDeliveryStatus || '');
+  }
+  if (typeof platformDeliveryRequestId !== 'undefined') {
+    payload.platformDeliveryRequestId = platformDeliveryRequestId
+      ? String(platformDeliveryRequestId)
+      : null;
+  }
+  if (typeof deliveryStatus !== 'undefined') {
+    payload.deliveryStatus = String(deliveryStatus || '');
+  }
+  if (typeof currentStage !== 'undefined') {
+    payload.currentStage = String(currentStage || '');
+  }
+  if (typeof outForDeliveryAt !== 'undefined') {
+    payload.outForDeliveryAt = outForDeliveryAt || null;
+  }
+  if (typeof shippedAt !== 'undefined') {
+    payload.shippedAt = shippedAt || null;
+  }
+  if (typeof deliverySubmittedAt !== 'undefined') {
+    payload.deliverySubmittedAt = deliverySubmittedAt || null;
+  }
+  if (typeof deliveryDate !== 'undefined') {
+    payload.deliveryDate = deliveryDate || null;
+  }
+  if (typeof deliveredAt !== 'undefined') {
+    payload.deliveredAt = deliveredAt || null;
+  }
+  if (typeof clientDeliveryConfirmedAt !== 'undefined') {
+    payload.clientDeliveryConfirmedAt = clientDeliveryConfirmedAt || null;
+  }
 
   const recipients = new Set();
   if (customerId) recipients.add(String(customerId));

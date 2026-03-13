@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, MessageCircle, Sparkles, Star, Heart, ShoppingCart, Store, TrendingUp, Zap, ChevronRight, Eye } from 'lucide-react';
 import api from '../services/api';
@@ -6,6 +6,7 @@ import { buildProductPath } from '../utils/links';
 import useIsMobile from '../hooks/useIsMobile';
 import { recordProductView } from '../utils/recentViews';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
+import AuthContext from '../context/AuthContext';
 
 const pickRandomItem = (items = []) => {
   if (!items.length) return null;
@@ -65,6 +66,9 @@ export default function ProductPreview() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const isMobileView = useIsMobile();
+  const authContextValue = useContext(AuthContext);
+  const user = authContextValue?.user;
+  const authLoading = Boolean(authContextValue?.loading);
   const [product, setProduct] = useState(null);
   const [relatedPicks, setRelatedPicks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -77,6 +81,7 @@ export default function ProductPreview() {
   }, [isMobileView, navigate, slug]);
 
   useEffect(() => {
+    if (authLoading) return;
     let active = true;
     const loadPreview = async () => {
       try {
@@ -85,7 +90,23 @@ export default function ProductPreview() {
         setRelatedPicks([]);
         const seenKeys = new Set();
 
-        const { data } = await api.get(`/products/public/${slug}`);
+        let data;
+        try {
+          const response = await api.get(`/products/public/${slug}`);
+          data = response?.data;
+        } catch (publicError) {
+          const status = publicError?.response?.status;
+          if (status === 404 && user) {
+            const privateResponse = await api.get(`/products/${slug}`);
+            data = privateResponse?.data;
+          } else {
+            throw publicError;
+          }
+        }
+        if (!data) {
+          throw new Error('Produit indisponible.');
+        }
+
         if (!active) return;
         setProduct(data);
         const currentKey = getProductKey(data);
@@ -167,7 +188,7 @@ export default function ProductPreview() {
     return () => {
       active = false;
     };
-  }, [slug]);
+  }, [authLoading, slug, user]);
 
   useEffect(() => {
     if (!product?._id) return;
@@ -179,6 +200,10 @@ export default function ProductPreview() {
     if (slug) return buildProductPath({ slug });
     return '/';
   }, [product, slug]);
+  const previewBackPath = useMemo(
+    () => (slug ? `/product-preview/${slug}` : '/'),
+    [slug]
+  );
   const buildPreviewLink = (item) => {
     return buildProductPath(item);
   };
@@ -319,6 +344,7 @@ export default function ProductPreview() {
                     {/* CTA Button Enhanced */}
                     <Link
                       to={productLink}
+                      state={{ previewBackPath }}
                       className="inline-flex items-center justify-center gap-2 w-full rounded-3xl bg-neutral-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-neutral-700 hover:shadow-md transition-all duration-200 active:scale-95"
                     >
                       <Eye className="w-5 h-5" />
@@ -359,6 +385,7 @@ export default function ProductPreview() {
                         <Link
                           key={`${pick.product?._id || 'product'}-${pick.image}-${index}`}
                           to={buildPreviewLink(pick.product)}
+                          state={{ previewBackPath }}
                           className="group relative overflow-hidden rounded-3xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-[1.03] active:scale-95"
                         >
                           {/* Image Container Enhanced */}

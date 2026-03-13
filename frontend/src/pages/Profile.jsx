@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState, useCallback, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import {
   LineChart,
@@ -314,7 +314,6 @@ export default function Profile() {
   const { user, updateUser } = useContext(AuthContext);
   const { cities, communes, runtime } = useAppSettings();
   const { showToast } = useToast();
-  const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState('');
@@ -1278,11 +1277,7 @@ export default function Profile() {
       setPasswordCodeSent(false);
       setPasswordCodeError('');
       setPasswordCodeMessage('');
-      
-      // Redirection optionnelle après succès
-      setTimeout(() => {
-        navigate('/');
-      }, 2000);
+
     } catch (err) {
       const message = err.response?.data?.message || err.message || 'Une erreur est survenue.';
       setError(message);

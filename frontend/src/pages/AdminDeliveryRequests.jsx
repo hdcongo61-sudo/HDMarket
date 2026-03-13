@@ -183,6 +183,8 @@ export default function AdminDeliveryRequests() {
   const [refreshing, setRefreshing] = useState(false);
   const [analytics, setAnalytics] = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [liveSyncPulse, setLiveSyncPulse] = useState(false);
+  const [lastLiveSyncAt, setLastLiveSyncAt] = useState(0);
 
   const [deliveryGuys, setDeliveryGuys] = useState([]);
   const [deliveryGuysLoading, setDeliveryGuysLoading] = useState(false);
@@ -398,6 +400,46 @@ export default function AdminDeliveryRequests() {
   useEffect(() => {
     loadDeliveryAnalytics();
   }, [loadDeliveryAnalytics]);
+
+  useEffect(() => {
+    let refreshTimer = null;
+    let pulseTimer = null;
+    const scheduleSilentRefresh = () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        loadDeliveryRequests({ silent: true });
+        loadDeliveryAnalytics({ silent: true });
+      }, 220);
+    };
+    const triggerLiveBadge = () => {
+      setLiveSyncPulse(true);
+      setLastLiveSyncAt(Date.now());
+      if (pulseTimer) clearTimeout(pulseTimer);
+      pulseTimer = setTimeout(() => setLiveSyncPulse(false), 1400);
+    };
+
+    const onOrderOrDeliveryRefresh = () => {
+      triggerLiveBadge();
+      scheduleSilentRefresh();
+    };
+
+    const onOrderStatusUpdated = (event) => {
+      const payload = event?.detail || {};
+      if (!String(payload?.orderId || '').trim()) return;
+      triggerLiveBadge();
+      scheduleSilentRefresh();
+    };
+
+    window.addEventListener('hdmarket:orders-refresh', onOrderOrDeliveryRefresh);
+    window.addEventListener('hdmarket:orders-status-updated', onOrderStatusUpdated);
+
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      if (pulseTimer) clearTimeout(pulseTimer);
+      window.removeEventListener('hdmarket:orders-refresh', onOrderOrDeliveryRefresh);
+      window.removeEventListener('hdmarket:orders-status-updated', onOrderStatusUpdated);
+    };
+  }, [loadDeliveryAnalytics, loadDeliveryRequests]);
 
   useEffect(() => {
     if (!platformDeliveryEnabled || !deliveryRequestsEnabled) return;
@@ -674,6 +716,8 @@ export default function AdminDeliveryRequests() {
     );
   }, [items]);
 
+  const proofPreviewIsSignature = /signature/i.test(String(proofPreview?.label || ''));
+
   const resetAllFilters = useCallback(() => {
     setStatusTab('all');
     setCityFilter('');
@@ -707,6 +751,18 @@ export default function AdminDeliveryRequests() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Admin logistics</p>
                 <h1 className="mt-1 text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">Demandes de livraison</h1>
                 <p className="mt-0.5 text-xs text-slate-500">{headerDateLabel}</p>
+                <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                  <span
+                    className={`h-2 w-2 rounded-full ${liveSyncPulse ? 'animate-pulse bg-emerald-500' : 'bg-emerald-500/80'}`}
+                    aria-hidden="true"
+                  />
+                  Mise à jour en direct
+                  {lastLiveSyncAt ? (
+                    <span className="text-[10px] font-medium text-emerald-600/90">
+                      · {Math.max(0, Math.floor((Date.now() - lastLiveSyncAt) / 1000))}s
+                    </span>
+                  ) : null}
+                </div>
               </div>
               <div className="flex w-full items-center gap-2 sm:w-auto">
                 <button
@@ -1064,8 +1120,8 @@ export default function AdminDeliveryRequests() {
               const isCapturingDropoff = capturingCoords.requestId === item._id && capturingCoords.type === 'dropoff';
               const pickupProofPhotos = getProofPhotos(item?.pickupProof || {});
               const deliveryProofPhotos = getProofPhotos(item?.deliveryProof || {});
-              const pickupSignatureUrl = getProofSignature(item?.pickupProof || {});
-              const deliverySignatureUrl = getProofSignature(item?.deliveryProof || {});
+              const pickupSignatureUrl = normalizeFileUrl(getProofSignature(item?.pickupProof || {}));
+              const deliverySignatureUrl = normalizeFileUrl(getProofSignature(item?.deliveryProof || {}));
               const pickupNote = String(item?.pickupProof?.note || '').trim();
               const deliveryNote = String(item?.deliveryProof?.note || '').trim();
               return (
@@ -1216,8 +1272,8 @@ export default function AdminDeliveryRequests() {
                       <p className="font-semibold text-blue-800">Preuve pickup</p>
                       <div className="mt-1 space-y-2">
                         {pickupProofPhotos.length > 0 ? (
-                          <div className="grid grid-cols-4 gap-2">
-                            {pickupProofPhotos.slice(0, 4).map((rawUrl, proofIndex) => {
+                          <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+                            {pickupProofPhotos.slice(0, 6).map((rawUrl, proofIndex) => {
                               const src = normalizeFileUrl(rawUrl);
                               if (!src) return null;
                               return (
@@ -1225,23 +1281,38 @@ export default function AdminDeliveryRequests() {
                                   key={`pickup-proof-${item._id || index}-${proofIndex}`}
                                   type="button"
                                   onClick={() => openProofPreview(src, `Preuve pickup - photo ${proofIndex + 1}`)}
-                                  className="group relative h-14 w-full overflow-hidden rounded-lg bg-white ring-1 ring-blue-200"
+                                  className="group relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-white ring-1 ring-blue-200"
                                 >
-                                  <img src={src} alt={`Preuve pickup ${proofIndex + 1}`} className="h-full w-full object-cover" loading="lazy" />
-                                  <span className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5 text-[10px] font-semibold text-white">Photo {proofIndex + 1}</span>
+                                  <img
+                                    src={src}
+                                    alt={`Preuve pickup ${proofIndex + 1}`}
+                                    className="h-full w-full object-contain bg-slate-50 p-1"
+                                    loading="lazy"
+                                  />
+                                  <span className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5 text-[10px] font-semibold text-white">
+                                    Photo {proofIndex + 1}
+                                  </span>
                                 </button>
                               );
                             })}
                           </div>
                         ) : null}
                         {pickupSignatureUrl ? (
-                          <button
-                            type="button"
-                            onClick={() => openProofPreview(pickupSignatureUrl, 'Preuve pickup - signature')}
-                            className="inline-flex min-h-[30px] items-center rounded-lg bg-white px-2 py-1 font-semibold text-blue-800 ring-1 ring-blue-200 hover:bg-blue-100"
-                          >
-                            Voir signature
-                          </button>
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-blue-700">Signature</p>
+                            <button
+                              type="button"
+                              onClick={() => openProofPreview(pickupSignatureUrl, 'Preuve pickup - signature')}
+                              className="block w-full overflow-hidden rounded-lg bg-white ring-1 ring-blue-200"
+                            >
+                              <img
+                                src={pickupSignatureUrl}
+                                alt="Signature pickup"
+                                className="h-20 w-full object-contain bg-white p-1"
+                                loading="lazy"
+                              />
+                            </button>
+                          </div>
                         ) : null}
                         {pickupNote ? (
                           <p className="rounded-md bg-white px-2 py-1 text-[11px] text-blue-900 ring-1 ring-blue-200">
@@ -1257,8 +1328,8 @@ export default function AdminDeliveryRequests() {
                       <p className="font-semibold text-emerald-800">Preuve livraison</p>
                       <div className="mt-1 space-y-2">
                         {deliveryProofPhotos.length > 0 ? (
-                          <div className="grid grid-cols-4 gap-2">
-                            {deliveryProofPhotos.slice(0, 4).map((rawUrl, proofIndex) => {
+                          <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+                            {deliveryProofPhotos.slice(0, 6).map((rawUrl, proofIndex) => {
                               const src = normalizeFileUrl(rawUrl);
                               if (!src) return null;
                               return (
@@ -1266,23 +1337,38 @@ export default function AdminDeliveryRequests() {
                                   key={`delivery-proof-${item._id || index}-${proofIndex}`}
                                   type="button"
                                   onClick={() => openProofPreview(src, `Preuve livraison - photo ${proofIndex + 1}`)}
-                                  className="group relative h-14 w-full overflow-hidden rounded-lg bg-white ring-1 ring-emerald-200"
+                                  className="group relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-white ring-1 ring-emerald-200"
                                 >
-                                  <img src={src} alt={`Preuve livraison ${proofIndex + 1}`} className="h-full w-full object-cover" loading="lazy" />
-                                  <span className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5 text-[10px] font-semibold text-white">Photo {proofIndex + 1}</span>
+                                  <img
+                                    src={src}
+                                    alt={`Preuve livraison ${proofIndex + 1}`}
+                                    className="h-full w-full object-contain bg-slate-50 p-1"
+                                    loading="lazy"
+                                  />
+                                  <span className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5 text-[10px] font-semibold text-white">
+                                    Photo {proofIndex + 1}
+                                  </span>
                                 </button>
                               );
                             })}
                           </div>
                         ) : null}
                         {deliverySignatureUrl ? (
-                          <button
-                            type="button"
-                            onClick={() => openProofPreview(deliverySignatureUrl, 'Preuve livraison - signature')}
-                            className="inline-flex min-h-[30px] items-center rounded-lg bg-white px-2 py-1 font-semibold text-emerald-800 ring-1 ring-emerald-200 hover:bg-emerald-100"
-                          >
-                            Voir signature
-                          </button>
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-700">Signature</p>
+                            <button
+                              type="button"
+                              onClick={() => openProofPreview(deliverySignatureUrl, 'Preuve livraison - signature')}
+                              className="block w-full overflow-hidden rounded-lg bg-white ring-1 ring-emerald-200"
+                            >
+                              <img
+                                src={deliverySignatureUrl}
+                                alt="Signature livraison"
+                                className="h-20 w-full object-contain bg-white p-1"
+                                loading="lazy"
+                              />
+                            </button>
+                          </div>
                         ) : null}
                         {deliveryNote ? (
                           <p className="rounded-md bg-white px-2 py-1 text-[11px] text-emerald-900 ring-1 ring-emerald-200">
@@ -1714,6 +1800,16 @@ export default function AdminDeliveryRequests() {
         ariaLabel={proofPreview?.label || 'Preuve'}
       >
         <div className="relative mx-auto flex max-h-[92dvh] max-w-[92vw] items-center justify-center p-2 sm:p-4">
+          {proofPreview?.url ? (
+            <a
+              href={proofPreview.url}
+              target="_blank"
+              rel="noreferrer"
+              className="absolute left-2 top-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/25 sm:left-4 sm:top-4"
+            >
+              Ouvrir
+            </a>
+          ) : null}
           <button
             type="button"
             onClick={() => setProofPreview(null)}
@@ -1721,12 +1817,20 @@ export default function AdminDeliveryRequests() {
           >
             Fermer
           </button>
-          <img
-            src={proofPreview?.url || ''}
-            alt={proofPreview?.label || 'Preuve livraison'}
-            className="max-h-[88dvh] max-w-[90vw] rounded-xl object-contain"
-            loading="lazy"
-          />
+          <div
+            className={`rounded-xl p-2 sm:p-3 ${
+              proofPreviewIsSignature ? 'bg-white shadow-2xl' : 'bg-black/20'
+            }`}
+          >
+            <img
+              src={proofPreview?.url || ''}
+              alt={proofPreview?.label || 'Preuve livraison'}
+              className={`max-h-[84dvh] max-w-[88vw] rounded-lg object-contain ${
+                proofPreviewIsSignature ? 'bg-white' : 'bg-black/10'
+              }`}
+              loading="lazy"
+            />
+          </div>
         </div>
       </BaseModal>
     </div>

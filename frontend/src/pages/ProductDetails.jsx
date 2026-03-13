@@ -113,6 +113,12 @@ export default function ProductDetails() {
   const [inquiryError, setInquiryError] = useState("");
   const [reportModal, setReportModal] = useState({ isOpen: false, type: null, commentId: null, photoUrl: null });
   const [deletingCommentId, setDeletingCommentId] = useState(null);
+  const previewBackPath = useMemo(() => {
+    const raw = location?.state?.previewBackPath;
+    if (typeof raw !== "string") return "";
+    const trimmed = raw.trim();
+    return trimmed.startsWith("/product-preview/") ? trimmed : "";
+  }, [location?.state?.previewBackPath]);
 
   const handleSessionExpired = useCallback(() => {
     if (typeof authContextValue?.logout === 'function') {
@@ -120,6 +126,18 @@ export default function ProductDetails() {
     }
     navigate('/', { replace: true });
   }, [authContextValue, navigate]);
+
+  const handleBackNavigation = useCallback(() => {
+    if (previewBackPath) {
+      navigate(previewBackPath, { replace: true });
+      return;
+    }
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate('/products');
+  }, [navigate, previewBackPath]);
 
   // 🔒 PROTECTION CONTRE LES ACCÈS À NULL
   const isInFavorites = product ? isFavorite(product._id) : false;
@@ -1513,7 +1531,7 @@ export default function ProductDetails() {
         >
           <button
             type="button"
-            onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/products'))}
+            onClick={handleBackNavigation}
             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-800 transition-transform active:scale-95 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
             aria-label="Retour"
           >
@@ -2358,7 +2376,7 @@ export default function ProductDetails() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
-              onClick={() => navigate('/products')}
+              onClick={handleBackNavigation}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-all duration-200 active:scale-95"
             >
               <ArrowLeft size={18} />

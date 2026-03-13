@@ -39,6 +39,37 @@ import {
   workflowStatusOf
 } from '../../utils/deliveryUi';
 
+const extractProofUrl = (value) => {
+  if (!value) return '';
+  if (typeof value === 'string') return String(value).trim();
+  if (typeof value !== 'object') return '';
+  const candidate =
+    value.url ||
+    value.path ||
+    value.photoUrl ||
+    value.imageUrl ||
+    value.signatureUrl ||
+    value.src ||
+    '';
+  return typeof candidate === 'string' ? candidate.trim() : '';
+};
+
+const getProofPhotos = (proof = {}) => {
+  const urls = [];
+  const pushUrl = (input) => {
+    const next = extractProofUrl(input);
+    if (next) urls.push(next);
+  };
+  pushUrl(proof?.photoUrl);
+  if (Array.isArray(proof?.photoUrls)) proof.photoUrls.forEach(pushUrl);
+  if (Array.isArray(proof?.photos)) proof.photos.forEach(pushUrl);
+  if (Array.isArray(proof?.images)) proof.images.forEach(pushUrl);
+  return Array.from(new Set(urls));
+};
+
+const getProofSignature = (proof = {}) =>
+  extractProofUrl(proof?.signatureUrl) || extractProofUrl(proof?.signatureImage) || extractProofUrl(proof?.signature);
+
 export default function DeliveryAssignmentDetail() {
   const { id } = useParams();
   const location = useLocation();
@@ -54,6 +85,7 @@ export default function DeliveryAssignmentDetail() {
   const [proofSignatureImage, setProofSignatureImage] = useState('');
   const [proofNote, setProofNote] = useState('');
   const [proofFormError, setProofFormError] = useState('');
+  const [proofPreview, setProofPreview] = useState(null);
   const [pinCode, setPinCode] = useState('');
   const [issueModal, setIssueModal] = useState({ open: false, reason: '' });
   const [isOffline, setIsOffline] = useState(typeof navigator !== 'undefined' ? !navigator.onLine : false);
@@ -101,6 +133,30 @@ export default function DeliveryAssignmentDetail() {
   const hasPickupProof = hasProofContent(assignment?.pickupProof || {});
   const workflowStatus = workflowStatusOf(assignment);
   const isDelivered = workflowStatus === 'DELIVERED';
+  const pickupProofPhotos = useMemo(
+    () => getProofPhotos(assignment?.pickupProof || {}).map((entry) => normalizeFileUrl(entry)).filter(Boolean),
+    [assignment?.pickupProof]
+  );
+  const deliveryProofPhotos = useMemo(
+    () => getProofPhotos(assignment?.deliveryProof || {}).map((entry) => normalizeFileUrl(entry)).filter(Boolean),
+    [assignment?.deliveryProof]
+  );
+  const pickupSignatureUrl = useMemo(
+    () => normalizeFileUrl(getProofSignature(assignment?.pickupProof || {})),
+    [assignment?.pickupProof]
+  );
+  const deliverySignatureUrl = useMemo(
+    () => normalizeFileUrl(getProofSignature(assignment?.deliveryProof || {})),
+    [assignment?.deliveryProof]
+  );
+  const hasAnyProof =
+    pickupProofPhotos.length > 0 ||
+    deliveryProofPhotos.length > 0 ||
+    Boolean(pickupSignatureUrl) ||
+    Boolean(deliverySignatureUrl) ||
+    String(assignment?.pickupProof?.note || '').trim() ||
+    String(assignment?.deliveryProof?.note || '').trim();
+  const proofPreviewIsSignature = /signature/i.test(String(proofPreview?.label || ''));
 
   const pickupVisible = !isDelivered && assignment?.pickup?.locationVisible !== false;
   const dropoffVisible = !isDelivered && assignment?.dropoff?.locationVisible !== false;
@@ -521,6 +577,83 @@ export default function DeliveryAssignmentDetail() {
               </p>
             ) : null}
           </section>
+
+          {hasAnyProof ? (
+            <section className="rounded-2xl bg-white p-4 shadow-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Preuves soumises</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+                  <p className="text-xs font-semibold text-blue-800">Pickup</p>
+                  {pickupProofPhotos.length > 0 ? (
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      {pickupProofPhotos.map((src, index) => (
+                        <button
+                          key={`pickup-proof-${index}`}
+                          type="button"
+                          onClick={() => setProofPreview({ url: src, label: `Preuve pickup ${index + 1}` })}
+                          className="group relative aspect-[4/3] overflow-hidden rounded-lg bg-white ring-1 ring-blue-200"
+                        >
+                          <img src={src} alt={`Preuve pickup ${index + 1}`} className="h-full w-full object-contain bg-slate-50 p-1" loading="lazy" />
+                          <span className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5 text-[10px] font-semibold text-white">
+                            Photo {index + 1}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  {pickupSignatureUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => setProofPreview({ url: pickupSignatureUrl, label: 'Signature pickup' })}
+                      className="mt-2 block w-full overflow-hidden rounded-lg bg-white ring-1 ring-blue-200"
+                    >
+                      <img src={pickupSignatureUrl} alt="Signature pickup" className="h-20 w-full object-contain bg-white p-1" loading="lazy" />
+                    </button>
+                  ) : null}
+                  {assignment?.pickupProof?.note ? (
+                    <p className="mt-2 rounded-lg bg-white px-2 py-1 text-[11px] text-blue-900 ring-1 ring-blue-200">
+                      Note: {assignment.pickupProof.note}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                  <p className="text-xs font-semibold text-emerald-800">Livraison</p>
+                  {deliveryProofPhotos.length > 0 ? (
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      {deliveryProofPhotos.map((src, index) => (
+                        <button
+                          key={`delivery-proof-${index}`}
+                          type="button"
+                          onClick={() => setProofPreview({ url: src, label: `Preuve livraison ${index + 1}` })}
+                          className="group relative aspect-[4/3] overflow-hidden rounded-lg bg-white ring-1 ring-emerald-200"
+                        >
+                          <img src={src} alt={`Preuve livraison ${index + 1}`} className="h-full w-full object-contain bg-slate-50 p-1" loading="lazy" />
+                          <span className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5 text-[10px] font-semibold text-white">
+                            Photo {index + 1}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  {deliverySignatureUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => setProofPreview({ url: deliverySignatureUrl, label: 'Signature livraison' })}
+                      className="mt-2 block w-full overflow-hidden rounded-lg bg-white ring-1 ring-emerald-200"
+                    >
+                      <img src={deliverySignatureUrl} alt="Signature livraison" className="h-20 w-full object-contain bg-white p-1" loading="lazy" />
+                    </button>
+                  ) : null}
+                  {assignment?.deliveryProof?.note ? (
+                    <p className="mt-2 rounded-lg bg-white px-2 py-1 text-[11px] text-emerald-900 ring-1 ring-emerald-200">
+                      Note: {assignment.deliveryProof.note}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </section>
+          ) : null}
         </>
       )}
 
@@ -576,11 +709,22 @@ export default function DeliveryAssignmentDetail() {
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {proofPhotos.map((file, index) => (
                   <div key={`${file.name}-${index}`} className="rounded-lg border border-gray-200 bg-white p-2">
-                    <img
-                      src={proofPhotoPreviews[index]}
-                      alt={file.name || `proof-${index + 1}`}
-                      className="h-20 w-full rounded object-cover"
-                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setProofPreview({
+                          url: proofPhotoPreviews[index],
+                          label: `Aperçu photo ${index + 1}`
+                        })
+                      }
+                      className="block w-full overflow-hidden rounded-lg border border-gray-100"
+                    >
+                      <img
+                        src={proofPhotoPreviews[index]}
+                        alt={file.name || `proof-${index + 1}`}
+                        className="h-24 w-full rounded object-contain bg-slate-50 p-1"
+                      />
+                    </button>
                     <div className="mt-1 flex items-center justify-between gap-2">
                       <span className="truncate text-[10px] text-gray-600">{file.name}</span>
                       <button type="button" onClick={() => removeProofPhoto(index)} className="text-red-600">
@@ -595,7 +739,20 @@ export default function DeliveryAssignmentDetail() {
 
           <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3">
             <p className="text-xs font-semibold text-gray-700">Signature</p>
-            <SignaturePad value={proofSignatureImage} onChange={setProofSignatureImage} height={140} />
+            <SignaturePad value={proofSignatureImage} onChange={setProofSignatureImage} height={160} />
+            {proofSignatureImage ? (
+              <button
+                type="button"
+                onClick={() => setProofPreview({ url: proofSignatureImage, label: 'Aperçu signature' })}
+                className="block w-full overflow-hidden rounded-lg bg-white ring-1 ring-gray-200"
+              >
+                <img
+                  src={proofSignatureImage}
+                  alt="Aperçu signature"
+                  className="h-20 w-full object-contain bg-white p-1"
+                />
+              </button>
+            ) : null}
           </div>
 
           <div className="space-y-1">
@@ -637,6 +794,51 @@ export default function DeliveryAssignmentDetail() {
             Enregistrer la preuve
           </button>
         </ModalFooter>
+      </BaseModal>
+
+      <BaseModal
+        isOpen={Boolean(proofPreview?.url)}
+        onClose={() => setProofPreview(null)}
+        mobileSheet={false}
+        size="full"
+        rootClassName="z-[140] p-3 sm:p-6"
+        panelClassName="max-h-[92dvh] border-none bg-transparent p-0 shadow-none sm:max-w-[92vw]"
+        backdropClassName="bg-black/85 backdrop-blur-sm"
+        ariaLabel={proofPreview?.label || 'Aperçu preuve'}
+      >
+        <div className="relative mx-auto flex max-h-[92dvh] max-w-[92vw] items-center justify-center p-2 sm:p-4">
+          {proofPreview?.url ? (
+            <a
+              href={proofPreview.url}
+              target="_blank"
+              rel="noreferrer"
+              className="absolute left-2 top-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/25 sm:left-4 sm:top-4"
+            >
+              Ouvrir
+            </a>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setProofPreview(null)}
+            className="absolute right-2 top-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/25 sm:right-4 sm:top-4"
+          >
+            Fermer
+          </button>
+          <div
+            className={`rounded-xl p-2 sm:p-3 ${
+              proofPreviewIsSignature ? 'bg-white shadow-2xl' : 'bg-black/20'
+            }`}
+          >
+            <img
+              src={proofPreview?.url || ''}
+              alt={proofPreview?.label || 'Aperçu preuve'}
+              className={`max-h-[84dvh] max-w-[88vw] rounded-lg object-contain ${
+                proofPreviewIsSignature ? 'bg-white' : 'bg-black/10'
+              }`}
+              loading="lazy"
+            />
+          </div>
+        </div>
       </BaseModal>
 
       <BaseModal

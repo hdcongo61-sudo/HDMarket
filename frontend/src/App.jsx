@@ -130,15 +130,28 @@ const normalizeStoredCourierRoute = (value = '') => {
 const normalizeStoredOrdersRoute = (value = '') => {
   const normalized = String(value || '').trim();
   if (!normalized.startsWith('/orders')) return '';
-  return normalized;
+  const pathOnly = normalized.split('?')[0].split('#')[0];
+  if (pathOnly === '/orders') return normalized;
+  if (
+    pathOnly.startsWith('/orders/detail/') ||
+    pathOnly.startsWith('/orders/messages') ||
+    pathOnly.startsWith('/orders/checkout') ||
+    pathOnly.startsWith('/orders/draft')
+  ) {
+    return '';
+  }
+  return /^\/orders\/[^/]+$/i.test(pathOnly) ? normalized : '';
 };
 
 const normalizeStoredSellerOrdersRoute = (value = '') => {
   const normalized = String(value || '').trim();
-  if (normalized.startsWith('/seller/orders') || normalized.startsWith('/seller/order')) {
-    return normalized;
+  if (!(normalized.startsWith('/seller/orders') || normalized.startsWith('/seller/order'))) return '';
+  const pathOnly = normalized.split('?')[0].split('#')[0];
+  if (pathOnly === '/seller/orders') return normalized;
+  if (pathOnly.startsWith('/seller/orders/detail/') || pathOnly.startsWith('/seller/order/detail/')) {
+    return '';
   }
-  return '';
+  return /^\/seller\/orders\/[^/]+$/i.test(pathOnly) ? normalized : '';
 };
 
 const getRouteModule = (path = '') => {

@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Palette, RefreshCcw, UserCircle } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import AuthContext from '../context/AuthContext';
@@ -16,6 +16,8 @@ import { appConfirm } from '../utils/appDialog';
 
 export default function UserSettings() {
   const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const { theme, setTheme, formatPrice, savingPreferences, t, refreshSettings } = useAppSettings();
@@ -35,6 +37,13 @@ export default function UserSettings() {
   useEffect(() => {
     refreshSettings();
   }, [refreshSettings]);
+
+  const softRefreshCurrentRoute = useCallback(() => {
+    const params = new URLSearchParams(location.search || '');
+    params.set('refresh', String(Date.now()));
+    const search = params.toString();
+    navigate(`${location.pathname}${search ? `?${search}` : ''}`, { replace: true });
+  }, [location.pathname, location.search, navigate]);
 
   const handleClearPwaCache = useCallback(async () => {
     if (clearingPwaCache) return;
@@ -125,9 +134,7 @@ export default function UserSettings() {
       }
       if (typeof window !== 'undefined') {
         window.setTimeout(() => {
-          const url = new URL(window.location.href);
-          url.searchParams.set('refresh', String(Date.now()));
-          window.location.replace(url.toString());
+          softRefreshCurrentRoute();
         }, 650);
       }
     } catch (error) {
@@ -138,19 +145,29 @@ export default function UserSettings() {
     } finally {
       setClearingPwaCache(false);
     }
-  }, [clearingPwaCache, queryClient, showToast, t]);
+  }, [clearingPwaCache, queryClient, showToast, softRefreshCurrentRoute, t]);
 
-  const handleHardRefresh = useCallback(() => {
+  const handleHardRefresh = useCallback(async () => {
     if (hardRefreshing) return;
     setHardRefreshing(true);
     if (typeof window === 'undefined') {
       setHardRefreshing(false);
       return;
     }
-    const url = new URL(window.location.href);
-    url.searchParams.set('refresh', String(Date.now()));
-    window.location.replace(url.toString());
-  }, [hardRefreshing]);
+    try {
+      await Promise.allSettled([
+        queryClient.invalidateQueries(),
+        Promise.resolve(refreshSettings())
+      ]);
+      softRefreshCurrentRoute();
+      showToast(
+        t('settings.cache.refreshed', 'Donnees actualisees sans rechargement complet.'),
+        { variant: 'success' }
+      );
+    } finally {
+      setHardRefreshing(false);
+    }
+  }, [hardRefreshing, queryClient, refreshSettings, showToast, softRefreshCurrentRoute, t]);
 
   return (
     <div className="ui-page min-h-screen">

@@ -20,13 +20,26 @@ const ACTIVE_ORDER_STATUSES = new Set([
 const applyPayloadToOrder = (order, payload = {}) => {
   if (!order || typeof order !== 'object') return order;
   if (String(order._id || '') !== String(payload.orderId || '')) return order;
-  return {
-    ...order,
-    ...(payload.status ? { status: payload.status } : {}),
-    ...(payload.installmentSaleStatus
-      ? { installmentSaleStatus: payload.installmentSaleStatus }
-      : {})
+  const next = { ...order };
+  const assignIfPresent = (key) => {
+    if (Object.prototype.hasOwnProperty.call(payload, key)) {
+      next[key] = payload[key];
+    }
   };
+  assignIfPresent('status');
+  assignIfPresent('installmentSaleStatus');
+  assignIfPresent('platformDeliveryStatus');
+  assignIfPresent('platformDeliveryRequestId');
+  assignIfPresent('deliveryStatus');
+  assignIfPresent('currentStage');
+  assignIfPresent('outForDeliveryAt');
+  assignIfPresent('shippedAt');
+  assignIfPresent('deliverySubmittedAt');
+  assignIfPresent('deliveryDate');
+  assignIfPresent('deliveredAt');
+  assignIfPresent('clientDeliveryConfirmedAt');
+  assignIfPresent('updatedAt');
+  return next;
 };
 
 const getOrderFromPayload = (payload) => {

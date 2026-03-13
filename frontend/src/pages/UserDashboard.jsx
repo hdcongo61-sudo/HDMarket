@@ -154,6 +154,7 @@ export default function UserDashboard() {
   const [promoCodeStatusFilter, setPromoCodeStatusFilter] = useState('active');
   const [promoForm, setPromoForm] = useState(buildDefaultPromoForm);
   const [promoSubmitting, setPromoSubmitting] = useState(false);
+  const [promoToggleLoadingId, setPromoToggleLoadingId] = useState('');
 
   const loadPromoCodes = async (status = promoCodeStatusFilter) => {
     if (!isShopUser) {
@@ -210,7 +211,7 @@ export default function UserDashboard() {
       });
       showToast('Code promo créé avec succès.', { variant: 'success' });
       setPromoForm(buildDefaultPromoForm());
-      await Promise.all([loadPromoCodes(promoCodeStatusFilter), load()]);
+      await Promise.all([loadPromoCodes(promoCodeStatusFilter), load({ silent: true })]);
     } catch (e) {
       showToast(e.response?.data?.message || 'Impossible de créer le code promo.', { variant: 'error' });
     } finally {
@@ -220,14 +221,36 @@ export default function UserDashboard() {
 
   const handleTogglePromoCode = async (promoItem) => {
     if (!promoItem?.id) return;
+    if (promoToggleLoadingId === promoItem.id) return;
+    const nextIsActive = !promoItem.isActive;
+    const previousPromoCodes = promoCodes;
+    setPromoToggleLoadingId(promoItem.id);
+
+    setPromoCodes((prev) => {
+      const updated = prev.map((item) =>
+        item.id === promoItem.id ? { ...item, isActive: nextIsActive } : item
+      );
+
+      if (promoCodeStatusFilter === 'active') {
+        return updated.filter((item) => Boolean(item.isActive));
+      }
+      if (promoCodeStatusFilter === 'inactive') {
+        return updated.filter((item) => !item.isActive);
+      }
+      return updated;
+    });
+
     try {
       await api.patch(`/marketplace-promo-codes/my/${promoItem.id}/toggle`, {
-        isActive: !promoItem.isActive
+        isActive: nextIsActive
       });
-      showToast(!promoItem.isActive ? 'Code promo activé.' : 'Code promo désactivé.', { variant: 'success' });
-      await Promise.all([loadPromoCodes(promoCodeStatusFilter), load()]);
+      showToast(nextIsActive ? 'Code promo activé.' : 'Code promo désactivé.', { variant: 'success' });
+      await Promise.all([loadPromoCodes(promoCodeStatusFilter), load({ silent: true })]);
     } catch (e) {
+      setPromoCodes(previousPromoCodes);
       showToast(e.response?.data?.message || 'Impossible de modifier ce code promo.', { variant: 'error' });
+    } finally {
+      setPromoToggleLoadingId('');
     }
   };
 
@@ -1175,13 +1198,23 @@ export default function UserDashboard() {
                     <button
                       type="button"
                       onClick={() => handleTogglePromoCode(promo)}
+                      disabled={promoToggleLoadingId === promo.id}
                       className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
                         promo.isActive
                           ? 'bg-red-50 text-red-700 border border-red-200'
                           : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      }`}
+                      } disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-1.5`}
                     >
-                      {promo.isActive ? 'Désactiver' : 'Activer'}
+                      {promoToggleLoadingId === promo.id ? (
+                        <>
+                          <RefreshCw className="w-3 h-3 animate-spin" />
+                          Mise à jour...
+                        </>
+                      ) : promo.isActive ? (
+                        'Désactiver'
+                      ) : (
+                        'Activer'
+                      )}
                     </button>
                   </div>
                 ))
@@ -2253,7 +2286,11 @@ export default function UserDashboard() {
         mobileSheet
         ariaLabel={editingProduct ? 'Modifier une annonce' : 'Publier une annonce'}
         rootClassName={isMobile ? '!p-0' : ''}
-        panelClassName={isMobile ? 'h-[100dvh] max-h-[100dvh] rounded-none border-0 sm:rounded-none' : 'sm:max-w-5xl sm:max-h-[90vh] sm:rounded-3xl'}
+        panelClassName={
+          isMobile
+            ? 'h-[100dvh] max-h-[100dvh] rounded-none border-0 bg-[#f2f2f7] sm:rounded-none'
+            : 'sm:max-w-5xl sm:max-h-[90vh] sm:rounded-3xl'
+        }
       >
             {/* Modal Header */}
             <div className={`bg-neutral-600 text-white flex-shrink-0 ${isMobile ? 'px-4 py-4 safe-area-top' : 'px-6 py-5'}`}>
@@ -2273,6 +2310,11 @@ export default function UserDashboard() {
                     <h3 className={`font-bold mt-0.5 truncate ${isMobile ? 'text-lg' : 'text-xl'}`}>
                       {editingProduct ? 'Modifier une annonce' : 'Publier une annonce'}
                     </h3>
+                    {isMobile ? (
+                      <p className="mt-1 text-[11px] text-white/80">
+                        Mobile optimisé: sections repliables, sauvegarde rapide.
+                      </p>
+                    ) : null}
                   </div>
                 </div>
                 <button
@@ -2287,10 +2329,13 @@ export default function UserDashboard() {
             </div>
 
             {/* Modal Content */}
-            <div className={`flex-1 overflow-y-auto min-h-0 ${isMobile ? 'p-4' : 'p-6'}`}>
+            <div className={`flex-1 overflow-y-auto min-h-0 ${isMobile ? 'p-3 pb-0' : 'p-6'}`}>
               <ProductForm
                 initialValues={editingProduct}
                 productId={editingProduct?._id}
+                embeddedInModal={isMobile}
+                hideHeader
+                onCancel={handleModalClose}
                 onCreated={() => {
                   load();
                   handleModalClose();

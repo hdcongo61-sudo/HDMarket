@@ -72,8 +72,23 @@ const normalizeNotificationUrl = (value) => {
 };
 
 const resolvePushClickUrl = (data = {}) => {
-  const raw = data.url || data.link || data.actionLink || data.deepLink || data.deeplink || data.path || '/';
-  const normalized = normalizeNotificationUrl(raw) || '/';
+  const candidates = [
+    data.url,
+    data.link,
+    data.actionLink,
+    data.deepLink,
+    data.deeplink,
+    data.path
+  ];
+  let normalized = '';
+  for (const candidate of candidates) {
+    const resolved = normalizeNotificationUrl(candidate);
+    if (resolved) {
+      normalized = resolved;
+      break;
+    }
+  }
+  if (!normalized) normalized = '/';
   if (normalized.startsWith('http://') || normalized.startsWith('https://')) return normalized;
   return `${self.location.origin}${normalized}`;
 };
@@ -188,7 +203,7 @@ const initFirebaseMessaging = (config, sdkBaseUrl) => {
           body,
           icon,
           badge: DEFAULT_NOTIFICATION_BADGE,
-          data: { url }
+          data: { ...(data || {}), url }
         };
         if (image) options.image = image;
         self.registration.showNotification(title, options);
@@ -427,7 +442,7 @@ self.addEventListener('push', (event) => {
     body: body || undefined,
     icon: DEFAULT_NOTIFICATION_ICON,
     badge: DEFAULT_NOTIFICATION_BADGE,
-    data: { url },
+    data: { ...(data || {}), url },
     tag: 'hdmarket-push',
     renotify: true
   };
@@ -437,7 +452,7 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = event.notification?.data?.url || '/';
+  const url = resolvePushClickUrl(event.notification?.data || {});
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {

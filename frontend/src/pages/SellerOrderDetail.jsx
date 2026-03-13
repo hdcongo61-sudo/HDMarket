@@ -363,6 +363,7 @@ export default function SellerOrderDetail() {
   const [deliveryPinExpiresAt, setDeliveryPinExpiresAt] = useState('');
   const [deliveryFeeEditValue, setDeliveryFeeEditValue] = useState('');
   const [deliveryFeeSaving, setDeliveryFeeSaving] = useState(false);
+  const [proofPreview, setProofPreview] = useState(null);
 
   // Delivery fee cannot be modified once order is "Prête à livrer" or "En cours de livraison"
   const SELLER_CAN_EDIT_DELIVERY_FEE = [
@@ -385,6 +386,18 @@ export default function SellerOrderDetail() {
     const host = apiBase.replace(/\/api\/?$/, '');
     return `${host}/${String(url).replace(/^\/+/, '')}`;
   }, []);
+
+  const openProofPreview = useCallback(
+    (url, label = 'Preuve') => {
+      const normalized = normalizeFileUrl(url);
+      if (!normalized) return;
+      setProofPreview({
+        url: normalized,
+        label: String(label || 'Preuve')
+      });
+    },
+    [normalizeFileUrl]
+  );
 
   const sellerOrderDetailQuery = useSellerOrderDetailQuery({
     orderId,
@@ -928,6 +941,7 @@ export default function SellerOrderDetail() {
     { key: 'completed', label: 'Terminée', icon: CheckCircle, time: order.completedAt },
     { key: 'cancelled', label: 'Annulée', icon: X, time: order.cancelledAt }
   ].filter((entry) => Boolean(entry.time));
+  const proofPreviewIsSignature = /signature/i.test(String(proofPreview?.label || ''));
   const openCancelModal = ({ prefillReason = '', defaultRefund = false } = {}) => {
     setCancelModalOpen(true);
     setCancelIssueRefund(Boolean(defaultRefund && Number(order?.paidAmount || 0) > 0));
@@ -1339,19 +1353,47 @@ export default function SellerOrderDetail() {
                 <p className="text-sm font-semibold text-neutral-900">
                   Preuve de livraison soumise. En attente de confirmation du client.
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  {(order.deliveryProofImages || []).map((proof, index) => (
-                    <a
-                      key={`seller-proof-${index}`}
-                      href={normalizeFileUrl(proof?.url || proof?.path || '')}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-lg border border-neutral-200 bg-white px-2 py-1 text-xs font-semibold text-neutral-700"
-                    >
-                      Preuve {index + 1}
-                    </a>
-                  ))}
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {(order.deliveryProofImages || []).map((proof, index) => {
+                    const src = normalizeFileUrl(proof?.url || proof?.path || '');
+                    if (!src) return null;
+                    return (
+                      <button
+                        key={`seller-proof-${index}`}
+                        type="button"
+                        onClick={() => openProofPreview(src, `Preuve ${index + 1}`)}
+                        className="group relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-white ring-1 ring-neutral-200"
+                      >
+                        <img
+                          src={src}
+                          alt={`Preuve ${index + 1}`}
+                          className="h-full w-full object-contain bg-slate-50 p-1"
+                          loading="lazy"
+                        />
+                        <span className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5 text-[10px] font-semibold text-white">
+                          Photo {index + 1}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
+                {order.clientSignatureImage && (
+                  <div>
+                    <p className="text-xs font-semibold text-neutral-700 mb-1">Signature client</p>
+                    <button
+                      type="button"
+                      onClick={() => openProofPreview(order.clientSignatureImage, 'Signature client')}
+                      className="block w-full max-w-md overflow-hidden rounded-lg border border-neutral-200 bg-white"
+                    >
+                      <img
+                        src={normalizeFileUrl(order.clientSignatureImage)}
+                        alt="Signature client"
+                        className="h-24 w-full bg-white object-contain p-1"
+                        loading="lazy"
+                      />
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1908,6 +1950,51 @@ export default function SellerOrderDetail() {
           </div>
         </div>
       </div>
+
+      <BaseModal
+        isOpen={Boolean(proofPreview?.url)}
+        onClose={() => setProofPreview(null)}
+        mobileSheet={false}
+        size="full"
+        rootClassName="z-[140] p-3 sm:p-6"
+        panelClassName="max-h-[92dvh] border-none bg-transparent p-0 shadow-none sm:max-w-[92vw]"
+        backdropClassName="bg-black/85 backdrop-blur-sm"
+        ariaLabel={proofPreview?.label || 'Aperçu preuve'}
+      >
+        <div className="relative mx-auto flex max-h-[92dvh] max-w-[92vw] items-center justify-center p-2 sm:p-4">
+          {proofPreview?.url ? (
+            <a
+              href={proofPreview.url}
+              target="_blank"
+              rel="noreferrer"
+              className="absolute left-2 top-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/25 sm:left-4 sm:top-4"
+            >
+              Ouvrir
+            </a>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setProofPreview(null)}
+            className="absolute right-2 top-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/25 sm:right-4 sm:top-4"
+          >
+            Fermer
+          </button>
+          <div
+            className={`rounded-xl p-2 sm:p-3 ${
+              proofPreviewIsSignature ? 'bg-white shadow-2xl' : 'bg-black/20'
+            }`}
+          >
+            <img
+              src={proofPreview?.url || ''}
+              alt={proofPreview?.label || 'Aperçu preuve'}
+              className={`max-h-[84dvh] max-w-[88vw] rounded-lg object-contain ${
+                proofPreviewIsSignature ? 'bg-white' : 'bg-black/10'
+              }`}
+              loading="lazy"
+            />
+          </div>
+        </div>
+      </BaseModal>
 
       <BaseModal
         isOpen={cancelModalOpen}

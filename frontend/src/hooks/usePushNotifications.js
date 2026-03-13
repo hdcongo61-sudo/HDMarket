@@ -21,13 +21,13 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || ''
 };
 
-function resolveNotificationLink(payload) {
-  const resolved = resolvePushPayloadLink(payload);
+function resolveNotificationLink(payload, user = null) {
+  const resolved = resolvePushPayloadLink(payload, user);
   return resolved || null;
 }
 
-function dispatchNotificationEvents(payload) {
-  const link = resolveNotificationLink(payload);
+function dispatchNotificationEvents(payload, user = null) {
+  const link = resolveNotificationLink(payload, user);
   if (typeof window === 'undefined') return;
   if (link) {
     window.dispatchEvent(
@@ -124,16 +124,16 @@ export default function usePushNotifications(user) {
       });
 
       const receivedListener = PushNotifications.addListener('pushNotificationReceived', (notification) => {
-        dispatchNotificationEvents(notification);
+        dispatchNotificationEvents(notification, user);
       });
 
       const actionListener = PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-        const link = resolveNotificationLink(notification?.notification);
+        const link = resolveNotificationLink(notification?.notification, user);
         if (link && typeof window !== 'undefined') {
           window.location.assign(link);
           return;
         }
-        dispatchNotificationEvents(notification?.notification);
+        dispatchNotificationEvents(notification?.notification, user);
       });
 
       return () => {
@@ -206,7 +206,7 @@ export default function usePushNotifications(user) {
 
         const unsubscribe = onMessage(messaging, (payload) => {
           if (!active) return;
-          dispatchNotificationEvents(payload);
+          dispatchNotificationEvents(payload, user);
         });
         webPushUnsubscribeRef.current = unsubscribe;
       } catch (err) {

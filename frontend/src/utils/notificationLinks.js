@@ -291,7 +291,7 @@ export const resolveNotificationLink = (alert, user = null) => {
   return '';
 };
 
-export const resolvePushPayloadLink = (payload) => {
+export const resolvePushPayloadLink = (payload, user = null) => {
   const data = payload?.notification?.data || payload?.data || payload || {};
   const syntheticAlert = {
     type: String(data.type || '').trim(),
@@ -313,7 +313,7 @@ export const resolvePushPayloadLink = (payload) => {
     shop: data.shopSlug || data.shopId ? { slug: data.shopSlug, _id: data.shopId } : null
   };
   return (
-    resolveNotificationLink(syntheticAlert, null) ||
+    resolveNotificationLink(syntheticAlert, user) ||
     normalizeNotificationLink(data.actionLink || data.deepLink || data.deeplink || data.url || data.link || data.path || '')
   );
 };

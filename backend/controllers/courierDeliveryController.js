@@ -18,6 +18,7 @@ import {
   invalidateSellerCache,
   invalidateUserCache
 } from '../utils/cache.js';
+import { emitOrderStatusUpdated } from '../sockets/chatSocket.js';
 
 const OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
 
@@ -224,6 +225,17 @@ const emitNotificationBatch = async ({
 
 const mapStageToStatus = (stage = 'ASSIGNED') => STAGE_TO_ORDER_STATUS[String(stage || '').toUpperCase()] || 'IN_PROGRESS';
 
+const resolveOrderSellerIds = (order = {}) => {
+  const items = Array.isArray(order?.items) ? order.items : [];
+  const ids = new Set();
+  items.forEach((item) => {
+    const shopId = item?.snapshot?.shopId || item?.product?.user || item?.product?.user?._id || null;
+    if (!shopId) return;
+    ids.add(String(shopId));
+  });
+  return Array.from(ids);
+};
+
 const STAGE_RANK = Object.freeze({
   ASSIGNED: 1,
   ACCEPTED: 2,
@@ -274,7 +286,8 @@ const updateOrderPlatformDeliveryState = async ({
   requestId,
   stage,
   deliveryGuyId,
-  forceMode = 'PLATFORM_DELIVERY'
+  forceMode = 'PLATFORM_DELIVERY',
+  updatedBy = ''
 }) => {
   const platformDeliveryStatus = mapStageToStatus(stage);
   const payload = {
@@ -339,6 +352,31 @@ const updateOrderPlatformDeliveryState = async ({
         ]
       )
     ]);
+    const refreshed = await Order.findById(orderId)
+      .select(
+        '_id customer items status installmentSaleStatus platformDeliveryStatus platformDeliveryRequestId deliveryStatus outForDeliveryAt shippedAt deliverySubmittedAt deliveryDate deliveredAt clientDeliveryConfirmedAt'
+      )
+      .lean();
+    if (refreshed?._id) {
+      emitOrderStatusUpdated({
+        orderId: refreshed._id,
+        status: refreshed.status,
+        installmentSaleStatus: refreshed.installmentSaleStatus,
+        platformDeliveryStatus: refreshed.platformDeliveryStatus,
+        platformDeliveryRequestId: refreshed.platformDeliveryRequestId,
+        deliveryStatus: refreshed.deliveryStatus,
+        currentStage: normalizedStage,
+        outForDeliveryAt: refreshed.outForDeliveryAt || null,
+        shippedAt: refreshed.shippedAt || null,
+        deliverySubmittedAt: refreshed.deliverySubmittedAt || null,
+        deliveryDate: refreshed.deliveryDate || null,
+        deliveredAt: refreshed.deliveredAt || null,
+        clientDeliveryConfirmedAt: refreshed.clientDeliveryConfirmedAt || null,
+        customerId: refreshed.customer,
+        sellerIds: resolveOrderSellerIds(refreshed),
+        updatedBy
+      });
+    }
     return;
   }
 
@@ -364,6 +402,32 @@ const updateOrderPlatformDeliveryState = async ({
       }
     ]
   );
+
+  const refreshed = await Order.findById(orderId)
+    .select(
+      '_id customer items status installmentSaleStatus platformDeliveryStatus platformDeliveryRequestId deliveryStatus outForDeliveryAt shippedAt deliverySubmittedAt deliveryDate deliveredAt clientDeliveryConfirmedAt'
+    )
+    .lean();
+  if (refreshed?._id) {
+    emitOrderStatusUpdated({
+      orderId: refreshed._id,
+      status: refreshed.status,
+      installmentSaleStatus: refreshed.installmentSaleStatus,
+      platformDeliveryStatus: refreshed.platformDeliveryStatus,
+      platformDeliveryRequestId: refreshed.platformDeliveryRequestId,
+      deliveryStatus: refreshed.deliveryStatus,
+      currentStage: normalizedStage,
+      outForDeliveryAt: refreshed.outForDeliveryAt || null,
+      shippedAt: refreshed.shippedAt || null,
+      deliverySubmittedAt: refreshed.deliverySubmittedAt || null,
+      deliveryDate: refreshed.deliveryDate || null,
+      deliveredAt: refreshed.deliveredAt || null,
+      clientDeliveryConfirmedAt: refreshed.clientDeliveryConfirmedAt || null,
+      customerId: refreshed.customer,
+      sellerIds: resolveOrderSellerIds(refreshed),
+      updatedBy
+    });
+  }
 };
 
 const toCourierItems = (requestDoc = {}) => {
@@ -907,7 +971,8 @@ export const acceptCourierAssignment = asyncHandler(async (req, res) => {
     orderId: assignment.orderId?._id || assignment.orderId,
     requestId: assignment._id,
     stage: 'ACCEPTED',
-    deliveryGuyId: deliveryGuy._id
+    deliveryGuyId: deliveryGuy._id,
+    updatedBy: req.user.id
   });
 
   await emitNotificationBatch({
@@ -1016,7 +1081,8 @@ export const rejectCourierAssignment = asyncHandler(async (req, res) => {
     orderId: assignment.orderId?._id || assignment.orderId,
     requestId: assignment._id,
     stage: 'ASSIGNED',
-    deliveryGuyId: null
+    deliveryGuyId: null,
+    updatedBy: req.user.id
   });
 
   const managerRecipients = await getManagerRecipients(runtime);
@@ -1171,7 +1237,8 @@ export const updateCourierAssignmentStage = asyncHandler(async (req, res) => {
     orderId: assignment.orderId?._id || assignment.orderId,
     requestId: assignment._id,
     stage: nextStage,
-    deliveryGuyId: assignment.assignedDeliveryGuyId || deliveryGuy._id
+    deliveryGuyId: assignment.assignedDeliveryGuyId || deliveryGuy._id,
+    updatedBy: req.user.id
   });
 
   let type = 'delivery_request_in_progress';
@@ -1304,7 +1371,8 @@ export const uploadCourierProof = asyncHandler(async (req, res) => {
     orderId: assignment.orderId?._id || assignment.orderId,
     requestId: assignment._id,
     stage: assignment.currentStage || (proofType === 'delivery' ? 'DELIVERED' : 'PICKED_UP'),
-    deliveryGuyId: assignment.assignedDeliveryGuyId || deliveryGuy._id
+    deliveryGuyId: assignment.assignedDeliveryGuyId || deliveryGuy._id,
+    updatedBy: req.user.id
   });
 
   await emitNotificationBatch({
@@ -1689,7 +1757,8 @@ export const assignCourierFromAdmin = async ({
     orderId: requestDoc.orderId,
     requestId: requestDoc._id,
     stage: requestDoc.currentStage,
-    deliveryGuyId: deliveryGuy._id
+    deliveryGuyId: deliveryGuy._id,
+    updatedBy: actorId
   });
 
   const recipients = [];
