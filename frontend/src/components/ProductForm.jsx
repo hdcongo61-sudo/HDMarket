@@ -129,7 +129,35 @@ export default function ProductForm(props) {
     validation: true,
     preview: false
   });
+  const formShellRef = useRef(null);
   const toggleSection = (key) => setExpandedSections((s) => ({ ...s, [key]: !s[key] }));
+
+  useEffect(() => {
+    if (!isEmbeddedMobile || !formShellRef.current) return undefined;
+
+    const container = formShellRef.current;
+    let frameId = null;
+
+    const handleFocusIn = (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (!target.matches('input, textarea, select')) return;
+
+      if (frameId) window.cancelAnimationFrame(frameId);
+      frameId = window.requestAnimationFrame(() => {
+        target.scrollIntoView({
+          block: 'center',
+          behavior: 'smooth'
+        });
+      });
+    };
+
+    container.addEventListener('focusin', handleFocusIn);
+    return () => {
+      if (frameId) window.cancelAnimationFrame(frameId);
+      container.removeEventListener('focusin', handleFocusIn);
+    };
+  }, [isEmbeddedMobile]);
 
   const readFileAsDataURL = (file) =>
     new Promise((resolve, reject) => {
@@ -1136,10 +1164,11 @@ export default function ProductForm(props) {
 
   return (
     <div
+      ref={formShellRef}
       className={`max-w-2xl mx-auto ${
         isMobile
           ? isEmbeddedMobile
-            ? 'px-0 pb-24'
+            ? 'px-0 pb-24 scroll-pb-40'
             : 'px-0 pb-28 bg-[#f2f2f7] min-h-screen'
           : ''
       }`}

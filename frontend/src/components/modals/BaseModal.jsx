@@ -165,11 +165,12 @@ export default function BaseModal({
 
   const panelStyle = useMemo(
     () => ({
-      maxHeight:
-        'calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 0.75rem)',
-      marginBottom: mobileSheet
-        ? `calc(env(safe-area-inset-bottom, 0px) + ${keyboardInset}px)`
-        : undefined
+      maxHeight: `calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 0.75rem - ${keyboardInset}px)`,
+      height:
+        mobileSheet && keyboardInset > 0
+          ? `calc(100dvh - env(safe-area-inset-top, 0px) - ${keyboardInset}px)`
+          : undefined,
+      marginBottom: mobileSheet ? 'env(safe-area-inset-bottom, 0px)' : undefined
     }),
     [mobileSheet, keyboardInset]
   );

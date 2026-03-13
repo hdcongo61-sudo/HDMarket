@@ -2288,7 +2288,7 @@ export default function UserDashboard() {
         rootClassName={isMobile ? '!p-0' : ''}
         panelClassName={
           isMobile
-            ? 'h-[100dvh] max-h-[100dvh] rounded-none border-0 bg-[#f2f2f7] sm:rounded-none'
+            ? 'min-h-0 rounded-none border-0 bg-[#f2f2f7] sm:rounded-none'
             : 'sm:max-w-5xl sm:max-h-[90vh] sm:rounded-3xl'
         }
       >
@@ -2329,7 +2329,7 @@ export default function UserDashboard() {
             </div>
 
             {/* Modal Content */}
-            <div className={`flex-1 overflow-y-auto min-h-0 ${isMobile ? 'p-3 pb-0' : 'p-6'}`}>
+            <div className={`flex-1 overflow-y-auto min-h-0 ${isMobile ? 'p-3 pb-0 scroll-pb-44' : 'p-6'}`}>
               <ProductForm
                 initialValues={editingProduct}
                 productId={editingProduct?._id}
