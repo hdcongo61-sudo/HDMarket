@@ -1879,7 +1879,7 @@ export default function ProductDetails() {
               disabled={addingToCart || inCart || isOutOfStock}
               className={`group flex min-h-[52px] items-center justify-center gap-2.5 rounded-2xl px-4 py-3.5 text-sm font-bold transition-all tap-feedback ${inCart || isOutOfStock
                 ? 'cursor-default bg-slate-200 text-slate-500'
-                : 'bg-slate-900 text-white shadow-sm hover:bg-slate-800'
+                : 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_2px_10px_rgba(2,132,199,0.35)] hover:from-blue-700 hover:to-cyan-600'
                 }`}
             >
               <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/15">
@@ -2323,7 +2323,7 @@ export default function ProductDetails() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <button onClick={handleAddToCart} disabled={addingToCart || inCart || isOutOfStock}
-                className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-2xl font-semibold text-sm transition-all active:scale-95 ${inCart || isOutOfStock ? 'bg-gray-200 text-gray-500' : 'bg-neutral-900 text-white'
+                className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-2xl font-semibold text-sm transition-all active:scale-95 ${inCart || isOutOfStock ? 'bg-gray-200 text-gray-500' : 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_2px_10px_rgba(2,132,199,0.35)]'
                   }`}>
                 <ShoppingCart size={17} />
                 <span>
@@ -2903,7 +2903,7 @@ export default function ProductDetails() {
                       disabled={addingToCart || inCart || isOutOfStock}
                       className={`group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all duration-200 active:scale-[0.98] ${inCart || isOutOfStock
                         ? 'cursor-not-allowed bg-slate-200 text-slate-500 opacity-70'
-                        : 'bg-slate-900 text-white shadow-sm hover:bg-slate-800 hover:shadow-md'
+                        : 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_2px_10px_rgba(2,132,199,0.35)] hover:from-blue-700 hover:to-cyan-600 hover:shadow-md'
                         }`}
                     >
                       <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/15">

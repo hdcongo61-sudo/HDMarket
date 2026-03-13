@@ -412,14 +412,14 @@ export default function ImagePreviewModal({
       mobileSheet={false}
       ariaLabel="Aperçu image"
       backdropClassName="!bg-black/92 backdrop-blur-sm"
-      panelClassName="sm:max-w-6xl border-black/40 bg-black/95 text-white"
+      panelClassName="sm:max-w-6xl !border-0 !bg-black/95 text-white shadow-none"
     >
       <div className="relative w-full p-2 sm:p-4">
         <div className="absolute left-3 top-3 z-20 inline-flex items-center gap-2">
           <button
             type="button"
             onClick={zoomOut}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-800 shadow-sm transition hover:bg-white"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white shadow-sm transition hover:bg-black/75"
             aria-label="Zoom arrière"
           >
             <ZoomOut className="h-5 w-5" />
@@ -427,7 +427,7 @@ export default function ImagePreviewModal({
           <button
             type="button"
             onClick={zoomIn}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-800 shadow-sm transition hover:bg-white"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white shadow-sm transition hover:bg-black/75"
             aria-label="Zoom avant"
           >
             <ZoomIn className="h-5 w-5" />
@@ -506,7 +506,7 @@ export default function ImagePreviewModal({
           </>
         ) : null}
 
-        <div className="max-h-[82vh] overflow-hidden rounded-2xl bg-black">
+        <div className="max-h-[82vh] overflow-hidden bg-black">
           <div
             className="flex h-[82vh] w-full items-center justify-center touch-none"
             onTouchStart={handleTouchStart}

@@ -57,6 +57,65 @@ const buildImageReportContext = (product, deepLink = '') => {
   };
 };
 
+const CATEGORY_COLOR_PALETTE = [
+  {
+    iconBg: 'bg-blue-100',
+    iconText: 'text-blue-600',
+    chipBg: 'bg-blue-50',
+    chipBorder: 'border-blue-200',
+    chipText: 'text-blue-700'
+  },
+  {
+    iconBg: 'bg-emerald-100',
+    iconText: 'text-emerald-600',
+    chipBg: 'bg-emerald-50',
+    chipBorder: 'border-emerald-200',
+    chipText: 'text-emerald-700'
+  },
+  {
+    iconBg: 'bg-violet-100',
+    iconText: 'text-violet-600',
+    chipBg: 'bg-violet-50',
+    chipBorder: 'border-violet-200',
+    chipText: 'text-violet-700'
+  },
+  {
+    iconBg: 'bg-amber-100',
+    iconText: 'text-amber-600',
+    chipBg: 'bg-amber-50',
+    chipBorder: 'border-amber-200',
+    chipText: 'text-amber-700'
+  },
+  {
+    iconBg: 'bg-rose-100',
+    iconText: 'text-rose-600',
+    chipBg: 'bg-rose-50',
+    chipBorder: 'border-rose-200',
+    chipText: 'text-rose-700'
+  },
+  {
+    iconBg: 'bg-cyan-100',
+    iconText: 'text-cyan-600',
+    chipBg: 'bg-cyan-50',
+    chipBorder: 'border-cyan-200',
+    chipText: 'text-cyan-700'
+  },
+  {
+    iconBg: 'bg-orange-100',
+    iconText: 'text-orange-600',
+    chipBg: 'bg-orange-50',
+    chipBorder: 'border-orange-200',
+    chipText: 'text-orange-700'
+  },
+  {
+    iconBg: 'bg-fuchsia-100',
+    iconText: 'text-fuchsia-600',
+    chipBg: 'bg-fuchsia-50',
+    chipBorder: 'border-fuchsia-200',
+    chipText: 'text-fuchsia-700'
+  }
+];
+
 /**
  * 🎨 PAGE D'ACCUEIL HDMarket - Design Alibaba Mobile First
  * Focus sur les bonnes affaires avec prix visibles
@@ -133,6 +192,18 @@ const cityList = useMemo(
 );
 const effectiveUserCity = preferredCity || user?.preferredCity || user?.city || '';
 const externalLinkProps = useDesktopExternalLink();
+const connectedUserDeliveryAddress = useMemo(() => {
+  if (!user) return '';
+  const fullAddress = String(user?.address || '').trim();
+  if (fullAddress) return fullAddress;
+  const locationParts = [user?.commune, user?.city].filter((entry) => typeof entry === 'string' && entry.trim());
+  return locationParts.join(', ');
+}, [user]);
+const connectedUserDeliveryAddressLabel = useMemo(() => {
+  if (connectedUserDeliveryAddress) return connectedUserDeliveryAddress;
+  if (effectiveUserCity) return effectiveUserCity;
+  return t('home.addressNotSet', 'Adresse non renseignée');
+}, [connectedUserDeliveryAddress, effectiveUserCity, t]);
 const hasUserCity = useMemo(
   () =>
     Boolean(
@@ -750,6 +821,23 @@ const loadDiscountProducts = async () => {
 
     return (
       <main className="max-w-7xl mx-auto px-3 max-[375px]:px-2.5 pt-2.5 max-[375px]:pt-1.5 pb-4 max-[375px]:pb-3 space-y-3 max-[375px]:space-y-2.5">
+        {user ? (
+          <div className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-2">
+            <div className="flex items-center gap-2">
+              <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+                <MapPin className="h-3.5 w-3.5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-sky-700">
+                  {t('home.deliveryAddress', 'Adresse de livraison')}
+                </p>
+                <p className="truncate text-xs font-medium text-slate-700">
+                  {connectedUserDeliveryAddressLabel}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : null}
         {/* Mobile Categories Module */}
         <section className="rounded-2xl border border-gray-200 bg-white p-3 max-[375px]:p-2.5 shadow-sm">
           <div className="mb-2.5 max-[375px]:mb-2 flex items-center justify-between">
@@ -776,16 +864,21 @@ const loadDiscountProducts = async () => {
               <LayoutGrid className="w-3.5 h-3.5 max-[375px]:w-3 max-[375px]:h-3" />
               <span className="block truncate">{t('home.all', 'Tout')}</span>
             </Link>
-            {categoryGroups.map((group) => {
+            {categoryGroups.map((group, index) => {
               const Icon = group.icon;
+              const style = CATEGORY_COLOR_PALETTE[index % CATEGORY_COLOR_PALETTE.length];
               return (
                 <Link
                   key={group.id}
                   to={`/categories/${group.options?.[0]?.value || ''}`}
-                  className="inline-flex min-w-0 max-w-[138px] max-[375px]:max-w-[124px] items-center gap-1.5 max-[375px]:gap-1 px-3.5 max-[375px]:px-3 py-2 max-[375px]:py-1.5 rounded-full bg-white border border-gray-200 text-xs max-[375px]:text-[11px] font-semibold leading-none text-gray-700 whitespace-nowrap shadow-sm active:scale-95 transition-transform"
+                  className={`inline-flex min-w-0 max-w-[138px] max-[375px]:max-w-[124px] items-center justify-center gap-1.5 max-[375px]:gap-1 px-3.5 max-[375px]:px-3 py-2 max-[375px]:py-1.5 rounded-full border text-xs max-[375px]:text-[11px] font-semibold leading-none whitespace-nowrap shadow-sm active:scale-95 transition-transform ${style.chipBg} ${style.chipBorder} ${style.chipText}`}
                   title={group.label}
                 >
-                  {Icon && <Icon className="w-3.5 h-3.5 max-[375px]:w-3 max-[375px]:h-3 text-neutral-700 flex-shrink-0" />}
+                  {Icon && (
+                    <span className={`inline-flex h-5 w-5 max-[375px]:h-[18px] max-[375px]:w-[18px] items-center justify-center rounded-full ${style.iconBg} ${style.iconText} flex-shrink-0 mx-auto`}>
+                      <Icon className="w-3.5 h-3.5 max-[375px]:w-3 max-[375px]:h-3" />
+                    </span>
+                  )}
                   <span className="block min-w-0 truncate">{group.label.split(' & ')[0]}</span>
                 </Link>
               );
@@ -820,13 +913,13 @@ const loadDiscountProducts = async () => {
               <Link
                 to="/products"
                 {...externalLinkProps}
-                className="inline-flex items-center rounded-xl bg-white px-3 max-[375px]:px-2.5 py-2 max-[375px]:py-1.5 text-xs max-[375px]:text-[11px] font-semibold text-gray-900"
+                className="inline-flex items-center rounded-xl bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-500 px-3 max-[375px]:px-2.5 py-2 max-[375px]:py-1.5 text-xs max-[375px]:text-[11px] font-semibold text-white shadow-[0_8px_18px_rgba(14,165,233,0.35)] transition-all duration-200 hover:from-cyan-600 hover:via-sky-600 hover:to-indigo-600 active:scale-[0.98]"
               >
                 Explorer <ChevronRight className="ml-1 h-3.5 w-3.5 max-[375px]:h-3 max-[375px]:w-3" />
               </Link>
               <Link
                 to="/my"
-                className="inline-flex items-center rounded-xl border border-white/35 bg-white/10 px-3 max-[375px]:px-2.5 py-2 max-[375px]:py-1.5 text-xs max-[375px]:text-[11px] font-semibold text-white backdrop-blur-sm"
+                className="inline-flex items-center rounded-xl bg-gradient-to-r from-fuchsia-500 via-violet-500 to-purple-500 px-3 max-[375px]:px-2.5 py-2 max-[375px]:py-1.5 text-xs max-[375px]:text-[11px] font-semibold text-white shadow-[0_8px_18px_rgba(168,85,247,0.34)] transition-all duration-200 hover:from-fuchsia-600 hover:via-violet-600 hover:to-purple-600 active:scale-[0.98]"
               >
                 <Zap className="mr-1 h-3.5 w-3.5 max-[375px]:h-3 max-[375px]:w-3" />
                 Publier
@@ -1540,6 +1633,21 @@ const loadDiscountProducts = async () => {
 
     return (
       <main className="max-w-[1400px] 2xl:max-w-[1600px] mx-auto px-6 lg:px-8 py-4 space-y-5">
+        {user ? (
+          <div className="flex items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3">
+            <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+              <MapPin className="h-4.5 w-4.5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">
+                {t('home.deliveryAddress', 'Adresse de livraison')}
+              </p>
+              <p className="truncate text-sm font-medium text-slate-700">
+                {connectedUserDeliveryAddressLabel}
+              </p>
+            </div>
+          </div>
+        ) : null}
         {/* Category Pills Bar */}
         <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar items-center">
           <Link
@@ -1550,15 +1658,20 @@ const loadDiscountProducts = async () => {
             <LayoutGrid className="w-4 h-4" />
             Tout
           </Link>
-          {categoryGroups.map((group) => {
+          {categoryGroups.map((group, index) => {
             const Icon = group.icon;
+            const style = CATEGORY_COLOR_PALETTE[index % CATEGORY_COLOR_PALETTE.length];
             return (
               <Link
                 key={group.id}
                 to={`/categories/${group.options?.[0]?.value || ''}`}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-gray-200 text-sm font-semibold text-gray-700 whitespace-nowrap shadow-sm hover:border-neutral-300 hover:text-neutral-800 transition-colors"
+                className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-full border text-sm font-semibold whitespace-nowrap shadow-sm transition-colors ${style.chipBg} ${style.chipBorder} ${style.chipText}`}
               >
-                {Icon && <Icon className="w-4 h-4 text-neutral-700 flex-shrink-0" />}
+                {Icon && (
+                  <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full ${style.iconBg} ${style.iconText} flex-shrink-0 mx-auto`}>
+                    <Icon className="w-4 h-4" />
+                  </span>
+                )}
                 <span>{group.label.split(' & ')[0]}</span>
               </Link>
             );
@@ -1605,10 +1718,10 @@ const loadDiscountProducts = async () => {
                   Découvrez <span className="font-bold text-neutral-300">{formatCount(totalProducts)}</span> produits vérifiés. Vendez et achetez en toute confiance.
                 </p>
                 <div className="flex gap-3">
-                  <Link to="/my" className="inline-flex items-center px-4 py-2.5 bg-white text-gray-900 font-semibold rounded-xl hover:bg-gray-50 transition-all text-sm shadow-sm">
+                  <Link to="/my" className="inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-fuchsia-500 via-violet-500 to-purple-500 text-white font-semibold rounded-xl hover:from-fuchsia-600 hover:via-violet-600 hover:to-purple-600 transition-all text-sm shadow-[0_10px_24px_rgba(168,85,247,0.34)] active:scale-[0.99]">
                     <Zap className="w-4 h-4 mr-1.5" /> Publier
                   </Link>
-                  <Link to="/products" {...externalLinkProps} className="inline-flex items-center px-4 py-2.5 bg-white/15 backdrop-blur-md text-white font-semibold rounded-xl border border-white/30 hover:bg-white/25 transition-all text-sm">
+                  <Link to="/products" {...externalLinkProps} className="inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-500 text-white font-semibold rounded-xl hover:from-cyan-600 hover:via-sky-600 hover:to-indigo-600 transition-all text-sm shadow-[0_10px_24px_rgba(14,165,233,0.34)] active:scale-[0.99]">
                     Explorer <ChevronRight className="w-4 h-4 ml-1" />
                   </Link>
                 </div>
@@ -2273,27 +2386,17 @@ const loadDiscountProducts = async () => {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {categoryGroups.map((group, index) => {
               const Icon = group.icon;
-              const categoryStyles = [
-                { bg: 'from-[#0A0A0A]/10 to-[#6B7280]/10', icon: 'text-[#0A0A0A]', border: 'border-[#0A0A0A]/20', hover: 'hover:from-[#0A0A0A]/20 hover:to-[#6B7280]/20' },
-                { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-600 dark:text-neutral-400', border: 'border-neutral-200/50 dark:border-neutral-800/50', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
-                { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-600 dark:text-neutral-400', border: 'border-neutral-200/50 dark:border-neutral-800/50', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
-                { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-600 dark:text-neutral-400', border: 'border-neutral-200/50 dark:border-neutral-800/50', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
-                { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-800 dark:text-neutral-500', border: 'border-neutral-200/50 dark:border-neutral-700/70', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
-                { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-800 dark:text-neutral-600', border: 'border-neutral-200/50 dark:border-neutral-700/70', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
-                { bg: 'from-neutral-500/10 to-neutral-500/10', icon: 'text-neutral-800 dark:text-neutral-500', border: 'border-neutral-200/50 dark:border-neutral-700/70', hover: 'hover:from-neutral-500/20 hover:to-neutral-500/20' },
-                { bg: 'from-neutral-500/10 to-gray-500/10', icon: 'text-neutral-600 dark:text-neutral-400', border: 'border-neutral-200/50 dark:border-neutral-800/50', hover: 'hover:from-neutral-500/20 hover:to-gray-500/20' }
-              ];
-              const style = categoryStyles[index % categoryStyles.length];
+              const style = CATEGORY_COLOR_PALETTE[index % CATEGORY_COLOR_PALETTE.length];
               return (
                 <Link
                   key={group.id}
                   to={`/categories/${group.options?.[0]?.value || ''}`}
                   onClick={() => setCategoryModalOpen(false)}
-                  className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br ${style.bg} ${style.border} backdrop-blur-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] ${style.hover}`}
+                  className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br from-white to-gray-50/80 ${style.chipBorder} backdrop-blur-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]`}
                 >
                   <div className="flex flex-col items-center gap-3 p-4 text-center">
-                    <div className={`relative flex h-14 w-14 items-center justify-center rounded-2xl border-2 bg-white/80 shadow-md transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 dark:bg-gray-800/80 ${style.border}`}>
-                      {Icon ? <Icon className={`relative h-7 w-7 ${style.icon}`} /> : null}
+                    <div className={`relative mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border-2 shadow-md transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 ${style.chipBorder} ${style.iconBg}`}>
+                      {Icon ? <Icon className={`relative h-7 w-7 ${style.iconText}`} /> : null}
                     </div>
                     <div className="space-y-1">
                       <p className="text-sm font-bold leading-tight text-gray-900 dark:text-white">{group.label}</p>

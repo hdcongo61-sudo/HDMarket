@@ -956,9 +956,9 @@ function ProductCard({
               } font-semibold transition-all duration-200 active:scale-95 shadow-sm ${
                 inCart
                   ? 'bg-gray-100 text-gray-500 cursor-not-allowed opacity-60'
-                  : adding
-                  ? 'bg-neutral-800 text-white cursor-wait'
-                  : 'bg-black text-white hover:bg-neutral-900 shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
+                : adding
+                  ? 'bg-blue-700 text-white cursor-wait'
+                  : 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white hover:from-blue-700 hover:to-cyan-600 shadow-[0_2px_8px_rgba(2,132,199,0.35)]'
               }`}
             >
               <ShoppingCart size={12} className="sm:w-4 sm:h-4" />

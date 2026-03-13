@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import {
@@ -34,7 +34,12 @@ import {
   List,
   Download,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  RotateCcw,
+  FlipHorizontal,
+  ZoomIn,
+  ZoomOut,
+  Move
 } from 'lucide-react';
 import VerifiedBadge from '../components/VerifiedBadge';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
@@ -310,6 +315,104 @@ const buildExternalMapUrl = ({ provider, latitude, longitude }) => {
   return url.toString();
 };
 
+const PROFILE_IMAGE_EDITOR_VIEWPORT_SIZE = 320;
+const PROFILE_IMAGE_EDITOR_OUTPUT_SIZE = 640;
+const PROFILE_IMAGE_EDITOR_MIN_ZOOM = 1;
+const PROFILE_IMAGE_EDITOR_MAX_ZOOM = 3;
+const PROFILE_IMAGE_EDITOR_MAX_ROTATION = 180;
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const getProfileImageEditorDefaultTransform = () => ({
+  zoom: 1,
+  rotation: 0,
+  offsetX: 0,
+  offsetY: 0,
+  flipX: false
+});
+
+const loadImageElement = (src) =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Impossible de charger l’image.'));
+    img.src = src;
+  });
+
+const createEditedProfileImageFile = async ({
+  sourceUrl,
+  originalFile,
+  transform
+}) => {
+  const image = await loadImageElement(sourceUrl);
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Éditeur image indisponible sur cet appareil.');
+
+  const outputSize = PROFILE_IMAGE_EDITOR_OUTPUT_SIZE;
+  const viewportSize = PROFILE_IMAGE_EDITOR_VIEWPORT_SIZE;
+  const zoom = clamp(
+    Number(transform?.zoom) || PROFILE_IMAGE_EDITOR_MIN_ZOOM,
+    PROFILE_IMAGE_EDITOR_MIN_ZOOM,
+    PROFILE_IMAGE_EDITOR_MAX_ZOOM
+  );
+  const rotationDeg = clamp(
+    Number(transform?.rotation) || 0,
+    -PROFILE_IMAGE_EDITOR_MAX_ROTATION,
+    PROFILE_IMAGE_EDITOR_MAX_ROTATION
+  );
+  const rotation = (rotationDeg * Math.PI) / 180;
+  const offsetX = Number(transform?.offsetX) || 0;
+  const offsetY = Number(transform?.offsetY) || 0;
+  const flipX = Boolean(transform?.flipX);
+
+  canvas.width = outputSize;
+  canvas.height = outputSize;
+
+  const sourceType = String(originalFile?.type || '').toLowerCase();
+  const outputType = sourceType.includes('png') ? 'image/png' : 'image/jpeg';
+  if (outputType === 'image/jpeg') {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, outputSize, outputSize);
+  } else {
+    ctx.clearRect(0, 0, outputSize, outputSize);
+  }
+
+  const coverScale = Math.max(viewportSize / image.width, viewportSize / image.height);
+  const canvasScale = coverScale * zoom * (outputSize / viewportSize);
+  const outputOffsetX = offsetX * (outputSize / viewportSize);
+  const outputOffsetY = offsetY * (outputSize / viewportSize);
+
+  ctx.save();
+  ctx.translate(outputSize / 2 + outputOffsetX, outputSize / 2 + outputOffsetY);
+  ctx.rotate(rotation);
+  ctx.scale(flipX ? -1 : 1, 1);
+  ctx.scale(canvasScale, canvasScale);
+  ctx.drawImage(image, -image.width / 2, -image.height / 2);
+  ctx.restore();
+
+  const blob = await new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (value) => {
+        if (value) resolve(value);
+        else reject(new Error('Impossible de générer l’image recadrée.'));
+      },
+      outputType,
+      outputType === 'image/jpeg' ? 0.92 : undefined
+    );
+  });
+
+  const extension = outputType === 'image/png' ? 'png' : 'jpg';
+  const baseName = String(originalFile?.name || 'profile-image')
+    .replace(/\.[^.]+$/, '')
+    .slice(0, 48);
+  return new File([blob], `${baseName || 'profile-image'}-${Date.now()}.${extension}`, {
+    type: outputType,
+    lastModified: Date.now()
+  });
+};
+
 export default function Profile() {
   const { user, updateUser } = useContext(AuthContext);
   const { cities, communes, runtime } = useAppSettings();
@@ -324,6 +427,22 @@ export default function Profile() {
   const [shopLogoPreview, setShopLogoPreview] = useState('');
   const [shopBannerFile, setShopBannerFile] = useState(null);
   const [shopBannerPreview, setShopBannerPreview] = useState('');
+  const [profileImageEditorOpen, setProfileImageEditorOpen] = useState(false);
+  const [profileImageEditorSource, setProfileImageEditorSource] = useState('');
+  const [profileImageEditorFile, setProfileImageEditorFile] = useState(null);
+  const [profileImageEditorTransform, setProfileImageEditorTransform] = useState(
+    getProfileImageEditorDefaultTransform()
+  );
+  const [profileImageEditorApplying, setProfileImageEditorApplying] = useState(false);
+  const [profileImageEditorPreparing, setProfileImageEditorPreparing] = useState(false);
+  const profileImageEditorPointerRef = useRef({
+    active: false,
+    pointerId: null,
+    startX: 0,
+    startY: 0,
+    originX: 0,
+    originY: 0
+  });
   const [shopHours, setShopHours] = useState(() => createDefaultShopHours());
   const [locationCaptureLoading, setLocationCaptureLoading] = useState(false);
   const [locationSaving, setLocationSaving] = useState(false);
@@ -454,6 +573,15 @@ export default function Profile() {
       }
     },
     [profileImagePreview, shopLogoPreview, shopBannerPreview]
+  );
+
+  useEffect(
+    () => () => {
+      if (profileImageEditorSource && profileImageEditorSource.startsWith('blob:')) {
+        URL.revokeObjectURL(profileImageEditorSource);
+      }
+    },
+    [profileImageEditorSource]
   );
 
   useEffect(() => {
@@ -764,15 +892,174 @@ export default function Profile() {
     setForm((prev) => ({ ...prev, [name]: nextValue }));
   };
 
-  const onProfileImageChange = (e) => {
-    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
-    setProfileImageFile(file);
-    if (file) {
+  const openProfileImageEditor = useCallback(
+    (file) => {
+      if (!file || !String(file.type || '').startsWith('image/')) {
+        showToast('Veuillez sélectionner une image valide.', { variant: 'error' });
+        return;
+      }
+      const nextUrl = URL.createObjectURL(file);
+      if (profileImageEditorSource && profileImageEditorSource.startsWith('blob:')) {
+        URL.revokeObjectURL(profileImageEditorSource);
+      }
+      setProfileImageEditorFile(file);
+      setProfileImageEditorSource(nextUrl);
+      setProfileImageEditorTransform(getProfileImageEditorDefaultTransform());
+      setProfileImageEditorOpen(true);
+    },
+    [profileImageEditorSource, showToast]
+  );
+
+  const closeProfileImageEditor = useCallback(() => {
+    setProfileImageEditorOpen(false);
+    setProfileImageEditorFile(null);
+    if (profileImageEditorSource && profileImageEditorSource.startsWith('blob:')) {
+      URL.revokeObjectURL(profileImageEditorSource);
+    }
+    setProfileImageEditorSource('');
+    setProfileImageEditorTransform(getProfileImageEditorDefaultTransform());
+    profileImageEditorPointerRef.current = {
+      active: false,
+      pointerId: null,
+      startX: 0,
+      startY: 0,
+      originX: 0,
+      originY: 0
+    };
+  }, [profileImageEditorSource]);
+
+  const setProfileImageEditorOffset = useCallback((x, y) => {
+    setProfileImageEditorTransform((prev) => {
+      const maxOffset = Math.round(120 + Math.max(0, prev.zoom - 1) * 180);
+      return {
+        ...prev,
+        offsetX: clamp(x, -maxOffset, maxOffset),
+        offsetY: clamp(y, -maxOffset, maxOffset)
+      };
+    });
+  }, []);
+
+  const handleProfileImageEditorPointerDown = useCallback(
+    (event) => {
+      if (!profileImageEditorSource) return;
+      event.preventDefault();
+      profileImageEditorPointerRef.current = {
+        active: true,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        originX: profileImageEditorTransform.offsetX,
+        originY: profileImageEditorTransform.offsetY
+      };
+      try {
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+      } catch {
+        // no-op
+      }
+    },
+    [profileImageEditorSource, profileImageEditorTransform.offsetX, profileImageEditorTransform.offsetY]
+  );
+
+  const handleProfileImageEditorPointerMove = useCallback(
+    (event) => {
+      const drag = profileImageEditorPointerRef.current;
+      if (!drag.active) return;
+      if (drag.pointerId !== null && event.pointerId !== drag.pointerId) return;
+      const dx = event.clientX - drag.startX;
+      const dy = event.clientY - drag.startY;
+      setProfileImageEditorOffset(drag.originX + dx, drag.originY + dy);
+    },
+    [setProfileImageEditorOffset]
+  );
+
+  const handleProfileImageEditorPointerUp = useCallback((event) => {
+    const drag = profileImageEditorPointerRef.current;
+    if (!drag.active) return;
+    if (drag.pointerId !== null && event.pointerId !== drag.pointerId) return;
+    try {
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    } catch {
+      // no-op
+    }
+    profileImageEditorPointerRef.current = {
+      active: false,
+      pointerId: null,
+      startX: 0,
+      startY: 0,
+      originX: 0,
+      originY: 0
+    };
+  }, []);
+
+  const applyProfileImageEditor = useCallback(async () => {
+    if (!profileImageEditorSource || !profileImageEditorFile) return;
+    setProfileImageEditorApplying(true);
+    try {
+      const editedFile = await createEditedProfileImageFile({
+        sourceUrl: profileImageEditorSource,
+        originalFile: profileImageEditorFile,
+        transform: profileImageEditorTransform
+      });
       if (profileImagePreview && profileImagePreview.startsWith('blob:')) {
         URL.revokeObjectURL(profileImagePreview);
       }
-      setProfileImagePreview(URL.createObjectURL(file));
+      setProfileImageFile(editedFile);
+      setProfileImagePreview(URL.createObjectURL(editedFile));
+      showToast('Photo de profil mise à jour avec succès.', { variant: 'success' });
+      closeProfileImageEditor();
+    } catch (editorError) {
+      showToast(editorError?.message || 'Impossible d’appliquer le recadrage.', {
+        variant: 'error'
+      });
+    } finally {
+      setProfileImageEditorApplying(false);
     }
+  }, [
+    closeProfileImageEditor,
+    profileImageEditorFile,
+    profileImageEditorSource,
+    profileImageEditorTransform,
+    profileImagePreview,
+    showToast
+  ]);
+
+  const editCurrentProfileImage = useCallback(async () => {
+    if (profileImageFile) {
+      openProfileImageEditor(profileImageFile);
+      return;
+    }
+    if (!profileImagePreview) {
+      showToast('Ajoutez d’abord une photo pour la modifier.', { variant: 'info' });
+      return;
+    }
+    setProfileImageEditorPreparing(true);
+    try {
+      const response = await fetch(profileImagePreview, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error('Impossible de charger votre photo actuelle.');
+      }
+      const blob = await response.blob();
+      const safeType = String(blob.type || '').startsWith('image/') ? blob.type : 'image/jpeg';
+      const extension = safeType.includes('png') ? 'png' : 'jpg';
+      const file = new File([blob], `profile-current.${extension}`, {
+        type: safeType,
+        lastModified: Date.now()
+      });
+      openProfileImageEditor(file);
+    } catch (editorError) {
+      showToast(editorError?.message || 'Impossible d’ouvrir l’éditeur de photo.', {
+        variant: 'error'
+      });
+    } finally {
+      setProfileImageEditorPreparing(false);
+    }
+  }, [openProfileImageEditor, profileImageFile, profileImagePreview, showToast]);
+
+  const onProfileImageChange = (e) => {
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    if (!file) return;
+    openProfileImageEditor(file);
+    e.target.value = '';
   };
 
   const removeProfileImage = () => {
@@ -1459,7 +1746,7 @@ export default function Profile() {
                     <div className="flex flex-wrap gap-2">
                       <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                         <Upload className="h-4 w-4" />
-                        Changer
+                        Changer & recadrer
                         <input
                           type="file"
                           accept="image/*"
@@ -1471,6 +1758,17 @@ export default function Profile() {
                       {profileImagePreview ? (
                         <button
                           type="button"
+                          onClick={editCurrentProfileImage}
+                          className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-60"
+                          disabled={loading || profileImageEditorPreparing}
+                        >
+                          <Edit3 className="h-4 w-4" />
+                          {profileImageEditorPreparing ? 'Ouverture…' : 'Modifier'}
+                        </button>
+                      ) : null}
+                      {profileImagePreview ? (
+                        <button
+                          type="button"
                           onClick={removeProfileImage}
                           className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
                           disabled={loading}
@@ -1479,6 +1777,9 @@ export default function Profile() {
                         </button>
                       ) : null}
                     </div>
+                    <p className="w-full text-xs text-gray-500">
+                      Vous pouvez recadrer en carré, zoomer, déplacer, pivoter ou retourner l’image.
+                    </p>
                   </div>
                 </div>
                 {/* Informations de base */}
@@ -3384,6 +3685,173 @@ export default function Profile() {
             </div>
           </div>
         )}
+
+        <BaseModal
+          isOpen={profileImageEditorOpen}
+          onClose={closeProfileImageEditor}
+          size="md"
+          mobileSheet={true}
+          ariaLabel="Modifier la photo de profil"
+        >
+          <ModalHeader
+            title="Modifier la photo de profil"
+            subtitle="Recadrage carré, zoom, rotation et ajustements"
+            onClose={closeProfileImageEditor}
+          />
+          <ModalBody className="space-y-4">
+            <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-3">
+              <div
+                className="relative h-72 w-72 max-w-full overflow-hidden rounded-2xl border border-gray-200 bg-gray-900 touch-none"
+                onPointerDown={handleProfileImageEditorPointerDown}
+                onPointerMove={handleProfileImageEditorPointerMove}
+                onPointerUp={handleProfileImageEditorPointerUp}
+                onPointerCancel={handleProfileImageEditorPointerUp}
+              >
+                {profileImageEditorSource ? (
+                  <img
+                    src={profileImageEditorSource}
+                    alt="Aperçu recadrage profil"
+                    draggable={false}
+                    className="pointer-events-none absolute left-1/2 top-1/2 h-full w-full select-none object-cover"
+                    style={{
+                      transform: `translate(calc(-50% + ${profileImageEditorTransform.offsetX}px), calc(-50% + ${profileImageEditorTransform.offsetY}px)) rotate(${profileImageEditorTransform.rotation}deg) scale(${profileImageEditorTransform.flipX ? -profileImageEditorTransform.zoom : profileImageEditorTransform.zoom}, ${profileImageEditorTransform.zoom})`
+                    }}
+                  />
+                ) : null}
+                <div className="pointer-events-none absolute inset-0 border-[3px] border-white/80 shadow-[inset_0_0_0_100vmax_rgba(0,0,0,0.18)]" />
+                <div className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/45 px-2 py-1 text-[11px] font-medium text-white">
+                  <Move className="mr-1 inline h-3 w-3" />
+                  Glisser
+                </div>
+              </div>
+              <p className="text-center text-xs text-gray-500">
+                Astuce: déplacez l’image avec le doigt pour centrer le sujet.
+              </p>
+            </div>
+
+            <div className="space-y-4 rounded-2xl border border-gray-100 bg-gray-50 p-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs text-gray-600">
+                  <span>Zoom</span>
+                  <span>{profileImageEditorTransform.zoom.toFixed(2)}x</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setProfileImageEditorTransform((prev) => ({
+                        ...prev,
+                        zoom: clamp(prev.zoom - 0.1, PROFILE_IMAGE_EDITOR_MIN_ZOOM, PROFILE_IMAGE_EDITOR_MAX_ZOOM)
+                      }))
+                    }
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                  >
+                    <ZoomOut className="h-4 w-4" />
+                  </button>
+                  <input
+                    type="range"
+                    min={PROFILE_IMAGE_EDITOR_MIN_ZOOM}
+                    max={PROFILE_IMAGE_EDITOR_MAX_ZOOM}
+                    step="0.01"
+                    value={profileImageEditorTransform.zoom}
+                    onChange={(event) =>
+                      setProfileImageEditorTransform((prev) => ({
+                        ...prev,
+                        zoom: clamp(
+                          Number(event.target.value),
+                          PROFILE_IMAGE_EDITOR_MIN_ZOOM,
+                          PROFILE_IMAGE_EDITOR_MAX_ZOOM
+                        )
+                      }))
+                    }
+                    className="h-2 w-full cursor-pointer accent-neutral-800"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setProfileImageEditorTransform((prev) => ({
+                        ...prev,
+                        zoom: clamp(prev.zoom + 0.1, PROFILE_IMAGE_EDITOR_MIN_ZOOM, PROFILE_IMAGE_EDITOR_MAX_ZOOM)
+                      }))
+                    }
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                  >
+                    <ZoomIn className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs text-gray-600">
+                  <span>Rotation</span>
+                  <span>{Math.round(profileImageEditorTransform.rotation)}°</span>
+                </div>
+                <input
+                  type="range"
+                  min={-PROFILE_IMAGE_EDITOR_MAX_ROTATION}
+                  max={PROFILE_IMAGE_EDITOR_MAX_ROTATION}
+                  step="1"
+                  value={profileImageEditorTransform.rotation}
+                  onChange={(event) =>
+                    setProfileImageEditorTransform((prev) => ({
+                      ...prev,
+                      rotation: clamp(
+                        Number(event.target.value),
+                        -PROFILE_IMAGE_EDITOR_MAX_ROTATION,
+                        PROFILE_IMAGE_EDITOR_MAX_ROTATION
+                      )
+                    }))
+                  }
+                  className="h-2 w-full cursor-pointer accent-neutral-800"
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setProfileImageEditorTransform((prev) => ({
+                      ...prev,
+                      flipX: !prev.flipX
+                    }))
+                  }
+                  className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <FlipHorizontal className="h-4 w-4" />
+                  Miroir
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProfileImageEditorTransform(getProfileImageEditorDefaultTransform())}
+                  className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Réinitialiser
+                </button>
+              </div>
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeProfileImageEditor}
+                className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                disabled={profileImageEditorApplying}
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={applyProfileImageEditor}
+                className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-neutral-900 px-4 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-60"
+                disabled={profileImageEditorApplying || !profileImageEditorSource}
+              >
+                {profileImageEditorApplying ? 'Application…' : 'Appliquer le recadrage'}
+              </button>
+            </div>
+          </ModalFooter>
+        </BaseModal>
 
         <BaseModal
           isOpen={mapPickerOpen}

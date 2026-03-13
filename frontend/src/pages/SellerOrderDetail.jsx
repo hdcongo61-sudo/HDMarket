@@ -314,13 +314,38 @@ const OrderProgress = ({ status, paymentType }) => {
           {flow.filter((s) => s.id !== 'cancelled').map((step, index) => {
             const Icon = step.icon;
             const reached = currentIndex >= index;
+            const isCurrent = currentIndex === index;
+            const stepColor = colorClasses[step.color] || colorClasses.gray;
             return (
               <div key={step.id} className="flex items-start gap-4 relative">
-                <div className={`relative z-10 flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center ${reached ? `${colorClasses[step.color] || 'bg-gray-600'} border-transparent text-white` : 'border-gray-300 text-gray-400 bg-white'}`}>
+                <div
+                  className={`relative z-10 flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
+                    reached
+                      ? `${stepColor} border-transparent text-white shadow-lg scale-110`
+                      : 'border-gray-300 text-gray-400 bg-white'
+                  }`}
+                >
                   <Icon size={16} />
+                  {isCurrent && (
+                    <div className={`absolute inset-0 rounded-full ${stepColor} animate-ping opacity-75`} />
+                  )}
                 </div>
                 <div className="flex-1 pt-1">
-                  <p className={`text-sm font-bold ${reached ? 'text-gray-900' : 'text-gray-500'}`}>{step.label}</p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className={`text-sm font-bold ${reached ? 'text-gray-900' : 'text-gray-500'}`}>
+                      {step.label}
+                    </p>
+                    {isCurrent && (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${stepColor} text-white`}>
+                        En cours
+                      </span>
+                    )}
+                    {!isCurrent && reached && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-neutral-100 text-neutral-700">
+                        Terminé
+                      </span>
+                    )}
+                  </div>
                   <p className={`text-xs ${reached ? 'text-gray-600' : 'text-gray-400'}`}>{step.description}</p>
                 </div>
               </div>

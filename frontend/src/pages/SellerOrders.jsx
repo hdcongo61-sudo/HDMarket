@@ -344,29 +344,36 @@ const OrderProgress = ({ status }) => {
             const stepColor = colorClasses[step.color] || colorClasses.gray;
 
             return (
-              <div key={step.id} className="flex items-start gap-4">
+              <div key={step.id} className="flex items-start gap-4 relative">
                 <div
-                  className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  className={`relative z-10 flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
                     reached
-                      ? `${stepColor} text-white shadow-lg scale-110`
-                      : 'bg-gray-200 text-gray-400'
+                      ? `${stepColor} border-transparent text-white shadow-lg scale-110`
+                      : 'border-gray-300 text-gray-400 bg-white'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
+                  {isCurrent && (
+                    <div className={`absolute inset-0 rounded-full ${stepColor} animate-ping opacity-75`} />
+                  )}
                 </div>
                 <div className="flex-1 pt-1">
-                  <p
-                    className={`text-sm font-bold mb-1 ${
-                      reached ? 'text-gray-900' : 'text-gray-400'
-                    }`}
-                  >
-                    {step.label}
-                  </p>
-                  <p
-                    className={`text-xs ${
-                      reached ? 'text-gray-600' : 'text-gray-400'
-                    }`}
-                  >
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className={`text-sm font-bold ${reached ? 'text-gray-900' : 'text-gray-500'}`}>
+                      {step.label}
+                    </p>
+                    {isCurrent && (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${stepColor} text-white`}>
+                        En cours
+                      </span>
+                    )}
+                    {!isCurrent && reached && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-neutral-100 text-neutral-700">
+                        Terminé
+                      </span>
+                    )}
+                  </div>
+                  <p className={`text-xs ${reached ? 'text-gray-600' : 'text-gray-400'}`}>
                     {step.description}
                   </p>
                 </div>

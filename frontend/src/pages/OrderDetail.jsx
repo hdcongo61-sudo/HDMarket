@@ -151,6 +151,7 @@ const formatOrderTimestamp = (value) =>
     : null;
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
+const normalizeAddressPart = (value) => (typeof value === 'string' ? value.trim() : '');
 
 const getEffectiveOrderStatus = (order) => {
   if (!order) return 'pending';
@@ -749,6 +750,38 @@ export default function OrderDetail() {
   const statusStyle = STATUS_STYLES[effectiveOrderStatus] || STATUS_STYLES.pending;
   const pickupOrder = isPickupOrder(order);
   const pickupShopAddress = pickupOrder ? getPickupShopAddress(order) : null;
+  const normalizedBuyerAccountType = String(
+    order?.customer?.accountType || user?.accountType || ''
+  )
+    .trim()
+    .toLowerCase();
+  const isParticulierBuyer = ['person', 'particulier'].includes(normalizedBuyerAccountType);
+  const personalAddressLine = (() => {
+    if (!isParticulierBuyer) return '';
+    const baseAddress =
+      normalizeAddressPart(order?.customer?.address) || normalizeAddressPart(user?.address);
+    if (!baseAddress) return '';
+    const commune =
+      normalizeAddressPart(order?.customer?.commune) || normalizeAddressPart(user?.commune);
+    const city = normalizeAddressPart(order?.customer?.city) || normalizeAddressPart(user?.city);
+    const locality = [commune, city].filter(Boolean).join(', ');
+    if (!locality) return baseAddress;
+    const lowerBase = baseAddress.toLowerCase();
+    const lowerLocality = locality.toLowerCase();
+    return lowerBase.includes(lowerLocality) ? baseAddress : `${baseAddress}, ${locality}`;
+  })();
+  const deliveryAddressText = normalizeAddressPart(order?.deliveryAddress);
+  const deliveryCityText = normalizeAddressPart(order?.deliveryCity);
+  const displayDeliveryAddress = deliveryAddressText || personalAddressLine || 'Non renseignée';
+  const displayDeliveryCity =
+    deliveryCityText ||
+    normalizeAddressPart(order?.customer?.city) ||
+    normalizeAddressPart(user?.city) ||
+    '';
+  const personalAddressIsDifferent =
+    Boolean(personalAddressLine) &&
+    deliveryAddressText &&
+    personalAddressLine.toLowerCase() !== deliveryAddressText.toLowerCase();
   const platformDeliveryAutoConfirmed =
     (Boolean(order.platformDeliveryRequestId) ||
       String(order.platformDeliveryMode || '').toUpperCase() === 'PLATFORM_DELIVERY') &&
@@ -934,8 +967,13 @@ export default function OrderDetail() {
                     </>
                   ) : (
                     <>
-                      <p className="text-sm font-semibold text-gray-900">{order.deliveryAddress || 'Non renseignée'}</p>
-                      <p className="text-xs text-gray-500">{order.deliveryCity || 'Ville non renseignée'}</p>
+                      <p className="text-sm font-semibold text-gray-900">{displayDeliveryAddress}</p>
+                      <p className="text-xs text-gray-500">{displayDeliveryCity || 'Ville non renseignée'}</p>
+                      {isParticulierBuyer && personalAddressIsDifferent ? (
+                        <p className="text-xs text-gray-600">
+                          <span className="font-semibold">Adresse personnelle:</span> {personalAddressLine}
+                        </p>
+                      ) : null}
                     </>
                   )}
                   {!pickupOrder && order.deliveryGuy && (
