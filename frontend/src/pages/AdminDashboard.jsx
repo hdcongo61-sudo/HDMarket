@@ -1645,6 +1645,12 @@ export default function AdminDashboard() {
               helper={`Daily ${Number(founderMini?.kpis?.growthVelocity?.daily || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`}
               icon={ArrowUpRight}
             />
+            <SectionStatCard
+              label="Full payment"
+              value={`${Number(founderMini?.kpis?.fullPaymentConversion?.adoptionRate || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`}
+              helper={`${formatNumber(founderMini?.kpis?.fullPaymentConversion?.ordersPaidInFull)} commandes · ${formatCurrency(founderMini?.kpis?.fullPaymentConversion?.waivedDeliveryAmount)}`}
+              icon={Sparkles}
+            />
           </div>
         </section>
       )}

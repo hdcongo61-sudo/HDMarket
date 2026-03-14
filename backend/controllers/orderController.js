@@ -41,6 +41,7 @@ import {
 } from '../services/orderStatusFlowService.js';
 import { getVerifiedProductIds } from '../utils/publicProductVisibility.js';
 import { safeAsync } from '../utils/safeAsync.js';
+import { applyDeliveryFeeToOrder } from '../services/orderDeliveryFeeService.js';
 import { emitOrderStatusUpdated } from '../sockets/chatSocket.js';
 
 const ORDER_STATUS = [
@@ -98,10 +99,17 @@ const buildOrderSmsDetails = (order) => {
   if (!order) return '';
   const itemsSummary = buildSmsItemsSummary(order.items);
   const total = `Total : ${formatSmsAmount(order.totalAmount)} FCFA`;
-  const paidAmount =
-    Number(order.paidAmount || 0) ||
-    Math.round(Number(order.totalAmount || 0) * 0.25);
-  const deposit = paidAmount ? `Acompte : ${formatSmsAmount(paidAmount)} FCFA` : '';
+  const fullyPaid =
+    String(order?.paymentMode || '').toUpperCase() === 'FULL_PAYMENT' ||
+    String(order?.paymentStatus || '').toUpperCase() === 'PAID_FULL';
+  const paidAmount = fullyPaid
+    ? Number(order.totalAmount || 0)
+    : Number(order.paidAmount || 0) || Math.round(Number(order.totalAmount || 0) * 0.25);
+  const deposit = paidAmount
+    ? fullyPaid
+      ? `Paiement intégral : ${formatSmsAmount(paidAmount)} FCFA`
+      : `Acompte : ${formatSmsAmount(paidAmount)} FCFA`
+    : '';
   const delivery = order.deliveryAddress
     ? `Livraison : ${order.deliveryAddress}${order.deliveryCity ? `, ${order.deliveryCity}` : ''}`
     : '';
@@ -119,6 +127,12 @@ const buildOrderPendingMessage = (order) => {
       orderId = String(order._id).substring(String(order._id).length - 6);
     }
   }
+  if (
+    String(order?.paymentMode || '').toUpperCase() === 'FULL_PAYMENT' ||
+    String(order?.paymentStatus || '').toUpperCase() === 'PAID_FULL'
+  ) {
+    return `HDMarket : Votre commande ${orderId} est entièrement réglée. Livraison offerte activée.${deliveryCode} ${buildOrderSmsDetails(order)}`;
+  }
   return `HDMarket : Votre commande ${orderId} est en attente.${deliveryCode} ${buildOrderSmsDetails(order)}`;
 };
 
@@ -135,6 +149,9 @@ const buildOrderDeliveringMessage = (order) => {
   }
   return `HDMarket : Votre commande ${orderId} est en cours de livraison.${deliveryCode} ${buildOrderSmsDetails(order)}`;
 };
+
+const normalizeCheckoutPaymentMode = (value) =>
+  String(value || '').trim().toUpperCase() === 'FULL_PAYMENT' ? 'FULL_PAYMENT' : 'STANDARD';
 
 const sendOrderSms = async ({ phone, message, context }) => {
   if (!phone || !isTwilioMessagingConfigured()) return;
@@ -676,9 +693,19 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
 });
 
 export const userCheckoutOrder = asyncHandler(async (req, res) => {
-  const { payerName, transactionCode, payments, promoCode, deliveryMode: rawDeliveryMode, shippingAddress } = req.body;
+  const {
+    payerName,
+    transactionCode,
+    payments,
+    promoCode,
+    paymentMode: rawPaymentMode,
+    checkoutPromotionApplied,
+    deliveryMode: rawDeliveryMode,
+    shippingAddress
+  } = req.body;
   const userId = req.user?.id || req.user?._id;
   const deliveryMode = normalizeDeliveryMode(rawDeliveryMode);
+  const requestedPaymentMode = normalizeCheckoutPaymentMode(rawPaymentMode);
 
   const customer = await User.findById(userId).select(
     'name email phone address city commune restrictions'
@@ -790,6 +817,15 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     shippingAddress,
     customer
   });
+  const [fullPaymentPromotionEnabled, enableFullPaymentFreeDelivery] = await Promise.all([
+    getRuntimeConfig('full_payment_promotion_enabled', { fallback: true }),
+    getRuntimeConfig('enable_full_payment_free_delivery', { fallback: true })
+  ]);
+  const useFullPayment =
+    requestedPaymentMode === 'FULL_PAYMENT' &&
+    Boolean(fullPaymentPromotionEnabled) &&
+    Boolean(enableFullPaymentFreeDelivery) &&
+    String(rawDeliveryMode || '').trim().toUpperCase() !== 'INSTALLMENT';
   const sellerDocs = await User.find({ _id: { $in: Array.from(itemsBySeller.keys()) } })
     .select('_id freeDeliveryEnabled')
     .lean();
@@ -895,10 +931,13 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
             deliveryFeeEnabled: item?.snapshot?.deliveryFeeEnabled !== false
           }))
         });
-        const deliveryFeeTotal = Number(deliveryPricing.deliveryFeeTotal || 0);
+        const deliveryFeeTotal =
+          useFullPayment && Boolean(enableFullPaymentFreeDelivery)
+            ? 0
+            : Number(deliveryPricing.deliveryFeeTotal || 0);
         const totalAmount = Number((Number(discountedSubtotal || 0) + deliveryFeeTotal).toFixed(2));
-        const paidAmount = Math.round(totalAmount * 0.25);
-        const remainingAmount = Math.max(0, totalAmount - paidAmount);
+        const paidAmount = useFullPayment ? totalAmount : Math.round(totalAmount * 0.25);
+        const remainingAmount = useFullPayment ? 0 : Math.max(0, totalAmount - paidAmount);
         const deliveryCode = await generateDeliveryCode();
 
         return {
@@ -909,8 +948,20 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
           deliveryAddress: shipping.deliveryAddress,
           deliveryCity: shipping.deliveryCity,
           shippingAddressSnapshot: shipping.snapshot,
+          status: useFullPayment ? 'paid' : 'pending',
+          paymentType: 'full',
+          paymentMode: useFullPayment ? 'FULL_PAYMENT' : 'STANDARD',
+          deliveryFeeWaived: useFullPayment,
+          deliveryFeeLocked: useFullPayment,
+          deliveryFeeWaiverReason: useFullPayment ? 'FULL_PAYMENT' : '',
+          paymentStatus: useFullPayment ? 'PAID_FULL' : 'PARTIAL',
+          paymentCompletedAt: useFullPayment ? new Date() : null,
+          checkoutPromotionApplied: Boolean(checkoutPromotionApplied) && useFullPayment,
           deliveryMode,
-          deliveryFeeSource: deliveryPricing.deliveryFeeSource || DELIVERY_FEE_SOURCE.PRODUCT_FEE,
+          deliveryFeeSource:
+            useFullPayment && Boolean(enableFullPaymentFreeDelivery)
+              ? 'FULL_PAYMENT_WAIVER'
+              : deliveryPricing.deliveryFeeSource || DELIVERY_FEE_SOURCE.PRODUCT_FEE,
           deliveryFeeTotal,
           itemsSubtotal: Number(itemsSubtotal.toFixed(2)),
           discountTotal: Number(discountTotal.toFixed(2)),
@@ -975,7 +1026,10 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
               metadata: {
                 orderId: order._id,
                 itemCount,
-                totalAmount
+                totalAmount,
+                paymentMode: order.paymentMode,
+                deliveryFeeWaived: Boolean(order.deliveryFeeWaived),
+                deliveryFeeLocked: Boolean(order.deliveryFeeLocked)
               }
             });
           })
@@ -995,7 +1049,11 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
                 orderId: order._id,
                 deliveryCity: order.deliveryCity,
                 deliveryAddress: order.deliveryAddress,
-                status: 'pending'
+                status: order.status,
+                paymentMode: order.paymentMode,
+                paymentStatus: order.paymentStatus,
+                deliveryFeeWaived: Boolean(order.deliveryFeeWaived),
+                deliveryFeeLocked: Boolean(order.deliveryFeeLocked)
               },
               allowSelf: true
             })
@@ -1017,6 +1075,76 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
         ),
       { label: 'checkout_sms_customer' }
     );
+
+    if (useFullPayment) {
+      await safeAsync(
+        async () =>
+          Promise.all(
+            createdOrders.map((order) =>
+              createNotification({
+                userId: customer._id,
+                actorId: userId,
+                type: 'order_full_payment_waived',
+                metadata: {
+                  orderId: order._id,
+                  totalAmount: Number(order.totalAmount || 0),
+                  deliveryFeeWaived: true,
+                  deliveryFeeLocked: true
+                },
+                allowSelf: true
+              })
+            )
+          ),
+        { label: 'checkout_notify_full_payment_buyer' }
+      );
+
+      await safeAsync(
+        async () =>
+          Promise.all(
+            createdOrders.map((order, index) =>
+              createNotification({
+                userId: orderPayloads[index].sellerId,
+                actorId: userId,
+                type: 'order_full_payment_received',
+                metadata: {
+                  orderId: order._id,
+                  totalAmount: Number(order.totalAmount || 0),
+                  deliveryFeeLocked: true
+                }
+              })
+            )
+          ),
+        { label: 'checkout_notify_full_payment_seller' }
+      );
+
+      await safeAsync(
+        async () => {
+          const adminUsers = await User.find({ role: { $in: ['admin', 'manager', 'founder'] } })
+            .select('_id')
+            .lean();
+          if (!adminUsers.length) return;
+          await Promise.all(
+            createdOrders.flatMap((order) =>
+              adminUsers.map((adminUser) =>
+                createNotification({
+                  userId: adminUser._id,
+                  actorId: userId,
+                  type: 'order_full_payment_ready',
+                  metadata: {
+                    orderId: order._id,
+                    totalAmount: Number(order.totalAmount || 0),
+                    deliveryFeeWaived: true,
+                    deliveryFeeLocked: true,
+                    status: order.status
+                  }
+                })
+              )
+            )
+          );
+        },
+        { label: 'checkout_notify_full_payment_admins' }
+      );
+    }
 
     const affectedSellerIds = Array.from(
       new Set(orderPayloads.map((entry) => String(entry.sellerId || '')).filter(Boolean))
@@ -2175,15 +2303,20 @@ export const sellerUpdateOrderDeliveryFee = asyncHandler(async (req, res) => {
   if (!Number.isFinite(numFee) || numFee < 0) {
     return res.status(400).json({ message: 'Montant des frais de livraison invalide.' });
   }
-  const previousFee = Number(order.deliveryFeeTotal || 0);
-  const totalAmount = Number(order.totalAmount || 0) - previousFee + numFee;
-  const paidAmount = Number(order.paidAmount || 0);
-  const remainingAmount = Math.max(0, totalAmount - paidAmount);
-  order.deliveryFeeTotal = numFee;
-  order.totalAmount = totalAmount;
-  order.remainingAmount = remainingAmount;
-  order.deliveryFeeUpdatedAt = new Date();
-  order.deliveryFeeUpdatedBy = userId;
+  let previousFee;
+  try {
+    ({ previousFee } = applyDeliveryFeeToOrder({
+      order,
+      nextFee: numFee,
+      actorId: userId,
+      updatedAt: new Date()
+    }));
+  } catch (error) {
+    return res.status(error.statusCode || 400).json({
+      message: error.message || 'Impossible de modifier les frais de livraison.',
+      ...(error.code ? { code: error.code } : {})
+    });
+  }
   await order.save();
   const populated = await baseOrderQuery().findById(order._id);
   const response = buildOrderResponse(populated);
@@ -2204,7 +2337,8 @@ export const sellerUpdateOrderDeliveryFee = asyncHandler(async (req, res) => {
         orderId: order._id,
         previousFee,
         newFee: numFee,
-        orderShortId: String(order._id).slice(-6)
+        orderShortId: String(order._id).slice(-6),
+        updatedByRole: 'seller'
       }
     });
   }

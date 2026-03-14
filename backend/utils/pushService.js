@@ -456,6 +456,21 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       body = `${actorName} a passé ${orderSubject} pour ${itemsLabel}${totalText}.`;
       break;
     }
+    case 'order_full_payment_waived': {
+      title = 'Paiement intégral confirmé';
+      body = 'Votre commande est entièrement payée. Les frais de livraison sont offerts.';
+      break;
+    }
+    case 'order_full_payment_received': {
+      title = 'Commande réglée intégralement';
+      body = `${actorName} a payé ${orderSubject} en totalité. Frais de livraison verrouillés.`;
+      break;
+    }
+    case 'order_full_payment_ready': {
+      title = 'Commande prête';
+      body = `${orderSubject} a été payée intégralement. Livraison offerte activée.`;
+      break;
+    }
     case 'order_reminder': {
       const city = metadata.deliveryCity ? ` pour ${metadata.deliveryCity}` : '';
       title = 'Rappel de commande';
@@ -541,8 +556,9 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       break;
     }
     case 'order_delivery_fee_updated': {
+      const actorLabel = actorName && actorName !== 'Quelqu’un' ? actorName : 'HDMarket';
       title = 'Frais de livraison modifiés';
-      body = `Le vendeur a modifié les frais de livraison de ${yourOrderSubject}. Vérifiez le détail de la commande.`;
+      body = `${actorLabel} a mis a jour les frais de livraison de ${yourOrderSubject}. Verifiez le detail de la commande.`;
       break;
     }
     case 'order_message': {

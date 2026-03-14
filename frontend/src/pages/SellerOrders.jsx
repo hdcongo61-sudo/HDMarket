@@ -36,6 +36,7 @@ import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import CancellationTimer from '../components/CancellationTimer';
 import OrderChat from '../components/OrderChat';
 import GlassHeader from '../components/orders/GlassHeader';
+import AnimatedOrderTimeline from '../components/orders/AnimatedOrderTimeline';
 import StatusBadge from '../components/orders/StatusBadge';
 import { OrderListSkeleton } from '../components/orders/OrderSkeletons';
 import usePullToRefresh from '../hooks/usePullToRefresh';
@@ -252,6 +253,39 @@ const isInstallmentFullyPaid = (order) => {
   const schedule = Array.isArray(order?.installmentPlan?.schedule) ? order.installmentPlan.schedule : [];
   if (!schedule.length) return false;
   return schedule.every((entry) => ['paid', 'waived'].includes(String(entry?.status || '')));
+};
+
+const getSellerTimelineStatus = (order) => {
+  const rawStatus = String(order?.status || '').toLowerCase();
+  if (rawStatus === 'cancelled') return 'cancelled';
+
+  const platformAutoConfirmed =
+    (Boolean(order?.platformDeliveryRequestId) ||
+      String(order?.platformDeliveryMode || '').toUpperCase() === 'PLATFORM_DELIVERY') &&
+    String(order?.platformDeliveryStatus || '').toUpperCase() === 'DELIVERED';
+
+  if (String(order?.paymentType || '') === 'installment') {
+    const saleStatus = String(order?.installmentSaleStatus || '').toLowerCase();
+    if (saleStatus === 'delivering') return 'out_for_delivery';
+    if (saleStatus === 'delivered') return 'completed';
+    return rawStatus || 'pending_installment';
+  }
+
+  if (resolvePickupOrder(order) && rawStatus === 'confirmed') {
+    const hasSubmittedPayment = Boolean(
+      Number(order?.paidAmount || 0) > 0 ||
+        String(order?.paymentTransactionCode || '').trim() ||
+        String(order?.paymentName || '').trim()
+    );
+    return hasSubmittedPayment ? 'paid' : 'pending_payment';
+  }
+
+  if (rawStatus === 'delivered' && String(order?.deliveryStatus || '').toLowerCase() === 'submitted' && !platformAutoConfirmed) {
+    return 'delivery_proof_submitted';
+  }
+
+  if (rawStatus === 'delivering') return 'out_for_delivery';
+  return rawStatus || 'pending';
 };
 
 const dedupeOrders = (items = []) => {
@@ -704,46 +738,12 @@ const SellerMobileOrderCard = ({
             <Clock className="w-4 h-4 text-gray-400" />
             <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{t('orders.tracking', 'Suivi')}</span>
           </div>
-          <div className="relative">
-            {/* Timeline Line */}
-            <div className="absolute left-[15px] top-4 bottom-4 w-0.5 bg-gray-200">
-              <div
-                className="absolute top-0 left-0 w-full bg-neutral-900 transition-all duration-500"
-                style={{ height: `${(statusIndex / 3) * 100}%` }}
-              />
-            </div>
-
-            <div className="space-y-4">
-              {timelineSteps.map((step, index) => {
-                const Icon = step.icon;
-                const isReached = statusIndex >= index;
-                const isCurrent = statusIndex === index;
-
-                return (
-                  <div key={step.id} className="flex items-center gap-4 relative">
-                    <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
-                      isReached
-                        ? 'bg-neutral-900 text-white shadow-md'
-                        : 'bg-gray-100 text-gray-400'
-                    } ${isCurrent ? 'ring-4 ring-neutral-100' : ''}`}>
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 flex items-center justify-between">
-                      <span className={`text-sm font-medium ${isReached ? 'text-gray-900' : 'text-gray-400'}`}>
-                        {step.label}
-                      </span>
-                      {step.time && (
-                        <div className="text-right">
-                          <p className="text-xs font-medium text-gray-900">{formatTime(step.time)}</p>
-                          <p className="text-[10px] text-gray-500">{formatDate(step.time)}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <AnimatedOrderTimeline
+            status={getSellerTimelineStatus(order)}
+            paymentType={order.paymentType}
+            deliveryMode={order.deliveryMode}
+            className="border-gray-100 shadow-none"
+          />
         </div>
       )}
 

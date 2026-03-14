@@ -18,6 +18,7 @@ import {
 } from '../services/platformDeliveryService.js';
 import { getRuntimeConfig } from '../services/configService.js';
 import { createAuditLogEntry } from '../services/auditLogService.js';
+import { applyDeliveryFeeToOrder } from '../services/orderDeliveryFeeService.js';
 import {
   invalidateAdminCache,
   invalidateSellerCache,
@@ -1140,6 +1141,13 @@ export const createDeliveryRequestForOrderAdmin = asyncHandler(async (req, res) 
     dropoffCommuneName: dropoffCommune?.name || dropoffCommuneName,
     buyerSuggestedPrice: 0
   });
+  const orderDeliveryFeeLocked =
+    Boolean(order?.deliveryFeeLocked) &&
+    String(order?.deliveryFeeWaiverReason || '') === 'FULL_PAYMENT';
+  const effectiveDeliveryPrice = orderDeliveryFeeLocked ? 0 : Number(pricing.deliveryPrice || 0);
+  const effectiveDeliveryPriceSource = orderDeliveryFeeLocked
+    ? 'FULL_PAYMENT_WAIVER'
+    : pricing.deliveryPriceSource || 'UNKNOWN';
 
   const itemSnapshots = (Array.isArray(sellerItems) ? sellerItems : []).map((item) => ({
     productId: item?.product || null,
@@ -1179,8 +1187,8 @@ export const createDeliveryRequestForOrderAdmin = asyncHandler(async (req, res) 
       address: dropoffAddress,
       coordinates: dropoffCoords
     },
-    deliveryPrice: Number(pricing.deliveryPrice || 0),
-    deliveryPriceSource: pricing.deliveryPriceSource || 'UNKNOWN',
+    deliveryPrice: effectiveDeliveryPrice,
+    deliveryPriceSource: effectiveDeliveryPriceSource,
     currency: 'XAF',
     productSnapshot: itemSnapshots,
     itemsSnapshot: itemSnapshots,
@@ -1218,7 +1226,7 @@ export const createDeliveryRequestForOrderAdmin = asyncHandler(async (req, res) 
     requestId: deliveryRequest._id,
     platformDeliveryStatus: 'REQUESTED',
     platformDeliveryMode: 'PLATFORM_DELIVERY',
-    platformDeliveryPriceSource: pricing.deliveryPriceSource || 'UNKNOWN'
+    platformDeliveryPriceSource: effectiveDeliveryPriceSource
   });
 
   await Promise.all([
@@ -1701,6 +1709,18 @@ export const updateAdminDeliveryRequestPrice = asyncHandler(async (req, res) => 
     });
   }
 
+  const orderDoc = await Order.findById(deliveryRequest.orderId);
+  if (
+    orderDoc &&
+    Boolean(orderDoc.deliveryFeeLocked) &&
+    String(orderDoc.deliveryFeeWaiverReason || '') === 'FULL_PAYMENT'
+  ) {
+    return res.status(403).json({
+      message: 'Delivery fee is locked because the order was fully paid.',
+      code: 'DELIVERY_FEE_LOCKED'
+    });
+  }
+
   deliveryRequest.deliveryPrice = nextPrice;
   deliveryRequest.deliveryPriceSource = 'ADMIN_RULE';
   appendTimeline(deliveryRequest, {
@@ -1714,24 +1734,23 @@ export const updateAdminDeliveryRequestPrice = asyncHandler(async (req, res) => 
   });
   await deliveryRequest.save();
 
-  const orderDoc = await Order.findById(deliveryRequest.orderId).select('itemsSubtotal discountTotal paidAmount totalAmount remainingAmount').lean();
-  const itemsSubtotal = Number(orderDoc?.itemsSubtotal ?? 0);
-  const discountTotal = Number(orderDoc?.discountTotal ?? 0);
-  const paidAmount = Number(orderDoc?.paidAmount ?? 0);
-  const newTotalAmount = Math.max(0, Number((itemsSubtotal - discountTotal + nextPrice).toFixed(2)));
-  const newRemainingAmount = Math.max(0, Number((newTotalAmount - paidAmount).toFixed(2)));
-
-  await Order.updateOne(
-    { _id: deliveryRequest.orderId },
-    {
-      $set: {
-        deliveryFeeTotal: nextPrice,
-        platformDeliveryPriceSource: 'ADMIN_RULE',
-        totalAmount: newTotalAmount,
-        remainingAmount: newRemainingAmount
-      }
+  if (orderDoc) {
+    try {
+      applyDeliveryFeeToOrder({
+        order: orderDoc,
+        nextFee: nextPrice,
+        actorId: req.user.id,
+        updatedAt: new Date()
+      });
+    } catch (error) {
+      return res.status(error.statusCode || 400).json({
+        message: error.message || 'Impossible de modifier les frais de livraison.',
+        ...(error.code ? { code: error.code } : {})
+      });
     }
-  );
+    orderDoc.platformDeliveryPriceSource = 'ADMIN_RULE';
+    await orderDoc.save();
+  }
 
   await createAuditLogEntry({
     performedBy: req.user.id,
@@ -1745,6 +1764,21 @@ export const updateAdminDeliveryRequestPrice = asyncHandler(async (req, res) => 
       deliveryRequestId: String(deliveryRequest._id)
     }
   });
+
+  if (deliveryRequest.buyerId) {
+    await createNotification({
+      userId: deliveryRequest.buyerId,
+      actorId: req.user.id,
+      type: 'order_delivery_fee_updated',
+      metadata: {
+        orderId: deliveryRequest.orderId,
+        previousFee: previousPrice,
+        newFee: nextPrice,
+        orderShortId: String(deliveryRequest.orderId).slice(-6),
+        updatedByRole: 'admin'
+      }
+    });
+  }
 
   await emitDeliveryNotifications({
     actorId: req.user.id,

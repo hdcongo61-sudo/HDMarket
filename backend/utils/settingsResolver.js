@@ -20,6 +20,11 @@ export const SETTING_KEYS = Object.freeze({
   DELIVERY_OTP_EXPIRATION_MINUTES: 'deliveryOTPExpirationMinutes',
   MAX_DISPUTES_PER_MONTH: 'maxDisputesPerMonth',
   MAX_UPLOAD_IMAGES: 'maxUploadImages',
+  ENABLE_FULL_PAYMENT_FREE_DELIVERY: 'enable_full_payment_free_delivery',
+  SHOW_FULL_PAYMENT_HOME_BANNER: 'show_full_payment_home_banner',
+  FULL_PAYMENT_BANNER_TEXT: 'full_payment_banner_text',
+  FULL_PAYMENT_LABEL_TEXT: 'full_payment_label_text',
+  FULL_PAYMENT_PROMOTION_ENABLED: 'full_payment_promotion_enabled',
   LANGUAGES: 'languages',
   DEFAULT_LANGUAGE: 'defaultLanguage'
 });
@@ -38,6 +43,11 @@ export const DEFAULT_APP_SETTINGS = Object.freeze({
   [SETTING_KEYS.DELIVERY_OTP_EXPIRATION_MINUTES]: 15,
   [SETTING_KEYS.MAX_DISPUTES_PER_MONTH]: 5,
   [SETTING_KEYS.MAX_UPLOAD_IMAGES]: 5,
+  [SETTING_KEYS.ENABLE_FULL_PAYMENT_FREE_DELIVERY]: true,
+  [SETTING_KEYS.SHOW_FULL_PAYMENT_HOME_BANNER]: true,
+  [SETTING_KEYS.FULL_PAYMENT_BANNER_TEXT]: 'Payez le montant total au checkout et profitez de la livraison offerte.',
+  [SETTING_KEYS.FULL_PAYMENT_LABEL_TEXT]: 'BEST VALUE',
+  [SETTING_KEYS.FULL_PAYMENT_PROMOTION_ENABLED]: true,
   [SETTING_KEYS.DEFAULT_LANGUAGE]: 'fr',
   [SETTING_KEYS.LANGUAGES]: [
     { code: 'fr', name: 'Français', isActive: true },
@@ -213,6 +223,11 @@ export const resolvePublicSettings = async () => {
     SETTING_KEYS.ANALYTICS_REFUND_PENALTY,
     SETTING_KEYS.DISPUTE_WINDOW_HOURS,
     SETTING_KEYS.MAX_UPLOAD_IMAGES,
+    SETTING_KEYS.ENABLE_FULL_PAYMENT_FREE_DELIVERY,
+    SETTING_KEYS.SHOW_FULL_PAYMENT_HOME_BANNER,
+    SETTING_KEYS.FULL_PAYMENT_BANNER_TEXT,
+    SETTING_KEYS.FULL_PAYMENT_LABEL_TEXT,
+    SETTING_KEYS.FULL_PAYMENT_PROMOTION_ENABLED,
     SETTING_KEYS.LANGUAGES,
     SETTING_KEYS.DEFAULT_LANGUAGE
   ]);
@@ -237,7 +252,12 @@ export const resolvePublicSettings = async () => {
       analyticsRevenueWeight: Number(settings[SETTING_KEYS.ANALYTICS_REVENUE_WEIGHT] || 0),
       analyticsRefundPenalty: Number(settings[SETTING_KEYS.ANALYTICS_REFUND_PENALTY] || 0),
       disputeWindowHours: Number(settings[SETTING_KEYS.DISPUTE_WINDOW_HOURS] || 0),
-      maxUploadImages: Number(settings[SETTING_KEYS.MAX_UPLOAD_IMAGES] || 0)
+      maxUploadImages: Number(settings[SETTING_KEYS.MAX_UPLOAD_IMAGES] || 0),
+      enableFullPaymentFreeDelivery: Boolean(settings[SETTING_KEYS.ENABLE_FULL_PAYMENT_FREE_DELIVERY]),
+      showFullPaymentHomeBanner: Boolean(settings[SETTING_KEYS.SHOW_FULL_PAYMENT_HOME_BANNER]),
+      fullPaymentBannerText: String(settings[SETTING_KEYS.FULL_PAYMENT_BANNER_TEXT] || ''),
+      fullPaymentLabelText: String(settings[SETTING_KEYS.FULL_PAYMENT_LABEL_TEXT] || ''),
+      fullPaymentPromotionEnabled: Boolean(settings[SETTING_KEYS.FULL_PAYMENT_PROMOTION_ENABLED])
     },
     defaultLanguage: languagesConfig.defaultLanguage,
     languages: languagesConfig.languages.filter((item) => item.isActive),

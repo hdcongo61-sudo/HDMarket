@@ -52,6 +52,9 @@ const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   payment_pending: true,
   order_created: true,
   order_received: true,
+  order_full_payment_waived: true,
+  order_full_payment_received: true,
+  order_full_payment_ready: true,
   order_reminder: true,
   delivery_request_created: true,
   delivery_request_accepted: true,
@@ -1667,6 +1670,28 @@ export const getNotifications = asyncHandler(async (req, res) => {
         message = `${actorName} a passé ${orderSubject} pour ${itemsLabel}${totalText}.`;
         break;
       }
+      case 'order_full_payment_waived': {
+        const totalValue = Number(metadata.totalAmount || 0);
+        const totalText =
+          Number.isFinite(totalValue) && totalValue > 0
+            ? ` (${totalValue.toLocaleString('fr-FR')} FCFA)`
+            : '';
+        message = `Votre commande est payée intégralement${totalText}. Les frais de livraison sont offerts et verrouillés.`;
+        break;
+      }
+      case 'order_full_payment_received': {
+        const totalValue = Number(metadata.totalAmount || 0);
+        const totalText =
+          Number.isFinite(totalValue) && totalValue > 0
+            ? ` (${totalValue.toLocaleString('fr-FR')} FCFA)`
+            : '';
+        message = `${actorName} a réglé intégralement ${orderSubject}${totalText}. Les frais de livraison sont verrouillés.`;
+        break;
+      }
+      case 'order_full_payment_ready': {
+        message = `${orderSubject} a été payé intégralement. Livraison offerte activée, commande prête à être traitée.`;
+        break;
+      }
       case 'order_reminder': {
         const city = metadata.deliveryCity ? ` pour ${metadata.deliveryCity}` : '';
         message = `${actorName} vous rappelle d'accélérer ${orderSubject}${city}.`;
@@ -1689,6 +1714,15 @@ export const getNotifications = asyncHandler(async (req, res) => {
         } else {
           message = `${actorName} a marqué ${orderSubject} comme livrée${address}${city}${deliveredAt}. Merci pour votre confiance.`;
         }
+        break;
+      }
+      case 'order_delivery_fee_updated': {
+        const previousFee = Number(metadata.previousFee || 0);
+        const newFee = Number(metadata.newFee || 0);
+        const diff = Math.max(0, newFee - previousFee);
+        const diffText =
+          Number.isFinite(diff) && diff > 0 ? ` (+${diff.toLocaleString('fr-FR')} FCFA)` : '';
+        message = `${actorName} a mis à jour les frais de livraison de ${yourOrderSubject} à ${newFee.toLocaleString('fr-FR')} FCFA${diffText}. Vérifiez le détail de la commande.`;
         break;
       }
       case 'installment_due_reminder': {

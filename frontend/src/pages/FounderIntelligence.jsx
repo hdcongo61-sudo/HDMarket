@@ -211,6 +211,27 @@ export default function FounderIntelligence() {
               />
             </section>
 
+            <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <KpiCard
+                label="Full Payment Conversion"
+                value={formatPercent(data?.kpis?.fullPaymentConversion?.adoptionRate)}
+                helper={`${formatNumber(data?.kpis?.fullPaymentConversion?.ordersPaidInFull)} commandes payées en full`}
+                icon={Crown}
+              />
+              <KpiCard
+                label="Livraisons offertes"
+                value={formatNumber(data?.kpis?.fullPaymentConversion?.deliveryFeesWaivedCount)}
+                helper={`Montant offert ${formatCurrency(data?.kpis?.fullPaymentConversion?.waivedDeliveryAmount)}`}
+                icon={Sparkles}
+              />
+              <KpiCard
+                label="Impact revenu"
+                value={formatCurrency(data?.kpis?.fullPaymentConversion?.revenueImpact)}
+                helper="GMV associé aux commandes full payment"
+                icon={TrendingUp}
+              />
+            </section>
+
             <section className="glass-card rounded-2xl p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>

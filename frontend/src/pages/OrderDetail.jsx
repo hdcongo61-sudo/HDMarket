@@ -152,6 +152,27 @@ const formatOrderTimestamp = (value) =>
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 const normalizeAddressPart = (value) => (typeof value === 'string' ? value.trim() : '');
+const resolveOrderPaymentMode = (order) => {
+  if (String(order?.paymentType || '').toLowerCase() === 'installment') return 'INSTALLMENT';
+  if (
+    String(order?.paymentMode || '').toUpperCase() === 'FULL_PAYMENT' ||
+    String(order?.paymentStatus || '').toUpperCase() === 'PAID_FULL'
+  ) {
+    return 'FULL_PAYMENT';
+  }
+  return 'STANDARD';
+};
+
+const getPaymentModeLabel = (mode) => {
+  switch (mode) {
+    case 'INSTALLMENT':
+      return 'Paiement par tranche';
+    case 'FULL_PAYMENT':
+      return 'Paiement intégral';
+    default:
+      return 'Paiement classique';
+  }
+};
 
 const getEffectiveOrderStatus = (order) => {
   if (!order) return 'pending';
@@ -659,8 +680,9 @@ export default function OrderDetail() {
         return `<tr><td>${idx + 1}</td><td><div class="title">${title}</div>${shopName ? `<div class="meta">Boutique: ${shopName}</div>` : ''}</td><td class="right">x${qty}</td><td class="right">${lineTotal}</td></tr>`;
       })
       .join('');
-    const deliveryRowHtml = !pickupOrderInPdf && deliveryFeeTotal > 0
-      ? `<tr><td colspan="3" class="right">Frais de livraison</td><td class="right">${formatCurrency(deliveryFeeTotal)}</td></tr>`
+    const deliveryLocked = Boolean(o?.deliveryFeeLocked) && String(o?.deliveryFeeWaiverReason || '') === 'FULL_PAYMENT';
+    const deliveryRowHtml = !pickupOrderInPdf && (deliveryFeeTotal > 0 || deliveryLocked)
+      ? `<tr><td colspan="3" class="right">Frais de livraison</td><td class="right">${deliveryLocked ? 'Offerts' : formatCurrency(deliveryFeeTotal)}</td></tr>`
       : '';
     const orderShort = escapeHtml(o?._id?.slice(-6) || '');
     const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"/><title>Bon de commande ${orderShort}</title><style>body{font-family:sans-serif;margin:32px;} table{width:100%;border-collapse:collapse;} th,td{border-bottom:1px solid #eee;padding:10px;} .right{text-align:right;} .total-row td{font-weight:700;}</style></head><body><h1>Bon de commande #${orderShort}</h1><p>${escapeHtml(new Date(o?.createdAt).toLocaleDateString('fr-FR'))}</p><table><thead><tr><th>#</th><th>Article</th><th class="right">Qté</th><th class="right">Total</th></tr></thead><tbody>${rowsHtml}${deliveryRowHtml}<tr class="total-row"><td colspan="3" class="right">Total</td><td class="right">${formatCurrency(orderTotal)}</td></tr></tbody></table></body></html>`;
@@ -709,6 +731,19 @@ export default function OrderDetail() {
   const paidAmount = Number(order.paidAmount || 0);
   const remainingAmount = Number(order.remainingAmount ?? Math.max(0, totalAmount - paidAmount));
   const isInstallmentOrder = order.paymentType === 'installment';
+  const orderPaymentMode = resolveOrderPaymentMode(order);
+  const isFullPaymentOrder = orderPaymentMode === 'FULL_PAYMENT';
+  const deliveryFeeLockedByFullPayment =
+    Boolean(order.deliveryFeeLocked) && String(order.deliveryFeeWaiverReason || '') === 'FULL_PAYMENT';
+  const showDeliveryFeeRow =
+    !isPickupOrder(order) &&
+    (Number(order.deliveryFeeTotal ?? 0) > 0 || Boolean(order.deliveryFeeWaived) || deliveryFeeLockedByFullPayment);
+  const paymentModeLabel = getPaymentModeLabel(orderPaymentMode);
+  const paidAmountLabel = isInstallmentOrder
+    ? 'Montant validé'
+    : isFullPaymentOrder
+      ? 'Paiement reçu'
+      : 'Acompte versé';
   const installmentPlan = isInstallmentOrder ? order.installmentPlan || {} : null;
   const installmentSchedule = Array.isArray(installmentPlan?.schedule) ? installmentPlan.schedule : [];
   const installmentWorkflow = isInstallmentOrder ? getInstallmentWorkflow(order) : null;
@@ -1125,19 +1160,39 @@ export default function OrderDetail() {
             <div>
               <h4 className="text-sm font-bold text-gray-900 uppercase mb-3 flex items-center gap-2"><CreditCard className="w-4 h-4 text-gray-500" /> Paiement</h4>
               <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 space-y-3">
-                {!pickupOrder && Number(order.deliveryFeeTotal ?? 0) > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-blue-700">Mode de paiement</span>
+                    {isFullPaymentOrder && (
+                      <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                        BEST VALUE
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-sm font-semibold text-blue-900">{paymentModeLabel}</span>
+                </div>
+                {showDeliveryFeeRow && (
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm text-gray-600">Frais de livraison</span>
-                      {order.deliveryFeeUpdatedAt && (
+                      {deliveryFeeLockedByFullPayment ? (
+                        <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                          Offerts et verrouillés
+                        </span>
+                      ) : order.deliveryFeeUpdatedAt ? (
                         <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800" title={new Date(order.deliveryFeeUpdatedAt).toLocaleString('fr-FR')}>
                           Modifié par le vendeur
                         </span>
-                      )}
+                      ) : null}
                     </div>
-                    <span className="text-sm font-semibold text-gray-900">
-                      {formatCurrency(order.deliveryFeeTotal)}
+                    <span className={`text-sm font-semibold ${deliveryFeeLockedByFullPayment ? 'text-emerald-700' : 'text-gray-900'}`}>
+                      {deliveryFeeLockedByFullPayment ? 'GRATUITE' : formatCurrency(order.deliveryFeeTotal)}
                     </span>
+                  </div>
+                )}
+                {deliveryFeeLockedByFullPayment && (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                    Livraison offerte grâce au paiement intégral. Aucun frais de livraison ne peut être ajouté sur cette commande.
                   </div>
                 )}
                 <div className="flex justify-between">
@@ -1150,7 +1205,7 @@ export default function OrderDetail() {
                   <>
                     <div className="flex justify-between pt-2 border-t border-gray-200">
                       <span className="text-sm text-gray-600">
-                        {isInstallmentOrder ? 'Montant validé' : 'Acompte versé'}
+                        {paidAmountLabel}
                       </span>
                       <span className="text-sm font-semibold text-emerald-700">
                         {formatCurrency(isInstallmentOrder ? installmentPaid : paidAmount)}

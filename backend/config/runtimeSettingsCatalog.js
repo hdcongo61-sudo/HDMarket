@@ -40,6 +40,43 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     isPublic: false,
     min: 0
   },
+  enable_full_payment_free_delivery: {
+    category: 'checkout',
+    description: 'Active l’avantage livraison offerte pour les commandes payées intégralement.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  full_payment_promotion_enabled: {
+    category: 'checkout',
+    description: 'Met en avant l’option paiement intégral dans le checkout.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  full_payment_label_text: {
+    category: 'checkout',
+    description: 'Libellé promotionnel affiché sur l’option paiement intégral.',
+    valueType: 'string',
+    defaultValue: 'BEST VALUE',
+    isPublic: true,
+    maxLength: 60
+  },
+  show_full_payment_home_banner: {
+    category: 'ui',
+    description: 'Affiche un mini bandeau homepage pour l’avantage paiement intégral.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  full_payment_banner_text: {
+    category: 'ui',
+    description: 'Texte du mini bandeau homepage pour le paiement intégral.',
+    valueType: 'string',
+    defaultValue: 'Payez le montant total au checkout et profitez de la livraison offerte.',
+    isPublic: true,
+    maxLength: 180
+  },
   review_required: {
     category: 'order_automation',
     description: 'Demander un avis avant clôture définitive.',

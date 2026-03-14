@@ -177,6 +177,25 @@ const orderSchema = new mongoose.Schema(
       enum: ['full', 'installment'],
       default: 'full'
     },
+    paymentMode: {
+      type: String,
+      enum: ['INSTALLMENT', 'STANDARD', 'FULL_PAYMENT'],
+      default: 'STANDARD'
+    },
+    deliveryFeeWaived: { type: Boolean, default: false },
+    deliveryFeeLocked: { type: Boolean, default: false },
+    deliveryFeeWaiverReason: {
+      type: String,
+      enum: ['', 'FULL_PAYMENT'],
+      default: ''
+    },
+    paymentStatus: {
+      type: String,
+      enum: ['PENDING', 'PARTIAL', 'PAID_FULL'],
+      default: 'PENDING'
+    },
+    paymentCompletedAt: { type: Date, default: null },
+    checkoutPromotionApplied: { type: Boolean, default: false },
     deliveryMode: {
       type: String,
       enum: ['PICKUP', 'DELIVERY'],
@@ -199,12 +218,12 @@ const orderSchema = new mongoose.Schema(
     },
     platformDeliveryPriceSource: {
       type: String,
-      enum: ['SHOP_FREE', 'ADMIN_RULE', 'SELLER', 'BUYER', 'NONE'],
+      enum: ['SHOP_FREE', 'ADMIN_RULE', 'SELLER', 'BUYER', 'FULL_PAYMENT_WAIVER', 'NONE'],
       default: 'NONE'
     },
     deliveryFeeSource: {
       type: String,
-      enum: ['COMMUNE_FREE', 'COMMUNE_FIXED', 'SHOP_FREE', 'PRODUCT_FEE', 'PICKUP'],
+      enum: ['COMMUNE_FREE', 'COMMUNE_FIXED', 'SHOP_FREE', 'PRODUCT_FEE', 'FULL_PAYMENT_WAIVER', 'PICKUP'],
       default: 'PRODUCT_FEE'
     },
     installmentSaleStatus: {
@@ -340,6 +359,8 @@ orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ customer: 1, createdAt: -1 });
 orderSchema.index({ customer: 1, isDraft: 1, createdAt: -1 });
 orderSchema.index({ paymentType: 1, status: 1, createdAt: -1 });
+orderSchema.index({ paymentMode: 1, paymentStatus: 1, createdAt: -1 });
+orderSchema.index({ deliveryFeeLocked: 1, deliveryFeeWaived: 1, createdAt: -1 });
 orderSchema.index({ deliveryMode: 1, deliveryFeeSource: 1, createdAt: -1 });
 orderSchema.index({ platformDeliveryStatus: 1, updatedAt: -1 });
 orderSchema.index({ platformDeliveryRequestId: 1 }, { sparse: true });

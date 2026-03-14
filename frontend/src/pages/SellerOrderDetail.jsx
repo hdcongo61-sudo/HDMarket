@@ -114,6 +114,28 @@ const INSTALLMENT_SALE_STATUS_LABELS = {
   cancelled: 'Annulée'
 };
 
+const resolveOrderPaymentMode = (order) => {
+  if (String(order?.paymentType || '').toLowerCase() === 'installment') return 'INSTALLMENT';
+  if (
+    String(order?.paymentMode || '').toUpperCase() === 'FULL_PAYMENT' ||
+    String(order?.paymentStatus || '').toUpperCase() === 'PAID_FULL'
+  ) {
+    return 'FULL_PAYMENT';
+  }
+  return 'STANDARD';
+};
+
+const getPaymentModeLabel = (mode) => {
+  switch (mode) {
+    case 'INSTALLMENT':
+      return 'Paiement par tranche';
+    case 'FULL_PAYMENT':
+      return 'Paiement intégral';
+    default:
+      return 'Paiement classique';
+  }
+};
+
 const getInstallmentSaleStatusClassName = (status) => {
   switch (status) {
     case 'delivered':
@@ -126,6 +148,39 @@ const getInstallmentSaleStatusClassName = (status) => {
     default:
       return 'bg-amber-50 text-amber-700 border-amber-200';
   }
+};
+
+const getSellerTimelineStatus = (order, workflowStatus = '') => {
+  const rawStatus = String(order?.status || '').toLowerCase();
+  if (rawStatus === 'cancelled') return 'cancelled';
+
+  const platformAutoConfirmed =
+    (Boolean(order?.platformDeliveryRequestId) ||
+      String(order?.platformDeliveryMode || '').toUpperCase() === 'PLATFORM_DELIVERY') &&
+    String(order?.platformDeliveryStatus || '').toUpperCase() === 'DELIVERED';
+
+  if (String(order?.paymentType || '') === 'installment') {
+    const saleStatus = String(order?.installmentSaleStatus || '').toLowerCase();
+    if (saleStatus === 'delivering') return 'out_for_delivery';
+    if (saleStatus === 'delivered') return 'completed';
+    return String(workflowStatus || rawStatus || 'pending_installment');
+  }
+
+  if (resolvePickupOrder(order) && rawStatus === 'confirmed') {
+    const hasSubmittedPayment = Boolean(
+      Number(order?.paidAmount || 0) > 0 ||
+        String(order?.paymentTransactionCode || '').trim() ||
+        String(order?.paymentName || '').trim()
+    );
+    return hasSubmittedPayment ? 'paid' : 'pending_payment';
+  }
+
+  if (rawStatus === 'delivered' && String(order?.deliveryStatus || '').toLowerCase() === 'submitted' && !platformAutoConfirmed) {
+    return 'delivery_proof_submitted';
+  }
+
+  if (rawStatus === 'delivering') return 'out_for_delivery';
+  return rawStatus || 'pending';
 };
 
 const getPrimaryActionMeta = (order) => {
@@ -401,7 +456,12 @@ export default function SellerOrderDetail() {
     'confirmed',
     'ready_for_pickup'
   ];
-  const canEditDeliveryFee = order && SELLER_CAN_EDIT_DELIVERY_FEE.includes(String(order.status));
+  const deliveryFeeLockedByFullPayment =
+    Boolean(order?.deliveryFeeLocked) && String(order?.deliveryFeeWaiverReason || '') === 'FULL_PAYMENT';
+  const canEditDeliveryFee =
+    order &&
+    SELLER_CAN_EDIT_DELIVERY_FEE.includes(String(order.status)) &&
+    !deliveryFeeLockedByFullPayment;
   const deliveryFeeUpdatedAt = order?.deliveryFeeUpdatedAt ? new Date(order.deliveryFeeUpdatedAt) : null;
 
   const normalizeFileUrl = useCallback((url) => {
@@ -493,6 +553,12 @@ export default function SellerOrderDetail() {
 
   const handleUpdateDeliveryFee = async () => {
     if (!order) return;
+    if (deliveryFeeLockedByFullPayment) {
+      showToast('Les frais de livraison sont verrouillés car la commande a été payée intégralement.', {
+        variant: 'info'
+      });
+      return;
+    }
     const num = Number(deliveryFeeEditValue);
     if (!Number.isFinite(num) || num < 0) {
       showToast('Montant invalide.', { variant: 'error' });
@@ -790,6 +856,14 @@ export default function SellerOrderDetail() {
   const paidAmount = Number(order.paidAmount || 0);
   const remainingAmount = Number(order.remainingAmount ?? Math.max(0, totalAmount - paidAmount));
   const isInstallmentOrder = order.paymentType === 'installment';
+  const orderPaymentMode = resolveOrderPaymentMode(order);
+  const isFullPaymentOrder = orderPaymentMode === 'FULL_PAYMENT';
+  const paymentModeLabel = getPaymentModeLabel(orderPaymentMode);
+  const paidAmountLabel = isInstallmentOrder
+    ? 'Montant validé'
+    : isFullPaymentOrder
+      ? 'Paiement reçu'
+      : 'Acompte versé';
   const isPickupOrder = resolvePickupOrder(order);
   const pickupShopAddress = isPickupOrder ? getPickupShopAddress(order) : null;
   const installmentPlan = isInstallmentOrder ? order.installmentPlan || {} : null;
@@ -1151,26 +1225,45 @@ export default function SellerOrderDetail() {
             <div>
               <h4 className="text-sm font-bold text-gray-900 uppercase mb-3 flex items-center gap-2"><CreditCard className="w-4 h-4 text-gray-500" /> Paiement</h4>
               <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 space-y-3">
-                {!isPickupOrder && (Number(order.deliveryFeeTotal ?? 0) > 0 || canEditDeliveryFee) && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-blue-700">Mode de paiement</span>
+                    {isFullPaymentOrder && (
+                      <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                        BEST VALUE
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-sm font-semibold text-blue-900">{paymentModeLabel}</span>
+                </div>
+                {!isPickupOrder && (Number(order.deliveryFeeTotal ?? 0) > 0 || canEditDeliveryFee || deliveryFeeLockedByFullPayment) && (
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm text-gray-600">
                           Frais de livraison{hasPlatformDeliveryRequest ? ' (plateforme)' : ''}
                         </span>
-                        {deliveryFeeUpdatedAt && (
+                        {deliveryFeeLockedByFullPayment ? (
+                          <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                            Offerts et verrouillés
+                          </span>
+                        ) : deliveryFeeUpdatedAt ? (
                           <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800" title={deliveryFeeUpdatedAt.toLocaleString('fr-FR')}>
                             Modifié par le vendeur
                           </span>
-                        )}
+                        ) : null}
                       </div>
                       {!canEditDeliveryFee && (
-                        <span className="text-sm font-semibold text-gray-900">
-                          {formatCurrency(order.deliveryFeeTotal)}
+                        <span className={`text-sm font-semibold ${deliveryFeeLockedByFullPayment ? 'text-emerald-700' : 'text-gray-900'}`}>
+                          {deliveryFeeLockedByFullPayment ? 'GRATUITE' : formatCurrency(order.deliveryFeeTotal)}
                         </span>
                       )}
                     </div>
-                    {canEditDeliveryFee && (
+                    {deliveryFeeLockedByFullPayment ? (
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                        Livraison offerte activée par paiement intégral. Les frais sont verrouillés et ne peuvent plus être modifiés.
+                      </div>
+                    ) : canEditDeliveryFee ? (
                       <div className="flex flex-wrap items-center gap-2">
                         <input
                           type="number"
@@ -1190,7 +1283,7 @@ export default function SellerOrderDetail() {
                           {deliveryFeeSaving ? 'Enregistrement...' : 'Modifier'}
                         </button>
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 )}
                 <div className="flex justify-between">
@@ -1203,7 +1296,7 @@ export default function SellerOrderDetail() {
                   <>
                     <div className="flex justify-between pt-2 border-t border-gray-200">
                       <span className="text-sm text-gray-600">
-                        {isInstallmentOrder ? 'Montant validé' : 'Acompte versé'}
+                        {paidAmountLabel}
                       </span>
                       <span className="text-sm font-semibold text-emerald-700">
                         {formatCurrency(isInstallmentOrder ? installmentPaid : paidAmount)}
@@ -1947,18 +2040,11 @@ export default function SellerOrderDetail() {
             )}
 
             {order.status !== 'cancelled' && (
-              isInstallmentOrder ? (
-                <OrderProgress
-                  status={installmentWorkflow?.workflowStatus || order.status}
-                  paymentType="installment"
-                />
-              ) : (
-                <AnimatedOrderTimeline
-                  status={normalizedOrderStatusForTimeline}
-                  paymentType={order.paymentType}
-                  deliveryMode={order.deliveryMode}
-                />
-              )
+              <AnimatedOrderTimeline
+                status={getSellerTimelineStatus(order, installmentWorkflow?.workflowStatus)}
+                paymentType={order.paymentType}
+                deliveryMode={order.deliveryMode}
+              />
             )}
 
             <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100 text-xs text-gray-600">

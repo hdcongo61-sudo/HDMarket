@@ -402,6 +402,8 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
       createdBy: customer._id,
       status: 'pending_installment',
       paymentType: 'installment',
+      paymentMode: 'INSTALLMENT',
+      paymentStatus: 'PENDING',
       deliveryAddress: customer.address?.trim() || 'À préciser',
       deliveryCity: customer.city || 'Brazzaville',
       totalAmount,
@@ -613,6 +615,8 @@ export const sellerConfirmInstallmentSale = asyncHandler(async (req, res) => {
   order.installmentPlan.saleConfirmationConfirmedAt = new Date();
   order.installmentPlan.saleConfirmationConfirmedBy = userId;
   order.installmentPlan.nextDueDate = getNextDueDate(order.installmentPlan.schedule || []);
+  order.paymentMode = 'INSTALLMENT';
+  order.paymentStatus = Number(order.installmentPlan.amountPaid || 0) > 0 ? 'PARTIAL' : 'PENDING';
   if (order.status === 'pending_installment') {
     order.status = 'installment_active';
     if (!order.confirmedAt) {
@@ -754,6 +758,11 @@ export const sellerValidateInstallmentPayment = asyncHandler(async (req, res) =>
 
   order.paidAmount = Number(order.installmentPlan.amountPaid || 0);
   order.remainingAmount = Number(order.installmentPlan.remainingAmount || 0);
+  order.paymentMode = 'INSTALLMENT';
+  order.paymentStatus = order.remainingAmount <= 0 ? 'PAID_FULL' : order.paidAmount > 0 ? 'PARTIAL' : 'PENDING';
+  if (order.paymentStatus === 'PAID_FULL' && !order.paymentCompletedAt) {
+    order.paymentCompletedAt = now;
+  }
 
   const lifecycleStatus = deriveInstallmentOrderStatus(schedule);
 

@@ -507,6 +507,8 @@ export const schemas = {
     .try(
       Joi.object({
         deliveryMode: Joi.string().valid('PICKUP', 'DELIVERY').default('PICKUP'),
+        paymentMode: Joi.string().valid('STANDARD', 'FULL_PAYMENT').default('STANDARD'),
+        checkoutPromotionApplied: Joi.boolean().default(false),
         shippingAddress: Joi.object({
           cityId: Joi.string().hex().length(24).allow('', null),
           communeId: Joi.string().hex().length(24).allow('', null),
@@ -530,6 +532,8 @@ export const schemas = {
       }),
       Joi.object({
         deliveryMode: Joi.string().valid('PICKUP', 'DELIVERY').default('PICKUP'),
+        paymentMode: Joi.string().valid('STANDARD', 'FULL_PAYMENT').default('STANDARD'),
+        checkoutPromotionApplied: Joi.boolean().default(false),
         shippingAddress: Joi.object({
           cityId: Joi.string().hex().length(24).allow('', null),
           communeId: Joi.string().hex().length(24).allow('', null),

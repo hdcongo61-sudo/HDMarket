@@ -1102,9 +1102,15 @@ export default function AdminDeliveryRequests() {
               const canReject = !['REJECTED', 'DELIVERED', 'CANCELED'].includes(status);
               const assignmentStatusUpper = String(item.assignmentStatus || 'PENDING').toUpperCase();
               const courierHasAccepted = assignmentStatusUpper === 'ACCEPTED';
+              const orderRef = item?.orderId && typeof item.orderId === 'object' ? item.orderId : null;
+              const deliveryFeeLockedByFullPayment =
+                Boolean(orderRef?.deliveryFeeLocked) &&
+                String(orderRef?.deliveryFeeWaiverReason || '') === 'FULL_PAYMENT';
               const canAssign = ['ACCEPTED', 'IN_PROGRESS', 'PENDING'].includes(status);
               const canEditPrice =
-                !['REJECTED', 'CANCELED', 'DELIVERED', 'FAILED'].includes(status) && !courierHasAccepted;
+                !['REJECTED', 'CANCELED', 'DELIVERED', 'FAILED'].includes(status) &&
+                !courierHasAccepted &&
+                !deliveryFeeLockedByFullPayment;
               const canUnassign =
                 item.assignedDeliveryGuyId &&
                 !DELIVERY_REQUEST_CLOSED_STATUSES.includes(status) &&
@@ -1421,7 +1427,13 @@ export default function AdminDeliveryRequests() {
                       type="button"
                       onClick={() => openPriceModal(item)}
                       disabled={!canEditPrice}
-                      title={courierHasAccepted ? 'Modification impossible : le livreur a accepté la livraison.' : undefined}
+                      title={
+                        deliveryFeeLockedByFullPayment
+                          ? 'Modification impossible : commande payée intégralement, frais verrouillés.'
+                          : courierHasAccepted
+                            ? 'Modification impossible : le livreur a accepté la livraison.'
+                            : undefined
+                      }
                       className="inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-amber-50 px-3 text-xs font-semibold text-amber-800 ring-1 ring-amber-300 hover:bg-amber-100 disabled:opacity-40"
                     >
                       <Landmark size={12} />
@@ -1502,6 +1514,12 @@ export default function AdminDeliveryRequests() {
           onClose={closeAllModals}
         />
         <ModalBody className="space-y-3">
+          {Boolean(selectedItem?.orderId?.deliveryFeeLocked) &&
+          String(selectedItem?.orderId?.deliveryFeeWaiverReason || '') === 'FULL_PAYMENT' ? (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
+              Commande payée intégralement: les frais de livraison sont offerts et verrouillés.
+            </div>
+          ) : null}
           {selectedItem ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
               <p className="font-semibold text-slate-900">
@@ -1702,6 +1720,10 @@ export default function AdminDeliveryRequests() {
               value={priceDraft}
               onChange={(e) => setPriceDraft(e.target.value)}
               data-autofocus
+              disabled={
+                Boolean(selectedItem?.orderId?.deliveryFeeLocked) &&
+                String(selectedItem?.orderId?.deliveryFeeWaiverReason || '') === 'FULL_PAYMENT'
+              }
               className="mt-1 w-full rounded-2xl border border-gray-300 px-3 py-2 text-sm"
             />
           </label>
@@ -1721,7 +1743,11 @@ export default function AdminDeliveryRequests() {
           <button
             type="button"
             onClick={handleUpdatePrice}
-            disabled={priceSaving}
+            disabled={
+              priceSaving ||
+              (Boolean(selectedItem?.orderId?.deliveryFeeLocked) &&
+                String(selectedItem?.orderId?.deliveryFeeWaiverReason || '') === 'FULL_PAYMENT')
+            }
             className="inline-flex w-full min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
           >
             {priceSaving ? <Loader2 size={14} className="animate-spin" /> : <Landmark size={14} />}

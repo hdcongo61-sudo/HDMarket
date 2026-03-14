@@ -569,10 +569,48 @@ export const computeFounderIntelligence = async () => {
   const pushOpened = asNumber(pushOpenAgg?.[0]?.opened || 0);
   const shortSessions = asNumber(shortSessionAgg?.[0]?.short || 0);
   const totalSessions = asNumber(shortSessionAgg?.[0]?.total || 0);
+  const [fullPaymentAgg30] = await Order.aggregate([
+    {
+      $match: {
+        createdAt: { $gte: start30 },
+        isDraft: { $ne: true }
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        ordersPaidInFull: {
+          $sum: {
+            $cond: [{ $eq: ['$paymentMode', 'FULL_PAYMENT'] }, 1, 0]
+          }
+        },
+        deliveryFeesWaivedCount: {
+          $sum: {
+            $cond: [{ $eq: ['$deliveryFeeWaived', true] }, 1, 0]
+          }
+        },
+        deliverySavingsGenerated: {
+          $sum: {
+            $cond: [{ $eq: ['$paymentMode', 'FULL_PAYMENT'] }, { $ifNull: ['$totalAmount', 0] }, 0]
+          }
+        },
+        waivedDeliveryAmount: {
+          $sum: {
+            $cond: [{ $eq: ['$deliveryFeeWaived', true] }, { $ifNull: ['$deliveryFeeTotal', 0] }, 0]
+          }
+        }
+      }
+    }
+  ]);
 
   const timeToFirstPurchaseHours = asNumber(timeToFirstPurchaseAgg?.[0]?.avgHours || 0);
   const growthVelocityDaily = pct(newUsersToday - newUsersYesterday, Math.max(newUsersYesterday, 1));
   const growthVelocityWeekly = pct(newUsersWeek - newUsersPrevWeek, Math.max(newUsersPrevWeek, 1));
+  const ordersPaidInFull = asNumber(fullPaymentAgg30?.ordersPaidInFull || 0);
+  const deliveryFeesWaivedCount = asNumber(fullPaymentAgg30?.deliveryFeesWaivedCount || 0);
+  const deliverySavingsGenerated = asNumber(fullPaymentAgg30?.deliverySavingsGenerated || 0);
+  const waivedDeliveryAmount = asNumber(fullPaymentAgg30?.waivedDeliveryAmount || 0);
+  const fullPaymentAdoptionRate = pct(ordersPaidInFull, Math.max(orders30, 1));
 
   const responseSummary = {
     generatedAt: now.toISOString(),
@@ -588,6 +626,13 @@ export const computeFounderIntelligence = async () => {
       growthVelocity: {
         daily: growthVelocityDaily,
         weekly: growthVelocityWeekly
+      },
+      fullPaymentConversion: {
+        adoptionRate: fullPaymentAdoptionRate,
+        ordersPaidInFull,
+        deliveryFeesWaivedCount,
+        waivedDeliveryAmount: Number(waivedDeliveryAmount.toFixed(2)),
+        revenueImpact: Number(deliverySavingsGenerated.toFixed(2))
       },
       newVsReturningRatio: {
         newUsers: newActiveUsersCount,
@@ -647,6 +692,8 @@ export const computeFounderIntelligence = async () => {
       revenueLast30Days: Number(revenue30.toFixed(2)),
       activeUsers30Days: activeUsers30,
       ordersLast30Days: orders30,
+      fullPaymentOrdersLast30Days: ordersPaidInFull,
+      waivedDeliveryAmount: Number(waivedDeliveryAmount.toFixed(2)),
       keyRisks: [
         `${inactiveHighValueUsers.length} utilisateurs à forte valeur sont inactifs.`,
         `${sellerRanking.filter((entry) => entry.riskScore >= 40).length} vendeurs ont un score de risque élevé.`,
@@ -667,4 +714,3 @@ export const getFounderIntelligence = async ({ forceRefresh = false } = {}) => {
   await writeCache(data);
   return { ...data, cache: { hit: false, ttlSeconds: FOUNDER_CACHE_TTL_SECONDS } };
 };
-

@@ -21,6 +21,16 @@ import BaseModal, { ModalBody, ModalHeader } from "../components/modals/BaseModa
 
 const normalizeCityName = (value) =>
   typeof value === 'string' ? value.trim().toLowerCase() : '';
+const normalizeSettingBoolean = (value, fallback = false) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'off'].includes(normalized)) return false;
+  }
+  return fallback;
+};
 
 const resolveProductCity = (product) => {
   if (!product || typeof product !== 'object') return '';
@@ -124,7 +134,14 @@ const CATEGORY_COLOR_PALETTE = [
 
 export default function Home() {
   const { user } = useContext(AuthContext);
-  const { city: preferredCity, cities: configuredCities, formatPrice, t, language } = useAppSettings();
+  const {
+    city: preferredCity,
+    cities: configuredCities,
+    formatPrice,
+    t,
+    language,
+    getRuntimeValue
+  } = useAppSettings();
   // === ÉTATS PRINCIPAUX ===
   const [items, setItems] = useState([]);
   const [certifiedProducts, setCertifiedProducts] = useState([]);
@@ -215,6 +232,17 @@ const hasUserCity = useMemo(
 const formatCurrency = (value) => formatPrice(value);
 const formatCount = (value) =>
   Number(value || 0).toLocaleString(String(language || 'fr').startsWith('en') ? 'en-US' : 'fr-FR');
+const showFullPaymentHomeBanner = normalizeSettingBoolean(
+  getRuntimeValue('show_full_payment_home_banner', true),
+  true
+);
+const fullPaymentBannerText =
+  String(
+    getRuntimeValue(
+      'full_payment_banner_text',
+      'Payez le montant total au checkout et profitez de la livraison offerte.'
+    ) || ''
+  ).trim() || 'Payez le montant total au checkout et profitez de la livraison offerte.';
 const formatCountdown = (endDate, nowMs = Date.now()) => {
   const endMs = new Date(endDate || '').getTime();
   if (!Number.isFinite(endMs) || endMs <= nowMs) return t('home.expired', 'Expiré');
@@ -837,6 +865,26 @@ const loadDiscountProducts = async () => {
               </div>
             </div>
           </div>
+        ) : null}
+        {showFullPaymentHomeBanner ? (
+          <Link
+            to="/products"
+            {...externalLinkProps}
+            className="group block rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-cyan-50 px-3.5 py-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                  <Sparkles className="h-3 w-3" />
+                  Livraison offerte
+                </div>
+                <p className="mt-2 text-sm font-semibold leading-5 text-slate-900">{fullPaymentBannerText}</p>
+              </div>
+              <span className="inline-flex flex-shrink-0 items-center rounded-full bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm">
+                En savoir plus
+              </span>
+            </div>
+          </Link>
         ) : null}
         {/* Mobile Categories Module */}
         <section className="rounded-2xl border border-gray-200 bg-white p-3 max-[375px]:p-2.5 shadow-sm">
@@ -1693,6 +1741,25 @@ const loadDiscountProducts = async () => {
           </span>
           <Tag className="w-5 h-5 text-neutral-800 flex-shrink-0" />
         </div>
+
+        {showFullPaymentHomeBanner ? (
+          <Link
+            to="/products"
+            {...externalLinkProps}
+            className="group flex items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-cyan-50 px-5 py-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5"
+          >
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700">
+                <Sparkles className="h-3.5 w-3.5" />
+                Paiement intégral
+              </div>
+              <p className="mt-2 text-sm font-semibold text-slate-900">{fullPaymentBannerText}</p>
+            </div>
+            <span className="inline-flex flex-shrink-0 items-center rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm">
+              En savoir plus
+            </span>
+          </Link>
+        ) : null}
 
         {/* Zone 1: Hero (65%) + Flash Deals Panel (35%) */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">

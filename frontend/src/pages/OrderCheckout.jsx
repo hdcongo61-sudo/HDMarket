@@ -42,6 +42,11 @@ const normalizeBoolean = (value, fallback = false) => {
 };
 
 const normalizeText = (value) => String(value || '').trim().toLowerCase();
+const PAYMENT_MODES = Object.freeze({
+  STANDARD: 'standard',
+  INSTALLMENT: 'installment',
+  FULL_PAYMENT: 'full_payment'
+});
 
 const getOrderId = (value) => {
   const raw = value?._id || value?.id;
@@ -83,7 +88,7 @@ export default function OrderCheckout() {
   const { cart, clearCart } = useContext(CartContext);
   const { user } = useContext(AuthContext);
   const { showToast } = useToast();
-  const { cities = [], communes = [] } = useAppSettings();
+  const { cities = [], communes = [], getRuntimeValue, t } = useAppSettings();
   const navigate = useNavigate();
   const [payments, setPayments] = useState({});
   const [promoStates, setPromoStates] = useState({});
@@ -91,7 +96,7 @@ export default function OrderCheckout() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [orderConfirmed, setOrderConfirmed] = useState(false);
-  const [paymentMode, setPaymentMode] = useState('full');
+  const [paymentMode, setPaymentMode] = useState(PAYMENT_MODES.STANDARD);
   const [guarantor, setGuarantor] = useState({
     fullName: '',
     phone: '',
@@ -112,6 +117,24 @@ export default function OrderCheckout() {
   });
 
   const totals = cart.totals || { subtotal: 0, quantity: 0 };
+  const fullPaymentPromotionEnabled = normalizeBoolean(
+    getRuntimeValue('full_payment_promotion_enabled', true),
+    true
+  );
+  const fullPaymentFreeDeliveryEnabled = normalizeBoolean(
+    getRuntimeValue('enable_full_payment_free_delivery', true),
+    true
+  );
+  const fullPaymentLabelText =
+    String(
+      getRuntimeValue('full_payment_label_text', t('checkout.fullPaymentBadge', 'BEST VALUE')) || ''
+    ).trim() || t('checkout.fullPaymentBadge', 'BEST VALUE');
+  const isInstallmentPayment = paymentMode === PAYMENT_MODES.INSTALLMENT;
+  const isFullPaymentSelected =
+    paymentMode === PAYMENT_MODES.FULL_PAYMENT &&
+    fullPaymentPromotionEnabled &&
+    fullPaymentFreeDeliveryEnabled;
+  const isStandardPayment = !isInstallmentPayment && !isFullPaymentSelected;
 
   const items = cart.items || [];
   const hasPickupOnlyProducts = useMemo(
@@ -254,49 +277,93 @@ export default function OrderCheckout() {
   };
 
   const getSellerEffectiveSubtotal = (group) => {
-    if (paymentMode !== 'full') return Number(group.subtotal || 0);
+    if (isInstallmentPayment) return Number(group.subtotal || 0);
     if (!isPromoAppliedForSeller(group.sellerId)) return Number(group.subtotal || 0);
     const finalAmount = Number(getSellerPromoState(group.sellerId)?.pricing?.finalAmount);
     return Number.isFinite(finalAmount) ? finalAmount : Number(group.subtotal || 0);
   };
 
   const checkoutSubtotal = useMemo(() => {
-    if (paymentMode !== 'full') return Number(totals.subtotal || 0);
+    if (isInstallmentPayment) return Number(totals.subtotal || 0);
     return sellerGroups.reduce((sum, group) => sum + getSellerEffectiveSubtotal(group), 0);
-  }, [paymentMode, totals.subtotal, sellerGroups, promoStates, payments]);
+  }, [isInstallmentPayment, totals.subtotal, sellerGroups, promoStates, payments]);
 
   const checkoutSavings = useMemo(() => {
-    if (paymentMode !== 'full') return 0;
+    if (isInstallmentPayment) return 0;
     return sellerGroups.reduce((sum, group) => {
       const original = Number(group.subtotal || 0);
       const effective = getSellerEffectiveSubtotal(group);
       return sum + Math.max(0, original - effective);
     }, 0);
-  }, [paymentMode, sellerGroups, promoStates, payments]);
+  }, [isInstallmentPayment, sellerGroups, promoStates, payments]);
+
+  const effectiveDeliveryFeePreviewTotal = useMemo(() => {
+    if (deliveryMode !== 'DELIVERY') return 0;
+    if (isFullPaymentSelected) return 0;
+    return Number(deliveryFeePreviewTotal || 0);
+  }, [deliveryMode, isFullPaymentSelected, deliveryFeePreviewTotal]);
 
   const checkoutTotalWithDelivery = useMemo(
     () =>
       Number(
         (
           Number(checkoutSubtotal || 0) +
-          (paymentMode === 'full' && deliveryMode === 'DELIVERY' ? Number(deliveryFeePreviewTotal || 0) : 0)
+          (!isInstallmentPayment && deliveryMode === 'DELIVERY'
+            ? Number(effectiveDeliveryFeePreviewTotal || 0)
+            : 0)
         ).toFixed(2)
       ),
-    [checkoutSubtotal, paymentMode, deliveryMode, deliveryFeePreviewTotal]
+    [checkoutSubtotal, isInstallmentPayment, deliveryMode, effectiveDeliveryFeePreviewTotal]
   );
   const depositAmount = useMemo(() => Math.round(checkoutTotalWithDelivery * 0.25), [checkoutTotalWithDelivery]);
   const remainingAmount = Math.max(0, Number(checkoutTotalWithDelivery || 0) - depositAmount);
-  const summaryPaidAmount = paymentMode === 'installment' ? installmentFirstPaymentAmount : depositAmount;
+  const summaryPaidAmount = isInstallmentPayment
+    ? installmentFirstPaymentAmount
+    : isFullPaymentSelected
+      ? checkoutTotalWithDelivery
+      : depositAmount;
   const summaryRemainingAmount =
-    paymentMode === 'installment'
+    isInstallmentPayment
       ? Math.max(0, Number(totals.subtotal || 0) - installmentFirstPaymentAmount)
-      : remainingAmount;
+      : isFullPaymentSelected
+        ? 0
+        : remainingAmount;
+  const summaryOrderTotal = isInstallmentPayment
+    ? Number(totals.subtotal || 0)
+    : Number(checkoutTotalWithDelivery || 0);
+  const summaryPrimaryPaymentLabel = isInstallmentPayment
+    ? 'Premier paiement'
+    : isFullPaymentSelected
+      ? 'Paiement intégral'
+      : 'Acompte (25%)';
+  const paymentModeDescription = isInstallmentPayment
+    ? 'Cette commande sera traitée en paiement par tranche après validation du vendeur.'
+    : isFullPaymentSelected
+      ? 'Vous payez le montant total maintenant. Les frais de livraison sont offerts.'
+      : 'Un acompte de 25% est requis pour confirmer votre commande.';
+  const paymentCommitmentMessage = isInstallmentPayment
+    ? `Merci de payer le premier montant de ${formatCurrency(summaryPaidAmount)} puis de suivre l’échéancier.`
+    : isFullPaymentSelected
+      ? `Paiement intégral demandé: ${formatCurrency(summaryPaidAmount)}. La livraison est offerte et verrouillée.`
+      : sellerGroups.length > 1
+        ? 'Merci de payer l’acompte indiqué pour chaque vendeur avant validation.'
+        : `Merci de payer exactement ${formatCurrency(depositAmount)} avant validation.`;
+  const showFullPaymentOption = fullPaymentPromotionEnabled && fullPaymentFreeDeliveryEnabled;
 
   useEffect(() => {
-    if (!isInstallmentProductEligible && paymentMode === 'installment') {
-      setPaymentMode('full');
+    if (!isInstallmentProductEligible && paymentMode === PAYMENT_MODES.INSTALLMENT) {
+      setPaymentMode(PAYMENT_MODES.STANDARD);
     }
   }, [isInstallmentProductEligible, paymentMode]);
+
+  useEffect(() => {
+    if (
+      paymentMode === PAYMENT_MODES.FULL_PAYMENT &&
+      (!fullPaymentPromotionEnabled || !fullPaymentFreeDeliveryEnabled)
+    ) {
+      setPaymentMode(PAYMENT_MODES.STANDARD);
+    }
+  }, [paymentMode, fullPaymentPromotionEnabled, fullPaymentFreeDeliveryEnabled]);
 
   useEffect(() => {
     if (hasPickupOnlyProducts && deliveryMode === 'DELIVERY') {
@@ -492,7 +559,7 @@ export default function OrderCheckout() {
         return;
       }
     }
-    if (paymentMode === 'installment') {
+    if (isInstallmentPayment) {
       if (!isInstallmentProductEligible || !installmentProduct) {
         setError('Le paiement par tranche n’est pas disponible pour cette commande.');
         return;
@@ -675,6 +742,8 @@ export default function OrderCheckout() {
       const { data } = await api.post(
         '/orders/checkout',
         {
+          paymentMode: isFullPaymentSelected ? 'FULL_PAYMENT' : 'STANDARD',
+          checkoutPromotionApplied: isFullPaymentSelected,
           deliveryMode,
           shippingAddress,
           payments: sellerGroups.map((group) => {
@@ -693,7 +762,12 @@ export default function OrderCheckout() {
       const createdOrderId = extractFirstOrderId(data);
       setOrderConfirmed(true);
       await clearCart();
-      showToast('Commande enregistrée. Elle est en attente de validation.', { variant: 'success' });
+      showToast(
+        isFullPaymentSelected
+          ? 'Commande payée intégralement. Livraison offerte activée.'
+          : 'Commande enregistrée. Elle est en attente de validation.',
+        { variant: 'success' }
+      );
       if (createdOrderId) {
         navigate(`/order/detail/${createdOrderId}`);
       } else {
@@ -888,7 +962,7 @@ export default function OrderCheckout() {
 
   // Save draft order when user leaves without confirming
   useEffect(() => {
-    if (!user || !items.length || loading || orderConfirmed || paymentMode === 'installment') return;
+    if (!user || !items.length || loading || orderConfirmed || isInstallmentPayment) return;
 
     const saveDraft = async () => {
       try {
@@ -915,7 +989,7 @@ export default function OrderCheckout() {
         saveDraft();
       }
     };
-  }, [user, items.length, sellerGroups, payments, loading, orderConfirmed, paymentMode]);
+  }, [user, items.length, sellerGroups, payments, loading, orderConfirmed, isInstallmentPayment]);
 
   if (!items.length) {
     return (
@@ -954,11 +1028,7 @@ export default function OrderCheckout() {
         </Link>
         <div className="space-y-3">
           <h1 className="text-3xl sm:text-4xl font-black text-gray-900">Confirmer votre commande</h1>
-          <p className="text-gray-600 font-medium">
-            {paymentMode === 'installment'
-              ? 'Cette commande sera traitée en paiement par tranche après validation du vendeur.'
-              : 'Un acompte de 25% est requis pour confirmer votre commande.'}
-          </p>
+          <p className="text-gray-600 font-medium">{paymentModeDescription}</p>
         </div>
       </header>
 
@@ -1000,18 +1070,26 @@ export default function OrderCheckout() {
             <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-xl">
               <span className="text-gray-700 font-semibold">Total commande</span>
               <span className="font-black text-gray-900 text-lg">
-                {formatCurrency(paymentMode === 'full' ? checkoutTotalWithDelivery : totals.subtotal)}
+                {formatCurrency(summaryOrderTotal)}
               </span>
             </div>
-            {paymentMode === 'full' && deliveryMode === 'DELIVERY' && (
+            {!isInstallmentPayment && deliveryMode === 'DELIVERY' && (
               <div className="flex justify-between items-center py-2 px-3 bg-neutral-50 rounded-xl border border-neutral-200">
                 <span className="text-neutral-700 font-semibold">
                   Livraison ({DELIVERY_SOURCE_LABELS[primaryDeliverySourcePreview] || 'Source'})
                 </span>
-                <span className="font-black text-neutral-700 text-lg">{formatCurrency(deliveryFeePreviewTotal)}</span>
+                <span className={`font-black text-lg ${isFullPaymentSelected ? 'text-emerald-700' : 'text-neutral-700'}`}>
+                  {isFullPaymentSelected ? 'GRATUITE' : formatCurrency(effectiveDeliveryFeePreviewTotal)}
+                </span>
               </div>
             )}
-            {paymentMode === 'full' && checkoutSavings > 0 && (
+            {isFullPaymentSelected && (
+              <div className="flex justify-between items-center py-2 px-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                <span className="text-emerald-700 font-semibold">Livraison offerte</span>
+                <span className="font-black text-emerald-700 text-lg">0 FCFA</span>
+              </div>
+            )}
+            {!isInstallmentPayment && checkoutSavings > 0 && (
               <div className="flex justify-between items-center py-2 px-3 bg-neutral-100 rounded-xl border border-neutral-200">
                 <span className="text-neutral-700 font-semibold">Économie via promo</span>
                 <span className="font-black text-neutral-700 text-lg">
@@ -1021,7 +1099,7 @@ export default function OrderCheckout() {
             )}
             <div className="flex justify-between items-center py-2 px-3 bg-neutral-100 rounded-xl border border-neutral-200">
               <span className="text-neutral-700 font-semibold">
-                {paymentMode === 'installment' ? 'Premier paiement' : 'Acompte (25%)'}
+                {summaryPrimaryPaymentLabel}
               </span>
               <span className="font-black text-neutral-900 text-lg">
                 {formatCurrency(summaryPaidAmount)}
@@ -1037,9 +1115,11 @@ export default function OrderCheckout() {
           <div className="rounded-2xl border-2 border-neutral-200 bg-neutral-100 p-4 text-xs sm:text-sm text-neutral-800 flex items-start gap-3">
             <ShieldCheck size={16} />
             <span>
-              {paymentMode === 'installment'
+              {isInstallmentPayment
                 ? 'Le vendeur doit confirmer la vente puis valider chaque tranche.'
-                : 'Le paiement de l’acompte confirme la commande. Le solde sera réglé à la livraison.'}
+                : isFullPaymentSelected
+                  ? 'Le paiement intégral confirme la commande. Les frais de livraison sont offerts et ne peuvent plus être ajoutés.'
+                  : 'Le paiement de l’acompte confirme la commande. Le solde sera réglé à la livraison.'}
             </span>
           </div>
         </section>
@@ -1160,7 +1240,7 @@ export default function OrderCheckout() {
                     <MapPin size={14} className="inline mr-1" />
                     {selectedCity?.name ? `${selectedCity.name} · ` : ''}
                     Livraison: {DELIVERY_SOURCE_LABELS[primaryDeliverySourcePreview] || 'Source en attente'} (
-                    {formatCurrency(deliveryFeePreviewTotal)})
+                    {isFullPaymentSelected ? 'GRATUITE' : formatCurrency(deliveryFeePreviewTotal)})
                   </div>
                 </div>
               ) : (
@@ -1170,36 +1250,78 @@ export default function OrderCheckout() {
               )}
             </div>
 
-            {isInstallmentProductEligible && (
+            {(isInstallmentProductEligible || showFullPaymentOption) && (
               <div className="rounded-2xl border-2 border-neutral-200 bg-neutral-100 p-4 space-y-3">
                 <p className="text-xs font-bold uppercase text-neutral-700">Mode de paiement</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className={`grid gap-2 ${isInstallmentProductEligible && showFullPaymentOption ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2'}`}>
                   <button
                     type="button"
-                    onClick={() => setPaymentMode('full')}
-                    className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-all ${
-                      paymentMode === 'full'
-                        ? 'border-neutral-500 bg-white text-neutral-700'
+                    onClick={() => setPaymentMode(PAYMENT_MODES.STANDARD)}
+                    className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-all ${
+                      isStandardPayment
+                        ? 'border-neutral-500 bg-white text-neutral-700 shadow-sm'
                         : 'border-gray-200 bg-white text-gray-600'
                     }`}
                   >
-                    Paiement classique (acompte 25%)
+                    <span className="block font-bold text-gray-900">Paiement classique</span>
+                    <span className="mt-1 block text-xs text-gray-500">Acompte de 25% maintenant, solde plus tard.</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMode('installment')}
-                    className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-all ${
-                      paymentMode === 'installment'
-                        ? 'border-neutral-500 bg-white text-neutral-700'
-                        : 'border-gray-200 bg-white text-gray-600'
-                    }`}
-                  >
-                    Paiement par tranche ({installmentDuration} jours)
-                  </button>
+                  {showFullPaymentOption ? (
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMode(PAYMENT_MODES.FULL_PAYMENT)}
+                      className={`relative rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-all ${
+                        isFullPaymentSelected
+                          ? 'border-emerald-300 bg-emerald-50 text-emerald-900 shadow-sm'
+                          : 'border-emerald-200 bg-white text-gray-700'
+                      }`}
+                    >
+                      <span className="absolute right-3 top-3 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white">
+                        {fullPaymentLabelText}
+                      </span>
+                      <span className="block pr-20 font-bold text-gray-900">Paiement intégral</span>
+                      <span className="mt-1 block text-xs text-gray-600">
+                        Vous payez tout maintenant. Livraison offerte.
+                      </span>
+                      {deliveryMode === 'DELIVERY' && Number(deliveryFeePreviewTotal || 0) > 0 ? (
+                        <span className="mt-2 inline-flex rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                          Économisez {formatCurrency(deliveryFeePreviewTotal)} sur la livraison
+                        </span>
+                      ) : (
+                        <span className="mt-2 inline-flex rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                          Livraison gratuite activée
+                        </span>
+                      )}
+                    </button>
+                  ) : null}
+                  {isInstallmentProductEligible ? (
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMode(PAYMENT_MODES.INSTALLMENT)}
+                      className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-all ${
+                        isInstallmentPayment
+                          ? 'border-neutral-500 bg-white text-neutral-700 shadow-sm'
+                          : 'border-gray-200 bg-white text-gray-600'
+                      }`}
+                    >
+                      <span className="block font-bold text-gray-900">Paiement par tranche</span>
+                      <span className="mt-1 block text-xs text-gray-500">
+                        {installmentDuration} jours avec échéancier validé par le vendeur.
+                      </span>
+                    </button>
+                  ) : null}
                 </div>
-                <p className="text-xs text-neutral-700">
-                  Paiement en plusieurs fois disponible
-                </p>
+                {showFullPaymentOption && (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                    <p className="font-semibold">Vous payez le montant total maintenant. Les frais de livraison sont offerts.</p>
+                    <p className="mt-1">Sous-total: {formatCurrency(checkoutSubtotal)} · Livraison: GRATUITE · Total: {formatCurrency(checkoutSubtotal)}</p>
+                  </div>
+                )}
+                {isInstallmentProductEligible && (
+                  <p className="text-xs text-neutral-700">
+                    Paiement en plusieurs fois disponible
+                  </p>
+                )}
                 {installmentEligibility.score !== null && (
                   <p className="text-xs text-neutral-700">
                     Score d'éligibilité: <span className="font-semibold">{installmentEligibility.score}/100</span>{' '}
@@ -1214,13 +1336,17 @@ export default function OrderCheckout() {
               const promoState = getSellerPromoState(group.sellerId);
               const groupEffectiveSubtotal = getSellerEffectiveSubtotal(group);
               const groupDeliveryFee =
-                paymentMode === 'full' && deliveryMode === 'DELIVERY'
-                  ? Number(deliveryPreviewBySeller[group.sellerId]?.fee || 0)
+                !isInstallmentPayment && deliveryMode === 'DELIVERY'
+                  ? isFullPaymentSelected
+                    ? 0
+                    : Number(deliveryPreviewBySeller[group.sellerId]?.fee || 0)
                   : 0;
               const groupTotalWithDelivery = Number(groupEffectiveSubtotal || 0) + groupDeliveryFee;
-              const groupDeposit = paymentMode === 'installment'
+              const groupDeposit = isInstallmentPayment
                 ? installmentFirstPaymentAmount
-                : Math.round(Number(groupTotalWithDelivery || 0) * 0.25);
+                : isFullPaymentSelected
+                  ? Number(groupTotalWithDelivery || 0)
+                  : Math.round(Number(groupTotalWithDelivery || 0) * 0.25);
               const groupRemaining = Math.max(0, Number(groupTotalWithDelivery || 0) - groupDeposit);
               return (
                 <div
@@ -1240,7 +1366,7 @@ export default function OrderCheckout() {
                         {formatCurrency(groupDeposit)}
                       </p>
                       <p className="text-xs text-gray-600 font-medium">
-                        {paymentMode === 'installment' ? 'Premier paiement' : 'Acompte (25%)'}
+                        {isInstallmentPayment ? 'Premier paiement' : isFullPaymentSelected ? 'Paiement intégral' : 'Acompte (25%)'}
                       </p>
                     </div>
                   </div>
@@ -1294,7 +1420,7 @@ export default function OrderCheckout() {
                       </div>
                     </div>
 
-                    {paymentMode === 'full' && (
+                    {!isInstallmentPayment && (
                       <div className="space-y-2">
                         <label className="block text-xs font-bold uppercase text-gray-700">
                           Code promo vendeur
@@ -1344,7 +1470,7 @@ export default function OrderCheckout() {
                       </div>
                     )}
 
-                    {paymentMode === 'installment' && (
+                    {isInstallmentPayment && (
                       <div className="space-y-4 rounded-2xl border border-neutral-200 bg-neutral-100 p-4">
                         <div>
                           <label className="block text-xs font-bold uppercase text-neutral-700 mb-2">
@@ -1415,17 +1541,17 @@ export default function OrderCheckout() {
                         {formatCurrency(groupEffectiveSubtotal)}
                       </span>
                     </div>
-                    {paymentMode === 'full' && deliveryMode === 'DELIVERY' && (
+                    {!isInstallmentPayment && deliveryMode === 'DELIVERY' && (
                       <div className="flex justify-between items-center">
                         <span className="text-neutral-700 font-semibold">
                           Livraison ({DELIVERY_SOURCE_LABELS[deliveryPreviewBySeller[group.sellerId]?.source] || 'Source'})
                         </span>
-                        <span className="font-black text-neutral-700">
-                          {formatCurrency(groupDeliveryFee)}
+                        <span className={`font-black ${isFullPaymentSelected ? 'text-emerald-700' : 'text-neutral-700'}`}>
+                          {isFullPaymentSelected ? 'GRATUITE' : formatCurrency(groupDeliveryFee)}
                         </span>
                       </div>
                     )}
-                    {paymentMode === 'full' && groupEffectiveSubtotal < Number(group.subtotal || 0) && (
+                    {!isInstallmentPayment && groupEffectiveSubtotal < Number(group.subtotal || 0) && (
                       <div className="flex justify-between items-center">
                         <span className="text-neutral-700 font-semibold">Économie promo</span>
                         <span className="font-black text-neutral-700">
@@ -1435,7 +1561,7 @@ export default function OrderCheckout() {
                     )}
                     <div className="flex justify-between items-center">
                       <span className="text-neutral-700 font-semibold">
-                        {paymentMode === 'installment' ? 'Premier paiement' : 'Acompte (25%)'}
+                        {isInstallmentPayment ? 'Premier paiement' : isFullPaymentSelected ? 'Paiement intégral' : 'Acompte (25%)'}
                       </span>
                       <span className="font-black text-neutral-900">
                         {formatCurrency(groupDeposit)}
@@ -1453,11 +1579,7 @@ export default function OrderCheckout() {
             })}
             <div className="rounded-2xl border-2 border-neutral-200 bg-neutral-100 px-4 py-3 text-xs sm:text-sm text-neutral-800 flex items-start gap-3">
               <CheckCircle size={18} className="text-neutral-700 flex-shrink-0 mt-0.5" />
-              {paymentMode === 'installment'
-                ? `Merci de payer le premier montant de ${formatCurrency(summaryPaidAmount)} puis de suivre l’échéancier.`
-                : sellerGroups.length > 1
-                ? 'Merci de payer l’acompte indiqué pour chaque vendeur avant validation.'
-                : `Merci de payer exactement ${formatCurrency(depositAmount)} avant validation.`}
+              {paymentCommitmentMessage}
             </div>
             {error && (
               <div className="rounded-2xl border-2 border-red-200 bg-red-50 px-4 py-3 flex items-start gap-3">
@@ -1473,12 +1595,12 @@ export default function OrderCheckout() {
               {loading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Confirmation...
+                  {isFullPaymentSelected ? 'Paiement intégral...' : 'Confirmation...'}
                 </>
               ) : (
                 <>
                   <Lock size={18} />
-                  Confirmer la commande
+                  {isFullPaymentSelected ? 'Payer intégralement et confirmer' : 'Confirmer la commande'}
                 </>
               )}
             </button>
