@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Expand } from 'lucide-react';
 import { useAppSettings } from '../../context/AppSettingsContext';
+import useNetworkProfile from '../../hooks/useNetworkProfile';
 import ImagePreviewModal from './ImagePreviewModal';
 
 const OBJECT_PLACEHOLDER = '/api/placeholder/400/400';
@@ -31,6 +32,7 @@ export default function PreviewableImage({
   ...imgProps
 }) {
   const { getRuntimeValue } = useAppSettings();
+  const { rapid3GActive } = useNetworkProfile();
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(startIndex);
   const longPressTimerRef = useRef(null);
@@ -117,6 +119,9 @@ export default function PreviewableImage({
         src={src || OBJECT_PLACEHOLDER}
         alt={alt}
         loading={loading}
+        decoding="async"
+        fetchPriority={rapid3GActive ? 'low' : undefined}
+        sizes={imgProps.sizes || '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw'}
         className={className}
         onPointerDown={startLongPress}
         onPointerMove={handlePointerMove}

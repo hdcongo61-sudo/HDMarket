@@ -31,7 +31,7 @@ import {
 import AuthContext from "../context/AuthContext";
 import CartContext from "../context/CartContext";
 import FavoriteContext from "../context/FavoriteContext";
-import api from "../services/api";
+import api, { getApiErrorMessage, isApiPossiblyCommittedError } from "../services/api";
 import { buildWhatsappLink } from "../utils/whatsapp";
 import { buildProductShareUrl, buildProductPath, buildShopPath } from "../utils/links";
 import { recordProductView } from "../utils/recentViews";
@@ -45,12 +45,16 @@ import BaseModal, { ModalBody, ModalHeader } from "../components/modals/BaseModa
 import { useToast } from "../context/ToastContext";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
 import useIsMobile from "../hooks/useIsMobile";
+import useNetworkProfile from "../hooks/useNetworkProfile";
+import { loadOfflineSnapshot, saveOfflineSnapshot } from "../utils/offlineSnapshots";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
 import { motion, AnimatePresence } from "framer-motion";
 import "swiper/css";
 import "swiper/css/pagination";
 import { appAlert, appConfirm } from "../utils/appDialog";
+
+const PRODUCT_DETAILS_SNAPSHOT_MAX_AGE_MS = 1000 * 60 * 15;
 
 export default function ProductDetails() {
   const { slug } = useParams();
@@ -65,6 +69,7 @@ export default function ProductDetails() {
   const authLoading = Boolean(authContextValue?.loading);
 
   const [product, setProduct] = useState(null);
+  const [offlineSnapshotActive, setOfflineSnapshotActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [addingToCart, setAddingToCart] = useState(false);
@@ -74,12 +79,14 @@ export default function ProductDetails() {
   const [whatsappClicks, setWhatsappClicks] = useState(0);
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [relatedProducts, setRelatedProducts] = useState([]);
+  const [relatedLoading, setRelatedLoading] = useState(false);
   const [shopGalleryProducts, setShopGalleryProducts] = useState([]);
   const [isFollowingShop, setIsFollowingShop] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("description");
   const [highlightedCommentId, setHighlightedCommentId] = useState("");
   const [comments, setComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [rating, setRating] = useState(0);
   const [userRating, setUserRating] = useState(0);
@@ -113,12 +120,19 @@ export default function ProductDetails() {
   const [inquiryError, setInquiryError] = useState("");
   const [reportModal, setReportModal] = useState({ isOpen: false, type: null, commentId: null, photoUrl: null });
   const [deletingCommentId, setDeletingCommentId] = useState(null);
+  const {
+    rapid3GActive,
+    shouldUseOfflineSnapshot,
+    offlineBannerText,
+    rapid3GBannerText
+  } = useNetworkProfile();
   const previewBackPath = useMemo(() => {
     const raw = location?.state?.previewBackPath;
     if (typeof raw !== "string") return "";
     const trimmed = raw.trim();
     return trimmed.startsWith("/product-preview/") ? trimmed : "";
   }, [location?.state?.previewBackPath]);
+  const productSnapshotKey = useMemo(() => `product-details:${slug || 'unknown'}`, [slug]);
 
   const handleSessionExpired = useCallback(() => {
     if (typeof authContextValue?.logout === 'function') {
@@ -168,6 +182,63 @@ export default function ProductDetails() {
     user &&
     String(productSellerId) === String(user._id || user.id);
 
+  async function verifyShopFollowMutation(expectedFollowing) {
+    const targetShopId = String(product?.user?._id || '').trim();
+    if (!targetShopId || !user) return null;
+    try {
+      const shopLookupId = product?.user?.slug || product?.user?._id;
+      const [{ data: followedShops }, shopResponse] = await Promise.all([
+        api.get('/users/shops/following', {
+          skipCache: true,
+          silentGlobalError: true,
+          headers: { 'x-skip-cache': '1' }
+        }),
+        shopLookupId
+          ? api.get(`/shops/${shopLookupId}`, {
+              params: { limit: 1 },
+              skipCache: true,
+              silentGlobalError: true,
+              headers: { 'x-skip-cache': '1' }
+            })
+          : Promise.resolve(null)
+      ]);
+      const normalizedList = Array.isArray(followedShops) ? followedShops : [];
+      const followedIds = normalizedList
+        .map((entry) => String(entry?._id || '').trim())
+        .filter(Boolean);
+      const confirmedFollowing = followedIds.includes(targetShopId);
+      if (confirmedFollowing !== expectedFollowing) {
+        return null;
+      }
+
+      setIsFollowingShop(confirmedFollowing);
+      if (typeof updateUser === 'function') {
+        updateUser({ followingShops: followedIds });
+      }
+
+      const confirmedFollowersCount = Number(
+        shopResponse?.data?.shop?.followersCount ??
+          shopResponse?.data?.followersCount ??
+          product?.user?.followersCount ??
+          0
+      );
+      setProduct((prev) =>
+        prev
+          ? {
+              ...prev,
+              user: {
+                ...prev.user,
+                followersCount: confirmedFollowersCount
+              }
+            }
+          : prev
+      );
+      return confirmedFollowing;
+    } catch {
+      return null;
+    }
+  }
+
   useEffect(() => {
     if (!user || !product?.user?._id) {
       setIsFollowingShop(false);
@@ -187,10 +258,15 @@ export default function ProductDetails() {
     }
     if (!isProfessional || !isShopVerified || isOwnProduct) return;
     setFollowLoading(true);
+    const expectedFollowing = !isFollowingShop;
     try {
       const response = isFollowingShop
-        ? await api.delete(`/users/shops/${product.user._id}/follow`)
-        : await api.post(`/users/shops/${product.user._id}/follow`);
+        ? await api.delete(`/users/shops/${product.user._id}/follow`, {
+            silentGlobalError: true
+          })
+        : await api.post(`/users/shops/${product.user._id}/follow`, null, {
+            silentGlobalError: true
+          });
       setIsFollowingShop(!isFollowingShop);
       if (typeof updateUser === 'function') {
         const currentList = Array.isArray(user.followingShops) ? user.followingShops : [];
@@ -206,7 +282,24 @@ export default function ProductDetails() {
         );
       }
     } catch (err) {
+      if (err?.response?.status === 401) {
+        handleSessionExpired();
+        return;
+      }
+      if (isApiPossiblyCommittedError(err)) {
+        const confirmedFollowing = await verifyShopFollowMutation(expectedFollowing);
+        if (confirmedFollowing !== null) {
+          showToast(
+            confirmedFollowing ? 'Boutique suivie.' : 'Boutique désabonnée.',
+            { variant: 'success' }
+          );
+          return;
+        }
+      }
       console.error('Erreur suivi boutique:', err);
+      showToast(getApiErrorMessage(err, 'Impossible de mettre à jour le suivi de la boutique.'), {
+        variant: 'error'
+      });
     } finally {
       setFollowLoading(false);
     }
@@ -227,9 +320,36 @@ export default function ProductDetails() {
     let active = true;
 
     const loadProduct = async () => {
+      let snapshot = null;
+      let hydratedFromSnapshot = false;
+
       try {
-        setLoading(true);
         setError("");
+        snapshot = await loadOfflineSnapshot(productSnapshotKey, {
+          maxAgeMs: PRODUCT_DETAILS_SNAPSHOT_MAX_AGE_MS
+        });
+        hydratedFromSnapshot = Boolean(snapshot && typeof snapshot === "object" && snapshot.product);
+        setCommentsLoading(false);
+        setRelatedLoading(false);
+
+        if (hydratedFromSnapshot && active) {
+          setProduct(snapshot.product || null);
+          setRelatedProducts(Array.isArray(snapshot.relatedProducts) ? snapshot.relatedProducts : []);
+          setShopGalleryProducts(Array.isArray(snapshot.shopGalleryProducts) ? snapshot.shopGalleryProducts : []);
+          setComments(Array.isArray(snapshot.comments) ? snapshot.comments : []);
+          setWhatsappClicks(Number(snapshot.whatsappClicks || snapshot.product?.whatsappClicks || 0));
+          setFavoriteCount(Number(snapshot.favoriteCount || snapshot.product?.favoritesCount || 0));
+          setOfflineSnapshotActive(false);
+          setLoading(false);
+        } else {
+          setLoading(true);
+          setComments([]);
+          setRelatedProducts([]);
+          setShopGalleryProducts([]);
+          setUserRating(0);
+          setRating(0);
+        }
+
         let data;
         console.debug("Loading product", { slug });
         try {
@@ -263,52 +383,87 @@ export default function ProductDetails() {
 
         if (!active) return;
         setProduct(data);
+        setOfflineSnapshotActive(false);
         setWhatsappClicks(data.whatsappClicks || 0);
         setFavoriteCount(data.favoritesCount || 0);
+        if (!hydratedFromSnapshot) {
+          setComments([]);
+          setRelatedProducts([]);
+          setShopGalleryProducts([]);
+          setUserRating(0);
+          setRating(0);
+        }
+        setLoading(false);
 
-        // Charger les commentaires et la note utilisateur
+        // Load secondary data after the product itself is visible.
         if (data.status === 'approved') {
-          await Promise.all([
+          setCommentsLoading(true);
+          void Promise.all([
             loadComments(data._id || data.slug),
             loadUserRating(data._id)
-          ]);
+          ]).finally(() => {
+            if (active) setCommentsLoading(false);
+          });
         } else {
           if (active) {
             setComments([]);
             setUserRating(0);
             setRating(0);
+            setCommentsLoading(false);
           }
         }
 
-        // Charger les produits similaires
         if (data.category) {
-          try {
-            const relatedResponse = await api.get(`/products/public?category=${data.category}&limit=4`);
-            const relatedItems = Array.isArray(relatedResponse.data?.items)
-              ? relatedResponse.data.items
-              : [];
-            const filteredItems = relatedItems.filter((item) => {
-              if (!item) return false;
-              if (data?._id && item._id && item._id === data._id) return false;
-              if (data?.slug && item.slug && item.slug === data.slug) return false;
-              return true;
+          const relatedLimit = rapid3GActive ? 2 : 4;
+          setRelatedLoading(true);
+          void api
+            .get(`/products/public?category=${data.category}&limit=${relatedLimit}`)
+            .then((relatedResponse) => {
+              const relatedItems = Array.isArray(relatedResponse.data?.items)
+                ? relatedResponse.data.items
+                : [];
+              const filteredItems = relatedItems.filter((item) => {
+                if (!item) return false;
+                if (data?._id && item._id && item._id === data._id) return false;
+                if (data?.slug && item.slug && item.slug === data.slug) return false;
+                return true;
+              });
+              if (active) setRelatedProducts(filteredItems.slice(0, relatedLimit));
+            })
+            .catch((relatedError) => {
+              console.error("Erreur chargement produits similaires:", relatedError);
+              if (active) setRelatedProducts([]);
+            })
+            .finally(() => {
+              if (active) setRelatedLoading(false);
             });
-            if (active) setRelatedProducts(filteredItems.slice(0, 4));
-          } catch (relatedError) {
-            console.error("Erreur chargement produits similaires:", relatedError);
-            if (active) setRelatedProducts([]);
-          }
+        } else if (active) {
+          setRelatedProducts([]);
+          setRelatedLoading(false);
         }
       } catch (err) {
         if (!active) return;
+        setCommentsLoading(false);
+        setRelatedLoading(false);
         if (err.response?.status === 401) {
           handleSessionExpired();
+          return;
+        }
+        if (snapshot && typeof snapshot === 'object' && snapshot.product) {
+          setProduct(snapshot.product || null);
+          setRelatedProducts(Array.isArray(snapshot.relatedProducts) ? snapshot.relatedProducts : []);
+          setShopGalleryProducts(Array.isArray(snapshot.shopGalleryProducts) ? snapshot.shopGalleryProducts : []);
+          setComments(Array.isArray(snapshot.comments) ? snapshot.comments : []);
+          setWhatsappClicks(Number(snapshot.whatsappClicks || snapshot.product?.whatsappClicks || 0));
+          setFavoriteCount(Number(snapshot.favoriteCount || snapshot.product?.favoritesCount || 0));
+          setOfflineSnapshotActive(Boolean(shouldUseOfflineSnapshot));
+          setError("");
           return;
         }
         setError(err.response?.data?.message || "Produit non trouvé ou indisponible");
         console.error("Erreur chargement produit:", err);
       } finally {
-        if (active) setLoading(false);
+        if (active && !hydratedFromSnapshot) setLoading(false);
       }
     };
 
@@ -316,7 +471,7 @@ export default function ProductDetails() {
     return () => {
       active = false;
     };
-  }, [slug, user?._id, authLoading, handleSessionExpired]);
+  }, [slug, user?._id, authLoading, handleSessionExpired, productSnapshotKey, rapid3GActive, shouldUseOfflineSnapshot]);
 
   useEffect(() => {
     if (!product?._id) return;
@@ -439,6 +594,10 @@ export default function ProductDetails() {
       return;
     }
 
+    if (offlineSnapshotActive && shouldUseOfflineSnapshot) {
+      return;
+    }
+
     const shopId = product.user?.slug || product.user?._id;
     if (!shopId) {
       setShopGalleryProducts([]);
@@ -466,7 +625,39 @@ export default function ProductDetails() {
     return () => {
       active = false;
     };
-  }, [isMobileView, isProfessional, product?._id, product?.slug, product?.user?._id, product?.user?.slug]);
+  }, [
+    isMobileView,
+    isProfessional,
+    offlineSnapshotActive,
+    product?._id,
+    product?.slug,
+    product?.user?._id,
+    product?.user?.slug,
+    shouldUseOfflineSnapshot
+  ]);
+
+  useEffect(() => {
+    if (!product?._id) return;
+    if (shouldUseOfflineSnapshot) return;
+    saveOfflineSnapshot(productSnapshotKey, {
+      product,
+      relatedProducts,
+      shopGalleryProducts,
+      comments,
+      whatsappClicks,
+      favoriteCount
+    });
+  }, [
+    comments,
+    favoriteCount,
+    product,
+    product?._id,
+    productSnapshotKey,
+    relatedProducts,
+    shopGalleryProducts,
+    shouldUseOfflineSnapshot,
+    whatsappClicks
+  ]);
 
   useEffect(() => {
     setCertifyMessage("");
@@ -482,15 +673,17 @@ export default function ProductDetails() {
     const target = identifier || slug;
     try {
       const { data } = await api.get(`/products/public/${target}/comments`, { skipCache: true });
-      setComments(organizeComments(Array.isArray(data) ? data : []));
-      return;
+      const normalizedComments = organizeComments(Array.isArray(data) ? data : []);
+      setComments(normalizedComments);
+      return normalizedComments;
     } catch (error) {
       if (error.response?.status === 404) {
         setComments([]);
-        return;
+        return [];
       }
       console.error("Erreur chargement commentaires:", error);
       setComments([]);
+      return [];
     }
   };
 
@@ -541,6 +734,12 @@ export default function ProductDetails() {
 
     return roots;
   };
+
+  const flattenComments = (list) =>
+    (Array.isArray(list) ? list : []).flatMap((entry) => [
+      entry,
+      ...flattenComments(Array.isArray(entry?.replies) ? entry.replies : [])
+    ]);
 
   const insertCommentIntoState = (newComment) => {
     if (!newComment || !newComment._id) return;
@@ -649,13 +848,84 @@ export default function ProductDetails() {
       const { data } = await api.get(`/products/${target}/rating`, {
         params: { productId: target }
       });
-      setUserRating(data?.value || 0);
-      setRating(data?.value || 0);
+      const nextValue = Number(data?.value || 0);
+      setUserRating(nextValue);
+      setRating(nextValue);
+      return nextValue;
     } catch (error) {
       console.error("Erreur chargement note utilisateur:", error);
       setUserRating(0);
       setRating(0);
+      return 0;
     }
+  };
+
+  const refreshProductEngagement = async () => {
+    if (!slug) return null;
+    try {
+      const { data } = await api.get(`/products/public/${slug}`, {
+        skipCache: true,
+        silentGlobalError: true
+      });
+      if (data) {
+        setProduct(data);
+        setWhatsappClicks(Number(data.whatsappClicks || 0));
+        setFavoriteCount(Number(data.favoritesCount || 0));
+      }
+      return data ?? null;
+    } catch (publicError) {
+      if (publicError?.response?.status === 404 && user) {
+        try {
+          const { data } = await api.get(`/products/${slug}`, {
+            skipCache: true,
+            silentGlobalError: true
+          });
+          if (data) {
+            setProduct(data);
+            setWhatsappClicks(Number(data.whatsappClicks || 0));
+            setFavoriteCount(Number(data.favoritesCount || 0));
+          }
+          return data ?? null;
+        } catch {
+          return null;
+        }
+      }
+      return null;
+    }
+  };
+
+  const verifyCommentMutation = async ({ message, parentId = null }) => {
+    const [nextComments] = await Promise.all([
+      loadComments(product?._id || slug),
+      refreshProductEngagement()
+    ]);
+
+    const normalizedMessage = String(message || '').trim();
+    const currentUserId = String(user?._id || user?.id || '').trim();
+    if (!normalizedMessage || !currentUserId) {
+      return Array.isArray(nextComments) && nextComments.length > 0;
+    }
+
+    return flattenComments(nextComments).some((entry) => {
+      const entryUserId = String(entry?.user?._id || entry?.user?.id || entry?.user || '').trim();
+      const entryMessage = String(entry?.message || '').trim();
+      const entryParentId = String(
+        typeof entry?.parent === 'string' ? entry.parent : entry?.parent?._id || ''
+      ).trim();
+      return (
+        entryUserId === currentUserId &&
+        entryMessage === normalizedMessage &&
+        entryParentId === String(parentId || '').trim()
+      );
+    });
+  };
+
+  const verifyRatingMutation = async (expectedRating) => {
+    const [confirmedRating] = await Promise.all([
+      loadUserRating(product?._id),
+      refreshProductEngagement()
+    ]);
+    return Number(confirmedRating || 0) === Number(expectedRating || 0);
   };
 
   const handleCertificationToggle = async () => {
@@ -719,26 +989,33 @@ export default function ProductDetails() {
       };
 
       const commentTarget = product?._id || slug;
-      const response = await api.post(`/products/${commentTarget}/comments`, commentData);
+      const response = await api.post(`/products/${commentTarget}/comments`, commentData, {
+        silentGlobalError: true
+      });
       replaceCommentInState(tempCommentId, response?.data);
 
     } catch (error) {
-      removeCommentFromState(tempCommentId);
-      decrementCommentCount();
-      setNewComment(message);
       if (error.response?.status === 401) {
+        removeCommentFromState(tempCommentId);
+        decrementCommentCount();
+        setNewComment(message);
         handleSessionExpired();
         return;
       }
-      console.error("Erreur soumission commentaire:", error);
 
-      if (error.response) {
-        setCommentError(error.response.data?.message || `Erreur ${error.response.status}`);
-      } else if (error.request) {
-        setCommentError("Erreur réseau - impossible de contacter le serveur");
-      } else {
-        setCommentError("Erreur inattendue: " + error.message);
+      if (isApiPossiblyCommittedError(error)) {
+        const confirmed = await verifyCommentMutation({ message });
+        if (confirmed) {
+          showToast('Commentaire enregistré.', { variant: 'success' });
+          return;
+        }
       }
+
+      removeCommentFromState(tempCommentId);
+      decrementCommentCount();
+      setNewComment(message);
+      console.error("Erreur soumission commentaire:", error);
+      setCommentError(getApiErrorMessage(error, "Erreur lors de l'envoi du commentaire."));
     } finally {
       setSubmittingComment(false);
     }
@@ -807,23 +1084,38 @@ export default function ProductDetails() {
       };
 
       const commentTarget = product?._id || slug;
-      const response = await api.post(`/products/${commentTarget}/comments`, replyData);
+      const response = await api.post(`/products/${commentTarget}/comments`, replyData, {
+        silentGlobalError: true
+      });
       replaceCommentInState(tempReplyId, response?.data);
 
     } catch (error) {
+      if (error.response?.status === 401) {
+        removeCommentFromState(tempReplyId);
+        decrementCommentCount();
+        setReplyingTo(parentComment?._id || null);
+        setReplyText(message);
+        handleSessionExpired();
+        return;
+      }
+
+      if (isApiPossiblyCommittedError(error)) {
+        const confirmed = await verifyCommentMutation({
+          message,
+          parentId: parentComment?._id || null
+        });
+        if (confirmed) {
+          showToast('Réponse enregistrée.', { variant: 'success' });
+          return;
+        }
+      }
+
       removeCommentFromState(tempReplyId);
       decrementCommentCount();
       setReplyingTo(parentComment?._id || null);
       setReplyText(message);
-      if (error.response?.status === 401) {
-        handleSessionExpired();
-        return;
-      }
       console.error("Erreur soumission réponse:", error);
-
-      if (error.response) {
-        setCommentError(error.response.data?.message || `Erreur ${error.response.status}`);
-      }
+      setCommentError(getApiErrorMessage(error, "Erreur lors de l'envoi de la réponse."));
     } finally {
       setSubmittingComment(false);
     }
@@ -847,9 +1139,35 @@ export default function ProductDetails() {
       await api.put(`/products/${slug}/rating`, {
         value: newRating,
         productId: product?._id
+      }, {
+        silentGlobalError: true
       });
 
     } catch (error) {
+      if (error.response?.status === 401) {
+        setUserRating(previousRating);
+        setRating(previousRating);
+        setProduct((prev) =>
+          prev
+            ? {
+              ...prev,
+              ratingAverage: previousRatingAverage,
+              ratingCount: previousRatingCount
+            }
+            : prev
+        );
+        handleSessionExpired();
+        return;
+      }
+
+      if (isApiPossiblyCommittedError(error)) {
+        const confirmed = await verifyRatingMutation(newRating);
+        if (confirmed) {
+          showToast('Note enregistrée.', { variant: 'success' });
+          return;
+        }
+      }
+
       setUserRating(previousRating);
       setRating(previousRating);
       setProduct((prev) =>
@@ -861,16 +1179,8 @@ export default function ProductDetails() {
           }
           : prev
       );
-      if (error.response?.status === 401) {
-        handleSessionExpired();
-        return;
-      }
       console.error("Erreur soumission note:", error);
-      const serverMessage =
-        error.response?.data?.message ||
-        error.message ||
-        'Une erreur est survenue lors de l’envoi de votre note.';
-      appAlert(`Erreur lors de l'ajout de la note : ${serverMessage}`);
+      appAlert(`Erreur lors de l'ajout de la note : ${getApiErrorMessage(error, 'Une erreur est survenue lors de l’envoi de votre note.')}`);
     } finally {
       setSubmittingRating(false);
     }
@@ -2071,6 +2381,15 @@ export default function ProductDetails() {
             <Link to="/login" className="text-neutral-800 font-semibold">Connectez-vous</Link> pour laisser un commentaire
           </p>
         )}
+        {commentsLoading && comments.length === 0 && (
+          <div className="rounded-xl bg-gray-50 border border-gray-100 p-3 animate-pulse">
+            <div className="mb-2 flex items-center gap-2">
+              <div className="h-6 w-6 rounded-full bg-gray-200" />
+              <div className="h-3 w-24 rounded bg-gray-200" />
+            </div>
+            <div className="h-3 rounded bg-gray-200" />
+          </div>
+        )}
         {comments.length > 0 && (
           <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
             <div className="mb-1 flex items-center justify-between gap-2 text-xs text-gray-500">
@@ -2121,7 +2440,7 @@ export default function ProductDetails() {
       )}
 
       {/* 13. Related Products (horizontal scroll) */}
-      {relatedProducts.length > 0 && (
+      {(relatedLoading || relatedProducts.length > 0) && (
         <div className="mb-3">
           <div className="flex items-center justify-between px-4 mb-2">
             <span className="text-sm font-bold text-gray-900">Produits similaires</span>
@@ -2130,7 +2449,20 @@ export default function ProductDetails() {
             </Link>
           </div>
           <div className="flex gap-3 overflow-x-auto px-4 pb-2" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
-            {relatedProducts.map((rp) => (
+            {relatedLoading && relatedProducts.length === 0
+              ? Array.from({ length: rapid3GActive ? 2 : 3 }).map((_, index) => (
+                  <div
+                    key={`related-inline-skeleton-${index}`}
+                    className="flex-shrink-0 w-36 rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm"
+                  >
+                    <div className="aspect-square bg-gray-100 animate-pulse" />
+                    <div className="p-2 space-y-2">
+                      <div className="h-3 rounded bg-gray-100 animate-pulse" />
+                      <div className="h-3 w-2/3 rounded bg-gray-100 animate-pulse" />
+                    </div>
+                  </div>
+                ))
+              : relatedProducts.map((rp) => (
               <Link key={rp._id} to={buildProductPath(rp)} {...externalLinkProps}
                 className="flex-shrink-0 w-36 rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm active:scale-[0.97] transition-transform">
                 <div className="aspect-square bg-gray-100 overflow-hidden">
@@ -3333,7 +3665,25 @@ export default function ProductDetails() {
 
                     {/* Liste des commentaires avec réponses */}
                     <div className="space-y-4">
-                      {comments.length === 0 ? (
+                      {commentsLoading && comments.length === 0 ? (
+                        <div className="space-y-3">
+                          {Array.from({ length: 2 }).map((_, index) => (
+                            <div
+                              key={`desktop-comment-skeleton-${index}`}
+                              className="rounded-2xl border border-gray-200 bg-gray-50 p-5 animate-pulse"
+                            >
+                              <div className="mb-3 flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-full bg-gray-200" />
+                                <div className="space-y-2">
+                                  <div className="h-3 w-32 rounded bg-gray-200" />
+                                  <div className="h-3 w-20 rounded bg-gray-200" />
+                                </div>
+                              </div>
+                              <div className="h-3 rounded bg-gray-200" />
+                            </div>
+                          ))}
+                        </div>
+                      ) : comments.length === 0 ? (
                         <div className="text-center py-8 text-gray-500">
                           <MessageCircle size={48} className="mx-auto mb-3 text-gray-300" />
                           <p>Aucun commentaire pour le moment.</p>
@@ -3469,7 +3819,7 @@ export default function ProductDetails() {
           </section>
         )}
 
-        {isMobileView && relatedProducts.length > 0 && (
+        {isMobileView && (relatedLoading || relatedProducts.length > 0) && (
           <section className="mt-8 rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-md">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -3484,7 +3834,20 @@ export default function ProductDetails() {
               </Link>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              {relatedProducts.map((relatedProduct) => (
+              {relatedLoading && relatedProducts.length === 0
+                ? Array.from({ length: rapid3GActive ? 2 : 4 }).map((_, index) => (
+                    <div
+                      key={`mobile-related-skeleton-${index}`}
+                      className="overflow-hidden rounded-2xl border border-gray-200 bg-white"
+                    >
+                      <div className="aspect-square bg-gray-100 animate-pulse" />
+                      <div className="p-3 space-y-2">
+                        <div className="h-3 rounded bg-gray-100 animate-pulse" />
+                        <div className="h-3 w-2/3 rounded bg-gray-100 animate-pulse" />
+                      </div>
+                    </div>
+                  ))
+                : relatedProducts.map((relatedProduct) => (
                 <Link
                   key={relatedProduct._id}
                   to={buildProductPath(relatedProduct)}
@@ -3535,7 +3898,22 @@ export default function ProductDetails() {
                 <span>{commentCount} commentaires</span>
               </div>
             </div>
-            {comments.length > 0 ? (
+            {commentsLoading && comments.length === 0 ? (
+              <div className="mt-4 space-y-3">
+                {Array.from({ length: 2 }).map((_, index) => (
+                  <div
+                    key={`mobile-comment-skeleton-${index}`}
+                    className="rounded-xl border border-gray-100 bg-gray-50 p-3 animate-pulse"
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      <div className="h-6 w-6 rounded-full bg-gray-200" />
+                      <div className="h-3 w-24 rounded bg-gray-200" />
+                    </div>
+                    <div className="h-3 rounded bg-gray-200" />
+                  </div>
+                ))}
+              </div>
+            ) : comments.length > 0 ? (
               <div className="mt-4 space-y-3">
                 {comments.slice(0, 2).map((comment) => (
                   <div key={comment._id} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
@@ -3569,7 +3947,7 @@ export default function ProductDetails() {
         )}
 
         {/* 🎯 PRODUITS SIMILAIRES ENHANCED */}
-        {!isMobileView && relatedProducts.length > 0 && (
+        {!isMobileView && (relatedLoading || relatedProducts.length > 0) && (
           <section className="mt-16 sm:mt-20">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
               <div>
@@ -3585,7 +3963,20 @@ export default function ProductDetails() {
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-4">
-              {relatedProducts.map((relatedProduct) => (
+              {relatedLoading && relatedProducts.length === 0
+                ? Array.from({ length: rapid3GActive ? 2 : 4 }).map((_, index) => (
+                    <div
+                      key={`desktop-related-skeleton-${index}`}
+                      className="block rounded-2xl border border-gray-200 overflow-hidden bg-white"
+                    >
+                      <div className="aspect-square bg-gray-100 animate-pulse" />
+                      <div className="p-4 space-y-2">
+                        <div className="h-3 rounded bg-gray-100 animate-pulse" />
+                        <div className="h-3 w-2/3 rounded bg-gray-100 animate-pulse" />
+                      </div>
+                    </div>
+                  ))
+                : relatedProducts.map((relatedProduct) => (
                 <Link
                   key={relatedProduct._id}
                   to={buildProductPath(relatedProduct)}
@@ -3620,6 +4011,21 @@ export default function ProductDetails() {
   // === MAIN RETURN: conditional mobile / desktop ===
   return (
     <>
+      {(offlineSnapshotActive || rapid3GActive) && (
+        <div className="mx-auto max-w-7xl px-4 pt-4">
+          <section
+            className={`rounded-2xl border px-4 py-3 text-sm shadow-sm ${
+              offlineSnapshotActive
+                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                : 'border-sky-200 bg-sky-50 text-sky-800'
+            }`}
+          >
+            <p className="font-semibold">
+              {offlineSnapshotActive ? offlineBannerText : rapid3GBannerText}
+            </p>
+          </section>
+        </div>
+      )}
       {isMobileView ? renderMobileProductDetails() : renderDesktopProductDetails()}
 
       <BaseModal

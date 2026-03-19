@@ -5,6 +5,9 @@ import api, { isApiCanceledError } from '../services/api';
 import ProductCard from '../components/ProductCard';
 import { getCategoryMeta } from '../data/categories';
 import { recordProductView } from '../utils/recentViews';
+import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
+import useNetworkProfile from '../hooks/useNetworkProfile';
+import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
 
 const SORT_OPTIONS = [
   { value: 'new', label: 'Plus récents' },
@@ -23,6 +26,7 @@ const sortParam = searchParams.get('sort') || '';
 const shopVerifiedParam = searchParams.get('shopVerified') === 'true';
 const installmentOnlyParam = searchParams.get('installmentOnly') === 'true';
 const [items, setItems] = useState([]);
+  const [offlineSnapshotActive, setOfflineSnapshotActive] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [loadMoreError, setLoadMoreError] = useState('');
@@ -39,10 +43,31 @@ const [page, setPage] = useState(initialPageRef.current);
 const [isMobileView, setIsMobileView] = useState(() =>
   typeof window === 'undefined' ? false : window.innerWidth <= 767
 );
+  const {
+    rapid3GActive,
+    compactProductsPageSize,
+    shouldUseOfflineSnapshot,
+    offlineBannerText,
+    rapid3GBannerText
+  } = useNetworkProfile();
   const [totalPages, setTotalPages] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState(categoryParam);
+  const pageSize = compactProductsPageSize || PAGE_SIZE;
+  const snapshotKey = useMemo(
+    () =>
+      [
+        'products',
+        isMobileView ? 'mobile' : 'desktop',
+        categoryFilter || 'all',
+        sort || 'new',
+        searchTerm || 'none',
+        shopVerified ? 'verified' : 'all',
+        installmentOnly ? 'installment' : 'standard'
+      ].join(':'),
+    [categoryFilter, installmentOnly, isMobileView, searchTerm, shopVerified, sort]
+  );
 
   useEffect(() => {
     setCategoryFilter(categoryParam);
@@ -74,7 +99,7 @@ const fetchProducts = useCallback(async () => {
       const params = {
         sort,
         page,
-        limit: PAGE_SIZE
+        limit: pageSize
       };
       if (searchTerm) params.q = searchTerm;
       if (categoryFilter) params.category = categoryFilter;
@@ -85,9 +110,21 @@ const fetchProducts = useCallback(async () => {
       const paginationMeta = Array.isArray(data) ? { pages: 1 } : data?.pagination || {};
       setItems((prev) => (isMobileView && page > 1 ? [...prev, ...fetchedItems] : fetchedItems));
       setTotalPages(Math.max(1, Number(paginationMeta.pages) || 1));
+      setOfflineSnapshotActive(false);
     } catch (e) {
       if (isApiCanceledError(e)) {
         return;
+      }
+      if (shouldUseOfflineSnapshot) {
+        const snapshot = await loadOfflineSnapshot(snapshotKey);
+        if (snapshot && typeof snapshot === 'object') {
+          setItems(Array.isArray(snapshot.items) ? snapshot.items : []);
+          setTotalPages(Math.max(1, Number(snapshot.totalPages) || 1));
+          setOfflineSnapshotActive(true);
+          setError('');
+          setLoadMoreError('');
+          return;
+        }
       }
       const message = e.response?.data?.message || e.message || 'Impossible de charger les produits.';
       if (isMobileView && page > 1) {
@@ -98,7 +135,18 @@ const fetchProducts = useCallback(async () => {
     } finally {
       setLoading(false);
     }
-  }, [page, sort, searchTerm, categoryFilter, shopVerified, installmentOnly, isMobileView]);
+  }, [
+    page,
+    sort,
+    searchTerm,
+    categoryFilter,
+    shopVerified,
+    installmentOnly,
+    isMobileView,
+    pageSize,
+    shouldUseOfflineSnapshot,
+    snapshotKey
+  ]);
 
   useEffect(() => {
     initialPageRef.current = 1;
@@ -169,6 +217,15 @@ const fetchProducts = useCallback(async () => {
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  useEffect(() => {
+    if (!items.length) return;
+    if (shouldUseOfflineSnapshot) return;
+    saveOfflineSnapshot(snapshotKey, {
+      items,
+      totalPages
+    });
+  }, [items, shouldUseOfflineSnapshot, snapshotKey, totalPages]);
 
   const handleSearchSubmit = (event) => {
     event.preventDefault();
@@ -300,6 +357,20 @@ const paginationButtons = useMemo(() => {
           </form>
         </header>
 
+        {(offlineSnapshotActive || rapid3GActive) && (
+          <section
+            className={`rounded-xl border px-4 py-3 text-sm shadow-sm ${
+              offlineSnapshotActive
+                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                : 'border-sky-200 bg-sky-50 text-sky-800'
+            }`}
+          >
+            <p className="font-semibold">
+              {offlineSnapshotActive ? offlineBannerText : rapid3GBannerText}
+            </p>
+          </section>
+        )}
+
         <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 sm:gap-3">
           <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-500 flex-wrap">
             <span>
@@ -360,9 +431,13 @@ const paginationButtons = useMemo(() => {
         </section>
 
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
+          <NetworkFallbackCard
+            title="Unable to load data."
+            message={error}
+            onRetry={fetchProducts}
+            retryLabel="Retry"
+            refreshLabel="Refresh page"
+          />
         )}
 
         {loading && page === 1 ? (

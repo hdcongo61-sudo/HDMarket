@@ -1,66 +1,52 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { recordNetworkMetric } from '../utils/networkMetrics';
+import useNetworkProfile from '../hooks/useNetworkProfile';
 
 const ACTION_VISIBILITY_MS = 6000;
 
-const readConnectionState = () => {
-  if (typeof navigator === 'undefined') {
-    return { offline: false, slow: false };
-  }
-  const offline = !navigator.onLine;
-  const connection =
-    navigator.connection || navigator.mozConnection || navigator.webkitConnection || null;
-  const effectiveType = String(connection?.effectiveType || '').toLowerCase();
-  const slow =
-    !offline &&
-    Boolean(connection?.saveData || ['slow-2g', '2g', '3g'].includes(effectiveType));
-  return { offline, slow };
-};
-
 export default function NetworkStatusBanner() {
   const location = useLocation();
-  const [state, setState] = useState(() => readConnectionState());
+  const {
+    offline,
+    rapid3GActive,
+    offlineBrowsingEnabled,
+    offlineBannerText,
+    rapid3GBannerText
+  } = useNetworkProfile();
   const [showAction, setShowAction] = useState(true);
-
-  useEffect(() => {
-    const update = () => setState(readConnectionState());
-    const connection =
-      typeof navigator !== 'undefined'
-        ? navigator.connection || navigator.mozConnection || navigator.webkitConnection || null
-        : null;
-    window.addEventListener('online', update);
-    window.addEventListener('offline', update);
-    connection?.addEventListener?.('change', update);
-    return () => {
-      window.removeEventListener('online', update);
-      window.removeEventListener('offline', update);
-      connection?.removeEventListener?.('change', update);
-    };
-  }, []);
 
   useEffect(() => {
     recordNetworkMetric({
       source: 'network-state',
       method: 'STATE',
-      endpoint: state.offline ? 'offline' : 'online',
-      status: state.offline ? 0 : 200,
+      endpoint: offline ? 'offline' : rapid3GActive ? 'rapid-3g' : 'online',
+      status: offline ? 0 : 200,
       durationMs: 0,
-      success: !state.offline,
-      networkError: state.offline
+      success: !offline,
+      networkError: offline
     });
-  }, [state.offline]);
+  }, [offline, rapid3GActive]);
 
   const content = useMemo(() => {
-    if (state.offline) {
+    if (offline) {
       return {
         tone: 'border-rose-200 bg-rose-50 text-rose-700',
-        message: 'Vous êtes hors ligne. Certaines actions peuvent échouer.',
-        action: 'Réessayer'
+        message: offlineBrowsingEnabled
+          ? offlineBannerText
+          : 'Vous êtes hors ligne. Certaines actions peuvent échouer.',
+        action: 'Actualiser'
+      };
+    }
+    if (rapid3GActive) {
+      return {
+        tone: 'border-sky-200 bg-sky-50 text-sky-700',
+        message: rapid3GBannerText,
+        action: ''
       };
     }
     return null;
-  }, [state.offline]);
+  }, [offline, offlineBannerText, offlineBrowsingEnabled, rapid3GActive, rapid3GBannerText]);
 
   useEffect(() => {
     if (!content) {
@@ -83,7 +69,7 @@ export default function NetworkStatusBanner() {
       <div className={`rounded-xl border px-3 py-2 text-xs shadow-sm ${content.tone}`}>
         <div className="flex items-center justify-between gap-2">
           <p className="font-medium">{content.message}</p>
-          {showAction ? (
+          {showAction && content.action ? (
             <button
               type="button"
               onClick={() => {

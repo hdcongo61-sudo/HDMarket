@@ -20,7 +20,7 @@ import {
   User, Mail, Phone, Store, MapPin, Camera, Upload, 
   Save, Eye, EyeOff, BarChart3, Heart, MessageCircle, 
   Package, CheckCircle, Clock, XCircle, Shield, 
-  TrendingUp, Users, Star, Award, Edit3, Image,
+  TrendingUp, Users, Star, Award, Edit3, Image as ImageIcon,
   Lock,
   LocateFixed,
   Truck,
@@ -333,7 +333,7 @@ const getProfileImageEditorDefaultTransform = () => ({
 
 const loadImageElement = (src) =>
   new Promise((resolve, reject) => {
-    const img = new Image();
+    const img = new window.Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error('Impossible de charger l’image.'));
@@ -2361,7 +2361,7 @@ export default function Profile() {
                   {user?.shopVerified ? (
                     <div className="space-y-3">
                       <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                        <Image className="w-4 h-4 text-neutral-700" />
+                        <ImageIcon className="w-4 h-4 text-neutral-700" />
                         <span>Bannière de la boutique</span>
                       </label>
                       <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group p-6">
@@ -3478,7 +3478,7 @@ export default function Profile() {
                   />
                 ) : user?.shopVerified ? (
                   <div className="h-16 flex-1 max-w-[120px] rounded-xl bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center">
-                    <Image className="w-6 h-6 text-gray-400" />
+                    <ImageIcon className="w-6 h-6 text-gray-400" />
                   </div>
                 ) : null}
               </div>

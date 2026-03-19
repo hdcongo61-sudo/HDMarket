@@ -24,6 +24,7 @@ import { resolveUserProfileImage } from '../utils/userAvatar';
 import GlassCard from '../components/ui/GlassCard';
 import SoftColorCard from '../components/ui/SoftColorCard';
 import FloatingGlassButton from '../components/ui/FloatingGlassButton';
+import AppOfflineDiagnosticsCard from '../components/admin/AppOfflineDiagnosticsCard';
 import BaseModal, { ModalBody, ModalHeader } from '../components/modals/BaseModal';
 import {
   Paperclip,
@@ -57,7 +58,8 @@ import {
   Tablet,
   Monitor,
   Crown,
-  ArrowUpRight
+  ArrowUpRight,
+  Sparkles
 } from 'lucide-react';
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('fr-FR');
@@ -1537,6 +1539,8 @@ export default function AdminDashboard() {
                 </Link>
               </div>
             </div>
+
+            <AppOfflineDiagnosticsCard />
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {heroQuickKpis.map((kpi) => (

@@ -25,6 +25,7 @@ export const useBuyerOrderStatusMutation = ({ orderId, onApplied, onFailed } = {
         `/orders/${orderId}/status`,
         { status: nextStatus },
         {
+          silentGlobalError: true,
           headers: {
             'Idempotency-Key': idempotencyKey
           }
@@ -37,6 +38,7 @@ export const useBuyerOrderStatusMutation = ({ orderId, onApplied, onFailed } = {
       const { data } = await api.get(`/orders/detail/${orderId}`, {
         skipCache: true,
         skipDedupe: true,
+        silentGlobalError: true,
         headers: { 'x-skip-cache': '1', 'x-skip-dedupe': '1' },
         timeout: 12_000
       });
@@ -80,7 +82,7 @@ export const useBuyerOrderStatusMutation = ({ orderId, onApplied, onFailed } = {
       }
     },
     onError: async (error, variables, context) => {
-      if (context?.previous) {
+      if (!context?.possiblyCommitted && context?.previous) {
         queryClient.setQueryData(detailKey, context.previous);
       }
       if (typeof onFailed === 'function') {

@@ -46,6 +46,7 @@ import { getInstallmentWorkflow } from '../utils/installmentTracking';
 import useSellerOrderDetailQuery from '../hooks/useSellerOrderDetailQuery';
 import useSellerOrderStatusMutation from '../hooks/useSellerOrderStatusMutation';
 import useOrderRealtimeSync from '../hooks/useOrderRealtimeSync';
+import useNetworkProfile from '../hooks/useNetworkProfile';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
@@ -419,11 +420,12 @@ export default function SellerOrderDetail() {
   const { getRuntimeValue } = useAppSettings();
   const externalLinkProps = useDesktopExternalLink();
   const queryClient = useQueryClient();
+  const { rapid3GActive, offlineBannerText, rapid3GBannerText } = useNetworkProfile();
 
   const [order, setOrder] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [statusUpdatingId, setStatusUpdatingId] = useState('');
-  const [statusUpdateError, setStatusUpdateError] = useState({ id: '', message: '' });
+  const [statusUpdateFeedback, setStatusUpdateFeedback] = useState({ id: '', message: '', tone: 'error' });
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelIssueRefund, setCancelIssueRefund] = useState(false);
@@ -517,12 +519,28 @@ export default function SellerOrderDetail() {
       } else if (payload?._id) {
         setOrder(payload);
       }
-      showToast('Statut mis à jour.', { variant: 'success' });
+      setStatusUpdateFeedback({ id: '', message: '', tone: 'error' });
+      showToast(
+        result?.recovered ? 'Statut mis à jour après vérification automatique.' : 'Statut mis à jour.',
+        { variant: 'success' }
+      );
     },
-    onFailed: async (error) => {
+    onFailed: async (error, _variables, context) => {
+      if (context?.possiblyCommitted) {
+        const message = 'Réseau lent ou interrompu. Vérification automatique en cours avant tout renvoi.';
+        setStatusUpdateFeedback({ id: orderId || '', message, tone: 'warning' });
+        showToast(message, { variant: 'info' });
+        return;
+      }
       const message = error?.response?.data?.message || 'Impossible de mettre à jour le statut.';
-      setStatusUpdateError({ id: orderId || '', message });
+      setStatusUpdateFeedback({ id: orderId || '', message, tone: 'error' });
       showToast(message, { variant: 'error' });
+    },
+    onQueued: async () => {
+      setStatusUpdateFeedback({ id: '', message: '', tone: 'error' });
+      showToast('Statut enregistré hors ligne. Synchronisation automatique dès le retour du réseau.', {
+        variant: 'info'
+      });
     }
   });
 
@@ -541,7 +559,7 @@ export default function SellerOrderDetail() {
   const handleStatusUpdate = async (nextStatus) => {
     if (!order) return;
     setStatusUpdatingId(order._id);
-    setStatusUpdateError({ id: '', message: '' });
+    setStatusUpdateFeedback({ id: '', message: '', tone: 'error' });
     try {
       await statusMutation.mutateAsync({ nextStatus });
     } catch {
@@ -1059,6 +1077,32 @@ export default function SellerOrderDetail() {
         backTo="/seller/orders"
         right={<StatusBadge status={displayStatusLabel} compact />}
       />
+      {(sellerOrderDetailQuery.offlineSnapshotActive || rapid3GActive) && (
+        <div className="mx-auto max-w-5xl px-4 pt-4">
+          <section
+            className={`rounded-2xl border px-4 py-3 text-sm shadow-sm ${
+              sellerOrderDetailQuery.offlineSnapshotActive
+                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                : 'border-sky-200 bg-sky-50 text-sky-800'
+            }`}
+          >
+            <p className="font-semibold">
+              {sellerOrderDetailQuery.offlineSnapshotActive ? offlineBannerText : rapid3GBannerText}
+            </p>
+          </section>
+        </div>
+      )}
+      {(statusMutation.queuedActionCount > 0 || statusMutation.isQueueSyncing) && (
+        <div className="mx-auto max-w-5xl px-4 pt-4">
+          <section className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-800 shadow-sm dark:border-violet-800 dark:bg-violet-900/20 dark:text-violet-300">
+            <p className="font-semibold">
+              {statusMutation.isQueueSyncing
+                ? 'Synchronisation des changements de statut en attente...'
+                : `${statusMutation.queuedActionCount} changement${statusMutation.queuedActionCount > 1 ? 's' : ''} de statut en attente de connexion.`}
+            </p>
+          </section>
+        </div>
+      )}
       <div className="max-w-3xl mx-auto px-4 py-6">
 
         <div className="bg-white rounded-2xl border-2 border-gray-100 shadow-sm overflow-hidden">
@@ -1651,6 +1695,16 @@ export default function SellerOrderDetail() {
                     La preuve de retrait exige 3 photos et la signature du client.
                   </p>
                 ) : null}
+                {statusMutation.uiPhase === 'stillWorking' ? (
+                  <p className="text-xs text-amber-700">
+                    Traitement en cours... merci de patienter.
+                  </p>
+                ) : null}
+                {statusMutation.uiPhase === 'slow' ? (
+                  <p className="text-xs text-amber-700">
+                    Réseau lent. Vérification automatique en cours. Vérifiez le suivi avant de renvoyer.
+                  </p>
+                ) : null}
               </div>
             ) : null}
 
@@ -1727,7 +1781,11 @@ export default function SellerOrderDetail() {
                     Cliquez sur "Livrer" pour soumettre la preuve de livraison.
                   </p>
                 )}
-                {statusUpdateError.id === order._id && <p className="text-xs text-red-600">{statusUpdateError.message}</p>}
+                {statusUpdateFeedback.id === order._id && (
+                  <p className={`text-xs ${statusUpdateFeedback.tone === 'warning' ? 'text-amber-700' : 'text-red-600'}`}>
+                    {statusUpdateFeedback.message}
+                  </p>
+                )}
               </div>
             )}
 
@@ -1836,7 +1894,11 @@ export default function SellerOrderDetail() {
                     </p>
                   )
                 )}
-                {statusUpdateError.id === order._id && <p className="text-xs text-red-600">{statusUpdateError.message}</p>}
+                {statusUpdateFeedback.id === order._id && (
+                  <p className={`text-xs ${statusUpdateFeedback.tone === 'warning' ? 'text-amber-700' : 'text-red-600'}`}>
+                    {statusUpdateFeedback.message}
+                  </p>
+                )}
               </div>
             )}
 

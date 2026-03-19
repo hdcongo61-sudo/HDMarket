@@ -49,6 +49,13 @@ import useReliableMutation from '../hooks/useReliableMutation';
 import useOrderRealtimeSync from '../hooks/useOrderRealtimeSync';
 import useSellerOrdersListQuery from '../hooks/useSellerOrdersListQuery';
 import { orderQueryKeys } from '../hooks/useOrderQueryKeys';
+import useNetworkProfile from '../hooks/useNetworkProfile';
+import { createIdempotencyKey } from '../utils/idempotency';
+import {
+  enqueueOrderStatusOfflineAction,
+  loadOrderStatusOfflineQueue,
+  removeOrderStatusOfflineAction
+} from '../utils/orderStatusOfflineQueue';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
@@ -146,6 +153,14 @@ const ACTIVE_LIVE_STATUSES = new Set([
   'overdue_installment',
   'confirmed',
   'delivering'
+]);
+
+const SELLER_OFFLINE_QUEUEABLE_STATUSES = new Set([
+  'confirmed',
+  'ready_for_pickup',
+  'ready_for_delivery',
+  'delivering',
+  'out_for_delivery'
 ]);
 
 const normalizeStatusFilter = (value) => {
@@ -530,6 +545,7 @@ const SellerMobileOrderCard = ({
   onOpenCancelModal,
   statusUpdatingId,
   statusUpdateError,
+  statusUpdateUiPhase = 'idle',
   orderUnreadCounts,
   externalLinkProps
 }) => {
@@ -935,7 +951,14 @@ const SellerMobileOrderCard = ({
             </button>
           </div>
           {statusUpdateError.id === order._id && (
-            <p className="text-xs text-red-600 mt-2 text-center">{statusUpdateError.message}</p>
+            <p className={`mt-2 text-center text-xs ${statusUpdateError.tone === 'warning' ? 'text-amber-700' : 'text-red-600'}`}>
+              {statusUpdateError.message}
+            </p>
+          )}
+          {statusUpdatingId === order._id && statusUpdateUiPhase === 'slow' && statusUpdateError.id !== order._id && (
+            <p className="mt-2 text-center text-xs text-amber-700">
+              Réseau lent. Vérification automatique en cours. Vérifiez le statut avant de renvoyer.
+            </p>
           )}
         </div>
       )}
@@ -956,17 +979,21 @@ export default function SellerOrders() {
   const { user } = useContext(AuthContext);
   const { t } = useAppSettings();
   const { showToast } = useToast();
+  const { shouldUseOfflineSnapshot } = useNetworkProfile();
   const queryClient = useQueryClient();
   const externalLinkProps = useDesktopExternalLink();
   const isMobile = useIsMobile(768);
+  const userScopeId = useMemo(() => String(user?._id || user?.id || '').trim(), [user?._id, user?.id]);
   const [orders, setOrders] = useState([]);
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
   const [statusUpdatingId, setStatusUpdatingId] = useState('');
-  const [statusUpdateError, setStatusUpdateError] = useState({ id: '', message: '' });
+  const [statusUpdateError, setStatusUpdateError] = useState({ id: '', message: '', tone: 'error' });
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelOrderId, setCancelOrderId] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
+  const [queuedStatusActionCount, setQueuedStatusActionCount] = useState(0);
+  const [statusQueueSyncing, setStatusQueueSyncing] = useState(false);
   const [stats, setStats] = useState({ total: 0, totalAmount: 0, byStatus: {} });
   const [statsLoading, setStatsLoading] = useState(false);
   const [installmentAnalytics, setInstallmentAnalytics] = useState({
@@ -1053,6 +1080,15 @@ export default function SellerOrders() {
     await sellerOrdersListQuery.refetch();
   }, [sellerOrdersListQuery.refetch]);
 
+  const syncQueuedStatusActionCount = useCallback(async () => {
+    if (!userScopeId) {
+      setQueuedStatusActionCount(0);
+      return;
+    }
+    const queue = await loadOrderStatusOfflineQueue(userScopeId, 'seller');
+    setQueuedStatusActionCount(queue.length);
+  }, [userScopeId]);
+
   const { pullDistance, refreshing, bind } = usePullToRefresh(refreshOrders, {
     enabled: isMobile
   });
@@ -1088,6 +1124,83 @@ export default function SellerOrders() {
     pollIntervalMs: 15000,
     currentStatus: hasActiveOrders ? 'pending_payment' : 'delivered'
   });
+
+  const flushQueuedStatusActions = useCallback(async () => {
+    if (!userScopeId) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    let queue = await loadOrderStatusOfflineQueue(userScopeId, 'seller');
+    setQueuedStatusActionCount(queue.length);
+    if (!queue.length) return;
+    setStatusQueueSyncing(true);
+    try {
+      for (const action of queue) {
+        const prevOrder = orders.find((entry) => String(entry?._id || '') === String(action?.orderId || ''));
+        try {
+          const { data } = await api.patch(
+            `/orders/seller/${action.orderId}/status`,
+            { status: action.nextStatus },
+            {
+              headers: {
+                'Idempotency-Key': action.idempotencyKey || createIdempotencyKey('seller-status-replay')
+              }
+            }
+          );
+          const nextOrder = normalizeOrderPayload(data);
+          if (nextOrder?._id) {
+            mergeOrderUpdate(nextOrder);
+            bumpStatusCounters(getStatusCounterValue(prevOrder), getStatusCounterValue(nextOrder));
+          }
+          queue = await removeOrderStatusOfflineAction(userScopeId, 'seller', action.queueId);
+          setQueuedStatusActionCount(queue.length);
+          window.dispatchEvent(new Event('hdmarket:orders-refresh'));
+        } catch (error) {
+          if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            break;
+          }
+          showToast(
+            error?.response?.data?.message || 'Impossible de synchroniser certains changements de statut.',
+            { variant: 'error' }
+          );
+          break;
+        }
+      }
+    } finally {
+      setStatusQueueSyncing(false);
+      await sellerOrdersListQuery.refetch();
+    }
+  }, [
+    bumpStatusCounters,
+    mergeOrderUpdate,
+    orders,
+    sellerOrdersListQuery.refetch,
+    showToast,
+    userScopeId
+  ]);
+
+  useEffect(() => {
+    syncQueuedStatusActionCount();
+    const handleQueueChange = () => {
+      syncQueuedStatusActionCount();
+    };
+    window.addEventListener('hdmarket:offline-queue-changed', handleQueueChange);
+    return () => {
+      window.removeEventListener('hdmarket:offline-queue-changed', handleQueueChange);
+    };
+  }, [syncQueuedStatusActionCount]);
+
+  useEffect(() => {
+    if (!userScopeId) return;
+    if (!shouldUseOfflineSnapshot) {
+      flushQueuedStatusActions();
+    }
+    const handleOnline = () => {
+      flushQueuedStatusActions();
+    };
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [flushQueuedStatusActions, shouldUseOfflineSnapshot, userScopeId]);
 
   useEffect(() => {
     const onStatusUpdated = (event) => {
@@ -1253,6 +1366,16 @@ export default function SellerOrders() {
     return null;
   };
 
+  const getStatusCounterValue = (order) => {
+    if (!order) return 'pending';
+    return String(
+      String(order?.paymentType || '') === 'installment' &&
+        String(order?.status || '') === 'completed'
+        ? order?.installmentSaleStatus || order?.status || 'pending'
+        : order?.status || 'pending'
+    );
+  };
+
   const bumpStatusCounters = useCallback((previousStatus, nextStatus) => {
     const prev = String(previousStatus || '').trim();
     const next = String(nextStatus || '').trim();
@@ -1269,10 +1392,30 @@ export default function SellerOrders() {
 
   const statusUpdateMutation = useReliableMutation({
     mutationFn: async ({ orderId, nextStatus, idempotencyKey }) => {
+      const normalizedStatus = String(nextStatus || '').trim().toLowerCase();
+      const canQueueOffline =
+        shouldUseOfflineSnapshot &&
+        userScopeId &&
+        SELLER_OFFLINE_QUEUEABLE_STATUSES.has(normalizedStatus);
+      if (canQueueOffline) {
+        const queue = await enqueueOrderStatusOfflineAction(userScopeId, 'seller', {
+          queueId: createIdempotencyKey('seller-status-queue'),
+          orderId,
+          nextStatus,
+          idempotencyKey: idempotencyKey || createIdempotencyKey('seller-status')
+        });
+        return {
+          queued: true,
+          queueLength: queue.length,
+          orderId,
+          nextStatus
+        };
+      }
       const { data } = await api.patch(
         `/orders/seller/${orderId}/status`,
         { status: nextStatus },
         {
+          silentGlobalError: true,
           headers: {
             'Idempotency-Key': idempotencyKey
           }
@@ -1285,32 +1428,62 @@ export default function SellerOrders() {
       const { data } = await api.get(`/orders/seller/detail/${orderId}`, {
         skipCache: true,
         skipDedupe: true,
+        silentGlobalError: true,
         headers: { 'x-skip-cache': '1', 'x-skip-dedupe': '1' },
         timeout: 12_000
       });
       return matchesSellerTargetStatus(data, nextStatus) ? data : false;
     },
-    onMutate: ({ orderId }) => {
+    onMutate: ({ orderId, nextStatus }) => {
       const prevOrder = orders.find((order) => String(order?._id) === String(orderId));
+      if (prevOrder && nextStatus) {
+        const optimisticOrder =
+          String(prevOrder?.paymentType || '') === 'installment' &&
+          String(prevOrder?.status || '') === 'completed'
+            ? { ...prevOrder, installmentSaleStatus: nextStatus, updatedAt: new Date().toISOString() }
+            : { ...prevOrder, status: nextStatus, updatedAt: new Date().toISOString() };
+        mergeOrderUpdate(optimisticOrder);
+      }
       return {
-        prevStatus: String(prevOrder?.status || 'pending')
+        prevStatus: getStatusCounterValue(prevOrder),
+        prevOrder
       };
     },
     onSuccess: async (result, variables, context) => {
+      if (result?.data?.queued) {
+        setQueuedStatusActionCount(Number(result?.data?.queueLength || 0));
+        showToast('Statut enregistré hors ligne. Synchronisation automatique dès le retour du réseau.', {
+          variant: 'info'
+        });
+        return;
+      }
       const nextOrder = normalizeOrderPayload(result?.data);
       if (nextOrder?._id) {
         mergeOrderUpdate(nextOrder);
-        bumpStatusCounters(context?.prevStatus, nextOrder?.status);
+        bumpStatusCounters(context?.prevStatus, getStatusCounterValue(nextOrder));
       }
-      showToast('Statut de la commande mis à jour.', { variant: 'success' });
+      showToast(
+        result?.recovered ? 'Statut de la commande mis à jour après vérification automatique.' : 'Statut de la commande mis à jour.',
+        { variant: 'success' }
+      );
     },
-    onError: async (err, variables) => {
+    onError: async (err, variables, context) => {
+      if (context?.possiblyCommitted) {
+        const message = 'Réseau lent ou interrompu. Vérification automatique en cours avant tout renvoi.';
+        setStatusUpdateError({ id: variables?.orderId || '', message, tone: 'warning' });
+        showToast(message, { variant: 'info' });
+        return;
+      }
+      if (context?.prevOrder?._id) {
+        mergeOrderUpdate(context.prevOrder);
+      }
       const message =
         err?.response?.data?.message || 'Impossible de mettre à jour le statut.';
-      setStatusUpdateError({ id: variables?.orderId || '', message });
+      setStatusUpdateError({ id: variables?.orderId || '', message, tone: 'error' });
       showToast(message, { variant: 'error' });
     },
-    onSettled: async (_data, _error, variables) => {
+    onSettled: async (data, _error, variables) => {
+      if (data?.data?.queued) return;
       await invalidateOrderItem(variables?.orderId);
     }
   });
@@ -1321,6 +1494,7 @@ export default function SellerOrders() {
         `/orders/seller/${orderId}/cancel`,
         { reason },
         {
+          silentGlobalError: true,
           headers: {
             'Idempotency-Key': idempotencyKey
           }
@@ -1333,6 +1507,7 @@ export default function SellerOrders() {
       const { data } = await api.get(`/orders/seller/detail/${orderId}`, {
         skipCache: true,
         skipDedupe: true,
+        silentGlobalError: true,
         headers: { 'x-skip-cache': '1', 'x-skip-dedupe': '1' },
         timeout: 12_000
       });
@@ -1351,12 +1526,21 @@ export default function SellerOrders() {
         bumpStatusCounters(context?.prevStatus, 'cancelled');
       }
       showToast(
-        t('orders.cancelSuccess', 'Commande annulée avec succès. Le client a été notifié.'),
+        result?.recovered
+          ? t('orders.cancelRecovered', 'Commande annulée après vérification automatique.')
+          : t('orders.cancelSuccess', 'Commande annulée avec succès. Le client a été notifié.'),
         { variant: 'success' }
       );
       closeCancelModal();
     },
-    onError: async (err) => {
+    onError: async (err, _variables, context) => {
+      if (context?.possiblyCommitted) {
+        showToast('Réseau lent ou interrompu. Vérification automatique en cours avant tout renvoi.', {
+          variant: 'info'
+        });
+        closeCancelModal();
+        return;
+      }
       const message =
         err?.response?.data?.message ||
         err?.response?.data?.details?.[0] ||
@@ -1370,7 +1554,7 @@ export default function SellerOrders() {
 
   const handleStatusUpdate = async (orderId, nextStatus) => {
     setStatusUpdatingId(orderId);
-    setStatusUpdateError({ id: '', message: '' });
+    setStatusUpdateError({ id: '', message: '', tone: 'error' });
     try {
       await statusUpdateMutation.mutateAsync({ orderId, nextStatus });
     } catch {
@@ -1448,6 +1632,13 @@ export default function SellerOrders() {
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {(queuedStatusActionCount > 0 || statusQueueSyncing) && (
+          <div className="mb-4 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-medium text-violet-800 shadow-sm dark:border-violet-800 dark:bg-violet-900/20 dark:text-violet-300">
+            {statusQueueSyncing
+              ? 'Synchronisation des changements de statut en attente...'
+              : `${queuedStatusActionCount} changement${queuedStatusActionCount > 1 ? 's' : ''} de statut en attente de connexion.`}
+          </div>
+        )}
         {(user?.role === 'admin' || user?.role === 'founder' || user?.role === 'manager') && (
           <div className="mb-4">
             <Link

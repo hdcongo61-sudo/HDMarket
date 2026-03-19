@@ -93,6 +93,19 @@ const NOTIFICATION_RUNTIME_FLAGS = [
   }
 ];
 
+const NETWORK_RUNTIME_QUICK_FLAGS = [
+  {
+    key: 'enable_rapid_3g_mode',
+    label: 'Mode Rapide 3G',
+    fallbackDescription: 'Allège le chargement sur connexions lentes et mode économie de données.'
+  },
+  {
+    key: 'enable_offline_browsing',
+    label: 'Navigation hors ligne',
+    fallbackDescription: 'Autorise l’affichage du catalogue à partir des derniers snapshots en cache.'
+  }
+];
+
 const emptyCurrencyForm = {
   code: '',
   symbol: '',
@@ -422,6 +435,13 @@ export default function AdminSystemSettings() {
   const notificationRuntimeQuickFlags = useMemo(() => {
     const byKey = new Map((runtimeSettings || []).map((item) => [String(item?.key || ''), item]));
     return NOTIFICATION_RUNTIME_FLAGS.map((entry) => ({
+      ...entry,
+      setting: byKey.get(entry.key) || null
+    }));
+  }, [runtimeSettings]);
+  const networkRuntimeQuickFlags = useMemo(() => {
+    const byKey = new Map((runtimeSettings || []).map((item) => [String(item?.key || ''), item]));
+    return NETWORK_RUNTIME_QUICK_FLAGS.map((entry) => ({
       ...entry,
       setting: byKey.get(entry.key) || null
     }));
@@ -1323,6 +1343,70 @@ export default function AdminSystemSettings() {
                         <div
                           key={key}
                           className="rounded-lg border border-indigo-100 bg-white/70 p-2.5 dark:border-indigo-900/70 dark:bg-neutral-950/40"
+                        >
+                          <div className="mb-2">
+                            <p className="text-xs font-semibold text-slate-900 dark:text-neutral-100">{entry.label}</p>
+                            <p className="text-[11px] text-slate-500 dark:text-neutral-400">
+                              {setting?.description || entry.fallbackDescription}
+                            </p>
+                            <p className="mt-1 text-[10px] text-slate-400 dark:text-neutral-500">
+                              key: <code className="rounded bg-white px-1 py-0.5 dark:bg-neutral-900">{key}</code>
+                            </p>
+                          </div>
+                          {setting ? (
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                              <select
+                                value={currentValue ? 'true' : 'false'}
+                                onChange={(event) =>
+                                  setRuntimeDrafts((prev) => ({
+                                    ...prev,
+                                    [key]: event.target.value === 'true'
+                                  }))
+                                }
+                                className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+                              >
+                                <option value="true">Activé</option>
+                                <option value="false">Désactivé</option>
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => saveRuntimeSetting(setting)}
+                                disabled={isSaving}
+                                className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700 disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900/30 dark:text-neutral-200 sm:min-h-9"
+                              >
+                                <Save size={12} />
+                                {isSaving ? '...' : 'Enregistrer'}
+                              </button>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-red-600 dark:text-red-300">
+                              Clé runtime introuvable côté API.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-3 dark:border-sky-900/60 dark:bg-sky-950/20">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">
+                    Réseau & Offline
+                  </p>
+                  <p className="mb-3 text-xs text-sky-700/90 dark:text-sky-200/90">
+                    Accès rapide aux flags runtime qui pilotent le mode Rapide 3G et la navigation hors ligne.
+                  </p>
+                  <div className="space-y-2.5">
+                    {networkRuntimeQuickFlags.map((entry) => {
+                      const setting = entry.setting;
+                      const key = entry.key;
+                      const isSaving = runtimeSavingKey === key;
+                      const currentValue = parseBooleanSetting(
+                        runtimeDrafts[key] ?? setting?.value ?? false
+                      );
+                      return (
+                        <div
+                          key={key}
+                          className="rounded-lg border border-sky-100 bg-white/70 p-2.5 dark:border-sky-900/70 dark:bg-neutral-950/40"
                         >
                           <div className="mb-2">
                             <p className="text-xs font-semibold text-slate-900 dark:text-neutral-100">{entry.label}</p>

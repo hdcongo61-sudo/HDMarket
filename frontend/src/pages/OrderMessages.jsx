@@ -36,6 +36,9 @@ import { buildProductPath } from '../utils/links';
 import { resolveUserProfileImage } from '../utils/userAvatar';
 import { fetchOrderConversations, fetchOrderUnreadCount } from '../queries/orderChatApi';
 import { orderChatKeys } from '../queries/orderChatKeys';
+import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
+import useNetworkProfile from '../hooks/useNetworkProfile';
+import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
 
 const STATUS_LABELS = {
   pending: 'En attente',
@@ -71,6 +74,8 @@ export default function OrderMessages() {
   const location = useLocation();
   const navigate = useNavigate();
   const [error, setError] = useState('');
+  const [offlineSnapshotActive, setOfflineSnapshotActive] = useState(false);
+  const [offlineSnapshot, setOfflineSnapshot] = useState(null);
   const [page, setPage] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -79,6 +84,12 @@ export default function OrderMessages() {
   const handledQueryOrderRef = useRef('');
   const queryClient = useQueryClient();
   const userScopeId = user?._id || user?.id;
+  const { rapid3GActive, shouldUseOfflineSnapshot, offlineBannerText, rapid3GBannerText } =
+    useNetworkProfile();
+  const snapshotKey = useMemo(
+    () => ['order-messages', userScopeId || 'guest', activeFilter, page].join(':'),
+    [activeFilter, page, userScopeId]
+  );
   const requestedOrderId = useMemo(() => {
     const value = new URLSearchParams(location.search).get('orderId');
     return String(value || '').trim();
@@ -120,6 +131,20 @@ export default function OrderMessages() {
     [conversationsQuery.data?.total, conversationsQuery.data?.totalPages]
   );
   const totalUnread = Number(unreadQuery.data?.unreadCount || 0);
+  const effectiveConversations = offlineSnapshotActive
+    ? Array.isArray(offlineSnapshot?.items)
+      ? offlineSnapshot.items
+      : []
+    : conversations;
+  const effectiveMeta = offlineSnapshotActive
+    ? {
+        total: Number(offlineSnapshot?.total || 0),
+        totalPages: Number(offlineSnapshot?.totalPages || 1)
+      }
+    : meta;
+  const effectiveTotalUnread = offlineSnapshotActive
+    ? Number(offlineSnapshot?.totalUnread || 0)
+    : totalUnread;
   const loading = conversationsQuery.isLoading;
 
   useEffect(() => {
@@ -131,6 +156,34 @@ export default function OrderMessages() {
       );
     }
   }, [conversationsQuery.error]);
+
+  useEffect(() => {
+    if (!conversationsQuery.error || !shouldUseOfflineSnapshot) return;
+    let cancelled = false;
+    loadOfflineSnapshot(snapshotKey).then((snapshot) => {
+      if (cancelled) return;
+      if (snapshot && typeof snapshot === 'object') {
+        setOfflineSnapshot(snapshot);
+        setOfflineSnapshotActive(true);
+        setError('');
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationsQuery.error, shouldUseOfflineSnapshot, snapshotKey]);
+
+  useEffect(() => {
+    if (shouldUseOfflineSnapshot) return;
+    if (!Array.isArray(conversations)) return;
+    saveOfflineSnapshot(snapshotKey, {
+      items: conversations,
+      total: Number(meta.total || 0),
+      totalPages: Number(meta.totalPages || 1),
+      totalUnread: Number(totalUnread || 0)
+    });
+    setOfflineSnapshotActive(false);
+  }, [conversations, meta.total, meta.totalPages, shouldUseOfflineSnapshot, snapshotKey, totalUnread]);
 
   const archiveConversationMutation = useMutation({
     mutationFn: async (orderId) => {
@@ -293,7 +346,7 @@ export default function OrderMessages() {
     return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   };
 
-  const filteredConversations = conversations.filter((conv) => {
+  const filteredConversations = effectiveConversations.filter((conv) => {
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -359,16 +412,16 @@ export default function OrderMessages() {
   };
 
   useEffect(() => {
-    if (!requestedOrderId || !conversations.length) return;
+    if (!requestedOrderId || !effectiveConversations.length) return;
     if (handledQueryOrderRef.current === requestedOrderId) return;
-    const matchedConversation = conversations.find(
+    const matchedConversation = effectiveConversations.find(
       (conversation) => String(conversation?.orderId || '') === requestedOrderId
     );
     if (!matchedConversation) return;
     handledQueryOrderRef.current = requestedOrderId;
     setSelectedOrder(buildOrderFromConversation(matchedConversation));
     setError('');
-  }, [requestedOrderId, conversations, buildOrderFromConversation]);
+  }, [requestedOrderId, effectiveConversations, buildOrderFromConversation]);
 
   useEffect(() => {
     if (!user?._id) {
@@ -477,7 +530,7 @@ export default function OrderMessages() {
 
   const inquiryLoading = createInquiryMutation.isPending;
 
-  if ((loading && conversations.length === 0) || inquiryLoading) {
+  if ((loading && effectiveConversations.length === 0 && !offlineSnapshotActive) || inquiryLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 relative">
         {inquiryLoading && (
@@ -532,10 +585,10 @@ export default function OrderMessages() {
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">Messagerie</h1>
                 <p className="text-sm text-slate-500 dark:text-gray-400 mt-0.5">
-                  {meta.total} conversation{meta.total !== 1 ? 's' : ''}
-                  {totalUnread > 0 && (
+                  {effectiveMeta.total} conversation{effectiveMeta.total !== 1 ? 's' : ''}
+                  {effectiveTotalUnread > 0 && (
                     <span className="ml-2 inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
-                      · {totalUnread} non lu{totalUnread !== 1 ? 's' : ''}
+                      · {effectiveTotalUnread} non lu{effectiveTotalUnread !== 1 ? 's' : ''}
                     </span>
                   )}
                 </p>
@@ -550,6 +603,19 @@ export default function OrderMessages() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+        {(offlineSnapshotActive || rapid3GActive) && (
+          <section
+            className={`mb-4 rounded-2xl border px-4 py-3 text-sm shadow-sm ${
+              offlineSnapshotActive
+                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                : 'border-sky-200 bg-sky-50 text-sky-800'
+            }`}
+          >
+            <p className="font-semibold">
+              {offlineSnapshotActive ? offlineBannerText : rapid3GBannerText}
+            </p>
+          </section>
+        )}
         {/* Toolbar: search + filters */}
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4">
           <div className="flex-1 relative">
@@ -599,9 +665,9 @@ export default function OrderMessages() {
               <span className="flex items-center gap-1.5">
                 <Bell className="w-4 h-4" />
                 Non lus
-                {totalUnread > 0 && (
+                {effectiveTotalUnread > 0 && (
                   <span className="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-semibold flex items-center justify-center">
-                    {totalUnread > 99 ? '99+' : totalUnread}
+                    {effectiveTotalUnread > 99 ? '99+' : effectiveTotalUnread}
                   </span>
                 )}
               </span>
@@ -623,20 +689,19 @@ export default function OrderMessages() {
           </div>
         </div>
 
-        {error && (
-          <div className="mb-4 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30 flex-shrink-0">
-              <X className="w-5 h-5 text-red-600" />
-            </div>
-            <p className="text-sm text-red-700 dark:text-red-300 flex-1">{error}</p>
-            <button
-              type="button"
-              onClick={() => setError('')}
-              className="p-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-800/50 text-red-600 dark:text-red-400 transition-colors"
-              aria-label="Fermer"
-            >
-              <X className="w-4 h-4" />
-            </button>
+        {error && !offlineSnapshotActive && (
+          <div className="mb-4">
+            <NetworkFallbackCard
+              title="Impossible de charger les conversations."
+              message="Le réseau est lent ou indisponible. Réessayez."
+              onRetry={() => {
+                setError('');
+                conversationsQuery.refetch();
+                unreadQuery.refetch();
+              }}
+              retryLabel="Réessayer"
+              refreshLabel="Actualiser la page"
+            />
           </div>
         )}
 
@@ -815,11 +880,11 @@ export default function OrderMessages() {
         </div>
 
         {/* Pagination */}
-        {filteredConversations.length > 0 && meta.totalPages > 1 && (
+        {filteredConversations.length > 0 && effectiveMeta.totalPages > 1 && (
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
             <p className="text-sm text-slate-600 dark:text-gray-400">
               Page <span className="font-semibold text-slate-900 dark:text-white">{page}</span> sur{' '}
-              <span className="font-semibold text-slate-900 dark:text-white">{meta.totalPages}</span>
+              <span className="font-semibold text-slate-900 dark:text-white">{effectiveMeta.totalPages}</span>
             </p>
             <div className="flex gap-2">
               <button
@@ -832,8 +897,8 @@ export default function OrderMessages() {
               </button>
               <button
                 type="button"
-                onClick={() => setPage((prev) => Math.min(meta.totalPages, prev + 1))}
-                disabled={page >= meta.totalPages}
+                onClick={() => setPage((prev) => Math.min(effectiveMeta.totalPages, prev + 1))}
+                disabled={page >= effectiveMeta.totalPages}
                 className="px-4 py-2 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Suivant

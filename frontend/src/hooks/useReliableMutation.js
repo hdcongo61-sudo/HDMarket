@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { isApiTimeoutError } from '../services/api';
+import { isApiPossiblyCommittedError } from '../services/api';
 import { createIdempotencyKey } from '../utils/idempotency';
 import { verifyEventually } from '../utils/reliability';
 
@@ -44,7 +44,7 @@ export const useReliableMutation = ({
         const data = await mutationFn({ ...variables, idempotencyKey });
         return { data, recovered: false };
       } catch (error) {
-        if (!isApiTimeoutError(error) || typeof verifyFn !== 'function') {
+        if (!isApiPossiblyCommittedError(error) || typeof verifyFn !== 'function') {
           throw error;
         }
         const confirmed = await verifyEventually({
@@ -80,13 +80,18 @@ export const useReliableMutation = ({
       }
     },
     onError: async (error, variables, context) => {
-      if (isApiTimeoutError(error)) {
+      const possiblyCommitted = isApiPossiblyCommittedError(error);
+      if (possiblyCommitted) {
         setUiPhase('slow');
       } else {
         setUiPhase('error');
       }
+      const nextContext =
+        context && typeof context === 'object' && !Array.isArray(context)
+          ? { ...context, possiblyCommitted }
+          : { possiblyCommitted };
       if (typeof onError === 'function') {
-        await onError(error, variables, context);
+        await onError(error, variables, nextContext);
       }
     },
     onSettled: async (data, error, variables, context) => {

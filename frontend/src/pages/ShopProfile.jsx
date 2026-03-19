@@ -13,7 +13,7 @@ import {
   TrendingUp,
   Users
 } from 'lucide-react';
-import api from '../services/api';
+import api, { getApiErrorMessage, isApiPossiblyCommittedError } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -21,6 +21,7 @@ import { useShopProfileLoad } from '../context/ShopProfileLoadContext';
 import AppLoader from '../components/AppLoader';
 import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
 import useIsMobile from '../hooks/useIsMobile';
+import useNetworkProfile from '../hooks/useNetworkProfile';
 import { setPendingAction } from '../utils/pendingAction';
 import ShopTopHeader from '../components/shop/ShopTopHeader';
 import ShopHero from '../components/shop/ShopHero';
@@ -82,6 +83,15 @@ export default function ShopProfile() {
   const { runtime, t } = useAppSettings();
   const shopLoad = useShopProfileLoad();
   const isMobile = useIsMobile(767);
+  const {
+    shouldUseOfflineSnapshot,
+    offlineBannerText,
+    rapid3GActive,
+    rapid3GBannerText,
+    compactProductsPageSize,
+    compactSecondaryLimit
+  } =
+    useNetworkProfile();
 
   const [activeCategory, setActiveCategory] = useState('all');
   const [promoOnly, setPromoOnly] = useState(false);
@@ -112,7 +122,7 @@ export default function ShopProfile() {
   }, [shopLoad, slug]);
 
   const shopQuery = useQuery({
-    queryKey: ['shop-profile', slug],
+    queryKey: ['shop-profile', slug, rapid3GActive ? 'rapid3g' : 'default'],
     enabled: Boolean(slug),
     initialData: () => readShopSnapshot(slug),
     initialDataUpdatedAt: 0,
@@ -120,8 +130,8 @@ export default function ShopProfile() {
     staleTime: 30 * 1000,
     gcTime: 10 * 60 * 1000,
     queryFn: async () => {
-      const pageLimit = 50;
-      const maxPagesToLoad = 100;
+      const pageLimit = rapid3GActive ? Math.max(12, Number(compactProductsPageSize || 8) * 2) : 50;
+      const maxPagesToLoad = rapid3GActive ? Math.max(1, Number(compactSecondaryLimit || 4)) : 100;
       const requestOptions = {
         skipCache: true,
         headers: { 'x-skip-cache': '1' }
@@ -209,6 +219,10 @@ export default function ShopProfile() {
   }, [navigate, shop?.slug, slug]);
 
   const shopIdentifier = shop?.slug || shop?._id || slug;
+  const shopProfileQueryKey = useMemo(
+    () => ['shop-profile', slug, rapid3GActive ? 'rapid3g' : 'default'],
+    [rapid3GActive, slug]
+  );
   const userScopeId = user?._id || user?.id;
 
   const userReviewQuery = useQuery({
@@ -310,13 +324,18 @@ export default function ShopProfile() {
     return byCategory.filter((product) => Boolean(product?.hasActivePromo));
   }, [activeCategory, promoOnly, products]);
 
+  const secondaryDisplayLimit = useMemo(() => {
+    if (!rapid3GActive) return null;
+    return Math.max(2, Number(compactSecondaryLimit || 4));
+  }, [compactSecondaryLimit, rapid3GActive]);
+
   const topSellingProducts = useMemo(
     () =>
       [...products]
         .filter((product) => Number(product?.salesCount || 0) > 0)
         .sort((a, b) => Number(b.salesCount || 0) - Number(a.salesCount || 0))
-        .slice(0, 6),
-    [products]
+        .slice(0, secondaryDisplayLimit || 6),
+    [products, secondaryDisplayLimit]
   );
 
   const featuredProducts = useMemo(
@@ -329,16 +348,16 @@ export default function ShopProfile() {
             product?.isBoosted ||
             product?.boostActive
         )
-      ),
-    [filteredProducts]
+      ).slice(0, secondaryDisplayLimit || filteredProducts.length),
+    [filteredProducts, secondaryDisplayLimit]
   );
 
   const latestProducts = useMemo(
     () =>
       [...filteredProducts]
         .sort((a, b) => new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime())
-        .slice(0, 24),
-    [filteredProducts]
+        .slice(0, rapid3GActive ? Math.max(secondaryDisplayLimit || 4, 8) : 24),
+    [filteredProducts, rapid3GActive, secondaryDisplayLimit]
   );
 
   const hasPromoProducts = useMemo(
@@ -350,8 +369,17 @@ export default function ShopProfile() {
     if (productFeed === 'featured') return featuredProducts;
     if (productFeed === 'latest') return latestProducts;
     if (productFeed === 'popular') return topSellingProducts;
-    return filteredProducts;
-  }, [featuredProducts, filteredProducts, latestProducts, productFeed, topSellingProducts]);
+    if (!rapid3GActive) return filteredProducts;
+    return filteredProducts.slice(0, Math.max(Number(compactProductsPageSize || 8) * 2, 12));
+  }, [
+    compactProductsPageSize,
+    featuredProducts,
+    filteredProducts,
+    latestProducts,
+    productFeed,
+    rapid3GActive,
+    topSellingProducts
+  ]);
 
   const isFollowing = useMemo(() => {
     if (!shop?._id || !Array.isArray(user?.followingShops)) return false;
@@ -364,20 +392,81 @@ export default function ShopProfile() {
     [shop?._id, viewerUserId]
   );
 
+  const verifyFollowMutation = useCallback(async () => {
+    if (!shop?._id || !user) return null;
+    try {
+      const [{ data: followedShops }] = await Promise.all([
+        api.get('/users/shops/following', {
+          skipCache: true,
+          silentGlobalError: true,
+          headers: { 'x-skip-cache': '1' }
+        }),
+        queryClient.invalidateQueries({ queryKey: shopProfileQueryKey })
+      ]);
+      const normalizedList = Array.isArray(followedShops) ? followedShops : [];
+      const followedIds = normalizedList.map((entry) => String(entry?._id || ''));
+      if (typeof updateUser === 'function') {
+        updateUser({ followingShops: followedIds.filter(Boolean) });
+      }
+      const match = normalizedList.find((entry) => String(entry?._id || '') === String(shop._id));
+      const confirmedFollowing = Boolean(match);
+      if (confirmedFollowing === isFollowing) {
+        return null;
+      }
+      return confirmedFollowing;
+    } catch {
+      return null;
+    }
+  }, [isFollowing, queryClient, shop?._id, shopProfileQueryKey, updateUser, user]);
+
+  const verifyReviewMutation = useCallback(
+    async ({ rating, comment }) => {
+      if (!shopIdentifier || !userScopeId) return false;
+      try {
+        const normalizedComment = String(comment || '').trim();
+        const [reviewResponse] = await Promise.all([
+          api.get(`/shops/${shopIdentifier}/reviews/user`, {
+            skipCache: true,
+            silentGlobalError: true,
+            headers: { 'x-skip-cache': '1' }
+          }),
+          queryClient.invalidateQueries({ queryKey: shopProfileQueryKey }),
+          queryClient.invalidateQueries({ queryKey: ['shop-reviews', shopIdentifier] })
+        ]);
+        const confirmedReview = reviewResponse?.data || null;
+        if (!confirmedReview) return false;
+        const matches =
+          Number(confirmedReview.rating || 0) === Number(rating || 0) &&
+          String(confirmedReview.comment || '').trim() === normalizedComment;
+        if (matches) {
+          queryClient.setQueryData(['shop-user-review', shopIdentifier, userScopeId], confirmedReview);
+        }
+        return matches;
+      } catch {
+        return false;
+      }
+    },
+    [queryClient, shopIdentifier, shopProfileQueryKey, userScopeId]
+  );
+
   const followMutation = useMutation({
     mutationFn: async () => {
       if (!shop?._id) throw new Error('Boutique introuvable.');
       if (isFollowing) {
-        const { data } = await api.delete(`/users/shops/${shop._id}/follow`);
+        const { data } = await api.delete(`/users/shops/${shop._id}/follow`, {
+          silentGlobalError: true
+        });
         return data;
       }
-      const { data } = await api.post(`/users/shops/${shop._id}/follow`);
+      const { data } = await api.post(`/users/shops/${shop._id}/follow`, null, {
+        silentGlobalError: true
+      });
       return data;
     },
     onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ['shop-profile', slug] });
-      const previous = queryClient.getQueryData(['shop-profile', slug]);
-      queryClient.setQueryData(['shop-profile', slug], (old) => {
+      await queryClient.cancelQueries({ queryKey: shopProfileQueryKey });
+      const previous = queryClient.getQueryData(shopProfileQueryKey);
+      queryClient.setQueryData(shopProfileQueryKey, (old) => {
         if (!old?.shop) return old;
         const currentFollowers = Number(old.shop.followersCount || 0);
         const nextFollowers = isFollowing
@@ -393,10 +482,22 @@ export default function ShopProfile() {
       });
       return { previous };
     },
-    onError: (err, _variables, context) => {
-      if (context?.previous) queryClient.setQueryData(['shop-profile', slug], context.previous);
+    onError: async (err, _variables, context) => {
+      if (isApiPossiblyCommittedError(err)) {
+        const confirmedFollowing = await verifyFollowMutation();
+        if (confirmedFollowing !== null) {
+          showToast(
+            confirmedFollowing
+              ? t('shop_profile.followed', 'Boutique suivie.')
+              : t('shop_profile.unfollowed', 'Boutique désabonnée.'),
+            { variant: 'success' }
+          );
+          return;
+        }
+      }
+      if (context?.previous) queryClient.setQueryData(shopProfileQueryKey, context.previous);
       showToast(
-        err?.response?.data?.message || err?.message || t('shop_profile.follow_error', 'Impossible de suivre cette boutique.'),
+        getApiErrorMessage(err, t('shop_profile.follow_error', 'Impossible de suivre cette boutique.')),
         { variant: 'error' }
       );
     },
@@ -410,7 +511,7 @@ export default function ShopProfile() {
           : Array.from(new Set([...current, String(shop._id)]));
         updateUser({ followingShops: next });
       }
-      queryClient.setQueryData(['shop-profile', slug], (old) => {
+      queryClient.setQueryData(shopProfileQueryKey, (old) => {
         if (!old?.shop) return old;
         return {
           ...old,
@@ -432,7 +533,11 @@ export default function ShopProfile() {
 
   const reviewMutation = useMutation({
     mutationFn: async ({ rating, comment }) => {
-      const { data } = await api.post(`/shops/${shopIdentifier}/reviews`, { rating, comment });
+      const { data } = await api.post(
+        `/shops/${shopIdentifier}/reviews`,
+        { rating, comment },
+        { silentGlobalError: true }
+      );
       return data;
     },
     onSuccess: (data) => {
@@ -440,16 +545,20 @@ export default function ShopProfile() {
       setReviewError('');
       setIsEditingReview(!Boolean(data?.comment?.trim()));
       queryClient.setQueryData(['shop-user-review', shopIdentifier, userScopeId], data);
-      queryClient.invalidateQueries({ queryKey: ['shop-profile', slug] });
+      queryClient.invalidateQueries({ queryKey: shopProfileQueryKey });
       queryClient.invalidateQueries({ queryKey: ['shop-reviews', shopIdentifier] });
     },
-    onError: (err) => {
+    onError: async (err, variables) => {
+      if (isApiPossiblyCommittedError(err)) {
+        const confirmed = await verifyReviewMutation(variables || {});
+        if (confirmed) {
+          setReviewSuccess(t('shop_profile.review_saved', 'Votre avis a été enregistré.'));
+          setReviewError('');
+          return;
+        }
+      }
       setReviewSuccess('');
-      setReviewError(
-        err?.response?.data?.message ||
-          err?.message ||
-          t('shop_profile.review_error', "Impossible d'enregistrer votre avis pour l'instant.")
-      );
+      setReviewError(getApiErrorMessage(err, t('shop_profile.review_error', "Impossible d'enregistrer votre avis pour l'instant.")));
     }
   });
 
@@ -802,7 +911,7 @@ export default function ShopProfile() {
 
   const followDisabled = followMutation.isPending || !shop?._id || !shopVerifiedFlag || isOwnShop;
 
-  const isOfflineSnapshot = shopQuery.isError && Boolean(shopQuery.data);
+  const isOfflineSnapshot = shouldUseOfflineSnapshot && shopQuery.isError && Boolean(shopQuery.data);
   const isNetworkErrorWithoutResponse = Boolean(shopQuery.isError && !shop && !shopQuery.error?.response);
   const statusCode = Number(shopQuery.error?.response?.status || 0);
 
@@ -870,10 +979,17 @@ export default function ShopProfile() {
 
         {isOfflineSnapshot && (
           <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-800">
-            {t(
-              'shop_profile.offline_snapshot',
-              'Vous consultez une version hors ligne récente de cette boutique.'
-            )}
+            {offlineBannerText ||
+              t(
+                'shop_profile.offline_snapshot',
+                'Vous consultez une version hors ligne récente de cette boutique.'
+              )}
+          </div>
+        )}
+
+        {rapid3GActive && !isOfflineSnapshot && (
+          <div className="mb-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs font-medium text-sky-800">
+            {rapid3GBannerText}
           </div>
         )}
 

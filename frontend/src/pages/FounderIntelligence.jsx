@@ -1,11 +1,12 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Activity, AlertTriangle, ArrowUpRight, Crown, RefreshCcw, ShieldAlert, TrendingUp, Users } from 'lucide-react';
+import { Activity, AlertTriangle, ArrowUpRight, Crown, RefreshCcw, ShieldAlert, Sparkles, TrendingUp, Users } from 'lucide-react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import GlassCard from '../components/ui/GlassCard';
 import GlassHeader from '../components/ui/GlassHeader';
+import AppOfflineDiagnosticsCard from '../components/admin/AppOfflineDiagnosticsCard';
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('fr-FR');
 const formatPercent = (value) => `${Number(value || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`;
@@ -174,6 +175,8 @@ export default function FounderIntelligence() {
             Admin
           </Link>
         </GlassHeader>
+
+        <AppOfflineDiagnosticsCard title="Diagnostic local founder" />
 
         {error ? (
           <div className="soft-card soft-card-red rounded-2xl p-4 text-sm text-red-700 dark:text-red-100">{error}</div>

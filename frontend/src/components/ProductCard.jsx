@@ -14,6 +14,7 @@ import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import useIsMobile from '../hooks/useIsMobile';
 import { useAppSettings } from '../context/AppSettingsContext';
 import ImagePreviewModal from './media/ImagePreviewModal';
+import useNetworkProfile from '../hooks/useNetworkProfile';
 
 /**
  * 🎨 PRODUCT CARD PREMIUM HDMarket
@@ -53,9 +54,11 @@ function ProductCard({
   const longPressTriggeredRef = useRef(false);
   const pointerStartRef = useRef({ x: 0, y: 0 });
   const isMobile = useIsMobile();
+  const { rapid3GActive } = useNetworkProfile();
   // ShopProfile already decides when compact mode must be enforced.
   const useCompactMobile = Boolean(compactMobile);
   const isShopProfileCompact = Boolean(useCompactMobile && shopProfileCompact);
+  const useLiteImageMode = Boolean(rapid3GActive);
   
   const inCart = Boolean(user && cart?.items?.some((item) => item.product?._id === p._id));
   const { toggleFavorite, isFavorite } = useContext(FavoriteContext);
@@ -119,7 +122,7 @@ function ProductCard({
       img.src = src;
     };
 
-    const imagesToPreload = productImages.slice(0, 2);
+    const imagesToPreload = productImages.slice(0, useLiteImageMode ? 1 : 2);
     imagesToPreload.forEach((image, index) => {
       if (image && image !== 'https://via.placeholder.com/400x400') {
         preloadImage(image, index);
@@ -131,7 +134,7 @@ function ProductCard({
         });
       }
     });
-  }, [productImages, p.title]);
+  }, [productImages, p.title, useLiteImageMode]);
 
   // Navigate to next/previous image
   const goToNextImage = useCallback(() => {
@@ -533,71 +536,113 @@ function ProductCard({
         {shouldShowCarousel ? (
           /* Image Carousel with smooth sliding - Only when multiple images */
           <div className="relative w-full h-full overflow-hidden">
-            <div
-              className="flex h-full transition-transform duration-500 ease-in-out"
-              style={{
-                transform: `translateX(-${currentImageIndex * 100}%)`,
-                width: '100%',
-                willChange: 'transform'
-              }}
-            >
-              {productImages.map((image, index) => {
-                const isImageError = imagesLoaded[index] === false;
-                const imageSrc = isImageError ? "https://via.placeholder.com/400x400?text=HDMarket" : image;
-                const isImageLoaded = imagesLoaded[index] === true;
+            {useLiteImageMode ? (
+              <div
+                className="relative h-full w-full"
+                onPointerDown={startLongPress(currentImageIndex)}
+                onPointerMove={handleLongPressMove}
+                onPointerUp={cancelLongPress}
+                onPointerLeave={cancelLongPress}
+                onPointerCancel={cancelLongPress}
+              >
+                {imagesLoaded[currentImageIndex] !== true && imagesLoaded[currentImageIndex] !== false && (
+                  <div className="absolute inset-0 bg-gray-200 animate-pulse z-10"></div>
+                )}
+                <img
+                  src={
+                    imagesLoaded[currentImageIndex] === false
+                      ? 'https://via.placeholder.com/400x400?text=HDMarket'
+                      : productImages[currentImageIndex]
+                  }
+                  alt={`${p.title} - Image ${currentImageIndex + 1}`}
+                  className="ui-media-img ui-media-img-contain"
+                  onLoad={() => {
+                    setImagesLoaded((prev) => {
+                      if (prev[currentImageIndex] === true) return prev;
+                      return { ...prev, [currentImageIndex]: true };
+                    });
+                    if (currentImageIndex === 0) setImageLoaded(true);
+                  }}
+                  onError={() => {
+                    setImagesLoaded((prev) => {
+                      if (prev[currentImageIndex] === false) return prev;
+                      return { ...prev, [currentImageIndex]: false };
+                    });
+                    if (currentImageIndex === 0) setImageError(true);
+                  }}
+                  loading="lazy"
+                  decoding="async"
+                  fetchpriority="low"
+                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                />
+              </div>
+            ) : (
+              <div
+                className="flex h-full transition-transform duration-500 ease-in-out"
+                style={{
+                  transform: `translateX(-${currentImageIndex * 100}%)`,
+                  width: '100%',
+                  willChange: 'transform'
+                }}
+              >
+                {productImages.map((image, index) => {
+                  const isImageError = imagesLoaded[index] === false;
+                  const imageSrc = isImageError ? "https://via.placeholder.com/400x400?text=HDMarket" : image;
+                  const isImageLoaded = imagesLoaded[index] === true;
 
-                return (
-                  <div
-                    key={`${p._id}-img-${index}-${image}`}
-                    className="relative w-full h-full flex-shrink-0"
-                    style={{
-                      minWidth: '100%',
-                      width: '100%'
-                    }}
-                    onPointerDown={startLongPress(index)}
-                    onPointerMove={handleLongPressMove}
-                    onPointerUp={cancelLongPress}
-                    onPointerLeave={cancelLongPress}
-                    onPointerCancel={cancelLongPress}
-                  >
-                    {/* Show loading skeleton while image loads */}
-                    {!isImageLoaded && !isImageError && (
-                      <div className="absolute inset-0 bg-gray-200 animate-pulse z-10"></div>
-                    )}
-
-                    <img
-                      src={imageSrc}
-                      alt={`${p.title} - Image ${index + 1}`}
-                      className="ui-media-img ui-media-img-contain"
+                  return (
+                    <div
+                      key={`${p._id}-img-${index}-${image}`}
+                      className="relative w-full h-full flex-shrink-0"
                       style={{
-                        opacity: 1,
-                        visibility: 'visible',
-                        display: 'block'
+                        minWidth: '100%',
+                        width: '100%'
                       }}
-                      onLoad={() => {
-                        if (!isImageError) {
+                      onPointerDown={startLongPress(index)}
+                      onPointerMove={handleLongPressMove}
+                      onPointerUp={cancelLongPress}
+                      onPointerLeave={cancelLongPress}
+                      onPointerCancel={cancelLongPress}
+                    >
+                      {!isImageLoaded && !isImageError && (
+                        <div className="absolute inset-0 bg-gray-200 animate-pulse z-10"></div>
+                      )}
+
+                      <img
+                        src={imageSrc}
+                        alt={`${p.title} - Image ${index + 1}`}
+                        className="ui-media-img ui-media-img-contain"
+                        style={{
+                          opacity: 1,
+                          visibility: 'visible',
+                          display: 'block'
+                        }}
+                        onLoad={() => {
+                          if (!isImageError) {
+                            setImagesLoaded((prev) => {
+                              if (prev[index] === true) return prev;
+                              return { ...prev, [index]: true };
+                            });
+                          }
+                          if (index === 0) setImageLoaded(true);
+                        }}
+                        onError={() => {
                           setImagesLoaded((prev) => {
-                            if (prev[index] === true) return prev;
-                            return { ...prev, [index]: true };
+                            if (prev[index] === false) return prev;
+                            return { ...prev, [index]: false };
                           });
-                        }
-                        if (index === 0) setImageLoaded(true);
-                      }}
-                      onError={() => {
-                        setImagesLoaded((prev) => {
-                          if (prev[index] === false) return prev;
-                          return { ...prev, [index]: false };
-                        });
-                        if (index === 0) setImageError(true);
-                      }}
-                      loading="lazy"
-                      decoding="async"
-                      fetchpriority="low"
-                    />
-                  </div>
-                );
-              })}
-            </div>
+                          if (index === 0) setImageError(true);
+                        }}
+                        loading="lazy"
+                        decoding="async"
+                        fetchpriority="low"
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             {longPressPreviewEnabled ? (
               <span className="pointer-events-none absolute right-2 top-2 z-20 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm">
@@ -677,6 +722,7 @@ function ProductCard({
               loading="lazy"
               decoding="async"
               fetchpriority="low"
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             />
 
             {longPressPreviewEnabled ? (

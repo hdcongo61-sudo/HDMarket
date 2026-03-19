@@ -27,6 +27,9 @@ import categoryGroups from '../data/categories';
 import { recordProductView } from '../utils/recentViews';
 import { useToast } from '../context/ToastContext';
 import { useAppSettings } from '../context/AppSettingsContext';
+import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
+import useNetworkProfile from '../hooks/useNetworkProfile';
+import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
 const CONDITIONS = [
   { value: 'new', label: 'Neuf' },
   { value: 'used', label: 'Occasion' }
@@ -45,6 +48,14 @@ export default function AdvancedSearch() {
   const { cities } = useAppSettings();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [offlineSnapshotActive, setOfflineSnapshotActive] = useState(false);
+  const {
+    rapid3GActive,
+    compactProductsPageSize,
+    shouldUseOfflineSnapshot,
+    offlineBannerText,
+    rapid3GBannerText
+  } = useNetworkProfile();
   
   // Filter states
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
@@ -75,6 +86,7 @@ export default function AdvancedSearch() {
   const [error, setError] = useState('');
   const [totalPages, setTotalPages] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
+  const pageSize = compactProductsPageSize || PAGE_SIZE;
   const cityOptions = useMemo(() => {
     const dynamicCities = Array.isArray(cities)
       ? cities
@@ -86,6 +98,40 @@ export default function AdvancedSearch() {
     }
     return Array.from(new Set(dynamicCities));
   }, [cities, city]);
+  const snapshotKey = useMemo(
+    () =>
+      [
+        'advanced-search',
+        searchQuery || 'none',
+        category || 'all',
+        city || 'all',
+        condition || 'all',
+        minPrice || '0',
+        maxPrice || 'max',
+        certified || 'all',
+        shopVerified || 'all',
+        hasDiscount ? 'discount' : 'standard',
+        minRating || '0',
+        minFavorites || '0',
+        minSales || '0',
+        sort || 'new'
+      ].join(':'),
+    [
+      searchQuery,
+      category,
+      city,
+      condition,
+      minPrice,
+      maxPrice,
+      certified,
+      shopVerified,
+      hasDiscount,
+      minRating,
+      minFavorites,
+      minSales,
+      sort
+    ]
+  );
 
   // Build query params from filters
   const buildQueryParams = useCallback(() => {
@@ -127,7 +173,7 @@ export default function AdvancedSearch() {
         if (key !== 'page') apiParams[key] = value;
       });
       apiParams.page = page;
-      apiParams.limit = PAGE_SIZE;
+      apiParams.limit = pageSize;
 
       const { data } = await api.get('/products/public', { params: apiParams });
       const fetchedItems = Array.isArray(data) ? data : data?.items || [];
@@ -136,17 +182,38 @@ export default function AdvancedSearch() {
       setItems(fetchedItems);
       setTotalResults(pagination.total || fetchedItems.length);
       setTotalPages(Math.max(1, Number(pagination.pages) || 1));
+      setOfflineSnapshotActive(false);
     } catch (e) {
+      if (shouldUseOfflineSnapshot) {
+        const snapshot = await loadOfflineSnapshot(snapshotKey);
+        if (snapshot && typeof snapshot === 'object') {
+          setItems(Array.isArray(snapshot.items) ? snapshot.items : []);
+          setTotalResults(Number(snapshot.totalResults) || 0);
+          setTotalPages(Math.max(1, Number(snapshot.totalPages) || 1));
+          setOfflineSnapshotActive(true);
+          setError('');
+          return;
+        }
+      }
       setError(e.response?.data?.message || e.message || 'Impossible de charger les produits.');
       showToast('Erreur lors de la recherche', { variant: 'error' });
     } finally {
       setLoading(false);
     }
-  }, [buildQueryParams, page, showToast]);
+  }, [buildQueryParams, page, pageSize, shouldUseOfflineSnapshot, showToast, snapshotKey]);
 
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  useEffect(() => {
+    if (!items.length || shouldUseOfflineSnapshot) return;
+    saveOfflineSnapshot(snapshotKey, {
+      items,
+      totalResults,
+      totalPages
+    });
+  }, [items, shouldUseOfflineSnapshot, snapshotKey, totalPages, totalResults]);
 
   // Count active filters
   const activeFiltersCount = useMemo(() => {
@@ -530,6 +597,19 @@ export default function AdvancedSearch() {
 
           {/* Results */}
           <main className="flex-1 min-w-0">
+            {(offlineSnapshotActive || rapid3GActive) && (
+              <section
+                className={`mb-4 rounded-2xl border px-4 py-3 text-sm shadow-sm ${
+                  offlineSnapshotActive
+                    ? 'border-amber-200 bg-amber-50 text-amber-800'
+                    : 'border-sky-200 bg-sky-50 text-sky-800'
+                }`}
+              >
+                <p className="font-semibold">
+                  {offlineSnapshotActive ? offlineBannerText : rapid3GBannerText}
+                </p>
+              </section>
+            )}
             {/* Results Header */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -579,9 +659,15 @@ export default function AdvancedSearch() {
             </div>
 
             {/* Error */}
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-                <p className="text-sm text-red-700">{error}</p>
+            {error && !offlineSnapshotActive && (
+              <div className="mb-6">
+                <NetworkFallbackCard
+                  title="Impossible de charger les résultats."
+                  message="Le réseau est lent ou indisponible. Réessayez."
+                  onRetry={fetchProducts}
+                  retryLabel="Réessayer"
+                  refreshLabel="Actualiser la page"
+                />
               </div>
             )}
 

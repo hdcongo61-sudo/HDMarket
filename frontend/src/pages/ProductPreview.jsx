@@ -4,6 +4,8 @@ import { ArrowLeft, MessageCircle, Sparkles, Star, Heart, ShoppingCart, Store, T
 import api from '../services/api';
 import { buildProductPath } from '../utils/links';
 import useIsMobile from '../hooks/useIsMobile';
+import useNetworkProfile from '../hooks/useNetworkProfile';
+import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
 import { recordProductView } from '../utils/recentViews';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import AuthContext from '../context/AuthContext';
@@ -61,18 +63,22 @@ const buildFallbackPicks = (product, limit = 6) => {
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 const formatCount = (value) => Number(value || 0).toLocaleString('fr-FR');
+const PREVIEW_SNAPSHOT_MAX_AGE_MS = 1000 * 60 * 15;
 
 export default function ProductPreview() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const isMobileView = useIsMobile();
+  const { rapid3GActive } = useNetworkProfile();
   const authContextValue = useContext(AuthContext);
   const user = authContextValue?.user;
   const authLoading = Boolean(authContextValue?.loading);
   const [product, setProduct] = useState(null);
   const [relatedPicks, setRelatedPicks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [relatedLoading, setRelatedLoading] = useState(false);
   const [error, setError] = useState('');
+  const previewSnapshotKey = useMemo(() => `product-preview:${slug || 'unknown'}`, [slug]);
 
   useEffect(() => {
     if (isMobileView) return;
@@ -83,12 +89,36 @@ export default function ProductPreview() {
   useEffect(() => {
     if (authLoading) return;
     let active = true;
+    let networkSettled = false;
+    let snapshotHydrated = false;
+    let snapshotHadRelatedPicks = false;
+
+    const hydrateSnapshot = async () => {
+      const snapshot = await loadOfflineSnapshot(previewSnapshotKey, {
+        maxAgeMs: PREVIEW_SNAPSHOT_MAX_AGE_MS
+      });
+      if (!active || networkSettled || !snapshot || typeof snapshot !== 'object') return;
+      if (!snapshot.product || typeof snapshot.product !== 'object') return;
+
+      const cachedRelatedPicks = Array.isArray(snapshot.relatedPicks)
+        ? snapshot.relatedPicks.filter(Boolean)
+        : [];
+
+      snapshotHydrated = true;
+      snapshotHadRelatedPicks = cachedRelatedPicks.length > 0;
+      setProduct(snapshot.product);
+      setRelatedPicks(cachedRelatedPicks);
+      setError('');
+      setLoading(false);
+      setRelatedLoading(!snapshotHadRelatedPicks);
+    };
+
     const loadPreview = async () => {
       try {
         setLoading(true);
+        setRelatedLoading(false);
         setError('');
         setRelatedPicks([]);
-        const seenKeys = new Set();
 
         let data;
         try {
@@ -107,78 +137,104 @@ export default function ProductPreview() {
           throw new Error('Produit indisponible.');
         }
 
+        networkSettled = true;
         if (!active) return;
         setProduct(data);
-        const currentKey = getProductKey(data);
-        if (currentKey) seenKeys.add(currentKey);
+        setLoading(false);
+        setRelatedLoading(!snapshotHadRelatedPicks);
+        void saveOfflineSnapshot(previewSnapshotKey, { product: data, relatedPicks: [] });
 
-        let picks = [];
-        if (data?.category) {
+        const loadRecommendations = async () => {
           try {
-            const { data: relatedData } = await api.get('/products/public', {
-              params: { category: data.category, limit: 12 }
+            const seenKeys = new Set();
+            const currentKey = getProductKey(data);
+            if (currentKey) seenKeys.add(currentKey);
+
+            let picks = [];
+            const [relatedResult, boostedResult] = await Promise.allSettled([
+              data?.category
+                ? api.get('/products/public', {
+                    params: { category: data.category, limit: rapid3GActive ? 8 : 12 }
+                  })
+                : Promise.resolve(null),
+              api.get('/products/public', {
+                params: { boosted: true, limit: rapid3GActive ? 4 : 8 }
+              })
+            ]);
+
+            if (relatedResult.status === 'fulfilled') {
+              const items = Array.isArray(relatedResult.value?.data?.items)
+                ? relatedResult.value.data.items
+                : [];
+              const filtered = items.filter((item) => {
+                if (!item) return false;
+                if (data?._id && item._id && item._id === data._id) return false;
+                if (data?.slug && item.slug && item.slug === data.slug) return false;
+                return true;
+              });
+              const candidates = filtered.filter(
+                (item) => Array.isArray(item.images) && item.images.length > 0
+              );
+              const uniqueItems = filterUniqueProducts(
+                candidates.length ? candidates : filtered,
+                seenKeys
+              );
+              picks = buildRelatedPicks(uniqueItems, 6);
+            }
+
+            if (!picks.length) {
+              picks = buildFallbackPicks(data, 6);
+            }
+
+            picks.forEach((pick) => {
+              const key = getProductKey(pick?.product);
+              if (key) seenKeys.add(key);
             });
-            const items = Array.isArray(relatedData?.items) ? relatedData.items : [];
-            const filtered = items.filter((item) => {
-              if (!item) return false;
-              if (data?._id && item._id && item._id === data._id) return false;
-              if (data?.slug && item.slug && item.slug === data.slug) return false;
-              return true;
-            });
-            const candidates = filtered.filter(
-              (item) => Array.isArray(item.images) && item.images.length > 0
-            );
-            const uniqueItems = filterUniqueProducts(
-              candidates.length ? candidates : filtered,
-              seenKeys
-            );
-            picks = buildRelatedPicks(uniqueItems, 6);
-          } catch {
-            // ignore related fetch errors
+
+            if (boostedResult.status === 'fulfilled') {
+              const boostedItems = Array.isArray(boostedResult.value?.data?.items)
+                ? boostedResult.value.data.items
+                : [];
+              const boostedCandidates = boostedItems.filter(
+                (item) => Array.isArray(item?.images) && item.images.length > 0
+              );
+              const uniqueBoosted = filterUniqueProducts(boostedCandidates, seenKeys);
+              const boostedSource = uniqueBoosted.length ? uniqueBoosted : boostedCandidates;
+              const boostedPicks = buildRelatedPicks(boostedSource, rapid3GActive ? 2 : 3);
+              if (boostedPicks.length) {
+                picks = [...picks, ...boostedPicks];
+              }
+            }
+
+            if (!active) return;
+            setRelatedPicks(picks);
+            void saveOfflineSnapshot(previewSnapshotKey, { product: data, relatedPicks: picks });
+          } finally {
+            if (active) {
+              setRelatedLoading(false);
+            }
           }
-        }
+        };
 
-        if (!picks.length) {
-          picks = buildFallbackPicks(data, 6);
-        }
-
-        picks.forEach((pick) => {
-          const key = getProductKey(pick?.product);
-          if (key) seenKeys.add(key);
-        });
-
-        try {
-          const { data: boostedData } = await api.get('/products/public', {
-            params: { boosted: true, limit: 8 }
-          });
-          const boostedItems = Array.isArray(boostedData?.items) ? boostedData.items : [];
-          const boostedCandidates = boostedItems.filter(
-            (item) => Array.isArray(item?.images) && item.images.length > 0
-          );
-          const uniqueBoosted = filterUniqueProducts(boostedCandidates, seenKeys);
-          const boostedSource = uniqueBoosted.length ? uniqueBoosted : boostedCandidates;
-          const boostedPicks = buildRelatedPicks(boostedSource, 3);
-          if (boostedPicks.length) {
-            picks = [...picks, ...boostedPicks];
-          }
-        } catch {
-          // ignore boosted fetch errors
-        }
-
-        if (active) {
-          setRelatedPicks(picks);
-        }
+        void loadRecommendations();
       } catch (err) {
+        networkSettled = true;
         if (!active) return;
+        if (snapshotHydrated && err?.response?.status !== 404) {
+          setLoading(false);
+          setRelatedLoading(false);
+          return;
+        }
         setProduct(null);
         setRelatedPicks([]);
+        setRelatedLoading(false);
         setError(err.response?.data?.message || 'Produit indisponible.');
-      } finally {
-        if (active) setLoading(false);
+        setLoading(false);
       }
     };
 
     if (slug) {
+      void hydrateSnapshot();
       loadPreview();
     } else {
       setLoading(false);
@@ -188,12 +244,20 @@ export default function ProductPreview() {
     return () => {
       active = false;
     };
-  }, [authLoading, slug, user]);
+  }, [authLoading, previewSnapshotKey, rapid3GActive, slug, user]);
 
   useEffect(() => {
     if (!product?._id) return;
     recordProductView(product);
   }, [product?._id, product?.category]);
+
+  useEffect(() => {
+    const canonicalSlug = String(product?.slug || '').trim();
+    const routeSlug = String(slug || '').trim();
+    const looksLikeObjectId = /^[a-f0-9]{24}$/i.test(routeSlug);
+    if (!looksLikeObjectId || !canonicalSlug || canonicalSlug === routeSlug) return;
+    navigate(`/product-preview/${canonicalSlug}`, { replace: true });
+  }, [navigate, product?.slug, slug]);
 
   const productLink = useMemo(() => {
     if (product?.slug) return buildProductPath(product);
@@ -201,8 +265,11 @@ export default function ProductPreview() {
     return '/';
   }, [product, slug]);
   const previewBackPath = useMemo(
-    () => (slug ? `/product-preview/${slug}` : '/'),
-    [slug]
+    () => {
+      const previewSlug = String(product?.slug || slug || '').trim();
+      return previewSlug ? `/product-preview/${previewSlug}` : '/';
+    },
+    [product?.slug, slug]
   );
   const buildPreviewLink = (item) => {
     return buildProductPath(item);
@@ -373,7 +440,20 @@ export default function ProductPreview() {
 
               {/* Products Grid Enhanced */}
               <div className="p-5 sm:p-6">
-                {filteredRelatedPicks.length ? (
+                {relatedLoading ? (
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                    {[1, 2, 3, 4].map((item) => (
+                      <div
+                        key={`preview-related-skeleton-${item}`}
+                        className="animate-pulse overflow-hidden rounded-3xl border-2 border-gray-200 bg-white p-3 shadow-lg"
+                      >
+                        <div className="aspect-[4/5] w-full rounded-2xl bg-gray-200" />
+                        <div className="mt-3 h-4 w-4/5 rounded bg-gray-200" />
+                        <div className="mt-2 h-4 w-2/5 rounded bg-gray-200" />
+                      </div>
+                    ))}
+                  </div>
+                ) : filteredRelatedPicks.length ? (
                   <div className="grid grid-cols-2 gap-3 sm:gap-4">
                     {filteredRelatedPicks.map((pick, index) => {
                       const ratingAverage = Number(pick.product?.ratingAverage || 0).toFixed(1);

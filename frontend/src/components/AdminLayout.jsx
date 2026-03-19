@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { hasAnyPermission } from '../utils/permissions';
 import useAdminCounts from '../hooks/useAdminCounts';
+import useOfflineQueueStats from '../hooks/useOfflineQueueStats';
 
 const ADMIN_UI_STATE_KEY = 'hdmarket:admin-ui-state';
 const ADMIN_GROUP_ORDER = ['overview', 'commerce', 'operations', 'system', 'founder'];
@@ -188,6 +189,7 @@ export default function AdminLayout() {
   const { user } = useContext(AuthContext);
   const { t, getRuntimeValue } = useAppSettings();
   const { counts: adminCounts } = useAdminCounts(Boolean(user));
+  const { total: offlineQueueTotal } = useOfflineQueueStats();
   const storageKey = useMemo(() => buildAdminUiStateStorageKey(user), [user]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -335,7 +337,14 @@ export default function AdminLayout() {
         >
           {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
-        <span className="text-sm font-bold text-slate-900 dark:text-white">{roleLabel}</span>
+        <div className="inline-flex items-center gap-2">
+          <span className="text-sm font-bold text-slate-900 dark:text-white">{roleLabel}</span>
+          {offlineQueueTotal > 0 ? (
+            <span className="inline-flex min-w-[20px] items-center justify-center rounded-full bg-violet-500 px-1.5 py-0.5 text-[11px] font-semibold text-white">
+              {offlineQueueTotal > 99 ? '99+' : offlineQueueTotal}
+            </span>
+          ) : null}
+        </div>
         <div className="w-10" />
       </header>
 
@@ -351,9 +360,16 @@ export default function AdminLayout() {
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="border-b border-white/35 px-4 py-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-slate-900 dark:text-white">{roleLabel}</span>
+          <div className="border-b border-white/35 px-4 py-4">
+            <div className="flex items-center justify-between">
+              <div className="inline-flex items-center gap-2">
+                <span className="text-sm font-bold text-slate-900 dark:text-white">{roleLabel}</span>
+                {offlineQueueTotal > 0 ? (
+                  <span className="inline-flex min-w-[20px] items-center justify-center rounded-full bg-violet-500 px-1.5 py-0.5 text-[11px] font-semibold text-white">
+                    {offlineQueueTotal > 99 ? '99+' : offlineQueueTotal}
+                  </span>
+                ) : null}
+              </div>
             <button
               type="button"
               onClick={() => setMobileMenuOpen(false)}
@@ -388,8 +404,13 @@ export default function AdminLayout() {
             <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} gap-2`}>
               {!sidebarCollapsed ? (
                 <div className="flex min-w-0 items-center gap-2">
-                  <div className="h-9 w-9 rounded-xl bg-slate-900 flex shrink-0 items-center justify-center">
+                  <div className="relative h-9 w-9 rounded-xl bg-slate-900 flex shrink-0 items-center justify-center">
                     <BarChart3 size={18} className="text-white" />
+                    {offlineQueueTotal > 0 ? (
+                      <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-violet-500 px-1 py-0.5 text-[10px] font-semibold text-white">
+                        {offlineQueueTotal > 99 ? '99+' : offlineQueueTotal}
+                      </span>
+                    ) : null}
                   </div>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{roleLabel}</p>

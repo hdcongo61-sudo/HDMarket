@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import api, { isApiTimeoutError, verifyTransactionCodeAvailability } from '../services/api';
+import api, { isApiPossiblyCommittedError, verifyTransactionCodeAvailability } from '../services/api';
 import useCommissionRate from '../hooks/useCommissionRate';
 import {
   CreditCard,
@@ -232,11 +232,13 @@ export default function PaymentForm({ product, onSubmitted }) {
         payload.transactionNumber = digitsOnly;
       }
 
-      await api.post('/payments', payload);
+      await api.post('/payments', payload, {
+        silentGlobalError: true
+      });
       appAlert('Paiement soumis. En attente de vérification.');
       if (onSubmitted) await onSubmitted();
     } catch (error) {
-      if (isApiTimeoutError(error)) {
+      if (isApiPossiblyCommittedError(error)) {
         const alreadyRecorded = await reconcilePaymentAfterTimeout({
           productId: product?._id,
           transactionNumber: digitsOnly

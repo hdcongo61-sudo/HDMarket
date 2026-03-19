@@ -45,6 +45,14 @@ import { fetchOrderMessagePage } from '../queries/orderChatApi';
 import BaseModal from './modals/BaseModal';
 import { appConfirm } from '../utils/appDialog';
 import useReliableMutation from '../hooks/useReliableMutation';
+import useNetworkProfile from '../hooks/useNetworkProfile';
+import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
+import { createIdempotencyKey } from '../utils/idempotency';
+import {
+  enqueueOrderChatOfflineAction,
+  loadOrderChatOfflineQueue,
+  removeOrderChatOfflineAction
+} from '../utils/orderChatOfflineQueue';
 
 const formatTimestamp = (value) => {
   const date = new Date(value);
@@ -165,6 +173,8 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [messages, setMessages] = useState([]);
+  const [offlineSnapshotActive, setOfflineSnapshotActive] = useState(false);
+  const [queuedActionCount, setQueuedActionCount] = useState(0);
   const [socketConnected, setSocketConnected] = useState(false);
   const [error, setError] = useState('');
   const [messageText, setMessageText] = useState('');
@@ -225,10 +235,17 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
   const orderId = order?._id != null ? String(order._id) : (order?.id != null ? String(order.id) : null);
   const userScopeId = user?._id || user?.id;
+  const { rapid3GActive, shouldUseOfflineSnapshot, offlineBannerText, rapid3GBannerText } =
+    useNetworkProfile();
   const messageQueryKey = useMemo(
     () => orderChatKeys.messages(userScopeId, orderId),
     [orderId, userScopeId]
   );
+  const messageSnapshotKey = useMemo(
+    () => ['order-chat', userScopeId || 'guest', orderId || 'unknown'].join(':'),
+    [orderId, userScopeId]
+  );
+  const isOffline = shouldUseOfflineSnapshot || (typeof navigator !== 'undefined' && navigator.onLine === false);
 
   const upsertMessageInPages = useCallback((old, incoming) => {
     const normalized = normalizeMessage(incoming);
@@ -341,6 +358,44 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
     }
   }, [messagesQuery.error]);
 
+  useEffect(() => {
+    if (!messagesQuery.error || !shouldUseOfflineSnapshot || !isOpen) return;
+    let cancelled = false;
+    loadOfflineSnapshot(messageSnapshotKey).then((snapshot) => {
+      if (cancelled) return;
+      if (snapshot && typeof snapshot === 'object' && Array.isArray(snapshot.messages)) {
+        setMessages(dedupeMessagesById(snapshot.messages));
+        setOfflineSnapshotActive(true);
+        setError('');
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, messageSnapshotKey, messagesQuery.error, shouldUseOfflineSnapshot]);
+
+  useEffect(() => {
+    if (!isOpen || shouldUseOfflineSnapshot) return;
+    saveOfflineSnapshot(messageSnapshotKey, {
+      messages,
+      orderId,
+      savedAt: Date.now()
+    });
+    setOfflineSnapshotActive(false);
+  }, [isOpen, messageSnapshotKey, messages, orderId, shouldUseOfflineSnapshot]);
+
+  useEffect(() => {
+    if (!isOpen || !userScopeId || !orderId) return;
+    let cancelled = false;
+    loadOrderChatOfflineQueue(userScopeId, orderId).then((queue) => {
+      if (cancelled) return;
+      setQueuedActionCount(queue.length);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, orderId, userScopeId]);
+
   // Decrypt messages when encryption is enabled
   useEffect(() => {
     if (encryptionEnabled && encryptionKey && messages.length > 0) {
@@ -417,6 +472,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
   const sendMessageMutation = useReliableMutation({
     mutationFn: async ({ payload, idempotencyKey }) => {
       const { data } = await api.post(`/orders/${orderId}/messages`, payload, {
+        silentGlobalError: true,
         headers: {
           'Idempotency-Key': idempotencyKey
         }
@@ -432,6 +488,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
         },
         skipCache: true,
         skipDedupe: true,
+        silentGlobalError: true,
         headers: { 'x-skip-cache': '1', 'x-skip-dedupe': '1' },
         timeout: 12_000
       });
@@ -448,6 +505,17 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
       return { previous, tempId: optimisticMessage?._id };
     },
     onError: (err, variables, context) => {
+      if (context?.possiblyCommitted) {
+        queryClient.setQueryData(messageQueryKey, (old) =>
+          upsertMessageInPages(old, {
+            ...variables.optimisticMessage,
+            pending: true,
+            failed: false,
+            verificationPending: true
+          })
+        );
+        return;
+      }
       if (context?.previous) {
         queryClient.setQueryData(messageQueryKey, context.previous);
       }
@@ -491,6 +559,80 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
   });
 
   const sending = sendMessageMutation.isReliablePending;
+
+  const flushOfflineQueue = useCallback(async () => {
+    if (!userScopeId || !orderId) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    let queue = await loadOrderChatOfflineQueue(userScopeId, orderId);
+    if (!queue.length) {
+      setQueuedActionCount(0);
+      return;
+    }
+
+    for (const action of queue) {
+      try {
+        if (action?.type === 'send' && action?.payload) {
+          const { data } = await api.post(`/orders/${orderId}/messages`, action.payload, {
+            headers: {
+              'Idempotency-Key': action.idempotencyKey || createIdempotencyKey('chat-msg-replay')
+            }
+          });
+          const serverMessage = normalizeMessage({
+            ...data,
+            createdAt: data?.createdAt ?? new Date().toISOString()
+          });
+          queryClient.setQueryData(messageQueryKey, (old) => {
+            let next = old;
+            if (action?.tempId) {
+              next = removeMessageInPages(next, action.tempId);
+            }
+            return upsertMessageInPages(next, serverMessage);
+          });
+        } else if (action?.type === 'addReaction' && action?.messageId && action?.emoji) {
+          const { data } = await api.post(`/orders/messages/${action.messageId}/reactions`, {
+            emoji: action.emoji
+          });
+          queryClient.setQueryData(messageQueryKey, (old) =>
+            upsertMessageInPages(old, normalizeMessage(data))
+          );
+        } else if (action?.type === 'removeReaction' && action?.messageId) {
+          const { data } = await api.delete(`/orders/messages/${action.messageId}/reactions`);
+          queryClient.setQueryData(messageQueryKey, (old) =>
+            upsertMessageInPages(old, normalizeMessage(data))
+          );
+        }
+        queue = await removeOrderChatOfflineAction(userScopeId, orderId, action.queueId);
+        setQueuedActionCount(queue.length);
+      } catch (flushError) {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          break;
+        }
+        setError(flushError?.response?.data?.message || 'Impossible de synchroniser les actions hors ligne.');
+        break;
+      }
+    }
+  }, [
+    messageQueryKey,
+    orderId,
+    queryClient,
+    removeMessageInPages,
+    upsertMessageInPages,
+    userScopeId
+  ]);
+
+  useEffect(() => {
+    if (!isOpen || !userScopeId || !orderId) return;
+    if (!isOffline) {
+      flushOfflineQueue();
+    }
+    const handleOnline = () => {
+      flushOfflineQueue();
+    };
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [flushOfflineQueue, isOffline, isOpen, orderId, userScopeId]);
 
   const sendMessage = async (e, messageAttachments = null, voiceMsg = null, overrideText = null) => {
     e?.preventDefault();
@@ -584,6 +726,28 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
     setError('');
     setShowQuickReplies(false);
     shouldAutoScrollRef.current = true;
+
+    if (isOffline) {
+      const queuedMessage = {
+        ...optimisticMessage,
+        pending: false,
+        queued: true,
+        queuedAt: new Date().toISOString()
+      };
+      await queryClient.cancelQueries({ queryKey: messageQueryKey });
+      queryClient.setQueryData(messageQueryKey, (old) => upsertMessageInPages(old, queuedMessage));
+      await enqueueOrderChatOfflineAction(userScopeId, orderId, {
+        queueId: createIdempotencyKey('chat-queue'),
+        type: 'send',
+        tempId: queuedMessage._id,
+        idempotencyKey: createIdempotencyKey('chat-msg'),
+        payload
+      });
+      setQueuedActionCount((count) => count + 1);
+      setAttachments([]);
+      scrollToBottom();
+      return;
+    }
 
     await sendMessageMutation
       .mutateAsync({
@@ -796,11 +960,57 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
   const handleAddReaction = async (messageId, emoji) => {
     if (!messageId || !emoji) return;
+    if (isOffline) {
+      queryClient.setQueryData(messageQueryKey, (old) =>
+        patchMessageInPages(
+          old,
+          (m) => String(m?._id) === String(messageId),
+          (m) => {
+            const filtered = Array.isArray(m?.reactions)
+              ? m.reactions.filter((r) => String(r.userId) !== String(user?._id))
+              : [];
+            return {
+              ...m,
+              reactions: [...filtered, { userId: user?._id, emoji }]
+            };
+          }
+        )
+      );
+      await enqueueOrderChatOfflineAction(userScopeId, orderId, {
+        queueId: createIdempotencyKey('chat-reaction'),
+        type: 'addReaction',
+        messageId,
+        emoji
+      });
+      setQueuedActionCount((count) => count + 1);
+      return;
+    }
     await addReactionMutation.mutateAsync({ messageId, emoji }).catch(() => {});
   };
 
   const handleRemoveReaction = async (messageId) => {
     if (!messageId) return;
+    if (isOffline) {
+      queryClient.setQueryData(messageQueryKey, (old) =>
+        patchMessageInPages(
+          old,
+          (m) => String(m?._id) === String(messageId),
+          (m) => ({
+            ...m,
+            reactions: Array.isArray(m?.reactions)
+              ? m.reactions.filter((r) => String(r.userId) !== String(user?._id))
+              : []
+          })
+        )
+      );
+      await enqueueOrderChatOfflineAction(userScopeId, orderId, {
+        queueId: createIdempotencyKey('chat-reaction'),
+        type: 'removeReaction',
+        messageId
+      });
+      setQueuedActionCount((count) => count + 1);
+      return;
+    }
     await removeReactionMutation.mutateAsync({ messageId }).catch(() => {});
   };
 
@@ -1295,6 +1505,23 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
           </div>
         </header>
 
+        {(offlineSnapshotActive || rapid3GActive) && (
+          <div
+            className={`flex-shrink-0 border-b px-4 py-2.5 text-xs font-medium ${
+              offlineSnapshotActive
+                ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300'
+                : 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-300'
+            }`}
+          >
+            {offlineSnapshotActive ? offlineBannerText : rapid3GBannerText}
+          </div>
+        )}
+        {queuedActionCount > 0 && (
+          <div className="flex-shrink-0 border-b border-violet-200 bg-violet-50 px-4 py-2 text-xs font-medium text-violet-800 dark:border-violet-800 dark:bg-violet-900/20 dark:text-violet-300">
+            {queuedActionCount} action{queuedActionCount > 1 ? 's' : ''} en attente de connexion.
+          </div>
+        )}
+
         {/* Search panel */}
         {showSearch && (
           <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-4 py-3">
@@ -1410,7 +1637,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                 Aucun message ne correspond à « {searchQuery} »
               </p>
             </div>
-          ) : loading && messages.length === 0 ? (
+          ) : loading && messages.length === 0 && !offlineSnapshotActive ? (
             <div className="flex flex-col items-center justify-center min-h-[200px] gap-4 py-8">
               <div className="w-10 h-10 rounded-full border-2 border-gray-200 border-t-neutral-600 dark:border-gray-700 dark:border-t-neutral-500 animate-spin" />
               <p className="text-sm text-gray-500 dark:text-gray-400">Chargement des messages...</p>
@@ -1657,6 +1884,12 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                                 )}
                               </span>
                             )}
+                            {isOwnMessage && message.queued && (
+                              <span className="text-[10px] text-amber-100">En attente réseau</span>
+                            )}
+                            {isOwnMessage && isPending && message.verificationPending && (
+                              <span className="text-[10px] text-amber-100">Vérification en cours</span>
+                            )}
                             {isOwnMessage && canEditMessage(message) && !isPending && (
                               <button
                                 type="button"
@@ -1780,7 +2013,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
             </p>
           </div>
         )}
-        {error && (
+        {error && !offlineSnapshotActive && (
           <div className="flex-shrink-0 px-4 py-2.5 bg-red-50 dark:bg-red-900/20 border-t border-red-200 dark:border-red-800 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
             <p className="text-sm text-red-700 dark:text-red-300 flex-1 min-w-0">{error}</p>

@@ -1,6 +1,9 @@
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
 import { orderQueryKeys } from './useOrderQueryKeys';
+import useNetworkProfile from './useNetworkProfile';
+import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
 
 const ACTIVE_ORDER_STATUSES = new Set([
   'pending_payment',
@@ -25,28 +28,47 @@ const computeUnread = (messages = [], userId = '') => {
   ).length;
 };
 
-export const useSellerOrderDetailQuery = ({ orderId, userId, enabled = true } = {}) =>
-  useQuery({
+export const useSellerOrderDetailQuery = ({ orderId, userId, enabled = true } = {}) => {
+  const [offlineSnapshotActive, setOfflineSnapshotActive] = useState(false);
+  const { shouldUseOfflineSnapshot } = useNetworkProfile();
+  const snapshotKey = useMemo(
+    () => ['seller-order-detail', userId || 'guest', orderId || 'unknown'].join(':'),
+    [orderId, userId]
+  );
+
+  const query = useQuery({
     queryKey: orderQueryKeys.detail('seller', orderId),
     enabled: Boolean(enabled && orderId),
     queryFn: async () => {
-      const [orderResponse, messagesResponse] = await Promise.all([
-        api.get(`/orders/seller/detail/${orderId}`, {
-          skipCache: true,
-          headers: { 'x-skip-cache': '1' }
-        }),
-        api.get(`/orders/${orderId}/messages`, {
-          skipCache: true,
-          headers: { 'x-skip-cache': '1' }
-        })
-      ]);
-      const order = orderResponse?.data || null;
-      const messages = Array.isArray(messagesResponse?.data) ? messagesResponse.data : [];
-      return {
-        order,
-        unreadCount: computeUnread(messages, userId),
-        messages
-      };
+      try {
+        const [orderResponse, messagesResponse] = await Promise.all([
+          api.get(`/orders/seller/detail/${orderId}`, {
+            skipCache: true,
+            headers: { 'x-skip-cache': '1' }
+          }),
+          api.get(`/orders/${orderId}/messages`, {
+            skipCache: true,
+            headers: { 'x-skip-cache': '1' }
+          })
+        ]);
+        const order = orderResponse?.data || null;
+        const messages = Array.isArray(messagesResponse?.data) ? messagesResponse.data : [];
+        setOfflineSnapshotActive(false);
+        return {
+          order,
+          unreadCount: computeUnread(messages, userId),
+          messages
+        };
+      } catch (error) {
+        if (shouldUseOfflineSnapshot) {
+          const snapshot = await loadOfflineSnapshot(snapshotKey);
+          if (snapshot && typeof snapshot === 'object') {
+            setOfflineSnapshotActive(true);
+            return snapshot;
+          }
+        }
+        throw error;
+      }
     },
     staleTime: 10_000,
     refetchOnWindowFocus: false,
@@ -56,4 +78,15 @@ export const useSellerOrderDetailQuery = ({ orderId, userId, enabled = true } = 
     }
   });
 
+  useEffect(() => {
+    if (!query.data || shouldUseOfflineSnapshot) return;
+    saveOfflineSnapshot(snapshotKey, query.data);
+    setOfflineSnapshotActive(false);
+  }, [query.data, shouldUseOfflineSnapshot, snapshotKey]);
+
+  return {
+    ...query,
+    offlineSnapshotActive
+  };
+};
 export default useSellerOrderDetailQuery;

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertCircle,
@@ -17,11 +17,20 @@ import {
   XCircle
 } from 'lucide-react';
 import api from '../services/api';
+import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
+import AppOfflineDiagnosticsCard from '../components/admin/AppOfflineDiagnosticsCard';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
 import { appConfirm } from '../utils/appDialog';
+import useNetworkProfile from '../hooks/useNetworkProfile';
+import { createIdempotencyKey } from '../utils/idempotency';
+import {
+  enqueueAdminDeliveryOfflineAction,
+  loadAdminDeliveryOfflineQueue,
+  removeAdminDeliveryOfflineAction
+} from '../utils/adminDeliveryOfflineQueue';
 
 const STATUS_TABS = [
   { key: 'all', label: 'Toutes' },
@@ -156,7 +165,9 @@ const getDisplayDeliveryPrice = (item = {}) => {
 };
 
 export default function AdminDeliveryRequests() {
+  const { user } = useContext(AuthContext);
   const { cities, communes, getRuntimeValue } = useAppSettings();
+  const { shouldUseOfflineSnapshot } = useNetworkProfile();
   const platformDeliveryEnabled =
     String(getRuntimeValue('enable_platform_delivery', false)) === 'true' ||
     getRuntimeValue('enable_platform_delivery', false) === true;
@@ -197,6 +208,8 @@ export default function AdminDeliveryRequests() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [savingAction, setSavingAction] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [queuedAssignActionCount, setQueuedAssignActionCount] = useState(0);
+  const [assignQueueSyncing, setAssignQueueSyncing] = useState(false);
   const [proofModalOpen, setProofModalOpen] = useState(false);
   const [proofType, setProofType] = useState('pickup');
   const [proofPhoto, setProofPhoto] = useState(null);
@@ -213,6 +226,7 @@ export default function AdminDeliveryRequests() {
   const [priceError, setPriceError] = useState('');
   const [creatingForOrderId, setCreatingForOrderId] = useState('');
   const [capturingCoords, setCapturingCoords] = useState({ requestId: '', type: null }); // 'pickup' | 'dropoff'
+  const userScopeId = useMemo(() => String(user?._id || user?.id || user?.email || 'admin').trim(), [user]);
 
   const communeOptions = useMemo(
     () => (Array.isArray(communes) ? communes.filter((entry) => entry?.isActive !== false) : []),
@@ -343,6 +357,70 @@ export default function AdminDeliveryRequests() {
     }
   }, []);
 
+  const patchRequestItem = useCallback((requestId, updater) => {
+    setItems((prev) =>
+      prev.map((entry) => {
+        if (String(entry?._id || '') !== String(requestId || '')) return entry;
+        return typeof updater === 'function' ? updater(entry) : { ...entry, ...updater };
+      })
+    );
+  }, []);
+
+  const syncQueuedAssignActionCount = useCallback(async () => {
+    if (!userScopeId) {
+      setQueuedAssignActionCount(0);
+      return;
+    }
+    const queue = await loadAdminDeliveryOfflineQueue(userScopeId);
+    const assignQueue = queue.filter((entry) => String(entry?.actionType || '') === 'assign-delivery-guy');
+    setQueuedAssignActionCount(assignQueue.length);
+  }, [userScopeId]);
+
+  const flushQueuedAssignActions = useCallback(async () => {
+    if (!userScopeId) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    let queue = await loadAdminDeliveryOfflineQueue(userScopeId);
+    queue = queue.filter((entry) => String(entry?.actionType || '') === 'assign-delivery-guy');
+    setQueuedAssignActionCount(queue.length);
+    if (!queue.length) return;
+    setAssignQueueSyncing(true);
+    try {
+      for (const action of queue) {
+        try {
+          await api.patch(
+            `/admin/delivery-requests/${action.requestId}/assign-delivery-guy`,
+            { deliveryGuyId: action.deliveryGuyId },
+            {
+              headers: {
+                'Idempotency-Key':
+                  action.idempotencyKey || createIdempotencyKey('admin-delivery-assign-replay')
+              }
+            }
+          );
+          await removeAdminDeliveryOfflineAction(userScopeId, action.queueId);
+          await syncQueuedAssignActionCount();
+          window.dispatchEvent(new Event('hdmarket:orders-refresh'));
+        } catch (error) {
+          if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            break;
+          }
+          setActionError(
+            error?.response?.data?.message || 'Impossible de synchroniser certaines assignations de livreur.'
+          );
+          break;
+        }
+      }
+    } finally {
+      setAssignQueueSyncing(false);
+      await Promise.all([loadDeliveryRequests({ silent: true }), loadDeliveryAnalytics({ silent: true })]);
+    }
+  }, [
+    loadDeliveryAnalytics,
+    loadDeliveryRequests,
+    syncQueuedAssignActionCount,
+    userScopeId
+  ]);
+
   const handleCreateRequestForOrder = useCallback(
     async (orderId) => {
       if (!orderId) return;
@@ -447,6 +525,31 @@ export default function AdminDeliveryRequests() {
   }, [deliveryRequestsEnabled, loadDeliveryGuys, platformDeliveryEnabled]);
 
   useEffect(() => {
+    syncQueuedAssignActionCount();
+    const handleQueueChange = () => {
+      syncQueuedAssignActionCount();
+    };
+    window.addEventListener('hdmarket:offline-queue-changed', handleQueueChange);
+    return () => {
+      window.removeEventListener('hdmarket:offline-queue-changed', handleQueueChange);
+    };
+  }, [syncQueuedAssignActionCount]);
+
+  useEffect(() => {
+    if (!userScopeId) return;
+    if (!shouldUseOfflineSnapshot) {
+      flushQueuedAssignActions();
+    }
+    const handleOnline = () => {
+      flushQueuedAssignActions();
+    };
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [flushQueuedAssignActions, shouldUseOfflineSnapshot, userScopeId]);
+
+  useEffect(() => {
     setPage(1);
   }, [
     statusTab,
@@ -549,10 +652,40 @@ export default function AdminDeliveryRequests() {
       setActionError('Choisissez un livreur.');
       return;
     }
+    const requestId = String(selectedItem._id);
+    const nextDeliveryGuy = deliveryGuys.find((entry) => String(entry?._id || '') === String(selectedDeliveryGuyId)) || null;
+
+    if (shouldUseOfflineSnapshot && userScopeId) {
+      setSavingAction(true);
+      setActionError('');
+      try {
+        await enqueueAdminDeliveryOfflineAction(userScopeId, {
+          queueId: createIdempotencyKey('admin-delivery-assign-queue'),
+          actionType: 'assign-delivery-guy',
+          requestId,
+          deliveryGuyId: selectedDeliveryGuyId,
+          idempotencyKey: createIdempotencyKey('admin-delivery-assign')
+        });
+        patchRequestItem(requestId, (entry) => ({
+          ...entry,
+          assignedDeliveryGuyId: nextDeliveryGuy || entry?.assignedDeliveryGuyId || selectedDeliveryGuyId,
+          assignmentStatus: String(entry?.assignmentStatus || 'PENDING').toUpperCase() || 'PENDING'
+        }));
+        await syncQueuedAssignActionCount();
+        closeAllModals();
+        window.dispatchEvent(new Event('hdmarket:orders-refresh'));
+        return;
+      } catch (err) {
+        setActionError(err?.response?.data?.message || 'Impossible de mettre l’assignation en attente locale.');
+        setSavingAction(false);
+        return;
+      }
+    }
+
     setSavingAction(true);
     setActionError('');
     try {
-      await api.patch(`/admin/delivery-requests/${selectedItem._id}/assign-delivery-guy`, {
+      await api.patch(`/admin/delivery-requests/${requestId}/assign-delivery-guy`, {
         deliveryGuyId: selectedDeliveryGuyId
       });
       closeAllModals();
@@ -788,6 +921,20 @@ export default function AdminDeliveryRequests() {
                 </Link>
               </div>
             </div>
+            <div className="mt-3">
+              <AppOfflineDiagnosticsCard title="Diagnostic local logistique" />
+            </div>
+            {assignQueueSyncing || queuedAssignActionCount > 0 ? (
+              <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-medium text-violet-800">
+                <span
+                  className={`inline-block h-2 w-2 rounded-full ${assignQueueSyncing ? 'animate-pulse bg-violet-500' : 'bg-violet-500/80'}`}
+                  aria-hidden="true"
+                />
+                {assignQueueSyncing
+                  ? 'Synchronisation des assignations de livreur en attente...'
+                  : `${queuedAssignActionCount} assignation(s) de livreur en attente de connexion.`}
+              </div>
+            ) : null}
           </div>
         </header>
 

@@ -852,6 +852,14 @@ export const isApiTimeoutError = (error) =>
       /timeout/i.test(String(error?.message || ''))
   );
 
+export const isApiPossiblyCommittedError = (error) =>
+  Boolean(
+    error?.possiblyCommitted ||
+      isApiTimeoutError(error) ||
+      (Number(error?.response?.status || 0) === 0 &&
+        MUTATION_METHODS.has(String(error?.config?.method || '').toLowerCase()))
+  );
+
 export const isApiCanceledError = (error) =>
   Boolean(
     error?.isCanceled ||

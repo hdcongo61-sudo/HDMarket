@@ -18,6 +18,8 @@ import { buildProductPath, buildShopPath } from "../utils/links";
 import AuthContext from "../context/AuthContext";
 import { useAppSettings } from "../context/AppSettingsContext";
 import BaseModal, { ModalBody, ModalHeader } from "../components/modals/BaseModal";
+import useNetworkProfile from "../hooks/useNetworkProfile";
+import { loadOfflineSnapshot, saveOfflineSnapshot } from "../utils/offlineSnapshots";
 
 const normalizeCityName = (value) =>
   typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -144,6 +146,7 @@ export default function Home() {
   } = useAppSettings();
   // === ÉTATS PRINCIPAUX ===
   const [items, setItems] = useState([]);
+  const [offlineSnapshotActive, setOfflineSnapshotActive] = useState(false);
   const [certifiedProducts, setCertifiedProducts] = useState([]);
   const [category, setCategory] = useState("");
   const [sort, setSort] = useState("new");
@@ -203,6 +206,14 @@ export default function Home() {
   const [shouldLoadInstallment, setShouldLoadInstallment] = useState(false);
   const installmentSectionRef = useRef(null);
   const infiniteScrollLockRef = useRef(0);
+const {
+  rapid3GActive,
+  compactProductsPageSize,
+  compactSecondaryLimit,
+  shouldUseOfflineSnapshot,
+  offlineBannerText,
+  rapid3GBannerText
+} = useNetworkProfile();
 const cityList = useMemo(
   () => (Array.isArray(configuredCities) ? configuredCities.map((item) => item.name).filter(Boolean) : []),
   [configuredCities]
@@ -243,6 +254,28 @@ const fullPaymentBannerText =
       'Payez le montant total au checkout et profitez de la livraison offerte.'
     ) || ''
   ).trim() || 'Payez le montant total au checkout et profitez de la livraison offerte.';
+const primaryPageLimit = compactProductsPageSize || 12;
+const secondarySectionLimit = compactSecondaryLimit || 6;
+const homeSnapshotKey = useMemo(
+  () =>
+    [
+      'home',
+      isMobileView ? 'mobile' : 'desktop',
+      effectiveUserCity || 'all',
+      category || 'all',
+      sort || 'new',
+      installmentOnlyFilter ? 'installment' : 'standard',
+      nearMeOnlyFilter ? 'nearme' : 'all'
+    ].join(':'),
+  [
+    category,
+    effectiveUserCity,
+    installmentOnlyFilter,
+    isMobileView,
+    nearMeOnlyFilter,
+    sort
+  ]
+);
 const formatCountdown = (endDate, nowMs = Date.now()) => {
   const endMs = new Date(endDate || '').getTime();
   if (!Number.isFinite(endMs) || endMs <= nowMs) return t('home.expired', 'Expiré');
@@ -291,7 +324,7 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
     }
     setLoadMoreError('');
     try {
-      const requestParams = { page, limit: 12, sort };
+      const requestParams = { page, limit: primaryPageLimit, sort };
       if (category) requestParams.category = category;
       if (installmentOnlyFilter) requestParams.installmentOnly = true;
       if (hasUserCity) {
@@ -310,9 +343,22 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
       setItems((prev) => (isMobileView && page > 1 ? [...prev, ...fetchedItems] : fetchedItems));
       setTotalPages(pages);
       setTotalProducts(total);
+      setOfflineSnapshotActive(false);
     } catch (error) {
       if (isApiCanceledError(error)) {
         return;
+      }
+      if (shouldUseOfflineSnapshot) {
+        const snapshot = await loadOfflineSnapshot(homeSnapshotKey);
+        if (snapshot && typeof snapshot === 'object') {
+          setItems(Array.isArray(snapshot.items) ? snapshot.items : []);
+          setTotalPages(Math.max(1, Number(snapshot.totalPages) || 1));
+          setTotalProducts(Number(snapshot.totalProducts) || 0);
+          setOfflineSnapshotActive(true);
+          setProductsError('');
+          setLoadMoreError('');
+          return;
+        }
       }
       const slowNetworkMessage = 'Network is slow, please retry.';
       if (isMobileView && page > 1) {
@@ -323,13 +369,25 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
     } finally {
       setLoading(false);
     }
-  }, [page, sort, category, installmentOnlyFilter, hasUserCity, nearMeOnlyFilter, isMobileView, effectiveUserCity]);
+  }, [
+    page,
+    sort,
+    category,
+    installmentOnlyFilter,
+    hasUserCity,
+    nearMeOnlyFilter,
+    isMobileView,
+    effectiveUserCity,
+    primaryPageLimit,
+    shouldUseOfflineSnapshot,
+    homeSnapshotKey
+  ]);
 
   const loadInstallmentProducts = useCallback(async () => {
     setInstallmentLoading(true);
     try {
       const { data } = await api.get('/products/public/installments', {
-        params: { page: 1, limit: 8 }
+        params: { page: 1, limit: compactSecondaryLimit || 8 }
       });
       setInstallmentProducts(Array.isArray(data?.items) ? data.items : []);
     } catch (error) {
@@ -338,14 +396,14 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
     } finally {
       setInstallmentLoading(false);
     }
-  }, []);
+  }, [compactSecondaryLimit]);
 
   const loadWholesaleProducts = useCallback(async () => {
     setWholesaleLoading(true);
     try {
       const params = {
         page: 1,
-        limit: isMobileView ? 8 : 10
+        limit: compactSecondaryLimit || (isMobileView ? 8 : 10)
       };
       if (hasUserCity && effectiveUserCity) {
         params.userCity = effectiveUserCity;
@@ -359,7 +417,7 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
     } finally {
       setWholesaleLoading(false);
     }
-  }, [effectiveUserCity, hasUserCity, isMobileView]);
+  }, [compactSecondaryLimit, effectiveUserCity, hasUserCity, isMobileView]);
 
   const loadCertifiedProducts = useCallback(async () => {
     try {
@@ -367,7 +425,7 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
         params: {
           certified: true,
           sort: "new",
-          limit: 8,
+          limit: compactSecondaryLimit || 8,
           page: 1
         }
       });
@@ -381,7 +439,7 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
         error
       );
     }
-  }, []);
+  }, [compactSecondaryLimit]);
 
   useEffect(() => {
     let active = true;
@@ -492,13 +550,13 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
       const { data } = await api.get('/shops', {
         params: {
           verified: 'true',
-          limit: 6,
+          limit: secondarySectionLimit,
           withViews: 'false',
           withRatings: 'false'
         }
       });
       const verifiedOnly = Array.isArray(data) ? data : [];
-      setVerifiedShops(verifiedOnly.slice(0, 6));
+      setVerifiedShops(verifiedOnly.slice(0, secondarySectionLimit));
     } catch (error) {
       console.error("Erreur chargement boutiques vérifiées:", error);
       setVerifiedShops([]);
@@ -512,7 +570,10 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
     setFlashDealsLoading(true);
     try {
       const { data } = await api.get('/marketplace-promo-codes/public/home', {
-        params: { shopLimit: 8, flashLimit: 8 }
+        params: {
+          shopLimit: compactSecondaryLimit || 8,
+          flashLimit: compactSecondaryLimit || 8
+        }
       });
       setPromoShops(Array.isArray(data?.promoShops) ? data.promoShops : []);
       setFlashDeals(Array.isArray(data?.flashDeals) ? data.flashDeals : []);
@@ -534,7 +595,7 @@ const loadDiscountProducts = async () => {
     const { data } = await api.get("/products/public", { 
       params: { 
         sort: 'discount',
-        limit: 8,
+        limit: compactSecondaryLimit || 8,
         page: 1
       } 
     });
@@ -547,7 +608,7 @@ const loadDiscountProducts = async () => {
     );
     
     const shuffled = [...realDiscountProducts].sort(() => Math.random() - 0.5);
-    setDiscountProducts(shuffled.slice(0, 4));
+    setDiscountProducts(shuffled.slice(0, Math.min(4, compactSecondaryLimit || 4)));
   } catch (error) {
     console.error("Erreur chargement produits en promotion:", error);
   } finally {
@@ -687,7 +748,7 @@ const loadDiscountProducts = async () => {
     setTopSalesLoading(true);
     try {
       const { data } = await api.get('/products/public/top-sales', {
-        params: { limit: 6, page: 1 }
+        params: { limit: secondarySectionLimit, page: 1 }
       });
       const items = Array.isArray(data?.items) ? data.items : [];
       setTopSalesProducts(items);
@@ -708,7 +769,11 @@ const loadDiscountProducts = async () => {
     setTopSalesCityTodayLoading(true);
     try {
       const { data } = await api.get('/products/public/top-sales/today', {
-        params: { city: effectiveUserCity, limit: isMobileView ? 8 : 6, page: 1 }
+        params: {
+          city: effectiveUserCity,
+          limit: compactSecondaryLimit || (isMobileView ? 8 : 6),
+          page: 1
+        }
       });
       const items = Array.isArray(data?.items) ? data.items : [];
       setTopSalesCityTodayProducts(items);
@@ -718,7 +783,7 @@ const loadDiscountProducts = async () => {
     } finally {
       setTopSalesCityTodayLoading(false);
     }
-  }, [hasUserCity, isMobileView, effectiveUserCity]);
+  }, [compactSecondaryLimit, effectiveUserCity, hasUserCity, isMobileView]);
 
   useEffect(() => {
     loadHighlights();
@@ -744,6 +809,16 @@ const loadDiscountProducts = async () => {
     }, 1000);
     return () => clearInterval(timer);
   }, [flashDeals.length]);
+
+  useEffect(() => {
+    if (!items.length) return;
+    if (shouldUseOfflineSnapshot) return;
+    saveOfflineSnapshot(homeSnapshotKey, {
+      items,
+      totalPages,
+      totalProducts
+    });
+  }, [homeSnapshotKey, items, shouldUseOfflineSnapshot, totalPages, totalProducts]);
 
   const cityHighlights = highlights.cityHighlights || {};
   const cityFallbackProductsByCity = useMemo(() => {
@@ -2426,6 +2501,21 @@ const loadDiscountProducts = async () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50">
       <MobileSplash visible={showMobileSplash} logoSrc={appLogoMobile} label="HDMarket" />
+      {(offlineSnapshotActive || rapid3GActive) && (
+        <div className="mx-auto max-w-7xl px-2 pt-3 sm:px-4 lg:px-8">
+          <section
+            className={`rounded-2xl border px-4 py-3 text-sm shadow-sm ${
+              offlineSnapshotActive
+                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                : 'border-sky-200 bg-sky-50 text-sky-800'
+            }`}
+          >
+            <p className="font-semibold">
+              {offlineSnapshotActive ? offlineBannerText : rapid3GBannerText}
+            </p>
+          </section>
+        </div>
+      )}
       {isMobileView ? renderMobileHome() : renderDesktopHome()}
 
       {/* Category Modal (shared between mobile and desktop) */}

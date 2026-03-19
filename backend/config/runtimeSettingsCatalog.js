@@ -77,6 +77,54 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     isPublic: true,
     maxLength: 180
   },
+  enable_rapid_3g_mode: {
+    category: 'ui',
+    description: 'Active les optimisations de chargement pour connexions 3G lentes et mode économie de données.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  rapid_3g_products_page_size: {
+    category: 'ui',
+    description: 'Nombre max de produits chargés par requête catalogue en mode Rapide 3G.',
+    valueType: 'number',
+    defaultValue: 8,
+    isPublic: true,
+    min: 4,
+    max: 20
+  },
+  rapid_3g_secondary_limit: {
+    category: 'ui',
+    description: 'Nombre max d’éléments chargés pour les sections secondaires en mode Rapide 3G.',
+    valueType: 'number',
+    defaultValue: 4,
+    isPublic: true,
+    min: 2,
+    max: 12
+  },
+  rapid_3g_banner_text: {
+    category: 'ui',
+    description: 'Texte du bandeau informatif lorsque le mode Rapide 3G est actif.',
+    valueType: 'string',
+    defaultValue: 'Mode Rapide 3G actif. Les contenus lourds sont allégés pour accélérer le chargement.',
+    isPublic: true,
+    maxLength: 180
+  },
+  enable_offline_browsing: {
+    category: 'ui',
+    description: 'Autorise la navigation catalogue via données en cache hors ligne.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  offline_browsing_banner_text: {
+    category: 'ui',
+    description: 'Texte du bandeau affiché lorsque la navigation hors ligne utilise des données en cache.',
+    valueType: 'string',
+    defaultValue: 'Mode hors ligne actif. Vous consultez les dernières données mises en cache.',
+    isPublic: true,
+    maxLength: 180
+  },
   review_required: {
     category: 'order_automation',
     description: 'Demander un avis avant clôture définitive.',

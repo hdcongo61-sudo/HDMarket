@@ -32,6 +32,9 @@ import {
 } from 'lucide-react';
 import VerifiedBadge from '../components/VerifiedBadge';
 import BaseModal, { ModalBody, ModalHeader } from '../components/modals/BaseModal';
+import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
+
+const VERIFIED_SHOPS_SNAPSHOT_MAX_AGE_MS = 1000 * 60 * 15;
 
 export default function VerifiedShops() {
   const { user } = useContext(AuthContext);
@@ -86,13 +89,32 @@ export default function VerifiedShops() {
   const [shopProducts, setShopProducts] = useState(new Map()); // Map<shopId, products[]>
   const [allShopsModalOpen, setAllShopsModalOpen] = useState(false);
   const [allShopsSearch, setAllShopsSearch] = useState('');
+  const verifiedShopsSnapshotKey = useMemo(
+    () => `verified-shops:${selectedCity || 'all'}:${isAdmin ? 'admin' : 'public'}`,
+    [isAdmin, selectedCity]
+  );
 
   useEffect(() => {
     let active = true;
     const fetchShops = async () => {
-      setLoading(true);
-      setError('');
+      let snapshotHydrated = false;
       try {
+        const snapshot = await loadOfflineSnapshot(verifiedShopsSnapshotKey, {
+          maxAgeMs: VERIFIED_SHOPS_SNAPSHOT_MAX_AGE_MS
+        });
+        if (snapshot && typeof snapshot === 'object' && active) {
+          setShops(Array.isArray(snapshot.shops) ? snapshot.shops : []);
+          setPendingShops(Array.isArray(snapshot.pendingShops) ? snapshot.pendingShops : []);
+          setAdminMeta(snapshot.adminMeta && typeof snapshot.adminMeta === 'object' ? snapshot.adminMeta : {});
+          setShopProducts(new Map(Array.isArray(snapshot.shopProducts) ? snapshot.shopProducts : []));
+          setError('');
+          setLoading(false);
+          snapshotHydrated = true;
+        } else {
+          setLoading(true);
+          setError('');
+        }
+
         const { data: allShops } = await api.get('/shops', {
           params: {
             withImages: true,
@@ -106,52 +128,57 @@ export default function VerifiedShops() {
         if (!active) return;
         setShops(verifiedList);
         setPendingShops(unverifiedList);
+        if (!snapshotHydrated) {
+          setShopProducts(new Map());
+          setAdminMeta({});
+        }
+        setLoading(false);
 
-        // Fetch products for each shop
-        const productsMap = new Map();
-        await Promise.all(
+        void Promise.all(
           verifiedList.slice(0, 20).map(async (shop) => {
             try {
               const shopId = shop.slug || shop._id;
-              if (!shopId) return;
+              if (!shopId) return null;
               const { data: shopData } = await api.get(`/shops/${shopId}`, {
                 params: { limit: 6 }
               });
-              if (active && shopData?.products) {
-                const products = Array.isArray(shopData.products) ? shopData.products : [];
-                productsMap.set(shop._id, products.slice(0, 6));
-              }
-            } catch (err) {
-              // Ignore individual shop errors
+              const products = Array.isArray(shopData?.products) ? shopData.products.slice(0, 6) : [];
+              return [shop._id, products];
+            } catch {
+              return [shop._id, []];
             }
           })
-        );
-        if (active) {
-          setShopProducts(productsMap);
-        }
+        ).then((entries) => {
+          if (!active) return;
+          setShopProducts(new Map(entries.filter(Boolean)));
+        });
 
         if (isAdmin) {
-          try {
-            const { data: adminData } = await api.get('/admin/shops/verified');
-            if (!active) return;
-            const map = {};
-            (adminData || []).forEach((item) => {
-              map[item.id] = item;
+          void api
+            .get('/admin/shops/verified')
+            .then(({ data: adminData }) => {
+              if (!active) return;
+              const map = {};
+              (adminData || []).forEach((item) => {
+                map[item.id] = item;
+              });
+              setAdminMeta(map);
+            })
+            .catch((adminError) => {
+              console.error('Erreur chargement meta admin:', adminError);
             });
-            setAdminMeta(map);
-          } catch (adminError) {
-            console.error('Erreur chargement meta admin:', adminError);
-          }
         } else {
           setAdminMeta({});
         }
       } catch (e) {
         if (!active) return;
         setError(e.response?.data?.message || e.message || 'Impossible de charger les boutiques.');
-        setShops([]);
-        setPendingShops([]);
+        if (!snapshotHydrated) {
+          setShops([]);
+          setPendingShops([]);
+        }
       } finally {
-        if (active) setLoading(false);
+        if (active && !snapshotHydrated) setLoading(false);
       }
     };
 
@@ -159,7 +186,17 @@ export default function VerifiedShops() {
     return () => {
       active = false;
     };
-  }, [isAdmin, selectedCity]);
+  }, [isAdmin, selectedCity, verifiedShopsSnapshotKey]);
+
+  useEffect(() => {
+    if (loading && !shops.length && !pendingShops.length) return;
+    saveOfflineSnapshot(verifiedShopsSnapshotKey, {
+      shops,
+      pendingShops,
+      adminMeta,
+      shopProducts: Array.from(shopProducts.entries())
+    });
+  }, [adminMeta, loading, pendingShops, shopProducts, shops, verifiedShopsSnapshotKey]);
 
   const pageTitle = useMemo(
     () => (isAdmin ? 'Boutiques vérifiées (Admin)' : 'Boutiques vérifiées'),
@@ -392,7 +429,7 @@ export default function VerifiedShops() {
           </div>
         </div>
 
-        {loading ? (
+        {loading && !shops.length ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
               <div key={i} className="bg-white rounded-2xl border border-gray-200 p-4 animate-pulse">
@@ -411,7 +448,7 @@ export default function VerifiedShops() {
               </div>
             ))}
           </div>
-        ) : error ? (
+        ) : error && !shops.length ? (
           <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-6 text-center">
             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
               <Shield className="w-6 h-6 text-red-600" />

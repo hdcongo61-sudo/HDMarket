@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import api from '../services/api';
+import api, { isApiPossiblyCommittedError } from '../services/api';
 import {
   ClipboardList,
   Package,
@@ -1211,6 +1211,7 @@ export default function UserOrders() {
         `/orders/${orderId}/status`,
         { status: 'cancelled' },
         {
+          silentGlobalError: true,
           headers: {
             'Idempotency-Key': idempotencyKey
           }
@@ -1223,6 +1224,7 @@ export default function UserOrders() {
       const { data } = await api.get(`/orders/detail/${orderId}`, {
         skipCache: true,
         skipDedupe: true,
+        silentGlobalError: true,
         headers: { 'x-skip-cache': '1', 'x-skip-dedupe': '1' },
         timeout: 12_000
       });
@@ -1271,6 +1273,10 @@ export default function UserOrders() {
     try {
       await cancelOrderMutation.mutateAsync({ orderId });
     } catch (err) {
+      if (isApiPossiblyCommittedError(err)) {
+        appAlert('Réseau lent ou interrompu. Vérification automatique en cours. Vérifiez le statut avant de renvoyer.');
+        return;
+      }
       appAlert(err.response?.data?.message || 'Impossible d\'annuler la commande.');
     }
   };

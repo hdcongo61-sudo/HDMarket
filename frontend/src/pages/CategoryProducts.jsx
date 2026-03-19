@@ -5,6 +5,9 @@ import ProductCard from '../components/ProductCard';
 import categoryGroups, { getCategoryMeta } from '../data/categories';
 import { ChevronRight, ArrowLeft } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
+import useNetworkProfile from '../hooks/useNetworkProfile';
+import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
 
 const SORT_OPTIONS = [
   { value: 'new', label: 'Plus récents' },
@@ -24,6 +27,7 @@ export default function CategoryProducts() {
   const infiniteScrollLockRef = useRef(0);
 
   const [items, setItems] = useState([]);
+  const [offlineSnapshotActive, setOfflineSnapshotActive] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [loadMoreError, setLoadMoreError] = useState('');
@@ -33,6 +37,24 @@ export default function CategoryProducts() {
   const [totalPages, setTotalPages] = useState(1);
   const [isMobileView, setIsMobileView] = useState(() =>
     typeof window === 'undefined' ? false : window.innerWidth <= 767
+  );
+  const {
+    rapid3GActive,
+    compactProductsPageSize,
+    shouldUseOfflineSnapshot,
+    offlineBannerText,
+    rapid3GBannerText
+  } = useNetworkProfile();
+  const pageSize = compactProductsPageSize || 12;
+  const snapshotKey = useMemo(
+    () =>
+      [
+        'category-products',
+        categoryMeta?.value || categoryId || 'unknown',
+        isMobileView ? 'mobile' : 'desktop',
+        sort || 'new'
+      ].join(':'),
+    [categoryId, categoryMeta?.value, isMobileView, sort]
   );
 
   useEffect(() => {
@@ -105,7 +127,7 @@ export default function CategoryProducts() {
             category: categoryMeta.value,
             sort,
             page,
-            limit: 12
+            limit: pageSize
           },
           signal: controller.signal
         });
@@ -117,9 +139,21 @@ export default function CategoryProducts() {
           isMobileView && page > 1 ? [...prev, ...fetched] : fetched
         );
         setTotalPages(Math.max(1, Number(pagination.pages) || 1));
+        setOfflineSnapshotActive(false);
       } catch (e) {
         if (controller.signal.aborted) return;
         if (isApiCanceledError(e)) return;
+        if (shouldUseOfflineSnapshot) {
+          const snapshot = await loadOfflineSnapshot(snapshotKey);
+          if (snapshot && typeof snapshot === 'object') {
+            setItems(Array.isArray(snapshot.items) ? snapshot.items : []);
+            setTotalPages(Math.max(1, Number(snapshot.totalPages) || 1));
+            setOfflineSnapshotActive(true);
+            setError('');
+            setLoadMoreError('');
+            return;
+          }
+        }
         const message =
           e.response?.data?.message || e.message || 'Impossible de charger les produits de cette catégorie.';
         if (isMobileView && page > 1) {
@@ -138,12 +172,21 @@ export default function CategoryProducts() {
       active = false;
       controller.abort();
     };
-  }, [categoryMeta, sort, page, isMobileView, loadMoreRetryTick]);
+  }, [categoryMeta, sort, page, isMobileView, loadMoreRetryTick, pageSize, shouldUseOfflineSnapshot, snapshotKey]);
 
   useEffect(() => {
     setItems([]);
     setTotalPages(1);
   }, [categoryMeta, sort]);
+
+  useEffect(() => {
+    if (!items.length) return;
+    if (shouldUseOfflineSnapshot) return;
+    saveOfflineSnapshot(snapshotKey, {
+      items,
+      totalPages
+    });
+  }, [items, shouldUseOfflineSnapshot, snapshotKey, totalPages]);
 
   useEffect(() => {
     if (!isMobileView) return;
@@ -250,6 +293,19 @@ export default function CategoryProducts() {
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-8 py-6 space-y-6 sm:py-8 sm:space-y-8 pb-24 md:pb-16">
       <header className="space-y-4">
+        {(offlineSnapshotActive || rapid3GActive) && (
+          <section
+            className={`rounded-2xl border px-4 py-3 text-sm shadow-sm ${
+              offlineSnapshotActive
+                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                : 'border-sky-200 bg-sky-50 text-sky-800'
+            }`}
+          >
+            <p className="font-semibold">
+              {offlineSnapshotActive ? offlineBannerText : rapid3GBannerText}
+            </p>
+          </section>
+        )}
         <nav className="flex items-center gap-1 text-xs text-gray-500">
           <Link to="/" className="hover:text-neutral-600 font-medium">
             Accueil
@@ -318,9 +374,13 @@ export default function CategoryProducts() {
       </header>
 
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
+        <NetworkFallbackCard
+          title="Unable to load data."
+          message={error}
+          onRetry={() => setLoadMoreRetryTick((tick) => tick + 1)}
+          retryLabel="Retry"
+          refreshLabel="Refresh page"
+        />
       )}
 
       {loading && page === 1 ? (

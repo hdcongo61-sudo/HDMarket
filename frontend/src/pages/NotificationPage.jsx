@@ -26,6 +26,8 @@ import NotificationSkeleton from '../components/notifications/NotificationSkelet
 import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
 import { useAppSettings } from '../context/AppSettingsContext';
 import GlassHeader from '../components/ui/GlassHeader';
+import useNetworkProfile from '../hooks/useNetworkProfile';
+import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
 
 const SELLER_ORDER_NOTIFICATION_TYPES = new Set([
   'order_received',
@@ -274,11 +276,20 @@ export default function NotificationPage() {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
   const { t, language } = useAppSettings();
+  const [offlineSnapshotActive, setOfflineSnapshotActive] = useState(false);
+  const [snapshotCounts, setSnapshotCounts] = useState(null);
   const { counts, loading, error, refresh, updateCounts } = useUserNotifications(Boolean(user), {
     skipRefreshEvent: true
   });
-  const alerts = Array.isArray(counts?.alerts) ? counts.alerts : [];
-  const unreadCount = Number(counts?.unreadCount || 0);
+  const { rapid3GActive, shouldUseOfflineSnapshot, offlineBannerText, rapid3GBannerText } =
+    useNetworkProfile();
+  const snapshotKey = useMemo(
+    () => ['notifications', user?._id || user?.id || 'guest'].join(':'),
+    [user?._id, user?.id]
+  );
+  const effectiveCounts = offlineSnapshotActive && snapshotCounts ? snapshotCounts : counts;
+  const alerts = Array.isArray(effectiveCounts?.alerts) ? effectiveCounts.alerts : [];
+  const unreadCount = Number(effectiveCounts?.unreadCount || 0);
 
   const [activeFilter, setActiveFilter] = useState('all');
   const [visibleCount, setVisibleCount] = useState(20);
@@ -299,6 +310,38 @@ export default function NotificationPage() {
     ],
     [t]
   );
+
+  useEffect(() => {
+    if (!user) {
+      setOfflineSnapshotActive(false);
+      setSnapshotCounts(null);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!counts || shouldUseOfflineSnapshot) return;
+    saveOfflineSnapshot(snapshotKey, {
+      alerts: Array.isArray(counts?.alerts) ? counts.alerts : [],
+      unreadCount: Number(counts?.unreadCount || 0),
+      commentAlerts: Number(counts?.commentAlerts || 0)
+    });
+    setOfflineSnapshotActive(false);
+  }, [counts, shouldUseOfflineSnapshot, snapshotKey]);
+
+  useEffect(() => {
+    if (!error || !shouldUseOfflineSnapshot) return;
+    let cancelled = false;
+    loadOfflineSnapshot(snapshotKey).then((snapshot) => {
+      if (cancelled) return;
+      if (snapshot && typeof snapshot === 'object') {
+        setSnapshotCounts(snapshot);
+        setOfflineSnapshotActive(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [error, shouldUseOfflineSnapshot, snapshotKey]);
 
   const { pullDistance, refreshing, bind } = usePullToRefresh(
     async () => {
@@ -480,6 +523,21 @@ export default function NotificationPage() {
   return (
     <main className="glass-page-shell min-h-screen text-neutral-900 dark:text-neutral-100">
       <div className="mx-auto w-full max-w-3xl">
+        {(offlineSnapshotActive || rapid3GActive) && (
+          <div className="px-4 pt-4">
+            <section
+              className={`rounded-2xl border px-4 py-3 text-sm shadow-sm ${
+                offlineSnapshotActive
+                  ? 'border-amber-200 bg-amber-50 text-amber-800'
+                  : 'border-sky-200 bg-sky-50 text-sky-800'
+              }`}
+            >
+              <p className="font-semibold">
+                {offlineSnapshotActive ? offlineBannerText : rapid3GBannerText}
+              </p>
+            </section>
+          </div>
+        )}
         <header className="sticky top-0 z-30 px-4 pb-3 pt-4">
           <GlassHeader
             title={t('notifications.title', 'Notifications')}
@@ -557,7 +615,7 @@ export default function NotificationPage() {
             <div className="mt-3">
               <NotificationSkeleton count={8} />
             </div>
-          ) : error ? (
+          ) : error && !offlineSnapshotActive ? (
             <div className="mt-6">
               <div className="glass-card rounded-2xl p-1 shadow-sm">
                 <NetworkFallbackCard

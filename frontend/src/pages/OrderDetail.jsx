@@ -51,6 +51,13 @@ import useBuyerOrderStatusMutation from '../hooks/useBuyerOrderStatusMutation';
 import useOrderRealtimeSync from '../hooks/useOrderRealtimeSync';
 import { orderQueryKeys } from '../hooks/useOrderQueryKeys';
 import { appAlert, appConfirm } from '../utils/appDialog';
+import useNetworkProfile from '../hooks/useNetworkProfile';
+import { createIdempotencyKey } from '../utils/idempotency';
+import {
+  enqueueOrderStatusOfflineAction,
+  loadOrderStatusOfflineQueue,
+  removeOrderStatusOfflineAction
+} from '../utils/orderStatusOfflineQueue';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
@@ -340,6 +347,8 @@ export default function OrderDetail() {
     defaultValue: true
   });
   const queryClient = useQueryClient();
+  const { rapid3GActive, offlineBannerText, rapid3GBannerText, shouldUseOfflineSnapshot } =
+    useNetworkProfile();
 
   const [order, setOrder] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -351,7 +360,10 @@ export default function OrderDetail() {
   const [suggestionsProducts, setSuggestionsProducts] = useState([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [proofPreview, setProofPreview] = useState(null);
+  const [queuedDeliveryActionCount, setQueuedDeliveryActionCount] = useState(0);
+  const [deliveryQueueSyncing, setDeliveryQueueSyncing] = useState(false);
   const isMobile = useIsMobile();
+  const userScopeId = String(user?._id || user?.id || '').trim();
   const normalizeFileUrl = useCallback((url) => {
     if (!url) return '';
     if (/^https?:\/\//i.test(url)) return url;
@@ -411,6 +423,50 @@ export default function OrderDetail() {
     [orderId, queryClient]
   );
 
+  const patchOrdersListPayload = useCallback((payload, nextOrder) => {
+    if (!nextOrder?._id) return payload;
+    if (Array.isArray(payload)) {
+      return payload.map((entry) =>
+        String(entry?._id || '') === String(nextOrder._id) ? nextOrder : entry
+      );
+    }
+    if (payload && Array.isArray(payload.items)) {
+      return {
+        ...payload,
+        items: payload.items.map((entry) =>
+          String(entry?._id || '') === String(nextOrder._id) ? nextOrder : entry
+        )
+      };
+    }
+    return payload;
+  }, []);
+
+  const applyOrderToUserCaches = useCallback(
+    (nextOrder) => {
+      if (!nextOrder?._id) return false;
+      applyOrderSnapshot(nextOrder);
+      queryClient.setQueriesData({ queryKey: orderQueryKeys.listRoot('user') }, (existing) =>
+        patchOrdersListPayload(existing, nextOrder)
+      );
+      return true;
+    },
+    [applyOrderSnapshot, patchOrdersListPayload, queryClient]
+  );
+
+  const getOptimisticDeliveredOrder = useCallback(
+    (currentOrder) =>
+      currentOrder?._id
+        ? {
+            ...currentOrder,
+            status: 'confirmed_by_client',
+            updatedAt: new Date().toISOString(),
+            clientDeliveryConfirmedAt:
+              currentOrder?.clientDeliveryConfirmedAt || new Date().toISOString()
+          }
+        : currentOrder,
+    []
+  );
+
   const invalidateOrderQueries = useCallback(async () => {
     await queryClient.invalidateQueries({
       queryKey: orderQueryKeys.detail('user', String(orderId || '')),
@@ -427,9 +483,18 @@ export default function OrderDetail() {
     orderId,
     onApplied: async (result) => {
       applyOrderSnapshot(result?.data);
-      showToast('Statut mis à jour.', { variant: 'success' });
+      showToast(
+        result?.recovered ? 'Statut mis à jour après vérification automatique.' : 'Statut mis à jour.',
+        { variant: 'success' }
+      );
     },
-    onFailed: async (error) => {
+    onFailed: async (error, _variables, context) => {
+      if (context?.possiblyCommitted) {
+        showToast('Réseau lent ou interrompu. Vérification automatique en cours avant tout renvoi.', {
+          variant: 'info'
+        });
+        return;
+      }
       showToast(error?.response?.data?.message || 'Impossible de mettre à jour la commande.', {
         variant: 'error'
       });
@@ -581,10 +646,25 @@ export default function OrderDetail() {
 
   const confirmDeliveryMutation = useReliableMutation({
     mutationFn: async ({ orderId, idempotencyKey }) => {
+      if (shouldUseOfflineSnapshot && userScopeId) {
+        const queue = await enqueueOrderStatusOfflineAction(userScopeId, 'buyer', {
+          queueId: createIdempotencyKey('buyer-confirm-delivery-queue'),
+          orderId,
+          nextStatus: 'confirmed_by_client',
+          type: 'confirm-delivery',
+          idempotencyKey: idempotencyKey || createIdempotencyKey('buyer-confirm-delivery')
+        });
+        return {
+          queued: true,
+          queueLength: queue.length,
+          orderId
+        };
+      }
       const { data } = await api.post(
         `/orders/${orderId}/confirm-delivery`,
         { confirm: true },
         {
+          silentGlobalError: true,
           headers: {
             'Idempotency-Key': idempotencyKey
           }
@@ -597,15 +677,36 @@ export default function OrderDetail() {
       const { data } = await api.get(`/orders/detail/${orderId}`, {
         skipCache: true,
         skipDedupe: true,
+        silentGlobalError: true,
         headers: { 'x-skip-cache': '1', 'x-skip-dedupe': '1' },
         timeout: 12_000
       });
       const status = String(data?.status || '').toLowerCase();
       return ['confirmed_by_client', 'completed'].includes(status);
     },
-    onSuccess: async (result) => {
+    onMutate: async () => {
+      await queryClient.cancelQueries({
+        queryKey: orderQueryKeys.detail('user', String(orderId || ''))
+      });
+      await queryClient.cancelQueries({ queryKey: orderQueryKeys.listRoot('user') });
+      const previous = queryClient.getQueryData(orderQueryKeys.detail('user', String(orderId || '')));
+      const previousLists = queryClient.getQueriesData({ queryKey: orderQueryKeys.listRoot('user') });
+      if (order?._id) {
+        const optimisticOrder = getOptimisticDeliveredOrder(order);
+        applyOrderToUserCaches(optimisticOrder);
+      }
+      return { previous, previousLists };
+    },
+    onSuccess: async (result, _variables, context) => {
+      if (result?.data?.queued) {
+        setQueuedDeliveryActionCount(Number(result?.data?.queueLength || 0));
+        showToast('Confirmation enregistrée hors ligne. Synchronisation automatique dès le retour du réseau.', {
+          variant: 'info'
+        });
+        return;
+      }
       const payload = result?.data;
-      if (!applyOrderSnapshot(payload)) {
+      if (!applyOrderToUserCaches(payload)) {
         await loadOrder();
       }
       const successMessage = result?.recovered
@@ -613,20 +714,118 @@ export default function OrderDetail() {
         : 'Livraison confirmée. La commande est terminée.';
       showToast(successMessage, { variant: 'success' });
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
+      if (!context?.possiblyCommitted && context?.previous) {
+        queryClient.setQueryData(orderQueryKeys.detail('user', String(orderId || '')), context.previous);
+      }
+      if (!context?.possiblyCommitted && Array.isArray(context?.previousLists)) {
+        context.previousLists.forEach(([queryKey, previousValue]) => {
+          queryClient.setQueryData(queryKey, previousValue);
+        });
+      }
+      if (context?.possiblyCommitted) {
+        showToast('Réseau lent ou interrompu. Vérification automatique en cours avant tout renvoi.', {
+          variant: 'info'
+        });
+        return;
+      }
       showToast(error?.response?.data?.message || 'Impossible de confirmer la livraison.', {
         variant: 'error'
       });
     },
-    onSettled: async () => {
+    onSettled: async (data) => {
+      if (data?.data?.queued) return;
       await invalidateOrderQueries();
     }
   });
 
   const handleConfirmDelivery = async () => {
     if (!order || confirmDeliveryMutation.isReliablePending) return;
-    await confirmDeliveryMutation.mutateAsync({ orderId: order._id });
+    try {
+      await confirmDeliveryMutation.mutateAsync({ orderId: order._id });
+    } catch {
+      // handled by mutation callbacks
+    }
   };
+
+  const syncQueuedDeliveryActionCount = useCallback(async () => {
+    if (!userScopeId) {
+      setQueuedDeliveryActionCount(0);
+      return;
+    }
+    const queue = await loadOrderStatusOfflineQueue(userScopeId, 'buyer');
+    const deliveryQueue = queue.filter((entry) => String(entry?.type || '') === 'confirm-delivery');
+    setQueuedDeliveryActionCount(deliveryQueue.length);
+  }, [userScopeId]);
+
+  const flushQueuedDeliveryActions = useCallback(async () => {
+    if (!userScopeId) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    let queue = await loadOrderStatusOfflineQueue(userScopeId, 'buyer');
+    queue = queue.filter((entry) => String(entry?.type || '') === 'confirm-delivery');
+    setQueuedDeliveryActionCount(queue.length);
+    if (!queue.length) return;
+    setDeliveryQueueSyncing(true);
+    try {
+      for (const action of queue) {
+        try {
+          const { data } = await api.post(
+            `/orders/${action.orderId}/confirm-delivery`,
+            { confirm: true },
+            {
+              headers: {
+                'Idempotency-Key':
+                  action.idempotencyKey || createIdempotencyKey('buyer-confirm-delivery-replay')
+              }
+            }
+          );
+          if (data?._id || data?.order?._id) {
+            applyOrderToUserCaches(data?.order?._id ? data.order : data);
+          }
+          await removeOrderStatusOfflineAction(userScopeId, 'buyer', action.queueId);
+          await syncQueuedDeliveryActionCount();
+          window.dispatchEvent(new Event('hdmarket:orders-refresh'));
+        } catch (error) {
+          if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            break;
+          }
+          showToast(
+            error?.response?.data?.message || 'Impossible de synchroniser la confirmation de livraison.',
+            { variant: 'error' }
+          );
+          break;
+        }
+      }
+    } finally {
+      setDeliveryQueueSyncing(false);
+      await invalidateOrderQueries();
+    }
+  }, [applyOrderToUserCaches, invalidateOrderQueries, showToast, syncQueuedDeliveryActionCount, userScopeId]);
+
+  useEffect(() => {
+    syncQueuedDeliveryActionCount();
+    const handleQueueChange = () => {
+      syncQueuedDeliveryActionCount();
+    };
+    window.addEventListener('hdmarket:offline-queue-changed', handleQueueChange);
+    return () => {
+      window.removeEventListener('hdmarket:offline-queue-changed', handleQueueChange);
+    };
+  }, [syncQueuedDeliveryActionCount]);
+
+  useEffect(() => {
+    if (!userScopeId) return;
+    if (!shouldUseOfflineSnapshot) {
+      flushQueuedDeliveryActions();
+    }
+    const handleOnline = () => {
+      flushQueuedDeliveryActions();
+    };
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [flushQueuedDeliveryActions, shouldUseOfflineSnapshot, userScopeId]);
 
   const handleReorder = async () => {
     if (!order?.items?.length) return;
@@ -878,6 +1077,32 @@ export default function OrderDetail() {
         backTo="/orders"
         right={<StatusBadge status={effectiveOrderStatus} compact />}
       />
+      {(buyerOrderDetailQuery.offlineSnapshotActive || rapid3GActive) && (
+        <div className="mx-auto max-w-5xl px-4 pt-4">
+          <section
+            className={`rounded-2xl border px-4 py-3 text-sm shadow-sm ${
+              buyerOrderDetailQuery.offlineSnapshotActive
+                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                : 'border-sky-200 bg-sky-50 text-sky-800'
+            }`}
+          >
+            <p className="font-semibold">
+              {buyerOrderDetailQuery.offlineSnapshotActive ? offlineBannerText : rapid3GBannerText}
+            </p>
+          </section>
+        </div>
+      )}
+      {(queuedDeliveryActionCount > 0 || deliveryQueueSyncing) && (
+        <div className="mx-auto max-w-5xl px-4 pt-4">
+          <section className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm shadow-sm dark:border-violet-800 dark:bg-violet-900/20 dark:text-violet-300">
+            <p className="font-semibold text-violet-800 dark:text-violet-300">
+              {deliveryQueueSyncing
+                ? 'Synchronisation des confirmations de livraison en attente...'
+                : `${queuedDeliveryActionCount} confirmation${queuedDeliveryActionCount > 1 ? 's' : ''} de livraison en attente de connexion.`}
+            </p>
+          </section>
+        </div>
+      )}
       <div className="max-w-3xl mx-auto px-4 py-6">
 
         <div className="bg-white rounded-2xl border-2 border-gray-100 shadow-sm overflow-hidden">
@@ -1510,6 +1735,16 @@ export default function OrderDetail() {
                   ) : null}
                   {buyerPrimaryAction.label}
                 </button>
+                {buyerPrimaryAction.mode === 'cancel' && buyerStatusMutation.uiPhase === 'stillWorking' ? (
+                  <p className="text-xs text-amber-700">
+                    Traitement en cours... merci de patienter.
+                  </p>
+                ) : null}
+                {buyerPrimaryAction.mode === 'cancel' && buyerStatusMutation.uiPhase === 'slow' ? (
+                  <p className="text-xs text-amber-700">
+                    Réseau lent. Vérification automatique en cours. Vérifiez le statut avant de renvoyer.
+                  </p>
+                ) : null}
               </div>
             ) : null}
 

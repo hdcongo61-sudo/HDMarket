@@ -73,6 +73,7 @@ export default function AdminPayments() {
   const [endDate, setEndDate] = useState('');
   const [page, setPage] = useState(1);
   const [actionMessage, setActionMessage] = useState('');
+  const [actionNotice, setActionNotice] = useState('');
   const [actionError, setActionError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [decisionPending, setDecisionPending] = useState({ id: '', type: '' });
@@ -218,7 +219,7 @@ export default function AdminPayments() {
       const { data } = await api.put(
         `/payments/admin/${paymentId}/${route}`,
         {},
-        { headers: { 'Idempotency-Key': idempotencyKey } }
+        { silentGlobalError: true, headers: { 'Idempotency-Key': idempotencyKey } }
       );
       return data;
     },
@@ -227,6 +228,7 @@ export default function AdminPayments() {
       const { data } = await api.get(`/payments/admin?status=${targetStatus}`, {
         skipCache: true,
         skipDedupe: true,
+        silentGlobalError: true,
         headers: { 'x-skip-cache': '1', 'x-skip-dedupe': '1' },
         timeout: 12_000
       });
@@ -236,6 +238,7 @@ export default function AdminPayments() {
     onMutate: ({ paymentId, decisionType }) => {
       setDecisionPending({ id: String(paymentId || ''), type: String(decisionType || '') });
       setActionMessage('');
+      setActionNotice('');
       setActionError('');
     },
     onSuccess: async (result, variables) => {
@@ -259,7 +262,12 @@ export default function AdminPayments() {
         })
       );
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
+      if (context?.possiblyCommitted) {
+        setActionNotice('Réseau lent ou interrompu. Vérification automatique en cours avant tout renvoi.');
+        setActionError('');
+        return;
+      }
       setActionError(error?.response?.data?.message || error?.message || 'Action impossible sur ce paiement.');
     },
     onSettled: (_data, error) => {
@@ -272,10 +280,14 @@ export default function AdminPayments() {
   const handlePaymentDecision = useCallback(
     async (id, type) => {
       if (!id || paymentDecisionMutation.isReliablePending) return;
-      await paymentDecisionMutation.mutateAsync({
-        paymentId: id,
-        decisionType: type === 'verify' ? 'verify' : 'reject'
-      });
+      try {
+        await paymentDecisionMutation.mutateAsync({
+          paymentId: id,
+          decisionType: type === 'verify' ? 'verify' : 'reject'
+        });
+      } catch {
+        // handled by mutation callbacks
+      }
     },
     [paymentDecisionMutation]
   );
@@ -541,6 +553,11 @@ export default function AdminPayments() {
         {actionMessage && (
           <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
             {actionMessage}
+          </div>
+        )}
+        {actionNotice && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+            {actionNotice}
           </div>
         )}
         {actionError && (

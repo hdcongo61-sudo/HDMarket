@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import CartContext from '../context/CartContext';
 import AuthContext from '../context/AuthContext';
-import api, { isApiTimeoutError, verifyTransactionCodeAvailability } from '../services/api';
+import api, { isApiPossiblyCommittedError, verifyTransactionCodeAvailability } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import {
   CreditCard,
@@ -757,6 +757,9 @@ export default function OrderCheckout() {
               promoCode
             };
           })
+        },
+        {
+          silentGlobalError: true
         }
       );
       const createdOrderId = extractFirstOrderId(data);
@@ -774,7 +777,7 @@ export default function OrderCheckout() {
         navigate('/orders');
       }
     } catch (err) {
-      if (isApiTimeoutError(err)) {
+      if (isApiPossiblyCommittedError(err)) {
         const reconciliation = await reconcileCheckoutAfterTimeout({
           transactionCodes: normalizedTransactionCodes,
           expectedCount: sellerGroups.length || normalizedTransactionCodes.length || 1
