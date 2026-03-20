@@ -1089,6 +1089,37 @@ export default function SellerOrders() {
     setQueuedStatusActionCount(queue.length);
   }, [userScopeId]);
 
+  const normalizeOrderPayload = (payload) => {
+    if (!payload || typeof payload !== 'object') return null;
+    if (payload?.order && payload.order._id) return payload.order;
+    if (payload?._id) return payload;
+    return null;
+  };
+
+  const getStatusCounterValue = (order) => {
+    if (!order) return 'pending';
+    return String(
+      String(order?.paymentType || '') === 'installment' &&
+        String(order?.status || '') === 'completed'
+        ? order?.installmentSaleStatus || order?.status || 'pending'
+        : order?.status || 'pending'
+    );
+  };
+
+  const bumpStatusCounters = useCallback((previousStatus, nextStatus) => {
+    const prev = String(previousStatus || '').trim();
+    const next = String(nextStatus || '').trim();
+    if (!prev || !next || prev === next) return;
+    setStats((s) => ({
+      ...s,
+      byStatus: {
+        ...s.byStatus,
+        [prev]: Math.max(0, (s.byStatus[prev] || 1) - 1),
+        [next]: (s.byStatus[next] || 0) + 1
+      }
+    }));
+  }, []);
+
   const { pullDistance, refreshing, bind } = usePullToRefresh(refreshOrders, {
     enabled: isMobile
   });
@@ -1358,37 +1389,6 @@ export default function SellerOrders() {
     }
     return String(order?.status || '') === normalizedTarget;
   };
-
-  const normalizeOrderPayload = (payload) => {
-    if (!payload || typeof payload !== 'object') return null;
-    if (payload?.order && payload.order._id) return payload.order;
-    if (payload?._id) return payload;
-    return null;
-  };
-
-  const getStatusCounterValue = (order) => {
-    if (!order) return 'pending';
-    return String(
-      String(order?.paymentType || '') === 'installment' &&
-        String(order?.status || '') === 'completed'
-        ? order?.installmentSaleStatus || order?.status || 'pending'
-        : order?.status || 'pending'
-    );
-  };
-
-  const bumpStatusCounters = useCallback((previousStatus, nextStatus) => {
-    const prev = String(previousStatus || '').trim();
-    const next = String(nextStatus || '').trim();
-    if (!prev || !next || prev === next) return;
-    setStats((s) => ({
-      ...s,
-      byStatus: {
-        ...s.byStatus,
-        [prev]: Math.max(0, (s.byStatus[prev] || 1) - 1),
-        [next]: (s.byStatus[next] || 0) + 1
-      }
-    }));
-  }, []);
 
   const statusUpdateMutation = useReliableMutation({
     mutationFn: async ({ orderId, nextStatus, idempotencyKey }) => {

@@ -18,28 +18,28 @@ export default function AppOfflineDiagnosticsCard({ title = 'Mise à jour locale
     : 'En ligne';
 
   return (
-    <GlassCard variant="glass" className={`rounded-2xl p-4 ${className}`.trim()}>
+    <GlassCard variant="glass" className={`overflow-hidden rounded-[28px] p-4 sm:p-5 ${className}`.trim()}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-1">
           <div className="inline-flex items-center gap-2 rounded-full bg-slate-900/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white dark:bg-white/10 dark:text-slate-100">
             <Signal size={12} />
             Appareil actuel
           </div>
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-white">{title}</h3>
-          <p className="text-xs text-slate-600 dark:text-slate-300">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-white">{title}</h3>
+          <p className="max-w-2xl text-xs leading-relaxed text-slate-600 dark:text-slate-300">
             Réseau courant et actions locales en attente sur cet appareil uniquement.
           </p>
         </div>
 
-        <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border border-slate-200/70 bg-white/70 px-3 py-3 dark:border-slate-700/70 dark:bg-slate-900/50">
+        <div className="grid flex-1 grid-cols-2 gap-2 xl:grid-cols-4">
+          <div className="col-span-2 rounded-2xl border border-slate-200/70 bg-white/70 px-3 py-3 dark:border-slate-700/70 dark:bg-slate-900/50 xl:col-span-1">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">
               {offline ? <WifiOff size={14} /> : rapid3GActive ? <CloudOff size={14} /> : <Wifi size={14} />}
               Réseau
             </div>
             <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">{networkLabel}</p>
           </div>
-          <div className="rounded-2xl border border-slate-200/70 bg-white/70 px-3 py-3 dark:border-slate-700/70 dark:bg-slate-900/50">
+          <div className="min-w-0 rounded-2xl border border-slate-200/70 bg-white/70 px-3 py-3 dark:border-slate-700/70 dark:bg-slate-900/50">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">
               <UploadCloud size={14} />
               Statuts
@@ -48,7 +48,7 @@ export default function AppOfflineDiagnosticsCard({ title = 'Mise à jour locale
               {queueStats.orderStatus} en attente
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-200/70 bg-white/70 px-3 py-3 dark:border-slate-700/70 dark:bg-slate-900/50">
+          <div className="min-w-0 rounded-2xl border border-slate-200/70 bg-white/70 px-3 py-3 dark:border-slate-700/70 dark:bg-slate-900/50">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">
               <MessageSquareMore size={14} />
               Messages
@@ -57,7 +57,7 @@ export default function AppOfflineDiagnosticsCard({ title = 'Mise à jour locale
               {queueStats.chat} en attente
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-200/70 bg-white/70 px-3 py-3 dark:border-slate-700/70 dark:bg-slate-900/50">
+          <div className="min-w-0 rounded-2xl border border-slate-200/70 bg-white/70 px-3 py-3 dark:border-slate-700/70 dark:bg-slate-900/50">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">
               <Truck size={14} />
               Logistique
@@ -69,7 +69,7 @@ export default function AppOfflineDiagnosticsCard({ title = 'Mise à jour locale
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/70 pt-3 text-xs text-slate-600 dark:border-slate-700/70 dark:text-slate-300">
+      <div className="mt-4 flex flex-col gap-3 border-t border-slate-200/70 pt-4 text-xs text-slate-600 dark:border-slate-700/70 dark:text-slate-300 sm:flex-row sm:items-center sm:justify-between">
         <span>
           {totalQueued > 0
             ? `${totalQueued} action(s) locales seront rejouées au retour réseau.`
@@ -78,7 +78,7 @@ export default function AppOfflineDiagnosticsCard({ title = 'Mise à jour locale
         <button
           type="button"
           onClick={reload}
-          className="inline-flex min-h-[36px] items-center gap-2 rounded-xl border border-slate-200/80 px-3 py-1.5 font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
+          className="inline-flex min-h-[40px] w-full items-center justify-center gap-2 rounded-2xl border border-slate-200/80 px-3 py-1.5 font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800 sm:w-auto"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           Vérifier

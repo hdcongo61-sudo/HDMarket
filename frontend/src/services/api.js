@@ -158,12 +158,22 @@ const clearAbortTimer = (config = {}) => {
 };
 
 const dispatchGlobalApiError = (error, config = {}) => {
-  if (typeof window === 'undefined' || config?.silentGlobalError || error?.name === 'CanceledError') {
+  const method = String(config?.method || error?.config?.method || '').toLowerCase();
+  const isMutationMethod = MUTATION_METHODS.has(method);
+  const status = Number(error?.response?.status || 0);
+  const isPossiblyCommittedMutation =
+    Boolean(error?.possiblyCommitted) || (isMutationMethod && status === 0);
+
+  if (
+    typeof window === 'undefined' ||
+    config?.silentGlobalError ||
+    error?.name === 'CanceledError' ||
+    isPossiblyCommittedMutation
+  ) {
     return;
   }
   const message = resolveApiErrorMessage(error, 'Une erreur est survenue. Veuillez réessayer.');
   const requestId = resolveRequestId(error);
-  const status = Number(error?.response?.status || 0);
   const code = String(error?.response?.data?.code || error?.code || 'API_ERROR');
   window.dispatchEvent(
     new CustomEvent('hdmarket:api-error', {

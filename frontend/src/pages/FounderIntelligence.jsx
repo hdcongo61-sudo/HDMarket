@@ -5,7 +5,6 @@ import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import GlassCard from '../components/ui/GlassCard';
-import GlassHeader from '../components/ui/GlassHeader';
 import AppOfflineDiagnosticsCard from '../components/admin/AppOfflineDiagnosticsCard';
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('fr-FR');
@@ -19,15 +18,15 @@ const REALTIME_WINDOW_OPTIONS = [
 
 function KpiCard({ label, value, helper, icon: Icon, variant = 'glass' }) {
   return (
-    <GlassCard variant={variant} className="p-4">
+    <GlassCard variant={variant} className="min-w-0 overflow-hidden p-3 sm:p-4">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">{label}</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">{value}</p>
-          {helper ? <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">{helper}</p> : null}
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">{label}</p>
+          <p className="mt-2 break-words text-xl font-semibold leading-tight text-slate-900 dark:text-white sm:text-2xl">{value}</p>
+          {helper ? <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300">{helper}</p> : null}
         </div>
         {Icon ? (
-          <div className="soft-card soft-card-green rounded-xl p-2 text-emerald-700 dark:text-emerald-100">
+          <div className="soft-card soft-card-green shrink-0 rounded-xl p-2 text-emerald-700 dark:text-emerald-100">
             <Icon size={18} />
           </div>
         ) : null}
@@ -139,44 +138,80 @@ export default function FounderIntelligence() {
   }
 
   return (
-    <div className="glass-page-shell min-h-screen px-4 py-6 md:px-6">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <GlassHeader
-          title="Executive Intelligence Layer"
-          subtitle={`Mise à jour continue (5s) · Cache serveur ${formatNumber(data?.cache?.ttlSeconds)}s`}
-          className="glass-fade-in"
-        >
-          <span className="soft-card soft-card-purple inline-flex min-h-[34px] items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold text-purple-900 dark:text-purple-100">
-            <Crown size={14} />
-            Founder Confidential
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              loadData({ force: true });
-              loadRealtime();
-            }}
-            disabled={refreshing}
-            className="glass-card inline-flex min-h-[44px] items-center gap-2 rounded-xl px-4 text-sm font-semibold text-slate-700 hover:text-slate-900 disabled:opacity-60 dark:text-slate-100"
-          >
-            <RefreshCcw size={16} className={refreshing ? 'animate-spin' : ''} />
-            Rafraîchir
-          </button>
-          <Link
-            to="/admin/founder-notifications-intelligence"
-            className="glass-card inline-flex min-h-[44px] items-center rounded-xl px-4 text-sm font-semibold text-slate-700 hover:text-slate-900 dark:text-slate-100"
-          >
-            Notifications
-          </Link>
-          <Link
-            to="/admin"
-            className="glass-card inline-flex min-h-[44px] items-center rounded-xl px-4 text-sm font-semibold text-slate-700 hover:text-slate-900 dark:text-slate-100"
-          >
-            Admin
-          </Link>
-        </GlassHeader>
+    <div className="glass-page-shell min-h-screen overflow-x-hidden px-3 py-4 sm:px-4 sm:py-6 md:px-6">
+      <div className="mx-auto max-w-7xl space-y-4 sm:space-y-6">
+        <section className="glass-card glass-fade-in relative overflow-hidden rounded-[28px] p-4 shadow-sm sm:p-6">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-r from-sky-200/35 via-white/10 to-violet-200/35 blur-2xl dark:from-sky-500/10 dark:via-transparent dark:to-violet-500/10" />
+          <div className="relative flex flex-col gap-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="soft-card soft-card-purple inline-flex min-h-[34px] items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold text-purple-900 dark:text-purple-100">
+                    <Crown size={14} />
+                    Founder Confidential
+                  </span>
+                  <span className="inline-flex min-h-[34px] items-center rounded-full border border-slate-200/80 bg-white/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600 dark:border-slate-700/70 dark:bg-slate-900/40 dark:text-slate-300">
+                    Live refresh 5s
+                  </span>
+                </div>
+                <h1 className="mt-3 text-2xl font-semibold leading-tight text-slate-950 dark:text-white sm:text-3xl">
+                  Executive Intelligence Layer
+                </h1>
+                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-600 dark:text-slate-300 sm:text-base">
+                  Pilotage founder en direct pour la croissance, les risques et les signaux d&apos;usage critiques de la plateforme.
+                </p>
+              </div>
 
-        <AppOfflineDiagnosticsCard title="Diagnostic local founder" />
+              <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-3 lg:max-w-md">
+                <button
+                  type="button"
+                  onClick={() => {
+                    loadData({ force: true });
+                    loadRealtime();
+                  }}
+                  disabled={refreshing}
+                  className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                >
+                  <RefreshCcw size={16} className={refreshing ? 'animate-spin' : ''} />
+                  Rafraichir
+                </button>
+                <Link
+                  to="/admin/founder-notifications-intelligence"
+                  className="glass-card inline-flex min-h-[48px] items-center justify-center rounded-2xl px-4 text-sm font-semibold text-slate-700 hover:text-slate-950 dark:text-slate-100 dark:hover:text-white"
+                >
+                  Notifications
+                </Link>
+                <Link
+                  to="/admin"
+                  className="glass-card col-span-2 inline-flex min-h-[48px] items-center justify-center rounded-2xl px-4 text-sm font-semibold text-slate-700 hover:text-slate-950 dark:text-slate-100 dark:hover:text-white sm:col-span-1"
+                >
+                  Admin
+                </Link>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="rounded-2xl border border-white/60 bg-white/70 px-3 py-3 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/40">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">Cache</p>
+                <p className="mt-1 text-lg font-semibold text-slate-950 dark:text-white">{formatNumber(data?.cache?.ttlSeconds)}s</p>
+              </div>
+              <div className="rounded-2xl border border-white/60 bg-white/70 px-3 py-3 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/40">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">Live pages</p>
+                <p className="mt-1 text-lg font-semibold text-slate-950 dark:text-white">{formatNumber(realtime?.totals?.pageViews)}</p>
+              </div>
+              <div className="rounded-2xl border border-white/60 bg-white/70 px-3 py-3 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/40">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">Risque</p>
+                <p className="mt-1 text-lg font-semibold text-slate-950 dark:text-white">{formatNumber(riskLines.length)} alertes</p>
+              </div>
+              <div className="rounded-2xl border border-white/60 bg-white/70 px-3 py-3 shadow-sm dark:border-slate-700/70 dark:bg-slate-900/40">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">Top sellers</p>
+                <p className="mt-1 text-lg font-semibold text-slate-950 dark:text-white">{formatNumber(topSellers.length)}</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <AppOfflineDiagnosticsCard title="Diagnostic local founder" className="overflow-hidden" />
 
         {error ? (
           <div className="soft-card soft-card-red rounded-2xl p-4 text-sm text-red-700 dark:text-red-100">{error}</div>
@@ -187,7 +222,7 @@ export default function FounderIntelligence() {
 
         {data ? (
           <>
-            <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <KpiCard
                 label="Revenue / Active User"
                 value={formatCurrency(data?.kpis?.revenuePerActiveUser)}
@@ -214,7 +249,7 @@ export default function FounderIntelligence() {
               />
             </section>
 
-            <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <section className="grid grid-cols-1 gap-3 lg:grid-cols-3">
               <KpiCard
                 label="Full Payment Conversion"
                 value={formatPercent(data?.kpis?.fullPaymentConversion?.adoptionRate)}
@@ -235,21 +270,21 @@ export default function FounderIntelligence() {
               />
             </section>
 
-            <section className="glass-card rounded-2xl p-4">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-200">
+            <section className="glass-card overflow-hidden rounded-[28px] p-4 sm:p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-200">
                     Realtime Monitoring ({realtimeWindowMinutes} min)
                   </h2>
-                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                     Top pages, likes, commentaires et activité récente.
                   </p>
                 </div>
-                <p className="text-xs text-slate-600 dark:text-slate-300">
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
                   {realtimeLoading ? 'Mise à jour…' : `MAJ ${realtime?.updatedAt ? new Date(realtime.updatedAt).toLocaleTimeString('fr-FR') : '—'}`}
                 </p>
               </div>
-              <div className="glass-card mt-3 inline-flex items-center rounded-xl p-1">
+              <div className="mt-4 grid grid-cols-3 gap-2 rounded-2xl border border-slate-200/70 bg-white/50 p-1 dark:border-slate-700/70 dark:bg-slate-900/30 sm:inline-grid sm:w-auto">
                 {REALTIME_WINDOW_OPTIONS.map((option) => {
                   const active = realtimeWindowMinutes === option.value;
                   return (
@@ -257,7 +292,7 @@ export default function FounderIntelligence() {
                       key={option.value}
                       type="button"
                       onClick={() => setRealtimeWindowMinutes(option.value)}
-                      className={`min-h-[36px] rounded-lg px-3 text-xs font-semibold transition ${
+                      className={`min-h-[40px] rounded-xl px-3 text-xs font-semibold transition ${
                         active
                           ? 'soft-card soft-card-purple text-purple-900 dark:text-purple-100'
                           : 'text-slate-600 hover:text-slate-900 dark:text-slate-200'
@@ -280,16 +315,16 @@ export default function FounderIntelligence() {
                 <KpiCard label="Visiteurs uniques" value={formatNumber(realtime?.totals?.uniqueVisitors)} />
               </div>
               <div className="mt-4 grid grid-cols-1 gap-3 xl:grid-cols-2">
-                <div className="glass-card rounded-xl p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-200">Top pages</p>
+                <div className="glass-card min-w-0 overflow-hidden rounded-2xl p-3 sm:p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-200">Top pages</p>
                   <div className="mt-2 space-y-2">
                     {realtimeTopPages.length ? (
                       realtimeTopPages.slice(0, 8).map((item, index) => (
                         <div
                           key={`${item.path}-${index}`}
-                          className="glass-card flex items-center justify-between rounded-lg px-2.5 py-2 text-xs text-slate-700 dark:text-slate-100"
+                          className="glass-card flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-xs text-slate-700 dark:text-slate-100"
                         >
-                          <span className="truncate pr-2">{item.path || '/'}</span>
+                          <span className="min-w-0 flex-1 truncate pr-2">{item.path || '/'}</span>
                           <span className="soft-card soft-card-green rounded-full px-2 py-0.5 font-semibold text-emerald-700 dark:text-emerald-100">
                             {formatNumber(item.views)}
                           </span>
@@ -300,16 +335,16 @@ export default function FounderIntelligence() {
                     )}
                   </div>
                 </div>
-                <div className="glass-card rounded-xl p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-200">Flux live</p>
+                <div className="glass-card min-w-0 overflow-hidden rounded-2xl p-3 sm:p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-200">Flux live</p>
                   <div className="mt-2 space-y-2">
                     {realtimeEvents.length ? (
                       realtimeEvents.slice(0, 8).map((event) => (
                         <div
                           key={event.id}
-                          className="glass-card rounded-lg px-2.5 py-2 text-xs text-slate-700 dark:text-slate-100"
+                          className="glass-card min-w-0 rounded-xl px-2.5 py-2 text-xs text-slate-700 dark:text-slate-100"
                         >
-                          <p className="font-semibold text-slate-900 dark:text-white">
+                          <p className="truncate font-semibold text-slate-900 dark:text-white">
                             {String(event.eventType || '').toUpperCase()}
                             {event.path ? ` · ${event.path}` : ''}
                           </p>
@@ -327,56 +362,60 @@ export default function FounderIntelligence() {
             </section>
 
             <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-              <div className="glass-card rounded-2xl p-4 xl:col-span-2">
+              <div className="glass-card overflow-hidden rounded-[28px] p-4 sm:p-5 xl:col-span-2">
                 <div className="mb-3 flex items-center gap-2">
                   <Activity size={16} className="text-emerald-600 dark:text-emerald-300" />
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-200">Seller Leaderboard</h2>
+                  <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-200">Seller Leaderboard</h2>
                 </div>
                 <div className="space-y-2">
                   {topSellers.slice(0, 10).map((seller, index) => (
-                    <div key={`${seller.sellerId}-${index}`} className="glass-card flex items-center justify-between rounded-xl px-3 py-2">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">{seller.sellerName}</p>
+                    <div key={`${seller.sellerId}-${index}`} className="glass-card flex items-center justify-between gap-3 rounded-2xl px-3 py-2.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{seller.sellerName}</p>
                         <p className="text-xs text-slate-600 dark:text-slate-300">
                           Risque {formatPercent(seller.riskScore)} · Annulation {formatPercent(seller.cancellationRate)}
                         </p>
                       </div>
-                      <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-100">{formatCurrency(seller.revenue)}</p>
+                      <p className="shrink-0 text-sm font-semibold text-emerald-700 dark:text-emerald-100">{formatCurrency(seller.revenue)}</p>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="glass-card rounded-2xl p-4">
+              <div className="glass-card overflow-hidden rounded-[28px] p-4 sm:p-5">
                 <div className="mb-3 flex items-center gap-2">
                   <AlertTriangle size={16} className="text-amber-600 dark:text-amber-300" />
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-200">Risk Alerts</h2>
+                  <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-200">Risk Alerts</h2>
                 </div>
                 <div className="space-y-2">
-                  {riskLines.map((line, index) => (
-                    <p key={`risk-${index}`} className="soft-card soft-card-orange rounded-xl px-3 py-2 text-xs text-orange-900 dark:text-orange-100">
-                      {line}
-                    </p>
-                  ))}
+                  {riskLines.length ? (
+                    riskLines.map((line, index) => (
+                      <p key={`risk-${index}`} className="soft-card soft-card-orange rounded-2xl px-3 py-2.5 text-xs leading-relaxed text-orange-900 dark:text-orange-100">
+                        {line}
+                      </p>
+                    ))
+                  ) : (
+                    <p className="text-sm text-slate-600 dark:text-slate-300">Aucun risque prioritaire remonté.</p>
+                  )}
                 </div>
               </div>
             </section>
 
             <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-              <div className="glass-card rounded-2xl p-4">
-                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-200">Conversion par ville</h2>
+              <div className="glass-card overflow-hidden rounded-[28px] p-4 sm:p-5">
+                <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-200">Conversion par ville</h2>
                 <div className="space-y-2">
                   {conversionCities.slice(0, 8).map((row) => (
-                    <div key={row.city} className="glass-card flex items-center justify-between rounded-xl px-3 py-2 text-sm">
-                      <span className="text-slate-700 dark:text-slate-100">{row.city}</span>
+                    <div key={row.city} className="glass-card flex items-center justify-between gap-3 rounded-2xl px-3 py-2 text-sm">
+                      <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-100">{row.city}</span>
                       <span className="font-semibold text-emerald-700 dark:text-emerald-100">{formatPercent(row.conversionRate)}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="glass-card rounded-2xl p-4">
-                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-200">Heatmap activité (7+ jours)</h2>
+              <div className="glass-card overflow-hidden rounded-[28px] p-4 sm:p-5">
+                <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-200">Heatmap activité (7+ jours)</h2>
                 <div className="space-y-2">
                   {heatmap.slice(-7).map((entry) => {
                     const maxCount = Math.max(...(entry.hourlyActivity || []).map((h) => Number(h.count || 0)), 1);
