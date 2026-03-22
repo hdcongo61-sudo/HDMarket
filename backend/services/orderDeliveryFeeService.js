@@ -38,10 +38,19 @@ const buildSyntheticInstallment = ({ amount, now = new Date() }) => {
   };
 };
 
+const findLastOpenScheduleIndex = (schedule = []) => {
+  for (let index = schedule.length - 1; index >= 0; index -= 1) {
+    if (!isScheduleEntrySettled(schedule[index])) {
+      return index;
+    }
+  }
+  return -1;
+};
+
 const applyPositiveDeltaToSchedule = ({ schedule, delta, now }) => {
-  const nextOpenIndex = schedule.findIndex((entry) => !isScheduleEntrySettled(entry));
-  if (nextOpenIndex >= 0) {
-    schedule[nextOpenIndex].amount = roundMoney(Number(schedule[nextOpenIndex].amount || 0) + delta);
+  const lastOpenIndex = findLastOpenScheduleIndex(schedule);
+  if (lastOpenIndex >= 0) {
+    schedule[lastOpenIndex].amount = roundMoney(Number(schedule[lastOpenIndex].amount || 0) + delta);
     return;
   }
   schedule.push(buildSyntheticInstallment({ amount: delta, now }));
@@ -49,7 +58,8 @@ const applyPositiveDeltaToSchedule = ({ schedule, delta, now }) => {
 
 const applyNegativeDeltaToSchedule = ({ schedule, delta }) => {
   let remainingDiscount = roundMoney(Math.abs(delta));
-  for (const entry of schedule) {
+  for (let index = schedule.length - 1; index >= 0; index -= 1) {
+    const entry = schedule[index];
     if (remainingDiscount <= 0) break;
     if (isScheduleEntrySettled(entry)) continue;
     const currentAmount = roundMoney(Number(entry?.amount || 0));

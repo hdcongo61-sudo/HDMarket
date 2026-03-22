@@ -140,8 +140,11 @@ export default function DraftOrders() {
         ) : (
           <div className="space-y-4 sm:space-y-6">
             {drafts.map((draft) => {
-              const depositAmount = Math.round((draft.totalAmount || 0) * 0.25);
-              const remainingAmount = Math.max(0, (draft.totalAmount || 0) - depositAmount);
+              const depositAmount = Number(draft.paidAmount || 0);
+              const remainingAmount =
+                draft.remainingAmount != null
+                  ? Math.max(0, Number(draft.remainingAmount || 0))
+                  : Math.max(0, Number(draft.totalAmount || 0) - depositAmount);
               const draftPayment = draft.draftPayments?.[0] || {};
 
               return (

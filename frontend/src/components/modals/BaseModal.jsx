@@ -36,6 +36,7 @@ export default function BaseModal({
   children,
   size = 'md',
   mobileSheet = true,
+  fullscreen = false,
   closeOnEsc = true,
   closeOnBackdrop = true,
   lockScroll = true,
@@ -54,7 +55,9 @@ export default function BaseModal({
   const [keyboardInset, setKeyboardInset] = useState(0);
 
   const sizeClass = SIZE_CLASS_MAP[size] || SIZE_CLASS_MAP.md;
-  const rootLayoutClass = mobileSheet
+  const rootLayoutClass = fullscreen
+    ? 'items-stretch justify-center'
+    : mobileSheet
     ? 'items-end justify-center sm:items-center'
     : 'items-center justify-center';
 
@@ -67,7 +70,7 @@ export default function BaseModal({
   }, [closeOnEsc]);
 
   useEffect(() => {
-    if (!isOpen || typeof window === 'undefined') return undefined;
+    if (!isOpen || fullscreen || typeof window === 'undefined') return undefined;
     const viewport = window.visualViewport;
     if (!viewport) return undefined;
 
@@ -87,7 +90,7 @@ export default function BaseModal({
       viewport.removeEventListener('scroll', updateInset);
       setKeyboardInset(0);
     };
-  }, [isOpen]);
+  }, [fullscreen, isOpen]);
 
   useEffect(() => {
     if (!isOpen || typeof document === 'undefined') return undefined;
@@ -164,15 +167,21 @@ export default function BaseModal({
   }, [isOpen, lockScroll, initialFocusSelector]);
 
   const panelStyle = useMemo(
-    () => ({
-      maxHeight: `calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 0.75rem - ${keyboardInset}px)`,
-      height:
-        mobileSheet && keyboardInset > 0
-          ? `calc(100dvh - env(safe-area-inset-top, 0px) - ${keyboardInset}px)`
-          : undefined,
-      marginBottom: mobileSheet ? 'env(safe-area-inset-bottom, 0px)' : undefined
-    }),
-    [mobileSheet, keyboardInset]
+    () =>
+      fullscreen
+        ? {
+            height: '100dvh',
+            maxHeight: '100dvh'
+          }
+        : {
+            maxHeight: `calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 0.75rem - ${keyboardInset}px)`,
+            height:
+              mobileSheet && keyboardInset > 0
+                ? `calc(100dvh - env(safe-area-inset-top, 0px) - ${keyboardInset}px)`
+                : undefined,
+            marginBottom: mobileSheet ? 'env(safe-area-inset-bottom, 0px)' : undefined
+          },
+    [fullscreen, mobileSheet, keyboardInset]
   );
 
   if (!isOpen || typeof document === 'undefined') return null;
@@ -208,7 +217,7 @@ export default function BaseModal({
         className={cx(
           'ui-modal-panel glass-modal-panel relative z-[1] flex w-full flex-col overflow-hidden border border-slate-200/70 bg-white/85 text-slate-900 shadow-2xl outline-none dark:border-neutral-800 dark:bg-slate-900/85 dark:text-neutral-100',
           sizeClass,
-          mobileSheet ? 'rounded-t-3xl sm:rounded-2xl' : 'rounded-2xl',
+          fullscreen ? 'rounded-none' : mobileSheet ? 'rounded-t-3xl sm:rounded-2xl' : 'rounded-2xl',
           panelClassName
         )}
         onClick={(event) => event.stopPropagation()}

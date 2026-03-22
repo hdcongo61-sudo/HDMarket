@@ -102,9 +102,11 @@ const buildOrderSmsDetails = (order) => {
   const fullyPaid =
     String(order?.paymentMode || '').toUpperCase() === 'FULL_PAYMENT' ||
     String(order?.paymentStatus || '').toUpperCase() === 'PAID_FULL';
+  const deliveryFeeTotal = Number(order?.deliveryFeeTotal || 0);
+  const baseOrderAmount = Math.max(0, Number(order?.totalAmount || 0) - deliveryFeeTotal);
   const paidAmount = fullyPaid
     ? Number(order.totalAmount || 0)
-    : Number(order.paidAmount || 0) || Math.round(Number(order.totalAmount || 0) * 0.25);
+    : Number(order.paidAmount || 0) || Math.round(baseOrderAmount * 0.25);
   const deposit = paidAmount
     ? fullyPaid
       ? `Paiement intégral : ${formatSmsAmount(paidAmount)} FCFA`
@@ -936,7 +938,7 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
             ? 0
             : Number(deliveryPricing.deliveryFeeTotal || 0);
         const totalAmount = Number((Number(discountedSubtotal || 0) + deliveryFeeTotal).toFixed(2));
-        const paidAmount = useFullPayment ? totalAmount : Math.round(totalAmount * 0.25);
+        const paidAmount = useFullPayment ? totalAmount : Math.round(Number(discountedSubtotal || 0) * 0.25);
         const remainingAmount = useFullPayment ? 0 : Math.max(0, totalAmount - paidAmount);
         const deliveryCode = await generateDeliveryCode();
 

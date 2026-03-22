@@ -315,7 +315,7 @@ export default function OrderCheckout() {
       ),
     [checkoutSubtotal, isInstallmentPayment, deliveryMode, effectiveDeliveryFeePreviewTotal]
   );
-  const depositAmount = useMemo(() => Math.round(checkoutTotalWithDelivery * 0.25), [checkoutTotalWithDelivery]);
+  const depositAmount = useMemo(() => Math.round(checkoutSubtotal * 0.25), [checkoutSubtotal]);
   const remainingAmount = Math.max(0, Number(checkoutTotalWithDelivery || 0) - depositAmount);
   const summaryPaidAmount = isInstallmentPayment
     ? installmentFirstPaymentAmount
@@ -1349,7 +1349,7 @@ export default function OrderCheckout() {
                 ? installmentFirstPaymentAmount
                 : isFullPaymentSelected
                   ? Number(groupTotalWithDelivery || 0)
-                  : Math.round(Number(groupTotalWithDelivery || 0) * 0.25);
+                  : Math.round(Number(groupEffectiveSubtotal || 0) * 0.25);
               const groupRemaining = Math.max(0, Number(groupTotalWithDelivery || 0) - groupDeposit);
               return (
                 <div
