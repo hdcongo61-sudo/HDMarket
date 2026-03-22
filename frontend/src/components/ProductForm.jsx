@@ -131,6 +131,7 @@ export default function ProductForm(props) {
   });
   const formShellRef = useRef(null);
   const toggleSection = (key) => setExpandedSections((s) => ({ ...s, [key]: !s[key] }));
+  const isEmbeddedMobile = Boolean(isMobile && embeddedInModal);
 
   useEffect(() => {
     if (!isEmbeddedMobile || !formShellRef.current) return undefined;
@@ -1133,7 +1134,6 @@ export default function ProductForm(props) {
     : 'Remplissez les détails de votre produit pour commencer à vendre';
   const buttonLabel =
     submitLabel || (isEditing ? 'Mettre à jour l’annonce' : 'Publier l’annonce');
-  const isEmbeddedMobile = Boolean(isMobile && embeddedInModal);
   const requiredFields = useMemo(
     () => ({
       title: Boolean(String(form.title || '').trim()),
