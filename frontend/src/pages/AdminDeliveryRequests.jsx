@@ -921,9 +921,6 @@ export default function AdminDeliveryRequests() {
                 </Link>
               </div>
             </div>
-            <div className="mt-3">
-              <AppOfflineDiagnosticsCard title="Diagnostic local logistique" />
-            </div>
             {assignQueueSyncing || queuedAssignActionCount > 0 ? (
               <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-medium text-violet-800">
                 <span
@@ -937,6 +934,11 @@ export default function AdminDeliveryRequests() {
             ) : null}
           </div>
         </header>
+
+        <AppOfflineDiagnosticsCard
+          title="Diagnostic local logistique"
+          collapsibleOnMobile
+        />
 
         <section className="overflow-x-auto">
           <div className="flex min-w-max gap-2">

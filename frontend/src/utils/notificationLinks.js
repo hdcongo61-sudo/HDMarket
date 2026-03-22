@@ -140,12 +140,41 @@ const buildShopIdentifier = (alert) => {
   return null;
 };
 
-const buildOrderPath = (alert, user) => {
+const getParsedNotificationLink = (link) => toUrlObject(link)?.url || null;
+
+const isOrderScopedLink = (link) => {
+  const pathname = String(getParsedNotificationLink(link)?.pathname || '').toLowerCase();
+  return (
+    pathname.startsWith('/orders') ||
+    pathname.startsWith('/order') ||
+    pathname.startsWith('/seller/orders') ||
+    pathname.startsWith('/seller/order') ||
+    pathname.startsWith('/admin/orders')
+  );
+};
+
+const extractOrderIdFromLink = (link) => {
+  const parsed = getParsedNotificationLink(link);
+  if (!parsed) return '';
+
+  const orderIdFromQuery =
+    extractObjectId(parsed.searchParams.get('orderId')) ||
+    extractObjectId(parsed.searchParams.get('id'));
+  if (orderIdFromQuery) return orderIdFromQuery;
+
+  const match = parsed.pathname.match(
+    /\/(?:seller\/orders\/detail|seller\/order\/detail|orders\/detail|order\/detail)\/([a-f\d]{24})(?:\/|$)/i
+  );
+  return match?.[1] || '';
+};
+
+const buildOrderPath = (alert, user, fallbackOrderId = '') => {
   const metadata = alert?.metadata || {};
   const orderId =
     extractObjectId(metadata.orderId) ||
     extractObjectId(alert?.entityType === 'order' ? alert?.entityId : '') ||
-    extractObjectId(alert?.entityId);
+    extractObjectId(alert?.entityId) ||
+    extractObjectId(fallbackOrderId);
   if (alert?.type === 'order_message') {
     if (!orderId) return '/orders/messages';
     return `/orders/messages?orderId=${encodeURIComponent(orderId)}`;
@@ -189,6 +218,15 @@ const buildDeliveryPath = (alert, user) => {
       : '/delivery/dashboard';
   }
   return buildOrderPath(alert, user) || '/orders';
+};
+
+const resolveRoleAwareOrderLink = (alert, user, deepLink = '') => {
+  const orderIdFromLink = extractOrderIdFromLink(deepLink);
+  const canonicalOrderPath = buildOrderPath(alert, user, orderIdFromLink);
+
+  if (!deepLink) return canonicalOrderPath;
+  if (!isOrderScopedLink(deepLink)) return deepLink;
+  return canonicalOrderPath || deepLink;
 };
 
 const buildProductReviewsPath = (alert) => {
@@ -264,11 +302,11 @@ export const resolveNotificationLink = (alert, user = null) => {
   }
 
   if (DELIVERY_TYPES.has(type)) {
-    return deepLink || buildDeliveryPath(alert, user);
+    return resolveRoleAwareOrderLink(alert, user, deepLink) || buildDeliveryPath(alert, user);
   }
 
   if (ORDER_TYPES.has(type) || INSTALLMENT_TYPES.has(type)) {
-    return deepLink || buildOrderPath(alert, user) || '/orders';
+    return resolveRoleAwareOrderLink(alert, user, deepLink) || buildOrderPath(alert, user) || '/orders';
   }
 
   if (type === 'shop_follow' || type === 'shop_boosted' || type === 'shop_verified') {

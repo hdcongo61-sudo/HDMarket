@@ -6,6 +6,7 @@
  */
 
 const SW_VERSION = new URL(self.location.href).searchParams.get('v') || 'v4-2026-03-06';
+const IS_NATIVE_APP = new URL(self.location.href).searchParams.get('native') === '1';
 const CACHE_NAME = `hdmarket-${SW_VERSION}`;
 const STATIC_CACHE_NAME = `hdmarket-static-${SW_VERSION}`;
 const API_CACHE_NAME = `hdmarket-api-${SW_VERSION}`;
@@ -99,7 +100,7 @@ let firebaseInitialized = false;
 let firebaseScriptsLoaded = false;
 let firebaseSdkBaseUrl = null;
 
-const isDevHost = () => DEV_HOSTS.has(self.location.hostname);
+const isDevHost = () => !IS_NATIVE_APP && DEV_HOSTS.has(self.location.hostname);
 
 const isAuthRequest = (request) => {
   try {

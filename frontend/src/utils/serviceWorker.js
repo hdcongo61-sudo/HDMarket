@@ -2,10 +2,19 @@
  * Service Worker registration utility
  */
 /* global __HDMARKET_BUILD_ID__ */
+import { Capacitor } from '@capacitor/core';
 
 const isLocalHost = () => {
   if (typeof window === 'undefined') return false;
   return ['localhost', '127.0.0.1'].includes(window.location.hostname);
+};
+
+const isNativeApp = () => {
+  try {
+    return Capacitor.isNativePlatform();
+  } catch {
+    return false;
+  }
 };
 
 const shouldLogSwDebug =
@@ -18,13 +27,14 @@ const SW_BUILD_ID =
     : String(import.meta.env.VITE_APP_BUILD_ID || 'dev');
 
 export const registerServiceWorker = async () => {
-  if (isLocalHost() && !allowLocalhostServiceWorker) {
+  if (isLocalHost() && !allowLocalhostServiceWorker && !isNativeApp()) {
     await unregisterServiceWorker();
     return null;
   }
   if ('serviceWorker' in navigator) {
     try {
-      const swScriptUrl = `/sw.js?v=${encodeURIComponent(SW_BUILD_ID)}`;
+      const nativeQuery = isNativeApp() ? '&native=1' : '';
+      const swScriptUrl = `/sw.js?v=${encodeURIComponent(SW_BUILD_ID)}${nativeQuery}`;
       const registration = await navigator.serviceWorker.register(swScriptUrl, {
         scope: '/'
       });

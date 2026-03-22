@@ -1,12 +1,18 @@
-import React from 'react';
-import { CloudOff, MessageSquareMore, RefreshCw, Signal, Truck, UploadCloud, Wifi, WifiOff } from 'lucide-react';
+import React, { useState } from 'react';
+import { ChevronDown, CloudOff, MessageSquareMore, RefreshCw, Signal, Truck, UploadCloud, Wifi, WifiOff } from 'lucide-react';
 import useNetworkProfile from '../../hooks/useNetworkProfile';
 import useOfflineQueueStats from '../../hooks/useOfflineQueueStats';
 import GlassCard from '../ui/GlassCard';
 
-export default function AppOfflineDiagnosticsCard({ title = 'Mise à jour locale', className = '' }) {
+export default function AppOfflineDiagnosticsCard({
+  title = 'Mise à jour locale',
+  className = '',
+  collapsibleOnMobile = false,
+  defaultExpanded = false
+}) {
   const { offline, rapid3GActive, effectiveType, saveData } = useNetworkProfile();
   const { counts: queueStats, total: totalQueued, loading, reload } = useOfflineQueueStats();
+  const [mobileExpanded, setMobileExpanded] = useState(Boolean(defaultExpanded));
   const networkLabel = offline
     ? 'Hors ligne'
     : rapid3GActive
@@ -16,9 +22,13 @@ export default function AppOfflineDiagnosticsCard({ title = 'Mise à jour locale
     : effectiveType
     ? `En ligne • ${effectiveType}`
     : 'En ligne';
+  const queueSummary =
+    totalQueued > 0
+      ? `${totalQueued} action${totalQueued > 1 ? 's' : ''} en attente`
+      : 'Aucune attente locale';
 
-  return (
-    <GlassCard variant="glass" className={`overflow-hidden rounded-[28px] p-4 sm:p-5 ${className}`.trim()}>
+  const fullCard = (
+    <GlassCard variant="glass" className="overflow-hidden rounded-[28px] p-4 sm:p-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-1">
           <div className="inline-flex items-center gap-2 rounded-full bg-slate-900/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white dark:bg-white/10 dark:text-slate-100">
@@ -85,5 +95,40 @@ export default function AppOfflineDiagnosticsCard({ title = 'Mise à jour locale
         </button>
       </div>
     </GlassCard>
+  );
+
+  if (!collapsibleOnMobile) {
+    return <div className={className}>{fullCard}</div>;
+  }
+
+  return (
+    <div className={className}>
+      <div className="md:hidden">
+        <GlassCard variant="glass" className="rounded-2xl p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">
+                <Signal size={12} />
+                Diagnostic local
+              </div>
+              <p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-white">{networkLabel}</p>
+              <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">{queueSummary}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMobileExpanded((current) => !current)}
+              className="inline-flex min-h-[40px] shrink-0 items-center gap-2 rounded-2xl border border-slate-200/80 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
+            >
+              {mobileExpanded ? 'Masquer' : 'Voir'}
+              <ChevronDown size={14} className={`transition-transform ${mobileExpanded ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+        </GlassCard>
+      </div>
+
+      <div className={`${mobileExpanded ? 'block' : 'hidden'} md:block`}>
+        <div className="mt-3 md:mt-0">{fullCard}</div>
+      </div>
+    </div>
   );
 }
