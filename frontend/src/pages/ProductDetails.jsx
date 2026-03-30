@@ -1663,16 +1663,6 @@ export default function ProductDetails() {
     swiper.slideTo(selectedImage);
   }, [selectedImage]);
 
-  useEffect(() => {
-    if (!isImageModalOpen || typeof document === "undefined") return undefined;
-    const { style } = document.body;
-    const previousOverflow = style.overflow;
-    style.overflow = "hidden";
-    return () => {
-      style.overflow = previousOverflow;
-    };
-  }, [isImageModalOpen]);
-
   const renderWholesaleSection = ({ compact = false } = {}) => {
     if (!wholesaleEnabled) return null;
     return (

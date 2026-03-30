@@ -3775,10 +3775,51 @@ export default function Navbar() {
         >
           <div className="bg-white dark:bg-gray-900 h-full overflow-y-auto pb-32">
             <div className="max-w-7xl mx-auto px-4 py-6 space-y-3">
-              
+
+              {/* User avatar / profile card */}
+              {user ? (
+                <Link
+                  to="/profile"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 mb-1 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  {resolveUserProfileImage(user) ? (
+                    <img
+                      src={resolveUserProfileImage(user)}
+                      alt={user.name || t('nav.user', 'Utilisateur')}
+                      className="h-12 w-12 rounded-full object-cover ring-2 ring-black/10 dark:ring-white/10 flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-neutral-700 to-neutral-900 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                      {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-gray-900 dark:text-white truncate">
+                      {user.name || t('nav.user', 'Utilisateur')}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
+                  </div>
+                </Link>
+              ) : (
+                <Link
+                  to="/login"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 mb-1 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-neutral-300 to-neutral-400 dark:from-neutral-600 dark:to-neutral-700 flex items-center justify-center flex-shrink-0">
+                    <User size={24} className="text-white" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-gray-900 dark:text-white">{t('nav.login', 'Connexion')}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{t('nav.loginToAccount', 'Connectez-vous à votre compte')}</p>
+                  </div>
+                </Link>
+              )}
+
               {/* Navigation principale mobile */}
-              <NavLink 
-                to="/" 
+              <NavLink
+                to="/"
                 onClick={() => setIsMenuOpen(false)}
                 className={({ isActive }) => 
                   `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${

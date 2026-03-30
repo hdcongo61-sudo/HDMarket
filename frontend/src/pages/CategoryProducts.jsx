@@ -351,24 +351,26 @@ export default function CategoryProducts() {
         </div>
 
         {group && (
-          <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
-            {group.options.map((option) => {
-              const isActive = option.value === categoryMeta.value;
-              return (
-                <Link
-                  key={option.value}
-                  to={`/categories/${option.value}`}
-                  className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                    isActive
-                      ? 'border-neutral-600 bg-neutral-600 text-white'
-                      : 'border-gray-200 bg-white text-gray-600 hover:border-neutral-200 hover:text-neutral-600'
-                  }`}
-                >
-                  {option.label}
-                  {isActive ? null : <ChevronRight className="w-3 h-3" />}
-                </Link>
-              );
-            })}
+          <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
+            <div className="flex flex-wrap gap-2">
+              {group.options.map((option) => {
+                const isActive = option.value === categoryMeta.value;
+                return (
+                  <Link
+                    key={option.value}
+                    to={`/categories/${option.value}`}
+                    className={`inline-flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      isActive
+                        ? 'border-neutral-700 bg-neutral-700 text-white shadow-sm'
+                        : 'border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 hover:border-gray-300'
+                    }`}
+                  >
+                    {option.label}
+                    {isActive ? null : <ChevronRight className="w-3 h-3 opacity-50" />}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
         )}
       </header>

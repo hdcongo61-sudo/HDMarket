@@ -39,7 +39,9 @@ import {
   List,
   Zap,
   Sparkles,
-  Tag
+  Tag,
+  AlertTriangle,
+  CalendarClock
 } from 'lucide-react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -57,6 +59,7 @@ import PreviewableImage from '../components/media/PreviewableImage';
 import { appConfirm } from '../utils/appDialog';
 
 const ITEMS_PER_PAGE = 12;
+const RECENT_CREATE_HIGHLIGHT_MS = 12000;
 
 const STATUS_LABELS = {
   all: 'Toutes',
@@ -98,6 +101,15 @@ const formatDate = (value) => {
     month: 'short',
     year: 'numeric'
   });
+};
+
+const getProductId = (product) => String(product?._id || product?.id || product?.slug || '').trim();
+
+const normalizeCreatedProductPayload = (payload) => {
+  if (!payload || typeof payload !== 'object') return null;
+  if (payload.product && typeof payload.product === 'object') return payload.product;
+  if (payload.item && typeof payload.item === 'object') return payload.item;
+  return payload;
 };
 
 const buildDefaultPromoForm = () => ({
@@ -155,6 +167,7 @@ export default function UserDashboard() {
   const [promoForm, setPromoForm] = useState(buildDefaultPromoForm);
   const [promoSubmitting, setPromoSubmitting] = useState(false);
   const [promoToggleLoadingId, setPromoToggleLoadingId] = useState('');
+  const [recentlyCreatedProductId, setRecentlyCreatedProductId] = useState('');
 
   const loadPromoCodes = async (status = promoCodeStatusFilter) => {
     if (!isShopUser) {
@@ -416,6 +429,28 @@ export default function UserDashboard() {
     setEditingProduct(null);
   };
 
+  const revealCreatedProduct = (payload) => {
+    const createdProduct = normalizeCreatedProductPayload(payload);
+    const createdProductId = getProductId(createdProduct);
+
+    if (!createdProductId) {
+      load();
+      return;
+    }
+
+    setItems((prev) => {
+      const nextItems = Array.isArray(prev) ? [...prev] : [];
+      const existingIndex = nextItems.findIndex((item) => getProductId(item) === createdProductId);
+      if (existingIndex >= 0) {
+        nextItems.splice(existingIndex, 1);
+      }
+      return [createdProduct, ...nextItems];
+    });
+    setRecentlyCreatedProductId(createdProductId);
+    setCurrentPage(1);
+    load({ silent: true });
+  };
+
   const updateStatus = async (id, action) => {
     setUpdatingId(id);
     try {
@@ -599,15 +634,32 @@ export default function UserDashboard() {
     sortBy
   ]);
 
+  const recentlyCreatedProduct = useMemo(
+    () => items.find((item) => getProductId(item) === recentlyCreatedProductId) || null,
+    [items, recentlyCreatedProductId]
+  );
+
+  const isRecentlyCreatedHiddenByFilters = useMemo(() => {
+    if (!recentlyCreatedProduct) return false;
+    return !filteredItems.some((item) => getProductId(item) === recentlyCreatedProductId);
+  }, [filteredItems, recentlyCreatedProduct, recentlyCreatedProductId]);
+
+  const visibleItems = useMemo(() => {
+    if (!recentlyCreatedProduct || !isRecentlyCreatedHiddenByFilters) {
+      return filteredItems;
+    }
+    return [recentlyCreatedProduct, ...filteredItems];
+  }, [filteredItems, isRecentlyCreatedHiddenByFilters, recentlyCreatedProduct]);
+
   // Pagination
-  const totalPages = filteredItems.length ? Math.ceil(filteredItems.length / ITEMS_PER_PAGE) : 1;
+  const totalPages = visibleItems.length ? Math.ceil(visibleItems.length / ITEMS_PER_PAGE) : 1;
   const paginatedItems = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredItems.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredItems, currentPage]);
+    return visibleItems.slice(start, start + ITEMS_PER_PAGE);
+  }, [visibleItems, currentPage]);
 
-  const currentRangeStart = filteredItems.length ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0;
-  const currentRangeEnd = Math.min(filteredItems.length, currentPage * ITEMS_PER_PAGE);
+  const currentRangeStart = visibleItems.length ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0;
+  const currentRangeEnd = Math.min(visibleItems.length, currentPage * ITEMS_PER_PAGE);
 
   const goToPage = (page) => {
     const nextPage = Math.min(Math.max(page, 1), totalPages);
@@ -631,6 +683,14 @@ export default function UserDashboard() {
     installmentFilter,
     sortBy
   ]);
+
+  useEffect(() => {
+    if (!recentlyCreatedProductId) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      setRecentlyCreatedProductId('');
+    }, RECENT_CREATE_HIGHLIGHT_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [recentlyCreatedProductId]);
 
   // Clear selection when mode changes
   useEffect(() => {
@@ -1631,7 +1691,7 @@ export default function UserDashboard() {
         )}
 
         {/* Empty State - Filtered */}
-        {!loading && items.length > 0 && filteredItems.length === 0 && (
+        {!loading && items.length > 0 && visibleItems.length === 0 && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
             <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
               <Filter className="w-10 h-10 text-gray-400" />
@@ -1647,6 +1707,15 @@ export default function UserDashboard() {
             >
               Réinitialiser les filtres
             </button>
+          </div>
+        )}
+
+        {!loading && isRecentlyCreatedHiddenByFilters && recentlyCreatedProduct && (
+          <div className="mb-6 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 shadow-sm">
+            <span className="font-semibold">Nouvelle annonce affichée.</span>{' '}
+            <span>
+              Vos filtres actuels masqueraient normalement "{recentlyCreatedProduct.title || 'ce produit'}". Elle est affichée en tête pour faciliter la vérification.
+            </span>
           </div>
         )}
 
@@ -1803,6 +1872,11 @@ export default function UserDashboard() {
                 
                 const isSelected = selectedProducts.has(productId);
                 const isTopPerformer = topPerformers.includes(productId);
+                const isRecentlyCreated = productId === recentlyCreatedProductId;
+                const isInstallmentExpired =
+                  product.installmentEnabled === true &&
+                  product.installmentEndDate &&
+                  new Date(product.installmentEndDate) < new Date();
 
                 if (viewMode === 'list') {
                   // List View
@@ -1810,8 +1884,12 @@ export default function UserDashboard() {
                     <div
                       key={productId}
                       className={`bg-white rounded-xl border-2 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden relative ${
-                        isSelected
+                        isRecentlyCreated
+                          ? 'border-sky-400 ring-2 ring-sky-200'
+                          : isSelected
                           ? 'border-neutral-500 ring-2 ring-neutral-200'
+                          : isInstallmentExpired
+                          ? 'border-orange-400 ring-2 ring-orange-100'
                           : isTopPerformer
                           ? 'border-yellow-400 ring-2 ring-yellow-200'
                           : 'border-gray-100'
@@ -1854,6 +1932,14 @@ export default function UserDashboard() {
                             <div className="px-2 py-1 rounded-lg bg-gradient-to-r from-yellow-400 to-yellow-500 text-white text-xs font-bold shadow-lg flex items-center gap-1">
                               <TrendingUp className="w-3 h-3" />
                               Top
+                            </div>
+                          </div>
+                        )}
+
+                        {isRecentlyCreated && (
+                          <div className="absolute top-4 right-4 z-20">
+                            <div className="px-2 py-1 rounded-lg bg-sky-500 text-white text-xs font-bold shadow-lg">
+                              Nouveau
                             </div>
                           </div>
                         )}
@@ -1923,6 +2009,41 @@ export default function UserDashboard() {
                                 {STATUS_MESSAGES[product.status] || 'Statut en cours de mise à jour.'}
                               </p>
                             </div>
+
+                            {/* Expired installment warning - List View */}
+                            {isInstallmentExpired && (
+                              <div className="rounded-lg border border-orange-300 bg-orange-50 p-2 mb-3 flex items-start gap-2">
+                                <AlertTriangle className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-semibold text-orange-800">Tranche expirée</p>
+                                  <p className="text-xs text-orange-600">
+                                    Date limite : {formatDate(product.installmentEndDate)}
+                                  </p>
+                                </div>
+                                <div className="flex gap-1 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => { setEditingProduct(product); setProductModalOpen(true); }}
+                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition-colors"
+                                  >
+                                    <CalendarClock className="w-3 h-3" />
+                                    Prolonger
+                                  </button>
+                                  {product.status !== 'disabled' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => updateStatus(product.slug || product._id, 'disable')}
+                                      disabled={updatingId === product._id}
+                                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-semibold transition-colors disabled:opacity-50"
+                                    >
+                                      <PowerOff className="w-3 h-3" />
+                                      Désactiver
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
                             <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
                               {product.category && (
                                 <div className="flex items-center gap-1">
@@ -2025,21 +2146,31 @@ export default function UserDashboard() {
                   <div
                     key={productId}
                     className={`bg-white rounded-2xl border-2 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden relative ${
-                      isSelected
+                      isRecentlyCreated
+                        ? 'border-sky-400 ring-2 ring-sky-200'
+                        : isSelected
                         ? 'border-neutral-500 ring-2 ring-neutral-200'
+                        : isInstallmentExpired
+                        ? 'border-orange-400 ring-2 ring-orange-100'
                         : isTopPerformer
                         ? 'border-yellow-400 ring-2 ring-yellow-200'
                         : 'border-gray-100'
                     }`}
                   >
-                    {isTopPerformer && (
-                      <div className="absolute top-3 right-3 z-20">
+                    <div className="absolute top-3 right-3 z-20 flex flex-col gap-2">
+                      {isRecentlyCreated && (
+                        <div className="px-2 py-1 rounded-lg bg-sky-500 text-white text-xs font-bold shadow-lg inline-flex items-center gap-1">
+                          <Sparkles className="w-3 h-3" />
+                          Nouveau
+                        </div>
+                      )}
+                      {isTopPerformer && (
                         <div className="px-2 py-1 rounded-lg bg-gradient-to-r from-yellow-400 to-yellow-500 text-white text-xs font-bold shadow-lg flex items-center gap-1">
                           <TrendingUp className="w-3 h-3" />
                           Top
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                     {/* Selection Checkbox */}
                     <div className="absolute top-3 left-3 z-30">
                       <button
@@ -2140,6 +2271,40 @@ export default function UserDashboard() {
                           {STATUS_MESSAGES[product.status] || 'Statut en cours de mise à jour.'}
                         </p>
                       </div>
+
+                      {/* Expired installment warning - Grid View */}
+                      {isInstallmentExpired && (
+                        <div className="rounded-xl border border-orange-300 bg-orange-50 p-3 flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4 text-orange-500 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-orange-800">Tranche expirée</p>
+                              <p className="text-xs text-orange-600">Limite : {formatDate(product.installmentEndDate)}</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => { setEditingProduct(product); setProductModalOpen(true); }}
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition-colors"
+                            >
+                              <CalendarClock className="w-3.5 h-3.5" />
+                              Prolonger
+                            </button>
+                            {product.status !== 'disabled' && (
+                              <button
+                                type="button"
+                                onClick={() => updateStatus(product.slug || product._id, 'disable')}
+                                disabled={updatingId === product._id}
+                                className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-semibold transition-colors disabled:opacity-50"
+                              >
+                                <PowerOff className="w-3.5 h-3.5" />
+                                Désactiver
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Metadata */}
                       <div className="flex items-center gap-4 text-xs text-gray-500 pt-2 border-t border-gray-100">
@@ -2244,7 +2409,7 @@ export default function UserDashboard() {
                 <p className="text-sm text-gray-600">
                   Affichage <span className="font-bold text-gray-900">{currentRangeStart}</span> -{' '}
                   <span className="font-bold text-gray-900">{currentRangeEnd}</span> sur{' '}
-                  <span className="font-bold text-gray-900">{filteredItems.length}</span> annonce{filteredItems.length > 1 ? 's' : ''}
+                  <span className="font-bold text-gray-900">{visibleItems.length}</span> annonce{visibleItems.length > 1 ? 's' : ''}
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -2337,8 +2502,8 @@ export default function UserDashboard() {
                 embeddedInModal={isMobile}
                 hideHeader
                 onCancel={handleModalClose}
-                onCreated={() => {
-                  load();
+                onCreated={(createdProduct) => {
+                  revealCreatedProduct(createdProduct);
                   handleModalClose();
                   showToast('Annonce créée avec succès !', { variant: 'success' });
                 }}

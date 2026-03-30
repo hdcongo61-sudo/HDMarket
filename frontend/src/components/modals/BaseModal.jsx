@@ -20,6 +20,8 @@ const FOCUSABLE_SELECTOR = [
 ].join(',');
 
 const cx = (...parts) => parts.filter(Boolean).join(' ');
+const MODAL_LOCK_COUNT_ATTR = 'data-hdmarket-modal-lock-count';
+const MODAL_LOCK_SCROLL_Y_ATTR = 'data-hdmarket-modal-scroll-y';
 
 const getFocusableElements = (node) => {
   if (!node) return [];
@@ -97,18 +99,50 @@ export default function BaseModal({
 
     lastFocusedRef.current = document.activeElement;
     const body = document.body;
+    const html = document.documentElement;
     const previousOverflow = body.style.overflow;
+    const previousHtmlOverflow = html.style.overflow;
     const previousPaddingRight = body.style.paddingRight;
     const previousTouchAction = body.style.touchAction;
+    const previousHtmlTouchAction = html.style.touchAction;
+    const previousPosition = body.style.position;
+    const previousTop = body.style.top;
+    const previousLeft = body.style.left;
+    const previousRight = body.style.right;
+    const previousWidth = body.style.width;
+    const previousOverscrollBehavior = body.style.overscrollBehavior;
+    const previousHtmlOverscrollBehavior = html.style.overscrollBehavior;
+    const previousWebkitOverflowScrolling = body.style.webkitOverflowScrolling;
+    const existingLockCount = Number(body.getAttribute(MODAL_LOCK_COUNT_ATTR) || 0);
+    const nextLockCount = existingLockCount + 1;
+    const shouldApplyLock = lockScroll && existingLockCount === 0;
+    const scrollY =
+      typeof window !== 'undefined'
+        ? window.scrollY || window.pageYOffset || 0
+        : 0;
 
     if (lockScroll) {
+      body.setAttribute(MODAL_LOCK_COUNT_ATTR, String(nextLockCount));
       const scrollbarWidth = Math.max(
         0,
         window.innerWidth - document.documentElement.clientWidth
       );
-      body.style.overflow = 'hidden';
-      body.style.touchAction = 'none';
-      if (scrollbarWidth > 0) body.style.paddingRight = `${scrollbarWidth}px`;
+      if (shouldApplyLock) {
+        body.setAttribute(MODAL_LOCK_SCROLL_Y_ATTR, String(scrollY));
+        body.style.overflow = 'hidden';
+        html.style.overflow = 'hidden';
+        body.style.touchAction = 'none';
+        html.style.touchAction = 'none';
+        body.style.overscrollBehavior = 'none';
+        html.style.overscrollBehavior = 'none';
+        body.style.position = 'fixed';
+        body.style.top = `-${scrollY}px`;
+        body.style.left = '0';
+        body.style.right = '0';
+        body.style.width = '100%';
+        body.style.webkitOverflowScrolling = 'auto';
+        if (scrollbarWidth > 0) body.style.paddingRight = `${scrollbarWidth}px`;
+      }
     }
 
     const onKeyDown = (event) => {
@@ -156,9 +190,33 @@ export default function BaseModal({
       window.cancelAnimationFrame(raf);
       document.removeEventListener('keydown', onKeyDown);
       if (lockScroll) {
-        body.style.overflow = previousOverflow;
-        body.style.paddingRight = previousPaddingRight;
-        body.style.touchAction = previousTouchAction;
+        const currentLockCount = Number(body.getAttribute(MODAL_LOCK_COUNT_ATTR) || 0);
+        const remainingLockCount = Math.max(0, currentLockCount - 1);
+        if (remainingLockCount > 0) {
+          body.setAttribute(MODAL_LOCK_COUNT_ATTR, String(remainingLockCount));
+        } else {
+          body.removeAttribute(MODAL_LOCK_COUNT_ATTR);
+          const storedScrollY = Number(body.getAttribute(MODAL_LOCK_SCROLL_Y_ATTR) || 0);
+          body.removeAttribute(MODAL_LOCK_SCROLL_Y_ATTR);
+          body.style.overflow = previousOverflow;
+          html.style.overflow = previousHtmlOverflow;
+          body.style.paddingRight = previousPaddingRight;
+          body.style.touchAction = previousTouchAction;
+          html.style.touchAction = previousHtmlTouchAction;
+          body.style.position = previousPosition;
+          body.style.top = previousTop;
+          body.style.left = previousLeft;
+          body.style.right = previousRight;
+          body.style.width = previousWidth;
+          body.style.overscrollBehavior = previousOverscrollBehavior;
+          html.style.overscrollBehavior = previousHtmlOverscrollBehavior;
+          body.style.webkitOverflowScrolling = previousWebkitOverflowScrolling;
+          if (typeof window !== 'undefined') {
+            window.requestAnimationFrame(() => {
+              window.scrollTo(0, Number.isFinite(storedScrollY) ? storedScrollY : 0);
+            });
+          }
+        }
       }
       if (lastFocusedRef.current instanceof HTMLElement) {
         lastFocusedRef.current.focus();

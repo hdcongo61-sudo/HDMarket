@@ -29,6 +29,8 @@ export default function PreviewableImage({
   showHint = true,
   onReport,
   reportContext,
+  fetchPriority,
+  fetchpriority,
   ...imgProps
 }) {
   const { getRuntimeValue } = useAppSettings();
@@ -120,7 +122,7 @@ export default function PreviewableImage({
         alt={alt}
         loading={loading}
         decoding="async"
-        fetchPriority={rapid3GActive ? 'low' : undefined}
+        fetchpriority={fetchpriority || fetchPriority || (rapid3GActive ? 'low' : undefined)}
         sizes={imgProps.sizes || '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw'}
         className={className}
         onPointerDown={startLongPress}

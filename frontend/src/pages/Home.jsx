@@ -391,6 +391,9 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
       });
       setInstallmentProducts(Array.isArray(data?.items) ? data.items : []);
     } catch (error) {
+      if (isApiCanceledError(error)) {
+        return;
+      }
       console.error('Erreur chargement produits tranche:', error);
       setInstallmentProducts([]);
     } finally {
@@ -412,6 +415,9 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
       const { data } = await api.get('/products/public/wholesale', { params });
       setWholesaleProducts(Array.isArray(data?.items) ? data.items : []);
     } catch (error) {
+      if (isApiCanceledError(error)) {
+        return;
+      }
       console.error('Erreur chargement produits en gros:', error);
       setWholesaleProducts([]);
     } finally {
@@ -753,6 +759,9 @@ const loadDiscountProducts = async () => {
       const items = Array.isArray(data?.items) ? data.items : [];
       setTopSalesProducts(items);
     } catch (error) {
+      if (isApiCanceledError(error)) {
+        return;
+      }
       console.error("Erreur chargement produits les plus vendus:", error);
       setTopSalesProducts([]);
     } finally {
@@ -778,6 +787,9 @@ const loadDiscountProducts = async () => {
       const items = Array.isArray(data?.items) ? data.items : [];
       setTopSalesCityTodayProducts(items);
     } catch (error) {
+      if (isApiCanceledError(error)) {
+        return;
+      }
       console.error("Erreur chargement top ventes ville (aujourd'hui):", error);
       setTopSalesCityTodayProducts([]);
     } finally {

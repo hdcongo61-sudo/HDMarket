@@ -1,7 +1,6 @@
 import React from 'react';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import GlassCard from '../ui/GlassCard';
 import ShimmerSkeleton from '../ui/ShimmerSkeleton';
 import ProductCard from '../ProductCard';
 import { buildProductPath } from '../../utils/links';
@@ -29,32 +28,38 @@ export default function ShopProductsSection({
   onGoReviews
 }) {
   const productGridClass = useCompactCards
-    ? 'mx-auto grid w-full max-w-[380px] min-w-0 grid-cols-1 gap-2 min-[376px]:grid-cols-2 sm:gap-3'
-    : 'grid min-w-0 grid-cols-1 gap-2 min-[376px]:grid-cols-2 sm:grid-cols-3';
+    ? 'mx-auto grid w-full max-w-[380px] grid-cols-1 gap-2 min-[376px]:grid-cols-2 sm:gap-3'
+    : 'grid grid-cols-2 gap-2 sm:grid-cols-3';
+
+  const activeChip =
+    'inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-[#1A2744] px-3 text-xs font-medium text-white transition';
+  const inactiveChip =
+    'inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[#E0D9CF] bg-white px-3 text-xs font-medium text-[#1A1A18] transition hover:border-[#1A2744]';
 
   return (
-    <GlassCard className="min-w-0 space-y-4 overflow-hidden" id="products">
-      <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h2 className="truncate text-base font-semibold text-slate-900 dark:text-white sm:text-lg">
+    <div className="overflow-hidden rounded-xl border border-[#E0D9CF] bg-white p-4" id="products">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h2 className="font-serif text-xl font-medium text-[#1A1A18]">
             {t('shop_profile.all_products', 'Tous les produits')}
           </h2>
-          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+          <p className="mt-0.5 text-xs text-[#8A7F6E]">
             {formatCount(displayProducts.length)} {t('shop_profile.products_count', 'produits')}
           </p>
         </div>
         <button
           type="button"
           onClick={onGoReviews}
-          className="inline-flex min-h-[44px] w-full min-w-0 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900 sm:w-auto"
+          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[#E0D9CF] px-3 text-xs font-medium text-[#8A7F6E] transition hover:border-[#1A2744] hover:text-[#1A1A18]"
         >
-          <span className="truncate">{t('shop_profile.go_reviews', 'Aller aux avis')}</span>
-          <ArrowRight size={14} />
+          <span>{t('shop_profile.go_reviews', 'Avis')}</span>
+          <ArrowRight size={13} />
         </button>
       </div>
 
-      <div className="-mx-1 max-w-full overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-[430px]:mx-0 max-[430px]:overflow-visible max-[430px]:px-0">
-        <div className="flex w-max min-w-0 items-center gap-2 max-[430px]:w-full max-[430px]:flex-wrap">
+      {/* Feed tabs */}
+      <div className="mt-4 -mx-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex w-max items-center gap-2">
           {[
             { id: 'all', label: t('shop_profile.tab_all', 'Tous'), count: products.length },
             { id: 'featured', label: t('shop_profile.tab_featured', 'En vedette'), count: featuredProducts.length },
@@ -67,14 +72,14 @@ export default function ShopProductsSection({
                 key={item.id}
                 type="button"
                 onClick={() => setProductFeed(item.id)}
-                className={`inline-flex min-h-[40px] max-w-full items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition ${
-                  isActive
-                    ? 'bg-slate-900 text-white'
-                    : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
-                }`}
+                className={isActive ? activeChip : inactiveChip}
               >
-                <span className="truncate">{item.label}</span>
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${isActive ? 'bg-white/20' : 'bg-slate-100 text-slate-600'}`}>
+                <span>{item.label}</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                    isActive ? 'bg-white/20' : 'bg-[#F5F3EF] text-[#8A7F6E]'
+                  }`}
+                >
                   {formatCount(item.count)}
                 </span>
               </button>
@@ -83,35 +88,33 @@ export default function ShopProductsSection({
         </div>
       </div>
 
-      <div className="min-w-0 rounded-2xl border border-slate-200 bg-white/80 p-3 dark:border-slate-700 dark:bg-slate-900/60">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            {t('shop_profile.filter_category', 'Filtrer par catégorie')}
+      {/* Category filters */}
+      <div className="mt-3 rounded-xl border border-[#E0D9CF] bg-[#F5F3EF] p-3">
+        <div className="mb-2.5 flex items-center justify-between gap-2">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-[#8A7F6E]">
+            {t('shop_profile.filter_category', 'Catégorie')}
           </p>
           <button
             type="button"
-            onClick={() => {
-              setActiveCategory('all');
-              setPromoOnly(false);
-            }}
-            className="text-xs font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+            onClick={() => { setActiveCategory('all'); setPromoOnly(false); }}
+            className="text-xs font-medium text-[#8A7F6E] transition hover:text-[#1A1A18]"
           >
-            {t('shop_profile.reset', 'Réinitialiser')}
+            {t('shop_profile.reset', 'Tout')}
           </button>
         </div>
-        <div className="-mx-1 max-w-full overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-[430px]:mx-0 max-[430px]:overflow-visible max-[430px]:px-0">
-          <div className="flex w-max min-w-0 items-center gap-2 max-[430px]:w-full max-[430px]:flex-wrap">
+        <div className="-mx-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex w-max items-center gap-2">
             <button
               type="button"
               onClick={() => setActiveCategory('all')}
-              className={`inline-flex min-h-[40px] max-w-full items-center gap-1.5 rounded-full px-3 text-xs font-semibold ${
-                activeCategory === 'all'
-                  ? 'bg-slate-900 text-white'
-                  : 'border border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
-              }`}
+              className={activeCategory === 'all' ? activeChip : inactiveChip}
             >
-              <span className="truncate">{t('shop_profile.tab_all', 'Tous')}</span>
-              <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${activeCategory === 'all' ? 'bg-white/20' : 'bg-slate-100 text-slate-600'}`}>
+              <span>{t('shop_profile.tab_all', 'Tous')}</span>
+              <span
+                className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                  activeCategory === 'all' ? 'bg-white/20' : 'bg-white text-[#8A7F6E]'
+                }`}
+              >
                 {formatCount(products.length)}
               </span>
             </button>
@@ -119,14 +122,14 @@ export default function ShopProductsSection({
               type="button"
               onClick={() => setPromoOnly((prev) => !prev)}
               disabled={!hasPromoProducts}
-              className={`inline-flex min-h-[40px] max-w-full items-center gap-1.5 rounded-full px-3 text-xs font-semibold ${
+              className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-full px-3 text-xs font-medium transition ${
                 promoOnly
-                  ? 'bg-amber-500 text-white'
-                  : 'border border-amber-200 bg-amber-50 text-amber-700'
+                  ? 'bg-[#C9A84C] text-white'
+                  : 'border border-[#C9A84C]/40 bg-[#C9A84C]/10 text-[#C9A84C] hover:bg-[#C9A84C]/20'
               } ${!hasPromoProducts ? 'cursor-not-allowed opacity-50' : ''}`}
             >
-              <Sparkles size={12} />
-              <span className="truncate">{t('shop_profile.promos', 'Promos')}</span>
+              <Sparkles size={11} />
+              <span>{t('shop_profile.promos', 'Promos')}</span>
             </button>
             {categories.map((category) => {
               const isActive = activeCategory === category;
@@ -135,14 +138,14 @@ export default function ShopProductsSection({
                   key={category}
                   type="button"
                   onClick={() => setActiveCategory(category)}
-                  className={`inline-flex min-h-[40px] max-w-full items-center gap-1.5 rounded-full px-3 text-xs font-semibold ${
-                    isActive
-                      ? 'bg-slate-900 text-white'
-                      : 'border border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
-                  }`}
+                  className={isActive ? activeChip : inactiveChip}
                 >
                   <span className="max-w-[8rem] truncate">{category}</span>
-                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${isActive ? 'bg-white/20' : 'bg-slate-100 text-slate-600'}`}>
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                      isActive ? 'bg-white/20' : 'bg-white text-[#8A7F6E]'
+                    }`}
+                  >
                     {formatCount(categoryCounts[category] || 0)}
                   </span>
                 </button>
@@ -155,7 +158,7 @@ export default function ShopProductsSection({
       {loading && <ShimmerSkeleton rows={3} />}
 
       {!loading && displayProducts.length > 0 && (
-        <div className={productGridClass}>
+        <div className={`mt-4 ${productGridClass}`}>
           {displayProducts.map((product) => (
             <div key={`${product._id}-${useCompactCards ? 'compact' : 'regular'}`} className="min-w-0">
               <ProductCard
@@ -170,14 +173,14 @@ export default function ShopProductsSection({
       )}
 
       {!loading && displayProducts.length === 0 && (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-10 text-center text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
+        <div className="mt-4 rounded-xl border border-dashed border-[#E0D9CF] px-4 py-10 text-center text-sm text-[#8A7F6E]">
           {t('shop_profile.no_products', "Cette boutique n'a pas encore de produits")}
         </div>
       )}
 
       {!loading && topSellingProducts.length > 0 && (
-        <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
-          <p className="mb-3 text-sm font-semibold text-slate-800 dark:text-slate-100">
+        <div className="mt-4 border-t border-[#E0D9CF] pt-4">
+          <p className="mb-3 text-sm font-medium text-[#1A1A18]">
             {t('shop_profile.popular_products', 'Produits populaires')}
           </p>
           <div className={productGridClass}>
@@ -185,12 +188,16 @@ export default function ShopProductsSection({
               <Link
                 key={`top-${product._id}`}
                 to={buildProductPath(product)}
-                className="group min-w-0 rounded-xl border border-slate-200 bg-white p-2 transition hover:-translate-y-0.5 hover:shadow-sm dark:border-slate-700 dark:bg-slate-900"
+                className="group min-w-0 rounded-xl border border-[#E0D9CF] bg-white p-2 transition hover:border-[#1A2744]"
               >
-                <div className="relative aspect-[1.2] overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
+                <div className="relative aspect-[1.2] overflow-hidden rounded-lg bg-[#EDE9E0]">
                   <PreviewableImage
                     src={product.images?.[0] || product.image || ''}
-                    images={Array.isArray(product.images) && product.images.length ? product.images : [product.images?.[0] || product.image || '']}
+                    images={
+                      Array.isArray(product.images) && product.images.length
+                        ? product.images
+                        : [product.images?.[0] || product.image || '']
+                    }
                     alt={product.title}
                     className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                     loading="lazy"
@@ -199,19 +206,23 @@ export default function ShopProductsSection({
                       productId: product?._id || '',
                       productSlug: product?.slug || '',
                       productTitle: product?.title || '',
-                      shopId: product?.user?._id || (typeof product?.user === 'string' ? product.user : ''),
+                      shopId:
+                        product?.user?._id ||
+                        (typeof product?.user === 'string' ? product.user : ''),
                       shopSlug: product?.user?.slug || '',
                       shopName: product?.user?.shopName || product?.user?.name || '',
                       deepLink: buildProductPath(product)
                     }}
                   />
                 </div>
-                <p className="mt-2 line-clamp-2 text-xs font-medium text-slate-800 dark:text-slate-100">{product.title}</p>
+                <p className="mt-2 line-clamp-2 text-xs font-medium text-[#1A1A18]">
+                  {product.title}
+                </p>
               </Link>
             ))}
           </div>
         </div>
       )}
-    </GlassCard>
+    </div>
   );
 }
