@@ -631,7 +631,7 @@ const loadDiscountProducts = async () => {
       <img
         src={bannerSrc}
         alt="Bannière promotionnelle"
-        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+        className="h-full w-full object-contain bg-white p-1 transition-transform duration-300"
         loading="lazy"
       />
     );
@@ -1077,7 +1077,7 @@ const loadDiscountProducts = async () => {
           const activeBanner = promoBannerMobile || promoBanner;
           const bannerSrc = isPromoActive ? activeBanner : defaultPromoBanner;
           const bannerLink = isPromoActive ? promoBannerLink : '/products';
-          const img = <img src={bannerSrc} alt="Promo" className="h-full w-full object-cover" loading="eager" />;
+          const img = <img src={bannerSrc} alt="Promo" className="h-full w-full object-contain bg-white p-1" loading="eager" />;
           const cls = "block w-full overflow-hidden rounded-xl shadow-sm aspect-[2/1] h-[331px] max-[375px]:h-[280px]";
           if (bannerLink?.startsWith('/')) return <Link to={bannerLink} {...externalLinkProps} className={cls}>{img}</Link>;
           if (bannerLink) return <a href={bannerLink} target="_blank" rel="noopener noreferrer" className={cls}>{img}</a>;
@@ -1886,7 +1886,7 @@ const loadDiscountProducts = async () => {
             {promoBanner && (() => {
               const bannerSrc = isPromoActive ? (promoBanner || defaultPromoBanner) : defaultPromoBanner;
               const bannerLink = isPromoActive ? promoBannerLink : '/products';
-              const img = <img src={bannerSrc} alt="Promo" className="h-full w-full object-cover" loading="lazy" />;
+              const img = <img src={bannerSrc} alt="Promo" className="h-full w-full object-contain bg-white p-1" loading="lazy" />;
               const cls = "block w-full overflow-hidden rounded-xl shadow-sm aspect-[21/7]";
               if (bannerLink?.startsWith('/')) return <Link to={bannerLink} {...externalLinkProps} className={cls}>{img}</Link>;
               if (bannerLink) return <a href={bannerLink} target="_blank" rel="noopener noreferrer" className={cls}>{img}</a>;
