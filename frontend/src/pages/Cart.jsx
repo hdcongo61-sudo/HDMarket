@@ -8,6 +8,7 @@ import { buildProductPath } from '../utils/links';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
+import SelectedAttributesList from '../components/orders/SelectedAttributesList';
 
 const TrashIcon = ({ className }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -46,6 +47,8 @@ export default function Cart() {
   const items = cart.items || [];
   const totals = cart.totals || { quantity: 0, subtotal: 0 };
   const buyerCity = useMemo(() => (user?.city || '').trim(), [user?.city]);
+  const getCartItemKey = (item) =>
+    String(item?.cartItemId || item?.selectionKey || item?.product?._id || '');
 
   const sellerCityData = useMemo(() => {
     const normalize = (value) => value?.toString().trim().toLowerCase();
@@ -73,26 +76,30 @@ export default function Cart() {
     };
   }, [items, buyerCity]);
 
-  const changeQuantity = async (productId, quantity) => {
+  const changeQuantity = async (item, quantity) => {
+    const productId = item?.product?._id;
+    const cartItemKey = getCartItemKey(item);
     const value = Math.max(0, Number.isNaN(Number(quantity)) ? 0 : Number(quantity));
-    setPending((prev) => ({ ...prev, [productId]: true }));
+    setPending((prev) => ({ ...prev, [cartItemKey]: true }));
     try {
-      await updateItem(productId, value);
+      await updateItem(productId, value, item?.selectedAttributes || [], item?.selectionKey || '');
     } catch (e) {
       console.error(e);
     } finally {
-      setPending((prev) => ({ ...prev, [productId]: false }));
+      setPending((prev) => ({ ...prev, [cartItemKey]: false }));
     }
   };
 
-  const handleRemove = async (productId) => {
-    setPending((prev) => ({ ...prev, [productId]: true }));
+  const handleRemove = async (item) => {
+    const productId = item?.product?._id;
+    const cartItemKey = getCartItemKey(item);
+    setPending((prev) => ({ ...prev, [cartItemKey]: true }));
     try {
-      await removeItem(productId);
+      await removeItem(productId, item?.selectedAttributes || [], item?.selectionKey || '');
     } catch (e) {
       console.error(e);
     } finally {
-      setPending((prev) => ({ ...prev, [productId]: false }));
+      setPending((prev) => ({ ...prev, [cartItemKey]: false }));
     }
   };
 
@@ -146,20 +153,24 @@ export default function Cart() {
 
   useEffect(() => {
     const map = {};
-    items.forEach(({ product }) => {
-      map[product._id] = product.whatsappClicks ?? 0;
+    items.forEach((item) => {
+      const product = item?.product;
+      if (!product?._id) return;
+      map[getCartItemKey(item)] = product.whatsappClicks ?? 0;
     });
     setClickCounts(map);
   }, [items]);
 
-  const handleWhatsappClick = async (product, link) => {
+  const handleWhatsappClick = async (item, link) => {
+    const product = item?.product;
     if (!link) return;
     const productId = product._id;
+    const cartItemKey = getCartItemKey(item);
     try {
       await api.post(`/products/public/${productId}/whatsapp-click`);
       setClickCounts((prev) => ({
         ...prev,
-        [productId]: (prev?.[productId] ?? product.whatsappClicks ?? 0) + 1
+        [cartItemKey]: (prev?.[cartItemKey] ?? product.whatsappClicks ?? 0) + 1
       }));
     } catch (e) {
       console.error('Failed to record WhatsApp click:', e);
@@ -327,16 +338,18 @@ export default function Cart() {
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-6 sm:gap-8">
           {/* Cart Items Enhanced */}
           <div className="space-y-4 sm:space-y-5">
-            {items.map(({ product, quantity, lineTotal }) => {
+            {items.map((item) => {
+              const { product, quantity, lineTotal } = item;
               const sellerPhone = product.user?.phone || product?.contactPhone;
               const whatsappLink = buildWhatsappLink(product, sellerPhone);
               const discount = product.discount || 0;
               const originalPrice = product.priceBeforeDiscount || product.price;
-              const clickCount = clickCounts[product._id] ?? product.whatsappClicks ?? 0;
+              const cartItemKey = getCartItemKey(item);
+              const clickCount = clickCounts[cartItemKey] ?? product.whatsappClicks ?? 0;
               
               return (
                 <div
-                  key={product._id}
+                  key={cartItemKey}
                   className="group bg-white rounded-xl sm:rounded-3xl border-2 border-gray-200 p-2 sm:p-5 lg:p-6 hover:shadow-xl transition-all duration-300 hover:border-neutral-200"
                 >
                   <div className="flex flex-col md:flex-row gap-2 sm:gap-5 lg:gap-6">
@@ -373,6 +386,11 @@ export default function Cart() {
                             {product.title}
                           </Link>
                           <p className="text-[10px] sm:text-sm text-gray-600 font-medium">Catégorie : <span className="text-gray-900">{product.category}</span></p>
+                          <SelectedAttributesList
+                            selectedAttributes={item.selectedAttributes}
+                            compact
+                            className="pt-1"
+                          />
                           
                           {/* Price Display Enhanced - Much Smaller on Mobile */}
                           <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap">
@@ -398,8 +416,8 @@ export default function Cart() {
                             <button
                               type="button"
                               className="min-w-[44px] min-h-[44px] w-10 h-10 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-gray-700 hover:bg-white disabled:opacity-40 transition-all duration-200 tap-feedback shadow-sm"
-                              onClick={() => changeQuantity(product._id, quantity - 1)}
-                              disabled={disableAll || pending[product._id] || quantity <= 1}
+                              onClick={() => changeQuantity(item, quantity - 1)}
+                              disabled={disableAll || pending[cartItemKey] || quantity <= 1}
                             >
                               <span className="text-base sm:text-xl font-semibold">−</span>
                             </button>
@@ -410,16 +428,16 @@ export default function Cart() {
                                 min="1"
                                 className="w-full bg-transparent border-0 text-center h-7 sm:h-10 font-black text-gray-900 text-xs sm:text-base focus:outline-none"
                                 value={quantity}
-                                onChange={(e) => changeQuantity(product._id, e.target.value)}
-                                disabled={disableAll || pending[product._id]}
+                                onChange={(e) => changeQuantity(item, e.target.value)}
+                                disabled={disableAll || pending[cartItemKey]}
                               />
                             </div>
                             
                             <button
                               type="button"
                               className="min-w-[44px] min-h-[44px] w-10 h-10 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-gray-700 hover:bg-white disabled:opacity-40 transition-all duration-200 tap-feedback shadow-sm"
-                              onClick={() => changeQuantity(product._id, quantity + 1)}
-                              disabled={disableAll || pending[product._id]}
+                              onClick={() => changeQuantity(item, quantity + 1)}
+                              disabled={disableAll || pending[cartItemKey]}
                             >
                               <span className="text-base sm:text-xl font-semibold">+</span>
                             </button>
@@ -440,7 +458,7 @@ export default function Cart() {
                         {whatsappLink && (
                           <button
                             type="button"
-                            onClick={() => handleWhatsappClick(product, whatsappLink)}
+                            onClick={() => handleWhatsappClick(item, whatsappLink)}
                             className="flex-1 min-w-0 inline-flex items-center gap-1.5 sm:gap-2 bg-green-50 border border-green-200 text-green-700 px-2.5 py-2 sm:px-5 sm:py-3 rounded-xl sm:rounded-3xl hover:bg-green-100 transition-all duration-200 active:scale-95 font-semibold text-xs sm:text-sm shadow-sm overflow-hidden"
                           >
                             <WhatsAppIcon className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
@@ -460,8 +478,8 @@ export default function Cart() {
                         
                         <button
                           type="button"
-                          onClick={() => handleRemove(product._id)}
-                          disabled={disableAll || pending[product._id]}
+                          onClick={() => handleRemove(item)}
+                          disabled={disableAll || pending[cartItemKey]}
                           className="flex-shrink-0 inline-flex items-center justify-center gap-1.5 sm:gap-2 text-red-600 bg-white border border-red-300 px-3 py-2 sm:px-5 sm:py-3 rounded-xl sm:rounded-3xl hover:bg-red-50 transition-all duration-200 active:scale-95 disabled:opacity-60 font-semibold text-xs sm:text-sm shadow-sm"
                         >
                           <TrashIcon className="w-4 h-4 flex-shrink-0" />

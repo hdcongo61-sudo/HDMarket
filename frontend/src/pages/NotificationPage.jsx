@@ -29,25 +29,20 @@ import GlassHeader from '../components/ui/GlassHeader';
 import useNetworkProfile from '../hooks/useNetworkProfile';
 import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
 
-const SELLER_ORDER_NOTIFICATION_TYPES = new Set([
-  'order_received',
-  'order_reminder',
-  'installment_sale_confirmation_required',
-  'installment_payment_submitted',
-  'order_address_updated',
-  'installment_product_suspended'
-]);
-
 const ORDER_TYPES = new Set([
   'order_created',
   'order_received',
   'order_reminder',
   'order_cancelled',
+  'order_full_payment_waived',
+  'order_full_payment_received',
+  'order_full_payment_ready',
   'order_cancellation_window_skipped',
   'order_message',
   'order_address_updated',
   'order_delivery_fee_updated'
 ]);
+const COMPLAINT_TYPES = new Set(['complaint_created', 'complaint_resolved']);
 
 const BOOST_TYPES = new Set(['product_boosted']);
 const DISPUTE_TYPES = new Set([
@@ -158,8 +153,8 @@ const extractObjectId = (value, depth = 0) => {
 
 const resolveCategory = (alert) => {
   const type = alert?.type || '';
-  if (ORDER_TYPES.has(type)) return 'orders';
-  if (DISPUTE_TYPES.has(type)) return 'dispute';
+  if (ORDER_TYPES.has(type) || type.startsWith('order_') || type.startsWith('installment_')) return 'orders';
+  if (DISPUTE_TYPES.has(type) || COMPLAINT_TYPES.has(type)) return 'dispute';
   if (DELIVERY_TYPES.has(type) || PLATFORM_DELIVERY_TYPES.has(type)) return 'delivery';
   if (VALIDATION_TYPES.has(type)) return 'admin';
   if (ADMIN_TYPES.has(type)) return 'admin';
@@ -171,11 +166,15 @@ const resolveCategory = (alert) => {
 
 const notificationMeta = (alert, t) => {
   const type = alert?.type || '';
-  if (ORDER_TYPES.has(type)) return { title: t('notifications.orderUpdate', 'Mise à jour commande'), icon: <Package className="h-4 w-4" /> };
+  if (ORDER_TYPES.has(type) || type.startsWith('order_')) {
+    return { title: t('notifications.orderUpdate', 'Mise à jour commande'), icon: <Package className="h-4 w-4" /> };
+  }
   if (DELIVERY_TYPES.has(type) || PLATFORM_DELIVERY_TYPES.has(type)) {
     return { title: t('notifications.deliveryUpdate', 'Mise à jour livraison'), icon: <Truck className="h-4 w-4" /> };
   }
-  if (DISPUTE_TYPES.has(type)) return { title: t('notifications.disputeUpdate', 'Mise à jour litige'), icon: <Gavel className="h-4 w-4" /> };
+  if (DISPUTE_TYPES.has(type) || COMPLAINT_TYPES.has(type)) {
+    return { title: t('notifications.disputeUpdate', 'Mise à jour litige'), icon: <Gavel className="h-4 w-4" /> };
+  }
   if (VALIDATION_TYPES.has(type)) return { title: t('notifications.validationRequired', 'Action requise'), icon: <ShieldAlert className="h-4 w-4" /> };
   if (type === 'payment_pending') return { title: t('notifications.paymentPending', 'Paiement en attente'), icon: <CreditCard className="h-4 w-4" /> };
   if (type === 'order_message') return { title: t('notifications.orderMessage', 'Message commande'), icon: <MessageSquare className="h-4 w-4" /> };
@@ -216,7 +215,7 @@ const buildOrderNotificationPath = (alert, user) => {
   if (isBackOffice) {
     return `/admin/orders?orderId=${encodeURIComponent(orderId)}`;
   }
-  if (isSeller && (SELLER_ORDER_NOTIFICATION_TYPES.has(alert?.type) || alert?.type === 'order_message')) {
+  if (isSeller) {
     return `/seller/orders/detail/${orderId}`;
   }
   return `/orders/detail/${orderId}`;

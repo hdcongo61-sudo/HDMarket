@@ -10,10 +10,30 @@ import useCommissionRate from '../hooks/useCommissionRate';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import BaseModal from './modals/BaseModal';
 import { appAlert } from '../utils/appDialog';
+import { normalizeProductAttributes } from '../utils/productAttributes';
 
 const DEFAULT_MAX_IMAGES = 3;
 const MAX_VIDEO_SIZE_MB = 20;
 const MAX_PDF_SIZE_MB = 10;
+const ATTRIBUTE_TYPE_OPTIONS = [
+  'Color',
+  'Size',
+  'Weight',
+  'Material',
+  'Custom'
+];
+const ATTRIBUTE_INPUT_TYPES = [
+  { value: 'select', label: 'Choix' },
+  { value: 'text', label: 'Texte' },
+  { value: 'number', label: 'Nombre' }
+];
+const ATTRIBUTE_TEMPLATE = {
+  name: 'Color',
+  type: 'select',
+  options: [''],
+  required: false,
+  defaultValue: ''
+};
 const DeleteIcon = ({ className = '' }) => (
   <svg
     viewBox="0 0 24 24"
@@ -59,6 +79,11 @@ export default function ProductForm(props) {
     installmentRequireGuarantor: false,
     wholesaleEnabled: false,
     wholesaleTiers: [],
+    attributes: [],
+    physical: {
+      weight: { value: '', unit: 'kg' },
+      dimensions: { length: '', width: '', height: '', unit: 'cm' }
+    },
     deliveryAvailable: true,
     pickupAvailable: true,
     deliveryFeeEnabled: true,
@@ -124,6 +149,7 @@ export default function ProductForm(props) {
   }, [app?.maxUploadImages, runtime?.maxUploadImages, runtime?.max_image_upload]);
   const [expandedSections, setExpandedSections] = useState({
     info: true,
+    options: true,
     images: true,
     media: true,
     validation: true,
@@ -817,6 +843,87 @@ export default function ProductForm(props) {
     });
   };
 
+  const addProductAttribute = () => {
+    setForm((prev) => ({
+      ...prev,
+      attributes: [...(Array.isArray(prev.attributes) ? prev.attributes : []), { ...ATTRIBUTE_TEMPLATE }]
+    }));
+  };
+
+  const updateProductAttribute = (index, field, value) => {
+    setForm((prev) => {
+      const attributes = Array.isArray(prev.attributes) ? [...prev.attributes] : [];
+      const current = attributes[index] || { ...ATTRIBUTE_TEMPLATE };
+      const next = { ...current, [field]: value };
+      if (field === 'type' && value !== 'select') {
+        next.options = [];
+      }
+      if (field === 'type' && value === 'select' && !Array.isArray(current.options)) {
+        next.options = [''];
+      }
+      attributes[index] = next;
+      return { ...prev, attributes };
+    });
+  };
+
+  const removeProductAttribute = (index) => {
+    setForm((prev) => {
+      const attributes = Array.isArray(prev.attributes) ? [...prev.attributes] : [];
+      attributes.splice(index, 1);
+      return { ...prev, attributes };
+    });
+  };
+
+  const addProductAttributeOption = (attributeIndex) => {
+    setForm((prev) => {
+      const attributes = Array.isArray(prev.attributes) ? [...prev.attributes] : [];
+      const current = attributes[attributeIndex];
+      if (!current) return prev;
+      attributes[attributeIndex] = {
+        ...current,
+        options: [...(Array.isArray(current.options) ? current.options : []), '']
+      };
+      return { ...prev, attributes };
+    });
+  };
+
+  const updateProductAttributeOption = (attributeIndex, optionIndex, value) => {
+    setForm((prev) => {
+      const attributes = Array.isArray(prev.attributes) ? [...prev.attributes] : [];
+      const current = attributes[attributeIndex];
+      if (!current) return prev;
+      const options = Array.isArray(current.options) ? [...current.options] : [];
+      options[optionIndex] = value;
+      attributes[attributeIndex] = { ...current, options };
+      return { ...prev, attributes };
+    });
+  };
+
+  const removeProductAttributeOption = (attributeIndex, optionIndex) => {
+    setForm((prev) => {
+      const attributes = Array.isArray(prev.attributes) ? [...prev.attributes] : [];
+      const current = attributes[attributeIndex];
+      if (!current) return prev;
+      const options = Array.isArray(current.options) ? [...current.options] : [];
+      options.splice(optionIndex, 1);
+      attributes[attributeIndex] = { ...current, options: options.length ? options : [''] };
+      return { ...prev, attributes };
+    });
+  };
+
+  const updatePhysicalField = (group, field, value) => {
+    setForm((prev) => ({
+      ...prev,
+      physical: {
+        ...(prev.physical || {}),
+        [group]: {
+          ...((prev.physical && prev.physical[group]) || {}),
+          [field]: value
+        }
+      }
+    }));
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setInstallmentError('');
@@ -924,9 +1031,22 @@ export default function ProductForm(props) {
       setUploadProgress(0);
     }
     try {
+      const normalizedAttributes = normalizeProductAttributes(form.attributes);
+      const physicalPayload = {
+        weight: {
+          value: form.physical?.weight?.value,
+          unit: form.physical?.weight?.unit || 'kg'
+        },
+        dimensions: {
+          length: form.physical?.dimensions?.length,
+          width: form.physical?.dimensions?.width,
+          height: form.physical?.dimensions?.height,
+          unit: form.physical?.dimensions?.unit || 'cm'
+        }
+      };
       const data = new FormData();
       Object.entries(form).forEach(([k, v]) => {
-        if (k === 'wholesaleTiers') return;
+        if (['wholesaleTiers', 'attributes', 'physical'].includes(k)) return;
         if (k === 'wholesaleEnabled' && !isBoutiqueOwner) return;
         if (
           ['discount', 'installmentMinAmount', 'installmentDuration', 'installmentLatePenaltyRate', 'deliveryFee'].includes(k) &&
@@ -948,6 +1068,8 @@ export default function ProductForm(props) {
           .sort((a, b) => a.minQty - b.minQty);
         data.append('wholesaleTiers', JSON.stringify(normalizedWholesaleTiers));
       }
+      data.append('attributes', JSON.stringify(normalizedAttributes));
+      data.append('physical', JSON.stringify(physicalPayload));
       files.slice(0, maxImagesLimit).forEach((item) => {
         const file = item?.file || item;
         if (file instanceof File) {
@@ -1003,6 +1125,11 @@ export default function ProductForm(props) {
         installmentRequireGuarantor: false,
         wholesaleEnabled: false,
         wholesaleTiers: [],
+        attributes: [],
+        physical: {
+          weight: { value: '', unit: 'kg' },
+          dimensions: { length: '', width: '', height: '', unit: 'cm' }
+        },
         deliveryAvailable: true,
         pickupAvailable: true,
         deliveryFeeEnabled: true,
@@ -1113,6 +1240,27 @@ export default function ProductForm(props) {
             label: tier?.label || ''
           }))
         : [],
+      attributes: normalizeProductAttributes(initialValues.attributes).map((attribute) => ({
+        ...attribute,
+        options:
+          attribute.type === 'select'
+            ? Array.isArray(attribute.options) && attribute.options.length
+              ? attribute.options
+              : ['']
+            : []
+      })),
+      physical: {
+        weight: {
+          value: initialValues.physical?.weight?.value ?? '',
+          unit: initialValues.physical?.weight?.unit || 'kg'
+        },
+        dimensions: {
+          length: initialValues.physical?.dimensions?.length ?? '',
+          width: initialValues.physical?.dimensions?.width ?? '',
+          height: initialValues.physical?.dimensions?.height ?? '',
+          unit: initialValues.physical?.dimensions?.unit || 'cm'
+        }
+      },
       deliveryAvailable: initialValues.deliveryAvailable !== false,
       pickupAvailable: initialValues.pickupAvailable !== false,
       deliveryFeeEnabled: initialValues.deliveryFeeEnabled !== false,
@@ -1753,6 +1901,268 @@ export default function ProductForm(props) {
             )}
           </div>
                 </div>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          {isMobile ? (
+            <button
+              type="button"
+              onClick={() => toggleSection('options')}
+              className="flex items-center justify-between w-full py-3.5 px-0 text-left rounded-xl -mx-2 px-2 -mt-1 active:bg-gray-100/80 touch-manipulation min-h-[48px] transition-colors"
+              aria-expanded={expandedSections.options}
+            >
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 rounded-lg bg-neutral-100 flex items-center justify-center flex-shrink-0">
+                  <Package className="w-4 h-4 text-neutral-600" />
+                </div>
+                <h2 className="text-[17px] font-semibold text-gray-900">Options & dimensions</h2>
+              </div>
+              <span className="min-w-[44px] min-h-[44px] flex items-center justify-center -m-2 text-gray-400">
+                {expandedSections.options ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+              </span>
+            </button>
+          ) : (
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-2 h-6 bg-gradient-to-b from-neutral-500 to-neutral-500 rounded-full"></div>
+              <h2 className="text-lg font-semibold text-gray-900">Options & dimensions</h2>
+            </div>
+          )}
+
+          {(!isMobile || expandedSections.options) && (
+            <div className="space-y-4 pt-1">
+              <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Attributs acheteur</p>
+                    <p className="text-xs text-gray-500">
+                      Ajoutez des options comme couleur, taille, matière ou poids. Elles seront demandées à l’acheteur et sauvegardées dans la commande.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addProductAttribute}
+                    className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Ajouter
+                  </button>
+                </div>
+
+                {(Array.isArray(form.attributes) ? form.attributes : []).length > 0 ? (
+                  <div className="space-y-3">
+                    {(Array.isArray(form.attributes) ? form.attributes : []).map((attribute, index) => {
+                      const attributeType = attribute?.type || 'select';
+                      const attributeName = String(attribute?.name || '').trim();
+                      const canUseOptions = attributeType === 'select';
+                      return (
+                        <div
+                          key={`product-attribute-${index}`}
+                          className="rounded-2xl border border-gray-200 bg-white p-4 space-y-3"
+                        >
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-[1.2fr_0.9fr_auto]">
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-medium text-gray-700">Nom affiché</label>
+                              <div className="flex flex-wrap gap-2">
+                                <select
+                                  value={ATTRIBUTE_TYPE_OPTIONS.includes(attributeName) ? attributeName : 'Custom'}
+                                  onChange={(e) => {
+                                    const nextName = e.target.value === 'Custom' ? '' : e.target.value;
+                                    updateProductAttribute(index, 'name', nextName);
+                                  }}
+                                  className="min-w-[132px] rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                                >
+                                  {ATTRIBUTE_TYPE_OPTIONS.map((option) => (
+                                    <option key={option} value={option}>
+                                      {option}
+                                    </option>
+                                  ))}
+                                </select>
+                                {(!ATTRIBUTE_TYPE_OPTIONS.includes(attributeName) || attributeName === '') && (
+                                  <input
+                                    type="text"
+                                    value={attribute.name || ''}
+                                    onChange={(e) => updateProductAttribute(index, 'name', e.target.value)}
+                                    className="min-w-[180px] flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                                    placeholder="Ex: Pointure"
+                                  />
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-medium text-gray-700">Type de saisie</label>
+                              <select
+                                value={attributeType}
+                                onChange={(e) => updateProductAttribute(index, 'type', e.target.value)}
+                                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                              >
+                                {ATTRIBUTE_INPUT_TYPES.map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div className="flex items-start justify-end">
+                              <button
+                                type="button"
+                                onClick={() => removeProductAttribute(index)}
+                                className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50 p-2 text-red-600 hover:bg-red-100 transition-colors"
+                                aria-label="Supprimer cet attribut"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <label className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm">
+                              <span>Champ obligatoire</span>
+                              <input
+                                type="checkbox"
+                                checked={Boolean(attribute?.required)}
+                                onChange={(e) => updateProductAttribute(index, 'required', e.target.checked)}
+                                className="h-4 w-4 rounded border-gray-300 text-neutral-600 focus:ring-neutral-500"
+                              />
+                            </label>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-medium text-gray-700">Valeur par défaut (optionnelle)</label>
+                              <input
+                                type={attributeType === 'number' ? 'number' : 'text'}
+                                value={attribute?.defaultValue || ''}
+                                onChange={(e) => updateProductAttribute(index, 'defaultValue', e.target.value)}
+                                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                                placeholder={canUseOptions ? 'Ex: Rouge' : 'Valeur par défaut'}
+                              />
+                            </div>
+                          </div>
+
+                          {canUseOptions && (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-xs font-medium text-gray-700">Choix disponibles</p>
+                                  <p className="text-[11px] text-gray-500">Ajoutez autant d’options que nécessaire.</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => addProductAttributeOption(index)}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                  Option
+                                </button>
+                              </div>
+                              <div className="grid gap-2 md:grid-cols-2">
+                                {(Array.isArray(attribute?.options) ? attribute.options : ['']).map((option, optionIndex) => (
+                                  <div key={`product-attribute-${index}-option-${optionIndex}`} className="flex items-center gap-2">
+                                    <input
+                                      type="text"
+                                      value={option || ''}
+                                      onChange={(e) => updateProductAttributeOption(index, optionIndex, e.target.value)}
+                                      className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                                      placeholder={`Option ${optionIndex + 1}`}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => removeProductAttributeOption(index, optionIndex)}
+                                      className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-gray-500 hover:bg-gray-50"
+                                      aria-label="Supprimer cette option"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-4 text-sm text-gray-500">
+                    Aucun attribut configuré. Ajoutez-en seulement si l’acheteur doit choisir une option avant de commander.
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 space-y-4">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Caractéristiques physiques</p>
+                  <p className="text-xs text-gray-500">
+                    Facultatif. Prépare le produit pour la livraison, les futures variantes et les recommandations.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="rounded-xl border border-gray-200 bg-white p-3 space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Poids</p>
+                    <div className="grid grid-cols-[1fr_96px] gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={form.physical?.weight?.value ?? ''}
+                        onChange={(e) => updatePhysicalField('weight', 'value', e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                        placeholder="Ex: 2.5"
+                      />
+                      <select
+                        value={form.physical?.weight?.unit || 'kg'}
+                        onChange={(e) => updatePhysicalField('weight', 'unit', e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                      >
+                        <option value="kg">kg</option>
+                        <option value="g">g</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-gray-200 bg-white p-3 space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Dimensions</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={form.physical?.dimensions?.length ?? ''}
+                        onChange={(e) => updatePhysicalField('dimensions', 'length', e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                        placeholder="Long."
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={form.physical?.dimensions?.width ?? ''}
+                        onChange={(e) => updatePhysicalField('dimensions', 'width', e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                        placeholder="Larg."
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={form.physical?.dimensions?.height ?? ''}
+                        onChange={(e) => updatePhysicalField('dimensions', 'height', e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                        placeholder="Haut."
+                      />
+                    </div>
+                    <select
+                      value={form.physical?.dimensions?.unit || 'cm'}
+                      onChange={(e) => updatePhysicalField('dimensions', 'unit', e.target.value)}
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                    >
+                      <option value="cm">cm</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </div>
 

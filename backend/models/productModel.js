@@ -2,6 +2,36 @@ import mongoose from 'mongoose';
 import crypto from 'crypto';
 import { generateUniqueSlug } from '../utils/slugUtils.js';
 
+const productAttributeSchema = new mongoose.Schema(
+  {
+    key: { type: String, trim: true, default: '' },
+    name: { type: String, trim: true, required: true },
+    type: { type: String, enum: ['select', 'text', 'number'], default: 'select' },
+    options: { type: [String], default: [] },
+    required: { type: Boolean, default: false },
+    defaultValue: { type: String, trim: true, default: '' }
+  },
+  { _id: false }
+);
+
+const physicalWeightSchema = new mongoose.Schema(
+  {
+    value: { type: Number, min: 0, default: null },
+    unit: { type: String, enum: ['kg', 'g'], default: 'kg' }
+  },
+  { _id: false }
+);
+
+const physicalDimensionsSchema = new mongoose.Schema(
+  {
+    length: { type: Number, min: 0, default: null },
+    width: { type: Number, min: 0, default: null },
+    height: { type: Number, min: 0, default: null },
+    unit: { type: String, enum: ['cm'], default: 'cm' }
+  },
+  { _id: false }
+);
+
 const productSchema = new mongoose.Schema(
   {
     confirmationNumber: {
@@ -79,7 +109,12 @@ const productSchema = new mongoose.Schema(
     deliveryAvailable: { type: Boolean, default: true, index: true },
     pickupAvailable: { type: Boolean, default: true, index: true },
     deliveryFee: { type: Number, default: 0, min: 0 },
-    deliveryFeeEnabled: { type: Boolean, default: true }
+    deliveryFeeEnabled: { type: Boolean, default: true },
+    attributes: { type: [productAttributeSchema], default: [] },
+    physical: {
+      weight: { type: physicalWeightSchema, default: null },
+      dimensions: { type: physicalDimensionsSchema, default: null }
+    }
   },
   { timestamps: true }
 );

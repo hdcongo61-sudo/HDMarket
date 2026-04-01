@@ -43,6 +43,7 @@ import OrderChat from '../components/OrderChat';
 import GlassHeader from '../components/orders/GlassHeader';
 import StatusBadge from '../components/orders/StatusBadge';
 import { OrderListSkeleton } from '../components/orders/OrderSkeletons';
+import SelectedAttributesList from '../components/orders/SelectedAttributesList';
 import CartContext from '../context/CartContext';
 import AuthContext from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -682,6 +683,11 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{item.snapshot?.title || 'Produit'}</p>
                   <p className="text-xs text-gray-500">Qté: {item.quantity || 1} • {formatCurrency(item.snapshot?.price || 0)}</p>
+                  <SelectedAttributesList
+                    selectedAttributes={item.selectedAttributes}
+                    compact
+                    className="mt-1"
+                  />
                 </div>
               </div>
             ))}
@@ -822,6 +828,11 @@ const OrderSummaryCard = ({ order }) => {
             <span className="text-gray-400">×</span>
             <span>{firstItem?.quantity ?? 1}</span>
           </div>
+          <SelectedAttributesList
+            selectedAttributes={firstItem?.selectedAttributes}
+            compact
+            className="mt-2"
+          />
           {isInstallmentOrder && (
             <div className="mt-2 space-y-1">
               <p className="text-xs font-semibold text-neutral-700">
@@ -1319,7 +1330,7 @@ export default function UserOrders() {
         }
         
         try {
-          await addItem(productId, quantity);
+          await addItem(productId, quantity, item.selectedAttributes || []);
           addedItems.push(item.snapshot?.title || 'Produit');
         } catch (err) {
           // Product might be unavailable or removed
@@ -1726,6 +1737,11 @@ export default function UserOrders() {
                             {itemCount > 1 && (
                               <p className="text-xs text-gray-500">+{itemCount - 1} autre{itemCount > 2 ? 's' : ''}</p>
                             )}
+                            <SelectedAttributesList
+                              selectedAttributes={firstItem?.selectedAttributes}
+                              compact
+                              className="mt-1"
+                            />
                           </div>
                         </div>
 

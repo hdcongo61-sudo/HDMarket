@@ -38,6 +38,10 @@ import {
   hasVerifiedPaymentForProduct,
   withVerifiedPublicProductFilter
 } from '../utils/publicProductVisibility.js';
+import {
+  normalizeProductAttributes,
+  normalizeProductPhysical
+} from '../utils/productAttributes.js';
 
 const MAX_PRODUCT_IMAGES = 3;
 const SHOP_SELECT_FIELDS =
@@ -373,6 +377,8 @@ const withCategoryCompatibility = (input) => {
   const wholesaleEnabled = Boolean(base.wholesaleEnabled) && wholesaleTiers.length > 0;
   return {
     ...base,
+    attributes: normalizeProductAttributes(base.attributes),
+    physical: normalizeProductPhysical(base.physical),
     categoryName,
     subcategoryName,
     isLegacyCategory,
@@ -607,7 +613,9 @@ export const createProduct = asyncHandler(async (req, res) => {
     deliveryAvailable,
     pickupAvailable,
     deliveryFee,
-    deliveryFeeEnabled
+    deliveryFeeEnabled,
+    attributes,
+    physical
   } = req.body;
   if (!title || !description || !price)
     return res.status(400).json({ message: 'Missing fields' });
@@ -697,6 +705,8 @@ export const createProduct = asyncHandler(async (req, res) => {
   if (!deliveryConfig.valid) {
     return res.status(400).json({ message: deliveryConfig.message });
   }
+  const normalizedAttributes = normalizeProductAttributes(attributes);
+  const normalizedPhysical = normalizeProductPhysical(physical);
 
   const categorySelection = await resolveCategorySelection({
     category,
@@ -814,6 +824,8 @@ export const createProduct = asyncHandler(async (req, res) => {
     status: 'pending',
     city: ownerCity,
     country: ownerCountry,
+    attributes: normalizedAttributes,
+    physical: normalizedPhysical,
     ...installmentConfig.normalized,
     ...wholesaleConfig.normalized,
     ...deliveryConfig.normalized
@@ -2245,7 +2257,9 @@ export const updateProduct = asyncHandler(async (req, res) => {
     deliveryAvailable,
     pickupAvailable,
     deliveryFee,
-    deliveryFeeEnabled
+    deliveryFeeEnabled,
+    attributes,
+    physical
   } = req.body;
   if (title) product.title = title;
   if (description) product.description = description;
@@ -2411,6 +2425,14 @@ export const updateProduct = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: deliveryConfig.message });
     }
     Object.assign(product, deliveryConfig.normalized);
+  }
+
+  if (attributes !== undefined) {
+    product.attributes = normalizeProductAttributes(attributes);
+  }
+
+  if (physical !== undefined) {
+    product.physical = normalizeProductPhysical(physical);
   }
 
   const removeImagesRaw = req.body?.removeImages;

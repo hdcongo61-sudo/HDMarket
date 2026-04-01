@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { useAppSettings } from '../context/AppSettingsContext';
+import SelectedAttributesList from '../components/orders/SelectedAttributesList';
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
@@ -617,6 +618,7 @@ export default function OrderCheckout() {
           {
             productId: installmentProduct._id,
             quantity: Number(items[0]?.quantity || 1),
+            selectedAttributes: items[0]?.selectedAttributes || [],
             firstPaymentAmount: Number(firstAmount),
             payerName: paymentEntry.payerName.trim(),
             transactionCode: cleanTransactionCode,
@@ -1045,8 +1047,8 @@ export default function OrderCheckout() {
             <h2 className="text-xl font-black text-gray-900">Résumé de la commande</h2>
           </div>
           <div className="space-y-3">
-            {items.map(({ product, quantity, lineTotal }) => (
-              <div key={product._id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-2xl border border-gray-200">
+            {items.map(({ product, quantity, lineTotal, selectedAttributes, selectionKey }) => (
+              <div key={`${product._id}-${selectionKey || 'default'}`} className="flex items-start gap-3 p-3 bg-gray-50 rounded-2xl border border-gray-200">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-xl overflow-hidden bg-gray-200">
                   <img
                     src={product.images?.[0] || 'https://via.placeholder.com/80'}
@@ -1057,6 +1059,11 @@ export default function OrderCheckout() {
                 <div className="flex-1 min-w-0">
                   <p className="font-black text-gray-900 text-sm sm:text-base line-clamp-2 mb-1">{product.title}</p>
                   <p className="text-xs text-gray-600 font-medium mb-1">Quantité: x{quantity}</p>
+                  <SelectedAttributesList
+                    selectedAttributes={selectedAttributes}
+                    compact
+                    className="mb-1"
+                  />
                   <p className="text-xs text-gray-500">
                     Vendeur: {product.user?.phone || product.contactPhone || '—'}
                   </p>

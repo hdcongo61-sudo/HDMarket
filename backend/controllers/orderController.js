@@ -43,6 +43,7 @@ import { getVerifiedProductIds } from '../utils/publicProductVisibility.js';
 import { safeAsync } from '../utils/safeAsync.js';
 import { applyDeliveryFeeToOrder } from '../services/orderDeliveryFeeService.js';
 import { emitOrderStatusUpdated } from '../sockets/chatSocket.js';
+import { validateSelectedAttributesForProduct } from '../utils/productAttributes.js';
 
 const ORDER_STATUS = [
   'pending_payment',
@@ -322,7 +323,7 @@ const normalizeDeliveryMode = (value) =>
 const isPickupOnlyProduct = (product = {}) =>
   product?.deliveryAvailable === false && product?.pickupAvailable !== false;
 
-const buildOrderItemFromProduct = (product, quantity = 1) => {
+const buildOrderItemFromProduct = (product, quantity = 1, selectedAttributes = []) => {
   const qty = Math.max(1, Number(quantity) || 1);
   const pricing = getWholesalePricing(product, qty);
   const unitPrice = Number(pricing.unitPrice || 0);
@@ -334,6 +335,7 @@ const buildOrderItemFromProduct = (product, quantity = 1) => {
     quantity: qty,
     unitPrice,
     lineTotal,
+    selectedAttributes,
     snapshot: {
       title: product.title,
       price: unitPrice,
@@ -513,6 +515,7 @@ const buildOrderResponse = (order) => {
     items: Array.isArray(obj.items)
       ? obj.items.map((item) => ({
           ...item,
+          selectedAttributes: Array.isArray(item.selectedAttributes) ? item.selectedAttributes : [],
           snapshot: {
             ...(item.snapshot || {}),
             shopAddress:
@@ -607,7 +610,8 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
 
   const normalizedItems = items.map((item) => ({
     productId: item.productId,
-    quantity: Number(item.quantity) > 0 ? Number(item.quantity) : 1
+    quantity: Number(item.quantity) > 0 ? Number(item.quantity) : 1,
+    selectedAttributes: Array.isArray(item.selectedAttributes) ? item.selectedAttributes : []
   }));
 
   const productIds = normalizedItems.map((item) => item.productId);
@@ -634,7 +638,18 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
       if (!isPurchasableProduct(product, verifiedProductSet)) {
         throw Object.assign(new Error('Produit indisponible ou non approuvé.'), { statusCode: 400 });
       }
-      return buildOrderItemFromProduct(product, item.quantity);
+      const selectedAttributesValidation = validateSelectedAttributesForProduct({
+        productAttributes: product.attributes,
+        selectedAttributes: item.selectedAttributes
+      });
+      if (!selectedAttributesValidation.valid) {
+        throw Object.assign(new Error(selectedAttributesValidation.message), { statusCode: 400 });
+      }
+      return buildOrderItemFromProduct(
+        product,
+        item.quantity,
+        selectedAttributesValidation.selectedAttributes
+      );
     });
   } catch (error) {
     if (error.statusCode) {
@@ -729,7 +744,8 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
 
   const normalizedItems = cart.items.map((item) => ({
     productId: item.product,
-    quantity: Number(item.quantity) > 0 ? Number(item.quantity) : 1
+    quantity: Number(item.quantity) > 0 ? Number(item.quantity) : 1,
+    selectedAttributes: Array.isArray(item.selectedAttributes) ? item.selectedAttributes : []
   }));
   const productIds = normalizedItems.map((item) => item.productId);
   if (productIds.some((id) => !ensureObjectId(id))) {
@@ -753,7 +769,18 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
       if (!isPurchasableProduct(product, verifiedProductSet)) {
         throw Object.assign(new Error('Produit indisponible ou non approuvé.'), { statusCode: 400 });
       }
-      return buildOrderItemFromProduct(product, item.quantity);
+      const selectedAttributesValidation = validateSelectedAttributesForProduct({
+        productAttributes: product.attributes,
+        selectedAttributes: item.selectedAttributes
+      });
+      if (!selectedAttributesValidation.valid) {
+        throw Object.assign(new Error(selectedAttributesValidation.message), { statusCode: 400 });
+      }
+      return buildOrderItemFromProduct(
+        product,
+        item.quantity,
+        selectedAttributesValidation.selectedAttributes
+      );
     });
   } catch (error) {
     if (error.statusCode) {
@@ -1729,7 +1756,8 @@ export const saveDraftOrder = asyncHandler(async (req, res) => {
 
   const normalizedItems = cart.items.map((item) => ({
     productId: item.product,
-    quantity: Number(item.quantity) > 0 ? Number(item.quantity) : 1
+    quantity: Number(item.quantity) > 0 ? Number(item.quantity) : 1,
+    selectedAttributes: Array.isArray(item.selectedAttributes) ? item.selectedAttributes : []
   }));
   const productIds = normalizedItems.map((item) => item.productId);
   if (productIds.some((id) => !ensureObjectId(id))) {
@@ -1753,7 +1781,18 @@ export const saveDraftOrder = asyncHandler(async (req, res) => {
       if (!isPurchasableProduct(product, verifiedProductSet)) {
         throw Object.assign(new Error('Produit indisponible ou non approuvé.'), { statusCode: 400 });
       }
-      return buildOrderItemFromProduct(product, item.quantity);
+      const selectedAttributesValidation = validateSelectedAttributesForProduct({
+        productAttributes: product.attributes,
+        selectedAttributes: item.selectedAttributes
+      });
+      if (!selectedAttributesValidation.valid) {
+        throw Object.assign(new Error(selectedAttributesValidation.message), { statusCode: 400 });
+      }
+      return buildOrderItemFromProduct(
+        product,
+        item.quantity,
+        selectedAttributesValidation.selectedAttributes
+      );
     });
   } catch (error) {
     if (error.statusCode) {

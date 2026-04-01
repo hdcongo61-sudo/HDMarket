@@ -1,11 +1,20 @@
 import mongoose from 'mongoose';
 
+const orderItemSelectedAttributeSchema = new mongoose.Schema(
+  {
+    name: { type: String, trim: true, required: true },
+    value: { type: String, trim: true, required: true }
+  },
+  { _id: false }
+);
+
 const orderItemSchema = new mongoose.Schema(
   {
     product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
     quantity: { type: Number, default: 1, min: 1 },
     unitPrice: { type: Number, default: 0, min: 0 },
     lineTotal: { type: Number, default: 0, min: 0 },
+    selectedAttributes: { type: [orderItemSelectedAttributeSchema], default: [] },
     snapshot: {
       title: String,
       price: Number,

@@ -26,6 +26,13 @@ const INSTALLMENT_TYPES = new Set([
 ]);
 const PRODUCT_REVIEW_TYPES = new Set(['product_comment', 'reply', 'rating', 'review_reminder']);
 const SHOP_REVIEW_TYPES = new Set(['shop_review']);
+const COMPLAINT_TYPES = new Set(['complaint_created', 'complaint_resolved']);
+const FEEDBACK_TYPES = new Set(['feedback_read', 'improvement_feedback_created']);
+const SHOP_CONVERSION_TYPES = new Set([
+  'shop_conversion_request',
+  'shop_conversion_approved',
+  'shop_conversion_rejected'
+]);
 const DISPUTE_TYPES = new Set([
   'dispute_created',
   'dispute_seller_responded',
@@ -42,6 +49,14 @@ const DELIVERY_TYPES = new Set([
   'delivery_request_delivered',
   'order_delivering',
   'order_delivered'
+]);
+const PRODUCT_TYPES = new Set([
+  'favorite',
+  'product_approval',
+  'product_rejection',
+  'product_certified',
+  'product_boosted',
+  'promotional'
 ]);
 
 export const extractObjectId = (value, depth = 0) => {
@@ -199,6 +214,23 @@ const buildDisputePath = (alert, user) => {
   return '/reclamations';
 };
 
+const buildComplaintPath = (alert, user) => {
+  if (!COMPLAINT_TYPES.has(String(alert?.type || ''))) return '';
+  const metadata = alert?.metadata || {};
+  const complaintId =
+    extractObjectId(metadata.complaintId) ||
+    extractObjectId(alert?.entityType === 'complaint' ? alert?.entityId : '') ||
+    extractObjectId(alert?.entityId);
+  if (userIsBackoffice(user)) {
+    return complaintId
+      ? `/admin/complaints?complaintId=${encodeURIComponent(complaintId)}`
+      : '/admin/complaints';
+  }
+  return complaintId
+    ? `/reclamations?complaintId=${encodeURIComponent(complaintId)}`
+    : '/reclamations';
+};
+
 const buildDeliveryPath = (alert, user) => {
   if (!DELIVERY_TYPES.has(String(alert?.type || ''))) return '';
   const metadata = alert?.metadata || {};
@@ -269,6 +301,20 @@ const buildShopReviewsPath = (alert) => {
   return mergeQueryAndHash(path, reviewId ? { reviewId } : {}, 'reviews');
 };
 
+const buildFeedbackPath = () => '/avis-amelioration';
+
+const buildShopConversionPath = () => '/shop-conversion-request';
+
+const isOrderLikeType = (type = '') => {
+  const normalized = String(type || '').trim();
+  return (
+    ORDER_TYPES.has(normalized) ||
+    INSTALLMENT_TYPES.has(normalized) ||
+    normalized.startsWith('order_') ||
+    normalized.startsWith('installment_')
+  );
+};
+
 export const resolveNotificationLink = (alert, user = null) => {
   if (!alert) return '';
   const type = String(alert?.type || '').trim();
@@ -293,6 +339,10 @@ export const resolveNotificationLink = (alert, user = null) => {
     return deepLink || '/admin/payment-verification?status=waiting';
   }
 
+  if (type === 'payment_pending') {
+    return deepLink || buildOrderPath(alert, user) || '/orders';
+  }
+
   if (type === 'validation_required') {
     return deepLink || '/admin/task-center';
   }
@@ -301,12 +351,24 @@ export const resolveNotificationLink = (alert, user = null) => {
     return deepLink || buildDisputePath(alert, user);
   }
 
+  if (COMPLAINT_TYPES.has(type)) {
+    return deepLink || buildComplaintPath(alert, user);
+  }
+
   if (DELIVERY_TYPES.has(type)) {
     return resolveRoleAwareOrderLink(alert, user, deepLink) || buildDeliveryPath(alert, user);
   }
 
-  if (ORDER_TYPES.has(type) || INSTALLMENT_TYPES.has(type)) {
+  if (isOrderLikeType(type)) {
     return resolveRoleAwareOrderLink(alert, user, deepLink) || buildOrderPath(alert, user) || '/orders';
+  }
+
+  if (FEEDBACK_TYPES.has(type)) {
+    return deepLink || buildFeedbackPath();
+  }
+
+  if (SHOP_CONVERSION_TYPES.has(type)) {
+    return deepLink || buildShopConversionPath();
   }
 
   if (type === 'shop_follow' || type === 'shop_boosted' || type === 'shop_verified') {
@@ -314,9 +376,9 @@ export const resolveNotificationLink = (alert, user = null) => {
     return deepLink || (shopIdentifier ? buildShopPath(shopIdentifier) : '');
   }
 
-  if (type === 'product_boosted' || type === 'product_approval' || type === 'product_rejection') {
+  if (PRODUCT_TYPES.has(type)) {
     const productIdentifier = buildProductIdentifier(alert);
-    return deepLink || (productIdentifier ? buildProductPath(productIdentifier) : '');
+    return deepLink || (productIdentifier ? buildProductPath(productIdentifier) : '') || '/products';
   }
 
   if (deepLink) return deepLink;

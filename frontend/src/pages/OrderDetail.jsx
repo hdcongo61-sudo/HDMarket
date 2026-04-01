@@ -36,6 +36,7 @@ import StatusBadge from '../components/orders/StatusBadge';
 import AnimatedOrderTimeline from '../components/orders/AnimatedOrderTimeline';
 import InstallmentReminder from '../components/orders/InstallmentReminder';
 import { OrderDetailSkeleton } from '../components/orders/OrderSkeletons';
+import SelectedAttributesList from '../components/orders/SelectedAttributesList';
 import BaseModal from '../components/modals/BaseModal';
 import CartContext from '../context/CartContext';
 import AuthContext from '../context/AuthContext';
@@ -841,7 +842,7 @@ export default function OrderDetail() {
           continue;
         }
         try {
-          await addItem(productId, quantity);
+          await addItem(productId, quantity, item.selectedAttributes || []);
           addedItems.push(item.snapshot?.title || 'Produit');
         } catch {
           failedItems.push(item.snapshot?.title || 'Produit inconnu');
@@ -1179,6 +1180,11 @@ export default function OrderDetail() {
                         <span>Quantité: {item.quantity || 1}</span>
                         <span>Prix unitaire: {formatCurrency(item.snapshot?.price || 0)}</span>
                       </div>
+                      <SelectedAttributesList
+                        selectedAttributes={item.selectedAttributes}
+                        compact
+                        className="mb-1.5"
+                      />
                       {item.snapshot?.shopName && (
                         <div className="flex items-center gap-1 text-xs text-gray-500">
                           <Store className="w-3 h-3" />

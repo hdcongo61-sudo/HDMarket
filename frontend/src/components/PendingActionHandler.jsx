@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import FavoriteContext from '../context/FavoriteContext';
 import CartContext from '../context/CartContext';
@@ -12,6 +13,7 @@ export default function PendingActionHandler() {
   const { user, updateUser } = useContext(AuthContext);
   const { addFavorite } = useContext(FavoriteContext);
   const { addItem } = useContext(CartContext);
+  const navigate = useNavigate();
   const doneRef = useRef(false);
 
   useEffect(() => {
@@ -29,7 +31,18 @@ export default function PendingActionHandler() {
         if (action.type === 'addFavorite' && action.payload?.product) {
           await addFavorite(action.payload.product);
         } else if (action.type === 'addToCart' && action.payload?.productId) {
-          await addItem(action.payload.productId, action.payload.quantity ?? 1);
+          await addItem(
+            action.payload.productId,
+            action.payload.quantity ?? 1,
+            action.payload.selectedAttributes ?? []
+          );
+        } else if (action.type === 'buyNow' && action.payload?.productId) {
+          await addItem(
+            action.payload.productId,
+            action.payload.quantity ?? 1,
+            action.payload.selectedAttributes ?? []
+          );
+          navigate('/orders/checkout');
         } else if (action.type === 'followShop' && action.payload?.shopId) {
           await api.post(`/users/shops/${action.payload.shopId}/follow`);
           if (typeof updateUser === 'function') {
@@ -46,7 +59,7 @@ export default function PendingActionHandler() {
         clearPendingAction();
       }
     })();
-  }, [user?.token, user?.followingShops, addFavorite, addItem, updateUser]);
+  }, [user?.token, user?.followingShops, addFavorite, addItem, navigate, updateUser]);
 
   return null;
 }

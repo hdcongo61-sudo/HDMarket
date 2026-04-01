@@ -451,6 +451,28 @@ export default function UserDashboard() {
     load({ silent: true });
   };
 
+  const revealUpdatedProduct = (payload) => {
+    const updatedProduct = normalizeCreatedProductPayload(payload);
+    const updatedProductId = getProductId(updatedProduct);
+
+    if (!updatedProductId) {
+      load();
+      return;
+    }
+
+    setItems((prev) => {
+      const nextItems = Array.isArray(prev) ? [...prev] : [];
+      const existingIndex = nextItems.findIndex((item) => getProductId(item) === updatedProductId);
+      if (existingIndex >= 0) {
+        nextItems.splice(existingIndex, 1);
+      }
+      return [updatedProduct, ...nextItems];
+    });
+    setRecentlyCreatedProductId(updatedProductId);
+    setCurrentPage(1);
+    load({ silent: true });
+  };
+
   const updateStatus = async (id, action) => {
     setUpdatingId(id);
     try {
@@ -2507,8 +2529,8 @@ export default function UserDashboard() {
                   handleModalClose();
                   showToast('Annonce créée avec succès !', { variant: 'success' });
                 }}
-                onUpdated={() => {
-                  load();
+                onUpdated={(updatedProduct) => {
+                  revealUpdatedProduct(updatedProduct);
                   handleModalClose();
                   showToast('Annonce modifiée avec succès !', { variant: 'success' });
                 }}

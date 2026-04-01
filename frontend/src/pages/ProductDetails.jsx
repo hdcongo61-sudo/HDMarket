@@ -37,6 +37,14 @@ import { buildProductShareUrl, buildProductPath, buildShopPath } from "../utils/
 import { recordProductView } from "../utils/recentViews";
 import { setPendingAction } from "../utils/pendingAction";
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
+import {
+  buildSelectedAttributesSelectionKey,
+  formatPhysicalSpecs,
+  getDefaultSelectedAttributes,
+  normalizeProductAttributes,
+  normalizeSelectedAttributes,
+  validateSelectedAttributes
+} from "../utils/productAttributes";
 import { resolveUserProfileImage } from "../utils/userAvatar";
 import VerifiedBadge from "../components/VerifiedBadge";
 import OrderChat from "../components/OrderChat";
@@ -53,6 +61,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import "swiper/css";
 import "swiper/css/pagination";
 import { appAlert, appConfirm } from "../utils/appDialog";
+import SelectedAttributesList from "../components/orders/SelectedAttributesList";
 
 const PRODUCT_DETAILS_SNAPSHOT_MAX_AGE_MS = 1000 * 60 * 15;
 
@@ -75,6 +84,8 @@ export default function ProductDetails() {
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartFeedback, setCartFeedback] = useState("");
   const [selectedQuantity, setSelectedQuantity] = useState(1);
+  const [selectedAttributes, setSelectedAttributes] = useState([]);
+  const [selectionError, setSelectionError] = useState("");
   const [selectedImage, setSelectedImage] = useState(0);
   const [whatsappClicks, setWhatsappClicks] = useState(0);
   const [favoriteCount, setFavoriteCount] = useState(0);
@@ -155,7 +166,6 @@ export default function ProductDetails() {
 
   // 🔒 PROTECTION CONTRE LES ACCÈS À NULL
   const isInFavorites = product ? isFavorite(product._id) : false;
-  const inCart = product && user && cart?.items?.some(item => item.product?._id === product._id);
   const whatsappLink = product ? buildWhatsappLink(product, product?.user?.phone) : "";
 
   // 📞 NUMÉRO DE TÉLÉPHONE
@@ -248,6 +258,71 @@ export default function ProductDetails() {
     const following = list.some((entry) => String(entry) === String(product.user._id));
     setIsFollowingShop(following);
   }, [product?.user?._id, user?.followingShops, user]);
+
+  const productOptionDefinitions = useMemo(
+    () => normalizeProductAttributes(product?.attributes),
+    [product?.attributes]
+  );
+  const defaultSelectedAttributes = useMemo(
+    () => getDefaultSelectedAttributes(productOptionDefinitions),
+    [productOptionDefinitions]
+  );
+  const selectedAttributeValidation = useMemo(
+    () =>
+      validateSelectedAttributes({
+        productAttributes: productOptionDefinitions,
+        selectedAttributes
+      }),
+    [productOptionDefinitions, selectedAttributes]
+  );
+  const normalizedSelectedAttributes = useMemo(
+    () => normalizeSelectedAttributes(selectedAttributeValidation.selectedAttributes),
+    [selectedAttributeValidation.selectedAttributes]
+  );
+  const currentSelectionKey = useMemo(
+    () => buildSelectedAttributesSelectionKey(normalizedSelectedAttributes),
+    [normalizedSelectedAttributes]
+  );
+  const hasRequiredProductOptions = productOptionDefinitions.some((attribute) => attribute.required);
+  const hasProductOptions = productOptionDefinitions.length > 0;
+  const matchingCartLine = useMemo(() => {
+    if (!product?._id || !user) return null;
+    return (cart?.items || []).find((item) => {
+      if (String(item?.product?._id || '') !== String(product._id)) return false;
+      const itemSelectionKey = String(
+        item?.selectionKey || buildSelectedAttributesSelectionKey(item?.selectedAttributes || [])
+      ).trim();
+      return itemSelectionKey === currentSelectionKey;
+    }) || null;
+  }, [cart?.items, currentSelectionKey, product?._id, user]);
+  const inCart = Boolean(matchingCartLine);
+
+  useEffect(() => {
+    setSelectedAttributes(defaultSelectedAttributes);
+    setSelectionError("");
+  }, [defaultSelectedAttributes, product?._id]);
+
+  const handleAttributeValueChange = useCallback((attribute, value) => {
+    setSelectionError("");
+    setSelectedAttributes((prev) => {
+      const current = normalizeSelectedAttributes(prev);
+      const filtered = current.filter(
+        (entry) => entry.name.toLowerCase() !== String(attribute?.name || '').trim().toLowerCase()
+      );
+      const nextValue = String(value ?? '').trim();
+      if (!nextValue) return filtered;
+      return [...filtered, { name: attribute.name, value: nextValue }];
+    });
+  }, []);
+
+  const requireSelectedProductOptions = useCallback(() => {
+    if (selectedAttributeValidation.valid) {
+      setSelectionError("");
+      return selectedAttributeValidation.selectedAttributes;
+    }
+    setSelectionError('Veuillez sélectionner les options obligatoires.');
+    return null;
+  }, [selectedAttributeValidation]);
 
   const handleFollowToggle = async () => {
     if (!product?.user?._id) return;
@@ -1190,9 +1265,18 @@ export default function ProductDetails() {
   const handleAddToCart = async () => {
     if (!product) return;
     const safeQty = Math.min(9999, Math.max(1, Math.trunc(Number(selectedQuantity || 1))));
+    const resolvedSelectedAttributes = requireSelectedProductOptions();
+    if (!resolvedSelectedAttributes) return;
 
     if (!user) {
-      setPendingAction({ type: 'addToCart', payload: { productId: product._id, quantity: safeQty } });
+      setPendingAction({
+        type: 'addToCart',
+        payload: {
+          productId: product._id,
+          quantity: safeQty,
+          selectedAttributes: resolvedSelectedAttributes
+        }
+      });
       navigate('/login', { state: { from: `/product/${slug}` } });
       return;
     }
@@ -1202,7 +1286,7 @@ export default function ProductDetails() {
     setAddingToCart(true);
     setCartFeedback("");
     try {
-      await addItem(product._id, safeQty);
+      await addItem(product._id, safeQty, resolvedSelectedAttributes);
       setCartFeedback('✅ Ajouté au panier !');
       setTimeout(() => setCartFeedback(''), 3000);
     } catch (err) {
@@ -1219,6 +1303,8 @@ export default function ProductDetails() {
   const handleBuyNow = async () => {
     if (!product) return;
     const safeQty = Math.min(9999, Math.max(1, Math.trunc(Number(selectedQuantity || 1))));
+    const resolvedSelectedAttributes = requireSelectedProductOptions();
+    if (!resolvedSelectedAttributes) return;
     const liveStock = Number(product?.stock ?? product?.quantity ?? product?.availableStock ?? Number.NaN);
     if (Number.isFinite(liveStock) && liveStock <= 0) {
       setCartFeedback('❌ Produit en rupture de stock');
@@ -1226,7 +1312,14 @@ export default function ProductDetails() {
     }
 
     if (!user) {
-      setPendingAction({ type: 'buyNow', payload: { productId: product._id, quantity: safeQty } });
+      setPendingAction({
+        type: 'buyNow',
+        payload: {
+          productId: product._id,
+          quantity: safeQty,
+          selectedAttributes: resolvedSelectedAttributes
+        }
+      });
       navigate('/login', { state: { from: `/product/${slug}` } });
       return;
     }
@@ -1239,7 +1332,7 @@ export default function ProductDetails() {
     setAddingToCart(true);
     setCartFeedback('');
     try {
-      await addItem(product._id, safeQty);
+      await addItem(product._id, safeQty, resolvedSelectedAttributes);
       setCartFeedback('✅ Produit ajouté. Redirection...');
       navigate('/orders/checkout');
     } catch (err) {
@@ -1415,6 +1508,10 @@ export default function ProductDetails() {
         : deliveryAvailable
           ? 'Contactez le vendeur pour confirmer les modalités.'
           : 'Contactez le vendeur pour les options disponibles.';
+  const physicalSpecRows = useMemo(
+    () => formatPhysicalSpecs(product?.physical),
+    [product?.physical]
+  );
 
   const ratingAverage = Number(product?.ratingAverage || 0).toFixed(1);
   const ratingCount = product?.ratingCount || 0;
@@ -1495,8 +1592,8 @@ export default function ProductDetails() {
     return [];
   }, [product?.tags]);
   const variantRows = useMemo(() => {
-    if (!Array.isArray(product?.variants)) return [];
-    return product.variants
+    const legacyVariants = Array.isArray(product?.variants)
+      ? product.variants
       .map((variant, index) => {
         if (typeof variant === 'string') {
           const value = variant.trim();
@@ -1515,8 +1612,18 @@ export default function ProductDetails() {
         return value ? { label, value } : null;
       })
       .filter(Boolean)
-      .slice(0, 8);
-  }, [product?.variants]);
+      : [];
+    const attributeVariants = productOptionDefinitions.map((attribute) => ({
+      label: attribute.name,
+      value:
+        attribute.type === 'select'
+          ? (attribute.options || []).join(', ')
+          : attribute.type === 'number'
+            ? 'Valeur numérique'
+            : 'Texte libre'
+    }));
+    return [...legacyVariants, ...attributeVariants].slice(0, 8);
+  }, [product?.variants, productOptionDefinitions]);
   const specificationRows = useMemo(
     () =>
       [
@@ -1525,7 +1632,8 @@ export default function ProductDetails() {
         { label: 'Ville', value: sellerCity ? `${sellerCity}, ${sellerCountry}` : 'Non précisée' },
         { label: 'SKU', value: productSku || 'Non précisé' },
         { label: 'Stock', value: stockStatus.label },
-        { label: 'Dernière mise à jour', value: productUpdatedAtLabel }
+        { label: 'Dernière mise à jour', value: productUpdatedAtLabel },
+        ...physicalSpecRows
       ].filter((row) => Boolean(row.value)),
     [
       conditionLabel,
@@ -1534,9 +1642,23 @@ export default function ProductDetails() {
       sellerCountry,
       productSku,
       stockStatus.label,
-      productUpdatedAtLabel
+      productUpdatedAtLabel,
+      physicalSpecRows
     ]
   );
+  const isOptionSelectionBlocked = hasRequiredProductOptions && !selectedAttributeValidation.valid;
+  const primaryCartButtonLabel = isOutOfStock
+    ? 'Rupture'
+    : inCart
+      ? 'Déjà au panier'
+      : addingToCart
+        ? 'Ajout...'
+        : 'Ajouter au panier';
+  const buyNowButtonLabel = inCart
+    ? 'Passer la commande'
+    : addingToCart
+      ? 'Traitement...'
+      : 'Acheter maintenant';
 
   const publishedDate = product?.createdAt ? new Date(product.createdAt) : null;
   const daysSince = publishedDate ? Math.floor((Date.now() - publishedDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
@@ -2169,6 +2291,10 @@ export default function ProductDetails() {
         </div>
       )}
 
+      {visibleProductSpecsPanel && <div className="mx-4 mb-3">{visibleProductSpecsPanel}</div>}
+
+      {productOptionsPanel && <div className="mx-4 mb-3">{productOptionsPanel}</div>}
+
       {/* 7.5 Ajouter au panier + WhatsApp (in-content, mobile) */}
       {!isOwnProduct && (
         <div className="mx-4 mb-3 rounded-3xl border border-slate-200/80 bg-white p-4 shadow-[0_10px_28px_-22px_rgba(15,23,42,0.55)] space-y-3">
@@ -2176,8 +2302,8 @@ export default function ProductDetails() {
             <button
               type="button"
               onClick={handleAddToCart}
-              disabled={addingToCart || inCart || isOutOfStock}
-              className={`group flex min-h-[52px] items-center justify-center gap-2.5 rounded-2xl px-4 py-3.5 text-sm font-bold transition-all tap-feedback ${inCart || isOutOfStock
+              disabled={addingToCart || inCart || isOutOfStock || isOptionSelectionBlocked}
+              className={`group flex min-h-[52px] items-center justify-center gap-2.5 rounded-2xl px-4 py-3.5 text-sm font-bold transition-all tap-feedback ${inCart || isOutOfStock || isOptionSelectionBlocked
                 ? 'cursor-default bg-slate-200 text-slate-500'
                 : 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_2px_10px_rgba(2,132,199,0.35)] hover:from-blue-700 hover:to-cyan-600'
                 }`}
@@ -2186,7 +2312,7 @@ export default function ProductDetails() {
                 <ShoppingCart size={16} />
               </span>
               <span className="truncate leading-tight">
-                {isOutOfStock ? 'Rupture' : inCart ? 'Déjà au panier' : addingToCart ? 'Ajout...' : 'Ajouter au panier'}
+                {isOptionSelectionBlocked ? 'Choisir les options' : primaryCartButtonLabel}
               </span>
             </button>
             {whatsappLink && (
@@ -2208,8 +2334,8 @@ export default function ProductDetails() {
           <button
             type="button"
             onClick={handleBuyNow}
-            disabled={addingToCart || isOutOfStock}
-            className={`inline-flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl px-4 py-3.5 text-sm font-bold transition-all active:scale-[0.98] ${isOutOfStock
+            disabled={addingToCart || isOutOfStock || isOptionSelectionBlocked}
+            className={`inline-flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl px-4 py-3.5 text-sm font-bold transition-all active:scale-[0.98] ${isOutOfStock || isOptionSelectionBlocked
               ? 'cursor-not-allowed bg-slate-200 text-slate-500'
               : 'border border-slate-300 bg-white text-slate-800 hover:bg-slate-50'
               }`}
@@ -2218,7 +2344,9 @@ export default function ProductDetails() {
               }`}>
               <ShoppingCart size={15} />
             </span>
-            <span className="truncate leading-tight">{inCart ? 'Passer la commande' : addingToCart ? 'Traitement...' : 'Acheter maintenant'}</span>
+            <span className="truncate leading-tight">
+              {isOptionSelectionBlocked ? 'Choisir les options' : buyNowButtonLabel}
+            </span>
           </button>
         </div>
       )}
@@ -2644,31 +2772,33 @@ export default function ProductDetails() {
               </button>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <button onClick={handleAddToCart} disabled={addingToCart || inCart || isOutOfStock}
-                className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-2xl font-semibold text-sm transition-all active:scale-95 ${inCart || isOutOfStock ? 'bg-gray-200 text-gray-500' : 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_2px_10px_rgba(2,132,199,0.35)]'
+              <button onClick={handleAddToCart} disabled={addingToCart || inCart || isOutOfStock || isOptionSelectionBlocked}
+                className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-2xl font-semibold text-sm transition-all active:scale-95 ${inCart || isOutOfStock || isOptionSelectionBlocked ? 'bg-gray-200 text-gray-500' : 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_2px_10px_rgba(2,132,199,0.35)]'
                   }`}>
                 <ShoppingCart size={17} />
                 <span>
-                  {isOutOfStock
-                    ? 'Rupture'
-                    : inCart
-                      ? 'Déjà au panier'
-                      : addingToCart
-                        ? 'Ajout...'
-                        : normalizedQuantity > 1
-                          ? `Ajouter x${normalizedQuantity}`
-                          : 'Ajouter'}
+                  {isOptionSelectionBlocked
+                    ? 'Choisir les options'
+                    : isOutOfStock
+                      ? 'Rupture'
+                      : inCart
+                        ? 'Déjà au panier'
+                        : addingToCart
+                          ? 'Ajout...'
+                          : normalizedQuantity > 1
+                            ? `Ajouter x${normalizedQuantity}`
+                            : 'Ajouter'}
                 </span>
               </button>
               <button
                 type="button"
                 onClick={handleBuyNow}
-                disabled={addingToCart || isOutOfStock}
-                className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-2xl font-semibold text-sm transition-all active:scale-95 ${isOutOfStock ? 'bg-gray-200 text-gray-500' : 'bg-neutral-500 text-white'
+                disabled={addingToCart || isOutOfStock || isOptionSelectionBlocked}
+                className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-2xl font-semibold text-sm transition-all active:scale-95 ${isOutOfStock || isOptionSelectionBlocked ? 'bg-gray-200 text-gray-500' : 'bg-neutral-500 text-white'
                   }`}
               >
                 <ShoppingCart size={17} />
-                <span>{inCart ? 'Commander' : addingToCart ? '...' : 'Acheter'}</span>
+                <span>{isOptionSelectionBlocked ? 'Choisir' : inCart ? 'Commander' : addingToCart ? '...' : 'Acheter'}</span>
               </button>
             </div>
           </div>
@@ -3217,13 +3347,16 @@ export default function ProductDetails() {
                 </section>
               )}
 
+              {visibleProductSpecsPanel}
+
               {!isOwnProduct && (
                 <div className="space-y-4">
+                  {productOptionsPanel}
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <button
                       onClick={handleAddToCart}
-                      disabled={addingToCart || inCart || isOutOfStock}
-                      className={`group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all duration-200 active:scale-[0.98] ${inCart || isOutOfStock
+                      disabled={addingToCart || inCart || isOutOfStock || isOptionSelectionBlocked}
+                      className={`group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all duration-200 active:scale-[0.98] ${inCart || isOutOfStock || isOptionSelectionBlocked
                         ? 'cursor-not-allowed bg-slate-200 text-slate-500 opacity-70'
                         : 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_2px_10px_rgba(2,132,199,0.35)] hover:from-blue-700 hover:to-cyan-600 hover:shadow-md'
                         }`}
@@ -3231,13 +3364,15 @@ export default function ProductDetails() {
                       <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/15">
                         <ShoppingCart size={16} />
                       </span>
-                      <span className="truncate leading-tight">{isOutOfStock ? 'Rupture' : inCart ? 'Déjà au panier' : addingToCart ? 'Ajout...' : 'Ajouter au panier'}</span>
+                      <span className="truncate leading-tight">
+                        {isOptionSelectionBlocked ? 'Choisir les options' : primaryCartButtonLabel}
+                      </span>
                     </button>
                     <button
                       type="button"
                       onClick={handleBuyNow}
-                      disabled={addingToCart || isOutOfStock}
-                      className={`group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all duration-200 active:scale-[0.98] ${isOutOfStock
+                      disabled={addingToCart || isOutOfStock || isOptionSelectionBlocked}
+                      className={`group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all duration-200 active:scale-[0.98] ${isOutOfStock || isOptionSelectionBlocked
                         ? 'cursor-not-allowed bg-slate-200 text-slate-500 opacity-70'
                         : 'border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:shadow-sm'
                         }`}
@@ -3246,7 +3381,9 @@ export default function ProductDetails() {
                         }`}>
                         <ShoppingCart size={16} />
                       </span>
-                      <span className="truncate leading-tight">{inCart ? 'Passer la commande' : addingToCart ? 'Traitement...' : 'Acheter maintenant'}</span>
+                      <span className="truncate leading-tight">
+                        {isOptionSelectionBlocked ? 'Choisir les options' : buyNowButtonLabel}
+                      </span>
                     </button>
 
                     {whatsappLink && (
@@ -3999,6 +4136,154 @@ export default function ProductDetails() {
   );
 
   // === MAIN RETURN: conditional mobile / desktop ===
+  const productOptionsPanel = hasProductOptions ? (
+    <div className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-[0_10px_28px_-22px_rgba(15,23,42,0.55)] space-y-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold text-slate-900">Options du produit</p>
+          <p className="text-xs text-slate-500">
+            Choisissez vos options avant d’ajouter ce produit au panier.
+          </p>
+        </div>
+        {hasRequiredProductOptions && (
+          <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
+            Champs requis
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-4">
+        {productOptionDefinitions.map((attribute) => {
+          const selectedValue =
+            normalizedSelectedAttributes.find(
+              (entry) => entry.name.toLowerCase() === attribute.name.toLowerCase()
+            )?.value || '';
+
+          return (
+            <div key={`product-option-${attribute.key || attribute.name}`} className="space-y-2">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-slate-900">{attribute.name}</p>
+                {attribute.required && (
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                    Obligatoire
+                  </span>
+                )}
+              </div>
+
+              {attribute.type === 'select' ? (
+                <div className="flex flex-wrap gap-2">
+                  {(Array.isArray(attribute.options) ? attribute.options : []).map((option) => {
+                    const active = selectedValue.toLowerCase() === String(option).toLowerCase();
+                    return (
+                      <button
+                        key={`${attribute.name}-${option}`}
+                        type="button"
+                        onClick={() =>
+                          handleAttributeValueChange(
+                            attribute,
+                            !attribute.required && active ? '' : option
+                          )
+                        }
+                        className={`rounded-2xl border px-3.5 py-2 text-sm font-semibold transition-all duration-200 active:scale-[0.98] ${
+                          active
+                            ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+                            : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <input
+                  type={attribute.type === 'number' ? 'number' : 'text'}
+                  value={selectedValue}
+                  onChange={(event) => handleAttributeValueChange(attribute, event.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                  placeholder={
+                    attribute.type === 'number'
+                      ? `Saisir ${attribute.name.toLowerCase()}`
+                      : `Ex: ${attribute.name}`
+                  }
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {normalizedSelectedAttributes.length > 0 && (
+        <SelectedAttributesList selectedAttributes={normalizedSelectedAttributes} className="pt-1" />
+      )}
+
+      {(selectionError || isOptionSelectionBlocked) && (
+        <p className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+          {selectionError || 'Veuillez sélectionner les options obligatoires.'}
+        </p>
+      )}
+    </div>
+  ) : null;
+  const specPreviewRows = specificationRows.slice(0, 4);
+  const visibleProductSpecsPanel =
+    specPreviewRows.length > 0 || variantRows.length > 0 ? (
+      <div className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-[0_10px_28px_-22px_rgba(15,23,42,0.55)] space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-bold text-slate-900">Fiche produit</p>
+            <p className="text-xs text-slate-500">
+              Les informations essentielles de cette annonce.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('specifications');
+              setExpandedSections((prev) => ({ ...prev, specifications: true }));
+            }}
+            className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-700 transition-colors hover:bg-slate-100"
+          >
+            Voir tout
+          </button>
+        </div>
+
+        {specPreviewRows.length > 0 && (
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {specPreviewRows.map((row) => (
+              <div
+                key={`spec-preview-${row.label}`}
+                className="rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-3"
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  {row.label}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{row.value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {variantRows.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+              Options disponibles
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {variantRows.slice(0, 6).map((variant) => (
+                <span
+                  key={`visible-variant-${variant.label}`}
+                  className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700"
+                >
+                  <span className="font-semibold">{variant.label}:</span>
+                  <span>{variant.value}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    ) : null;
+
   return (
     <>
       {(offlineSnapshotActive || rapid3GActive) && (

@@ -64,11 +64,15 @@ export const CartProvider = ({ children }) => {
   }, [fetchCart]);
 
   const addItem = useCallback(
-    async (productId, quantity = 1) => {
+    async (productId, quantity = 1, selectedAttributes = []) => {
       if (!user) return;
       setLoading(true);
       try {
-        const { data } = await api.post('/cart/items', { productId, quantity });
+        const { data } = await api.post('/cart/items', {
+          productId,
+          quantity,
+          selectedAttributes
+        });
         handleResponse(data);
         setError('');
       } catch (e) {
@@ -82,15 +86,21 @@ export const CartProvider = ({ children }) => {
   );
 
   const updateItem = useCallback(
-    async (productId, quantity) => {
+    async (productId, quantity, selectedAttributes = [], selectionKey = '') => {
       if (!user) return;
       setLoading(true);
       try {
         if (quantity <= 0) {
-          const { data } = await api.delete(`/cart/items/${productId}`);
+          const { data } = await api.delete(`/cart/items/${productId}`, {
+            data: { selectionKey, selectedAttributes }
+          });
           handleResponse(data);
         } else {
-          const { data } = await api.put(`/cart/items/${productId}`, { quantity });
+          const { data } = await api.put(`/cart/items/${productId}`, {
+            quantity,
+            selectionKey,
+            selectedAttributes
+          });
           handleResponse(data);
         }
         setError('');
@@ -105,11 +115,13 @@ export const CartProvider = ({ children }) => {
   );
 
   const removeItem = useCallback(
-    async (productId) => {
+    async (productId, selectedAttributes = [], selectionKey = '') => {
       if (!user) return;
       setLoading(true);
       try {
-        const { data } = await api.delete(`/cart/items/${productId}`);
+        const { data } = await api.delete(`/cart/items/${productId}`, {
+          data: { selectionKey, selectedAttributes }
+        });
         handleResponse(data);
         setError('');
       } catch (e) {

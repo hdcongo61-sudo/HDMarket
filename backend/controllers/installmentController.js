@@ -29,6 +29,7 @@ import {
 } from '../services/installmentPolicyService.js';
 import { getOrderAllowedActions } from '../services/orderStatusFlowService.js';
 import { emitOrderStatusUpdated } from '../sockets/chatSocket.js';
+import { validateSelectedAttributesForProduct } from '../utils/productAttributes.js';
 
 const ensureObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -88,6 +89,7 @@ const buildOrderResponse = (order) => {
     items: Array.isArray(obj.items)
       ? obj.items.map((item) => ({
           ...item,
+          selectedAttributes: Array.isArray(item.selectedAttributes) ? item.selectedAttributes : [],
           snapshot: item.snapshot || {}
         }))
       : [],
@@ -271,7 +273,14 @@ const emitInstallmentOrderUpdate = ({ order, updatedBy, updatedAt = new Date() }
 
 export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
-  const { productId, quantity = 1, firstPaymentAmount, payerName, transactionCode } = req.body;
+  const {
+    productId,
+    quantity = 1,
+    firstPaymentAmount,
+    payerName,
+    transactionCode,
+    selectedAttributes
+  } = req.body;
   const guarantor = parseGuarantorPayload(req.body);
   const cleanPayerName = String(payerName || '').trim();
   const cleanTransactionCode = normalizeTransactionCode(transactionCode);
@@ -312,6 +321,13 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
   }
   if (!isProductInstallmentActive(product)) {
     return res.status(400).json({ message: 'Le paiement par tranche n’est pas disponible pour ce produit.' });
+  }
+  const selectedAttributesValidation = validateSelectedAttributesForProduct({
+    productAttributes: product.attributes,
+    selectedAttributes
+  });
+  if (!selectedAttributesValidation.valid) {
+    return res.status(400).json({ message: selectedAttributesValidation.message });
   }
   const qty = Math.max(1, Number(quantity) || 1);
   const pricing = getWholesalePricing(product, qty);
@@ -373,6 +389,7 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
       quantity: qty,
       unitPrice,
       lineTotal: totalAmount,
+      selectedAttributes: selectedAttributesValidation.selectedAttributes,
       snapshot: {
         title: product.title,
         price: unitPrice,
@@ -437,7 +454,14 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
 
     await Cart.updateOne(
       { user: customer._id },
-      { $pull: { items: { product: product._id } } }
+      {
+        $pull: {
+          items: {
+            product: product._id,
+            selectionKey: selectedAttributesValidation.selectionKey
+          }
+        }
+      }
     );
 
     await createNotification({

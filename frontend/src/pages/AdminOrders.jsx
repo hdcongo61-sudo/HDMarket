@@ -6,6 +6,7 @@ import { buildProductPath, buildShopPath } from '../utils/links';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { CheckCircle, Search, Package, User, MapPin, Truck, Clock, ClipboardList, Plus, RefreshCcw, ArrowLeft, X, AlertCircle, ShieldCheck, FileSpreadsheet, Trash2 } from 'lucide-react';
 import OrderChat from '../components/OrderChat';
+import SelectedAttributesList from '../components/orders/SelectedAttributesList';
 import BaseModal from '../components/modals/BaseModal';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -1910,6 +1911,11 @@ export default function AdminOrders() {
                             x{Number(item.quantity || 1)} · {formatCurrency(item.snapshot?.price || 0)}
                           </p>
                         </div>
+                        <SelectedAttributesList
+                          selectedAttributes={item.selectedAttributes}
+                          compact
+                          className="mt-1"
+                        />
                       </div>
                     ))}
                     {previewOrderItems.length === 0 && (
@@ -2493,6 +2499,10 @@ export default function AdminOrders() {
                                 x{item.quantity} · {formatCurrency(item.snapshot?.price || 0)}
                               </span>
                             </div>
+                            <SelectedAttributesList
+                              selectedAttributes={item.selectedAttributes}
+                              compact
+                            />
                             {item.snapshot?.confirmationNumber && (
                               <span className="text-[11px] text-neutral-600 font-semibold uppercase tracking-wide">
                                 Code produit : {item.snapshot.confirmationNumber}
@@ -2706,17 +2716,21 @@ export default function AdminOrders() {
                           <div className="space-y-2 text-xs text-gray-600">
                             {orderItems.map((item) => (
                               <div key={`${order._id}-${item.product}-${item.snapshot?.title}`} className="space-y-0.5">
-                                <div>
-                                  <span className="font-semibold text-gray-900">{item.snapshot?.title || 'Produit'}</span>{' '}
-                                  <span className="text-gray-500">
-                                    x{item.quantity} · {formatCurrency(item.snapshot?.price || 0)}
-                                  </span>
-                                </div>
-                                {item.snapshot?.confirmationNumber && (
-                                  <span className="block text-[11px] text-neutral-600 font-semibold uppercase tracking-wide">
-                                    Code produit : {item.snapshot.confirmationNumber}
-                                  </span>
-                                )}
+                              <div>
+                                <span className="font-semibold text-gray-900">{item.snapshot?.title || 'Produit'}</span>{' '}
+                                <span className="text-gray-500">
+                                  x{item.quantity} · {formatCurrency(item.snapshot?.price || 0)}
+                                </span>
+                              </div>
+                              <SelectedAttributesList
+                                selectedAttributes={item.selectedAttributes}
+                                compact
+                              />
+                              {item.snapshot?.confirmationNumber && (
+                                <span className="block text-[11px] text-neutral-600 font-semibold uppercase tracking-wide">
+                                  Code produit : {item.snapshot.confirmationNumber}
+                                </span>
+                              )}
                               </div>
                             ))}
                           </div>

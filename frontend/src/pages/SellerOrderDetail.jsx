@@ -35,6 +35,7 @@ import StatusBadge from '../components/orders/StatusBadge';
 import AnimatedOrderTimeline from '../components/orders/AnimatedOrderTimeline';
 import InstallmentReminder from '../components/orders/InstallmentReminder';
 import { OrderDetailSkeleton } from '../components/orders/OrderSkeletons';
+import SelectedAttributesList from '../components/orders/SelectedAttributesList';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
 import { useToast } from '../context/ToastContext';
 import AuthContext from '../context/AuthContext';
@@ -1154,6 +1155,11 @@ export default function SellerOrderDetail() {
                         <span>Quantité: {item.quantity || 1}</span>
                         <span>Prix unitaire: {formatCurrency(item.snapshot?.price || 0)}</span>
                       </div>
+                      <SelectedAttributesList
+                        selectedAttributes={item.selectedAttributes}
+                        compact
+                        className="mb-1.5"
+                      />
                       {item.snapshot?.confirmationNumber && (
                         <div className="mt-2 inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-neutral-50 border border-neutral-200">
                           <span className="text-[10px] font-bold text-neutral-700 uppercase">Code: {item.snapshot.confirmationNumber}</span>

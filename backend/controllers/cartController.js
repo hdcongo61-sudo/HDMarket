@@ -9,9 +9,14 @@ import {
   getVerifiedProductIds,
   hasVerifiedPaymentForProduct
 } from '../utils/publicProductVisibility.js';
+import {
+  buildSelectedAttributesSelectionKey,
+  normalizeSelectedAttributes,
+  validateSelectedAttributesForProduct
+} from '../utils/productAttributes.js';
 
 const productSelectFields =
-  'title price discount priceBeforeDiscount images status category user city country whatsappClicks slug installmentEnabled installmentMinAmount installmentDuration installmentStartDate installmentEndDate installmentRequireGuarantor wholesaleEnabled wholesaleTiers deliveryAvailable pickupAvailable deliveryFee deliveryFeeEnabled';
+  'title price discount priceBeforeDiscount images status category user city country whatsappClicks slug installmentEnabled installmentMinAmount installmentDuration installmentStartDate installmentEndDate installmentRequireGuarantor wholesaleEnabled wholesaleTiers deliveryAvailable pickupAvailable deliveryFee deliveryFeeEnabled attributes physical';
 
 const getItemProductId = (item) => {
   if (!item) return null;
@@ -19,6 +24,15 @@ const getItemProductId = (item) => {
   if (!raw) return null;
   return raw.toString();
 };
+
+const getItemSelectionKey = (item) =>
+  String(
+    item?.selectionKey ||
+      buildSelectedAttributesSelectionKey(item?.selectedAttributes || [])
+  ).trim();
+
+const resolveRequestedSelectionKey = ({ selectionKey, selectedAttributes }) =>
+  String(selectionKey || buildSelectedAttributesSelectionKey(selectedAttributes)).trim();
 
 const sanitizeCart = async (cart) => {
   if (!cart) return null;
@@ -100,6 +114,9 @@ const formatCart = (cart) => {
           : null;
 
       return {
+        cartItemId: item._id ? String(item._id) : '',
+        selectionKey: getItemSelectionKey(item),
+        selectedAttributes: normalizeSelectedAttributes(item.selectedAttributes),
         product: {
           _id: product._id,
           slug: product.slug,
@@ -125,6 +142,8 @@ const formatCart = (cart) => {
           pickupAvailable: product.pickupAvailable !== false,
           deliveryFee: Number(product.deliveryFee || 0),
           deliveryFeeEnabled: product.deliveryFeeEnabled !== false,
+          attributes: Array.isArray(product.attributes) ? product.attributes : [],
+          physical: product.physical && typeof product.physical === 'object' ? product.physical : {},
           user: seller,
           contactPhone: seller?.phone || null
         },
@@ -162,7 +181,7 @@ export const getCart = asyncHandler(async (req, res) => {
 });
 
 export const addItem = asyncHandler(async (req, res) => {
-  const { productId, quantity = 1 } = req.body;
+  const { productId, quantity = 1, selectedAttributes } = req.body;
   if (!mongoose.isValidObjectId(productId)) {
     return res.status(400).json({ message: 'Invalid product id' });
   }
@@ -171,18 +190,36 @@ export const addItem = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Quantity must be greater than zero' });
   }
 
-  const product = await Product.findById(productId).select('status payment');
+  const product = await Product.findById(productId).select('status payment attributes');
   const hasVerifiedPayment = await hasVerifiedPaymentForProduct(product?.payment);
   if (!product || product.status !== 'approved' || !hasVerifiedPayment) {
     return res.status(404).json({ message: 'Product unavailable' });
   }
 
+  const selectedAttributesValidation = validateSelectedAttributesForProduct({
+    productAttributes: product.attributes,
+    selectedAttributes
+  });
+  if (!selectedAttributesValidation.valid) {
+    return res.status(400).json({ message: selectedAttributesValidation.message });
+  }
+
   const cart = await ensureCart(req.user.id);
-  const existing = cart.items.find((item) => getItemProductId(item) === productId);
+  const selectionKey = selectedAttributesValidation.selectionKey;
+  const existing = cart.items.find(
+    (item) =>
+      getItemProductId(item) === productId &&
+      getItemSelectionKey(item) === selectionKey
+  );
   if (existing) {
     existing.quantity += qty;
   } else {
-    cart.items.push({ product: productId, quantity: qty });
+    cart.items.push({
+      product: productId,
+      quantity: qty,
+      selectionKey,
+      selectedAttributes: selectedAttributesValidation.selectedAttributes
+    });
   }
   await cart.save();
   await invalidateUserCache(req.user.id, ['cart']);
@@ -195,14 +232,19 @@ export const updateItem = asyncHandler(async (req, res) => {
   if (!mongoose.isValidObjectId(productId)) {
     return res.status(400).json({ message: 'Invalid product id' });
   }
-  const { quantity } = req.body;
+  const { quantity, selectionKey, selectedAttributes } = req.body;
   const qty = Number(quantity);
   if (Number.isNaN(qty) || qty < 0) {
     return res.status(400).json({ message: 'Quantity must be zero or higher' });
   }
 
   const cart = await ensureCart(req.user.id);
-  const existing = cart.items.find((item) => getItemProductId(item) === productId);
+  const requestedSelectionKey = resolveRequestedSelectionKey({ selectionKey, selectedAttributes });
+  const existing = cart.items.find(
+    (item) =>
+      getItemProductId(item) === productId &&
+      getItemSelectionKey(item) === requestedSelectionKey
+  );
   if (!existing) {
     return res.status(404).json({ message: 'Item not found in cart' });
   }
@@ -225,9 +267,19 @@ export const removeItem = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Invalid product id' });
   }
 
+  const requestedSelectionKey = resolveRequestedSelectionKey({
+    selectionKey: req.query?.selectionKey || req.body?.selectionKey,
+    selectedAttributes: req.body?.selectedAttributes
+  });
   const cart = await ensureCart(req.user.id);
   const beforeLength = cart.items.length;
-  cart.items = cart.items.filter((item) => getItemProductId(item) !== productId);
+  cart.items = cart.items.filter(
+    (item) =>
+      !(
+        getItemProductId(item) === productId &&
+        getItemSelectionKey(item) === requestedSelectionKey
+      )
+  );
 
   if (cart.items.length === beforeLength) {
     return res.status(404).json({ message: 'Item not found in cart' });

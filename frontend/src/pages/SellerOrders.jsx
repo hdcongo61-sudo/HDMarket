@@ -39,6 +39,7 @@ import GlassHeader from '../components/orders/GlassHeader';
 import AnimatedOrderTimeline from '../components/orders/AnimatedOrderTimeline';
 import StatusBadge from '../components/orders/StatusBadge';
 import { OrderListSkeleton } from '../components/orders/OrderSkeletons';
+import SelectedAttributesList from '../components/orders/SelectedAttributesList';
 import usePullToRefresh from '../hooks/usePullToRefresh';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
@@ -496,6 +497,11 @@ const SellerOrderSummaryCard = ({ order }) => {
             <span className="text-gray-400">×</span>
             <span>{firstItem?.quantity ?? 1}</span>
           </div>
+          <SelectedAttributesList
+            selectedAttributes={firstItem?.selectedAttributes}
+            compact
+            className="mt-2"
+          />
           {isInstallmentOrder && (
             <div className="mt-2 space-y-1">
               <p className="text-xs font-semibold text-neutral-700">
@@ -826,6 +832,11 @@ const SellerMobileOrderCard = ({
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{item.snapshot?.title || t('orders.product', 'Produit')}</p>
                   <p className="text-xs text-gray-500">{t('orders.qty', 'Qté')}: {item.quantity || 1} • {formatCurrency(item.snapshot?.price || 0)}</p>
+                  <SelectedAttributesList
+                    selectedAttributes={item.selectedAttributes}
+                    compact
+                    className="mt-1"
+                  />
                 </div>
               </div>
             ))}

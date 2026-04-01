@@ -19,6 +19,30 @@ export const validate =
   };
 
 const identifierPattern = Joi.string().pattern(/^[^/]+$/, 'identifiant produit');
+const productAttributeSchema = Joi.object({
+  key: Joi.string().max(60).allow('', null),
+  name: Joi.string().min(1).max(60).required(),
+  type: Joi.string().valid('select', 'text', 'number').required(),
+  options: Joi.array().items(Joi.string().max(80)).optional(),
+  required: Joi.boolean().optional(),
+  defaultValue: Joi.alternatives().try(Joi.string().max(120), Joi.number()).allow('', null)
+});
+const physicalSchema = Joi.object({
+  weight: Joi.object({
+    value: Joi.number().positive().allow(null),
+    unit: Joi.string().valid('kg', 'g').allow('', null)
+  }).optional(),
+  dimensions: Joi.object({
+    length: Joi.number().positive().allow(null),
+    width: Joi.number().positive().allow(null),
+    height: Joi.number().positive().allow(null),
+    unit: Joi.string().valid('cm').allow('', null)
+  }).optional()
+});
+const selectedAttributeSchema = Joi.object({
+  name: Joi.string().min(1).max(60).required(),
+  value: Joi.alternatives().try(Joi.string().max(120), Joi.number()).required()
+});
 
 export const schemas = {
   register: Joi.object({
@@ -99,7 +123,15 @@ export const schemas = {
     deliveryAvailable: Joi.boolean().truthy('true').falsy('false').optional(),
     pickupAvailable: Joi.boolean().truthy('true').falsy('false').optional(),
     deliveryFee: Joi.number().min(0).optional(),
-    deliveryFeeEnabled: Joi.boolean().truthy('true').falsy('false').optional()
+    deliveryFeeEnabled: Joi.boolean().truthy('true').falsy('false').optional(),
+    attributes: Joi.alternatives().try(
+      Joi.string().allow('', null),
+      Joi.array().items(productAttributeSchema)
+    ).optional(),
+    physical: Joi.alternatives().try(
+      Joi.string().allow('', null),
+      physicalSchema
+    ).optional()
   }).or('category', 'categoryId', 'subcategoryId'),
   productUpdate: Joi.object({
     title: Joi.string().min(2).max(120),
@@ -135,6 +167,14 @@ export const schemas = {
     pickupAvailable: Joi.boolean().truthy('true').falsy('false'),
     deliveryFee: Joi.number().min(0),
     deliveryFeeEnabled: Joi.boolean().truthy('true').falsy('false'),
+    attributes: Joi.alternatives().try(
+      Joi.string().allow('', null),
+      Joi.array().items(productAttributeSchema)
+    ),
+    physical: Joi.alternatives().try(
+      Joi.string().allow('', null),
+      physicalSchema
+    ),
     removeImages: Joi.array().items(Joi.string().max(500)).max(3).single(),
     removeVideo: Joi.boolean().truthy('true').falsy('false'),
     removePdf: Joi.boolean().truthy('true').falsy('false')
@@ -156,9 +196,18 @@ export const schemas = {
   cartAdd: Joi.object({
     productId: Joi.string().hex().length(24).required(),
     quantity: Joi.number().integer().min(1).default(1),
+    selectedAttributes: Joi.alternatives().try(
+      Joi.string().allow('', null),
+      Joi.array().items(selectedAttributeSchema)
+    ).optional()
   }),
   cartUpdate: Joi.object({
     quantity: Joi.number().integer().min(0).required(),
+    selectionKey: Joi.string().max(600).allow('', null),
+    selectedAttributes: Joi.alternatives().try(
+      Joi.string().allow('', null),
+      Joi.array().items(selectedAttributeSchema)
+    ).optional()
   }),
   profileUpdate: Joi.object({
     name: Joi.string().min(2).max(60),
@@ -569,7 +618,11 @@ export const schemas = {
         }),
         Joi.string().max(2000)
       )
-      .optional()
+      .optional(),
+    selectedAttributes: Joi.alternatives().try(
+      Joi.string().allow('', null),
+      Joi.array().items(selectedAttributeSchema)
+    ).optional()
   }),
   installmentPaymentProofSubmit: Joi.object({
     payerName: Joi.string().min(2).max(120).required(),

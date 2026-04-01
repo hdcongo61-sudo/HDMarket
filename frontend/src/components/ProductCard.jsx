@@ -433,6 +433,14 @@ function ProductCard({
   };
 
   const handleAddToCart = async () => {
+    if (Array.isArray(p?.attributes) && p.attributes.length > 0) {
+      navigate(resolvedProductLink, {
+        state: {
+          focusProductOptions: true
+        }
+      });
+      return;
+    }
     if (!user) {
       setPendingAction({ type: 'addToCart', payload: { productId: p._id, quantity: 1 } });
       redirectToLogin();
