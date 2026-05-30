@@ -2,6 +2,7 @@ import axios from 'axios';
 import storage from '../utils/storage.js';
 import indexedDB, { STORES } from '../utils/indexedDB.js';
 import { recordNetworkMetric } from '../utils/networkMetrics.js';
+import { estimateFormDataBytes } from '../utils/mediaOptimizer.js';
 
 const parsePositiveInt = (value, fallback, min = 1000, max = 300000) => {
   const parsed = Number(value);
@@ -43,6 +44,7 @@ const COURIER_TIMEOUT_PREFIXES = ['/delivery', '/courier'];
 const API_TIMEOUT_MS = API_TIMEOUT_DEFAULTS.default;
 const REQUEST_RETRY_MAX = 1;
 const REQUEST_RETRY_DELAY_MS = 2000;
+const MIN_UPLOAD_THROUGHPUT_BYTES_PER_SECOND = 24 * 1024;
 const RETRYABLE_METHODS = new Set(['get', 'head', 'options']);
 const MUTATION_METHODS = new Set(['post', 'put', 'patch', 'delete']);
 
@@ -335,6 +337,14 @@ const resolveDynamicRequestTimeoutMs = (config = {}, runtimeConfig = {}) => {
   const min = FRONTEND_TIMEOUT_PROFILE_MIN_MS[profile] || FRONTEND_TIMEOUT_PROFILE_MIN_MS.default;
   const rawValue = runtimeConfig?.[runtimeKey];
   return parsePositiveInt(rawValue, fallback, min, 300000);
+};
+
+const resolveMultipartTimeoutMs = (config = {}) => {
+  const payloadBytes = estimateFormDataBytes(config.data);
+  if (!payloadBytes) return 60_000;
+  const transferMs = (payloadBytes / MIN_UPLOAD_THROUGHPUT_BYTES_PER_SECOND) * 1000;
+  const overheadMs = 45_000;
+  return Math.min(300_000, Math.max(60_000, Math.round(transferMs + overheadMs)));
 };
 
 const toStableParams = (params) => {
@@ -662,8 +672,8 @@ api.interceptors.request.use(async (config) => {
   const explicitTimeoutMs = Number(config.timeout || 0);
   config.timeout = explicitTimeoutMs > 0 ? Math.max(1000, Math.round(explicitTimeoutMs)) : dynamicTimeoutMs;
   const contentType = String(config.headers['Content-Type'] || config.headers['content-type'] || '').toLowerCase();
-  if (contentType.includes('multipart/form-data') && Number(config.timeout || 0) < 60_000) {
-    config.timeout = 60_000;
+  if (contentType.includes('multipart/form-data')) {
+    config.timeout = Math.max(Number(config.timeout || 0), resolveMultipartTimeoutMs(config));
   }
   if (typeof AbortController !== 'undefined') {
     const controller = new AbortController();

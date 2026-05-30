@@ -79,6 +79,19 @@ export const enqueueOrderAutomationJob = async (name, data = {}, options = {}) =
   });
 };
 
+export const getOrderAutomationJob = async (jobId) => {
+  const queue = await initOrderAutomationQueue();
+  if (!queue || !jobId) return null;
+  return queue.getJob(String(jobId));
+};
+
+export const removeOrderAutomationJob = async (jobId) => {
+  const job = await getOrderAutomationJob(jobId);
+  if (!job) return false;
+  await job.remove();
+  return true;
+};
+
 export const ensureOrderAutomationSchedules = async () => {
   const queue = await initOrderAutomationQueue();
   if (!queue) return null;

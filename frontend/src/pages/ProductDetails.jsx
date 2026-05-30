@@ -1566,8 +1566,19 @@ export default function ProductDetails() {
   const returnPolicyLabel =
     String(product?.returnPolicy || product?.returnPolicyText || '').trim() ||
     'Retours et échanges selon la politique du vendeur.';
-  const warrantyLabel =
-    String(product?.warranty || product?.warrantyInfo || '').trim() || 'Garantie non spécifiée.';
+  const warrantyPeriodUnitLabel =
+    product?.warrantyPeriodUnit === 'days'
+      ? Number(product?.warrantyPeriodValue) > 1
+        ? 'jours'
+        : 'jour'
+      : product?.warrantyPeriodUnit === 'years'
+        ? Number(product?.warrantyPeriodValue) > 1
+          ? 'ans'
+          : 'an'
+        : 'mois';
+  const warrantyLabel = product?.warrantyEnabled
+    ? `${Number(product?.warrantyPeriodValue || 0)} ${warrantyPeriodUnitLabel} après achat`
+    : String(product?.warranty || product?.warrantyInfo || '').trim() || 'Aucune garantie confirmée.';
   const sellerResponseRateRaw = Number(product?.user?.responseRate ?? product?.user?.replyRate ?? Number.NaN);
   const sellerResponseRateLabel = Number.isFinite(sellerResponseRateRaw)
     ? `${Math.max(0, Math.min(100, Math.round(sellerResponseRateRaw)))}%`
@@ -1944,7 +1955,7 @@ export default function ProductDetails() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28, ease: "easeOut" }}
-      className="min-h-screen bg-gray-50 pb-28 safe-area-bottom dark:bg-black"
+      className="product-detail-page min-h-screen bg-gray-50 pb-28 safe-area-bottom dark:bg-black"
     >
       <header className="sticky top-0 z-30 border-b border-neutral-200/80 bg-white/80 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/80">
         <div
@@ -2208,79 +2219,100 @@ export default function ProductDetails() {
 
       {/* 7. Seller Compact Strip (expandable) */}
       {product.user && (
-        <div className="mx-4 mb-3 rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+        <div className="product-shop-card mx-4 mb-3 overflow-hidden rounded-[24px] border border-gray-100 bg-white shadow-sm">
           <button
             type="button"
             onClick={() => setSellerExpanded((prev) => !prev)}
-            className="w-full flex items-center gap-3 p-3 text-left"
+            className="w-full p-4 text-left"
           >
-            {shopLogo ? (
-              <img src={shopLogo} alt={shopName || product.user.name}
-                className="w-10 h-10 rounded-xl object-cover border border-gray-200" />
-            ) : (
-              <div className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center">
-                <Store className="w-5 h-5 text-white" />
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-sm text-gray-900 truncate">
-                  {shopName || product.user.name}
-                </span>
-                {isProfessional && <VerifiedBadge verified={isShopVerified} showLabel={false} />}
-              </div>
-              <span className="text-xs text-gray-500">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">
+                Boutique
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-semibold text-gray-600">
                 {isProfessional ? 'Professionnel' : 'Particulier'}
-                {sellerCity ? ` · ${sellerCity}` : ''}
+                {sellerExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
               </span>
             </div>
-            {sellerExpanded ? <ChevronUp size={18} className="text-gray-400 flex-shrink-0" /> : <ChevronDown size={18} className="text-gray-400 flex-shrink-0" />}
+            <div className="flex items-center gap-3">
+              {shopLogo ? (
+                <img
+                  src={shopLogo}
+                  alt={shopName || product.user.name}
+                  className="h-14 w-14 rounded-2xl border border-gray-200 object-cover shadow-sm"
+                />
+              ) : (
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-neutral-950 shadow-sm">
+                  <Store className="h-6 w-6 text-white" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate text-base font-black text-gray-900">
+                    {shopName || product.user.name}
+                  </span>
+                  {isProfessional && <VerifiedBadge verified={isShopVerified} showLabel={false} />}
+                </div>
+                <span className="mt-0.5 block truncate text-xs text-gray-500">
+                  {sellerCity ? `${sellerCity}, ${sellerCountry}` : 'Localisation non précisée'}
+                  {shopAddress ? ` · ${shopAddress}` : ''}
+                </span>
+              </div>
+            </div>
           </button>
           {sellerExpanded && (
-            <div className="px-3 pb-3 space-y-2 border-t border-gray-100 pt-2">
-              {(sellerCity || shopAddress) && (
-                <div className="flex items-center gap-2 text-xs text-gray-600">
-                  <MapPin size={14} className="text-neutral-700 flex-shrink-0" />
-                  <span>
-                    {sellerCity ? `${sellerCity}, ${sellerCountry}` : ''}
-                    {shopAddress ? ` · ${shopAddress}` : ''}
-                  </span>
-                </div>
-              )}
-              {showPhone && (
-                <a href={`tel:${(phoneNumber || '').replace(/\s+/g, '')}`}
-                  className="flex items-center gap-2 text-xs text-gray-700">
-                  <Phone size={14} className="text-neutral-600 flex-shrink-0" />
-                  <span className="font-bold">{phoneNumber}</span>
-                </a>
-              )}
-              <div className="grid grid-cols-3 gap-2 rounded-xl border border-gray-100 bg-gray-50 p-2.5 text-center">
+            <div className="space-y-3 border-t border-gray-100 px-4 pb-4 pt-3">
+              <div className="grid grid-cols-3 gap-2 rounded-2xl border border-gray-100 bg-gray-50 p-2.5 text-center">
                 <div>
-                  <p className="text-[10px] text-gray-500">Abonnés</p>
-                  <p className="text-xs font-bold text-gray-900">{formattedSellerFollowers}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Abonnés</p>
+                  <p className="text-sm font-black text-gray-900">{formattedSellerFollowers}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-gray-500">Réponse</p>
-                  <p className="text-xs font-bold text-gray-900">{sellerResponseRateLabel}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Réponse</p>
+                  <p className="text-sm font-black text-gray-900">{sellerResponseRateLabel}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-gray-500">Membre</p>
-                  <p className="text-xs font-bold text-gray-900">{sellerMemberSinceLabel}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Membre</p>
+                  <p className="text-sm font-black text-gray-900">{sellerMemberSinceLabel}</p>
                 </div>
               </div>
-              {sellerResponseTimeLabel && (
-                <p className="text-[11px] text-gray-500">Temps de réponse moyen: {sellerResponseTimeLabel}</p>
+              <div className="space-y-2">
+                {(sellerCity || shopAddress) && (
+                  <div className="flex items-start gap-2 text-xs text-gray-600">
+                    <MapPin size={14} className="mt-0.5 flex-shrink-0 text-neutral-700" />
+                    <span>
+                      {sellerCity ? `${sellerCity}, ${sellerCountry}` : ''}
+                      {shopAddress ? ` · ${shopAddress}` : ''}
+                    </span>
+                  </div>
+                )}
+                {sellerResponseTimeLabel && (
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <Clock size={14} className="flex-shrink-0 text-neutral-700" />
+                    <span>Temps de réponse moyen: <span className="font-bold text-gray-800">{sellerResponseTimeLabel}</span></span>
+                  </div>
+                )}
+              </div>
+              {showPhone && (
+                <a
+                  href={`tel:${(phoneNumber || '').replace(/\s+/g, '')}`}
+                  className="flex items-center gap-2 rounded-2xl border border-gray-100 bg-gray-50 px-3 py-2.5 text-xs text-gray-700"
+                >
+                  <Phone size={14} className="flex-shrink-0 text-neutral-600" />
+                  <span className="font-bold">{phoneNumber}</span>
+                  <span className="ml-auto text-[11px] text-gray-500">Appeler</span>
+                </a>
               )}
               <div className="flex gap-2 pt-1">
                 {isProfessional && shopIdentifier && (
                   <Link to={buildShopPath(shopIdentifier)}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-neutral-900 text-white rounded-xl text-xs font-semibold active:scale-95 transition-transform">
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 bg-neutral-950 text-white rounded-2xl text-xs font-semibold active:scale-95 transition-transform">
                     <Store size={14} /> Voir boutique
                   </Link>
                 )}
                 {isProfessional && !isOwnProduct && isShopVerified && (
                   <button type="button" onClick={handleFollowToggle} disabled={followLoading}
-                    className={`flex-1 flex items-center justify-center px-3 py-2 rounded-xl text-xs font-semibold active:scale-95 transition-transform border ${isFollowingShop ? 'border-gray-300 bg-white text-gray-700' : 'border-gray-200 bg-gray-100 text-gray-700'
+                    className={`flex-1 flex items-center justify-center px-3 py-2.5 rounded-2xl text-xs font-semibold active:scale-95 transition-transform border ${isFollowingShop ? 'border-gray-300 bg-white text-gray-700' : 'border-gray-200 bg-gray-100 text-gray-700'
                       }`}>
                     {followLoading ? '...' : isFollowingShop ? 'Abonné' : 'Suivre'}
                   </button>
@@ -2305,7 +2337,7 @@ export default function ProductDetails() {
               disabled={addingToCart || inCart || isOutOfStock || isOptionSelectionBlocked}
               className={`group flex min-h-[52px] items-center justify-center gap-2.5 rounded-2xl px-4 py-3.5 text-sm font-bold transition-all tap-feedback ${inCart || isOutOfStock || isOptionSelectionBlocked
                 ? 'cursor-default bg-slate-200 text-slate-500'
-                : 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_2px_10px_rgba(2,132,199,0.35)] hover:from-blue-700 hover:to-cyan-600'
+                : 'bg-neutral-950 text-white shadow-[0_16px_32px_-20px_rgba(15,23,42,0.72)] hover:bg-black'
                 }`}
             >
               <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/15">
@@ -2612,9 +2644,9 @@ export default function ProductDetails() {
       {/* 15. PDF */}
       {product?.pdf && (
         <div className="mx-4 mb-3 rounded-2xl border border-gray-100 bg-white shadow-sm p-4">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Fiche produit</h3>
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Document joint</h3>
           <div className="overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
-            <img src={product.pdf} alt={`Fiche produit ${product.title || ''}`} className="w-full h-auto object-contain bg-white" loading="lazy" />
+            <img src={product.pdf} alt={`Document ${product.title || ''}`} className="w-full h-auto object-contain bg-white" loading="lazy" />
           </div>
         </div>
       )}
@@ -2773,7 +2805,7 @@ export default function ProductDetails() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <button onClick={handleAddToCart} disabled={addingToCart || inCart || isOutOfStock || isOptionSelectionBlocked}
-                className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-2xl font-semibold text-sm transition-all active:scale-95 ${inCart || isOutOfStock || isOptionSelectionBlocked ? 'bg-gray-200 text-gray-500' : 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_2px_10px_rgba(2,132,199,0.35)]'
+                className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-2xl font-semibold text-sm transition-all active:scale-95 ${inCart || isOutOfStock || isOptionSelectionBlocked ? 'bg-gray-200 text-gray-500' : 'bg-neutral-950 text-white shadow-[0_16px_32px_-22px_rgba(15,23,42,0.8)]'
                   }`}>
                 <ShoppingCart size={17} />
                 <span>
@@ -2821,10 +2853,10 @@ export default function ProductDetails() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28, ease: "easeOut" }}
-      className="min-h-screen bg-gray-50 dark:bg-black"
+      className="product-detail-page min-h-screen bg-gray-50 dark:bg-black"
     >
       {/* 🎯 NAVIGATION ENHANCED */}
-      <nav className="sticky top-0 z-10 border-b border-neutral-200/80 bg-white/80 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/80 sm:z-40">
+      <nav className="product-detail-subnav sticky top-0 z-10 border-b border-neutral-200/80 bg-white/80 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/80 sm:z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
@@ -2916,7 +2948,7 @@ export default function ProductDetails() {
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-24 md:pb-8">
+      <main className="product-detail-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-24 md:pb-8">
         {/* 🍞 BREADCRUMB ENHANCED */}
         <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600 mb-6 sm:mb-8">
           <Link to="/" className="hover:text-neutral-800 transition-colors font-medium">Accueil</Link>
@@ -2934,7 +2966,7 @@ export default function ProductDetails() {
         <div className="grid gap-6 sm:gap-8 lg:grid-cols-[1.2fr_1fr] lg:gap-12">
           {/* 🖼️ GALERIE D'IMAGES ENHANCED */}
           <div className="space-y-4">
-            <div className="rounded-3xl border border-gray-100 bg-white p-3 shadow-xl shadow-gray-200/50">
+            <div className="product-detail-gallery rounded-3xl border border-gray-100 bg-white p-3 shadow-xl shadow-gray-200/50">
               <div className={desktopGalleryLayoutClass}>
                 {hasMultipleGalleryImages && (
                   <div className="order-2 flex gap-2 overflow-x-auto pb-1 lg:order-1 lg:max-h-[620px] lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -3076,7 +3108,7 @@ export default function ProductDetails() {
 
           {/* 📋 INFORMATIONS PRODUIT ENHANCED - STICKY */}
           <div className="lg:sticky lg:top-24 space-y-6 h-fit">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-md p-6 sm:p-8 space-y-6">
+            <div className="product-detail-buybox bg-white rounded-2xl border border-gray-100 shadow-md p-6 sm:p-8 space-y-6">
               <div className="space-y-4">
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-gray-900 leading-tight">{product.title}</h1>
                 <div className="flex flex-wrap items-center gap-3">
@@ -3226,9 +3258,17 @@ export default function ProductDetails() {
 
               {/* 🏪 INFORMATION VENDEUR ENHANCED */}
               {product.user && (
-                <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100/70 p-6 shadow-[0_18px_42px_-28px_rgba(15,23,42,0.45)]">
-                  <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-slate-200/40 blur-3xl" />
+                <section className="product-shop-card relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_18px_42px_-28px_rgba(15,23,42,0.45)]">
                   <div className="relative space-y-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                        Boutique
+                      </p>
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600">
+                        <Store size={13} />
+                        {isProfessional ? 'Vendeur professionnel' : 'Vendeur particulier'}
+                      </span>
+                    </div>
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start gap-4">
@@ -3236,17 +3276,17 @@ export default function ProductDetails() {
                             <img
                               src={shopLogo}
                               alt={shopName || product.user.name}
-                              className="h-16 w-16 flex-shrink-0 rounded-2xl border border-white/80 object-cover shadow-md ring-1 ring-slate-200"
+                              className="h-20 w-20 flex-shrink-0 rounded-[22px] border border-white/80 object-cover shadow-md ring-1 ring-slate-200"
                             />
                           ) : (
-                            <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl bg-neutral-900 shadow-md">
-                              <Store className="h-8 w-8 text-white" />
+                            <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-[22px] bg-neutral-950 shadow-md">
+                              <Store className="h-9 w-9 text-white" />
                             </div>
                           )}
 
-                          <div className="min-w-0 space-y-2">
+                          <div className="min-w-0 space-y-2.5">
                             <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="truncate text-xl font-black text-slate-900">
+                              <h3 className="truncate text-2xl font-black tracking-tight text-slate-900">
                                 {isProfessional && shopIdentifier ? (
                                   <Link
                                     to={buildShopPath(shopIdentifier)}
@@ -3264,8 +3304,9 @@ export default function ProductDetails() {
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-700">
-                              <span className="inline-flex items-center rounded-full border border-slate-200 bg-white/80 px-3 py-1">
-                                Vendeur {isProfessional ? 'Professionnel' : 'Particulier'}
+                              <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white/80 px-3 py-1">
+                                <Shield size={12} />
+                                Profil vendeur
                               </span>
                               {isProfessional && (
                                 <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">
@@ -3292,7 +3333,7 @@ export default function ProductDetails() {
                         <div className="grid w-full gap-2 sm:w-auto sm:min-w-[240px]">
                           <Link
                             to={buildShopPath(shopIdentifier)}
-                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white transition-all duration-200 hover:bg-neutral-800 active:scale-95"
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-neutral-950 px-4 py-3 text-sm font-semibold text-white transition-all duration-200 hover:bg-black active:scale-95"
                           >
                             <Store size={18} />
                             Voir la boutique
@@ -3315,19 +3356,19 @@ export default function ProductDetails() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-                      <div className="rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-3">
+                      <div className="product-shop-metric rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-3">
                         <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Abonnés</p>
                         <p className="mt-1 text-base font-black text-slate-900">{formattedSellerFollowers}</p>
                       </div>
-                      <div className="rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-3">
+                      <div className="product-shop-metric rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-3">
                         <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Membre depuis</p>
                         <p className="mt-1 text-base font-black text-slate-900">{sellerMemberSinceLabel}</p>
                       </div>
-                      <div className="rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-3">
+                      <div className="product-shop-metric rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-3">
                         <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Taux réponse</p>
                         <p className="mt-1 text-base font-black text-slate-900">{sellerResponseRateLabel}</p>
                       </div>
-                      <div className="rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-3">
+                      <div className="product-shop-metric rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-3">
                         <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Temps réponse</p>
                         <p className="mt-1 text-base font-black text-slate-900">{sellerResponseTimeLabel || 'N/A'}</p>
                       </div>
@@ -3358,7 +3399,7 @@ export default function ProductDetails() {
                       disabled={addingToCart || inCart || isOutOfStock || isOptionSelectionBlocked}
                       className={`group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all duration-200 active:scale-[0.98] ${inCart || isOutOfStock || isOptionSelectionBlocked
                         ? 'cursor-not-allowed bg-slate-200 text-slate-500 opacity-70'
-                        : 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_2px_10px_rgba(2,132,199,0.35)] hover:from-blue-700 hover:to-cyan-600 hover:shadow-md'
+                        : 'bg-neutral-950 text-white shadow-[0_18px_34px_-22px_rgba(15,23,42,0.82)] hover:bg-black hover:shadow-md'
                         }`}
                     >
                       <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/15">
@@ -3586,7 +3627,7 @@ export default function ProductDetails() {
 
         {/* 📖 SECTIONS DÉTAILLÉES ENHANCED */}
         <div className="mt-12 sm:mt-16">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-md overflow-hidden">
+          <div className="product-detail-tabs bg-white rounded-2xl border border-gray-100 shadow-md overflow-hidden">
             <div className="border-b border-gray-100 overflow-x-auto">
               <nav className="flex flex-wrap gap-2 sm:gap-4 min-w-full px-4 sm:px-6 pt-4">
                 {[
@@ -3897,12 +3938,12 @@ export default function ProductDetails() {
         {product?.pdf && (
           <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-4 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-base font-semibold text-gray-900">Fiche produit (JPEG)</h3>
+              <h3 className="text-base font-semibold text-gray-900">Document joint</h3>
             </div>
             <div className="mt-4 relative overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
               <img
                 src={product.pdf}
-                alt={`Fiche produit ${product.title || ''}`}
+                alt={`Document ${product.title || ''}`}
                 className="w-full h-auto object-contain bg-white"
                 loading="lazy"
               />
@@ -4230,7 +4271,7 @@ export default function ProductDetails() {
       <div className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-[0_10px_28px_-22px_rgba(15,23,42,0.55)] space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm font-bold text-slate-900">Fiche produit</p>
+            <p className="text-sm font-bold text-slate-900">Détails essentiels</p>
             <p className="text-xs text-slate-500">
               Les informations essentielles de cette annonce.
             </p>

@@ -157,6 +157,33 @@ export default function FounderNotificationsIntelligence() {
               />
             </section>
 
+            <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <MiniCard
+                label="Review reminders"
+                value={formatNumber(data?.reviewEngagement?.reminderSentCount)}
+                helper={`${formatNumber(data?.reviewEngagement?.eligibleOrders)} commandes éligibles`}
+                icon={Bell}
+              />
+              <MiniCard
+                label="Review conversion"
+                value={formatPercent(data?.reviewEngagement?.reviewConversionRate)}
+                helper={`${formatNumber(data?.reviewEngagement?.completedReviews)} avis complétés`}
+                icon={CheckCircle2}
+              />
+              <MiniCard
+                label="Avg time to review"
+                value={`${formatNumber(data?.reviewEngagement?.averageTimeToReviewHours)} h`}
+                helper={`${formatNumber(data?.reviewEngagement?.ignoredReminders)} rappels ignorés`}
+                icon={Clock4}
+              />
+              <MiniCard
+                label="Skipped / disabled"
+                value={`${formatNumber(data?.reviewEngagement?.skippedReminders)} / ${formatNumber(data?.reviewEngagement?.disabledOrders)}`}
+                helper="Ignorés / opt-out"
+                icon={AlertTriangle}
+              />
+            </section>
+
             <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
                 <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-600">
@@ -245,4 +272,3 @@ export default function FounderNotificationsIntelligence() {
     </div>
   );
 }
-

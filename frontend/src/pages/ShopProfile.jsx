@@ -87,7 +87,6 @@ export default function ShopProfile() {
     shouldUseOfflineSnapshot,
     offlineBannerText,
     rapid3GActive,
-    rapid3GBannerText,
     compactProductsPageSize,
     compactSecondaryLimit
   } =
@@ -130,8 +129,8 @@ export default function ShopProfile() {
     staleTime: 30 * 1000,
     gcTime: 10 * 60 * 1000,
     queryFn: async () => {
-      const pageLimit = rapid3GActive ? Math.max(12, Number(compactProductsPageSize || 8) * 2) : 50;
-      const maxPagesToLoad = rapid3GActive ? Math.max(1, Number(compactSecondaryLimit || 4)) : 100;
+      const pageLimit = rapid3GActive ? Math.max(12, Number(compactProductsPageSize || 8) * 2) : 36;
+      const maxPagesToLoad = rapid3GActive ? 1 : 2;
       const requestOptions = {
         skipCache: true,
         headers: { 'x-skip-cache': '1' }
@@ -836,7 +835,7 @@ export default function ShopProfile() {
     responseRateLabel
       ? {
           id: 'response-rate',
-          icon: <MessageCircle size={14} className="text-blue-600" />,
+          icon: <MessageCircle size={14} className="text-neutral-600 dark:text-neutral-300" />,
           label: t('shop_profile.response_rate', 'Taux réponse'),
           value: responseRateLabel
         }
@@ -844,7 +843,7 @@ export default function ShopProfile() {
     responseTimeLabel
       ? {
           id: 'response-time',
-          icon: <Clock size={14} className="text-violet-600" />,
+          icon: <Clock size={14} className="text-neutral-600 dark:text-neutral-300" />,
           label: t('shop_profile.response_time', 'Temps réponse'),
           value: responseTimeLabel
         }
@@ -852,7 +851,7 @@ export default function ShopProfile() {
     deliveryAvailableLabel
       ? {
           id: 'delivery',
-          icon: <Navigation size={14} className="text-indigo-600" />,
+          icon: <Navigation size={14} className="text-neutral-600 dark:text-neutral-300" />,
           label: t('shop_profile.delivery', 'Livraison'),
           value: deliveryAvailableLabel
         }
@@ -868,7 +867,7 @@ export default function ShopProfile() {
     shopCategoryLabel
       ? {
           id: 'category',
-          icon: <Package size={14} className="text-amber-600" />,
+          icon: <Package size={14} className="text-neutral-600 dark:text-neutral-300" />,
           label: t('shop_profile.category', 'Catégorie'),
           value: shopCategoryLabel
         }
@@ -893,7 +892,7 @@ export default function ShopProfile() {
       value: formatCount(shop?.productCount ?? products.length)
     },
     {
-      icon: <TrendingUp size={16} className="text-indigo-600" />,
+      icon: <TrendingUp size={16} className="text-neutral-600" />,
       label: t('shop_profile.orders', 'Commandes'),
       value: formatCount(completedOrders)
     },
@@ -903,7 +902,7 @@ export default function ShopProfile() {
       value: formatCount(ratingCount)
     },
     {
-      icon: <Users size={16} className="text-sky-600" />,
+      icon: <Users size={16} className="text-neutral-600" />,
       label: t('shop_profile.followers', 'Abonnés'),
       value: formatCount(followersCount)
     }
@@ -961,11 +960,11 @@ export default function ShopProfile() {
 
   return (
     <main
-      className={`w-full max-w-full overflow-x-clip [overflow-wrap:anywhere] bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-100 ${
+      className={`w-full max-w-full overflow-x-clip [overflow-wrap:anywhere] bg-[#F7F7F8] text-slate-900 dark:bg-neutral-950 dark:text-slate-100 ${
         isMobile ? 'pb-36' : 'pb-12'
       }`}
     >
-      <div className="mx-auto w-full max-w-7xl min-w-0 overflow-x-clip px-4 py-4 max-[640px]:max-w-[430px] sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-7xl min-w-0 overflow-x-clip px-3 py-3 max-[640px]:max-w-[430px] sm:px-6 sm:py-5 lg:px-8">
         <ShopTopHeader
           title={shop.shopName}
           subtitle={[shop?.commune, shop?.city].filter(Boolean).join(', ') || t('shop_profile.public_shop', 'Boutique publique')}
@@ -984,12 +983,6 @@ export default function ShopProfile() {
                 'shop_profile.offline_snapshot',
                 'Vous consultez une version hors ligne récente de cette boutique.'
               )}
-          </div>
-        )}
-
-        {rapid3GActive && !isOfflineSnapshot && (
-          <div className="mb-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs font-medium text-sky-800">
-            {rapid3GBannerText}
           </div>
         )}
 

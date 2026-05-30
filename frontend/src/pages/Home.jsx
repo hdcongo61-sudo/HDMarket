@@ -6,7 +6,7 @@ import PreviewableImage from "../components/media/PreviewableImage";
 import MobileSplash from "../components/MobileSplash";
 import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
 import ShimmerSkeleton from "../components/ui/ShimmerSkeleton";
-import categoryGroups from "../data/categories";
+import categoryGroups, { allCategoryOptions } from "../data/categories";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination, Autoplay } from "swiper/modules";
 import "swiper/css";
@@ -71,60 +71,46 @@ const buildImageReportContext = (product, deepLink = '') => {
 
 const CATEGORY_COLOR_PALETTE = [
   {
-    iconBg: 'bg-blue-100',
-    iconText: 'text-blue-600',
-    chipBg: 'bg-blue-50',
-    chipBorder: 'border-blue-200',
-    chipText: 'text-blue-700'
+    iconBg: 'bg-neutral-100',
+    iconText: 'text-neutral-700',
+    chipBg: 'bg-white',
+    chipBorder: 'border-neutral-200',
+    chipText: 'text-neutral-800'
   },
   {
-    iconBg: 'bg-emerald-100',
-    iconText: 'text-emerald-600',
-    chipBg: 'bg-emerald-50',
-    chipBorder: 'border-emerald-200',
-    chipText: 'text-emerald-700'
+    iconBg: 'bg-stone-100',
+    iconText: 'text-stone-700',
+    chipBg: 'bg-stone-50',
+    chipBorder: 'border-stone-200',
+    chipText: 'text-stone-800'
   },
   {
-    iconBg: 'bg-violet-100',
-    iconText: 'text-violet-600',
-    chipBg: 'bg-violet-50',
-    chipBorder: 'border-violet-200',
-    chipText: 'text-violet-700'
+    iconBg: 'bg-emerald-50',
+    iconText: 'text-emerald-700',
+    chipBg: 'bg-emerald-50/70',
+    chipBorder: 'border-emerald-100',
+    chipText: 'text-emerald-900'
   },
   {
-    iconBg: 'bg-amber-100',
-    iconText: 'text-amber-600',
-    chipBg: 'bg-amber-50',
-    chipBorder: 'border-amber-200',
-    chipText: 'text-amber-700'
+    iconBg: 'bg-zinc-100',
+    iconText: 'text-zinc-700',
+    chipBg: 'bg-zinc-50',
+    chipBorder: 'border-zinc-200',
+    chipText: 'text-zinc-800'
   },
   {
-    iconBg: 'bg-rose-100',
-    iconText: 'text-rose-600',
-    chipBg: 'bg-rose-50',
-    chipBorder: 'border-rose-200',
-    chipText: 'text-rose-700'
+    iconBg: 'bg-amber-50',
+    iconText: 'text-amber-800',
+    chipBg: 'bg-amber-50/70',
+    chipBorder: 'border-amber-100',
+    chipText: 'text-amber-900'
   },
   {
-    iconBg: 'bg-cyan-100',
-    iconText: 'text-cyan-600',
-    chipBg: 'bg-cyan-50',
-    chipBorder: 'border-cyan-200',
-    chipText: 'text-cyan-700'
-  },
-  {
-    iconBg: 'bg-orange-100',
-    iconText: 'text-orange-600',
-    chipBg: 'bg-orange-50',
-    chipBorder: 'border-orange-200',
-    chipText: 'text-orange-700'
-  },
-  {
-    iconBg: 'bg-fuchsia-100',
-    iconText: 'text-fuchsia-600',
-    chipBg: 'bg-fuchsia-50',
-    chipBorder: 'border-fuchsia-200',
-    chipText: 'text-fuchsia-700'
+    iconBg: 'bg-neutral-100',
+    iconText: 'text-neutral-700',
+    chipBg: 'bg-neutral-50',
+    chipBorder: 'border-neutral-200',
+    chipText: 'text-neutral-800'
   }
 ];
 
@@ -203,7 +189,9 @@ export default function Home() {
   const [installmentLoading, setInstallmentLoading] = useState(false);
   const [wholesaleProducts, setWholesaleProducts] = useState([]);
   const [wholesaleLoading, setWholesaleLoading] = useState(false);
+  const [shouldLoadSecondarySections, setShouldLoadSecondarySections] = useState(false);
   const [shouldLoadInstallment, setShouldLoadInstallment] = useState(false);
+  const secondarySectionsRef = useRef(null);
   const installmentSectionRef = useRef(null);
   const infiniteScrollLockRef = useRef(0);
 const {
@@ -247,6 +235,13 @@ const showFullPaymentHomeBanner = normalizeSettingBoolean(
   getRuntimeValue('show_full_payment_home_banner', true),
   true
 );
+const sellingEnabled = normalizeSettingBoolean(getRuntimeValue('enable_selling', true), true);
+const commerceCallout = sellingEnabled
+  ? t('home.buyOrSellPrefix', 'Achetez ou vendez sur HDMarket —')
+  : t('home.buyOnlyPrefix', 'Achetez sur HDMarket —');
+const desktopHeroDescription = sellingEnabled
+  ? t('home.heroDesktopSellEnabled', 'Découvrez {count} produits vérifiés. Vendez et achetez en toute confiance.').replace('{count}', formatCount(totalProducts))
+  : t('home.heroDesktopBuyOnly', 'Découvrez {count} produits vérifiés près de vous.').replace('{count}', formatCount(totalProducts));
 const fullPaymentBannerText =
   String(
     getRuntimeValue(
@@ -728,6 +723,7 @@ const loadDiscountProducts = async () => {
   }, [isMobileView, loading, loadMoreError, page, totalPages]);
 
   useEffect(() => {
+    if (!shouldLoadSecondarySections) return undefined;
     if (!installmentSectionRef.current) return undefined;
     if (shouldLoadInstallment) return undefined;
 
@@ -743,7 +739,36 @@ const loadDiscountProducts = async () => {
     );
     observer.observe(installmentSectionRef.current);
     return () => observer.disconnect();
-  }, [shouldLoadInstallment]);
+  }, [shouldLoadInstallment, shouldLoadSecondarySections]);
+
+  useEffect(() => {
+    if (shouldLoadSecondarySections) return undefined;
+    if (!isMobileView) {
+      const timer = window.setTimeout(() => setShouldLoadSecondarySections(true), 250);
+      return () => window.clearTimeout(timer);
+    }
+    const node = secondarySectionsRef.current;
+    if (!node) {
+      const timer = window.setTimeout(() => setShouldLoadSecondarySections(true), 900);
+      return () => window.clearTimeout(timer);
+    }
+    if (typeof IntersectionObserver === 'undefined') {
+      setShouldLoadSecondarySections(true);
+      return undefined;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry?.isIntersecting) {
+          setShouldLoadSecondarySections(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '520px' }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [isMobileView, shouldLoadSecondarySections]);
 
   useEffect(() => {
     if (!shouldLoadInstallment) return;
@@ -798,21 +823,24 @@ const loadDiscountProducts = async () => {
   }, [compactSecondaryLimit, effectiveUserCity, hasUserCity, isMobileView]);
 
   useEffect(() => {
+    if (!shouldLoadSecondarySections) return;
     loadHighlights();
     loadDiscountProducts();
     loadVerifiedShops();
     loadPromoHomeData();
     loadCertifiedProducts();
     loadTopSales();
-  }, []);
+  }, [shouldLoadSecondarySections]);
 
   useEffect(() => {
+    if (!shouldLoadSecondarySections) return;
     loadTopSalesTodayByCity();
-  }, [loadTopSalesTodayByCity]);
+  }, [loadTopSalesTodayByCity, shouldLoadSecondarySections]);
 
   useEffect(() => {
+    if (!shouldLoadSecondarySections) return;
     loadWholesaleProducts();
-  }, [loadWholesaleProducts]);
+  }, [loadWholesaleProducts, shouldLoadSecondarySections]);
 
   useEffect(() => {
     if (!flashDeals.length) return undefined;
@@ -937,13 +965,13 @@ const loadDiscountProducts = async () => {
     return (
       <main className="max-w-7xl mx-auto px-3 max-[375px]:px-2.5 pt-2.5 max-[375px]:pt-1.5 pb-4 max-[375px]:pb-3 space-y-3 max-[375px]:space-y-2.5">
         {user ? (
-          <div className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-2">
+          <div className="rounded-xl border border-neutral-200 bg-white px-3 py-2 shadow-sm">
             <div className="flex items-center gap-2">
-              <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+              <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-neutral-100 text-neutral-700">
                 <MapPin className="h-3.5 w-3.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-sky-700">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
                   {t('home.deliveryAddress', 'Adresse de livraison')}
                 </p>
                 <p className="truncate text-xs font-medium text-slate-700">
@@ -957,7 +985,7 @@ const loadDiscountProducts = async () => {
           <Link
             to="/products"
             {...externalLinkProps}
-            className="group block rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-cyan-50 px-3.5 py-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5"
+            className="group block rounded-2xl border border-emerald-100 bg-white px-3.5 py-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5"
           >
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
@@ -967,7 +995,7 @@ const loadDiscountProducts = async () => {
                 </div>
                 <p className="mt-2 text-sm font-semibold leading-5 text-slate-900">{fullPaymentBannerText}</p>
               </div>
-              <span className="inline-flex flex-shrink-0 items-center rounded-full bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm">
+              <span className="inline-flex flex-shrink-0 items-center rounded-full bg-neutral-950 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm">
                 En savoir plus
               </span>
             </div>
@@ -1048,17 +1076,19 @@ const loadDiscountProducts = async () => {
               <Link
                 to="/products"
                 {...externalLinkProps}
-                className="inline-flex items-center rounded-xl bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-500 px-3 max-[375px]:px-2.5 py-2 max-[375px]:py-1.5 text-xs max-[375px]:text-[11px] font-semibold text-white shadow-[0_8px_18px_rgba(14,165,233,0.35)] transition-all duration-200 hover:from-cyan-600 hover:via-sky-600 hover:to-indigo-600 active:scale-[0.98]"
+                className="inline-flex items-center rounded-xl bg-white px-3 max-[375px]:px-2.5 py-2 max-[375px]:py-1.5 text-xs max-[375px]:text-[11px] font-semibold text-neutral-950 shadow-[0_8px_18px_rgba(0,0,0,0.18)] transition-all duration-200 hover:bg-neutral-100 active:scale-[0.98]"
               >
                 Explorer <ChevronRight className="ml-1 h-3.5 w-3.5 max-[375px]:h-3 max-[375px]:w-3" />
               </Link>
-              <Link
-                to="/my"
-                className="inline-flex items-center rounded-xl bg-gradient-to-r from-fuchsia-500 via-violet-500 to-purple-500 px-3 max-[375px]:px-2.5 py-2 max-[375px]:py-1.5 text-xs max-[375px]:text-[11px] font-semibold text-white shadow-[0_8px_18px_rgba(168,85,247,0.34)] transition-all duration-200 hover:from-fuchsia-600 hover:via-violet-600 hover:to-purple-600 active:scale-[0.98]"
-              >
-                <Zap className="mr-1 h-3.5 w-3.5 max-[375px]:h-3 max-[375px]:w-3" />
-                Publier
-              </Link>
+              {sellingEnabled && (
+                <Link
+                  to="/my"
+                  className="inline-flex items-center rounded-xl border border-white/25 bg-white/10 px-3 max-[375px]:px-2.5 py-2 max-[375px]:py-1.5 text-xs max-[375px]:text-[11px] font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.16)] backdrop-blur transition-all duration-200 hover:bg-white/15 active:scale-[0.98]"
+                >
+                  <Zap className="mr-1 h-3.5 w-3.5 max-[375px]:h-3 max-[375px]:w-3" />
+                  Publier
+                </Link>
+              )}
             </div>
           </div>
         </section>
@@ -1067,7 +1097,7 @@ const loadDiscountProducts = async () => {
         <div className="flex items-center justify-center gap-2 max-[375px]:gap-1.5 py-2.5 max-[375px]:py-2 px-3 max-[375px]:px-2.5 bg-neutral-50 rounded-xl border border-neutral-200/80">
           <ShoppingBag className="w-4 h-4 max-[375px]:w-3.5 max-[375px]:h-3.5 text-neutral-800 flex-shrink-0" />
           <span className="text-xs max-[375px]:text-[11px] text-gray-700 text-center">
-            {t('home.buyOrSellPrefix', 'Achetez ou vendez sur HDMarket —')} <span className="font-semibold text-neutral-700">{t('home.youChoose', 'vous choisissez')}</span>.
+            {commerceCallout} <span className="font-semibold text-neutral-700">{t('home.youChoose', 'vous choisissez')}</span>.
           </span>
           <Tag className="w-4 h-4 max-[375px]:w-3.5 max-[375px]:h-3.5 text-neutral-800 flex-shrink-0" />
         </div>
@@ -1078,11 +1108,13 @@ const loadDiscountProducts = async () => {
           const bannerSrc = isPromoActive ? activeBanner : defaultPromoBanner;
           const bannerLink = isPromoActive ? promoBannerLink : '/products';
           const img = <img src={bannerSrc} alt="Promo" className="h-full w-full object-contain bg-white p-1" loading="eager" />;
-          const cls = "block w-full overflow-hidden rounded-xl shadow-sm aspect-[2/1] h-[331px] max-[375px]:h-[280px]";
+          const cls = "block w-full overflow-hidden rounded-xl border border-neutral-100 bg-white shadow-sm aspect-[16/9] max-h-[220px] max-[375px]:max-h-[190px]";
           if (bannerLink?.startsWith('/')) return <Link to={bannerLink} {...externalLinkProps} className={cls}>{img}</Link>;
           if (bannerLink) return <a href={bannerLink} target="_blank" rel="noopener noreferrer" className={cls}>{img}</a>;
           return <div className={cls}>{img}</div>;
         })()}
+
+        <div ref={secondarySectionsRef} className="h-px" aria-hidden="true" />
 
         {/* Flash Deals Horizontal Strip */}
         {!(highlightLoading && flashDealsLoading) && displayFlashDeals.length > 0 && (
@@ -1149,7 +1181,7 @@ const loadDiscountProducts = async () => {
         )}
 
         {/* Boutiques en promo cette semaine */}
-        {(!promoShopsLoading || promoShops.length > 0) && (
+        {shouldLoadSecondarySections && (!promoShopsLoading || promoShops.length > 0) && (
           <section>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -1188,7 +1220,7 @@ const loadDiscountProducts = async () => {
         )}
 
         {/* Top ventes par ville (aujourd'hui) */}
-        {hasUserCity && (
+        {shouldLoadSecondarySections && hasUserCity && (
           <section>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -1524,7 +1556,8 @@ const loadDiscountProducts = async () => {
           </label>
         )}
 
-        <section className="isolate rounded-2xl border border-emerald-100 bg-gradient-to-b from-white via-white to-emerald-50/60 p-3 max-[375px]:p-2.5 shadow-sm">
+        {shouldLoadSecondarySections && (
+        <section className="isolate rounded-2xl border border-neutral-100 bg-white p-3 max-[375px]:p-2.5 shadow-sm">
           <div className="mb-3 max-[375px]:mb-2.5 flex items-start justify-between gap-3 max-[375px]:gap-2">
             <div>
               <h2 className="text-sm max-[375px]:text-[13px] font-bold text-gray-900">{t('home.wholesaleTitle', 'Vente en gros')}</h2>
@@ -1569,8 +1602,10 @@ const loadDiscountProducts = async () => {
             </p>
           )}
         </section>
+        )}
 
-        <section ref={installmentSectionRef} className="isolate rounded-2xl border border-sky-100 bg-gradient-to-b from-white via-white to-sky-50/60 p-3 max-[375px]:p-2.5 shadow-sm">
+        {shouldLoadSecondarySections && (
+        <section ref={installmentSectionRef} className="isolate rounded-2xl border border-neutral-100 bg-white p-3 max-[375px]:p-2.5 shadow-sm">
           <div className="mb-3 max-[375px]:mb-2.5 flex items-start justify-between gap-3 max-[375px]:gap-2">
             <div>
               <h2 className="text-sm max-[375px]:text-[13px] font-bold text-gray-900">
@@ -1604,6 +1639,7 @@ const loadDiscountProducts = async () => {
             <p className="text-xs text-gray-500">{t('home.noInstallmentProducts', 'Aucun produit en tranche disponible actuellement.')}</p>
           )}
         </section>
+        )}
 
         {/* All Products Grid */}
         <section>
@@ -1769,12 +1805,12 @@ const loadDiscountProducts = async () => {
     return (
       <main className="max-w-[1400px] 2xl:max-w-[1600px] mx-auto px-6 lg:px-8 py-4 space-y-5">
         {user ? (
-          <div className="flex items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3">
-            <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+          <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white px-4 py-3 shadow-sm">
+            <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-700">
               <MapPin className="h-4.5 w-4.5" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">
+              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
                 {t('home.deliveryAddress', 'Adresse de livraison')}
               </p>
               <p className="truncate text-sm font-medium text-slate-700">
@@ -1821,10 +1857,10 @@ const loadDiscountProducts = async () => {
         </div>
 
         {/* Buyer or Seller callout */}
-        <div className="flex items-center justify-center gap-3 py-3 px-4 bg-gradient-to-r from-neutral-50 to-neutral-50 rounded-xl border border-neutral-200/80">
+        <div className="flex items-center justify-center gap-3 py-3 px-4 bg-neutral-50 rounded-xl border border-neutral-200/80">
           <ShoppingBag className="w-5 h-5 text-neutral-800 flex-shrink-0" />
           <span className="text-sm text-gray-700 text-center">
-            {t('home.buyOrSellPrefix', 'Achetez ou vendez sur HDMarket —')} <span className="font-semibold text-neutral-700">{t('home.youChoose', 'vous choisissez')}</span>.
+            {commerceCallout} <span className="font-semibold text-neutral-700">{t('home.youChoose', 'vous choisissez')}</span>.
           </span>
           <Tag className="w-5 h-5 text-neutral-800 flex-shrink-0" />
         </div>
@@ -1833,7 +1869,7 @@ const loadDiscountProducts = async () => {
           <Link
             to="/products"
             {...externalLinkProps}
-            className="group flex items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-cyan-50 px-5 py-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5"
+            className="group flex items-center justify-between gap-4 rounded-2xl border border-emerald-100 bg-white px-5 py-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5"
           >
             <div className="min-w-0">
               <div className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700">
@@ -1842,7 +1878,7 @@ const loadDiscountProducts = async () => {
               </div>
               <p className="mt-2 text-sm font-semibold text-slate-900">{fullPaymentBannerText}</p>
             </div>
-            <span className="inline-flex flex-shrink-0 items-center rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm">
+            <span className="inline-flex flex-shrink-0 items-center rounded-full bg-neutral-950 px-4 py-2 text-sm font-semibold text-white shadow-sm">
               En savoir plus
             </span>
           </Link>
@@ -1869,13 +1905,15 @@ const loadDiscountProducts = async () => {
                   <span className="block bg-gradient-to-r from-neutral-300 via-neutral-400 to-neutral-300 bg-clip-text text-transparent">{t('home.digital', 'Digital')}</span>
                 </h1>
                 <p className="text-sm text-neutral-200 mb-5 max-w-md leading-relaxed">
-                  Découvrez <span className="font-bold text-neutral-300">{formatCount(totalProducts)}</span> produits vérifiés. Vendez et achetez en toute confiance.
+                  {desktopHeroDescription}
                 </p>
                 <div className="flex gap-3">
-                  <Link to="/my" className="inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-fuchsia-500 via-violet-500 to-purple-500 text-white font-semibold rounded-xl hover:from-fuchsia-600 hover:via-violet-600 hover:to-purple-600 transition-all text-sm shadow-[0_10px_24px_rgba(168,85,247,0.34)] active:scale-[0.99]">
-                    <Zap className="w-4 h-4 mr-1.5" /> Publier
-                  </Link>
-                  <Link to="/products" {...externalLinkProps} className="inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-500 text-white font-semibold rounded-xl hover:from-cyan-600 hover:via-sky-600 hover:to-indigo-600 transition-all text-sm shadow-[0_10px_24px_rgba(14,165,233,0.34)] active:scale-[0.99]">
+                  {sellingEnabled && (
+                    <Link to="/my" className="inline-flex items-center px-4 py-2.5 border border-white/25 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/15 transition-all text-sm shadow-[0_10px_24px_rgba(0,0,0,0.16)] backdrop-blur active:scale-[0.99]">
+                      <Zap className="w-4 h-4 mr-1.5" /> Publier
+                    </Link>
+                  )}
+                  <Link to="/products" {...externalLinkProps} className="inline-flex items-center px-4 py-2.5 bg-white text-neutral-950 font-semibold rounded-xl hover:bg-neutral-100 transition-all text-sm shadow-[0_10px_24px_rgba(0,0,0,0.18)] active:scale-[0.99]">
                     Explorer <ChevronRight className="w-4 h-4 ml-1" />
                   </Link>
                 </div>
@@ -1964,7 +2002,7 @@ const loadDiscountProducts = async () => {
         </div>
 
         {/* Zone 2: Top ventes à votre ville (aujourd'hui) */}
-        {hasUserCity && effectiveUserCity && (
+        {shouldLoadSecondarySections && hasUserCity && effectiveUserCity && (
           <section>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2.5">
@@ -2212,6 +2250,7 @@ const loadDiscountProducts = async () => {
           </section>
         </div>
 
+        {shouldLoadSecondarySections && (
         <section className="bg-white rounded-2xl border border-neutral-100 shadow-sm p-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -2258,9 +2297,11 @@ const loadDiscountProducts = async () => {
             <p className="text-sm text-gray-500">{t('home.noPromoShopsWeek', 'Aucune boutique en promo cette semaine.')}</p>
           )}
         </section>
+        )}
 
         <div className="grid grid-cols-1 2xl:grid-cols-2 gap-5">
-          <section className="isolate rounded-2xl border border-emerald-100 bg-gradient-to-br from-white via-white to-emerald-50/70 shadow-sm p-4">
+          {shouldLoadSecondarySections && (
+          <section className="isolate rounded-2xl border border-neutral-100 bg-white shadow-sm p-4">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
                 <h2 className="text-base font-bold text-gray-900">{t('home.wholesaleTitle', 'Vente en gros')}</h2>
@@ -2305,8 +2346,10 @@ const loadDiscountProducts = async () => {
               </p>
             )}
           </section>
+          )}
 
-          <section ref={installmentSectionRef} className="isolate rounded-2xl border border-sky-100 bg-gradient-to-br from-white via-white to-sky-50/70 shadow-sm p-4">
+          {shouldLoadSecondarySections && (
+          <section ref={installmentSectionRef} className="isolate rounded-2xl border border-neutral-100 bg-white shadow-sm p-4">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
                 <h2 className="text-base font-bold text-gray-900">
@@ -2342,6 +2385,7 @@ const loadDiscountProducts = async () => {
               </p>
             )}
           </section>
+          )}
         </div>
 
         {/* Découvrir plus: quick-links to dedicated pages */}
@@ -2462,10 +2506,11 @@ const loadDiscountProducts = async () => {
                 className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 cursor-pointer"
               >
                 <option value="">{t('home.allCategories', 'Toutes catégories')}</option>
-                <option value="electronics">{t('home.categoryElectronics', 'Électronique')}</option>
-                <option value="fashion">{t('home.categoryFashion', 'Mode')}</option>
-                <option value="home">{t('home.categoryHome', 'Maison')}</option>
-                <option value="sports">{t('home.categorySports', 'Sports')}</option>
+                {allCategoryOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -2511,7 +2556,7 @@ const loadDiscountProducts = async () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50">
+    <div className="min-h-screen bg-[#F7F7F8]">
       <MobileSplash visible={showMobileSplash} logoSrc={appLogoMobile} label="HDMarket" />
       {(offlineSnapshotActive || rapid3GActive) && (
         <div className="mx-auto max-w-7xl px-2 pt-3 sm:px-4 lg:px-8">
@@ -2561,7 +2606,7 @@ const loadDiscountProducts = async () => {
                   key={group.id}
                   to={`/categories/${group.options?.[0]?.value || ''}`}
                   onClick={() => setCategoryModalOpen(false)}
-                  className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br from-white to-gray-50/80 ${style.chipBorder} backdrop-blur-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]`}
+                  className={`group relative overflow-hidden rounded-2xl border bg-white ${style.chipBorder} backdrop-blur-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]`}
                 >
                   <div className="flex flex-col items-center gap-3 p-4 text-center">
                     <div className={`relative mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border-2 shadow-md transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 ${style.chipBorder} ${style.iconBg}`}>

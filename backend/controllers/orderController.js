@@ -42,6 +42,11 @@ import {
 import { getVerifiedProductIds } from '../utils/publicProductVisibility.js';
 import { safeAsync } from '../utils/safeAsync.js';
 import { applyDeliveryFeeToOrder } from '../services/orderDeliveryFeeService.js';
+import {
+  cancelOrderReviewReminder,
+  isOrderEligibleForReviewReminder,
+  scheduleOrderReviewReminder
+} from '../services/orderReviewReminderService.js';
 import { emitOrderStatusUpdated } from '../sockets/chatSocket.js';
 import { validateSelectedAttributesForProduct } from '../utils/productAttributes.js';
 
@@ -350,6 +355,9 @@ const buildOrderItemFromProduct = (product, quantity = 1, selectedAttributes = [
       wholesaleApplied: Boolean(tier),
       wholesaleTierMinQty: Number(tier?.minQty || 0),
       wholesaleTierLabel: String(tier?.label || ''),
+      warrantyEnabled: Boolean(product.warrantyEnabled),
+      warrantyPeriodValue: product.warrantyPeriodValue || null,
+      warrantyPeriodUnit: product.warrantyPeriodUnit || 'months',
       deliveryAvailable: product.deliveryAvailable !== false,
       pickupAvailable: product.pickupAvailable !== false,
       deliveryFeeEnabled: product.deliveryFeeEnabled !== false,
@@ -592,9 +600,25 @@ const buildOrderResponse = (order) => {
       skippedAt: obj.cancellationWindowSkippedAt || null
     },
     installmentProgress,
+    reviewState: {
+      status: obj.reviewStatus || (obj.reviewGiven ? 'DONE' : 'PENDING'),
+      disabled: Boolean(obj.reviewReminderDisabled),
+      sentAt: obj.reviewReminderSentAt || obj?.reminderState?.reviewReminderSentAt || null,
+      completedAt: obj.reviewCompletedAt || null,
+      reminderCount: Number(obj.reviewReminderCount || 0)
+    },
     allowedActions: orderActionState.allowedActions,
     nextAction: orderActionState.nextAction
   };
+};
+
+const syncReviewReminderForOrderLifecycle = async (order) => {
+  if (!order?._id) return;
+  if (isOrderEligibleForReviewReminder(order)) {
+    await scheduleOrderReviewReminder(order._id);
+    return;
+  }
+  await cancelOrderReviewReminder(order._id);
 };
 
 export const adminCreateOrder = asyncHandler(async (req, res) => {
@@ -1376,6 +1400,7 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
   }
 
   await order.save();
+  await syncReviewReminderForOrderLifecycle(order);
   const baseMetadata = {
     orderId: order._id,
     deliveryAddress: order.deliveryAddress,
@@ -2025,6 +2050,7 @@ export const userUpdateOrderStatus = asyncHandler(async (req, res) => {
   }
 
   await order.save();
+  await syncReviewReminderForOrderLifecycle(order);
   const populated = await baseOrderQuery().findById(order._id);
   await ensureOrderProductSlugs([populated]);
   const sellerIds = Array.isArray(order.items)
@@ -2466,6 +2492,7 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
     order.deliveredAt = now;
   }
   await order.save();
+  await syncReviewReminderForOrderLifecycle(order);
 
   const baseLog = {
     orderId: order._id,
@@ -2570,6 +2597,7 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
       order.status = 'delivered';
     }
     await order.save();
+    await syncReviewReminderForOrderLifecycle(order);
     const populated = await baseOrderQuery().findById(order._id);
     await ensureOrderProductSlugs([populated]);
     await invalidateOrderCachesForMutation({
@@ -2610,6 +2638,7 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
     order.completedAt = now;
   }
   await order.save();
+  await syncReviewReminderForOrderLifecycle(order);
 
   await DeliveryLog.create({
     orderId: order._id,
@@ -2743,6 +2772,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
     }
 
     await order.save();
+    await syncReviewReminderForOrderLifecycle(order);
     const populatedInstallment = await baseOrderQuery().findById(order._id);
     await ensureOrderProductSlugs([populatedInstallment]);
     const installmentSellerIds = Array.isArray(order.items)
@@ -2906,6 +2936,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   }
 
   await order.save();
+  await syncReviewReminderForOrderLifecycle(order);
   const populated = await baseOrderQuery().findById(order._id);
   await ensureOrderProductSlugs([populated]);
   const sellerIds = Array.isArray(order.items)
@@ -3082,6 +3113,7 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
   }
 
   await order.save();
+  await syncReviewReminderForOrderLifecycle(order);
   const populated = await baseOrderQuery().findById(order._id);
   await ensureOrderProductSlugs([populated]);
   const sellerIds = Array.isArray(order.items)

@@ -14,12 +14,6 @@ const toBoolean = (value, fallback = false) => {
   return fallback;
 };
 
-const parsePositiveInt = (value, fallback, min = 1, max = 100) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
-  return Math.max(min, Math.min(max, Math.round(parsed)));
-};
-
 const readNavigatorNetworkState = () => {
   if (typeof navigator === 'undefined') {
     return {
@@ -68,19 +62,6 @@ export default function useNetworkProfile() {
   }, []);
 
   const offlineBrowsingEnabled = toBoolean(getRuntimeValue('enable_offline_browsing', true), true);
-  const rapid3GEnabled = toBoolean(getRuntimeValue('enable_rapid_3g_mode', true), true);
-  const rapid3GProductsPageSize = parsePositiveInt(
-    getRuntimeValue('rapid_3g_products_page_size', 8),
-    8,
-    4,
-    20
-  );
-  const rapid3GSecondaryLimit = parsePositiveInt(
-    getRuntimeValue('rapid_3g_secondary_limit', 4),
-    4,
-    2,
-    12
-  );
   const offlineBannerText =
     String(
       getRuntimeValue(
@@ -89,35 +70,23 @@ export default function useNetworkProfile() {
       ) || ''
     ).trim() ||
     t('network.offline_browsing', 'Mode hors ligne actif. Vous consultez les dernières données mises en cache.');
-  const rapid3GBannerText =
-    String(
-      getRuntimeValue(
-        'rapid_3g_banner_text',
-        t('network.rapid3g', 'Mode Rapide 3G actif. Les contenus lourds sont allégés pour accélérer le chargement.')
-      ) || ''
-    ).trim() ||
-    t('network.rapid3g', 'Mode Rapide 3G actif. Les contenus lourds sont allégés pour accélérer le chargement.');
 
   return useMemo(
     () => ({
       ...state,
       offlineBrowsingEnabled,
-      rapid3GEnabled,
-      rapid3GActive: rapid3GEnabled && state.slowConnection && !state.offline,
+      rapid3GEnabled: false,
+      rapid3GActive: false,
       shouldUseOfflineSnapshot: offlineBrowsingEnabled && state.offline,
-      compactProductsPageSize: rapid3GEnabled && state.slowConnection && !state.offline ? rapid3GProductsPageSize : null,
-      compactSecondaryLimit: rapid3GEnabled && state.slowConnection && !state.offline ? rapid3GSecondaryLimit : null,
+      compactProductsPageSize: null,
+      compactSecondaryLimit: null,
       offlineBannerText,
-      rapid3GBannerText
+      rapid3GBannerText: ''
     }),
     [
       state,
       offlineBrowsingEnabled,
-      rapid3GEnabled,
-      rapid3GProductsPageSize,
-      rapid3GSecondaryLimit,
-      offlineBannerText,
-      rapid3GBannerText
+      offlineBannerText
     ]
   );
 }

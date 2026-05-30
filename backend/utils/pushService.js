@@ -63,6 +63,15 @@ const buildOrderDetailsUrl = ({ orderId, recipientUser }) => {
   return `/orders/detail/${encodeURIComponent(orderId)}`;
 };
 
+const buildOrderReviewUrl = ({ orderId, productId }) => {
+  if (!orderId) return '';
+  const params = new URLSearchParams();
+  if (productId) {
+    params.set('productId', String(productId));
+  }
+  return `/orders/${encodeURIComponent(orderId)}/review${params.toString() ? `?${params.toString()}` : ''}`;
+};
+
 const isGenericOrdersCollectionUrl = (value = '') => {
   const normalized = normalizeNotificationUrl(value);
   if (!normalized) return false;
@@ -158,7 +167,16 @@ const resolveNotificationClickUrl = ({ notification, orderId, productId, shopId,
     return url;
   }
 
-  if (notificationType === 'product_comment' || notificationType === 'reply' || notificationType === 'rating' || notificationType === 'review_reminder') {
+  if (notificationType === 'review_reminder') {
+    return (
+      buildOrderReviewUrl({ orderId, productId }) ||
+      url ||
+      buildOrderDetailsUrl({ orderId, recipientUser }) ||
+      '/orders'
+    );
+  }
+
+  if (notificationType === 'product_comment' || notificationType === 'reply' || notificationType === 'rating') {
     return buildProductReviewsUrl({ notification, productId }) || url || '/products';
   }
 
@@ -362,12 +380,14 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       body = `${actorName} a noté votre annonce${productLabel}${ratingText}.`;
       break;
     }
-    case 'product_approval': {
+    case 'product_approval':
+    case 'product_approved': {
       title = 'Annonce approuvée';
       body = `${actorName} a approuvé votre annonce${productLabel}.`;
       break;
     }
-    case 'product_rejection': {
+    case 'product_rejection':
+    case 'product_rejected': {
       title = 'Annonce rejetée';
       body = `${actorName} a rejeté votre annonce${productLabel}.`;
       break;
@@ -382,6 +402,11 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       body = `${actorName} a boosté votre annonce${productLabel}. Elle sera maintenant mise en avant.`;
       break;
     }
+    case 'boost_expired': {
+      title = 'Boost expiré';
+      body = `Le boost de votre annonce${productLabel} est expiré.`;
+      break;
+    }
     case 'promotional': {
       const discountValue = Number(metadata.discount ?? 0);
       const hasDiscount = Number.isFinite(discountValue) && discountValue > 0;
@@ -389,6 +414,11 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       body = hasDiscount
         ? `${actorName} a appliqué une remise de ${discountValue}% sur votre annonce${productLabel}.`
         : `${actorName} a mis en avant votre annonce${productLabel}.`;
+      break;
+    }
+    case 'promo_expired': {
+      title = 'Promotion expirée';
+      body = `La promotion de votre annonce${productLabel} est expirée.`;
       break;
     }
     case 'shop_review': {
@@ -416,7 +446,8 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       body = `${actorName} a boosté votre boutique${shopLabel}. Elle sera maintenant mise en avant.`;
       break;
     }
-    case 'payment_pending': {
+    case 'payment_pending':
+    case 'payment_proof_submitted': {
       const amountValue = Number(metadata.amount || 0);
       const amountText =
         Number.isFinite(amountValue) && amountValue > 0
@@ -429,6 +460,17 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       body = `${actorName} a soumis une preuve de paiement${productLabel}${amountText}.${waitingSuffix}`;
       break;
     }
+    case 'payment_validated': {
+      const amountValue = Number(metadata.amount || 0);
+      const amountText =
+        Number.isFinite(amountValue) && amountValue > 0
+          ? ` (${amountValue.toLocaleString('fr-FR')} FCFA)`
+          : '';
+      title = 'Paiement validé';
+      body = `${actorName} a validé votre paiement${amountText}.`;
+      break;
+    }
+    case 'order_placed':
     case 'order_created': {
       const status = metadata.status;
       if (status === 'confirmed') {
@@ -441,6 +483,18 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
         title = 'Nouvelle commande';
         body = `${yourOrderSubject} est enregistrée.`;
       }
+      break;
+    }
+    case 'order_accepted': {
+      title = 'Commande acceptée';
+      body = `${yourOrderSubject} a été acceptée.`;
+      break;
+    }
+    case 'order_rejected': {
+      title = 'Commande rejetée';
+      body = metadata.reason
+        ? `${yourOrderSubject} a été rejetée. Raison: ${metadata.reason}`
+        : `${yourOrderSubject} a été rejetée.`;
       break;
     }
     case 'order_received': {
@@ -486,6 +540,24 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       const city = metadata.deliveryCity ? ` pour ${metadata.deliveryCity}` : '';
       title = 'Commande en livraison';
       body = `${yourOrderSubject} est en cours de livraison${city}.`;
+      break;
+    }
+    case 'delivery_assigned':
+    case 'delivery_request_assigned': {
+      title = 'Livraison assignée';
+      body = `La livraison de ${yourOrderSubject} a été assignée.`;
+      break;
+    }
+    case 'delivery_in_progress':
+    case 'delivery_request_in_progress': {
+      title = 'Livraison en cours';
+      body = `La livraison de ${yourOrderSubject} est en cours.`;
+      break;
+    }
+    case 'delivery_completed':
+    case 'delivery_request_delivered': {
+      title = 'Livraison terminée';
+      body = `La livraison de ${yourOrderSubject} est terminée.`;
       break;
     }
     case 'order_delivered': {

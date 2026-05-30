@@ -27,6 +27,7 @@ import {
   deriveInstallmentOrderStatus,
   forwardPenaltyToNextInstallment
 } from '../services/installmentPolicyService.js';
+import { scheduleOrderReviewReminder } from '../services/orderReviewReminderService.js';
 import { getOrderAllowedActions } from '../services/orderStatusFlowService.js';
 import { emitOrderStatusUpdated } from '../sockets/chatSocket.js';
 import { validateSelectedAttributesForProduct } from '../utils/productAttributes.js';
@@ -404,6 +405,9 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
         wholesaleApplied: Boolean(pricing.tierApplied),
         wholesaleTierMinQty: Number(pricing.tierApplied?.minQty || 0),
         wholesaleTierLabel: String(pricing.tierApplied?.label || ''),
+        warrantyEnabled: Boolean(product.warrantyEnabled),
+        warrantyPeriodValue: product.warrantyPeriodValue || null,
+        warrantyPeriodUnit: product.warrantyPeriodUnit || 'months',
         deliveryAvailable: product.deliveryAvailable !== false,
         pickupAvailable: product.pickupAvailable !== false,
         deliveryFeeEnabled: product.deliveryFeeEnabled !== false,
@@ -810,6 +814,7 @@ export const sellerValidateInstallmentPayment = asyncHandler(async (req, res) =>
         })
       );
     }
+    await scheduleOrderReviewReminder(order._id).catch(() => null);
   } else if (lifecycleStatus === 'overdue_installment') {
     order.status = 'overdue_installment';
     if (!order.confirmedAt) {

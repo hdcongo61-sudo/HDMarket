@@ -6,6 +6,7 @@ import { createNotification } from '../utils/notificationService.js';
 import { buildIdentifierQuery } from '../utils/idResolver.js';
 import { ensureDocumentSlug } from '../utils/slugUtils.js';
 import { invalidateProductCache } from '../utils/cache.js';
+import { markOrdersReviewedByProduct } from '../services/orderReviewReminderService.js';
 
 const ensureProductVisible = async (identifier, fallbackId = null) => {
   const query = buildIdentifierQuery(identifier);
@@ -100,6 +101,11 @@ export const upsertRating = asyncHandler(async (req, res) => {
   }
 
   invalidateProductCache();
+  await markOrdersReviewedByProduct({
+    userId: req.user.id,
+    productId: product._id,
+    reviewedAt: new Date()
+  }).catch(() => null);
 
   res.status(201).json({ value: rating.value });
 });

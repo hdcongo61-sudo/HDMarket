@@ -13,6 +13,7 @@ import {
   runInstallmentProofValidationSlaSweep,
   runInstallmentReminderSweep
 } from '../services/orderReliabilityAutomationService.js';
+import { runReviewReminderSweep } from '../services/orderReviewReminderService.js';
 
 export const adminOrderCommandCenter = asyncHandler(async (req, res) => {
   const data = await getOrderCommandCenterSnapshot(req.query || {});
@@ -92,11 +93,15 @@ export const adminRunReminderSweep = asyncHandler(async (req, res) => {
     req.query?.reminderType ||
     'seller';
 
-  const result = await runAutomatedReminderSweep({
-    reminderType,
-    limit: Number(req.body?.limit || req.query?.limit || 120),
-    actorId: req.user?.id || req.user?._id || null
-  });
+  const limit = Number(req.body?.limit || req.query?.limit || 120);
+  const result =
+    String(reminderType || '').trim() === 'review'
+      ? await runReviewReminderSweep({ limit, source: 'admin_manual' })
+      : await runAutomatedReminderSweep({
+          reminderType,
+          limit,
+          actorId: req.user?.id || req.user?._id || null
+        });
 
   res.json({ message: 'Reminder sweep completed.', ...result });
 });

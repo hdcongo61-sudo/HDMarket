@@ -2,24 +2,25 @@ import React from 'react';
 import cn from '../../lib/utils';
 
 const VARIANT_CLASSES = {
-  default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-  destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-  outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
-  secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-  ghost: 'hover:bg-accent hover:text-accent-foreground',
-  link: 'text-primary underline-offset-4 hover:underline'
+  default: 'border border-neutral-950 bg-neutral-950 text-white shadow-sm hover:bg-neutral-800 dark:border-white dark:bg-white dark:text-neutral-950',
+  destructive: 'border border-red-600 bg-red-600 text-white shadow-sm hover:bg-red-700',
+  outline: 'border border-neutral-200 bg-white text-neutral-900 shadow-sm hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100 dark:hover:bg-neutral-900',
+  secondary: 'border border-neutral-200 bg-neutral-100 text-neutral-900 hover:bg-neutral-200 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800',
+  ghost: 'text-neutral-800 hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-900',
+  link: 'text-neutral-950 underline-offset-4 hover:underline dark:text-white'
 };
 
 const SIZE_CLASSES = {
-  default: 'h-10 px-4 py-2',
-  sm: 'h-9 rounded-md px-3',
-  lg: 'h-11 rounded-md px-8',
-  icon: 'h-10 w-10'
+  default: 'min-h-[44px] px-4 py-2',
+  sm: 'min-h-[40px] px-3 py-2 text-xs',
+  lg: 'min-h-[52px] px-6 py-3 text-base',
+  icon: 'h-11 w-11'
 };
 
 export function buttonVariants({ variant = 'default', size = 'default', className = '' } = {}) {
   return cn(
     'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors',
+    'rounded-xl active:scale-[0.98] transition-all duration-200',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
     'disabled:pointer-events-none disabled:opacity-50',
     VARIANT_CLASSES[variant] || VARIANT_CLASSES.default,
@@ -49,4 +50,3 @@ const Button = React.forwardRef(function Button(
 });
 
 export { Button };
-

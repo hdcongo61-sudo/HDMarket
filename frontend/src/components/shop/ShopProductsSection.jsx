@@ -32,25 +32,25 @@ export default function ShopProductsSection({
     : 'grid grid-cols-2 gap-2 sm:grid-cols-3';
 
   const activeChip =
-    'inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-[#1A2744] px-3 text-xs font-medium text-white transition';
+    'inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-neutral-950 px-3 text-xs font-semibold text-white transition dark:bg-white dark:text-neutral-950';
   const inactiveChip =
-    'inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[#E0D9CF] bg-white px-3 text-xs font-medium text-[#1A1A18] transition hover:border-[#1A2744]';
+    'inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-700 transition hover:border-neutral-400 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-200';
 
   return (
-    <div className="overflow-hidden rounded-xl border border-[#E0D9CF] bg-white p-4" id="products">
+    <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950" id="products">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h2 className="font-serif text-xl font-medium text-[#1A1A18]">
+          <h2 className="text-lg font-bold text-neutral-950 dark:text-white sm:text-xl">
             {t('shop_profile.all_products', 'Tous les produits')}
           </h2>
-          <p className="mt-0.5 text-xs text-[#8A7F6E]">
+          <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
             {formatCount(displayProducts.length)} {t('shop_profile.products_count', 'produits')}
           </p>
         </div>
         <button
           type="button"
           onClick={onGoReviews}
-          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-[#E0D9CF] px-3 text-xs font-medium text-[#8A7F6E] transition hover:border-[#1A2744] hover:text-[#1A1A18]"
+          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-600 transition hover:border-neutral-400 hover:text-neutral-950 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300"
         >
           <span>{t('shop_profile.go_reviews', 'Avis')}</span>
           <ArrowRight size={13} />
@@ -77,7 +77,7 @@ export default function ShopProductsSection({
                 <span>{item.label}</span>
                 <span
                   className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                    isActive ? 'bg-white/20' : 'bg-[#F5F3EF] text-[#8A7F6E]'
+                    isActive ? 'bg-white/20' : 'bg-neutral-100 text-neutral-500 dark:bg-neutral-900 dark:text-neutral-400'
                   }`}
                 >
                   {formatCount(item.count)}
@@ -89,15 +89,15 @@ export default function ShopProductsSection({
       </div>
 
       {/* Category filters */}
-      <div className="mt-3 rounded-xl border border-[#E0D9CF] bg-[#F5F3EF] p-3">
+      <div className="mt-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900/70">
         <div className="mb-2.5 flex items-center justify-between gap-2">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-[#8A7F6E]">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
             {t('shop_profile.filter_category', 'Catégorie')}
           </p>
           <button
             type="button"
             onClick={() => { setActiveCategory('all'); setPromoOnly(false); }}
-            className="text-xs font-medium text-[#8A7F6E] transition hover:text-[#1A1A18]"
+            className="text-xs font-semibold text-neutral-500 transition hover:text-neutral-950 dark:text-neutral-400 dark:hover:text-white"
           >
             {t('shop_profile.reset', 'Tout')}
           </button>
@@ -112,7 +112,7 @@ export default function ShopProductsSection({
               <span>{t('shop_profile.tab_all', 'Tous')}</span>
               <span
                 className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                  activeCategory === 'all' ? 'bg-white/20' : 'bg-white text-[#8A7F6E]'
+                  activeCategory === 'all' ? 'bg-white/20' : 'bg-white text-neutral-500 dark:bg-neutral-950 dark:text-neutral-400'
                 }`}
               >
                 {formatCount(products.length)}
@@ -124,8 +124,8 @@ export default function ShopProductsSection({
               disabled={!hasPromoProducts}
               className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-full px-3 text-xs font-medium transition ${
                 promoOnly
-                  ? 'bg-[#C9A84C] text-white'
-                  : 'border border-[#C9A84C]/40 bg-[#C9A84C]/10 text-[#C9A84C] hover:bg-[#C9A84C]/20'
+                  ? 'bg-neutral-950 text-white dark:bg-white dark:text-neutral-950'
+                  : 'border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300'
               } ${!hasPromoProducts ? 'cursor-not-allowed opacity-50' : ''}`}
             >
               <Sparkles size={11} />
@@ -143,7 +143,7 @@ export default function ShopProductsSection({
                   <span className="max-w-[8rem] truncate">{category}</span>
                   <span
                     className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                      isActive ? 'bg-white/20' : 'bg-white text-[#8A7F6E]'
+                      isActive ? 'bg-white/20' : 'bg-white text-neutral-500 dark:bg-neutral-950 dark:text-neutral-400'
                     }`}
                   >
                     {formatCount(categoryCounts[category] || 0)}
@@ -173,14 +173,14 @@ export default function ShopProductsSection({
       )}
 
       {!loading && displayProducts.length === 0 && (
-        <div className="mt-4 rounded-xl border border-dashed border-[#E0D9CF] px-4 py-10 text-center text-sm text-[#8A7F6E]">
+        <div className="mt-4 rounded-xl border border-dashed border-neutral-200 px-4 py-10 text-center text-sm text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
           {t('shop_profile.no_products', "Cette boutique n'a pas encore de produits")}
         </div>
       )}
 
       {!loading && topSellingProducts.length > 0 && (
-        <div className="mt-4 border-t border-[#E0D9CF] pt-4">
-          <p className="mb-3 text-sm font-medium text-[#1A1A18]">
+        <div className="mt-4 border-t border-neutral-200 pt-4 dark:border-neutral-800">
+          <p className="mb-3 text-sm font-semibold text-neutral-950 dark:text-white">
             {t('shop_profile.popular_products', 'Produits populaires')}
           </p>
           <div className={productGridClass}>
@@ -188,9 +188,9 @@ export default function ShopProductsSection({
               <Link
                 key={`top-${product._id}`}
                 to={buildProductPath(product)}
-                className="group min-w-0 rounded-xl border border-[#E0D9CF] bg-white p-2 transition hover:border-[#1A2744]"
+                className="group min-w-0 rounded-xl border border-neutral-200 bg-white p-2 transition hover:border-neutral-400 dark:border-neutral-800 dark:bg-neutral-950"
               >
-                <div className="relative aspect-[1.2] overflow-hidden rounded-lg bg-[#EDE9E0]">
+                <div className="relative aspect-[1.2] overflow-hidden rounded-lg bg-neutral-100 dark:bg-neutral-900">
                   <PreviewableImage
                     src={product.images?.[0] || product.image || ''}
                     images={
@@ -215,7 +215,7 @@ export default function ShopProductsSection({
                     }}
                   />
                 </div>
-                <p className="mt-2 line-clamp-2 text-xs font-medium text-[#1A1A18]">
+                <p className="mt-2 line-clamp-2 text-xs font-medium text-neutral-800 dark:text-neutral-100">
                   {product.title}
                 </p>
               </Link>

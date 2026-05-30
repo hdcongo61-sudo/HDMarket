@@ -32,6 +32,17 @@ const PDF_MIME_SET = new Set(PDF_MIMES);
 const PROOF_FIELD_SET = new Set(['saleConfirmationProof', 'firstPaymentProof', 'proofOfPayment']);
 
 const storage = multer.memoryStorage();
+const parsePositiveInt = (value, fallback) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+};
+
+const UPLOAD_LIMITS = {
+  fileSize: parsePositiveInt(process.env.UPLOAD_MAX_FILE_SIZE_BYTES, 50 * 1024 * 1024),
+  files: parsePositiveInt(process.env.UPLOAD_MAX_FILES, 8),
+  fields: parsePositiveInt(process.env.UPLOAD_MAX_FIELDS, 80),
+  parts: parsePositiveInt(process.env.UPLOAD_MAX_PARTS, 100)
+};
 
 const fileFilter = (req, file, cb) => {
   const extension = path.extname(file.originalname || '').toLowerCase();
@@ -61,4 +72,4 @@ const fileFilter = (req, file, cb) => {
   );
 };
 
-export const upload = multer({ storage, fileFilter });
+export const upload = multer({ storage, fileFilter, limits: UPLOAD_LIMITS });

@@ -120,6 +120,9 @@ export const schemas = {
         )
         .max(10)
     ).optional(),
+    warrantyEnabled: Joi.boolean().truthy('true').falsy('false').optional(),
+    warrantyPeriodValue: Joi.number().integer().min(1).max(120).optional().allow('', null),
+    warrantyPeriodUnit: Joi.string().valid('days', 'months', 'years').optional(),
     deliveryAvailable: Joi.boolean().truthy('true').falsy('false').optional(),
     pickupAvailable: Joi.boolean().truthy('true').falsy('false').optional(),
     deliveryFee: Joi.number().min(0).optional(),
@@ -163,6 +166,9 @@ export const schemas = {
         )
         .max(10)
     ),
+    warrantyEnabled: Joi.boolean().truthy('true').falsy('false'),
+    warrantyPeriodValue: Joi.number().integer().min(1).max(120).allow('', null),
+    warrantyPeriodUnit: Joi.string().valid('days', 'months', 'years'),
     deliveryAvailable: Joi.boolean().truthy('true').falsy('false'),
     pickupAvailable: Joi.boolean().truthy('true').falsy('false'),
     deliveryFee: Joi.number().min(0),
@@ -188,6 +194,9 @@ export const schemas = {
   ratingUpsert: Joi.object({
     value: Joi.number().integer().min(1).max(5).required(),
     productId: Joi.string().hex().length(24).optional()
+  }),
+  orderReviewReminderAction: Joi.object({
+    action: Joi.string().valid('done', 'skip', 'disable').required()
   }),
   shopReviewUpsert: Joi.object({
     rating: Joi.number().integer().min(1).max(5).required(),

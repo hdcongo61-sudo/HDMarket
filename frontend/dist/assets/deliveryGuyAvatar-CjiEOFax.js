@@ -1,0 +1,1 @@
+const e=(t="")=>{const r=String(t||"").trim();return r?/^(https?:)?\/\//i.test(r)||r.startsWith("data:")?r:`${"https://hdmarket-backend.onrender.com/api".replace(/\/api\/?$/,"")}/${r.replace(/^\/+/,"")}`:""},s=(t={})=>e(t?.profileImage||t?.photoUrl||t?.userId?.shopLogo||"");export{s as r};

@@ -114,6 +114,23 @@ const clampNumber = (value, min, max) => {
   return Math.min(max, Math.max(min, numeric));
 };
 
+const normalizeRuntimeBoolean = (value, fallback = false) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'oui', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'non', 'off', ''].includes(normalized)) return false;
+  }
+  return fallback;
+};
+
+const normalizeRuntimeLimit = (value, fallback = 0) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(0, Math.floor(parsed));
+};
+
 const haversineDistanceKm = (from, to) => {
   if (!from || !to) return null;
   const toRad = (value) => (value * Math.PI) / 180;
@@ -985,7 +1002,39 @@ export const updateProfile = asyncHandler(async (req, res) => {
   }
 
   if (accountType) {
-    user.accountType = accountType === 'shop' ? 'shop' : 'person';
+    const nextAccountType = accountType === 'shop' ? 'shop' : 'person';
+    if (nextAccountType === 'shop' && user.accountType !== 'shop') {
+      const conversionEnabled = normalizeRuntimeBoolean(
+        await getRuntimeConfig('enable_shop_conversion', { fallback: true }),
+        true
+      );
+      if (!conversionEnabled) {
+        return res.status(403).json({
+          message: 'La conversion en boutique est temporairement désactivée.'
+        });
+      }
+      const [limitRaw, periodRaw] = await Promise.all([
+        getRuntimeConfig('shop_creation_limit_count', { fallback: 100 }),
+        getRuntimeConfig('shop_creation_limit_period_days', { fallback: 30 })
+      ]);
+      const shopLimit = normalizeRuntimeLimit(limitRaw, 100);
+      const periodDays = Math.max(1, normalizeRuntimeLimit(periodRaw, 30));
+      const since = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
+      const createdShops = await User.countDocuments({
+        accountType: 'shop',
+        accountTypeChangedAt: { $gte: since }
+      });
+      if (createdShops >= shopLimit) {
+        return res.status(429).json({
+          message: `Limite atteinte: ${shopLimit} boutique(s) peuvent être créées sur ${periodDays} jour(s).`
+        });
+      }
+    }
+    if (nextAccountType !== user.accountType) {
+      user.accountTypeChangedBy = req.user.id;
+      user.accountTypeChangedAt = new Date();
+    }
+    user.accountType = nextAccountType;
   }
 
   if (typeof address !== 'undefined') {
@@ -1449,6 +1498,42 @@ export const changePassword = asyncHandler(async (req, res) => {
   res.json({ message: 'Mot de passe mis à jour.' });
 });
 
+const NOTIFICATION_TITLES = Object.freeze({
+  order_placed: 'Commande passée',
+  order_created: 'Commande créée',
+  order_received: 'Nouvelle commande',
+  order_accepted: 'Commande acceptée',
+  order_rejected: 'Commande rejetée',
+  order_cancelled: 'Commande annulée',
+  order_delivering: 'Livraison en cours',
+  order_delivered: 'Commande livrée',
+  payment_pending: 'Paiement en attente',
+  payment_proof_submitted: 'Preuve de paiement reçue',
+  payment_validated: 'Paiement validé',
+  installment_payment_submitted: 'Preuve de tranche reçue',
+  installment_payment_validated: 'Tranche validée',
+  delivery_assigned: 'Livraison assignée',
+  delivery_in_progress: 'Livraison en cours',
+  delivery_completed: 'Livraison terminée',
+  delivery_request_assigned: 'Livraison assignée',
+  delivery_request_in_progress: 'Livraison en cours',
+  delivery_request_delivered: 'Livraison terminée',
+  review_reminder: 'Avis demandé',
+  product_approval: 'Produit approuvé',
+  product_approved: 'Produit approuvé',
+  product_rejection: 'Produit rejeté',
+  product_rejected: 'Produit rejeté',
+  boost_expired: 'Boost expiré',
+  promo_expired: 'Promotion expirée'
+});
+
+const resolveNotificationTitle = (notification, fallback = 'Notification') => {
+  const metadata = notification?.metadata || {};
+  const explicitTitle = String(metadata.title || '').trim();
+  if (explicitTitle) return explicitTitle;
+  return NOTIFICATION_TITLES[notification?.type] || fallback;
+};
+
 export const getNotifications = asyncHandler(async (req, res) => {
   const [notifications, userDoc] = await Promise.all([
     Notification.find({ user: req.user.id })
@@ -1537,9 +1622,11 @@ export const getNotifications = asyncHandler(async (req, res) => {
           : `${actorName} a noté votre annonce${productLabel}.`;
         break;
       case 'product_approval':
+      case 'product_approved':
         message = `${actorName} a approuvé votre annonce${productLabel}. Elle est désormais visible pour les acheteurs.`;
         break;
       case 'product_rejection':
+      case 'product_rejected':
         message = `${actorName} a rejeté votre annonce${productLabel}. Contactez l'équipe support pour plus d'informations.`;
         break;
       case 'product_certified':
@@ -1636,7 +1723,8 @@ export const getNotifications = asyncHandler(async (req, res) => {
           : fallback;
         break;
       }
-      case 'payment_pending': {
+      case 'payment_pending':
+      case 'payment_proof_submitted': {
         const amountValue = Number(metadata.amount || 0);
         const amountText = Number.isFinite(amountValue) && amountValue > 0
           ? ` (${amountValue.toLocaleString('fr-FR')} FCFA)`
@@ -1648,6 +1736,15 @@ export const getNotifications = asyncHandler(async (req, res) => {
         message = `${actorName} a soumis une preuve de paiement${productText}${amountText}. Consultez la section "Vérification des paiements"${waitingSuffix}.`;
         break;
       }
+      case 'payment_validated': {
+        const amountValue = Number(metadata.amount || 0);
+        const amountText = Number.isFinite(amountValue) && amountValue > 0
+          ? ` (${amountValue.toLocaleString('fr-FR')} FCFA)`
+          : '';
+        message = `${actorName} a validé votre paiement${amountText}. Vous pouvez suivre la suite depuis la commande.`;
+        break;
+      }
+      case 'order_placed':
       case 'order_created': {
         const city = metadata.deliveryCity ? ` pour ${metadata.deliveryCity}` : '';
         let action = 'créé';
@@ -1657,6 +1754,15 @@ export const getNotifications = asyncHandler(async (req, res) => {
           action = 'mis en attente';
         }
         message = `${actorName} a ${action} ${yourOrderSubject}${city}. Nous vous tiendrons informé des étapes de livraison.`;
+        break;
+      }
+      case 'order_accepted': {
+        message = `${yourOrderSubject} a été acceptée. La préparation peut commencer.`;
+        break;
+      }
+      case 'order_rejected': {
+        const reason = metadata.reason ? ` Raison: ${metadata.reason}` : '';
+        message = `${yourOrderSubject} a été rejetée.${reason}`;
         break;
       }
       case 'order_received': {
@@ -1700,6 +1806,23 @@ export const getNotifications = asyncHandler(async (req, res) => {
       case 'order_delivering': {
         const city = metadata.deliveryCity ? ` pour ${metadata.deliveryCity}` : '';
         message = `${yourOrderSubject} est en cours de livraison${city}.`;
+        break;
+      }
+      case 'delivery_assigned':
+      case 'delivery_request_assigned': {
+        const courierName = metadata.courierName ? ` à ${metadata.courierName}` : '';
+        message = `La livraison de ${yourOrderSubject} a été assignée${courierName}.`;
+        break;
+      }
+      case 'delivery_in_progress':
+      case 'delivery_request_in_progress': {
+        const city = metadata.deliveryCity ? ` pour ${metadata.deliveryCity}` : '';
+        message = `La livraison de ${yourOrderSubject} est en cours${city}.`;
+        break;
+      }
+      case 'delivery_completed':
+      case 'delivery_request_delivered': {
+        message = `La livraison de ${yourOrderSubject} est terminée.`;
         break;
       }
       case 'order_delivered': {
@@ -1770,7 +1893,7 @@ export const getNotifications = asyncHandler(async (req, res) => {
         const productCount = metadata.productCount || 1;
         const productText = productCount === 1 ? 'produit' : 'produits';
         const productLabel = productCount > 1 ? `vos ${productCount} ${productText}` : 'votre produit';
-        message = `${yourOrderSubject} a été livrée il y a plus d'une heure. Partagez votre expérience en notant ${productLabel} !`;
+        message = `Comment s'est passée ${yourOrderSubject} ? Partagez votre expérience en notant ${productLabel}.`;
         break;
       }
       case 'order_address_updated': {
@@ -1790,6 +1913,14 @@ export const getNotifications = asyncHandler(async (req, res) => {
             : ' Remboursement demandé.'
           : '';
         message = `${actorName} a annulé ${orderSubject}.${reason}${refundText}`;
+        break;
+      }
+      case 'boost_expired': {
+        message = `Le boost de votre annonce${productLabel} est expiré. Vous pouvez le renouveler si vous souhaitez garder la visibilité.`;
+        break;
+      }
+      case 'promo_expired': {
+        message = `La promotion de votre annonce${productLabel} est expirée.`;
         break;
       }
       case 'validation_required': {
@@ -1816,6 +1947,7 @@ export const getNotifications = asyncHandler(async (req, res) => {
 
     return {
       _id: notification._id,
+      title: resolveNotificationTitle(notification),
       type: notification.type,
       message,
       createdAt: notification.createdAt,

@@ -106,6 +106,9 @@ const productSchema = new mongoose.Schema(
       ],
       default: []
     },
+    warrantyEnabled: { type: Boolean, default: false, index: true },
+    warrantyPeriodValue: { type: Number, default: null, min: 1, max: 120 },
+    warrantyPeriodUnit: { type: String, enum: ['days', 'months', 'years'], default: 'months' },
     deliveryAvailable: { type: Boolean, default: true, index: true },
     pickupAvailable: { type: Boolean, default: true, index: true },
     deliveryFee: { type: Number, default: 0, min: 0 },

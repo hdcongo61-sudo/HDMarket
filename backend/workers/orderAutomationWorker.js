@@ -2,6 +2,10 @@ import { safeAsync } from '../utils/safeAsync.js';
 import { orderAutomationQueueName } from '../queues/orderAutomationQueue.js';
 import { runAutomatedReminderSweep, runDelayedOrderDetection } from '../services/adminOrderAutomationService.js';
 import {
+  processOrderReviewReminderJob,
+  runReviewReminderSweep
+} from '../services/orderReviewReminderService.js';
+import {
   runInstallmentProofValidationSlaSweep,
   runInstallmentReminderSweep
 } from '../services/orderReliabilityAutomationService.js';
@@ -56,11 +60,17 @@ export const initOrderAutomationWorker = async () => {
         });
       }
 
+      if (name === 'review-reminders') {
+        return runReviewReminderSweep({
+          limit: Number(data?.limit || 200),
+          source: data?.source || 'schedule'
+        });
+      }
+
       if (
         [
           'seller-reminders',
           'buyer-confirmation-reminders',
-          'review-reminders',
           'experience-reminders',
           'escalation-reminders'
         ].includes(name)
@@ -68,7 +78,6 @@ export const initOrderAutomationWorker = async () => {
         const reminderTypeMap = {
           'seller-reminders': 'seller',
           'buyer-confirmation-reminders': 'buyer_confirmation',
-          'review-reminders': 'review',
           'experience-reminders': 'experience',
           'escalation-reminders': 'escalation'
         };
@@ -77,6 +86,13 @@ export const initOrderAutomationWorker = async () => {
           reminderType: data?.reminderType || reminderTypeMap[name] || 'seller',
           limit: Number(data?.limit || 120),
           actorId: data?.actorId || null
+        });
+      }
+
+      if (name === 'review-reminder-order') {
+        return processOrderReviewReminderJob({
+          orderId: data?.orderId || '',
+          source: data?.source || 'queue'
         });
       }
 

@@ -2,9 +2,9 @@ import React from 'react';
 
 export default function ShopQuickInfo({ openingSummary, trustQuickInfo, t }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-base font-bold text-gray-900 sm:text-lg">
+        <h2 className="text-base font-bold text-neutral-950 dark:text-white sm:text-lg">
           {t('shop_profile.trust_badges', 'Confiance & vérification')}
         </h2>
         <span
@@ -27,13 +27,13 @@ export default function ShopQuickInfo({ openingSummary, trustQuickInfo, t }) {
         {trustQuickInfo.map((item) => (
           <article
             key={item.id}
-            className="rounded-2xl border border-gray-200 bg-gray-50 px-3 py-3"
+            className="rounded-2xl border border-neutral-200 bg-neutral-50 px-3 py-3 dark:border-neutral-800 dark:bg-neutral-900"
           >
-            <p className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-gray-500">
-              <span className="text-gray-700">{item.icon}</span>
+            <p className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+              <span className="text-neutral-700 dark:text-neutral-300">{item.icon}</span>
               <span className="truncate">{item.label}</span>
             </p>
-            <p className="mt-2 text-[13px] font-semibold text-gray-900">{item.value}</p>
+            <p className="mt-2 text-[13px] font-semibold text-neutral-950 dark:text-white">{item.value}</p>
           </article>
         ))}
       </div>

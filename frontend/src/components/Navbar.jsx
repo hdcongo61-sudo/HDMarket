@@ -148,6 +148,8 @@ export default function Navbar() {
     !['false', '0', 'no', 'off'].includes(
       String(getRuntimeValue('enable_delivery_requests', true)).trim().toLowerCase()
     );
+  const sellingEnabled = isTruthyFlag(getRuntimeValue('enable_selling', true));
+  const shopConversionEnabled = isTruthyFlag(getRuntimeValue('enable_shop_conversion', true));
   const { cart } = useContext(CartContext);
   const { favorites } = useContext(FavoriteContext);
   const cartCount = cart?.totals?.quantity || 0;
@@ -683,7 +685,7 @@ export default function Navbar() {
     { id: 'orders', label: t('nav.orders', 'Commandes'), path: '/orders', icon: ClipboardList, badge: activeOrders, visible: user ? true : false, order: 7 },
     { id: 'messages', label: t('nav.messages', 'Messages'), path: '/orders/messages', icon: MessageSquare, badge: unreadOrderMessages, visible: user ? chatEnabled : false, order: 8 },
     { id: 'my', label: t('nav.myListings', 'Mes annonces'), path: '/my', icon: Package, badge: null, visible: user ? true : false, order: 9 },
-    { id: 'shop-conversion', label: t('nav.becomeShop', 'Devenir Boutique'), path: '/shop-conversion-request', icon: Store, badge: null, visible: user && user.accountType !== 'shop' ? true : false, order: 10 },
+    { id: 'shop-conversion', label: t('nav.becomeShop', 'Devenir Boutique'), path: '/shop-conversion-request', icon: Store, badge: null, visible: user && user.accountType !== 'shop' && shopConversionEnabled ? true : false, order: 10 },
     { id: 'suggestions', label: t('nav.suggestions', 'Suggestions'), path: '/suggestions', icon: Sparkles, badge: null, visible: aiRecommendationsEnabled, order: 11 }
   ];
 
@@ -2942,7 +2944,7 @@ export default function Navbar() {
 
       {/* 🎯 NAVBAR PRINCIPALE - Proposal A: Two-Tier Layout */}
       <nav
-        className="fixed top-0 left-0 right-0 z-50 ui-glass-header shadow-sm"
+        className="hd-main-nav fixed top-0 left-0 right-0 z-50 ui-glass-header shadow-sm"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         {/* Top Bar: Logo, Search, Actions */}
@@ -3476,7 +3478,7 @@ export default function Navbar() {
         </div>
 
         {/* === SECONDARY NAVIGATION BAR (Proposal A) === */}
-        <div className="hidden lg:block bg-gradient-to-r from-neutral-600 to-neutral-700 dark:from-neutral-800 dark:to-neutral-900">
+        <div className="hd-secondary-nav hidden lg:block bg-gradient-to-r from-neutral-600 to-neutral-700 dark:from-neutral-800 dark:to-neutral-900">
           <div className="mx-auto px-4 sm:px-6 lg:px-8 max-w-[1400px] 2xl:max-w-[1600px]">
             <div className="flex items-center gap-1 h-12">
               {/* Accueil */}
@@ -3683,7 +3685,7 @@ export default function Navbar() {
               </Link>
 
               {/* Devenir Boutique - non-shop users (desktop) */}
-              {user && user.accountType !== 'shop' && (
+              {user && user.accountType !== 'shop' && shopConversionEnabled && (
                 <NavLink
                   to="/shop-conversion-request"
                   className={({ isActive }) =>
@@ -3712,7 +3714,7 @@ export default function Navbar() {
               )}
 
               {/* Vendre Button */}
-              {user && (
+              {user && sellingEnabled && (
                 <Link
                   to="/my"
                   className="ml-auto px-4 py-2 bg-white dark:bg-gray-800 text-neutral-900 dark:text-neutral-300 font-bold text-sm rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900/20 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg"
@@ -3950,7 +3952,7 @@ export default function Navbar() {
                     {t('nav.statistics', 'Statistiques')}
                   </NavLink>
 
-                  {user && user.accountType !== 'shop' && (
+                  {user && user.accountType !== 'shop' && shopConversionEnabled && (
                     <NavLink 
                       to="/shop-conversion-request" 
                       onClick={() => setIsMenuOpen(false)}
@@ -4341,7 +4343,7 @@ export default function Navbar() {
 
       {/* BARRE DE NAVIGATION FIXE MOBILE - DESIGN MODERNE ET AMÉLIORÉE */}
       <div 
-        className={`md:hidden fixed bottom-0 left-0 right-0 z-50 min-h-[64px] bg-white dark:bg-gray-900 border-t border-gray-200/80 dark:border-gray-800/80 shadow-2xl backdrop-blur-xl transition-all duration-300 ${
+        className={`hd-mobile-tabbar md:hidden fixed bottom-0 left-0 right-0 z-50 min-h-[64px] bg-white dark:bg-gray-900 border-t border-gray-200/80 dark:border-gray-800/80 shadow-2xl backdrop-blur-xl transition-all duration-300 ${
           bottomNavHidden ? 'translate-y-[calc(100%+env(safe-area-inset-bottom))]' : 'translate-y-0'
         }`}
         style={{ paddingBottom: 'env(safe-area-inset-bottom)', willChange: 'transform' }}

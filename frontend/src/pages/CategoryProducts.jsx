@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api, { isApiCanceledError } from '../services/api';
 import ProductCard from '../components/ProductCard';
+import ProductCardSkeleton from '../components/ProductCardSkeleton';
 import categoryGroups, { getCategoryMeta } from '../data/categories';
-import { ChevronRight, ArrowLeft } from 'lucide-react';
+import { ChevronRight, ArrowLeft, SlidersHorizontal, Grid2X2, List } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
 import useNetworkProfile from '../hooks/useNetworkProfile';
@@ -15,6 +16,8 @@ const SORT_OPTIONS = [
   { value: 'price_desc', label: 'Prix décroissant' },
   { value: 'discount', label: 'Meilleures remises' }
 ];
+
+const VIEW_MODE_STORAGE_KEY = 'hdmarket:category-product-view-mode';
 
 export default function CategoryProducts() {
   const { categoryId } = useParams();
@@ -33,6 +36,11 @@ export default function CategoryProducts() {
   const [loadMoreError, setLoadMoreError] = useState('');
   const [loadMoreRetryTick, setLoadMoreRetryTick] = useState(0);
   const [sort, setSort] = useState('new');
+  const [viewMode, setViewMode] = useState(() => {
+    if (typeof window === 'undefined') return 'grid';
+    const saved = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+    return saved === 'list' ? 'list' : 'grid';
+  });
   const [page, setPage] = useState(initialPageRef.current);
   const [totalPages, setTotalPages] = useState(1);
   const [isMobileView, setIsMobileView] = useState(() =>
@@ -66,6 +74,11 @@ export default function CategoryProducts() {
     initialPageRef.current = 1;
     setPage(1);
   }, [sort]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
+  }, [viewMode]);
 
   useEffect(() => {
     const targetPage = page === 1 ? null : String(page);
@@ -291,7 +304,7 @@ export default function CategoryProducts() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-8 py-6 space-y-6 sm:py-8 sm:space-y-8 pb-24 md:pb-16">
+    <div className="mx-auto max-w-7xl space-y-5 px-3 py-5 pb-24 sm:space-y-7 sm:px-6 sm:py-8 md:px-8 md:pb-16">
       <header className="space-y-4">
         {(offlineSnapshotActive || rapid3GActive) && (
           <section
@@ -320,48 +333,82 @@ export default function CategoryProducts() {
           <span className="text-gray-900 font-semibold">{categoryMeta.label}</span>
         </nav>
 
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{categoryMeta.label}</h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Produits approuvés récemment ajoutés dans cette sous-catégorie.
-            </p>
-          </div>
+        <div className="rounded-[28px] border border-neutral-200 bg-white p-4 shadow-[0_14px_38px_rgba(15,23,42,0.07)] sm:p-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div className="min-w-0">
+              <p className="mb-1 text-xs font-bold uppercase tracking-wide text-neutral-500">
+                {group?.label || 'Catégorie'}
+              </p>
+              <h1 className="text-2xl font-black tracking-tight text-gray-950 md:text-3xl">{categoryMeta.label}</h1>
+              <p className="mt-1 text-sm text-gray-600">
+                Sélection approuvée, affichée avec des cartes plus rapides à scanner sur mobile.
+              </p>
+            </div>
 
-          <div className="w-full md:w-auto flex items-center gap-3">
-            <label
-              htmlFor="category-sort"
-              className="text-xs font-semibold text-gray-600 uppercase tracking-wide"
-            >
-              Trier
-            </label>
-            <select
-              id="category-sort"
-              value={sort}
-              onChange={(event) => setSort(event.target.value)}
-              className="flex-1 md:flex-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-200"
-            >
-              {SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <div className="flex w-full flex-col gap-3 md:w-auto md:items-end">
+              <div className="w-full md:w-auto">
+                <label
+                  htmlFor="category-sort"
+                  className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-gray-600"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  Trier
+                </label>
+                <select
+                  id="category-sort"
+                  value={sort}
+                  onChange={(event) => setSort(event.target.value)}
+                  className="w-full rounded-2xl border border-gray-200 bg-neutral-50 px-3 py-3 text-sm font-semibold text-neutral-800 focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-200 md:w-56"
+                >
+                  {SORT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="inline-grid h-11 w-full grid-cols-2 rounded-2xl border border-neutral-200 bg-neutral-50 p-1 md:w-40">
+                {[
+                  { value: 'grid', label: 'Grille', icon: Grid2X2 },
+                  { value: 'list', label: 'Liste', icon: List }
+                ].map((option) => {
+                  const Icon = option.icon;
+                  const active = viewMode === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setViewMode(option.value)}
+                      className={`inline-flex items-center justify-center gap-1.5 rounded-xl text-xs font-bold transition ${
+                        active
+                          ? 'bg-white text-neutral-950 shadow-sm'
+                          : 'text-neutral-500 hover:text-neutral-900'
+                      }`}
+                      aria-pressed={active}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
 
         {group && (
-          <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
-            <div className="flex flex-wrap gap-2">
+          <div className="overflow-x-auto rounded-[22px] border border-gray-200 bg-white p-2 shadow-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex min-w-max gap-2">
               {group.options.map((option) => {
                 const isActive = option.value === categoryMeta.value;
                 return (
                   <Link
                     key={option.value}
                     to={`/categories/${option.value}`}
-                    className={`inline-flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    className={`inline-flex items-center gap-1 rounded-2xl border px-3 py-2 text-xs font-bold transition-colors ${
                       isActive
-                        ? 'border-neutral-700 bg-neutral-700 text-white shadow-sm'
+                        ? 'border-neutral-950 bg-neutral-950 text-white shadow-sm'
                         : 'border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 hover:border-gray-300'
                     }`}
                   >
@@ -386,22 +433,18 @@ export default function CategoryProducts() {
       )}
 
       {loading && page === 1 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
-          {Array.from({ length: 8 }).map((_, idx) => (
-            <div key={idx} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-              <div className="h-32 rounded-xl bg-gray-100 animate-pulse" />
-              <div className="mt-3 space-y-2">
-                <div className="h-3 rounded bg-gray-100 animate-pulse" />
-                <div className="h-3 w-24 rounded bg-gray-100 animate-pulse" />
-              </div>
-            </div>
-          ))}
-        </div>
+        <ProductCardSkeleton count={8} viewMode={viewMode} />
       ) : items.length ? (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
+          <div
+            className={
+              viewMode === 'list'
+                ? 'space-y-3'
+                : 'grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4'
+            }
+          >
             {items.map((product) => (
-              <ProductCard key={product._id} p={product} />
+              <ProductCard key={product._id} p={product} categoryListing viewMode={viewMode} />
             ))}
           </div>
           {loading && page > 1 && (

@@ -268,6 +268,10 @@ const userSchema = new mongoose.Schema(
 userSchema.add({
   slug: { type: String, unique: true, index: true, lowercase: true, trim: true }
 });
+userSchema.index({ role: 1, isActive: 1, createdAt: -1 });
+userSchema.index({ accountType: 1, shopVerified: 1, createdAt: -1 });
+userSchema.index({ canVerifyPayments: 1, isActive: 1 });
+userSchema.index({ canManageDelivery: 1, isActive: 1 });
 userSchema.index({ shopLocation: '2dsphere' }, { sparse: true });
 
 userSchema.pre('validate', async function (next) {

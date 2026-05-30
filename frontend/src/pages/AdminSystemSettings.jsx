@@ -106,6 +106,39 @@ const NETWORK_RUNTIME_QUICK_FLAGS = [
   }
 ];
 
+const COMMERCE_RUNTIME_CONTROLS = [
+  {
+    key: 'enable_selling',
+    label: 'Fonction Vendre',
+    fallbackDescription: 'Active ou coupe la publication de nouvelles annonces.'
+  },
+  {
+    key: 'enable_shop_conversion',
+    label: 'Devenir une boutique',
+    fallbackDescription: 'Active ou coupe les demandes de conversion en boutique.'
+  },
+  {
+    key: 'shop_creation_limit_count',
+    label: 'Boutiques créées / période',
+    fallbackDescription: 'Nombre maximum de boutiques pouvant être créées pendant la fenêtre.'
+  },
+  {
+    key: 'shop_creation_limit_period_days',
+    label: 'Période création boutique (jours)',
+    fallbackDescription: 'Durée de la fenêtre utilisée pour limiter les créations de boutiques.'
+  },
+  {
+    key: 'seller_max_product_limit',
+    label: 'Produits max par boutique',
+    fallbackDescription: 'Nombre maximum de produits publiables par une boutique.'
+  },
+  {
+    key: 'user_max_product_limit',
+    label: 'Produits max par utilisateur simple',
+    fallbackDescription: 'Nombre maximum de produits publiables par un compte particulier.'
+  }
+];
+
 const emptyCurrencyForm = {
   code: '',
   symbol: '',
@@ -442,6 +475,13 @@ export default function AdminSystemSettings() {
   const networkRuntimeQuickFlags = useMemo(() => {
     const byKey = new Map((runtimeSettings || []).map((item) => [String(item?.key || ''), item]));
     return NETWORK_RUNTIME_QUICK_FLAGS.map((entry) => ({
+      ...entry,
+      setting: byKey.get(entry.key) || null
+    }));
+  }, [runtimeSettings]);
+  const commerceRuntimeControls = useMemo(() => {
+    const byKey = new Map((runtimeSettings || []).map((item) => [String(item?.key || ''), item]));
+    return COMMERCE_RUNTIME_CONTROLS.map((entry) => ({
       ...entry,
       setting: byKey.get(entry.key) || null
     }));
@@ -1324,6 +1364,84 @@ export default function AdminSystemSettings() {
               <p className="text-sm text-gray-500">Aucun paramètre runtime trouvé.</p>
             ) : (
               <div className="space-y-4">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 dark:border-emerald-900/60 dark:bg-emerald-950/20">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                    Commerce & limites vendeurs
+                  </p>
+                  <p className="mb-3 text-xs text-emerald-700/90 dark:text-emerald-200/90">
+                    Contrôlez la fonction Vendre, Devenir Boutique et les quotas de publication.
+                  </p>
+                  <div className="grid gap-2.5 md:grid-cols-2">
+                    {commerceRuntimeControls.map((entry) => {
+                      const setting = entry.setting;
+                      const key = entry.key;
+                      const isSaving = runtimeSavingKey === key;
+                      const draftValue = runtimeDrafts[key] ?? setting?.value;
+                      return (
+                        <div
+                          key={key}
+                          className="rounded-lg border border-emerald-100 bg-white/75 p-2.5 dark:border-emerald-900/70 dark:bg-neutral-950/40"
+                        >
+                          <div className="mb-2">
+                            <p className="text-xs font-semibold text-slate-900 dark:text-neutral-100">{entry.label}</p>
+                            <p className="text-[11px] text-slate-500 dark:text-neutral-400">
+                              {setting?.description || entry.fallbackDescription}
+                            </p>
+                            <p className="mt-1 text-[10px] text-slate-400 dark:text-neutral-500">
+                              key: <code className="rounded bg-white px-1 py-0.5 dark:bg-neutral-900">{key}</code>
+                            </p>
+                          </div>
+                          {setting ? (
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                              {setting.valueType === 'boolean' ? (
+                                <select
+                                  value={parseBooleanSetting(draftValue) ? 'true' : 'false'}
+                                  onChange={(event) =>
+                                    setRuntimeDrafts((prev) => ({
+                                      ...prev,
+                                      [key]: event.target.value === 'true'
+                                    }))
+                                  }
+                                  className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+                                >
+                                  <option value="true">Activé</option>
+                                  <option value="false">Désactivé</option>
+                                </select>
+                              ) : (
+                                <input
+                                  type="number"
+                                  min={Number.isFinite(Number(setting?.min)) ? Number(setting.min) : 0}
+                                  max={Number.isFinite(Number(setting?.max)) ? Number(setting.max) : undefined}
+                                  value={draftValue ?? 0}
+                                  onChange={(event) =>
+                                    setRuntimeDrafts((prev) => ({
+                                      ...prev,
+                                      [key]: event.target.value
+                                    }))
+                                  }
+                                  className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+                                />
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => saveRuntimeSetting(setting)}
+                                disabled={isSaving}
+                                className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700 disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900/30 dark:text-neutral-200 sm:min-h-9"
+                              >
+                                <Save size={12} />
+                                {isSaving ? '...' : 'Enregistrer'}
+                              </button>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-red-600 dark:text-red-300">
+                              Clé runtime introuvable côté API.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
                 <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 dark:border-indigo-900/60 dark:bg-indigo-950/20">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">
                     Notifications Push

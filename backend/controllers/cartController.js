@@ -16,7 +16,7 @@ import {
 } from '../utils/productAttributes.js';
 
 const productSelectFields =
-  'title price discount priceBeforeDiscount images status category user city country whatsappClicks slug installmentEnabled installmentMinAmount installmentDuration installmentStartDate installmentEndDate installmentRequireGuarantor wholesaleEnabled wholesaleTiers deliveryAvailable pickupAvailable deliveryFee deliveryFeeEnabled attributes physical';
+  'title price discount priceBeforeDiscount images status category user city country whatsappClicks slug installmentEnabled installmentMinAmount installmentDuration installmentStartDate installmentEndDate installmentRequireGuarantor wholesaleEnabled wholesaleTiers warrantyEnabled warrantyPeriodValue warrantyPeriodUnit deliveryAvailable pickupAvailable deliveryFee deliveryFeeEnabled attributes physical';
 
 const getItemProductId = (item) => {
   if (!item) return null;
@@ -138,6 +138,9 @@ const formatCart = (cart) => {
           installmentRequireGuarantor: Boolean(product.installmentRequireGuarantor),
           wholesaleEnabled: Boolean(product.wholesaleEnabled),
           wholesaleTiers: normalizeWholesaleTiers(product.wholesaleTiers),
+          warrantyEnabled: Boolean(product.warrantyEnabled),
+          warrantyPeriodValue: product.warrantyPeriodValue || null,
+          warrantyPeriodUnit: product.warrantyPeriodUnit || 'months',
           deliveryAvailable: product.deliveryAvailable !== false,
           pickupAvailable: product.pickupAvailable !== false,
           deliveryFee: Number(product.deliveryFee || 0),

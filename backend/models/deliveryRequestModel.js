@@ -154,6 +154,9 @@ const deliveryRequestSchema = new mongoose.Schema(
 );
 
 deliveryRequestSchema.index({ status: 1, createdAt: -1 });
+deliveryRequestSchema.index({ assignedDeliveryGuyId: 1, assignmentStatus: 1, updatedAt: -1 });
+deliveryRequestSchema.index({ sellerId: 1, status: 1, createdAt: -1 });
+deliveryRequestSchema.index({ buyerId: 1, status: 1, createdAt: -1 });
 deliveryRequestSchema.index({ 'pickup.communeId': 1, status: 1, createdAt: -1 });
 deliveryRequestSchema.index({ 'dropoff.communeId': 1, status: 1, createdAt: -1 });
 deliveryRequestSchema.index({ 'pickup.cityId': 1, 'dropoff.cityId': 1, createdAt: -1 });

@@ -2,13 +2,45 @@ import React, { useContext, useEffect, useRef, useState } from 'react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useNavigate, Navigate, useLocation, Link } from 'react-router-dom';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import {
+  ArrowRight,
+  Eye,
+  EyeOff,
+  HelpCircle,
+  Loader2,
+  LockKeyhole,
+  MessageCircle,
+  Phone,
+  ShieldCheck,
+  ShoppingBag,
+  Truck
+} from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useAppSettings } from '../context/AppSettingsContext';
-import AuthTrustPanel from '../components/auth/AuthTrustPanel';
 import AuthSuccessCard from '../components/auth/AuthSuccessCard';
 import useAppBrandLogo from '../hooks/useAppBrandLogo';
 
 const SLOW_NETWORK_MS = 8000;
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.07,
+      delayChildren: 0.05
+    }
+  }
+};
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 14 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.42, ease: [0.22, 1, 0.36, 1] }
+  }
+};
 
 const mapLoginErrorMessage = (error, isFrench = true) => {
   const status = Number(error?.response?.status || 0);
@@ -86,12 +118,44 @@ export default function Login() {
     supportLead: isFrench ? 'Besoin d’aide ?' : 'Need help?',
     support: isFrench ? 'Contacter le support' : 'Contact support',
     slowNetwork: isFrench ? 'Réseau lent, veuillez réessayer.' : 'Network is slow, please retry.',
+    sessionLabel: isFrench ? 'Session protégée' : 'Protected session',
+    secureNote: isFrench
+      ? 'Vos commandes, messages et paiements restent liés à votre compte.'
+      : 'Your orders, messages, and payments stay connected to your account.',
+    commerceTitle: isFrench ? 'Votre marché reste à portée de main.' : 'Your market stays within reach.',
+    commerceDescription: isFrench
+      ? 'Retrouvez vos boutiques suivies, vos discussions vendeurs et vos livraisons dans un espace clair.'
+      : 'Access followed shops, seller conversations, and deliveries in one clear workspace.',
+    liveStatus: isFrench ? 'Espace client prêt' : 'Customer space ready',
+    deliveryStatus: isFrench ? 'Livraisons suivies' : 'Tracked deliveries',
+    messageStatus: isFrench ? 'Messages vendeurs' : 'Seller messages',
     successTitle: isFrench ? 'Connexion réussie' : 'Login successful',
     successDescription: isFrench
       ? 'Bon retour. Préparation de votre espace.'
       : 'Welcome back. Preparing your dashboard.',
     successStatus: isFrench ? 'Préparation de votre espace...' : 'Preparing your workspace...'
   };
+
+  const commerceHighlights = [
+    {
+      key: 'orders',
+      label: copy.liveStatus,
+      value: isFrench ? 'Commandes synchronisées' : 'Orders synced',
+      icon: ShoppingBag
+    },
+    {
+      key: 'messages',
+      label: copy.messageStatus,
+      value: isFrench ? 'Réponses rapides' : 'Fast replies',
+      icon: MessageCircle
+    },
+    {
+      key: 'delivery',
+      label: copy.deliveryStatus,
+      value: isFrench ? 'Statuts en direct' : 'Live statuses',
+      icon: Truck
+    }
+  ];
 
   useEffect(() => {
     return () => {
@@ -147,182 +211,259 @@ export default function Login() {
   }
 
   return (
-    <main className="glass-page-shell min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 px-4 py-6 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 sm:py-10">
-      <div className="mx-auto w-full max-w-6xl">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,480px)_minmax(0,1fr)] lg:gap-6">
-          <section className="glass-card relative overflow-hidden rounded-3xl border border-white/65 bg-white/85 p-5 shadow-xl dark:border-slate-700/60 dark:bg-slate-900/80 sm:p-7">
-            <div className="pointer-events-none absolute left-0 right-0 top-0 h-44 -translate-y-1/3 bg-gradient-to-b from-blue-100/70 via-blue-50/50 to-transparent blur-3xl dark:from-blue-800/25 dark:via-blue-900/10" />
-            {!successPayload ? (
-              <>
-                <header className="relative mb-6">
-                  <div className="mb-4 flex justify-center lg:justify-start">
-                    <div className="inline-flex flex-col items-center lg:items-start">
-                      <div className="inline-flex h-20 w-20 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
-                        <img
-                          src={logoSrc}
-                          alt={copy.appBadge}
-                          className={`${isMobile ? 'h-12 w-12' : 'h-14 w-14'} object-contain`}
+    <main className="min-h-screen overflow-hidden bg-[#f6f4ef] px-4 py-4 text-slate-950 dark:bg-[#070707] dark:text-white sm:px-6 lg:px-8">
+      <div className="pointer-events-none fixed inset-x-0 top-0 h-56 bg-[radial-gradient(circle_at_50%_0%,rgba(20,184,166,0.14),transparent_58%)] dark:bg-[radial-gradient(circle_at_50%_0%,rgba(20,184,166,0.18),transparent_62%)]" />
+      <motion.div
+        variants={staggerContainer}
+        initial="hidden"
+        animate="show"
+        className="relative mx-auto flex min-h-[calc(100dvh-2rem)] w-full max-w-6xl flex-col justify-center gap-4"
+      >
+        <motion.nav
+          variants={fadeUp}
+          className="mx-auto flex w-full max-w-5xl items-center justify-between rounded-full border border-black/5 bg-white/72 px-3 py-2 shadow-[0_14px_38px_rgba(15,23,42,0.08)] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.06]"
+        >
+          <Link to="/" className="inline-flex items-center gap-2 rounded-full pr-2 text-sm font-semibold text-slate-950 dark:text-white">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/5 dark:bg-neutral-900 dark:ring-white/10">
+              <img src={logoSrc} alt={copy.appBadge} className="h-7 w-7 object-contain" />
+            </span>
+            {copy.appBadge}
+          </Link>
+          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-100 dark:bg-emerald-400/10 dark:text-emerald-100 dark:ring-emerald-300/15">
+            <ShieldCheck size={14} />
+            {copy.sessionLabel}
+          </span>
+        </motion.nav>
+
+        <div className="mx-auto grid w-full max-w-5xl gap-4 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:items-stretch">
+          <motion.section
+            variants={fadeUp}
+            className="relative overflow-hidden rounded-[24px] border border-black/5 bg-white/82 p-5 shadow-[0_24px_70px_rgba(20,20,20,0.10)] backdrop-blur-2xl dark:border-white/10 dark:bg-neutral-950/76 sm:p-7"
+          >
+            <AnimatePresence mode="wait">
+              {!successPayload ? (
+                <motion.div
+                  key="login-form"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.28 }}
+                >
+                  <header className="mb-7">
+                    <div className="mb-5 inline-flex h-16 w-16 items-center justify-center rounded-[20px] bg-[#111111] shadow-[0_18px_44px_rgba(0,0,0,0.18)] dark:bg-white">
+                      <img
+                        src={logoSrc}
+                        alt={copy.appBadge}
+                        className={`${isMobile ? 'h-10 w-10' : 'h-11 w-11'} object-contain`}
+                      />
+                    </div>
+                    <h1 className="text-[2rem] font-semibold leading-[1.05] tracking-tight text-slate-950 dark:text-white sm:text-[2.55rem]">
+                      {copy.title}
+                    </h1>
+                    <p className="mt-3 max-w-sm text-[15px] leading-6 text-slate-600 dark:text-neutral-300">
+                      {copy.subtitle}
+                    </p>
+                  </header>
+
+                  <form onSubmit={submit} className="space-y-4">
+                    {error ? (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="rounded-[18px] border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-400/20 dark:bg-red-500/10 dark:text-red-100"
+                        role="alert"
+                      >
+                        {error}
+                      </motion.div>
+                    ) : null}
+
+                    <div className="space-y-2">
+                      <label htmlFor="login-identifier" className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-neutral-400">
+                        {copy.identifierLabel}
+                      </label>
+                      <div className="relative">
+                        <Phone className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-neutral-500" />
+                        <input
+                          id="login-identifier"
+                          ref={identifierRef}
+                          type="text"
+                          autoComplete="username"
+                          inputMode="email"
+                          className="ui-input min-h-[54px] rounded-[18px] border-slate-200 bg-white/95 px-11 text-[15px] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition focus:scale-[1.005] dark:border-white/10 dark:bg-white/[0.04]"
+                          placeholder={copy.identifierPlaceholder}
+                          value={form.phone}
+                          onChange={(e) => {
+                            setForm((prev) => ({ ...prev, phone: e.target.value }));
+                            setError('');
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              passwordRef.current?.focus();
+                            }
+                          }}
+                          required
                         />
                       </div>
                     </div>
-                  </div>
-                  <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
-                    {copy.title}
-                  </h1>
-                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                    {copy.subtitle}
-                  </p>
-                </header>
 
-                <form onSubmit={submit} className="space-y-4">
-                  {error ? (
-                    <div className="soft-card soft-card-red rounded-2xl px-3 py-2.5 text-sm text-red-700 dark:text-red-100" role="alert">
-                      {error}
+                    <div className="space-y-2">
+                      <label htmlFor="login-password" className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-neutral-400">
+                        {copy.passwordLabel}
+                      </label>
+                      <div className="relative">
+                        <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-neutral-500" />
+                        <input
+                          id="login-password"
+                          ref={passwordRef}
+                          type={showPassword ? 'text' : 'password'}
+                          autoComplete="current-password"
+                          className="ui-input min-h-[54px] w-full rounded-[18px] border-slate-200 bg-white/95 px-11 pr-12 text-[15px] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition focus:scale-[1.005] dark:border-white/10 dark:bg-white/[0.04]"
+                          placeholder={copy.passwordPlaceholder}
+                          value={form.password}
+                          onChange={(e) => {
+                            setForm((prev) => ({ ...prev, password: e.target.value }));
+                            setError('');
+                          }}
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword((prev) => !prev)}
+                          className="absolute right-2 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-[14px] text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 active:scale-95 dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white"
+                          aria-label={showPassword ? copy.hidePassword : copy.showPassword}
+                        >
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
                     </div>
-                  ) : null}
 
-                  <div className="space-y-1.5">
-                    <label htmlFor="login-identifier" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                      {copy.identifierLabel}
-                    </label>
-                    <input
-                      id="login-identifier"
-                      ref={identifierRef}
-                      type="text"
-                      autoComplete="username"
-                      inputMode="email"
-                      className="ui-input min-h-[48px] rounded-xl px-3 text-sm"
-                      placeholder={copy.identifierPlaceholder}
-                      value={form.phone}
-                      onChange={(e) => {
-                        setForm((prev) => ({ ...prev, phone: e.target.value }));
-                        setError('');
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          passwordRef.current?.focus();
-                        }
-                      }}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label htmlFor="login-password" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                      {copy.passwordLabel}
-                    </label>
-                    <div className="relative">
-                      <input
-                        id="login-password"
-                        ref={passwordRef}
-                        type={showPassword ? 'text' : 'password'}
-                        autoComplete="current-password"
-                        className="ui-input min-h-[48px] w-full rounded-xl px-3 pr-12 text-sm"
-                        placeholder={copy.passwordPlaceholder}
-                        value={form.password}
-                        onChange={(e) => {
-                          setForm((prev) => ({ ...prev, password: e.target.value }));
-                          setError('');
-                        }}
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((prev) => !prev)}
-                        className="absolute right-1.5 top-1.5 inline-flex h-9 w-9 items-center justify-center rounded-lg glass-card text-slate-600 dark:text-slate-200"
-                        aria-label={showPassword ? copy.hidePassword : copy.showPassword}
-                      >
-                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
+                    <div className="flex items-center justify-between gap-3 pt-1">
+                      <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-neutral-300">
+                        <input
+                          type="checkbox"
+                          checked={rememberMe}
+                          onChange={(e) => setRememberMe(e.target.checked)}
+                          className="h-4 w-4 rounded border-slate-300 accent-slate-950 dark:border-neutral-700 dark:accent-white"
+                        />
+                        {copy.rememberMe}
+                      </label>
+                      <Link to="/forgot-password" className="text-sm font-semibold text-slate-900 transition hover:text-emerald-700 dark:text-white dark:hover:text-emerald-200">
+                        {copy.forgotPassword}
+                      </Link>
                     </div>
-                  </div>
 
-                  <div className="flex items-center justify-between gap-3">
-                    <label className="inline-flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
-                      <input
-                        type="checkbox"
-                        checked={rememberMe}
-                        onChange={(e) => setRememberMe(e.target.checked)}
-                        className="h-4 w-4 rounded border-slate-300"
-                      />
-                      {copy.rememberMe}
-                    </label>
-                    <Link to="/forgot-password" className="text-xs font-semibold text-slate-700 hover:underline dark:text-slate-100">
-                      {copy.forgotPassword}
-                    </Link>
-                  </div>
+                    <motion.button
+                      type="submit"
+                      disabled={loading || !form.phone.trim() || !form.password.trim()}
+                      whileTap={{ scale: 0.985 }}
+                      className="group inline-flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[18px] bg-slate-950 px-4 text-[15px] font-semibold text-white shadow-[0_18px_34px_rgba(15,23,42,0.22)] transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-55 dark:bg-white dark:text-slate-950 dark:hover:bg-neutral-100"
+                    >
+                      {loading ? <Loader2 size={17} className="animate-spin" /> : null}
+                      {loading ? copy.submitting : copy.submit}
+                      {!loading ? <ArrowRight size={17} className="transition group-hover:translate-x-0.5" /> : null}
+                    </motion.button>
 
-                  <button
-                    type="submit"
-                    disabled={loading || !form.phone.trim() || !form.password.trim()}
-                    className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-t from-blue-600 via-blue-500 to-blue-400 px-4 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:from-blue-700 hover:via-blue-600 hover:to-blue-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {loading ? <Loader2 size={16} className="animate-spin" /> : null}
-                    {loading ? copy.submitting : copy.submit}
-                  </button>
+                    {slowNetwork && loading ? (
+                      <p className="rounded-full bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 dark:bg-amber-400/10 dark:text-amber-100">
+                        {copy.slowNetwork}
+                      </p>
+                    ) : null}
+                  </form>
 
-                  {slowNetwork && loading ? (
-                    <p className="text-xs text-amber-700 dark:text-amber-200">
-                      {copy.slowNetwork}
+                  <footer className="mt-6 grid gap-2 border-t border-slate-200/70 pt-5 text-sm text-slate-600 dark:border-white/10 dark:text-neutral-300">
+                    <p>
+                      {copy.noAccount}{' '}
+                      <Link to="/register" className="font-semibold text-slate-950 transition hover:text-emerald-700 dark:text-white dark:hover:text-emerald-200">
+                        {copy.createAccount}
+                      </Link>
                     </p>
-                  ) : null}
-                </form>
+                    <p className="inline-flex items-center gap-1.5">
+                      <HelpCircle size={15} />
+                      {copy.supportLead}{' '}
+                      <Link to="/help" className="font-semibold text-slate-950 transition hover:text-emerald-700 dark:text-white dark:hover:text-emerald-200">
+                        {copy.support}
+                      </Link>
+                    </p>
+                  </footer>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="login-success"
+                  initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.28 }}
+                  className="flex min-h-[420px] items-center"
+                >
+                  <AuthSuccessCard
+                    variant="login"
+                    loading={finalizing || loading}
+                    title={copy.successTitle}
+                    description={copy.successDescription}
+                    statusText={copy.successStatus}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.section>
 
-                <div className="my-5 flex items-center gap-3 text-xs text-slate-500 dark:text-slate-300">
-                  <span className="h-px flex-1 bg-white/45 dark:bg-slate-700" />
-                  <span>{copy.divider}</span>
-                  <span className="h-px flex-1 bg-white/45 dark:bg-slate-700" />
+          <motion.aside
+            variants={fadeUp}
+            className="relative hidden overflow-hidden rounded-[28px] border border-black/5 bg-[#111111] p-7 text-white shadow-[0_30px_80px_rgba(0,0,0,0.22)] dark:border-white/10 lg:block"
+          >
+            <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+            <div className="absolute bottom-0 right-0 h-72 w-72 rounded-full bg-emerald-300/10 blur-3xl" />
+            <div className="relative flex h-full min-h-[590px] flex-col justify-between">
+              <div>
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-xs font-semibold text-white/82 ring-1 ring-white/10">
+                  <ShieldCheck size={14} />
+                  {copy.secureNote}
+                </span>
+                <h2 className="mt-8 max-w-md text-4xl font-semibold leading-[1.04] tracking-tight">
+                  {copy.commerceTitle}
+                </h2>
+                <p className="mt-4 max-w-md text-[15px] leading-6 text-white/66">
+                  {copy.commerceDescription}
+                </p>
+              </div>
+
+              <div className="relative mt-10 rounded-[26px] border border-white/10 bg-white/[0.07] p-4 shadow-2xl backdrop-blur-xl">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/42">HDMarket</p>
+                    <p className="mt-1 text-lg font-semibold text-white">{copy.liveStatus}</p>
+                  </div>
+                  <span className="h-3 w-3 rounded-full bg-emerald-300 shadow-[0_0_0_6px_rgba(110,231,183,0.12)]" />
                 </div>
 
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    disabled
-                    className="glass-card inline-flex min-h-[48px] items-center justify-center rounded-xl px-4 text-sm font-semibold text-slate-500 opacity-80"
-                  >
-                    {copy.google}
-                  </button>
-                  <button
-                    type="button"
-                    disabled
-                    className="glass-card inline-flex min-h-[48px] items-center justify-center rounded-xl px-4 text-sm font-semibold text-slate-500 opacity-80"
-                  >
-                    {copy.apple}
-                  </button>
+                <div className="space-y-3">
+                  {commerceHighlights.map((item, index) => {
+                    const Icon = item.icon;
+                    return (
+                      <motion.div
+                        key={item.key}
+                        initial={{ opacity: 0, x: 12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.16 + index * 0.08, duration: 0.32 }}
+                        className="flex items-center gap-3 rounded-[20px] border border-white/10 bg-white/[0.075] p-3"
+                      >
+                        <span className="inline-flex h-11 w-11 items-center justify-center rounded-[16px] bg-white text-slate-950">
+                          <Icon size={19} />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-white">{item.label}</p>
+                          <p className="mt-0.5 text-xs text-white/52">{item.value}</p>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
-
-                <footer className="mt-6 border-t border-white/35 pt-4 text-sm text-slate-600 dark:text-slate-300">
-                  <p>
-                    {copy.noAccount}{' '}
-                    <Link to="/register" className="font-semibold text-slate-800 hover:underline dark:text-white">
-                      {copy.createAccount}
-                    </Link>
-                  </p>
-                  <p className="mt-2">
-                    {copy.supportLead}{' '}
-                    <Link to="/help" className="font-semibold text-slate-800 hover:underline dark:text-white">
-                      {copy.support}
-                    </Link>
-                  </p>
-                </footer>
-              </>
-            ) : (
-              <AuthSuccessCard
-                variant="login"
-                loading={finalizing || loading}
-                title={copy.successTitle}
-                description={copy.successDescription}
-                statusText={copy.successStatus}
-              />
-            )}
-
-            {!successPayload ? <AuthTrustPanel compact /> : null}
-          </section>
-
-          <AuthTrustPanel />
+              </div>
+            </div>
+          </motion.aside>
         </div>
-      </div>
+      </motion.div>
     </main>
   );
 }

@@ -100,10 +100,17 @@ export const createPayment = asyncHandler(async (req, res) => {
 
   const paymentPayload = {
     user: req.user.id,
+    buyer: req.user.id,
+    seller: req.user.id,
     product: product._id,
     payerName: hasCommissionDue ? payerName : 'PROMO_WAIVER',
+    payerPhoneNumber: '',
     transactionNumber: hasCommissionDue ? normalizedTransaction : '0000000000',
+    transactionId: hasCommissionDue ? normalizedTransaction : undefined,
     amount: received,
+    expectedAmount: Number(commission.dueAmount || 0),
+    amountPaid: received,
+    currency: 'XAF',
     commissionBaseAmount: Number(commission.baseAmount || 0),
     commissionDiscountAmount: Number(commission.discountAmount || 0),
     commissionDueAmount: Number(commission.dueAmount || 0),
@@ -112,6 +119,8 @@ export const createPayment = asyncHandler(async (req, res) => {
     promoDiscountType: promoPreview?.promo?.discountType || null,
     promoDiscountValue: Number(promoPreview?.promo?.discountValue || 0),
     operator: hasCommissionDue ? operator : 'Other',
+    paymentType: 'LISTING_FEE',
+    verificationMethod: 'MANUAL',
     status: 'waiting'
   };
 
@@ -297,6 +306,8 @@ export const verifyPayment = asyncHandler(async (req, res) => {
   payment.status = 'verified';
   payment.validatedBy = req.user.id;
   payment.validatedAt = new Date();
+  payment.verifiedBy = req.user.id;
+  payment.verifiedAt = payment.validatedAt;
   await payment.save();
 
   const product = await Product.findById(payment.product._id);
@@ -336,6 +347,8 @@ export const rejectPayment = asyncHandler(async (req, res) => {
   payment.status = 'rejected';
   payment.validatedBy = req.user.id;
   payment.validatedAt = new Date();
+  payment.rejectedBy = req.user.id;
+  payment.rejectedAt = payment.validatedAt;
   await payment.save();
 
   const product = await Product.findById(payment.product._id);

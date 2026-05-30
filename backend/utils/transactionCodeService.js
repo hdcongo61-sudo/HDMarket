@@ -10,9 +10,17 @@ export const normalizeTransactionCode = (value) => String(value || '').replace(/
 export const isTransactionCodeValid = (value) => TRANSACTION_CODE_REGEX.test(normalizeTransactionCode(value));
 
 const collectDistinctCodes = async (codes) => {
-  const [paymentCodes, conversionCodes, boostCodes, orderPaymentCodes, installmentCodes] =
+  const [
+    paymentCodes,
+    paymentTransactionIds,
+    conversionCodes,
+    boostCodes,
+    orderPaymentCodes,
+    installmentCodes
+  ] =
     await Promise.all([
       Payment.distinct('transactionNumber', { transactionNumber: { $in: codes } }),
+      Payment.distinct('transactionId', { transactionId: { $in: codes } }),
       ShopConversionRequest.distinct('transactionNumber', { transactionNumber: { $in: codes } }),
       BoostRequest.distinct('paymentTransactionId', { paymentTransactionId: { $in: codes } }),
       Order.distinct('paymentTransactionCode', { paymentTransactionCode: { $in: codes } }),
@@ -23,6 +31,7 @@ const collectDistinctCodes = async (codes) => {
 
   return [
     ...(Array.isArray(paymentCodes) ? paymentCodes : []),
+    ...(Array.isArray(paymentTransactionIds) ? paymentTransactionIds : []),
     ...(Array.isArray(conversionCodes) ? conversionCodes : []),
     ...(Array.isArray(boostCodes) ? boostCodes : []),
     ...(Array.isArray(orderPaymentCodes) ? orderPaymentCodes : []),

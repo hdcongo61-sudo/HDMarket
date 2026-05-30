@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { lazy, Suspense, useContext, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import api, { abortPendingRequests } from './services/api';
@@ -6,92 +6,94 @@ import Navbar from './components/Navbar';
 import SplashScreen from './components/SplashScreen';
 import AppLoader from './components/AppLoader';
 import NetworkStatusBanner from './components/NetworkStatusBanner';
-import Footer from './components/Footer';
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import ForgotPassword from './pages/ForgotPassword';
-import UserDashboard from './pages/UserDashboard';
-import MyListingDetail from './pages/MyListingDetail';
-import AdminDashboard from './pages/AdminDashboard';
-import AdminPayments from './pages/AdminPayments';
-import AdminUsers from './pages/AdminUsers';
-import AdminOrders from './pages/AdminOrders';
-import AdminDeliveryGuys from './pages/AdminDeliveryGuys';
-import AdminDeliveryRequests from './pages/AdminDeliveryRequests';
-import CourierDashboard from './pages/CourierDashboard';
-import DeliveryAssignmentDetail from './pages/delivery/DeliveryAssignmentDetail';
-import DeliveryHistory from './pages/delivery/DeliveryHistory';
-import DeliveryProfile from './pages/delivery/DeliveryProfile';
-import TopDeals from './pages/TopDeals';
-import TopRanking from './pages/TopRanking';
-import TopFavorites from './pages/TopFavorites';
-import TopSales from './pages/TopSales';
-import TopDiscounts from './pages/TopDiscounts';
-import TopNewProducts from './pages/TopNewProducts';
-import TopUsedProducts from './pages/TopUsedProducts';
-import CategoryProducts from './pages/CategoryProducts';
-import Products from './pages/Products';
-import CityProducts from './pages/CityProducts';
 import ProtectedRoute from './components/ProtectedRoute';
-import ProductDetails from './pages/ProductDetails';
-import ProductPreview from './pages/ProductPreview';
-import EditProduct from './pages/EditProduct';
-import Cart from './pages/Cart';
-import Profile from './pages/Profile';
-import MyComplaints from './pages/MyComplaints';
-import MyFeedback from './pages/MyFeedback';
-import Notifications from './pages/Notifications';
-import Favorites from './pages/Favorites';
-import ShopProfile from './pages/ShopProfile';
-import HelpCenter from './pages/HelpCenter';
-import UserSettings from './pages/UserSettings';
-import VerifiedShops from './pages/VerifiedShops';
-import FreeDeliveryShops from './pages/FreeDeliveryShops';
-import UserStats from './pages/UserStats';
-import UserOrders from './pages/UserOrders';
-import OrderDetail from './pages/OrderDetail';
-import SellerOrders from './pages/SellerOrders';
-import SellerOrderDetail from './pages/SellerOrderDetail';
-import SellerDisputes from './pages/SellerDisputes';
-import SellerBoosts from './pages/SellerBoosts';
-import OrderCheckout from './pages/OrderCheckout';
-import DraftOrders from './pages/DraftOrders';
 import usePreventNewTabOnMobile from './hooks/usePreventNewTabOnMobile';
 import ScrollToTop from './components/ScrollToTop';
-import ChatBox from './components/ChatBox';
-import AdminChatTemplates from './pages/AdminChatTemplates';
-import AdminProductBoosts from './pages/AdminProductBoosts';
-import AdminProducts from './pages/AdminProducts';
-import AdminFeedback from './pages/AdminFeedback';
-import AdminUserStats from './pages/AdminUserStats';
-import AdminPaymentVerifiers from './pages/AdminPaymentVerifiers';
-import PaymentVerification from './pages/PaymentVerification';
-import AdminReports from './pages/AdminReports';
-import AdminAppSettings from './pages/AdminAppSettings';
-import AdminSystemSettings from './pages/AdminSystemSettings';
-import AdminComplaints from './pages/AdminComplaints';
-import AdminPromoCodes from './pages/AdminPromoCodes';
-import AdminTaskCenter from './pages/AdminTaskCenter';
-import AdminBoostManagement from './pages/AdminBoostManagement';
-import SettingsCategoriesPage from './pages/SettingsCategoriesPage';
-import AdminLayout from './components/AdminLayout';
-import FounderIntelligence from './pages/FounderIntelligence';
-import FounderAccountControl from './pages/FounderAccountControl';
-import FounderNotificationsIntelligence from './pages/FounderNotificationsIntelligence';
-import CertifiedProducts from './pages/CertifiedProducts';
-import Suggestions from './pages/Suggestions';
-import AdvancedSearch from './pages/AdvancedSearch';
-import OrderMessages from './pages/OrderMessages';
-import PushNotificationsManager from './components/PushNotificationsManager';
 import AnalyticsTracker from './components/AnalyticsTracker';
-import ShopConversionRequest from './pages/ShopConversionRequest';
 import PendingActionHandler from './components/PendingActionHandler';
 import { useAppSettings } from './context/AppSettingsContext';
 import AuthContext from './context/AuthContext';
 import { ShopProfileLoadProvider, useShopProfileLoad } from './context/ShopProfileLoadContext';
 import { hasAnyPermission } from './utils/permissions';
 import { queryClient } from './lib/queryClient';
+
+const Home = lazy(() => import('./pages/Home'));
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const UserDashboard = lazy(() => import('./pages/UserDashboard'));
+const MyListingDetail = lazy(() => import('./pages/MyListingDetail'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AdminPayments = lazy(() => import('./pages/AdminPayments'));
+const AdminUsers = lazy(() => import('./pages/AdminUsers'));
+const AdminOrders = lazy(() => import('./pages/AdminOrders'));
+const AdminDeliveryGuys = lazy(() => import('./pages/AdminDeliveryGuys'));
+const AdminDeliveryRequests = lazy(() => import('./pages/AdminDeliveryRequests'));
+const CourierDashboard = lazy(() => import('./pages/CourierDashboard'));
+const DeliveryAssignmentDetail = lazy(() => import('./pages/delivery/DeliveryAssignmentDetail'));
+const DeliveryHistory = lazy(() => import('./pages/delivery/DeliveryHistory'));
+const DeliveryProfile = lazy(() => import('./pages/delivery/DeliveryProfile'));
+const TopDeals = lazy(() => import('./pages/TopDeals'));
+const TopRanking = lazy(() => import('./pages/TopRanking'));
+const TopFavorites = lazy(() => import('./pages/TopFavorites'));
+const TopSales = lazy(() => import('./pages/TopSales'));
+const TopDiscounts = lazy(() => import('./pages/TopDiscounts'));
+const TopNewProducts = lazy(() => import('./pages/TopNewProducts'));
+const TopUsedProducts = lazy(() => import('./pages/TopUsedProducts'));
+const CategoryProducts = lazy(() => import('./pages/CategoryProducts'));
+const Products = lazy(() => import('./pages/Products'));
+const CityProducts = lazy(() => import('./pages/CityProducts'));
+const ProductDetails = lazy(() => import('./pages/ProductDetails'));
+const ProductPreview = lazy(() => import('./pages/ProductPreview'));
+const EditProduct = lazy(() => import('./pages/EditProduct'));
+const Cart = lazy(() => import('./pages/Cart'));
+const Profile = lazy(() => import('./pages/Profile'));
+const MyComplaints = lazy(() => import('./pages/MyComplaints'));
+const MyFeedback = lazy(() => import('./pages/MyFeedback'));
+const Notifications = lazy(() => import('./pages/Notifications'));
+const Favorites = lazy(() => import('./pages/Favorites'));
+const ShopProfile = lazy(() => import('./pages/ShopProfile'));
+const HelpCenter = lazy(() => import('./pages/HelpCenter'));
+const UserSettings = lazy(() => import('./pages/UserSettings'));
+const VerifiedShops = lazy(() => import('./pages/VerifiedShops'));
+const FreeDeliveryShops = lazy(() => import('./pages/FreeDeliveryShops'));
+const UserStats = lazy(() => import('./pages/UserStats'));
+const UserOrders = lazy(() => import('./pages/UserOrders'));
+const OrderDetail = lazy(() => import('./pages/OrderDetail'));
+const OrderReview = lazy(() => import('./pages/OrderReview'));
+const SellerOrders = lazy(() => import('./pages/SellerOrders'));
+const SellerOrderDetail = lazy(() => import('./pages/SellerOrderDetail'));
+const SellerDisputes = lazy(() => import('./pages/SellerDisputes'));
+const SellerBoosts = lazy(() => import('./pages/SellerBoosts'));
+const OrderCheckout = lazy(() => import('./pages/OrderCheckout'));
+const DraftOrders = lazy(() => import('./pages/DraftOrders'));
+const AdminChatTemplates = lazy(() => import('./pages/AdminChatTemplates'));
+const AdminProductBoosts = lazy(() => import('./pages/AdminProductBoosts'));
+const AdminProducts = lazy(() => import('./pages/AdminProducts'));
+const AdminFeedback = lazy(() => import('./pages/AdminFeedback'));
+const AdminUserStats = lazy(() => import('./pages/AdminUserStats'));
+const AdminPaymentVerifiers = lazy(() => import('./pages/AdminPaymentVerifiers'));
+const PaymentVerification = lazy(() => import('./pages/PaymentVerification'));
+const AdminReports = lazy(() => import('./pages/AdminReports'));
+const AdminAppSettings = lazy(() => import('./pages/AdminAppSettings'));
+const AdminSystemSettings = lazy(() => import('./pages/AdminSystemSettings'));
+const AdminComplaints = lazy(() => import('./pages/AdminComplaints'));
+const AdminPromoCodes = lazy(() => import('./pages/AdminPromoCodes'));
+const AdminTaskCenter = lazy(() => import('./pages/AdminTaskCenter'));
+const AdminBoostManagement = lazy(() => import('./pages/AdminBoostManagement'));
+const SettingsCategoriesPage = lazy(() => import('./pages/SettingsCategoriesPage'));
+const AdminLayout = lazy(() => import('./components/AdminLayout'));
+const FounderIntelligence = lazy(() => import('./pages/FounderIntelligence'));
+const FounderAccountControl = lazy(() => import('./pages/FounderAccountControl'));
+const FounderNotificationsIntelligence = lazy(() => import('./pages/FounderNotificationsIntelligence'));
+const CertifiedProducts = lazy(() => import('./pages/CertifiedProducts'));
+const Suggestions = lazy(() => import('./pages/Suggestions'));
+const AdvancedSearch = lazy(() => import('./pages/AdvancedSearch'));
+const OrderMessages = lazy(() => import('./pages/OrderMessages'));
+const ShopConversionRequest = lazy(() => import('./pages/ShopConversionRequest'));
+const Footer = lazy(() => import('./components/Footer'));
+const ChatBox = lazy(() => import('./components/ChatBox'));
+const PushNotificationsManager = lazy(() => import('./components/PushNotificationsManager'));
 
 const LAST_ADMIN_ROUTE_KEY = 'hdmarket:last-admin-route';
 const LAST_COURIER_ROUTE_KEY = 'hdmarket:last-courier-route';
@@ -193,6 +195,13 @@ function LegacyOrderRouteResolver() {
 
   // Keep legacy status links working: /order/:status -> /orders/:status
   return <Navigate to={`/orders/${value.toLowerCase()}`} replace />;
+}
+
+function LegacyOrderReviewRedirect() {
+  const { orderId = '' } = useParams();
+  const targetId = String(orderId || '').trim();
+  if (!targetId) return <Navigate to="/orders" replace />;
+  return <Navigate to={`/orders/${encodeURIComponent(targetId)}/review`} replace />;
 }
 
 function AdminIndexRedirect() {
@@ -460,13 +469,15 @@ function AppContent() {
           }
         }}
       />
-      <PushNotificationsManager />
+      <Suspense fallback={null}>
+        <PushNotificationsManager />
+      </Suspense>
       <AnalyticsTracker />
       <ScrollToTop />
       {!isCourierRoute ? <Navbar /> : null}
       <NetworkStatusBanner />
       <main
-        className="pt-20 sm:pt-24 md:pt-32 pb-24 md:pb-0 main-content mobile-nav-safe no-ios-callout"
+        className="app-main-shell pt-20 sm:pt-24 md:pt-32 pb-24 md:pb-0 main-content mobile-nav-safe no-ios-callout"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 5rem)' }}
       >
         <AnimatePresence mode="wait" initial={false}>
@@ -477,6 +488,13 @@ function AppContent() {
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
           >
+        <Suspense
+          fallback={
+            <div className="mx-auto max-w-7xl px-4 py-6">
+              <div className="h-28 animate-pulse rounded-3xl bg-neutral-100 dark:bg-neutral-900" />
+            </div>
+          }
+        >
         <Routes location={location}>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
@@ -765,10 +783,26 @@ function AppContent() {
             }
           />
           <Route
+            path="/orders/:orderId/review"
+            element={
+              <ProtectedRoute>
+                <OrderReview />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/orders/detail/:orderId"
             element={
               <ProtectedRoute>
                 <OrderDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/order/:orderId/review"
+            element={
+              <ProtectedRoute>
+                <LegacyOrderReviewRedirect />
               </ProtectedRoute>
             }
           />
@@ -1085,11 +1119,20 @@ function AppContent() {
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
           </motion.div>
         </AnimatePresence>
       </main>
-      {!isCourierRoute ? <Footer /> : null}
-      {!isCourierRoute && chatEnabled ? <ChatBox /> : null}
+      {!isCourierRoute ? (
+        <Suspense fallback={null}>
+          <Footer />
+        </Suspense>
+      ) : null}
+      {!isCourierRoute && chatEnabled ? (
+        <Suspense fallback={null}>
+          <ChatBox />
+        </Suspense>
+      ) : null}
     </>
   );
 }

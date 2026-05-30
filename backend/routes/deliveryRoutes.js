@@ -3,6 +3,7 @@ import { protect } from '../middlewares/authMiddleware.js';
 import { requireAnyPermission } from '../middlewares/roleMiddleware.js';
 import { validate, schemas } from '../middlewares/validate.js';
 import { deliveryProofUpload } from '../utils/deliveryProofUpload.js';
+import { idempotencyMiddleware } from '../middlewares/idempotencyMiddleware.js';
 import {
   getCourierModeBootstrap,
   listCourierAssignments,
@@ -18,6 +19,7 @@ import {
 } from '../controllers/courierDeliveryController.js';
 
 const router = express.Router();
+const deliveryMutationIdempotency = idempotencyMiddleware({ ttlMs: 10 * 60 * 1000 });
 const requireCourierAccess = requireAnyPermission([
   'courier_view_assignments',
   'courier_accept_assignment',
@@ -43,13 +45,14 @@ router.get(
   listCourierAssignments
 );
 router.get('/jobs/:id', protect, requireCourierAccess, validate(schemas.idParam, 'params'), getCourierAssignmentById);
-router.patch('/jobs/:id/accept', protect, requireCourierAccess, validate(schemas.idParam, 'params'), acceptCourierAssignment);
+router.patch('/jobs/:id/accept', protect, requireCourierAccess, validate(schemas.idParam, 'params'), deliveryMutationIdempotency, acceptCourierAssignment);
 router.patch(
   '/jobs/:id/reject',
   protect,
   requireCourierAccess,
   validate(schemas.idParam, 'params'),
   validate(schemas.courierAssignmentReject),
+  deliveryMutationIdempotency,
   rejectCourierAssignment
 );
 router.patch(
@@ -59,6 +62,7 @@ router.patch(
   validate(schemas.idParam, 'params'),
   forceStage('PICKED_UP'),
   validate(schemas.courierAssignmentStage),
+  deliveryMutationIdempotency,
   updateCourierAssignmentStage
 );
 router.patch(
@@ -68,6 +72,7 @@ router.patch(
   validate(schemas.idParam, 'params'),
   forceStage('IN_TRANSIT'),
   validate(schemas.courierAssignmentStage),
+  deliveryMutationIdempotency,
   updateCourierAssignmentStage
 );
 router.patch(
@@ -77,6 +82,7 @@ router.patch(
   validate(schemas.idParam, 'params'),
   forceStage('DELIVERED'),
   validate(schemas.courierAssignmentStage),
+  deliveryMutationIdempotency,
   updateCourierAssignmentStage
 );
 router.patch(
@@ -86,6 +92,7 @@ router.patch(
   validate(schemas.idParam, 'params'),
   forceStage('FAILED'),
   validate(schemas.courierAssignmentStage),
+  deliveryMutationIdempotency,
   updateCourierAssignmentStage
 );
 router.patch(
@@ -94,6 +101,7 @@ router.patch(
   requireCourierAccess,
   validate(schemas.idParam, 'params'),
   validate(schemas.courierAssignmentStage),
+  deliveryMutationIdempotency,
   updateCourierAssignmentStage
 );
 router.post(
@@ -106,9 +114,10 @@ router.post(
     { name: 'signatureFile', maxCount: 1 }
   ]),
   validate(schemas.courierAssignmentProof),
+  deliveryMutationIdempotency,
   uploadCourierProof
 );
 router.post('/location/ping', protect, requireCourierAccess, validate(schemas.deliveryLocationPing), pingDeliveryAgentLocation);
-router.post('/logout-event', protect, requireCourierAccess, logDeliveryAgentLogout);
+router.post('/logout-event', protect, requireCourierAccess, deliveryMutationIdempotency, logDeliveryAgentLogout);
 
 export default router;

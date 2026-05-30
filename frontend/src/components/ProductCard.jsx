@@ -15,6 +15,8 @@ import useIsMobile from '../hooks/useIsMobile';
 import { useAppSettings } from '../context/AppSettingsContext';
 import ImagePreviewModal from './media/ImagePreviewModal';
 import useNetworkProfile from '../hooks/useNetworkProfile';
+import { trackEvent } from '../services/analytics';
+import { getProductCardImageUrl, getProductCardSrcSet } from '../utils/productImageUrl';
 
 /**
  * 🎨 PRODUCT CARD PREMIUM HDMarket
@@ -30,7 +32,9 @@ function ProductCard({
   productLink,
   onProductClick,
   compactMobile = false,
-  shopProfileCompact = false
+  shopProfileCompact = false,
+  categoryListing = false,
+  viewMode = 'grid'
 }) {
   const { user } = useContext(AuthContext);
   const { formatPrice, getRuntimeValue } = useAppSettings();
@@ -53,12 +57,15 @@ function ProductCard({
   const longPressTimerRef = useRef(null);
   const longPressTriggeredRef = useRef(false);
   const pointerStartRef = useRef({ x: 0, y: 0 });
+  const cardRef = useRef(null);
+  const impressionTrackedRef = useRef(false);
   const isMobile = useIsMobile();
   const { rapid3GActive } = useNetworkProfile();
   // ShopProfile already decides when compact mode must be enforced.
   const useCompactMobile = Boolean(compactMobile);
   const isShopProfileCompact = Boolean(useCompactMobile && shopProfileCompact);
   const useLiteImageMode = Boolean(rapid3GActive);
+  const isListCard = viewMode === 'list';
   
   const inCart = Boolean(user && cart?.items?.some((item) => item.product?._id === p._id));
   const { toggleFavorite, isFavorite } = useContext(FavoriteContext);
@@ -97,44 +104,6 @@ function ProductCard({
     : useCompactMobile
     ? `ui-media-frame relative overflow-hidden aspect-[4/3] ${hasMultipleImages ? 'touch-pan-y' : ''}`
     : `ui-media-frame ui-media-frame-square relative overflow-hidden ${hasMultipleImages ? 'touch-pan-y' : ''}`;
-
-  // Preload only the first images so large grids stay responsive.
-  useEffect(() => {
-    const preloadImage = (src, index) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous'; // Handle CORS if needed
-
-      img.onload = () => {
-        setImagesLoaded((prev) => {
-          // Only update if not already loaded to prevent unnecessary re-renders
-          if (prev[index] === true) return prev;
-          return { ...prev, [index]: true };
-        });
-      };
-
-      img.onerror = () => {
-        setImagesLoaded((prev) => {
-          if (prev[index] === false) return prev;
-          return { ...prev, [index]: false };
-        });
-      };
-
-      img.src = src;
-    };
-
-    const imagesToPreload = productImages.slice(0, useLiteImageMode ? 1 : 2);
-    imagesToPreload.forEach((image, index) => {
-      if (image && image !== 'https://via.placeholder.com/400x400') {
-        preloadImage(image, index);
-      } else {
-        // Mark placeholder as loaded
-        setImagesLoaded((prev) => {
-          if (prev[index] === true) return prev;
-          return { ...prev, [index]: true };
-        });
-      }
-    });
-  }, [productImages, p.title, useLiteImageMode]);
 
   // Navigate to next/previous image
   const goToNextImage = useCallback(() => {
@@ -388,6 +357,44 @@ function ProductCard({
     if (!p?.activeBoostRequestId) return;
     api.post(`/boosts/requests/${p.activeBoostRequestId}/click`).catch(() => {});
   }, [p?.activeBoostRequestId]);
+
+  const trackCardInteraction = useCallback((action, extra = {}) => {
+    if (!action || !p?._id) return;
+    trackEvent('product_card_interaction', {
+      action,
+      product_id: String(p._id),
+      category: p?.category || '',
+      city: p?.city || p?.user?.city || '',
+      card_view_mode: viewMode,
+      boosted: Boolean(p?.boosted || p?.isBoosted || p?.activeBoostRequestId),
+      has_discount: Boolean(typeof p?.discount === 'number' && p.discount > 0),
+      ...extra
+    }).catch(() => {});
+  }, [p, viewMode]);
+
+  useEffect(() => {
+    if (!cardRef.current || impressionTrackedRef.current || !p?._id) return undefined;
+    if (typeof IntersectionObserver === 'undefined') {
+      impressionTrackedRef.current = true;
+      trackCardInteraction('impression');
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting || impressionTrackedRef.current) return;
+        impressionTrackedRef.current = true;
+        trackCardInteraction('impression', {
+          visible_ratio: Number(entry.intersectionRatio || 0).toFixed(2)
+        });
+        observer.disconnect();
+      },
+      { threshold: 0.45 }
+    );
+
+    observer.observe(cardRef.current);
+    return () => observer.disconnect();
+  }, [p?._id, trackCardInteraction]);
   
   const conditionLabel = p?.condition === 'new' ? 'Neuf' : 'Occasion';
   const conditionColor = p?.condition === 'new' 
@@ -416,11 +423,13 @@ function ProductCard({
       event.stopPropagation();
     }
     if (!user) {
+      trackCardInteraction('favorite_auth_redirect');
       setPendingAction({ type: 'addFavorite', payload: { product: p } });
       redirectToLogin();
       return;
     }
     try {
+      trackCardInteraction(isInFavorites ? 'favorite_remove' : 'favorite_add');
       const result = await toggleFavorite(p);
       if (result === true) {
         setFavoriteCount((prev) => prev + 1);
@@ -434,6 +443,7 @@ function ProductCard({
 
   const handleAddToCart = async () => {
     if (Array.isArray(p?.attributes) && p.attributes.length > 0) {
+      trackCardInteraction('cart_options_required');
       navigate(resolvedProductLink, {
         state: {
           focusProductOptions: true
@@ -442,11 +452,13 @@ function ProductCard({
       return;
     }
     if (!user) {
+      trackCardInteraction('cart_auth_redirect');
       setPendingAction({ type: 'addToCart', payload: { productId: p._id, quantity: 1 } });
       redirectToLogin();
       return;
     }
     if (inCart) return;
+    trackCardInteraction('cart_add');
     setAdding(true);
     setAddError('');
     try {
@@ -510,6 +522,247 @@ function ProductCard({
 
   const isHotSale = salesCount >= 3000;
   const isBestSeller = salesCount >= 10000;
+
+  const useModernProductCard = true;
+
+  if (useModernProductCard) {
+    const primaryImageOriginal = productImages[0] || 'https://via.placeholder.com/400x400?text=HDMarket';
+    const primaryImage = getProductCardImageUrl(primaryImageOriginal, {
+      width: isListCard ? 420 : categoryListing ? 520 : 640,
+      lite: useLiteImageMode
+    });
+    const primaryImageSrcSet = getProductCardSrcSet(primaryImageOriginal, { lite: useLiteImageMode });
+    const shopName = p?.user?.shopName || p?.user?.name || 'HDMarket';
+    const modernBadges = [
+      hasActiveBoost ? { key: 'boost', label: 'Boost', tone: 'dark', icon: Zap } : null,
+      hasDiscount ? { key: 'discount', label: `-${p.discount}%`, tone: 'dark' } : null,
+      installmentAvailable ? { key: 'installment', label: 'Tranche', tone: 'soft', icon: Clock } : null,
+      wholesaleEnabled ? { key: 'wholesale', label: wholesaleMinQty ? `Gros ${wholesaleMinQty}+` : 'Gros', tone: 'emerald', icon: Boxes } : null
+    ].filter(Boolean);
+    const cardRadius = isShopProfileCompact ? 'rounded-2xl' : 'rounded-[22px]';
+    const imageAspect = isListCard
+      ? 'h-auto min-h-[132px] w-[38%] shrink-0'
+      : isShopProfileCompact
+      ? 'aspect-[4/3]'
+      : useCompactMobile && !categoryListing
+        ? 'aspect-[1/1]'
+        : 'aspect-[4/5]';
+    const bodyPadding = isShopProfileCompact
+      ? 'p-2'
+      : useCompactMobile
+        ? 'p-2.5'
+        : 'p-3 sm:p-3.5';
+    const titleClass = isShopProfileCompact
+      ? 'line-clamp-1 min-h-[1.2rem] text-[11px]'
+      : useCompactMobile
+        ? 'line-clamp-2 min-h-[2rem] text-xs'
+        : 'line-clamp-2 min-h-[2.5rem] text-sm';
+    const priceClass = isShopProfileCompact
+      ? 'text-[13px]'
+      : useCompactMobile
+        ? 'text-[15px]'
+        : 'text-[17px]';
+    const visibleBadges = modernBadges.slice(0, isShopProfileCompact || useCompactMobile ? 2 : 3);
+    const trustLabel = freeDeliveryAvailable
+      ? 'Livraison offerte'
+      : pickupOnly
+        ? 'Retrait boutique'
+        : isShopVerified
+          ? 'Boutique vérifiée'
+          : '';
+
+    return (
+      <>
+        <article
+          ref={cardRef}
+          className={`group relative flex h-full min-w-0 overflow-hidden border border-neutral-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.07)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_44px_rgba(15,23,42,0.10)] dark:border-neutral-800 dark:bg-neutral-950 ${cardRadius} ${
+            isListCard ? 'flex-row' : 'flex-col'
+          }`}
+        >
+          <Link
+            to={resolvedProductLink}
+            {...externalLinkProps}
+            onClick={(event) => {
+              if (longPressTriggeredRef.current) {
+                event.preventDefault();
+                event.stopPropagation();
+                longPressTriggeredRef.current = false;
+                return;
+              }
+              trackBoostClick();
+              trackCardInteraction('image_open');
+              handleProductClick?.(p);
+            }}
+            className={`relative block overflow-hidden bg-neutral-100 dark:bg-neutral-900 ${imageAspect}`}
+            onPointerDown={startLongPress(currentImageIndex)}
+            onPointerMove={handleLongPressMove}
+            onPointerUp={cancelLongPress}
+            onPointerLeave={cancelLongPress}
+            onPointerCancel={cancelLongPress}
+          >
+            <img
+              src={imageError ? 'https://via.placeholder.com/400x400?text=HDMarket' : primaryImage}
+              srcSet={imageError ? undefined : primaryImageSrcSet}
+              alt={p.title}
+              className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+              onLoad={() => setImageLoaded(true)}
+              onError={() => setImageError(true)}
+              loading="lazy"
+              decoding="async"
+              fetchPriority="low"
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            />
+            {!imageLoaded && <div className="absolute inset-0 animate-pulse bg-neutral-200 dark:bg-neutral-800" />}
+
+            <div className="absolute left-1.5 top-1.5 flex max-w-[calc(100%-3.7rem)] flex-wrap gap-1 sm:left-2 sm:top-2 sm:gap-1.5">
+              {visibleBadges.map((badge) => {
+                const Icon = badge.icon;
+                const badgeClass =
+                  badge.tone === 'emerald'
+                    ? 'bg-emerald-600 text-white'
+                    : badge.tone === 'soft'
+                      ? 'bg-white/92 text-neutral-900'
+                      : 'bg-neutral-950 text-white';
+                return (
+                  <span
+                    key={badge.key}
+                    className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold shadow-sm backdrop-blur sm:px-2 sm:py-1 sm:text-[10px] ${badgeClass}`}
+                  >
+                    {Icon && !isShopProfileCompact ? <Icon className="h-3 w-3" /> : null}
+                    {badge.label}
+                  </span>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleFavoriteToggle}
+              className={`absolute right-1.5 top-1.5 inline-flex items-center justify-center rounded-full bg-white/92 text-neutral-700 shadow-sm backdrop-blur transition active:scale-95 dark:bg-neutral-950/90 dark:text-neutral-200 sm:right-2 sm:top-2 ${
+                isShopProfileCompact ? 'h-8 w-8' : 'h-10 w-10'
+              }`}
+              aria-label={isInFavorites ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+            >
+              <Heart className="h-4 w-4" fill={isInFavorites ? 'currentColor' : 'none'} />
+            </button>
+
+            {productCity ? (
+              <span className="absolute bottom-1.5 left-1.5 inline-flex max-w-[calc(100%-0.75rem)] items-center gap-1 rounded-full bg-white/92 px-2 py-0.5 text-[10px] font-semibold text-neutral-700 shadow-sm backdrop-blur dark:bg-neutral-950/90 dark:text-neutral-200 sm:bottom-2 sm:left-2 sm:px-2.5 sm:py-1 sm:text-[11px]">
+                <MapPin className="h-3 w-3 shrink-0" />
+                <span className="truncate">{productCity}</span>
+              </span>
+            ) : null}
+          </Link>
+
+          <div className={`flex flex-1 flex-col gap-2 ${bodyPadding}`}>
+            <Link
+              to={resolvedProductLink}
+              {...externalLinkProps}
+              onClick={() => {
+                trackBoostClick();
+                trackCardInteraction('title_open');
+                handleProductClick?.(p);
+              }}
+              className={`font-semibold leading-tight text-neutral-950 transition hover:text-neutral-700 dark:text-neutral-50 ${titleClass}`}
+            >
+              {p.title}
+            </Link>
+
+            <div className="flex flex-wrap items-baseline gap-1.5">
+              <span className={`${priceClass} font-black tracking-tight text-neutral-950 dark:text-white`}>
+                {discountedPrice}
+              </span>
+              {originalPrice && !isShopProfileCompact ? (
+                <span className="text-xs font-medium text-neutral-400 line-through">{originalPrice}</span>
+              ) : null}
+            </div>
+
+            {!isShopProfileCompact ? (
+            <div className="flex min-w-0 items-center justify-between gap-2 text-[11px] text-neutral-500">
+              <Link
+                to={buildShopPath(p.user)}
+                {...externalLinkProps}
+                onClick={() => trackCardInteraction('shop_open')}
+                className="flex min-w-0 items-center gap-1.5 font-semibold text-neutral-600 hover:text-neutral-900 dark:text-neutral-300"
+              >
+                {shopLogoSrc ? (
+                  <img src={shopLogoSrc} alt="" className="h-5 w-5 shrink-0 rounded-full object-cover" loading="lazy" />
+                ) : (
+                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-neutral-100 text-[10px] text-neutral-500 dark:bg-neutral-800">
+                    {shopName.charAt(0).toUpperCase()}
+                  </span>
+                )}
+                <span className="truncate">{shopName}</span>
+                {isShopVerified ? <VerifiedBadge verified showLabel={false} className="shrink-0 text-[8px]" /> : null}
+              </Link>
+              {ratingAverage > 0 ? (
+                <span className="inline-flex shrink-0 items-center gap-1 font-semibold text-neutral-700 dark:text-neutral-200">
+                  <Star className="h-3 w-3 fill-current" />
+                  {ratingAverage}
+                </span>
+              ) : null}
+            </div>
+            ) : null}
+
+            {trustLabel && !isShopProfileCompact ? (
+              <div className="inline-flex w-fit max-w-full items-center gap-1 rounded-full bg-neutral-50 px-2 py-1 text-[10px] font-bold text-neutral-600 dark:bg-neutral-900 dark:text-neutral-300">
+                <ShieldCheck className="h-3 w-3 shrink-0" />
+                <span className="truncate">{trustLabel}</span>
+              </div>
+            ) : null}
+
+            <div className="mt-auto grid grid-cols-[1fr_auto] items-center gap-2 border-t border-neutral-100 pt-2 dark:border-neutral-800">
+              <Link
+                to={resolvedProductLink}
+                {...externalLinkProps}
+                onClick={() => {
+                  trackBoostClick();
+                  trackCardInteraction('cta_open');
+                  handleProductClick?.(p);
+                }}
+                className={`inline-flex items-center justify-center rounded-xl bg-neutral-950 px-3 text-xs font-bold text-white transition active:scale-[0.98] dark:bg-white dark:text-neutral-950 ${
+                  isShopProfileCompact ? 'h-8' : 'h-10'
+                }`}
+              >
+                Voir
+              </Link>
+              {!isOwner ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleAddToCart();
+                  }}
+                  disabled={adding || inCart}
+                  className={`inline-flex items-center justify-center rounded-xl border border-neutral-200 bg-white text-neutral-800 transition active:scale-95 disabled:opacity-45 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 ${
+                    isShopProfileCompact ? 'h-8 w-8' : 'h-10 w-10'
+                  }`}
+                  aria-label={inCart ? 'Déjà dans le panier' : 'Ajouter au panier'}
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                </button>
+              ) : (
+                <span />
+              )}
+            </div>
+
+            {addError ? <p className="text-[10px] font-semibold text-red-600">{addError}</p> : null}
+            {feedback ? <p className="text-[10px] font-semibold text-emerald-700">{feedback}</p> : null}
+          </div>
+        </article>
+
+        <ImagePreviewModal
+          isOpen={isPreviewModalOpen}
+          onClose={() => setIsPreviewModalOpen(false)}
+          images={productImages}
+          initialIndex={previewImageIndex}
+          title={p.title || 'Produit'}
+          reportContext={imageReportContext}
+        />
+      </>
+    );
+  }
 
   return (
     <>

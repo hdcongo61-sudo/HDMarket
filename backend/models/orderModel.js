@@ -339,6 +339,15 @@ const orderSchema = new mongoose.Schema(
     },
     reviewRequested: { type: Boolean, default: false },
     reviewGiven: { type: Boolean, default: false },
+    reviewStatus: {
+      type: String,
+      enum: ['PENDING', 'DONE', 'SKIPPED'],
+      default: 'PENDING'
+    },
+    reviewReminderDisabled: { type: Boolean, default: false },
+    reviewReminderSentAt: { type: Date, default: null },
+    reviewCompletedAt: { type: Date, default: null },
+    reviewReminderCount: { type: Number, default: 0, min: 0 },
     confirmationGiven: { type: Boolean, default: false },
     reminderSentCount: { type: Number, default: 0, min: 0 },
     lastReminderDate: { type: Date, default: null },
@@ -386,6 +395,7 @@ orderSchema.index({ expectedDeliveryDate: 1, status: 1 });
 orderSchema.index({ adminPriority: 1, adminRiskScore: -1, updatedAt: -1 });
 orderSchema.index({ statusStuckSince: 1, status: 1 });
 orderSchema.index({ reviewGiven: 1, confirmationGiven: 1, deliveredAt: -1 });
+orderSchema.index({ reviewStatus: 1, reviewReminderDisabled: 1, deliveredAt: -1 });
 
 orderSchema.pre('save', function orderStatusTracking(next) {
   if (this.isModified('status')) {
@@ -399,6 +409,12 @@ orderSchema.pre('save', function orderStatusTracking(next) {
     if (['confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(status) || this.clientDeliveryConfirmedAt) {
       this.confirmationGiven = true;
     }
+  }
+  if (this.reviewGiven && this.reviewStatus !== 'DONE') {
+    this.reviewStatus = 'DONE';
+  }
+  if (this.reviewStatus === 'DONE' && !this.reviewCompletedAt) {
+    this.reviewCompletedAt = new Date();
   }
   next();
 });

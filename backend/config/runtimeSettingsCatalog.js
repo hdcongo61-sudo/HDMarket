@@ -132,6 +132,31 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     defaultValue: true,
     isPublic: true
   },
+  review_reminder_enabled: {
+    category: 'order_automation',
+    description: 'Activer les rappels post-achat pour déposer un avis.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: false
+  },
+  review_reminder_delay_hours: {
+    category: 'order_automation',
+    description: 'Délai avant premier rappel avis post-achat (heures).',
+    valueType: 'number',
+    defaultValue: 24,
+    isPublic: false,
+    min: 1,
+    max: 720
+  },
+  review_reminder_max_count: {
+    category: 'order_automation',
+    description: 'Nombre maximum de rappels avis par commande.',
+    valueType: 'number',
+    defaultValue: 1,
+    isPublic: false,
+    min: 1,
+    max: 2
+  },
   review_delay_days: {
     category: 'order_automation',
     description: 'Délai avant relance avis client (jours).',
@@ -759,13 +784,54 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     defaultValue: true,
     isPublic: false
   },
-  seller_max_product_limit: {
+  enable_selling: {
     category: 'role_limits',
-    description: 'Nombre max de produits par vendeur.',
+    description: 'Active ou désactive la fonction Vendre / publication de nouvelles annonces.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  enable_shop_conversion: {
+    category: 'role_limits',
+    description: 'Active ou désactive les demandes Devenir Boutique.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  shop_creation_limit_count: {
+    category: 'role_limits',
+    description: 'Nombre maximum de boutiques pouvant être créées sur la période configurée.',
     valueType: 'number',
-    defaultValue: 200,
+    defaultValue: 100,
+    isPublic: false,
+    min: 0,
+    max: 100000
+  },
+  shop_creation_limit_period_days: {
+    category: 'role_limits',
+    description: 'Fenêtre de temps en jours utilisée pour limiter les créations de boutiques.',
+    valueType: 'number',
+    defaultValue: 30,
     isPublic: false,
     min: 1,
+    max: 3650
+  },
+  seller_max_product_limit: {
+    category: 'role_limits',
+    description: 'Nombre max de produits qu’une boutique peut publier.',
+    valueType: 'number',
+    defaultValue: 200,
+    isPublic: true,
+    min: 0,
+    max: 100000
+  },
+  user_max_product_limit: {
+    category: 'role_limits',
+    description: 'Nombre max de produits qu’un utilisateur simple peut publier.',
+    valueType: 'number',
+    defaultValue: 20,
+    isPublic: true,
+    min: 0,
     max: 100000
   },
   user_max_cart_limit: {
@@ -953,7 +1019,14 @@ export const RUNTIME_SETTING_ALIASES = Object.freeze({
   boostEnabled: 'enable_boost',
   disputeWindowHours: 'dispute_window_hours',
   maxDisputesPerMonth: 'dispute_client_monthly_limit',
-  deliveryOTPExpirationMinutes: 'otp_expiration_minutes'
+  deliveryOTPExpirationMinutes: 'otp_expiration_minutes',
+  reviewReminderDelayHours: 'review_reminder_delay_hours',
+  reviewReminderEnabled: 'review_reminder_enabled',
+  reviewReminderMaxCount: 'review_reminder_max_count',
+  shopProductUploadLimit: 'seller_max_product_limit',
+  shop_product_upload_limit: 'seller_max_product_limit',
+  userProductUploadLimit: 'user_max_product_limit',
+  user_product_upload_limit: 'user_max_product_limit'
 });
 
 export const RUNTIME_SETTING_LEGACY_MIRRORS = Object.freeze({
@@ -962,7 +1035,11 @@ export const RUNTIME_SETTING_LEGACY_MIRRORS = Object.freeze({
   enable_boost: 'boostEnabled',
   dispute_window_hours: 'disputeWindowHours',
   dispute_client_monthly_limit: 'maxDisputesPerMonth',
-  otp_expiration_minutes: 'deliveryOTPExpirationMinutes'
+  otp_expiration_minutes: 'deliveryOTPExpirationMinutes',
+  review_reminder_delay_hours: 'reviewReminderDelayHours',
+  review_reminder_enabled: 'reviewReminderEnabled',
+  review_reminder_max_count: 'reviewReminderMaxCount',
+  review_reminder_after_hours: 'reviewReminderDelayHours'
 });
 
 export const FEATURE_FLAG_DEFAULTS = Object.freeze({

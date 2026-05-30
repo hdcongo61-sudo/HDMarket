@@ -347,14 +347,28 @@ const refreshOrderReviewFlags = async (order) => {
   ]);
 
   const reviewed = Boolean(ratingExists || commentExists);
-  if (reviewed && order.reviewGiven !== true) {
-    order.reviewGiven = true;
-    appendTimelineEvent(order, {
-      type: 'review_detected',
-      label: 'Review detected from buyer',
-      metadata: { source: 'automation' }
-    });
-    return true;
+  if (reviewed) {
+    let changed = false;
+    if (order.reviewGiven !== true) {
+      order.reviewGiven = true;
+      changed = true;
+    }
+    if (order.reviewStatus !== 'DONE') {
+      order.reviewStatus = 'DONE';
+      changed = true;
+    }
+    if (!order.reviewCompletedAt) {
+      order.reviewCompletedAt = new Date();
+      changed = true;
+    }
+    if (changed) {
+      appendTimelineEvent(order, {
+        type: 'review_detected',
+        label: 'Review detected from buyer',
+        metadata: { source: 'automation' }
+      });
+      return true;
+    }
   }
 
   return false;

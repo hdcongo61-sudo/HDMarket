@@ -19,13 +19,13 @@ export default function ShopActionsCard({
   t
 }) {
   const primaryBtn =
-    'inline-flex w-full min-h-[48px] items-center justify-center gap-2 rounded-xl border border-neutral-900 bg-neutral-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-neutral-800 active:scale-95';
+    'inline-flex w-full min-h-[48px] items-center justify-center gap-2 rounded-xl border border-neutral-950 bg-neutral-950 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-neutral-800 active:scale-95 dark:border-white dark:bg-white dark:text-neutral-950';
   const outlineBtn =
-    'inline-flex w-full min-h-[48px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-800 shadow-sm transition hover:bg-gray-50 active:scale-95';
+    'inline-flex w-full min-h-[48px] items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-800 shadow-sm transition hover:bg-neutral-50 active:scale-95 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100 dark:hover:bg-neutral-900';
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-      <h3 className="text-base font-bold text-gray-900 sm:text-lg">
+    <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+      <h3 className="text-base font-bold text-neutral-950 dark:text-white sm:text-lg">
         {t('shop_profile.actions', 'Actions rapides')}
       </h3>
 
@@ -37,7 +37,7 @@ export default function ShopActionsCard({
             <span>{t('shop_profile.message', 'Message')}</span>
           </button>
           {user && shopPhone ? (
-            <a href={`tel:${shopPhone}`} className={`${outlineBtn} border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100`}>
+            <a href={`tel:${shopPhone}`} className={`${outlineBtn} border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300`}>
               <Phone size={15} />
               <span>{t('shop_profile.call', 'Appeler')}</span>
             </a>
@@ -53,7 +53,7 @@ export default function ShopActionsCard({
         {isOwnShop ? (
           <Link
             to="/seller/boosts"
-            className="inline-flex w-full min-h-[48px] items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 text-sm font-semibold text-amber-700 shadow-sm transition hover:bg-amber-100 active:scale-95"
+            className="inline-flex w-full min-h-[48px] items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 text-sm font-semibold text-amber-700 shadow-sm transition hover:bg-amber-100 active:scale-95 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
           >
             <Rocket size={15} />
             <span>{t('shop_profile.boost_shop', 'Booster ma boutique')}</span>
@@ -78,7 +78,7 @@ export default function ShopActionsCard({
 
         {/* Row 3: Itinéraire + Modifier profil / Partager */}
         <div className="grid grid-cols-2 gap-2">
-          <button type="button" onClick={onDirections} className={`${outlineBtn} border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100`}>
+          <button type="button" onClick={onDirections} className={`${outlineBtn}`}>
             <Navigation size={15} />
             <span>{t('shop_profile.directions', 'Itinéraire')}</span>
           </button>

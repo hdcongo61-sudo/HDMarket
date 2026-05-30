@@ -5,6 +5,7 @@ import { requireRole } from '../middlewares/roleMiddleware.js';
 import { upload } from '../utils/upload.js';
 import { validate, schemas } from '../middlewares/validate.js';
 import { cacheMiddleware } from '../utils/cache.js';
+import { idempotencyMiddleware } from '../middlewares/idempotencyMiddleware.js';
 import {
   createProduct,
   getPublicProducts,
@@ -38,6 +39,7 @@ import {
 } from '../controllers/ratingController.js';
 
 const router = express.Router();
+const productMutationIdempotency = idempotencyMiddleware({ ttlMs: 10 * 60 * 1000 });
 const productViewRateLimiter = rateLimit({
   windowMs: Math.max(30_000, Number(process.env.PRODUCT_VIEW_RATE_WINDOW_MS || 60_000)),
   max: Math.max(10, Number(process.env.PRODUCT_VIEW_RATE_MAX || 80)),
@@ -89,6 +91,7 @@ router.post(
     { name: 'video', maxCount: 1 },
     { name: 'pdf', maxCount: 1 }
   ]),
+  productMutationIdempotency,
   validate(schemas.productCreate),
   createProduct
 );
@@ -101,16 +104,17 @@ router.put(
     { name: 'video', maxCount: 1 },
     { name: 'pdf', maxCount: 1 }
   ]),
+  productMutationIdempotency,
   validate(schemas.productUpdate),
   updateProduct
 );
-router.delete('/:id', protect, deleteProduct);
-router.patch('/:id/disable', protect, disableProduct);
-router.patch('/:id/enable', protect, enableProduct);
+router.delete('/:id', protect, productMutationIdempotency, deleteProduct);
+router.patch('/:id/disable', protect, productMutationIdempotency, disableProduct);
+router.patch('/:id/enable', protect, productMutationIdempotency, enableProduct);
 // Bulk actions
-router.post('/bulk/enable', protect, validate(schemas.bulkProductAction), bulkEnableProducts);
-router.post('/bulk/disable', protect, validate(schemas.bulkProductAction), bulkDisableProducts);
-router.post('/bulk/delete', protect, validate(schemas.bulkProductAction), bulkDeleteProducts);
+router.post('/bulk/enable', protect, productMutationIdempotency, validate(schemas.bulkProductAction), bulkEnableProducts);
+router.post('/bulk/disable', protect, productMutationIdempotency, validate(schemas.bulkProductAction), bulkDisableProducts);
+router.post('/bulk/delete', protect, productMutationIdempotency, validate(schemas.bulkProductAction), bulkDeleteProducts);
 
 // Admin
 router.get('/admin/all', protect, requireRole(['admin']), getAllProductsAdmin);

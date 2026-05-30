@@ -3,6 +3,7 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { SlidersHorizontal } from 'lucide-react';
 import api, { isApiCanceledError } from '../services/api';
 import ProductCard from '../components/ProductCard';
+import ProductCardSkeleton from '../components/ProductCardSkeleton';
 import { getCategoryMeta } from '../data/categories';
 import { recordProductView } from '../utils/recentViews';
 import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
@@ -441,18 +442,10 @@ const paginationButtons = useMemo(() => {
         )}
 
         {loading && page === 1 ? (
-          <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="rounded-xl border border-gray-200 bg-white p-2 sm:p-4 shadow-sm">
-                <div className="mb-2 sm:mb-3 aspect-square rounded-lg bg-gray-100 animate-pulse" />
-                <div className="space-y-1.5 sm:space-y-2">
-                  <div className="h-3 sm:h-4 rounded bg-gray-100 animate-pulse" />
-                  <div className="h-3 sm:h-4 w-2/3 rounded bg-gray-100 animate-pulse" />
-                  <div className="h-3 sm:h-4 w-1/3 rounded bg-gray-100 animate-pulse" />
-                </div>
-              </div>
-            ))}
-          </div>
+          <ProductCardSkeleton
+            count={6}
+            className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3"
+          />
         ) : items.length ? (
           <>
             <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">

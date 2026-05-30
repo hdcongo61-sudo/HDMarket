@@ -9,6 +9,7 @@ import { ensureDocumentSlug } from '../utils/slugUtils.js';
 import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
 import { invalidateProductCache } from '../utils/cache.js';
 import { recordRealtimeMonitoringEvent } from '../services/realtimeMonitoringService.js';
+import { markOrdersReviewedByProduct } from '../services/orderReviewReminderService.js';
 
 const formatComment = (comment) => {
   const plain = comment.toObject ? comment.toObject() : comment;
@@ -203,6 +204,11 @@ export const addComment = asyncHandler(async (req, res) => {
 
   // Invalidate product cache (comments are served under /products/public)
   invalidateProductCache();
+  await markOrdersReviewedByProduct({
+    userId: req.user.id,
+    productId: product._id,
+    reviewedAt: new Date()
+  }).catch(() => null);
 
   res.status(201).json(formatComment(comment));
 });

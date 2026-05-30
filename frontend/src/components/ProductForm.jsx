@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState, useRef, useCallback, useMemo } 
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
-import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2, ChevronDown, ChevronUp, RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Plus } from 'lucide-react';
+import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2, ChevronDown, ChevronUp, RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Plus, ShieldCheck } from 'lucide-react';
 import categoryGroups from '../data/categories';
 import ProductCard from './ProductCard';
 import useIsMobile from '../hooks/useIsMobile';
@@ -11,6 +11,7 @@ import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import BaseModal from './modals/BaseModal';
 import { appAlert } from '../utils/appDialog';
 import { normalizeProductAttributes } from '../utils/productAttributes';
+import { formatFileSize, optimizeImageFiles } from '../utils/mediaOptimizer';
 
 const DEFAULT_MAX_IMAGES = 3;
 const MAX_VIDEO_SIZE_MB = 20;
@@ -79,6 +80,9 @@ export default function ProductForm(props) {
     installmentRequireGuarantor: false,
     wholesaleEnabled: false,
     wholesaleTiers: [],
+    warrantyEnabled: false,
+    warrantyPeriodValue: '',
+    warrantyPeriodUnit: 'months',
     attributes: [],
     physical: {
       weight: { value: '', unit: 'kg' },
@@ -92,6 +96,7 @@ export default function ProductForm(props) {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [imagePreviews, setImagePreviews] = useState([]);
+  const imagePreviewsRef = useRef([]);
   const [existingImages, setExistingImages] = useState([]);
   const [removedImages, setRemovedImages] = useState([]);
   const [imageError, setImageError] = useState('');
@@ -107,9 +112,15 @@ export default function ProductForm(props) {
   const [pdfError, setPdfError] = useState('');
   const [installmentError, setInstallmentError] = useState('');
   const [wholesaleError, setWholesaleError] = useState('');
+  const [warrantyError, setWarrantyError] = useState('');
   const [existingPdf, setExistingPdf] = useState(null);
   const [removePdf, setRemovePdf] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [mediaOptimization, setMediaOptimization] = useState({
+    active: false,
+    optimizedCount: 0,
+    savedBytes: 0
+  });
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isCompressingVideo, setIsCompressingVideo] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
@@ -164,11 +175,23 @@ export default function ProductForm(props) {
 
     const container = formShellRef.current;
     let frameId = null;
+    const shouldAutoScrollFocusedField = (target) => {
+      if (!(target instanceof HTMLElement)) return false;
+      if (!target.matches('input, textarea, select')) return false;
+      if (target.classList.contains('sr-only')) return false;
+
+      const inputType = String(target.getAttribute('type') || '').toLowerCase();
+      if (['checkbox', 'radio', 'file', 'hidden', 'button', 'submit'].includes(inputType)) {
+        return false;
+      }
+
+      const rect = target.getBoundingClientRect();
+      return rect.width > 8 && rect.height > 8;
+    };
 
     const handleFocusIn = (event) => {
       const target = event.target;
-      if (!(target instanceof HTMLElement)) return;
-      if (!target.matches('input, textarea, select')) return;
+      if (!shouldAutoScrollFocusedField(target)) return;
 
       if (frameId) window.cancelAnimationFrame(frameId);
       frameId = window.requestAnimationFrame(() => {
@@ -186,14 +209,6 @@ export default function ProductForm(props) {
     };
   }, [isEmbeddedMobile]);
 
-  const readFileAsDataURL = (file) =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-
   const handleImageChange = async (e) => {
     const selectedFiles = Array.from(e.target.files || []);
     if (!selectedFiles.length) return;
@@ -210,11 +225,25 @@ export default function ProductForm(props) {
       setImageError('');
     }
 
-    // Add all selected photos and create previews for each (no crop modal yet)
-    const newItems = limitedFiles.map((f) => ({ file: f, cropped: false, leftAsIs: false }));
-    const previewUrls = await Promise.all(limitedFiles.map(readFileAsDataURL));
-    const newPreviews = limitedFiles.map((file, i) => ({
-      url: previewUrls[i],
+    setMediaOptimization((prev) => ({ ...prev, active: true }));
+    let optimizedFiles = limitedFiles;
+    let optimizationResult = null;
+    try {
+      optimizationResult = await optimizeImageFiles(limitedFiles);
+      optimizedFiles = optimizationResult.files;
+    } catch {
+      optimizedFiles = limitedFiles;
+    } finally {
+      setMediaOptimization({
+        active: false,
+        optimizedCount: optimizationResult?.optimizedCount || 0,
+        savedBytes: optimizationResult?.savedBytes || 0
+      });
+    }
+
+    const newItems = optimizedFiles.map((f) => ({ file: f, cropped: false, leftAsIs: false }));
+    const newPreviews = optimizedFiles.map((file) => ({
+      url: URL.createObjectURL(file),
       name: file.name
     }));
 
@@ -520,6 +549,8 @@ export default function ProductForm(props) {
     
     setImagePreviews((prev) => {
       const updated = [...prev];
+      const previousUrl = updated[croppingImage.index]?.url;
+      if (previousUrl?.startsWith('blob:')) URL.revokeObjectURL(previousUrl);
       updated[croppingImage.index] = newPreview;
       return updated;
     });
@@ -598,6 +629,8 @@ export default function ProductForm(props) {
   };
 
   const removeImage = (index) => {
+    const removedPreview = imagePreviews[index];
+    if (removedPreview?.url?.startsWith('blob:')) URL.revokeObjectURL(removedPreview.url);
     const newFiles = files.filter((_, i) => i !== index);
     const newPreviews = imagePreviews.filter((_, i) => i !== index);
     setFiles(newFiles);
@@ -612,6 +645,19 @@ export default function ProductForm(props) {
     setRemovedImages((prev) => [...prev, target]);
     if (existingImages.length - 1 + files.length < maxImagesLimit) setImageError('');
   };
+
+  useEffect(() => {
+    imagePreviewsRef.current = imagePreviews;
+  }, [imagePreviews]);
+
+  useEffect(
+    () => () => {
+      imagePreviewsRef.current.forEach((preview) => {
+        if (preview?.url?.startsWith('blob:')) URL.revokeObjectURL(preview.url);
+      });
+    },
+    []
+  );
 
   const handleVideoChange = async (e) => {
     const file = e.target.files?.[0];
@@ -928,6 +974,7 @@ export default function ProductForm(props) {
     e.preventDefault();
     setInstallmentError('');
     setWholesaleError('');
+    setWarrantyError('');
 
     if (form.installmentEnabled) {
       if (!isBoutiqueOwner) {
@@ -1007,6 +1054,14 @@ export default function ProductForm(props) {
           return;
         }
         previousUnitPrice = tier.unitPrice;
+      }
+    }
+
+    if (form.warrantyEnabled) {
+      const period = Number(form.warrantyPeriodValue || 0);
+      if (!Number.isInteger(period) || period < 1 || period > 120) {
+        setWarrantyError('Indiquez une période de garantie entre 1 et 120.');
+        return;
       }
     }
 
@@ -1107,6 +1162,9 @@ export default function ProductForm(props) {
       }
       
       // Réinitialiser le formulaire
+      imagePreviewsRef.current.forEach((preview) => {
+        if (preview?.url?.startsWith('blob:')) URL.revokeObjectURL(preview.url);
+      });
       setForm({
         title: '',
         description: '',
@@ -1125,6 +1183,9 @@ export default function ProductForm(props) {
         installmentRequireGuarantor: false,
         wholesaleEnabled: false,
         wholesaleTiers: [],
+        warrantyEnabled: false,
+        warrantyPeriodValue: '',
+        warrantyPeriodUnit: 'months',
         attributes: [],
         physical: {
           weight: { value: '', unit: 'kg' },
@@ -1149,6 +1210,7 @@ export default function ProductForm(props) {
       setExistingPdf(null);
       setRemovePdf(false);
       setWholesaleError('');
+      setWarrantyError('');
       
     } catch (e) {
       await appAlert(e.response?.data?.message || e.message);
@@ -1240,6 +1302,12 @@ export default function ProductForm(props) {
             label: tier?.label || ''
           }))
         : [],
+      warrantyEnabled: Boolean(initialValues.warrantyEnabled),
+      warrantyPeriodValue:
+        initialValues.warrantyPeriodValue !== undefined && initialValues.warrantyPeriodValue !== null
+          ? initialValues.warrantyPeriodValue
+          : '',
+      warrantyPeriodUnit: initialValues.warrantyPeriodUnit || 'months',
       attributes: normalizeProductAttributes(initialValues.attributes).map((attribute) => ({
         ...attribute,
         options:
@@ -1309,15 +1377,71 @@ export default function ProductForm(props) {
     .filter((tier) => Number.isInteger(tier.minQty) && tier.minQty >= 2 && Number.isFinite(tier.unitPrice) && tier.unitPrice > 0)
     .sort((a, b) => a.minQty - b.minQty);
   const wholesalePreviewBasePrice = Number(form.price || 0);
+  const setInstallmentEnabled = (enabled) => {
+    setForm((prev) => ({
+      ...prev,
+      installmentEnabled: enabled,
+      installmentMinAmount: enabled ? prev.installmentMinAmount : '',
+      installmentDuration: enabled ? prev.installmentDuration : '',
+      installmentStartDate: enabled ? prev.installmentStartDate : '',
+      installmentEndDate: enabled ? prev.installmentEndDate : '',
+      installmentLatePenaltyRate: enabled ? prev.installmentLatePenaltyRate : '',
+      installmentMaxMissedPayments: enabled ? prev.installmentMaxMissedPayments || 3 : 3,
+      installmentRequireGuarantor: enabled ? prev.installmentRequireGuarantor : false
+    }));
+  };
+  const setWholesaleEnabled = (enabled) => {
+    setForm((prev) => ({
+      ...prev,
+      wholesaleEnabled: enabled,
+      wholesaleTiers: enabled
+        ? Array.isArray(prev.wholesaleTiers) && prev.wholesaleTiers.length
+          ? prev.wholesaleTiers
+          : [{ minQty: '', unitPrice: '', label: '' }]
+        : []
+    }));
+  };
+  const renderSwitchButton = ({ checked, disabled = false, onChange, label }) => (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={Boolean(checked)}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => {
+        if (!disabled) onChange?.(!checked);
+      }}
+      className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2 ${
+        checked ? 'border-neutral-900 bg-neutral-900' : 'border-gray-200 bg-gray-200'
+      } ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer active:scale-95'}`}
+    >
+      <span
+        className={`inline-block h-6 w-6 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+          checked ? 'translate-x-7' : 'translate-x-1'
+        }`}
+      />
+    </button>
+  );
+  const sectionShellClass =
+    'rounded-[22px] border border-neutral-200/80 bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] sm:p-5';
+  const innerPanelClass = 'rounded-2xl border border-neutral-200 bg-neutral-50/70 p-4';
+  const inputClass =
+    'w-full min-w-0 rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 transition focus:border-transparent focus:ring-2 focus:ring-neutral-500';
+  const sectionProgressItems = [
+    { key: 'info', label: 'Infos', done: requiredFields.title && requiredFields.description },
+    { key: 'price', label: 'Prix', done: requiredFields.category && requiredFields.price },
+    { key: 'media', label: 'Photos', done: imagePreviews.length > 0 || existingImages.length > 0 },
+    { key: 'validation', label: 'Validation', done: !submitDisabled }
+  ];
 
   return (
     <div
       ref={formShellRef}
-      className={`max-w-2xl mx-auto ${
+      className={`mx-auto max-w-3xl ${
         isMobile
           ? isEmbeddedMobile
             ? 'px-0 pb-24 scroll-pb-40'
-            : 'px-0 pb-28 bg-[#f2f2f7] min-h-screen'
+            : 'px-0 pb-28 bg-[#f6f6f3] min-h-screen'
           : ''
       }`}
     >
@@ -1326,8 +1450,8 @@ export default function ProductForm(props) {
         <div
           className={
             isMobile
-              ? `text-left ${isEmbeddedMobile ? 'px-0 pt-1 pb-3' : 'px-4 pt-2 pb-4 bg-[#f2f2f7]'}`
-              : 'text-center mb-8'
+              ? `text-left ${isEmbeddedMobile ? 'px-0 pt-1 pb-3' : 'px-4 pt-2 pb-4 bg-[#f6f6f3]'}`
+              : 'mb-6 text-left'
           }
         >
           {!isMobile && (
@@ -1335,7 +1459,7 @@ export default function ProductForm(props) {
               <Package className="w-8 h-8 text-white" />
             </div>
           )}
-          <div className={isMobile ? 'flex items-center gap-3' : ''}>
+          <div className={isMobile ? 'flex items-center gap-3' : 'rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm'}>
             {isMobile && (
               <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm border border-gray-200/80">
                 <Package className="w-6 h-6 text-neutral-600" />
@@ -1349,43 +1473,55 @@ export default function ProductForm(props) {
         </div>
       )}
 
-      {isMobile && (
-        <div className={isEmbeddedMobile ? 'mb-3' : 'mb-3 px-4'}>
-          <div className="rounded-xl border border-neutral-200 bg-white/95 px-3 py-2.5">
-            <div className="mb-1.5 flex items-center justify-between text-xs">
-              <span className="font-semibold text-gray-900">Champs obligatoires</span>
-              <span className="font-medium text-gray-600">
+      <div className={isEmbeddedMobile ? 'mb-4' : isMobile ? 'mb-4 px-4' : 'mb-5'}>
+        <div className="rounded-[22px] border border-neutral-200 bg-white/95 p-3 shadow-sm backdrop-blur sm:p-4">
+          <div className="mb-2.5 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Progression de l’annonce</p>
+              <p className="text-xs text-gray-500">Les champs essentiels restent en haut du parcours.</p>
+            </div>
+            <span className="rounded-full bg-neutral-900 px-2.5 py-1 text-xs font-semibold text-white">
                 {requiredCompletedCount}/{requiredTotalCount}
+            </span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
+            <div
+              className="h-full rounded-full bg-neutral-900 transition-all duration-300"
+              style={{ width: `${completionPercent}%` }}
+            />
+          </div>
+          <div className="mt-3 grid grid-cols-4 gap-1.5">
+            {sectionProgressItems.map((item) => (
+              <span
+                key={item.key}
+                className={`rounded-full px-2 py-1 text-center text-[11px] font-semibold ${
+                  item.done ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-500'
+                }`}
+              >
+                {item.label}
               </span>
-            </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-              <div
-                className="h-full rounded-full bg-neutral-600 transition-all duration-300"
-                style={{ width: `${completionPercent}%` }}
-              />
-            </div>
-            <p className="mt-1.5 text-[11px] text-gray-500">Titre, description, catégorie, prix</p>
+            ))}
           </div>
         </div>
-      )}
+        </div>
 
       <form
         onSubmit={submit}
-        className={`space-y-6 bg-white rounded-2xl border border-gray-100 ${
+        className={`space-y-4 ${
           isMobile
             ? isEmbeddedMobile
-              ? 'p-4 pb-6 shadow-sm rounded-2xl mx-0'
-              : 'p-4 pb-6 shadow-sm rounded-2xl mx-4 border-0'
-            : 'p-6 shadow-sm'
+              ? 'pb-6'
+              : 'mx-4 pb-6'
+            : 'pb-6'
         }`}
       >
         {/* Section Informations de base */}
-        <div className="space-y-4">
+        <div className={sectionShellClass}>
           {isMobile ? (
               <button
                 type="button"
                 onClick={() => toggleSection('info')}
-                className="flex items-center justify-between w-full py-3.5 px-0 text-left rounded-xl -mx-2 px-2 -mt-1 active:bg-gray-100/80 touch-manipulation min-h-[48px] transition-colors"
+                className="flex w-full items-center justify-between rounded-2xl bg-neutral-50 px-3 py-3.5 text-left transition active:bg-neutral-100"
                 aria-expanded={expandedSections.info}
               >
                 <div className="flex items-center space-x-3">
@@ -1394,14 +1530,16 @@ export default function ProductForm(props) {
                   </div>
                   <h2 className="text-[17px] font-semibold text-gray-900">Informations du produit</h2>
                 </div>
-                <span className="min-w-[44px] min-h-[44px] flex items-center justify-center -m-2 text-gray-400">
+                <span className="flex min-h-[44px] min-w-[44px] items-center justify-center text-gray-400">
                   {expandedSections.info ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                 </span>
               </button>
             ) : (
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-2 h-6 bg-gradient-to-b from-neutral-500 to-neutral-500 rounded-full"></div>
-                <h2 className="text-lg font-semibold text-gray-900">Informations du produit</h2>
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Informations du produit</h2>
+                  <p className="text-sm text-gray-500">Les détails qui aident l’acheteur à décider vite.</p>
+                </div>
               </div>
             )}
           {(!isMobile || expandedSections.info) && (
@@ -1413,7 +1551,7 @@ export default function ProductForm(props) {
               <span>Titre de l'annonce *</span>
             </label>
             <input
-              className="w-full px-4 py-3.5 min-h-[48px] text-base bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400"
+              className={`${inputClass} min-h-[50px] text-base`}
               placeholder="Ex: iPhone 13 Pro Max 256GB - État neuf"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -1429,7 +1567,7 @@ export default function ProductForm(props) {
             </label>
             <textarea
               rows={4}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400 resize-none"
+              className={`${inputClass} resize-none`}
               placeholder="Décrivez votre produit en détail : caractéristiques, état, accessoires inclus..."
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -1446,7 +1584,7 @@ export default function ProductForm(props) {
                 <span>Catégorie *</span>
               </label>
               <select
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
+                className={inputClass}
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
                 required
@@ -1472,7 +1610,7 @@ export default function ProductForm(props) {
               </label>
               <input
                 type="number"
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400"
+                className={inputClass}
                 placeholder="Ex: 250000"
                 value={form.price}
                 onChange={(e) => setForm({ ...form, price: e.target.value })}
@@ -1489,7 +1627,7 @@ export default function ProductForm(props) {
                 </label>
                 <input
                   type="number"
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all placeholder-gray-400"
+                  className={inputClass}
                   placeholder="Ex: 5"
                   value={form.discount}
                   onChange={(e) => {
@@ -1566,7 +1704,76 @@ export default function ProductForm(props) {
 
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 space-y-4">
+          <div className={`${innerPanelClass} space-y-4`}>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-neutral-700 shadow-sm ring-1 ring-gray-200">
+                  <ShieldCheck className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Garantie</p>
+                  <p className="text-xs text-gray-500">
+                    Confirmez si le produit est couvert après l’achat et indiquez la durée.
+                  </p>
+                </div>
+              </div>
+              {renderSwitchButton({
+                checked: Boolean(form.warrantyEnabled),
+                label: 'Activer la garantie',
+                onChange: (enabled) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    warrantyEnabled: enabled,
+                    warrantyPeriodValue: enabled ? prev.warrantyPeriodValue : '',
+                    warrantyPeriodUnit: prev.warrantyPeriodUnit || 'months'
+                  }))
+              })}
+            </div>
+
+            {form.warrantyEnabled && (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_160px]">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-700">Période après achat</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="120"
+                    value={form.warrantyPeriodValue}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, warrantyPeriodValue: e.target.value }))
+                    }
+                    className={inputClass}
+                    placeholder="Ex: 12"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-700">Unité</label>
+                  <select
+                    value={form.warrantyPeriodUnit}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, warrantyPeriodUnit: e.target.value }))
+                    }
+                    className={inputClass}
+                  >
+                    <option value="days">Jours</option>
+                    <option value="months">Mois</option>
+                    <option value="years">Années</option>
+                  </select>
+                </div>
+                <p className="md:col-span-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs text-gray-600">
+                  Cette garantie sera visible sur la fiche produit et sauvegardée dans la commande.
+                </p>
+              </div>
+            )}
+
+            {warrantyError && (
+              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
+                {warrantyError}
+              </p>
+            )}
+          </div>
+
+          <div className={`${innerPanelClass} space-y-4`}>
             <div>
               <p className="text-sm font-semibold text-gray-900">Modes de réception</p>
               <p className="text-xs text-gray-500">
@@ -1637,26 +1844,24 @@ export default function ProductForm(props) {
             )}
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <div>
+          <div className="rounded-2xl border border-neutral-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            Commercialisation
+          </div>
+
+          <div className="min-w-0 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50/70 p-4 space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-gray-900">Paiement par tranche</p>
                 <p className="text-xs text-gray-500">
                   Activez cette option pour proposer un échéancier de paiement sur ce produit.
                 </p>
               </div>
-              <label className="inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="sr-only peer"
-                  checked={Boolean(form.installmentEnabled)}
-                  disabled={!isBoutiqueOwner}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, installmentEnabled: e.target.checked }))
-                  }
-                />
-                <div className="relative w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:bg-neutral-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full" />
-              </label>
+              {renderSwitchButton({
+                checked: Boolean(form.installmentEnabled),
+                disabled: !isBoutiqueOwner,
+                label: 'Activer le paiement par tranche',
+                onChange: setInstallmentEnabled
+              })}
             </div>
 
             {!isBoutiqueOwner && (
@@ -1666,7 +1871,7 @@ export default function ProductForm(props) {
             )}
 
             {form.installmentEnabled && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">
                     Premier paiement minimum
@@ -1678,7 +1883,7 @@ export default function ProductForm(props) {
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, installmentMinAmount: e.target.value }))
                     }
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                    className={inputClass}
                     placeholder="Ex: 30000"
                   />
                 </div>
@@ -1691,7 +1896,7 @@ export default function ProductForm(props) {
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, installmentDuration: e.target.value }))
                     }
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                    className={inputClass}
                     placeholder="Ex: 30"
                   />
                 </div>
@@ -1703,7 +1908,7 @@ export default function ProductForm(props) {
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, installmentStartDate: e.target.value }))
                     }
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                    className={inputClass}
                   />
                 </div>
                 <div className="space-y-2">
@@ -1714,7 +1919,7 @@ export default function ProductForm(props) {
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, installmentEndDate: e.target.value }))
                     }
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                    className={inputClass}
                   />
                 </div>
                 <div className="space-y-2">
@@ -1729,7 +1934,7 @@ export default function ProductForm(props) {
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, installmentLatePenaltyRate: e.target.value }))
                     }
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                    className={inputClass}
                     placeholder="Ex: 5"
                   />
                 </div>
@@ -1745,10 +1950,10 @@ export default function ProductForm(props) {
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, installmentMaxMissedPayments: e.target.value }))
                     }
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                    className={inputClass}
                   />
                 </div>
-                <label className="md:col-span-2 flex items-center gap-2 text-sm text-gray-700">
+                <label className="flex min-w-0 items-start gap-2 rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-700 sm:col-span-2">
                   <input
                     type="checkbox"
                     checked={Boolean(form.installmentRequireGuarantor)}
@@ -1757,7 +1962,7 @@ export default function ProductForm(props) {
                     }
                     className="h-4 w-4 rounded border-gray-300 text-neutral-600 focus:ring-neutral-500"
                   />
-                  Exiger les informations d’un garant
+                  <span className="min-w-0">Exiger les informations d’un garant</span>
                 </label>
               </div>
             )}
@@ -1769,26 +1974,20 @@ export default function ProductForm(props) {
             )}
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <div>
+          <div className="min-w-0 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50/70 p-4 space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-gray-900">Vente en gros</p>
                 <p className="text-xs text-gray-500">
                   Configurez des paliers: plus la quantité augmente, plus le prix unitaire baisse.
                 </p>
               </div>
-              <label className="inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="sr-only peer"
-                  checked={Boolean(form.wholesaleEnabled)}
-                  disabled={!isBoutiqueOwner}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, wholesaleEnabled: e.target.checked }))
-                  }
-                />
-                <div className="relative w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:bg-neutral-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full" />
-              </label>
+              {renderSwitchButton({
+                checked: Boolean(form.wholesaleEnabled),
+                disabled: !isBoutiqueOwner,
+                label: 'Activer la vente en gros',
+                onChange: setWholesaleEnabled
+              })}
             </div>
 
             {!isBoutiqueOwner && (
@@ -1802,7 +2001,7 @@ export default function ProductForm(props) {
                 {(Array.isArray(form.wholesaleTiers) ? form.wholesaleTiers : []).map((tier, index) => (
                   <div
                     key={`wholesale-tier-${index}`}
-                    className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] gap-2 rounded-xl border border-gray-200 bg-white p-3"
+                    className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-gray-200 bg-white p-3 md:grid-cols-[1fr_1fr_1fr_auto]"
                   >
                     <div className="space-y-1">
                       <label className="text-xs font-medium text-gray-700">Qté min</label>
@@ -1811,7 +2010,7 @@ export default function ProductForm(props) {
                         min="2"
                         value={tier?.minQty ?? ''}
                         onChange={(e) => updateWholesaleTier(index, 'minQty', e.target.value)}
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                        className="w-full min-w-0 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                         placeholder="Ex: 10"
                       />
                     </div>
@@ -1822,7 +2021,7 @@ export default function ProductForm(props) {
                         min="1"
                         value={tier?.unitPrice ?? ''}
                         onChange={(e) => updateWholesaleTier(index, 'unitPrice', e.target.value)}
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                        className="w-full min-w-0 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                         placeholder="Ex: 9500"
                       />
                     </div>
@@ -1832,7 +2031,7 @@ export default function ProductForm(props) {
                         type="text"
                         value={tier?.label ?? ''}
                         onChange={(e) => updateWholesaleTier(index, 'label', e.target.value)}
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                        className="w-full min-w-0 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                         placeholder="Ex: 10-49"
                       />
                     </div>
@@ -1904,12 +2103,12 @@ export default function ProductForm(props) {
           )}
         </div>
 
-        <div className="space-y-4">
+        <div className={sectionShellClass}>
           {isMobile ? (
             <button
               type="button"
               onClick={() => toggleSection('options')}
-              className="flex items-center justify-between w-full py-3.5 px-0 text-left rounded-xl -mx-2 px-2 -mt-1 active:bg-gray-100/80 touch-manipulation min-h-[48px] transition-colors"
+              className="flex w-full items-center justify-between rounded-2xl bg-neutral-50 px-3 py-3.5 text-left transition active:bg-neutral-100"
               aria-expanded={expandedSections.options}
             >
               <div className="flex items-center space-x-3">
@@ -1918,20 +2117,20 @@ export default function ProductForm(props) {
                 </div>
                 <h2 className="text-[17px] font-semibold text-gray-900">Options & dimensions</h2>
               </div>
-              <span className="min-w-[44px] min-h-[44px] flex items-center justify-center -m-2 text-gray-400">
+              <span className="flex min-h-[44px] min-w-[44px] items-center justify-center text-gray-400">
                 {expandedSections.options ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
               </span>
             </button>
           ) : (
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-2 h-6 bg-gradient-to-b from-neutral-500 to-neutral-500 rounded-full"></div>
+            <div className="mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Options & dimensions</h2>
+              <p className="text-sm text-gray-500">Ajoutez seulement les options utiles à la commande.</p>
             </div>
           )}
 
           {(!isMobile || expandedSections.options) && (
             <div className="space-y-4 pt-1">
-              <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 space-y-4">
+              <div className={`${innerPanelClass} space-y-4`}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-gray-900">Attributs acheteur</p>
@@ -2089,7 +2288,7 @@ export default function ProductForm(props) {
                 )}
               </div>
 
-              <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 space-y-4">
+              <div className={`${innerPanelClass} space-y-4`}>
                 <div>
                   <p className="text-sm font-semibold text-gray-900">Caractéristiques physiques</p>
                   <p className="text-xs text-gray-500">
@@ -2167,12 +2366,12 @@ export default function ProductForm(props) {
         </div>
 
         {/* Section Images */}
-        <div className="space-y-4">
+        <div className={sectionShellClass}>
           {isMobile ? (
             <button
               type="button"
               onClick={() => toggleSection('images')}
-              className="flex items-center justify-between w-full py-3.5 px-0 text-left rounded-xl -mx-2 px-2 -mt-1 active:bg-gray-100/80 touch-manipulation min-h-[48px] transition-colors"
+              className="flex w-full items-center justify-between rounded-2xl bg-neutral-50 px-3 py-3.5 text-left transition active:bg-neutral-100"
               aria-expanded={expandedSections.images}
             >
               <div className="flex items-center space-x-3">
@@ -2181,14 +2380,14 @@ export default function ProductForm(props) {
                 </div>
                 <h2 className="text-[17px] font-semibold text-gray-900">Photos du produit</h2>
               </div>
-              <span className="min-w-[44px] min-h-[44px] flex items-center justify-center -m-2 text-gray-400">
+              <span className="flex min-h-[44px] min-w-[44px] items-center justify-center text-gray-400">
                 {expandedSections.images ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
               </span>
             </button>
           ) : (
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-2 h-6 bg-gradient-to-b from-neutral-500 to-neutral-500 rounded-full"></div>
+            <div className="mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Photos du produit</h2>
+              <p className="text-sm text-gray-500">Des images nettes chargent plus vite et vendent mieux.</p>
             </div>
           )}
 
@@ -2205,7 +2404,19 @@ export default function ProductForm(props) {
                       `(${existingImages.length + files.length})`}
                   </span>
                 </label>
-                <p className="text-xs text-gray-500">Jusqu&apos;à {maxImagesLimit} photos (PNG ou JPG, 10&nbsp;MB max chacun).</p>
+                <p className="text-xs text-gray-500">
+                  Jusqu&apos;à {maxImagesLimit} photos. Les images sont optimisées automatiquement avant l&apos;upload.
+                </p>
+                {mediaOptimization.active && (
+                  <p className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700">
+                    Optimisation des photos en cours...
+                  </p>
+                )}
+                {!mediaOptimization.active && mediaOptimization.optimizedCount > 0 && (
+                  <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
+                    {mediaOptimization.optimizedCount} photo(s) optimisée(s), {formatFileSize(mediaOptimization.savedBytes)} économisés.
+                  </p>
+                )}
 
                 {existingImages.length > 0 && (
                   <div className="space-y-2">
@@ -2237,7 +2448,7 @@ export default function ProductForm(props) {
                   <span className={`text-gray-500 text-center ${isMobile ? 'text-sm' : 'text-sm'}`}>
                     <span className="text-neutral-600 font-medium">{isMobile ? 'Appuyez pour ajouter des photos' : 'Cliquez pour uploader'}</span>
                     <br />
-                    <span className="text-xs">PNG, JPG jusqu'à 10MB</span>
+                    <span className="text-xs">JPG, PNG, WEBP optimisés</span>
                   </span>
                   <input
                     type="file"
@@ -2327,14 +2538,16 @@ export default function ProductForm(props) {
         </div>
 
         {canUploadVideo ? (
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3 mb-2">
-              <div className="w-2 h-6 bg-gradient-to-b from-emerald-500 to-teal-500 rounded-full"></div>
-              <h2 className="text-lg font-semibold text-gray-900">Vidéo de présentation</h2>
+          <div className={sectionShellClass}>
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Vidéo de présentation</h2>
+                <p className="text-sm text-gray-500">
+                  Ajoutez une courte vidéo (MP4, MOV, WEBM). Taille maximale {MAX_VIDEO_SIZE_MB} Mo.
+                </p>
+              </div>
+              <Video className="mt-1 h-5 w-5 text-neutral-500" />
             </div>
-            <p className="text-sm text-gray-500">
-              Ajoutez une courte vidéo (MP4, MOV, WEBM) pour montrer le produit. Taille maximale {MAX_VIDEO_SIZE_MB} Mo.
-            </p>
             <input
               id="product-form-video-input"
               type="file"
@@ -2505,7 +2718,7 @@ export default function ProductForm(props) {
             )}
           </div>
         ) : (
-          <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-500 space-y-1">
+          <div className="rounded-[22px] border border-dashed border-neutral-200 bg-white p-4 text-sm text-gray-500 shadow-sm">
             <p className="font-semibold text-gray-700">Vidéo réservée aux boutiques certifiées</p>
             <p>
               Contactez un administrateur via{' '}
@@ -2518,14 +2731,16 @@ export default function ProductForm(props) {
         )}
 
         {canUploadPdf && (
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3 mb-2">
-              <div className="w-2 h-6 bg-gradient-to-b from-slate-500 to-gray-500 rounded-full"></div>
-              <h2 className="text-lg font-semibold text-gray-900">Fiche produit (PDF)</h2>
+          <div className={sectionShellClass}>
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Fiche produit (PDF)</h2>
+                <p className="text-sm text-gray-500">
+                  Ajoutez un document PDF si le produit a une fiche technique. Taille maximale {MAX_PDF_SIZE_MB} Mo.
+                </p>
+              </div>
+              <FileText className="mt-1 h-5 w-5 text-neutral-500" />
             </div>
-            <p className="text-sm text-gray-500">
-              Ajoutez un document PDF pour détailler votre produit. Taille maximale {MAX_PDF_SIZE_MB} Mo.
-            </p>
             {existingPdf && !pdfFile && !removePdf && (
               <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
                 <div>
@@ -2589,13 +2804,16 @@ export default function ProductForm(props) {
         )}
 
         {!isEditing && (
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-2 h-6 bg-gradient-to-b from-amber-500 to-orange-500 rounded-full"></div>
-              <h2 className="text-lg font-semibold text-gray-900">Validation de l'annonce</h2>
+          <div className={sectionShellClass}>
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Validation de l'annonce</h2>
+                <p className="text-sm text-gray-500">Résumé des frais avant publication.</p>
+              </div>
+              <AlertCircle className="mt-1 h-5 w-5 text-amber-600" />
             </div>
 
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
               <div className="flex items-start space-x-3">
                 <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                 <div className="space-y-2">
@@ -2615,11 +2833,11 @@ export default function ProductForm(props) {
 
         {/* Preview Section */}
         {(form.title || imagePreviews.length > 0 || existingImages.length > 0) && (
-          <div className="space-y-4">
+          <div className={sectionShellClass}>
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-6 bg-gradient-to-b from-neutral-500 to-neutral-500 rounded-full"></div>
+              <div>
                 <h2 className="text-lg font-semibold text-gray-900">Aperçu</h2>
+                <p className="text-sm text-gray-500">Contrôlez le rendu avant publication.</p>
               </div>
               <button
                 type="button"
@@ -2641,7 +2859,7 @@ export default function ProductForm(props) {
             </div>
             
             {showPreview && (
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
                 <div className="max-w-sm mx-auto">
                   <ProductCard
                     p={{
@@ -2652,6 +2870,9 @@ export default function ProductForm(props) {
                       category: form.category || '',
                       condition: form.condition || 'used',
                       discount: form.discount || 0,
+                      warrantyEnabled: Boolean(form.warrantyEnabled),
+                      warrantyPeriodValue: form.warrantyPeriodValue || null,
+                      warrantyPeriodUnit: form.warrantyPeriodUnit || 'months',
                       images: [
                         ...existingImages,
                         ...imagePreviews.map(p => p.url)
@@ -2683,8 +2904,8 @@ export default function ProductForm(props) {
           <div
             className={
               isEmbeddedMobile
-                ? 'sticky bottom-0 z-30 -mx-4 mt-4 border-t border-gray-200/80 bg-white/95 px-4 pt-3 pb-[calc(0.9rem+env(safe-area-inset-bottom))] backdrop-blur-md safe-area-pb'
-                : 'fixed bottom-0 left-0 right-0 z-40 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-[#f2f2f7]/95 backdrop-blur-xl border-t border-gray-200/50 safe-area-pb'
+                ? 'sticky bottom-0 z-30 mt-4 border-t border-neutral-200/80 bg-white/95 px-0 pt-3 pb-[calc(0.9rem+env(safe-area-inset-bottom))] backdrop-blur-md safe-area-pb'
+                : 'fixed bottom-0 left-0 right-0 z-40 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-[#f6f6f3]/95 backdrop-blur-xl border-t border-neutral-200/70 safe-area-pb'
             }
           >
             {isEmbeddedMobile && onCancel ? (
@@ -2701,7 +2922,7 @@ export default function ProductForm(props) {
             <button
               type="submit"
               disabled={submitDisabled}
-              className="w-full min-h-[52px] py-4 bg-neutral-500 text-white text-[17px] font-semibold rounded-xl active:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm touch-manipulation transition-opacity"
+              className="flex min-h-[54px] w-full items-center justify-center gap-2 rounded-2xl bg-neutral-950 py-4 text-[17px] font-semibold text-white shadow-[0_16px_30px_rgba(15,23,42,0.20)] transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? (
                 <>
@@ -2720,7 +2941,7 @@ export default function ProductForm(props) {
           <button
             type="submit"
             disabled={submitDisabled}
-            className="w-full py-4 bg-gradient-to-r from-neutral-600 to-neutral-600 text-white font-semibold rounded-xl hover:from-neutral-700 hover:to-neutral-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 shadow-lg"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-neutral-950 py-4 font-semibold text-white shadow-[0_18px_40px_rgba(15,23,42,0.18)] transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? (
               <>

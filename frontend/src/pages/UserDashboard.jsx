@@ -57,6 +57,7 @@ import storage from '../utils/storage';
 import BaseModal from '../components/modals/BaseModal';
 import PreviewableImage from '../components/media/PreviewableImage';
 import { appConfirm } from '../utils/appDialog';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 const ITEMS_PER_PAGE = 12;
 const RECENT_CREATE_HIGHLIGHT_MS = 12000;
@@ -91,6 +92,17 @@ const STATUS_MESSAGES = {
 };
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
+
+const normalizeSettingBoolean = (value, fallback = false) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'oui', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'non', 'off', ''].includes(normalized)) return false;
+  }
+  return fallback;
+};
 
 const formatDate = (value) => {
   if (!value) return '';
@@ -127,9 +139,11 @@ const buildDefaultPromoForm = () => ({
 export default function UserDashboard() {
   const { user } = useContext(AuthContext);
   const { showToast } = useToast();
+  const { getRuntimeValue } = useAppSettings();
   const externalLinkProps = useDesktopExternalLink();
   const isMobile = useIsMobile(768);
   const isShopUser = user?.accountType === 'shop';
+  const sellingEnabled = normalizeSettingBoolean(getRuntimeValue('enable_selling', true), true);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -983,17 +997,24 @@ export default function UserDashboard() {
                 <Sparkles className="w-4 h-4" />
                 Demandes boost
               </Link>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingProduct(null);
-                  setProductModalOpen(true);
-                }}
-                className="inline-flex items-center gap-2 rounded-xl bg-white text-neutral-600 px-4 py-2.5 text-sm font-semibold hover:bg-white/90 transition-all shadow-lg"
-              >
-                <Plus className="w-4 h-4" />
-                Publier une annonce
-              </button>
+              {sellingEnabled ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingProduct(null);
+                    setProductModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl bg-white text-neutral-600 px-4 py-2.5 text-sm font-semibold hover:bg-white/90 transition-all shadow-lg"
+                >
+                  <Plus className="w-4 h-4" />
+                  Publier une annonce
+                </button>
+              ) : (
+                <div className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white/90">
+                  <AlertTriangle className="w-4 h-4" />
+                  Publication désactivée
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -2518,23 +2539,29 @@ export default function UserDashboard() {
 
             {/* Modal Content */}
             <div className={`flex-1 overflow-y-auto min-h-0 ${isMobile ? 'p-3 pb-[max(1rem,env(safe-area-inset-bottom,0px))] scroll-pb-44' : 'p-6'}`}>
-              <ProductForm
-                initialValues={editingProduct}
-                productId={editingProduct?._id}
-                embeddedInModal={isMobile}
-                hideHeader
-                onCancel={handleModalClose}
-                onCreated={(createdProduct) => {
-                  revealCreatedProduct(createdProduct);
-                  handleModalClose();
-                  showToast('Annonce créée avec succès !', { variant: 'success' });
-                }}
-                onUpdated={(updatedProduct) => {
-                  revealUpdatedProduct(updatedProduct);
-                  handleModalClose();
-                  showToast('Annonce modifiée avec succès !', { variant: 'success' });
-                }}
-              />
+              {!sellingEnabled && !editingProduct ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                  La publication de nouvelles annonces est temporairement désactivée par l’administration.
+                </div>
+              ) : (
+                <ProductForm
+                  initialValues={editingProduct}
+                  productId={editingProduct?._id}
+                  embeddedInModal={isMobile}
+                  hideHeader
+                  onCancel={handleModalClose}
+                  onCreated={(createdProduct) => {
+                    revealCreatedProduct(createdProduct);
+                    handleModalClose();
+                    showToast('Annonce créée avec succès !', { variant: 'success' });
+                  }}
+                  onUpdated={(updatedProduct) => {
+                    revealUpdatedProduct(updatedProduct);
+                    handleModalClose();
+                    showToast('Annonce modifiée avec succès !', { variant: 'success' });
+                  }}
+                />
+              )}
             </div>
       </BaseModal>
 

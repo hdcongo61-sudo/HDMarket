@@ -58,7 +58,11 @@ import {
   sellerValidateInstallmentPayment,
   uploadInstallmentPaymentProof
 } from '../controllers/installmentController.js';
-import { checkOrderReviewReminderStatus } from '../controllers/reviewReminderController.js';
+import {
+  checkOrderReviewReminderStatus,
+  getBuyerOrderReviewPage,
+  updateBuyerOrderReviewReminder
+} from '../controllers/reviewReminderController.js';
 import {
   getOrderMessages,
   sendOrderMessage,
@@ -90,18 +94,18 @@ adminRouter.get('/alerts', adminOrderAlerts);
 adminRouter.get('/seller-performance', adminSellerPerformance);
 adminRouter.get('/user-risk', adminUserRisk);
 adminRouter.get('/:id/timeline', validate(schemas.idParam, 'params'), adminOrderTimeline);
-adminRouter.post('/:id/actions', validate(schemas.idParam, 'params'), adminApplyOrderAction);
-adminRouter.post('/automation/detect-delays', adminRunDelayDetection);
-adminRouter.post('/automation/reminder-sweep', adminRunReminderSweep);
-adminRouter.post('/automation/installment-reminders', adminRunInstallmentReminderSweep);
-adminRouter.post('/automation/installment-proof-sla', adminRunInstallmentProofSlaSweep);
+adminRouter.post('/:id/actions', validate(schemas.idParam, 'params'), idempotencyMiddleware(), adminApplyOrderAction);
+adminRouter.post('/automation/detect-delays', idempotencyMiddleware(), adminRunDelayDetection);
+adminRouter.post('/automation/reminder-sweep', idempotencyMiddleware(), adminRunReminderSweep);
+adminRouter.post('/automation/installment-reminders', idempotencyMiddleware(), adminRunInstallmentReminderSweep);
+adminRouter.post('/automation/installment-proof-sla', idempotencyMiddleware(), adminRunInstallmentProofSlaSweep);
 adminRouter.get('/customers', adminSearchCustomers);
 adminRouter.get('/products', adminSearchProducts);
 adminRouter.get('/', adminListOrders);
-adminRouter.post('/', requireRole(['admin']), validate(schemas.orderCreate), adminCreateOrder);
-adminRouter.patch('/:id', validate(schemas.idParam, 'params'), validate(schemas.orderUpdate), adminUpdateOrder);
-adminRouter.delete('/:id', validate(schemas.idParam, 'params'), adminDeleteOrder);
-adminRouter.post('/:id/reminder', validate(schemas.idParam, 'params'), adminSendOrderReminder);
+adminRouter.post('/', requireRole(['admin']), idempotencyMiddleware(), validate(schemas.orderCreate), adminCreateOrder);
+adminRouter.patch('/:id', validate(schemas.idParam, 'params'), validate(schemas.orderUpdate), idempotencyMiddleware(), adminUpdateOrder);
+adminRouter.delete('/:id', validate(schemas.idParam, 'params'), idempotencyMiddleware(), adminDeleteOrder);
+adminRouter.post('/:id/reminder', validate(schemas.idParam, 'params'), idempotencyMiddleware(), adminSendOrderReminder);
 
 router.use('/admin', adminRouter);
 
@@ -122,18 +126,21 @@ router.post(
   '/:id/installment/payments/:scheduleIndex/proof',
   validate(schemas.installmentScheduleParam, 'params'),
   validate(schemas.installmentPaymentProofSubmit),
+  idempotencyMiddleware(),
   uploadInstallmentPaymentProof
 );
 router.patch(
   '/seller/:id/installment/confirm-sale',
   validate(schemas.idParam, 'params'),
   validate(schemas.installmentSaleConfirmation),
+  idempotencyMiddleware(),
   sellerConfirmInstallmentSale
 );
 router.patch(
   '/seller/:id/installment/payments/:scheduleIndex/validate',
   validate(schemas.installmentScheduleParam, 'params'),
   validate(schemas.installmentPaymentValidation),
+  idempotencyMiddleware(),
   sellerValidateInstallmentPayment
 );
 router.get(
@@ -151,8 +158,8 @@ router.get(
   cacheMiddleware({ domain: 'dashboard', scope: 'seller', ttl: 90000 }),
   sellerDeliveryStatsProducts
 );
-router.post('/inquiry', validate(schemas.orderInquiry), createInquiryOrder);
-router.post('/draft', saveDraftOrder);
+router.post('/inquiry', idempotencyMiddleware(), validate(schemas.orderInquiry), createInquiryOrder);
+router.post('/draft', idempotencyMiddleware(), saveDraftOrder);
 router.get('/draft', getDraftOrders);
 router.delete('/draft/:id', validate(schemas.idParam, 'params'), deleteDraftOrder);
 router.get('/seller', cacheMiddleware({ domain: 'orders', scope: 'seller', ttl: 45000 }), sellerListOrders);
@@ -172,6 +179,7 @@ router.patch(
   '/seller/:id/delivery-fee',
   validate(schemas.idParam, 'params'),
   validate(schemas.sellerDeliveryFeeUpdate, 'body'),
+  idempotencyMiddleware(),
   sellerUpdateOrderDeliveryFee
 );
 router.post(
@@ -179,6 +187,7 @@ router.post(
   validate(schemas.idParam, 'params'),
   deliveryProofUpload.array('deliveryProofImages', 5),
   validate(schemas.deliveryProofSubmit),
+  idempotencyMiddleware(),
   sellerSubmitDeliveryProof
 );
 router.post(
@@ -193,12 +202,14 @@ router.post(
   '/:id/request-delivery',
   validate(schemas.idParam, 'params'),
   validate(schemas.orderRequestDelivery),
+  idempotencyMiddleware(),
   requestPlatformDeliveryForOrder
 );
 router.post(
   '/:id/delivery-pin',
   validate(schemas.idParam, 'params'),
   validate(schemas.sellerDeliveryPinUpdate),
+  idempotencyMiddleware(),
   sellerUpdateDeliveryPinForOrder
 );
 router.patch(
@@ -212,6 +223,7 @@ router.patch(
   '/:id/address',
   validate(schemas.idParam, 'params'),
   validate(schemas.orderAddressUpdate),
+  idempotencyMiddleware(),
   userUpdateOrderAddress
 );
 router.post(
@@ -237,12 +249,20 @@ router.post(
 // Order messages routes (must be before /:id routes to avoid conflicts)
 router.get('/messages/conversations', getAllOrderConversations);
 router.get('/messages/unread', getUnreadCount);
-router.post('/:id/archive', validate(schemas.idParam, 'params'), archiveOrderConversation);
-router.post('/:id/unarchive', validate(schemas.idParam, 'params'), unarchiveOrderConversation);
-router.post('/:id/delete', validate(schemas.idParam, 'params'), deleteOrderConversation);
+router.post('/:id/archive', validate(schemas.idParam, 'params'), idempotencyMiddleware(), archiveOrderConversation);
+router.post('/:id/unarchive', validate(schemas.idParam, 'params'), idempotencyMiddleware(), unarchiveOrderConversation);
+router.post('/:id/delete', validate(schemas.idParam, 'params'), idempotencyMiddleware(), deleteOrderConversation);
 
 router.get('/', cacheMiddleware({ domain: 'orders', scope: 'user', ttl: 45000 }), userListOrders);
 router.get('/:id/review-reminder-check', validate(schemas.idParam, 'params'), checkOrderReviewReminderStatus);
+router.get('/:id/review', validate(schemas.idParam, 'params'), getBuyerOrderReviewPage);
+router.post(
+  '/:id/review/action',
+  validate(schemas.idParam, 'params'),
+  validate(schemas.orderReviewReminderAction),
+  idempotencyMiddleware(),
+  updateBuyerOrderReviewReminder
+);
 
 // Order messages routes for specific order
 router.get('/:orderId/messages', getOrderMessages);

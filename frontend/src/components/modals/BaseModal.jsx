@@ -273,9 +273,9 @@ export default function BaseModal({
         tabIndex={-1}
         style={panelStyle}
         className={cx(
-          'ui-modal-panel glass-modal-panel relative z-[1] flex w-full flex-col overflow-hidden border border-slate-200/70 bg-white/85 text-slate-900 shadow-2xl outline-none dark:border-neutral-800 dark:bg-slate-900/85 dark:text-neutral-100',
+          'ui-modal-panel glass-modal-panel relative z-[1] flex w-full flex-col overflow-hidden border border-neutral-200 bg-white/95 text-neutral-950 shadow-2xl outline-none backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/95 dark:text-neutral-100',
           sizeClass,
-          fullscreen ? 'rounded-none' : mobileSheet ? 'rounded-t-3xl sm:rounded-2xl' : 'rounded-2xl',
+          fullscreen ? 'rounded-none' : mobileSheet ? 'rounded-t-[28px] sm:rounded-[24px]' : 'rounded-[24px]',
           panelClassName
         )}
         onClick={(event) => event.stopPropagation()}
@@ -304,14 +304,14 @@ export function ModalHeader({
   return (
     <header
       className={cx(
-        'ui-modal-header flex items-center justify-between gap-3 border-b border-slate-200/70 px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-5 dark:border-neutral-800',
+        'ui-modal-header flex items-center justify-between gap-3 border-b border-neutral-200 px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-5 dark:border-neutral-800',
         className
       )}
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2.5">
           {icon ? (
-            <span className="glass-card inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-700 dark:text-neutral-300">
+            <span className="ui-card inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-neutral-700 dark:text-neutral-300">
               {icon}
             </span>
           ) : null}
@@ -320,7 +320,7 @@ export function ModalHeader({
           </h2>
         </div>
         {subtitle ? (
-          <p className="mt-1 text-xs text-slate-500 sm:text-sm dark:text-neutral-400">
+          <p className="mt-1 text-xs text-neutral-500 sm:text-sm dark:text-neutral-400">
             {subtitle}
           </p>
         ) : null}
@@ -332,9 +332,9 @@ export function ModalHeader({
             type="button"
             aria-label={closeLabel}
             onClick={onClose}
-            className="glass-card inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 transition hover:text-slate-900 dark:text-neutral-300 dark:hover:text-white"
+            className="ui-card inline-flex h-11 w-11 items-center justify-center rounded-xl text-neutral-600 transition hover:text-neutral-950 dark:text-neutral-300 dark:hover:text-white"
           >
-            <X size={18} />
+              <X size={18} />
           </button>
         ) : null}
       </div>
@@ -359,9 +359,9 @@ export function ModalFooter({ sticky = true, className = '', children }) {
   return (
     <footer
       className={cx(
-        'ui-modal-footer border-t border-slate-200/80 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-3 sm:px-6 sm:pb-4 dark:border-neutral-800',
+        'ui-modal-footer border-t border-neutral-200 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-3 sm:px-6 sm:pb-4 dark:border-neutral-800',
         sticky
-          ? 'sticky bottom-0 bg-white/72 backdrop-blur-md dark:bg-slate-950/74'
+          ? 'sticky bottom-0 bg-white/86 backdrop-blur-md dark:bg-neutral-950/86'
           : 'bg-transparent',
         className
       )}

@@ -5,8 +5,11 @@ const ABSOLUTE_URL_REGEX = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 const URL_BASE = 'https://hdmarket.local';
 
 const ORDER_TYPES = new Set([
+  'order_placed',
   'order_created',
   'order_received',
+  'order_accepted',
+  'order_rejected',
   'order_reminder',
   'order_cancelled',
   'order_cancellation_window_skipped',
@@ -24,7 +27,7 @@ const INSTALLMENT_TYPES = new Set([
   'installment_overdue_warning',
   'installment_product_suspended'
 ]);
-const PRODUCT_REVIEW_TYPES = new Set(['product_comment', 'reply', 'rating', 'review_reminder']);
+const PRODUCT_REVIEW_TYPES = new Set(['product_comment', 'reply', 'rating']);
 const SHOP_REVIEW_TYPES = new Set(['shop_review']);
 const COMPLAINT_TYPES = new Set(['complaint_created', 'complaint_resolved']);
 const FEEDBACK_TYPES = new Set(['feedback_read', 'improvement_feedback_created']);
@@ -41,6 +44,9 @@ const DISPUTE_TYPES = new Set([
   'dispute_resolved'
 ]);
 const DELIVERY_TYPES = new Set([
+  'delivery_assigned',
+  'delivery_in_progress',
+  'delivery_completed',
   'delivery_request_created',
   'delivery_request_accepted',
   'delivery_request_rejected',
@@ -53,10 +59,14 @@ const DELIVERY_TYPES = new Set([
 const PRODUCT_TYPES = new Set([
   'favorite',
   'product_approval',
+  'product_approved',
   'product_rejection',
+  'product_rejected',
   'product_certified',
   'product_boosted',
-  'promotional'
+  'boost_expired',
+  'promotional',
+  'promo_expired'
 ]);
 
 export const extractObjectId = (value, depth = 0) => {
@@ -200,6 +210,21 @@ const buildOrderPath = (alert, user, fallbackOrderId = '') => {
   return `/orders/detail/${orderId}`;
 };
 
+const buildOrderReviewPath = (alert) => {
+  const metadata = alert?.metadata || {};
+  const orderId =
+    extractObjectId(metadata.orderId) ||
+    extractObjectId(alert?.entityType === 'order' ? alert?.entityId : '') ||
+    extractObjectId(alert?.entityId);
+  if (!orderId) return '';
+  const params = new URLSearchParams();
+  const productId = extractObjectId(metadata.productId);
+  if (productId) {
+    params.set('productId', productId);
+  }
+  return `/orders/${encodeURIComponent(orderId)}/review${params.toString() ? `?${params.toString()}` : ''}`;
+};
+
 const buildDisputePath = (alert, user) => {
   if (!DISPUTE_TYPES.has(String(alert?.type || ''))) return '';
   const metadata = alert?.metadata || {};
@@ -325,6 +350,10 @@ export const resolveNotificationLink = (alert, user = null) => {
   if (type === 'order_message') {
     if (deepLink && deepLink.includes('/orders/messages')) return deepLink;
     return buildOrderPath(alert, user);
+  }
+
+  if (type === 'review_reminder') {
+    return buildOrderReviewPath(alert) || resolveRoleAwareOrderLink(alert, user, deepLink) || buildOrderPath(alert, user);
   }
 
   if (PRODUCT_REVIEW_TYPES.has(type)) {

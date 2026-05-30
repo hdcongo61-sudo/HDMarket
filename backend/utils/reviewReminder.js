@@ -1,222 +1,67 @@
 import Order from '../models/orderModel.js';
-import Rating from '../models/ratingModel.js';
-import Comment from '../models/commentModel.js';
-import Notification from '../models/notificationModel.js';
-import { createNotification } from './notificationService.js';
-import { getRuntimeConfig } from '../services/configService.js';
+import {
+  getReviewReminderSettings,
+  isOrderEligibleForReviewReminder,
+  runReviewReminderSweep
+} from '../services/orderReviewReminderService.js';
 
-const getReviewReminderDelayHours = async () => {
-  const envFallback = Math.max(1, Number(process.env.ORDER_REVIEW_REMINDER_AFTER_HOURS || 1));
-  const value = await getRuntimeConfig('review_reminder_after_hours', { fallback: envFallback });
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return envFallback;
-  return Math.max(1, parsed);
-};
-
-/**
- * Check for delivered orders that reached configured delay and send review reminders
- * to buyers who haven't reviewed the products yet
- */
 export const sendReviewReminders = async () => {
-  try {
-    const reminderDelayHours = await getReviewReminderDelayHours();
-    const thresholdDate = new Date(Date.now() - reminderDelayHours * 60 * 60 * 1000);
-    
-    const deliveredOrders = await Order.find({
-      status: 'delivered',
-      deliveredAt: { $exists: true, $lte: thresholdDate },
-      isDraft: false
-    })
-      .populate('customer', 'name email')
-      .populate('items.product', 'title slug')
-      .lean();
-
-    if (!deliveredOrders || deliveredOrders.length === 0) {
-      return { processed: 0, sent: 0 };
-    }
-
-    let processed = 0;
-    let sent = 0;
-
-    for (const order of deliveredOrders) {
-      if (!order.customer || !order.items || order.items.length === 0) {
-        continue;
-      }
-
-      const customerId = order.customer._id || order.customer;
-      const orderId = order._id;
-
-      // Check if we already sent a review reminder for this order
-      const existingReminder = await Notification.findOne({
-        user: customerId,
-        type: 'review_reminder',
-        'metadata.orderId': orderId.toString()
-      }).lean();
-
-      if (existingReminder) {
-        // Already sent a reminder for this order
-        processed++;
-        continue;
-      }
-
-      // Get all product IDs from the order
-      const productIds = order.items
-        .map((item) => item.product?._id || item.product)
-        .filter(Boolean);
-
-      if (productIds.length === 0) {
-        continue;
-      }
-
-      // Check which products the customer hasn't reviewed yet
-      const [existingRatings, existingComments] = await Promise.all([
-        Rating.find({
-          user: customerId,
-          product: { $in: productIds }
-        })
-          .select('product')
-          .lean(),
-        Comment.find({
-          user: customerId,
-          product: { $in: productIds }
-        })
-          .select('product')
-          .lean()
-      ]);
-
-      const ratedProductIds = new Set(
-        existingRatings.map((r) => r.product?.toString() || r.product)
-      );
-      const commentedProductIds = new Set(
-        existingComments.map((c) => c.product?.toString() || c.product)
-      );
-
-      // Find products that haven't been reviewed (no rating AND no comment)
-      const unreviewedProducts = order.items.filter((item) => {
-        const productId = (item.product?._id || item.product)?.toString();
-        if (!productId) return false;
-        return !ratedProductIds.has(productId) && !commentedProductIds.has(productId);
-      });
-
-      if (unreviewedProducts.length === 0) {
-        // Customer has already reviewed all products
-        processed++;
-        continue;
-      }
-
-      // Get product details for the notification
-      const productDetails = unreviewedProducts
-        .slice(0, 3) // Limit to first 3 products in notification
-        .map((item) => ({
-          id: item.product?._id || item.product,
-          title: item.snapshot?.title || item.product?.title || 'Produit',
-          slug: item.product?.slug || null
-        }));
-
-      // Send notification to the buyer
-      try {
-        await createNotification({
-          userId: customerId,
-          actorId: customerId, // Self-triggered notification
-          productId: productDetails[0]?.id, // First product as primary reference
-          type: 'review_reminder',
-          metadata: {
-            orderId: orderId.toString(),
-            orderCode: order.deliveryCode || null,
-            products: productDetails,
-            productCount: unreviewedProducts.length,
-            deliveredAt: order.deliveredAt
-          },
-          allowSelf: true // Allow self-notifications for review reminders
-        });
-        sent++;
-      } catch (error) {
-        console.error(`Failed to send review reminder for order ${orderId}:`, error);
-      }
-
-      processed++;
-    }
-
-    return { processed, sent };
-  } catch (error) {
-    console.error('Error in sendReviewReminders:', error);
-    throw error;
-  }
+  return runReviewReminderSweep({ limit: 200, source: 'legacy_scheduler' });
 };
 
-/**
- * Check if a specific order needs a review reminder
- */
 export const checkOrderReviewReminder = async (orderId) => {
-  try {
-    const order = await Order.findById(orderId)
-      .populate('customer', 'name email')
-      .populate('items.product', 'title slug')
-      .lean();
+  const order = await Order.findById(orderId).select(
+    '_id status isDraft deliveredAt completedAt reviewStatus reviewReminderDisabled reviewReminderSentAt reviewCompletedAt reviewReminderCount'
+  );
 
-    if (!order || order.status !== 'delivered' || !order.deliveredAt) {
-      return { needsReminder: false, reason: 'Order not delivered' };
-    }
-
-    const reminderDelayHours = await getReviewReminderDelayHours();
-    const thresholdDate = new Date(Date.now() - reminderDelayHours * 60 * 60 * 1000);
-    if (order.deliveredAt > thresholdDate) {
-      return { needsReminder: false, reason: `Less than ${reminderDelayHours} hour(s) since delivery` };
-    }
-
-    if (!order.customer || !order.items || order.items.length === 0) {
-      return { needsReminder: false, reason: 'Invalid order data' };
-    }
-
-    const customerId = order.customer._id || order.customer;
-    const productIds = order.items
-      .map((item) => item.product?._id || item.product)
-      .filter(Boolean);
-
-    if (productIds.length === 0) {
-      return { needsReminder: false, reason: 'No products in order' };
-    }
-
-    // Check which products haven't been reviewed
-    const [existingRatings, existingComments] = await Promise.all([
-      Rating.find({
-        user: customerId,
-        product: { $in: productIds }
-      })
-        .select('product')
-        .lean(),
-      Comment.find({
-        user: customerId,
-        product: { $in: productIds }
-      })
-        .select('product')
-        .lean()
-    ]);
-
-    const ratedProductIds = new Set(
-      existingRatings.map((r) => r.product?.toString() || r.product)
-    );
-    const commentedProductIds = new Set(
-      existingComments.map((c) => c.product?.toString() || c.product)
-    );
-
-    const unreviewedProducts = order.items.filter((item) => {
-      const productId = (item.product?._id || item.product)?.toString();
-      if (!productId) return false;
-      return !ratedProductIds.has(productId) && !commentedProductIds.has(productId);
-    });
-
-    if (unreviewedProducts.length === 0) {
-      return { needsReminder: false, reason: 'All products already reviewed' };
-    }
-
-    return {
-      needsReminder: true,
-      unreviewedCount: unreviewedProducts.length,
-      totalProducts: order.items.length
-    };
-  } catch (error) {
-    console.error('Error in checkOrderReviewReminder:', error);
-    throw error;
+  if (!order) {
+    return { needsReminder: false, reason: 'Commande introuvable.' };
   }
+
+  const settings = await getReviewReminderSettings();
+  const eligible = isOrderEligibleForReviewReminder(order);
+  const baseline = order.deliveredAt || order.completedAt || null;
+  const dueAt =
+    baseline && settings.delayHours
+      ? new Date(new Date(baseline).getTime() + Number(settings.delayHours || 0) * 60 * 60 * 1000)
+      : null;
+
+  if (!settings.enabled) {
+    return { needsReminder: false, reason: 'Rappels désactivés.' };
+  }
+  if (!eligible) {
+    return { needsReminder: false, reason: 'Commande non éligible.' };
+  }
+  if (order.reviewStatus === 'DONE') {
+    return { needsReminder: false, reason: 'Avis déjà terminé.' };
+  }
+  if (order.reviewStatus === 'SKIPPED') {
+    return { needsReminder: false, reason: 'Rappel ignoré pour cette commande.' };
+  }
+  if (order.reviewReminderDisabled === true) {
+    return { needsReminder: false, reason: 'Rappel désactivé pour cette commande.' };
+  }
+  if (Number(order.reviewReminderCount || 0) >= Number(settings.maxCount || 1)) {
+    return { needsReminder: false, reason: 'Nombre maximum de rappels atteint.' };
+  }
+  if (!dueAt || dueAt.getTime() > Date.now()) {
+    return {
+      needsReminder: false,
+      reason: 'Délai de rappel non atteint.',
+      dueAt
+    };
+  }
+
+  return {
+    needsReminder: true,
+    dueAt,
+    settings,
+    reviewState: {
+      status: order.reviewStatus || 'PENDING',
+      disabled: Boolean(order.reviewReminderDisabled),
+      sentAt: order.reviewReminderSentAt || null,
+      completedAt: order.reviewCompletedAt || null,
+      reminderCount: Number(order.reviewReminderCount || 0)
+    }
+  };
 };

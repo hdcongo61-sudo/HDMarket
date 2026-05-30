@@ -1,5 +1,6 @@
 import Notification from '../models/notificationModel.js';
 import PushToken from '../models/pushTokenModel.js';
+import Order from '../models/orderModel.js';
 import { getRedisClient, initRedis, isRedisReady } from '../config/redisClient.js';
 
 const ENV = String(process.env.CACHE_ENV || process.env.NODE_ENV || 'dev')
@@ -78,6 +79,8 @@ const buildDateBuckets = (days = 14) => {
   return list;
 };
 
+const REVIEW_ELIGIBLE_STATUSES = ['delivery_proof_submitted', 'delivered', 'picked_up_confirmed', 'confirmed_by_client', 'completed'];
+
 export const computeFounderNotificationsAnalytics = async () => {
   const { now, start } = withDateRange(30);
   const start7 = new Date(now);
@@ -106,7 +109,9 @@ export const computeFounderNotificationsAnalytics = async () => {
     pendingNowAgg,
     pendingPrev7Agg,
     pendingLast7Agg,
-    disputeVolume24h
+    disputeVolume24h,
+    reviewReminderNotificationsAgg,
+    reviewEngagementAgg
   ] = await Promise.all([
     Notification.countDocuments({ createdAt: { $gte: start } }),
     Notification.countDocuments({ createdAt: { $gte: start7 } }),
@@ -368,12 +373,111 @@ export const computeFounderNotificationsAnalytics = async () => {
     Notification.countDocuments({
       type: { $in: ['dispute_created', 'dispute_under_review'] },
       createdAt: { $gte: start24h }
-    })
+    }),
+    Notification.aggregate([
+      {
+        $match: {
+          type: 'review_reminder',
+          createdAt: { $gte: start }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          sentCount: { $sum: 1 },
+          unreadCount: {
+            $sum: {
+              $cond: [{ $eq: ['$readAt', null] }, 1, 0]
+            }
+          }
+        }
+      }
+    ]),
+    Order.aggregate([
+      {
+        $match: {
+          isDraft: false,
+          status: { $in: REVIEW_ELIGIBLE_STATUSES },
+          $or: [
+            { deliveredAt: { $gte: start } },
+            { completedAt: { $gte: start } },
+            { updatedAt: { $gte: start } }
+          ]
+        }
+      },
+      {
+        $project: {
+          reviewStatus: { $ifNull: ['$reviewStatus', 'PENDING'] },
+          reviewReminderDisabled: { $ifNull: ['$reviewReminderDisabled', false] },
+          reviewReminderCount: { $ifNull: ['$reviewReminderCount', 0] },
+          reviewCompletedAt: 1,
+          baselineAt: { $ifNull: ['$deliveredAt', '$completedAt'] }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          eligibleOrders: { $sum: 1 },
+          reminderSentOrders: {
+            $sum: {
+              $cond: [{ $gt: ['$reviewReminderCount', 0] }, 1, 0]
+            }
+          },
+          doneOrders: {
+            $sum: {
+              $cond: [{ $eq: ['$reviewStatus', 'DONE'] }, 1, 0]
+            }
+          },
+          skippedOrders: {
+            $sum: {
+              $cond: [{ $eq: ['$reviewStatus', 'SKIPPED'] }, 1, 0]
+            }
+          },
+          disabledOrders: {
+            $sum: {
+              $cond: [{ $eq: ['$reviewReminderDisabled', true] }, 1, 0]
+            }
+          },
+          ignoredOrders: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $gt: ['$reviewReminderCount', 0] },
+                    { $eq: ['$reviewStatus', 'PENDING'] },
+                    { $ne: ['$reviewReminderDisabled', true] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          },
+          avgTimeToReviewMs: {
+            $avg: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$reviewStatus', 'DONE'] },
+                    { $ne: ['$reviewCompletedAt', null] },
+                    { $ne: ['$baselineAt', null] }
+                  ]
+                },
+                { $subtract: ['$reviewCompletedAt', '$baselineAt'] },
+                null
+              ]
+            }
+          }
+        }
+      }
+    ])
   ]);
 
   const pushDelivery = pushDeliveryAgg?.[0] || {};
   const clickStats = clickAgg?.[0] || {};
   const invalidTokens = invalidTokenAgg?.[0] || {};
+  const reviewReminderNotifications = reviewReminderNotificationsAgg?.[0] || {};
+  const reviewEngagement = reviewEngagementAgg?.[0] || {};
   const outcomes = approvalOutcomeAgg.reduce(
     (acc, row) => {
       const key = String(row?._id || '').toLowerCase();
@@ -490,6 +594,26 @@ export const computeFounderNotificationsAnalytics = async () => {
         count: asNumber(entry?.count || 0)
       }))
     },
+    reviewEngagement: {
+      eligibleOrders: asNumber(reviewEngagement.eligibleOrders || 0),
+      reminderSentCount: asNumber(
+        reviewReminderNotifications.sentCount || reviewEngagement.reminderSentOrders || 0
+      ),
+      reviewConversionRate: pct(
+        reviewEngagement.doneOrders || 0,
+        Math.max(1, reviewReminderNotifications.sentCount || reviewEngagement.reminderSentOrders || 1)
+      ),
+      averageTimeToReviewHours: round(
+        (reviewEngagement.avgTimeToReviewMs || 0) / (60 * 60 * 1000),
+        2
+      ),
+      ignoredReminders: asNumber(
+        reviewEngagement.ignoredOrders || reviewReminderNotifications.unreadCount || 0
+      ),
+      skippedReminders: asNumber(reviewEngagement.skippedOrders || 0),
+      disabledOrders: asNumber(reviewEngagement.disabledOrders || 0),
+      completedReviews: asNumber(reviewEngagement.doneOrders || 0)
+    },
     alerts
   };
 };
@@ -518,4 +642,3 @@ export const getFounderNotificationsAnalytics = async ({ forceRefresh = false } 
     }
   };
 };
-

@@ -33,7 +33,7 @@ export default function ShopConversionRequest() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { app, formatPrice } = useAppSettings();
+  const { app, formatPrice, getRuntimeValue } = useAppSettings();
   const { networks, loading: networksLoading } = useNetworks();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -61,6 +61,15 @@ export default function ShopConversionRequest() {
     return value;
   }, [app?.shopConversionAmount]);
   const requiredAmountLabel = formatPrice(requiredAmount);
+  const shopConversionEnabled = useMemo(() => {
+    const value = getRuntimeValue('enable_shop_conversion', true);
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value !== 0;
+    const normalized = String(value ?? '').trim().toLowerCase();
+    if (['false', '0', 'no', 'non', 'off'].includes(normalized)) return false;
+    if (['true', '1', 'yes', 'oui', 'on'].includes(normalized)) return true;
+    return true;
+  }, [getRuntimeValue]);
 
   useEffect(() => {
     setForm((prev) => ({ ...prev, paymentAmount: String(requiredAmount) }));
@@ -163,6 +172,11 @@ export default function ShopConversionRequest() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (!shopConversionEnabled) {
+      setError('Les demandes Devenir Boutique sont temporairement désactivées.');
+      return;
+    }
 
     // Validation
     if (!form.shopName.trim()) {
@@ -355,7 +369,11 @@ export default function ShopConversionRequest() {
         )}
 
         {/* Form */}
-        {!hasPendingRequest ? (
+        {!shopConversionEnabled ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800 shadow-sm">
+            Les demandes Devenir Boutique sont temporairement désactivées par l’administration.
+          </div>
+        ) : !hasPendingRequest ? (
           <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8">
             {error && (
               <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3">

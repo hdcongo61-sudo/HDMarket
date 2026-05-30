@@ -20,6 +20,11 @@ const TYPE_PRIORITY_MAP = Object.freeze({
   dispute_resolved: 'HIGH',
   dispute_created: 'HIGH',
   payment_pending: 'HIGH',
+  payment_proof_submitted: 'HIGH',
+  payment_validated: 'HIGH',
+  order_placed: 'HIGH',
+  order_accepted: 'HIGH',
+  order_rejected: 'HIGH',
   order_received: 'HIGH',
   order_full_payment_waived: 'HIGH',
   order_full_payment_received: 'HIGH',
@@ -36,6 +41,14 @@ const TYPE_PRIORITY_MAP = Object.freeze({
   installment_overdue_warning: 'HIGH',
   installment_due_reminder: 'HIGH',
   order_message: 'HIGH',
+  order_cancelled: 'HIGH',
+  delivery_assigned: 'HIGH',
+  delivery_in_progress: 'HIGH',
+  delivery_completed: 'HIGH',
+  boost_expired: 'HIGH',
+  promo_expired: 'HIGH',
+  product_approved: 'NORMAL',
+  product_rejected: 'HIGH',
   product_comment: 'NORMAL',
   favorite: 'LOW',
   promotional: 'LOW'
@@ -88,6 +101,14 @@ const ORDER_CONTEXT_NOTIFICATION_TYPES = new Set([
   'order_address_updated',
   'order_delivery_fee_updated',
   'order_message',
+  'order_placed',
+  'order_accepted',
+  'order_rejected',
+  'payment_proof_submitted',
+  'payment_validated',
+  'delivery_assigned',
+  'delivery_in_progress',
+  'delivery_completed',
   'order_cancelled',
   'installment_due_reminder',
   'installment_overdue_warning',
@@ -218,9 +239,13 @@ const resolveValidationTypeFromPayload = ({ type, metadata = {}, validationType 
 
   switch (String(type || '').trim()) {
     case 'payment_pending':
+    case 'payment_proof_submitted':
       return 'productValidation';
     case 'delivery_request_created':
     case 'delivery_request_assigned':
+    case 'delivery_assigned':
+    case 'delivery_in_progress':
+    case 'delivery_completed':
       return 'deliveryOps';
     case 'dispute_created':
     case 'dispute_under_review':

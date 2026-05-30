@@ -23,7 +23,26 @@ const buildScope = (req) => {
 };
 
 const buildFingerprint = (req) => {
-  const bodyText = normalizePayload(req?.body || {});
+  const files = req?.files || req?.file || null;
+  const fileList = Array.isArray(files)
+    ? files
+    : files && typeof files === 'object' && !files.fieldname
+      ? Object.entries(files).flatMap(([fieldname, value]) =>
+          (Array.isArray(value) ? value : [value]).map((file) => ({ ...file, fieldname }))
+        )
+      : files
+        ? [files]
+        : [];
+  const fileFingerprint = fileList.map((file) => ({
+    fieldname: file?.fieldname || '',
+    originalname: file?.originalname || '',
+    mimetype: file?.mimetype || '',
+    size: Number(file?.size || 0)
+  }));
+  const bodyText = normalizePayload({
+    body: req?.body || {},
+    files: fileFingerprint
+  });
   return crypto.createHash('sha256').update(bodyText).digest('hex');
 };
 

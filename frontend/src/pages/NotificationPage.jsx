@@ -30,9 +30,13 @@ import useNetworkProfile from '../hooks/useNetworkProfile';
 import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
 
 const ORDER_TYPES = new Set([
+  'order_placed',
   'order_created',
   'order_received',
+  'order_accepted',
+  'order_rejected',
   'order_reminder',
+  'review_reminder',
   'order_cancelled',
   'order_full_payment_waived',
   'order_full_payment_received',
@@ -44,7 +48,7 @@ const ORDER_TYPES = new Set([
 ]);
 const COMPLAINT_TYPES = new Set(['complaint_created', 'complaint_resolved']);
 
-const BOOST_TYPES = new Set(['product_boosted']);
+const BOOST_TYPES = new Set(['product_boosted', 'boost_expired', 'promo_expired']);
 const DISPUTE_TYPES = new Set([
   'dispute_created',
   'dispute_seller_responded',
@@ -52,7 +56,7 @@ const DISPUTE_TYPES = new Set([
   'dispute_under_review',
   'dispute_resolved'
 ]);
-const DELIVERY_TYPES = new Set(['order_delivering', 'order_delivered']);
+const DELIVERY_TYPES = new Set(['order_delivering', 'order_delivered', 'delivery_assigned', 'delivery_in_progress', 'delivery_completed']);
 const PLATFORM_DELIVERY_TYPES = new Set([
   'delivery_request_created',
   'delivery_request_accepted',
@@ -67,6 +71,8 @@ const SYSTEM_TYPES = new Set([
   'account_restriction',
   'account_restriction_lifted',
   'payment_pending',
+  'payment_proof_submitted',
+  'payment_validated',
   'installment_overdue_warning'
 ]);
 
@@ -78,11 +84,19 @@ const TYPE_PRIORITY = Object.freeze({
   installment_overdue_warning: 98,
   dispute_created: 95,
   payment_pending: 92,
+  payment_proof_submitted: 92,
+  payment_validated: 90,
+  order_placed: 86,
   order_received: 88,
+  order_accepted: 87,
+  order_rejected: 89,
   order_created: 84,
   order_reminder: 82,
   order_delivering: 80,
   order_delivered: 78,
+  delivery_assigned: 80,
+  delivery_in_progress: 79,
+  delivery_completed: 78,
   delivery_request_created: 79,
   delivery_request_accepted: 81,
   delivery_request_rejected: 83,
@@ -94,6 +108,8 @@ const TYPE_PRIORITY = Object.freeze({
   dispute_resolved: 74,
   admin_broadcast: 70,
   product_boosted: 68,
+  boost_expired: 69,
+  promo_expired: 66,
   installment_sale_confirmation_required: 65,
   installment_payment_submitted: 64,
   installment_payment_validated: 62
@@ -166,32 +182,33 @@ const resolveCategory = (alert) => {
 
 const notificationMeta = (alert, t) => {
   const type = alert?.type || '';
+  const explicitTitle = String(alert?.title || alert?.metadata?.title || '').trim();
   if (ORDER_TYPES.has(type) || type.startsWith('order_')) {
-    return { title: t('notifications.orderUpdate', 'Mise à jour commande'), icon: <Package className="h-4 w-4" /> };
+    return { title: explicitTitle || t('notifications.orderUpdate', 'Mise à jour commande'), icon: <Package className="h-4 w-4" /> };
   }
   if (DELIVERY_TYPES.has(type) || PLATFORM_DELIVERY_TYPES.has(type)) {
-    return { title: t('notifications.deliveryUpdate', 'Mise à jour livraison'), icon: <Truck className="h-4 w-4" /> };
+    return { title: explicitTitle || t('notifications.deliveryUpdate', 'Mise à jour livraison'), icon: <Truck className="h-4 w-4" /> };
   }
   if (DISPUTE_TYPES.has(type) || COMPLAINT_TYPES.has(type)) {
-    return { title: t('notifications.disputeUpdate', 'Mise à jour litige'), icon: <Gavel className="h-4 w-4" /> };
+    return { title: explicitTitle || t('notifications.disputeUpdate', 'Mise à jour litige'), icon: <Gavel className="h-4 w-4" /> };
   }
-  if (VALIDATION_TYPES.has(type)) return { title: t('notifications.validationRequired', 'Action requise'), icon: <ShieldAlert className="h-4 w-4" /> };
-  if (type === 'payment_pending') return { title: t('notifications.paymentPending', 'Paiement en attente'), icon: <CreditCard className="h-4 w-4" /> };
-  if (type === 'order_message') return { title: t('notifications.orderMessage', 'Message commande'), icon: <MessageSquare className="h-4 w-4" /> };
-  if (type === 'admin_broadcast') return { title: t('notifications.adminMessage', 'Message admin'), icon: <ShieldAlert className="h-4 w-4" /> };
+  if (VALIDATION_TYPES.has(type)) return { title: explicitTitle || t('notifications.validationRequired', 'Action requise'), icon: <ShieldAlert className="h-4 w-4" /> };
+  if (type === 'payment_pending' || type === 'payment_proof_submitted' || type === 'payment_validated') return { title: explicitTitle || t('notifications.paymentPending', 'Paiement en attente'), icon: <CreditCard className="h-4 w-4" /> };
+  if (type === 'order_message') return { title: explicitTitle || t('notifications.orderMessage', 'Message commande'), icon: <MessageSquare className="h-4 w-4" /> };
+  if (type === 'admin_broadcast') return { title: explicitTitle || t('notifications.adminMessage', 'Message admin'), icon: <ShieldAlert className="h-4 w-4" /> };
   if (type === 'product_boosted' || /boost/i.test(String(alert?.message || ''))) {
-    return { title: t('notifications.boost', 'Boost'), icon: <Sparkles className="h-4 w-4" /> };
+    return { title: explicitTitle || t('notifications.boost', 'Boost'), icon: <Sparkles className="h-4 w-4" /> };
   }
   if (type === 'account_restriction' || type === 'account_restriction_lifted') {
-    return { title: t('notifications.accountAlert', 'Alerte compte'), icon: <AlertCircle className="h-4 w-4" /> };
+    return { title: explicitTitle || t('notifications.accountAlert', 'Alerte compte'), icon: <AlertCircle className="h-4 w-4" /> };
   }
   if (type === 'shop_follow' || type === 'shop_review') {
-    return { title: t('notifications.shop', 'Boutique'), icon: <Store className="h-4 w-4" /> };
+    return { title: explicitTitle || t('notifications.shop', 'Boutique'), icon: <Store className="h-4 w-4" /> };
   }
   if (type.startsWith('installment_')) {
-    return { title: t('notifications.installment', 'Paiement par tranche'), icon: <ClipboardList className="h-4 w-4" /> };
+    return { title: explicitTitle || t('notifications.installment', 'Paiement par tranche'), icon: <ClipboardList className="h-4 w-4" /> };
   }
-  return { title: t('notifications.notification', 'Notification'), icon: <Bell className="h-4 w-4" /> };
+  return { title: explicitTitle || t('notifications.notification', 'Notification'), icon: <Bell className="h-4 w-4" /> };
 };
 
 const buildOrderNotificationPath = (alert, user) => {

@@ -17,11 +17,79 @@ import {
   findShopNameConflict,
   normalizeShopName
 } from '../utils/shopNameUtils.js';
+import { getRuntimeConfig } from '../services/configService.js';
+
+const normalizeBoolean = (value, fallback = false) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'oui', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'non', 'off', ''].includes(normalized)) return false;
+  }
+  return fallback;
+};
+
+const normalizeLimitNumber = (value, fallback = 0) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(0, Math.floor(parsed));
+};
+
+const getShopCreationLimitState = async () => {
+  const [limitRaw, periodRaw] = await Promise.all([
+    getRuntimeConfig('shop_creation_limit_count', { fallback: 100 }),
+    getRuntimeConfig('shop_creation_limit_period_days', { fallback: 30 })
+  ]);
+  const limit = normalizeLimitNumber(limitRaw, 100);
+  const periodDays = Math.max(1, normalizeLimitNumber(periodRaw, 30));
+  const since = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
+  const createdCount = await ShopConversionRequest.countDocuments({
+    status: 'approved',
+    processedAt: { $gte: since }
+  });
+  return {
+    limit,
+    periodDays,
+    createdCount,
+    reached: createdCount >= limit
+  };
+};
+
+const assertShopConversionOpen = async () => {
+  const enabled = normalizeBoolean(
+    await getRuntimeConfig('enable_shop_conversion', { fallback: true }),
+    true
+  );
+  if (!enabled) {
+    return {
+      ok: false,
+      status: 403,
+      message: 'Les demandes Devenir Boutique sont temporairement désactivées.'
+    };
+  }
+
+  const limitState = await getShopCreationLimitState();
+  if (limitState.reached) {
+    return {
+      ok: false,
+      status: 429,
+      message: `Limite atteinte: ${limitState.limit} boutique(s) peuvent être créées sur ${limitState.periodDays} jour(s).`
+    };
+  }
+
+  return { ok: true, limitState };
+};
 
 /**
  * Create a shop conversion request (for particulier users only)
  */
 export const createShopConversionRequest = asyncHandler(async (req, res) => {
+  const conversionState = await assertShopConversionOpen();
+  if (!conversionState.ok) {
+    return res.status(conversionState.status).json({ message: conversionState.message });
+  }
+
   const user = await User.findById(req.user.id);
   if (!user) {
     return res.status(404).json({ message: 'Utilisateur introuvable.' });
@@ -283,6 +351,11 @@ export const approveShopConversionRequest = asyncHandler(async (req, res) => {
 
   if (request.status !== 'pending') {
     return res.status(400).json({ message: 'Cette demande a déjà été traitée.' });
+  }
+
+  const conversionState = await assertShopConversionOpen();
+  if (!conversionState.ok) {
+    return res.status(conversionState.status).json({ message: conversionState.message });
   }
 
   const user = request.user;

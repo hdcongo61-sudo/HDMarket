@@ -226,6 +226,46 @@ const normalizeBoolean = (value, fallback = false) => {
   return fallback;
 };
 
+const normalizeLimitNumber = (value, fallback = 0) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(0, Math.floor(parsed));
+};
+
+const canBypassCommerceLimits = (user = {}) =>
+  ['admin', 'founder'].includes(String(user?.role || '').trim().toLowerCase());
+
+const resolveWarrantyConfig = ({ warrantyEnabled, warrantyPeriodValue, warrantyPeriodUnit, current = {} }) => {
+  const enabled = normalizeBoolean(warrantyEnabled, Boolean(current.warrantyEnabled));
+  const unit = ['days', 'months', 'years'].includes(String(warrantyPeriodUnit || current.warrantyPeriodUnit || 'months'))
+    ? String(warrantyPeriodUnit || current.warrantyPeriodUnit || 'months')
+    : 'months';
+
+  if (!enabled) {
+    return {
+      valid: true,
+      warrantyEnabled: false,
+      warrantyPeriodValue: null,
+      warrantyPeriodUnit: unit
+    };
+  }
+
+  const parsedPeriod = Number(warrantyPeriodValue ?? current.warrantyPeriodValue);
+  if (!Number.isInteger(parsedPeriod) || parsedPeriod < 1 || parsedPeriod > 120) {
+    return {
+      valid: false,
+      message: 'La période de garantie doit être comprise entre 1 et 120.'
+    };
+  }
+
+  return {
+    valid: true,
+    warrantyEnabled: true,
+    warrantyPeriodValue: parsedPeriod,
+    warrantyPeriodUnit: unit
+  };
+};
+
 const getActiveCityNames = async () => {
   const docs = await City.find({ isActive: true }).select('name').sort({ name: 1 }).lean();
   return docs.map((item) => String(item.name || '').trim()).filter(Boolean);
@@ -610,6 +650,9 @@ export const createProduct = asyncHandler(async (req, res) => {
     installmentRequireGuarantor,
     wholesaleEnabled,
     wholesaleTiers,
+    warrantyEnabled,
+    warrantyPeriodValue,
+    warrantyPeriodUnit,
     deliveryAvailable,
     pickupAvailable,
     deliveryFee,
@@ -659,6 +702,33 @@ export const createProduct = asyncHandler(async (req, res) => {
   const isShop = seller.accountType === 'shop';
   const isVerifiedShop = isShop && Boolean(seller.shopVerified);
 
+  if (!canBypassCommerceLimits(req.user)) {
+    const sellingEnabled = normalizeBoolean(
+      await getRuntimeConfig('enable_selling', { fallback: true }),
+      true
+    );
+    if (!sellingEnabled) {
+      return res.status(403).json({
+        message: 'La publication de nouvelles annonces est temporairement désactivée.'
+      });
+    }
+
+    const limitKey = isShop ? 'seller_max_product_limit' : 'user_max_product_limit';
+    const fallbackLimit = isShop ? 200 : 20;
+    const productLimit = normalizeLimitNumber(
+      await getRuntimeConfig(limitKey, { fallback: fallbackLimit }),
+      fallbackLimit
+    );
+    const currentProductCount = await Product.countDocuments({ user: req.user.id });
+    if (currentProductCount >= productLimit) {
+      return res.status(403).json({
+        message: isShop
+          ? `Limite atteinte: votre boutique peut publier jusqu’à ${productLimit} produit(s).`
+          : `Limite atteinte: votre compte peut publier jusqu’à ${productLimit} produit(s).`
+      });
+    }
+  }
+
   const installmentConfig = validateInstallmentConfig({
     installmentEnabled,
     installmentMinAmount,
@@ -704,6 +774,15 @@ export const createProduct = asyncHandler(async (req, res) => {
   });
   if (!deliveryConfig.valid) {
     return res.status(400).json({ message: deliveryConfig.message });
+  }
+  const warrantyConfig = resolveWarrantyConfig({
+    warrantyEnabled,
+    warrantyPeriodValue,
+    warrantyPeriodUnit,
+    current: {}
+  });
+  if (!warrantyConfig.valid) {
+    return res.status(400).json({ message: warrantyConfig.message });
   }
   const normalizedAttributes = normalizeProductAttributes(attributes);
   const normalizedPhysical = normalizeProductPhysical(physical);
@@ -826,6 +905,9 @@ export const createProduct = asyncHandler(async (req, res) => {
     country: ownerCountry,
     attributes: normalizedAttributes,
     physical: normalizedPhysical,
+    warrantyEnabled: warrantyConfig.warrantyEnabled,
+    warrantyPeriodValue: warrantyConfig.warrantyPeriodValue,
+    warrantyPeriodUnit: warrantyConfig.warrantyPeriodUnit,
     ...installmentConfig.normalized,
     ...wholesaleConfig.normalized,
     ...deliveryConfig.normalized
@@ -2254,6 +2336,9 @@ export const updateProduct = asyncHandler(async (req, res) => {
     installmentRequireGuarantor,
     wholesaleEnabled,
     wholesaleTiers,
+    warrantyEnabled,
+    warrantyPeriodValue,
+    warrantyPeriodUnit,
     deliveryAvailable,
     pickupAvailable,
     deliveryFee,
@@ -2404,6 +2489,25 @@ export const updateProduct = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: wholesaleConfig.message });
     }
     Object.assign(product, wholesaleConfig.normalized);
+  }
+
+  const hasWarrantyPayload = [warrantyEnabled, warrantyPeriodValue, warrantyPeriodUnit].some(
+    (value) => value !== undefined
+  );
+  if (hasWarrantyPayload) {
+    const warrantyConfig = resolveWarrantyConfig({
+      warrantyEnabled: warrantyEnabled !== undefined ? warrantyEnabled : product.warrantyEnabled,
+      warrantyPeriodValue:
+        warrantyPeriodValue !== undefined ? warrantyPeriodValue : product.warrantyPeriodValue,
+      warrantyPeriodUnit: warrantyPeriodUnit !== undefined ? warrantyPeriodUnit : product.warrantyPeriodUnit,
+      current: product
+    });
+    if (!warrantyConfig.valid) {
+      return res.status(400).json({ message: warrantyConfig.message });
+    }
+    product.warrantyEnabled = warrantyConfig.warrantyEnabled;
+    product.warrantyPeriodValue = warrantyConfig.warrantyPeriodValue;
+    product.warrantyPeriodUnit = warrantyConfig.warrantyPeriodUnit;
   }
 
   const hasDeliveryPayload = [
