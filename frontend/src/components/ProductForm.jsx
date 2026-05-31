@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import api from '../services/api';
+import api, { isApiPossiblyCommittedError } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2, ChevronDown, ChevronUp, RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Plus, ShieldCheck } from 'lucide-react';
@@ -12,6 +12,7 @@ import BaseModal from './modals/BaseModal';
 import { appAlert } from '../utils/appDialog';
 import { normalizeProductAttributes } from '../utils/productAttributes';
 import { formatFileSize, optimizeImageFiles } from '../utils/mediaOptimizer';
+import { createIdempotencyKey } from '../utils/idempotency';
 
 const DEFAULT_MAX_IMAGES = 3;
 const MAX_VIDEO_SIZE_MB = 20;
@@ -142,6 +143,7 @@ export default function ProductForm(props) {
   const imageRef = useRef(null);
   const cropMoveRef = useRef(() => {});
   const cropUpRef = useRef(() => {});
+  const submitIdempotencyKeyRef = useRef('');
 
   const CROP_MIN_ZOOM = 0.3;
   const CROP_MAX_ZOOM = 3;
@@ -970,6 +972,34 @@ export default function ProductForm(props) {
     }));
   };
 
+  const findRecentlyCreatedProduct = async () => {
+    if (productId) return null;
+    const titleKey = String(form.title || '').trim().toLowerCase();
+    if (!titleKey) return null;
+
+    const basePrice = Number(form.price || 0);
+    const discountValue = Number(form.discount || 0);
+    const expectedPrice =
+      Number.isFinite(basePrice) && Number.isFinite(discountValue) && discountValue > 0
+        ? Number((basePrice * (1 - discountValue / 100)).toFixed(2))
+        : basePrice;
+    const recentCutoff = Date.now() - 20 * 60 * 1000;
+
+    const { data } = await api.get('/products', {
+      skipCache: true,
+      headers: { 'x-skip-cache': '1' }
+    });
+    const list = Array.isArray(data) ? data : [];
+    return (
+      list.find((item) => {
+        const createdAt = item?.createdAt ? new Date(item.createdAt).getTime() : 0;
+        const sameTitle = String(item?.title || '').trim().toLowerCase() === titleKey;
+        const samePrice = Math.abs(Number(item?.price || 0) - Number(expectedPrice || 0)) < 1;
+        return createdAt >= recentCutoff && sameTitle && samePrice;
+      }) || null
+    );
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setInstallmentError('');
@@ -1146,8 +1176,17 @@ export default function ProductForm(props) {
       }
       const url = `/products${productId ? `/${productId}` : ''}`;
       const method = productId ? 'put' : 'post';
+      const idempotencyKey = productId
+        ? createIdempotencyKey('product-update')
+        : submitIdempotencyKeyRef.current || createIdempotencyKey('product-create');
+      if (!productId) {
+        submitIdempotencyKeyRef.current = idempotencyKey;
+      }
       const res = await api[method](url, data, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Idempotency-Key': idempotencyKey
+        },
         onUploadProgress: (event) => {
           if (event.total) {
             const percentCompleted = Math.round((event.loaded * 100) / event.total);
@@ -1159,6 +1198,7 @@ export default function ProductForm(props) {
         onUpdated?.(res.data);
       } else {
         onCreated?.(res.data);
+        submitIdempotencyKeyRef.current = '';
       }
       
       // Réinitialiser le formulaire
@@ -1213,6 +1253,23 @@ export default function ProductForm(props) {
       setWarrantyError('');
       
     } catch (e) {
+      if (!productId && isApiPossiblyCommittedError(e)) {
+        try {
+          const recoveredProduct = await findRecentlyCreatedProduct();
+          if (recoveredProduct?._id) {
+            submitIdempotencyKeyRef.current = '';
+            onCreated?.(recoveredProduct);
+            await appAlert(
+              'Annonce enregistrée. Le réseau a mis du temps à répondre, mais le produit est déjà dans vos annonces.'
+            );
+            return;
+          }
+        } catch {
+          // Keep the original upload error below.
+        }
+      } else {
+        submitIdempotencyKeyRef.current = '';
+      }
       await appAlert(e.response?.data?.message || e.message);
     } finally {
       setLoading(false);
@@ -2407,6 +2464,17 @@ export default function ProductForm(props) {
                 <p className="text-xs text-gray-500">
                   Jusqu&apos;à {maxImagesLimit} photos. Les images sont optimisées automatiquement avant l&apos;upload.
                 </p>
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/80 px-3 py-3 text-xs text-emerald-900">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-700" />
+                    <div className="space-y-1">
+                      <p className="font-semibold">Pour de meilleures photos publiées</p>
+                      <p className="leading-relaxed">
+                        Utilisez une lumière naturelle, gardez le produit entier dans le cadre, prenez la première photo de face et évitez les captures WhatsApp floues. Le format carré ou 4:3 donne le rendu le plus propre sur les cartes produit.
+                      </p>
+                    </div>
+                  </div>
+                </div>
                 {mediaOptimization.active && (
                   <p className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700">
                     Optimisation des photos en cours...

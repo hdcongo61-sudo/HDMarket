@@ -30,7 +30,7 @@ const computeUnread = (messages = [], userId = '') => {
 
 export const useBuyerOrderDetailQuery = ({ orderId, userId, enabled = true } = {}) => {
   const [offlineSnapshotActive, setOfflineSnapshotActive] = useState(false);
-  const { shouldUseOfflineSnapshot } = useNetworkProfile();
+  const { rapid3GActive, shouldUseOfflineSnapshot } = useNetworkProfile();
   const snapshotKey = useMemo(
     () => ['buyer-order-detail', userId || 'guest', orderId || 'unknown'].join(':'),
     [orderId, userId]
@@ -70,11 +70,11 @@ export const useBuyerOrderDetailQuery = ({ orderId, userId, enabled = true } = {
         throw error;
       }
     },
-    staleTime: 10_000,
+    staleTime: rapid3GActive ? 45_000 : 20_000,
     refetchOnWindowFocus: false,
     refetchInterval: (query) => {
       const status = String(query?.state?.data?.order?.status || '');
-      return ACTIVE_ORDER_STATUSES.has(status) ? 15_000 : false;
+      return ACTIVE_ORDER_STATUSES.has(status) ? (rapid3GActive ? 60_000 : 30_000) : false;
     }
   });
 

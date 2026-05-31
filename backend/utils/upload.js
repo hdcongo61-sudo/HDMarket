@@ -39,7 +39,7 @@ const parsePositiveInt = (value, fallback) => {
 
 const UPLOAD_LIMITS = {
   fileSize: parsePositiveInt(process.env.UPLOAD_MAX_FILE_SIZE_BYTES, 50 * 1024 * 1024),
-  files: parsePositiveInt(process.env.UPLOAD_MAX_FILES, 8),
+  files: parsePositiveInt(process.env.UPLOAD_MAX_FILES, 24),
   fields: parsePositiveInt(process.env.UPLOAD_MAX_FIELDS, 80),
   parts: parsePositiveInt(process.env.UPLOAD_MAX_PARTS, 100)
 };

@@ -8,6 +8,7 @@ import {
 } from '../utils/notificationService.js';
 import { invalidateProductCache } from '../utils/cache.js';
 import { invalidateVerifiedProductCache } from '../utils/publicProductVisibility.js';
+import { dispatchSideEffect } from '../utils/dispatchSideEffect.js';
 import { calculateCommissionBreakdown, normalizePromoCode } from '../utils/promoCodeUtils.js';
 import { consumePromoCodeForSeller, previewPromoForSeller } from '../utils/promoCodeService.js';
 import { getRuntimeConfig } from '../services/configService.js';
@@ -164,66 +165,77 @@ export const createPayment = asyncHandler(async (req, res) => {
   await product.save();
   invalidateVerifiedProductCache();
 
-  try {
-    const [moderators, waitingCount] = await Promise.all([
-      User.find({ role: { $in: ['admin', 'founder', 'manager'] } })
-        .select('_id role')
-        .lean(),
-      Payment.countDocuments({ status: 'waiting' })
-    ]);
-
-    if (moderators.length) {
-      const metadata = {
-        paymentId: payment._id,
-        productId: product._id,
-        productTitle: product.title || '',
-        amount: received,
-        commissionBaseAmount: Number(commission.baseAmount || 0),
-        commissionDiscountAmount: Number(commission.discountAmount || 0),
-        commissionDueAmount: Number(commission.dueAmount || 0),
-        promoCode: payment.promoCodeValue || '',
-        operator: payment.operator,
-        payerName: payment.payerName,
-        waitingCount
-      };
-
-      const notifications = moderators
-        .filter((moderator) => String(moderator._id) !== String(req.user.id))
-        .map((moderator) =>
-          createNotification({
-            userId: moderator._id,
-            actorId: req.user.id,
-            productId: product._id,
-            type: 'payment_pending',
-            audience:
-              String(moderator.role || '').toLowerCase() === 'founder'
-                ? 'FOUNDER'
-                : String(moderator.role || '').toLowerCase() === 'admin'
-                ? 'ADMIN'
-                : 'ROLE_GROUP',
-            targetRole: [String(moderator.role || '').toUpperCase()],
-            actionRequired: true,
-            actionType: 'VERIFY',
-            actionStatus: 'PENDING',
-            deepLink: '/admin/payment-verification?status=waiting',
-            actionLink: '/admin/payment-verification?status=waiting',
-            entityType: 'payment',
-            entityId: String(payment._id),
-            validationType: 'productValidation',
-            metadata
-          })
-        );
-
-      if (notifications.length) {
-        await Promise.all(notifications);
-      }
-    }
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error('Failed to notify moderators about pending payment', err);
-  }
-
   res.status(201).json(payment);
+
+  const moderatorNotificationMetadata = {
+    paymentId: payment._id,
+    productId: product._id,
+    productTitle: product.title || '',
+    amount: received,
+    commissionBaseAmount: Number(commission.baseAmount || 0),
+    commissionDiscountAmount: Number(commission.discountAmount || 0),
+    commissionDueAmount: Number(commission.dueAmount || 0),
+    promoCode: payment.promoCodeValue || '',
+    operator: payment.operator,
+    payerName: payment.payerName
+  };
+
+  void dispatchSideEffect(
+    'payment-submission',
+    {
+      actorId: req.user.id,
+      paymentId: payment._id,
+      productId: product._id,
+      metadata: moderatorNotificationMetadata
+    },
+    async () => {
+      const [moderators, waitingCount] = await Promise.all([
+        User.find({ role: { $in: ['admin', 'founder', 'manager'] } })
+          .select('_id role')
+          .lean(),
+        Payment.countDocuments({ status: 'waiting' })
+      ]);
+
+      if (moderators.length) {
+        const metadata = {
+          ...moderatorNotificationMetadata,
+          waitingCount
+        };
+
+        const notifications = moderators
+          .filter((moderator) => String(moderator._id) !== String(req.user.id))
+          .map((moderator) =>
+            createNotification({
+              userId: moderator._id,
+              actorId: req.user.id,
+              productId: product._id,
+              type: 'payment_pending',
+              audience:
+                String(moderator.role || '').toLowerCase() === 'founder'
+                  ? 'FOUNDER'
+                  : String(moderator.role || '').toLowerCase() === 'admin'
+                  ? 'ADMIN'
+                  : 'ROLE_GROUP',
+              targetRole: [String(moderator.role || '').toUpperCase()],
+              actionRequired: true,
+              actionType: 'VERIFY',
+              actionStatus: 'PENDING',
+              deepLink: '/admin/payment-verification?status=waiting',
+              actionLink: '/admin/payment-verification?status=waiting',
+              entityType: 'payment',
+              entityId: String(payment._id),
+              validationType: 'productValidation',
+              metadata
+            })
+          );
+
+        if (notifications.length) {
+          await Promise.all(notifications);
+        }
+      }
+    },
+    { label: 'payment_submission_notify_moderators' }
+  );
 });
 
 export const verifyTransactionCodeAvailability = asyncHandler(async (req, res) => {
@@ -316,10 +328,9 @@ export const verifyPayment = asyncHandler(async (req, res) => {
   await product.save();
   invalidateVerifiedProductCache();
 
-  // Invalidate product cache so the approved product appears on home page immediately
-  await invalidateProductCache();
+  res.json({ message: 'Payment verified, product approved' });
 
-  await createNotification({
+  const notification = {
     userId: product.user,
     actorId: req.user.id,
     productId: product._id,
@@ -327,17 +338,31 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     metadata: {
       paymentId: payment._id
     }
-  });
+  };
 
-  await resolveValidationTaskNotifications({
-    entityType: 'payment',
-    entityId: String(payment._id),
-    actionStatus: 'DONE',
-    actorId: req.user.id,
-    validationType: 'productValidation'
-  }).catch(() => {});
+  void dispatchSideEffect(
+    'payment-review',
+    {
+      actorId: req.user.id,
+      paymentId: payment._id,
+      notification
+    },
+    async () => {
+    // Invalidate product cache so the approved product appears on home page immediately.
+      await invalidateProductCache();
 
-  res.json({ message: 'Payment verified, product approved' });
+      await createNotification(notification);
+
+      await resolveValidationTaskNotifications({
+        entityType: 'payment',
+        entityId: String(payment._id),
+        actionStatus: 'DONE',
+        actorId: req.user.id,
+        validationType: 'productValidation'
+      });
+    },
+    { label: 'payment_verify_side_effects' }
+  );
 });
 
 export const rejectPayment = asyncHandler(async (req, res) => {
@@ -356,10 +381,9 @@ export const rejectPayment = asyncHandler(async (req, res) => {
   await product.save();
   invalidateVerifiedProductCache();
 
-  // Invalidate product cache so the rejected product is removed from home page immediately
-  await invalidateProductCache();
+  res.json({ message: 'Payment rejected, product rejected' });
 
-  await createNotification({
+  const notification = {
     userId: product.user,
     actorId: req.user.id,
     productId: product._id,
@@ -367,15 +391,29 @@ export const rejectPayment = asyncHandler(async (req, res) => {
     metadata: {
       paymentId: payment._id
     }
-  });
+  };
 
-  await resolveValidationTaskNotifications({
-    entityType: 'payment',
-    entityId: String(payment._id),
-    actionStatus: 'DONE',
-    actorId: req.user.id,
-    validationType: 'productValidation'
-  }).catch(() => {});
+  void dispatchSideEffect(
+    'payment-review',
+    {
+      actorId: req.user.id,
+      paymentId: payment._id,
+      notification
+    },
+    async () => {
+    // Invalidate product cache so the rejected product is removed from home page immediately.
+      await invalidateProductCache();
 
-  res.json({ message: 'Payment rejected, product rejected' });
+      await createNotification(notification);
+
+      await resolveValidationTaskNotifications({
+        entityType: 'payment',
+        entityId: String(payment._id),
+        actionStatus: 'DONE',
+        actorId: req.user.id,
+        validationType: 'productValidation'
+      });
+    },
+    { label: 'payment_reject_side_effects' }
+  );
 });

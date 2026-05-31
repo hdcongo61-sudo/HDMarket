@@ -44,6 +44,7 @@ import {
 } from '../utils/productAttributes.js';
 
 const MAX_PRODUCT_IMAGES = 3;
+const MAX_PRODUCT_IMAGES_HARD_LIMIT = 20;
 const SHOP_SELECT_FIELDS =
   'name phone accountType shopName shopAddress shopLogo city country shopVerified isBlocked slug followersCount createdAt freeDeliveryEnabled';
 const CATEGORY_SELECT_FIELDS = '_id name slug parentId level isDeleted isActive';
@@ -230,6 +231,14 @@ const normalizeLimitNumber = (value, fallback = 0) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(0, Math.floor(parsed));
+};
+
+const resolveMaxProductImages = async () => {
+  const configured = normalizeLimitNumber(
+    await getRuntimeConfig('max_image_upload', { fallback: MAX_PRODUCT_IMAGES }),
+    MAX_PRODUCT_IMAGES
+  );
+  return Math.min(MAX_PRODUCT_IMAGES_HARD_LIMIT, Math.max(1, configured));
 };
 
 const canBypassCommerceLimits = (user = {}) =>
@@ -492,7 +501,17 @@ const uploadProductMedia = async (file) => {
   const uploaded = await uploadToCloudinary({
     buffer: file.buffer,
     resourceType,
-    folder
+    folder,
+    options:
+      resourceType === 'image'
+        ? {
+            quality: 'auto:good',
+            fetch_format: 'auto',
+            flags: 'strip_profile'
+          }
+        : {
+            quality: 'auto:eco'
+          }
   });
   return uploaded.secure_url || uploaded.url;
 };
@@ -518,6 +537,11 @@ const getUploadedFiles = (files, fieldName) => {
   if (!fieldName && Array.isArray(files)) return files;
   return [];
 };
+
+const getMutationRequestId = (req = {}) =>
+  String(req.headers?.['idempotency-key'] || req.headers?.['x-idempotency-key'] || '')
+    .trim()
+    .slice(0, 160);
 
 const detectProhibitedWords = async (title = '', description = '') => {
   const combined = `${title || ''} ${description || ''}`.toLowerCase();
@@ -662,6 +686,20 @@ export const createProduct = asyncHandler(async (req, res) => {
   } = req.body;
   if (!title || !description || !price)
     return res.status(400).json({ message: 'Missing fields' });
+
+  const creationRequestId = getMutationRequestId(req);
+  if (creationRequestId) {
+    const existingForRequest = await Product.findOne({
+      user: req.user.id,
+      creationRequestId
+    });
+    if (existingForRequest) {
+      return res.status(200).json({
+        ...withCategoryCompatibility(existingForRequest),
+        alreadyCreated: true
+      });
+    }
+  }
 
   const prohibitedMatches = await detectProhibitedWords(title, description);
   if (prohibitedMatches.length) {
@@ -810,9 +848,10 @@ export const createProduct = asyncHandler(async (req, res) => {
     });
   }
 
-  if (imageFiles.length > MAX_PRODUCT_IMAGES) {
+  const maxProductImages = await resolveMaxProductImages();
+  if (imageFiles.length > maxProductImages) {
     return res.status(400).json({
-      message: `Vous pouvez télécharger jusqu'à ${MAX_PRODUCT_IMAGES} photos par annonce.`
+      message: `Vous pouvez télécharger jusqu'à ${maxProductImages} photos par annonce.`
     });
   }
 
@@ -884,34 +923,52 @@ export const createProduct = asyncHandler(async (req, res) => {
     }
   }
 
-  const product = await Product.create({
-    title,
-    description,
-    price: finalPrice,
-    category: categorySelection.category,
-    categoryId: categorySelection.categoryId,
-    subcategoryId: categorySelection.subcategoryId,
-    legacyCategoryName: categorySelection.legacyCategoryName,
-    legacySubcategoryName: categorySelection.legacySubcategoryName,
-    discount: discountValue,
-    condition: safeCondition,
-    priceBeforeDiscount,
-    images,
-    video: videoUrl,
-    pdf: pdfUrl,
-    user: req.user.id,
-    status: 'pending',
-    city: ownerCity,
-    country: ownerCountry,
-    attributes: normalizedAttributes,
-    physical: normalizedPhysical,
-    warrantyEnabled: warrantyConfig.warrantyEnabled,
-    warrantyPeriodValue: warrantyConfig.warrantyPeriodValue,
-    warrantyPeriodUnit: warrantyConfig.warrantyPeriodUnit,
-    ...installmentConfig.normalized,
-    ...wholesaleConfig.normalized,
-    ...deliveryConfig.normalized
-  });
+  let product;
+  try {
+    product = await Product.create({
+      title,
+      description,
+      price: finalPrice,
+      category: categorySelection.category,
+      categoryId: categorySelection.categoryId,
+      subcategoryId: categorySelection.subcategoryId,
+      legacyCategoryName: categorySelection.legacyCategoryName,
+      legacySubcategoryName: categorySelection.legacySubcategoryName,
+      discount: discountValue,
+      condition: safeCondition,
+      priceBeforeDiscount,
+      images,
+      video: videoUrl,
+      pdf: pdfUrl,
+      creationRequestId,
+      user: req.user.id,
+      status: 'pending',
+      city: ownerCity,
+      country: ownerCountry,
+      attributes: normalizedAttributes,
+      physical: normalizedPhysical,
+      warrantyEnabled: warrantyConfig.warrantyEnabled,
+      warrantyPeriodValue: warrantyConfig.warrantyPeriodValue,
+      warrantyPeriodUnit: warrantyConfig.warrantyPeriodUnit,
+      ...installmentConfig.normalized,
+      ...wholesaleConfig.normalized,
+      ...deliveryConfig.normalized
+    });
+  } catch (error) {
+    if (creationRequestId && error?.code === 11000) {
+      const existingForRequest = await Product.findOne({
+        user: req.user.id,
+        creationRequestId
+      });
+      if (existingForRequest) {
+        return res.status(200).json({
+          ...withCategoryCompatibility(existingForRequest),
+          alreadyCreated: true
+        });
+      }
+    }
+    throw error;
+  }
 
   await logProductAction({
     productId: product._id,
@@ -2595,10 +2652,11 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
   if (imageFiles.length) {
     const existingImages = Array.isArray(product.images) ? product.images : [];
-    const remainingSlots = MAX_PRODUCT_IMAGES - existingImages.length;
+    const maxProductImages = await resolveMaxProductImages();
+    const remainingSlots = maxProductImages - existingImages.length;
     if (remainingSlots <= 0) {
       return res.status(400).json({
-        message: `Nombre maximal de photos atteint (${MAX_PRODUCT_IMAGES}).`
+        message: `Nombre maximal de photos atteint (${maxProductImages}).`
       });
     }
     if (imageFiles.length > remainingSlots) {

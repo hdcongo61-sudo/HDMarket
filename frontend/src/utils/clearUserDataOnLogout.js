@@ -35,7 +35,7 @@ const SHOP_SNAPSHOT_KEY_PREFIX = 'hdmarket:shop-snapshot:';
  * Clear all keys that may contain previous user's data.
  * Call this on logout before redirecting.
  */
-export const clearUserDataOnLogout = async () => {
+export const clearUserDataOnLogout = async ({ clearBrowserCaches = true } = {}) => {
   if (typeof window === 'undefined') return;
 
   try {
@@ -81,6 +81,8 @@ export const clearUserDataOnLogout = async () => {
         // ignore
       }
     }
+
+    if (!clearBrowserCaches) return;
 
     // Clear browser cache storage + ask active SW to clear its own caches.
     try {

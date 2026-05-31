@@ -41,6 +41,7 @@ const productSchema = new mongoose.Schema(
       sparse: true
     },
     title: { type: String, required: true },
+    creationRequestId: { type: String, trim: true, default: '' },
     description: { type: String, required: true },
     price: { type: Number, required: true, min: 0 },
     discount: { type: Number, min: 0, max: 100, default: 0 },
@@ -134,6 +135,13 @@ productSchema.index({ status: 1, city: 1, boosted: -1, validationDate: -1, creat
 productSchema.index({ status: 1, deliveryAvailable: 1, pickupAvailable: 1, createdAt: -1 });
 productSchema.index({ user: 1, createdAt: -1 });
 productSchema.index({ user: 1, _id: 1 });
+productSchema.index(
+  { user: 1, creationRequestId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { creationRequestId: { $type: 'string', $gt: '' } }
+  }
+);
 
 productSchema.add({
   slug: { type: String, unique: true, index: true, lowercase: true, trim: true }

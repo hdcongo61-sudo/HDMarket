@@ -1583,6 +1583,167 @@ select:focus {
   color: var(--hd-ink-subtle);
 }
 
+/* ==========================================================================
+   UNIFIED APP CONTROLS
+   Harmonizes legacy and new forms/buttons/cards without forcing page rewrites.
+   ========================================================================== */
+.ui-btn,
+button:not(.unstyled):not(.no-ui-btn):not(.ui-modal-backdrop),
+[role="button"]:not(.unstyled):not(.no-ui-btn) {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.ui-btn {
+  min-width: 0;
+  letter-spacing: 0;
+}
+
+button:not(.unstyled):not(.no-ui-btn):not(.ui-modal-backdrop):not([class*="rounded-full"]),
+[role="button"]:not(.unstyled):not(.no-ui-btn):not([class*="rounded-full"]) {
+  border-radius: 18px;
+}
+
+button:not(.unstyled):not(.no-ui-btn):not(.ui-modal-backdrop),
+[role="button"]:not(.unstyled):not(.no-ui-btn) {
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    opacity 180ms ease;
+}
+
+button:not(.unstyled):not(.no-ui-btn):not(.ui-modal-backdrop):active,
+[role="button"]:not(.unstyled):not(.no-ui-btn):active {
+  transform: scale(0.985);
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"],
+button[aria-busy="true"],
+button[data-loading="true"] {
+  cursor: not-allowed;
+}
+
+.hd-click-pending,
+button[data-loading="true"],
+button[aria-busy="true"] {
+  position: relative;
+}
+
+.hd-click-pending::after {
+  content: "";
+  position: absolute;
+  right: 0.85rem;
+  top: 50%;
+  width: 0.9rem;
+  height: 0.9rem;
+  margin-top: -0.45rem;
+  border-radius: 9999px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  opacity: 0.7;
+  animation: hd-spin 700ms linear infinite;
+  pointer-events: none;
+}
+
+.hd-click-pending:not(.ui-btn) {
+  padding-right: max(2.35rem, env(safe-area-inset-right, 0px) + 2.35rem);
+}
+
+.ui-btn-spinner {
+  flex: 0 0 auto;
+}
+
+.ui-form-section,
+form .ui-card,
+form .glass-card,
+form .apple-card {
+  border-color: var(--hd-border);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--hd-surface-solid) 94%, transparent), var(--hd-surface)),
+    var(--hd-surface);
+  box-shadow: var(--hd-shadow-xs);
+}
+
+.ui-form-field {
+  min-width: 0;
+}
+
+.ui-label,
+form label {
+  letter-spacing: 0;
+}
+
+.ui-input,
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+textarea,
+select {
+  min-height: 46px;
+  width: 100%;
+  border-radius: 16px;
+  border-width: 1px;
+  padding: 0.72rem 0.9rem;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease;
+}
+
+textarea.ui-input,
+textarea {
+  min-height: 112px;
+}
+
+select.ui-input,
+select {
+  padding-right: 2.4rem;
+}
+
+input[type="file"] {
+  max-width: 100%;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--hd-ink);
+}
+
+.ui-card,
+.glass-card,
+.apple-card,
+.soft-card,
+.ui-form-section {
+  overflow-wrap: anywhere;
+}
+
+@keyframes hd-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:not(.unstyled):not(.no-ui-btn):not(.ui-modal-backdrop),
+  [role="button"]:not(.unstyled):not(.no-ui-btn),
+  .ui-btn,
+  .ui-card,
+  .glass-card,
+  .apple-card,
+  .soft-card {
+    transition-duration: 1ms !important;
+  }
+
+  .hd-click-pending::after,
+  .ui-btn-spinner {
+    animation-duration: 1200ms;
+  }
+}
+
 .text-gray-600,
 .text-slate-600 {
   color: var(--hd-ink-muted);

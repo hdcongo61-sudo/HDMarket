@@ -11,6 +11,7 @@ import usePreventNewTabOnMobile from './hooks/usePreventNewTabOnMobile';
 import ScrollToTop from './components/ScrollToTop';
 import AnalyticsTracker from './components/AnalyticsTracker';
 import PendingActionHandler from './components/PendingActionHandler';
+import AppButtonFeedback from './components/AppButtonFeedback';
 import { useAppSettings } from './context/AppSettingsContext';
 import AuthContext from './context/AuthContext';
 import { ShopProfileLoadProvider, useShopProfileLoad } from './context/ShopProfileLoadContext';
@@ -1194,6 +1195,7 @@ export default function App() {
       }}
     >
       <ShopProfileLoadProvider>
+        <AppButtonFeedback />
         <AppContent key={`lang-${language || 'fr'}`} />
       </ShopProfileLoadProvider>
     </BrowserRouter>

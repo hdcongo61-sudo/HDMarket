@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
 import { orderQueryKeys } from './useOrderQueryKeys';
+import useNetworkProfile from './useNetworkProfile';
 
 const ACTIVE_ORDER_STATUSES = new Set([
   'pending_payment',
@@ -43,8 +44,10 @@ export const useSellerOrdersListQuery = ({
   limit = 10,
   status = 'all',
   enabled = true
-} = {}) =>
-  useQuery({
+} = {}) => {
+  const { rapid3GActive } = useNetworkProfile();
+
+  return useQuery({
     queryKey: orderQueryKeys.list('seller', { page, limit, status }),
     enabled: Boolean(enabled),
     queryFn: async () => {
@@ -59,16 +62,17 @@ export const useSellerOrdersListQuery = ({
       });
       return normalizeOrdersListPayload(data, page);
     },
-    staleTime: 10_000,
+    staleTime: rapid3GActive ? 45_000 : 20_000,
     refetchOnWindowFocus: false,
     refetchInterval: (query) => {
       const items = Array.isArray(query?.state?.data?.items) ? query.state.data.items : [];
       return items.some((item) =>
         ACTIVE_ORDER_STATUSES.has(String(item?.status || '').trim().toLowerCase())
       )
-        ? 15_000
+        ? rapid3GActive ? 60_000 : 30_000
         : false;
     }
   });
+};
 
 export default useSellerOrdersListQuery;

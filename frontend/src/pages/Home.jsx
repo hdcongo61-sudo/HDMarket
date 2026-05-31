@@ -7,11 +7,6 @@ import MobileSplash from "../components/MobileSplash";
 import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
 import ShimmerSkeleton from "../components/ui/ShimmerSkeleton";
 import categoryGroups, { allCategoryOptions } from "../data/categories";
-import { Swiper, SwiperSlide } from "swiper/react";
-import { Navigation, Pagination, Autoplay } from "swiper/modules";
-import "swiper/css";
-import "swiper/css/navigation";
-import "swiper/css/pagination";
 import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame } from "lucide-react";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
 import { buildProductPath, buildShopPath } from "../utils/links";
@@ -133,7 +128,6 @@ export default function Home() {
   // === ÉTATS PRINCIPAUX ===
   const [items, setItems] = useState([]);
   const [offlineSnapshotActive, setOfflineSnapshotActive] = useState(false);
-  const [certifiedProducts, setCertifiedProducts] = useState([]);
   const [category, setCategory] = useState("");
   const [sort, setSort] = useState("new");
   const [installmentOnlyFilter, setInstallmentOnlyFilter] = useState(false);
@@ -194,6 +188,7 @@ export default function Home() {
   const secondarySectionsRef = useRef(null);
   const installmentSectionRef = useRef(null);
   const infiniteScrollLockRef = useRef(0);
+  const homeProductsAbortRef = useRef(null);
 const {
   rapid3GActive,
   compactProductsPageSize,
@@ -313,6 +308,11 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
 
   // === CHARGEMENT DES PRODUITS ===
   const loadProducts = useCallback(async () => {
+    if (homeProductsAbortRef.current) {
+      homeProductsAbortRef.current.abort('HOME_PRODUCTS_REPLACED');
+    }
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    homeProductsAbortRef.current = controller;
     setLoading(true);
     if (page <= 1) {
       setProductsError('');
@@ -329,7 +329,11 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
       if (nearMeOnlyFilter && hasUserCity) {
         requestParams.nearMe = true;
       }
-      const { data } = await api.get("/products/public", { params: requestParams });
+      const { data } = await api.get("/products/public", {
+        params: requestParams,
+        signal: controller?.signal
+      });
+      if (controller && homeProductsAbortRef.current !== controller) return;
       const fetchedItems = Array.isArray(data) ? data : data.items || [];
       const pages = Array.isArray(data) ? 1 : data.pagination?.pages || 1;
       const total = Array.isArray(data)
@@ -343,6 +347,7 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
       if (isApiCanceledError(error)) {
         return;
       }
+      if (controller?.signal?.aborted) return;
       if (shouldUseOfflineSnapshot) {
         const snapshot = await loadOfflineSnapshot(homeSnapshotKey);
         if (snapshot && typeof snapshot === 'object') {
@@ -362,7 +367,9 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
         setProductsError(slowNetworkMessage);
       }
     } finally {
-      setLoading(false);
+      if (!controller || homeProductsAbortRef.current === controller) {
+        setLoading(false);
+      }
     }
   }, [
     page,
@@ -419,28 +426,6 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
       setWholesaleLoading(false);
     }
   }, [compactSecondaryLimit, effectiveUserCity, hasUserCity, isMobileView]);
-
-  const loadCertifiedProducts = useCallback(async () => {
-    try {
-      const { data } = await api.get("/products/public", {
-        params: {
-          certified: true,
-          sort: "new",
-          limit: compactSecondaryLimit || 8,
-          page: 1
-        }
-      });
-      const fetched = Array.isArray(data) ? data : data?.items || [];
-      setCertifiedProducts(fetched.filter((product) => product?.certified));
-    } catch (error) {
-      console.error(
-        "Erreur chargement produits certifiés:",
-        error?.response?.status,
-        error?.response?.data,
-        error
-      );
-    }
-  }, [compactSecondaryLimit]);
 
   useEffect(() => {
     let active = true;
@@ -665,6 +650,14 @@ const loadDiscountProducts = async () => {
   }, [page, sort, category, installmentOnlyFilter, isMobileView, loadProducts]);
 
   useEffect(() => {
+    return () => {
+      if (homeProductsAbortRef.current) {
+        homeProductsAbortRef.current.abort('HOME_UNMOUNTED');
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (!hasUserCity && nearMeOnlyFilter) {
       setNearMeOnlyFilter(false);
     }
@@ -824,23 +817,42 @@ const loadDiscountProducts = async () => {
 
   useEffect(() => {
     if (!shouldLoadSecondarySections) return;
-    loadHighlights();
-    loadDiscountProducts();
-    loadVerifiedShops();
-    loadPromoHomeData();
-    loadCertifiedProducts();
-    loadTopSales();
+    const timers = [];
+    const schedule = (task, delay = 0) => {
+      const timer = window.setTimeout(() => {
+        task();
+      }, delay);
+      timers.push(timer);
+    };
+
+    schedule(loadPromoHomeData, 0);
+    schedule(loadHighlights, rapid3GActive ? 180 : 40);
+    schedule(loadTopSales, rapid3GActive ? 360 : 90);
+    schedule(loadVerifiedShops, rapid3GActive ? 620 : 160);
+    schedule(loadDiscountProducts, rapid3GActive ? 900 : 240);
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
   }, [shouldLoadSecondarySections]);
 
   useEffect(() => {
     if (!shouldLoadSecondarySections) return;
-    loadTopSalesTodayByCity();
-  }, [loadTopSalesTodayByCity, shouldLoadSecondarySections]);
+    const timer = window.setTimeout(
+      () => loadTopSalesTodayByCity(),
+      rapid3GActive ? 520 : 120
+    );
+    return () => window.clearTimeout(timer);
+  }, [loadTopSalesTodayByCity, rapid3GActive, shouldLoadSecondarySections]);
 
   useEffect(() => {
     if (!shouldLoadSecondarySections) return;
-    loadWholesaleProducts();
-  }, [loadWholesaleProducts, shouldLoadSecondarySections]);
+    const timer = window.setTimeout(
+      () => loadWholesaleProducts(),
+      rapid3GActive ? 760 : 180
+    );
+    return () => window.clearTimeout(timer);
+  }, [loadWholesaleProducts, rapid3GActive, shouldLoadSecondarySections]);
 
   useEffect(() => {
     if (!flashDeals.length) return undefined;

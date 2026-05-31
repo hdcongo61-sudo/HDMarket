@@ -87,6 +87,8 @@ import {
   closeRealtimeAnalyticsWorker,
   initRealtimeAnalyticsWorker
 } from './workers/realtimeAnalyticsWorker.js';
+import { closeSideEffectQueue, initSideEffectQueue } from './queues/sideEffectQueue.js';
+import { closeSideEffectWorker, initSideEffectWorker } from './workers/sideEffectWorker.js';
 import { isTokenBlacklisted, wasSessionInvalidated } from './services/sessionSecurityService.js';
 
 connectDB();
@@ -102,6 +104,12 @@ initNotificationQueue().catch(() => {
 });
 initNotificationWorker().catch(() => {
   // Worker fallback is handled inside notification service.
+});
+initSideEffectQueue().catch(() => {
+  // Queue is optional; controllers keep a best-effort fallback if Redis is unavailable.
+});
+initSideEffectWorker().catch(() => {
+  // Optional side-effect worker.
 });
 const orderAutomationEnabled = String(process.env.ORDER_AUTOMATION_ENABLED || 'true') !== 'false';
 const realtimeAnalyticsEnabled = String(process.env.REALTIME_ANALYTICS_ENABLED || 'true') !== 'false';
@@ -649,6 +657,8 @@ const gracefulShutdown = async () => {
     await closeRealtimeAnalyticsQueue();
     await closeOrderAutomationWorker();
     await closeOrderAutomationQueue();
+    await closeSideEffectWorker();
+    await closeSideEffectQueue();
     await closeNotificationWorker();
     await closeNotificationQueue();
     await closeRedis();

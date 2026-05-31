@@ -87,7 +87,7 @@ router.post(
   '/',
   protect,
   upload.fields([
-    { name: 'images', maxCount: 3 },
+    { name: 'images', maxCount: 20 },
     { name: 'video', maxCount: 1 },
     { name: 'pdf', maxCount: 1 }
   ]),
@@ -100,7 +100,7 @@ router.put(
   '/:id',
   protect,
   upload.fields([
-    { name: 'images', maxCount: 3 },
+    { name: 'images', maxCount: 20 },
     { name: 'video', maxCount: 1 },
     { name: 'pdf', maxCount: 1 }
   ]),

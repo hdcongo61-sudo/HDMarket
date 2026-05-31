@@ -156,6 +156,21 @@ const notificationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {}
     },
+    display: {
+      title: { type: String, trim: true, default: '' },
+      message: { type: String, trim: true, default: '' },
+      actionLabel: { type: String, trim: true, default: '' }
+    },
+    snapshot: {
+      actorName: { type: String, trim: true, default: '' },
+      actorAvatar: { type: String, trim: true, default: '' },
+      productTitle: { type: String, trim: true, default: '' },
+      productSlug: { type: String, trim: true, default: '' },
+      shopName: { type: String, trim: true, default: '' },
+      shopSlug: { type: String, trim: true, default: '' },
+      orderCode: { type: String, trim: true, default: '' },
+      orderProductTitle: { type: String, trim: true, default: '' }
+    },
     priority: {
       type: String,
       enum: ['LOW', 'NORMAL', 'HIGH', 'CRITICAL'],
@@ -163,6 +178,11 @@ const notificationSchema = new mongoose.Schema(
       index: true
     },
     groupingKey: {
+      type: String,
+      default: '',
+      index: true
+    },
+    dedupeKey: {
       type: String,
       default: '',
       index: true
@@ -189,6 +209,8 @@ const notificationSchema = new mongoose.Schema(
       }
     },
     readAt: { type: Date, default: null },
+    clickedAt: { type: Date, default: null },
+    clickCount: { type: Number, default: 0, min: 0 },
     expiresAt: { type: Date, default: null }
   },
   {
@@ -203,5 +225,12 @@ notificationSchema.index({ priority: 1, createdAt: -1 });
 notificationSchema.index({ audience: 1, actionStatus: 1, createdAt: -1 });
 notificationSchema.index({ entityType: 1, entityId: 1, createdAt: -1 });
 notificationSchema.index({ validationType: 1, actionStatus: 1, createdAt: -1 });
+notificationSchema.index(
+  { user: 1, dedupeKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { dedupeKey: { $type: 'string', $gt: '' } }
+  }
+);
 
 export default mongoose.model('Notification', notificationSchema);

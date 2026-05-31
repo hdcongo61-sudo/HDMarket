@@ -4,6 +4,11 @@ import { enqueueNotificationJob } from '../queues/notificationQueue.js';
 import { dispatchNotificationPayload } from './notificationDispatcher.js';
 import { initRedis, getRedisClient, isRedisReady } from '../config/redisClient.js';
 import {
+  buildNotificationDedupeKey,
+  buildNotificationDisplay,
+  buildNotificationSnapshot
+} from '../services/notificationTemplateService.js';
+import {
   decrementTaskCounters,
   deriveTaskRolesFromNotification,
   incrementTaskCounters,
@@ -391,7 +396,12 @@ export const createNotification = async ({
   entityType = '',
   entityId = '',
   validationType = '',
-  expiresAt = null
+  expiresAt = null,
+  title = '',
+  message = '',
+  actionLabel = '',
+  snapshot = {},
+  dedupeKey = ''
 }) => {
   if (!userId || !actorId || !type) return null;
   if (!allowSelf && String(userId) === String(actorId)) return null;
@@ -414,10 +424,34 @@ export const createNotification = async ({
       validationType
     });
     const resolvedChannels = sanitizeChannels(channels);
+    const resolvedSnapshot = buildNotificationSnapshot({
+      metadata: enrichedMetadata,
+      snapshot
+    });
+    const resolvedDisplay = buildNotificationDisplay({
+      type,
+      metadata: enrichedMetadata,
+      snapshot: resolvedSnapshot,
+      title,
+      message,
+      actionLabel
+    });
     const normalizedDeepLink = String(deepLink || enrichedMetadata?.deepLink || '').trim();
     const normalizedActionLink = String(actionLink || normalizedDeepLink || '').trim();
     const normalizedActionDueAt = toDateOrNull(actionDueAt || enrichedMetadata?.actionDueAt);
     const normalizedExpiresAt = toDateOrNull(expiresAt || enrichedMetadata?.expiresAt);
+    const resolvedDedupeKey = GROUPABLE_TYPES.has(type)
+      ? ''
+      : buildNotificationDedupeKey({
+          userId,
+          type,
+          metadata: enrichedMetadata,
+          entityType: resolvedEntityType,
+          entityId: resolvedEntityId,
+          productId,
+          shopId,
+          dedupeKey
+        });
 
     let effectivePushEnabled = Boolean(pushEnabled);
     let effectiveSocketEnabled = Boolean(socketEnabled);
@@ -449,6 +483,13 @@ export const createNotification = async ({
     });
 
     let notification = await findGroupedNotification({ userId, type, groupingKey });
+    let reusedDedupeExisting = false;
+    if (!notification && resolvedDedupeKey) {
+      notification = await Notification.findOne({ user: userId, dedupeKey: resolvedDedupeKey }).sort({
+        createdAt: -1
+      });
+      reusedDedupeExisting = Boolean(notification);
+    }
     let shouldIncrementTaskCounters = false;
     let shouldDecrementTaskCounters = false;
     let previousNotificationSnapshot = null;
@@ -461,14 +502,27 @@ export const createNotification = async ({
         roles: deriveTaskRolesFromNotification(notification)
       };
 
-      notification.metadata = buildGroupedMetadata({
-        current: notification.metadata || {},
-        incoming: effectiveMetadata || {},
-        actorId
-      });
+      if (reusedDedupeExisting) {
+        notification.metadata = {
+          ...(notification.metadata || {}),
+          ...(effectiveMetadata || {}),
+          dedupedAt: new Date()
+        };
+      } else {
+        notification.metadata = buildGroupedMetadata({
+          current: notification.metadata || {},
+          incoming: effectiveMetadata || {},
+          actorId
+        });
+      }
       notification.groupCount = Number(notification.metadata?.groupCount || notification.groupCount || 1);
       notification.priority = mergePriority(notification.priority, resolvedPriority);
       notification.readAt = null;
+      notification.display = resolvedDisplay;
+      notification.snapshot = {
+        ...(notification.snapshot || {}),
+        ...resolvedSnapshot
+      };
       notification.audience = resolvedAudience;
       notification.targetRole = resolvedTargetRole;
       notification.channels = resolvedChannels;
@@ -481,6 +535,7 @@ export const createNotification = async ({
       notification.entityType = resolvedEntityType;
       notification.entityId = resolvedEntityId;
       notification.validationType = resolvedValidationType;
+      notification.dedupeKey = resolvedDedupeKey || notification.dedupeKey || '';
       notification.expiresAt = normalizedExpiresAt;
       notification.delivery = {
         ...(notification.delivery || {}),
@@ -495,8 +550,11 @@ export const createNotification = async ({
         targetRole: resolvedTargetRole,
         type,
         metadata: { ...(effectiveMetadata || {}), groupCount: 1 },
+        display: resolvedDisplay,
+        snapshot: resolvedSnapshot,
         priority: resolvedPriority,
         groupingKey,
+        dedupeKey: resolvedDedupeKey,
         groupCount: 1,
         channels: resolvedChannels,
         actionRequired: resolvedActionRequired,
@@ -513,8 +571,17 @@ export const createNotification = async ({
       };
       if (productId) doc.product = productId;
       if (shopId) doc.shop = shopId;
-      notification = await Notification.create(doc);
+      try {
+        notification = await Notification.create(doc);
+      } catch (error) {
+        if (Number(error?.code) === 11000 && resolvedDedupeKey) {
+          notification = await Notification.findOne({ user: userId, dedupeKey: resolvedDedupeKey });
+          reusedDedupeExisting = Boolean(notification);
+        }
+        if (!notification) throw error;
+      }
       shouldIncrementTaskCounters =
+        !reusedDedupeExisting &&
         Boolean(notification.actionRequired) &&
         String(notification.actionStatus || '').toUpperCase() === 'PENDING';
     }
@@ -546,7 +613,7 @@ export const createNotification = async ({
       priority: notification.priority || resolvedPriority,
       pushEnabled: effectivePushEnabled,
       socketEnabled: effectiveSocketEnabled,
-      incrementUnread: !Boolean(notification?.metadata?.grouped),
+      incrementUnread: !Boolean(notification?.metadata?.grouped) && !reusedDedupeExisting,
       delayMs
     });
 

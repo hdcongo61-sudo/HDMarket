@@ -554,7 +554,7 @@ export const getProfile = asyncHandler(async (req, res) => {
 
 export const clearMyCacheOnLogout = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
-  await invalidateUserCache(userId, ['users', 'orders', 'cart', 'notifications', 'dashboard', 'analytics']);
+  invalidateUserCache(userId, ['users', 'orders', 'cart', 'notifications', 'dashboard', 'analytics']).catch(() => {});
   res.json({ success: true });
 });
 
@@ -1528,6 +1528,8 @@ const NOTIFICATION_TITLES = Object.freeze({
 });
 
 const resolveNotificationTitle = (notification, fallback = 'Notification') => {
+  const displayTitle = String(notification?.display?.title || '').trim();
+  if (displayTitle) return displayTitle;
   const metadata = notification?.metadata || {};
   const explicitTitle = String(metadata.title || '').trim();
   if (explicitTitle) return explicitTitle;
@@ -1539,9 +1541,10 @@ export const getNotifications = asyncHandler(async (req, res) => {
     Notification.find({ user: req.user.id })
       .sort({ createdAt: -1 })
       .limit(50)
-      .populate('product', 'title status slug')
-      .populate('shop', 'shopName name slug')
-      .populate('actor', 'name email profileImage shopLogo'),
+      .select(
+        'actor product shop type metadata display snapshot priority audience channels deepLink actionLink actionRequired actionType actionStatus actionDueAt validationType entityType entityId readAt clickedAt clickCount createdAt updatedAt'
+      )
+      .lean(),
     User.findById(req.user.id).select('notificationPreferences')
   ]);
 
@@ -1550,30 +1553,48 @@ export const getNotifications = asyncHandler(async (req, res) => {
   }
 
   const alerts = notifications.map((notification) => {
-    const actor = notification.actor
+    const snapshot = notification.snapshot || {};
+    const actorObject =
+      notification.actor && typeof notification.actor === 'object' && !mongoose.Types.ObjectId.isValid(notification.actor)
+        ? notification.actor
+        : null;
+    const productObject =
+      notification.product && typeof notification.product === 'object' && !mongoose.Types.ObjectId.isValid(notification.product)
+        ? notification.product
+        : null;
+    const shopObject =
+      notification.shop && typeof notification.shop === 'object' && !mongoose.Types.ObjectId.isValid(notification.shop)
+        ? notification.shop
+        : null;
+    const actorId = actorObject?._id || notification.actor || null;
+    const productId = productObject?._id || notification.product || null;
+    const shopId = shopObject?._id || notification.shop || null;
+    const actor = actorId || snapshot.actorName
       ? {
-          _id: notification.actor._id,
-          name: notification.actor.name,
-          email: notification.actor.email,
+          _id: actorId,
+          name: actorObject?.name || snapshot.actorName || 'HDMarket',
+          email: actorObject?.email || '',
           profileImage:
-            String(notification.actor.profileImage || '').trim() ||
-            String(notification.actor.shopLogo || '').trim()
+            String(actorObject?.profileImage || '').trim() ||
+            String(actorObject?.shopLogo || '').trim() ||
+            String(snapshot.actorAvatar || '').trim()
         }
       : null;
-    const product = notification.product
+    const product = productId || snapshot.productTitle || snapshot.productSlug
       ? {
-          _id: notification.product._id,
-          slug: notification.product.slug,
-          title: notification.product.title,
-          status: notification.product.status
+          _id: productId,
+          slug: productObject?.slug || snapshot.productSlug || '',
+          title: productObject?.title || snapshot.productTitle || '',
+          status: productObject?.status || ''
         }
       : null;
     const metadata = notification.metadata || {};
-    const shopInfo = notification.shop
+    const shopInfo = shopId || snapshot.shopName || snapshot.shopSlug
       ? {
-          _id: notification.shop._id,
-          shopName: notification.shop.shopName,
-          name: notification.shop.name
+          _id: shopId,
+          shopName: shopObject?.shopName || snapshot.shopName || '',
+          name: shopObject?.name || snapshot.shopName || '',
+          slug: shopObject?.slug || snapshot.shopSlug || ''
         }
       : null;
     const actorName = actor?.name || 'Un utilisateur';
@@ -1601,8 +1622,8 @@ export const getNotifications = asyncHandler(async (req, res) => {
       ? `votre commande "${orderProductTitle}"`
       : 'votre commande';
 
-    let message;
-    switch (notification.type) {
+    let message = String(notification.display?.message || '').trim();
+    if (!message) switch (notification.type) {
       case 'product_comment':
         message = snippet
           ? `${actorName} a commenté votre annonce${productLabel} : ${snippet}`
@@ -1950,9 +1971,12 @@ export const getNotifications = asyncHandler(async (req, res) => {
       title: resolveNotificationTitle(notification),
       type: notification.type,
       message,
+      actionLabel: notification.display?.actionLabel || metadata.actionLabel || '',
       createdAt: notification.createdAt,
       updatedAt: notification.updatedAt,
       readAt: notification.readAt,
+      clickedAt: notification.clickedAt || metadata.lastClickedAt || null,
+      clickCount: Number(notification.clickCount || metadata.clickCount || 0),
       product,
       user: displayActor,
       actor: displayActor,
@@ -2093,6 +2117,8 @@ export const trackNotificationClick = asyncHandler(async (req, res) => {
     deepLinkClicked: true,
     lastClickedAt: new Date()
   };
+  notification.clickCount = clickCount;
+  notification.clickedAt = new Date();
   await notification.save();
 
   res.json({ success: true, clickCount });

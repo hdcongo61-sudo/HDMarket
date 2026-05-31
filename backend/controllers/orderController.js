@@ -49,6 +49,7 @@ import {
 } from '../services/orderReviewReminderService.js';
 import { emitOrderStatusUpdated } from '../sockets/chatSocket.js';
 import { validateSelectedAttributesForProduct } from '../utils/productAttributes.js';
+import { dispatchSideEffect } from '../utils/dispatchSideEffect.js';
 
 const ORDER_STATUS = [
   'pending_payment',
@@ -932,7 +933,6 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
   const consumedPromos = [];
   let orderPayloads = [];
   let createdOrders = [];
-  let populated = [];
 
   try {
     // Generate unique delivery codes for each order
@@ -1035,11 +1035,6 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     );
 
     await Cart.updateOne({ user: userId }, { $set: { items: [] } });
-
-    populated = await baseOrderQuery().find({
-      _id: { $in: createdOrders.map((order) => order._id) }
-    });
-    await ensureOrderProductSlugs(populated);
   } catch (error) {
     if (consumedPromos.length) {
       await Promise.all(
@@ -1054,15 +1049,123 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     throw error;
   }
 
-  const responseOrders = populated.map(buildOrderResponse);
+  const responseOrders = createdOrders.map(buildOrderResponse);
   if (responseOrders.length === 1) {
     res.status(201).json(responseOrders[0]);
   } else {
     res.status(201).json({ orders: responseOrders, count: responseOrders.length });
   }
 
+  const affectedSellerIds = Array.from(
+    new Set(orderPayloads.map((entry) => String(entry.sellerId || '')).filter(Boolean))
+  );
+  const checkoutNotifications = [
+    ...createdOrders.map((order, index) => {
+      const { sellerId, items } = orderPayloads[index];
+      const itemCount = items.reduce((sum, item) => sum + Number(item.quantity || 1), 0);
+      const totalAmount = Number(order.totalAmount || 0);
+      const productId = items[0]?.product || null;
+      return {
+        userId: sellerId,
+        actorId: userId,
+        productId,
+        type: 'order_received',
+        metadata: {
+          orderId: order._id,
+          itemCount,
+          totalAmount,
+          paymentMode: order.paymentMode,
+          deliveryFeeWaived: Boolean(order.deliveryFeeWaived),
+          deliveryFeeLocked: Boolean(order.deliveryFeeLocked)
+        }
+      };
+    }),
+    ...createdOrders.map((order) => ({
+      userId: customer._id,
+      actorId: userId,
+      type: 'order_created',
+      metadata: {
+        orderId: order._id,
+        deliveryCity: order.deliveryCity,
+        deliveryAddress: order.deliveryAddress,
+        status: order.status,
+        paymentMode: order.paymentMode,
+        paymentStatus: order.paymentStatus,
+        deliveryFeeWaived: Boolean(order.deliveryFeeWaived),
+        deliveryFeeLocked: Boolean(order.deliveryFeeLocked)
+      },
+      allowSelf: true
+    }))
+  ];
+
+  if (useFullPayment) {
+    checkoutNotifications.push(
+      ...createdOrders.map((order) => ({
+        userId: customer._id,
+        actorId: userId,
+        type: 'order_full_payment_waived',
+        metadata: {
+          orderId: order._id,
+          totalAmount: Number(order.totalAmount || 0),
+          deliveryFeeWaived: true,
+          deliveryFeeLocked: true
+        },
+        allowSelf: true
+      })),
+      ...createdOrders.map((order, index) => ({
+        userId: orderPayloads[index].sellerId,
+        actorId: userId,
+        type: 'order_full_payment_received',
+        metadata: {
+          orderId: order._id,
+          totalAmount: Number(order.totalAmount || 0),
+          deliveryFeeLocked: true
+        }
+      }))
+    );
+  }
+
+  const fullPaymentAdminNotifications = useFullPayment
+    ? createdOrders.map((order) => ({
+        actorId: userId,
+        type: 'order_full_payment_ready',
+        metadata: {
+          orderId: order._id,
+          totalAmount: Number(order.totalAmount || 0),
+          deliveryFeeWaived: true,
+          deliveryFeeLocked: true,
+          status: order.status
+        }
+      }))
+    : [];
+  const checkoutSmsMessages = createdOrders.map((order) => ({
+    phone: customer.phone,
+    message: buildOrderPendingMessage(order),
+    context: `order_created:${order._id}`
+  }));
+
   // Post-checkout side effects are best-effort and should never delay or fail the checkout response.
-  void safeAsync(async () => {
+  void dispatchSideEffect(
+    'checkout',
+    {
+      orderIds: createdOrders.map((order) => order._id),
+      customerId: userId,
+      sellerIds: affectedSellerIds,
+      notifications: checkoutNotifications,
+      smsMessages: checkoutSmsMessages,
+      fullPaymentAdminNotifications
+    },
+    async () => {
+    await safeAsync(
+      async () => {
+        const populated = await baseOrderQuery().find({
+          _id: { $in: createdOrders.map((order) => order._id) }
+        });
+        await ensureOrderProductSlugs(populated);
+      },
+      { label: 'checkout_post_response_populate_and_slug_orders' }
+    );
+
     await safeAsync(
       async () =>
         Promise.all(
@@ -1199,10 +1302,6 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
       );
     }
 
-    const affectedSellerIds = Array.from(
-      new Set(orderPayloads.map((entry) => String(entry.sellerId || '')).filter(Boolean))
-    );
-
     await safeAsync(
       async () => invalidateUserCache(userId, ['orders', 'cart', 'notifications']),
       { label: 'checkout_invalidate_user_cache' }
@@ -1219,7 +1318,9 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     await safeAsync(async () => invalidateAdminCache(['admin', 'dashboard']), {
       label: 'checkout_invalidate_admin_cache'
     });
-  }, { label: 'checkout_post_response_side_effects' });
+    },
+    { label: 'checkout_post_response_side_effects' }
+  );
 });
 
 export const adminListOrders = asyncHandler(async (req, res) => {
@@ -2050,9 +2151,6 @@ export const userUpdateOrderStatus = asyncHandler(async (req, res) => {
   }
 
   await order.save();
-  await syncReviewReminderForOrderLifecycle(order);
-  const populated = await baseOrderQuery().findById(order._id);
-  await ensureOrderProductSlugs([populated]);
   const sellerIds = Array.isArray(order.items)
     ? order.items
         .map((item) => item?.snapshot?.shopId)
@@ -2068,28 +2166,65 @@ export const userUpdateOrderStatus = asyncHandler(async (req, res) => {
     updatedAt: order.cancelledAt?.toISOString?.() || new Date().toISOString()
   });
 
-  // Send cancellation notification
-  if (status === 'cancelled' && previousStatus !== 'cancelled') {
-    await createNotification({
-      userId: order.customer,
-      actorId: userId,
-      type: 'order_cancelled',
-      metadata: {
-        orderId: order._id,
-        deliveryAddress: order.deliveryAddress,
-        deliveryCity: order.deliveryCity,
-        status: 'cancelled',
-        cancelledBy: 'user'
-      },
-      allowSelf: true
-    });
-  }
+  res.json(buildOrderResponse(order));
 
-  await invalidateOrderCachesForMutation({
-    customerId: order.customer,
-    sellerIds: (order.items || []).map((item) => resolveItemShopId(item))
-  });
-  res.json(buildOrderResponse(populated));
+  const cancellationNotifications =
+    status === 'cancelled' && previousStatus !== 'cancelled'
+      ? [
+          {
+            userId: order.customer,
+            actorId: userId,
+            type: 'order_cancelled',
+            metadata: {
+              orderId: order._id,
+              deliveryAddress: order.deliveryAddress,
+              deliveryCity: order.deliveryCity,
+              status: 'cancelled',
+              cancelledBy: 'user'
+            },
+            allowSelf: true
+          }
+        ]
+      : [];
+
+  void dispatchSideEffect(
+    'order-lifecycle',
+    {
+      orderId: order._id,
+      customerId: order.customer,
+      sellerIds: (order.items || []).map((item) => resolveItemShopId(item)),
+      notifications: cancellationNotifications
+    },
+    async () => {
+    await safeAsync(() => syncReviewReminderForOrderLifecycle(order), {
+      label: 'buyer_order_status_sync_review_reminder'
+    });
+    await safeAsync(
+      async () => {
+        const populated = await baseOrderQuery().findById(order._id);
+        await ensureOrderProductSlugs([populated]);
+      },
+      { label: 'buyer_order_status_populate_and_slug_order' }
+    );
+
+    if (status === 'cancelled' && previousStatus !== 'cancelled') {
+      await safeAsync(
+        () => Promise.all(cancellationNotifications.map((payload) => createNotification(payload))),
+        { label: 'buyer_order_status_notify_cancelled' }
+      );
+    }
+
+    await safeAsync(
+      () =>
+        invalidateOrderCachesForMutation({
+          customerId: order.customer,
+          sellerIds: (order.items || []).map((item) => resolveItemShopId(item))
+        }),
+      { label: 'buyer_order_status_invalidate_order_caches' }
+    );
+    },
+    { label: 'buyer_order_status_side_effects' }
+  );
 });
 
 /**
@@ -2597,17 +2732,41 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
       order.status = 'delivered';
     }
     await order.save();
-    await syncReviewReminderForOrderLifecycle(order);
-    const populated = await baseOrderQuery().findById(order._id);
-    await ensureOrderProductSlugs([populated]);
-    await invalidateOrderCachesForMutation({
-      customerId: order.customer,
-      sellerIds: (order.items || []).map((item) => resolveItemShopId(item))
-    });
-    return res.json({
+    res.json({
       message: 'Livraison plateforme validée automatiquement. Aucune confirmation client requise.',
-      order: buildOrderResponse(populated)
+      order: buildOrderResponse(order)
     });
+
+    void dispatchSideEffect(
+      'order-lifecycle',
+      {
+        orderId: order._id,
+        customerId: order.customer,
+        sellerIds: (order.items || []).map((item) => resolveItemShopId(item))
+      },
+      async () => {
+      await safeAsync(() => syncReviewReminderForOrderLifecycle(order), {
+        label: 'platform_confirm_sync_review_reminder'
+      });
+      await safeAsync(
+        async () => {
+          const populated = await baseOrderQuery().findById(order._id);
+          await ensureOrderProductSlugs([populated]);
+        },
+        { label: 'platform_confirm_populate_and_slug_order' }
+      );
+      await safeAsync(
+        () =>
+          invalidateOrderCachesForMutation({
+            customerId: order.customer,
+            sellerIds: (order.items || []).map((item) => resolveItemShopId(item))
+          }),
+        { label: 'platform_confirm_invalidate_order_caches' }
+      );
+      },
+      { label: 'platform_confirm_side_effects' }
+    );
+    return;
   }
   if (req.body?.confirm === false) {
     return res.status(400).json({
@@ -2629,22 +2788,44 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
     order.deliveredAt = order.deliveryDate || now;
   }
 
-  // Keep intermediate transition in audit logs, while final status remains completed.
   const previousStatus = order.status;
-  order.status = 'confirmed_by_client';
-  await order.save();
   order.status = 'completed';
+  order.clientDeliveryConfirmedAt = order.clientDeliveryConfirmedAt || now;
   if (!order.completedAt) {
     order.completedAt = now;
   }
   await order.save();
-  await syncReviewReminderForOrderLifecycle(order);
 
-  await DeliveryLog.create({
+  const sellerIds = new Set();
+  (order.items || []).forEach((item) => {
+    if (item?.snapshot?.shopId) sellerIds.add(String(item.snapshot.shopId));
+  });
+
+  res.json({
+    message: 'Livraison confirmée. La commande est terminée.',
+    order: buildOrderResponse(order)
+  });
+
+  const sellerIdList = Array.from(sellerIds);
+  const confirmationNotification = sellerIdList.map((sellerId) => ({
+    userId: sellerId,
+    actorId: userId,
+    type: 'order_created',
+    metadata: {
+      orderId: order._id,
+      status: 'confirmed',
+      deliveryStatus: 'verified',
+      deliveryAddress: order.deliveryAddress,
+      deliveryCity: order.deliveryCity
+    }
+  }));
+  const confirmationDeliveryLog = {
     orderId: order._id,
     sellerId:
       order.deliverySubmittedBy ||
-      (Array.isArray(order.items) ? order.items.find((item) => item?.snapshot?.shopId)?.snapshot?.shopId : null) ||
+      (Array.isArray(order.items)
+        ? order.items.find((item) => item?.snapshot?.shopId)?.snapshot?.shopId
+        : null) ||
       order.createdBy,
     timestamp: now,
     ipAddress: getRequestIp(req),
@@ -2654,39 +2835,51 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
       transitionedTo: ['confirmed_by_client', 'completed'],
       confirmedByClientId: userId
     }
-  });
+  };
 
-  const sellerIds = new Set();
-  (order.items || []).forEach((item) => {
-    if (item?.snapshot?.shopId) sellerIds.add(String(item.snapshot.shopId));
-  });
-  await Promise.all(
-    Array.from(sellerIds).map((sellerId) =>
-      createNotification({
-        userId: sellerId,
-        actorId: userId,
-        type: 'order_created',
-        metadata: {
-          orderId: order._id,
-          status: 'confirmed',
-          deliveryStatus: 'verified',
-          deliveryAddress: order.deliveryAddress,
-          deliveryCity: order.deliveryCity
-        }
-      })
-    )
+  void dispatchSideEffect(
+    'order-lifecycle',
+    {
+      orderId: order._id,
+      customerId: order.customer,
+      sellerIds: sellerIdList,
+      deliveryLog: confirmationDeliveryLog,
+      notifications: confirmationNotification
+    },
+    async () => {
+    await safeAsync(() => syncReviewReminderForOrderLifecycle(order), {
+      label: 'client_confirm_sync_review_reminder'
+    });
+
+    await safeAsync(
+      () => DeliveryLog.create(confirmationDeliveryLog),
+      { label: 'client_confirm_delivery_log' }
+    );
+
+    await safeAsync(
+      () => Promise.all(confirmationNotification.map((payload) => createNotification(payload))),
+      { label: 'client_confirm_notify_sellers' }
+    );
+
+    await safeAsync(
+      async () => {
+        const populated = await baseOrderQuery().findById(order._id);
+        await ensureOrderProductSlugs([populated]);
+      },
+      { label: 'client_confirm_populate_and_slug_order' }
+    );
+
+    await safeAsync(
+      () =>
+        invalidateOrderCachesForMutation({
+          customerId: order.customer,
+          sellerIds: Array.from(sellerIds)
+        }),
+      { label: 'client_confirm_invalidate_order_caches' }
+    );
+    },
+    { label: 'client_confirm_side_effects' }
   );
-
-  const populated = await baseOrderQuery().findById(order._id);
-  await ensureOrderProductSlugs([populated]);
-  await invalidateOrderCachesForMutation({
-    customerId: order.customer,
-    sellerIds: Array.from(sellerIds)
-  });
-  res.json({
-    message: 'Livraison confirmée. La commande est terminée.',
-    order: buildOrderResponse(populated)
-  });
 });
 
 export const getOrderDeliveryLogs = asyncHandler(async (req, res) => {
@@ -2772,9 +2965,6 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
     }
 
     await order.save();
-    await syncReviewReminderForOrderLifecycle(order);
-    const populatedInstallment = await baseOrderQuery().findById(order._id);
-    await ensureOrderProductSlugs([populatedInstallment]);
     const installmentSellerIds = Array.isArray(order.items)
       ? order.items
           .map((item) => item?.snapshot?.shopId)
@@ -2790,8 +2980,11 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
       updatedAt: saleStatusChangedAt.toISOString()
     });
 
+    res.json(buildOrderResponse(order));
+
+    const lifecycleNotifications = [];
     if (notifyConfirmed) {
-      await createNotification({
+      lifecycleNotifications.push({
         userId: order.customer,
         actorId: userId,
         type: 'order_created',
@@ -2805,18 +2998,8 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
         allowSelf: true
       });
     }
-
-    if (notifyDelivering && isTwilioMessagingConfigured()) {
-      const customer = await User.findById(order.customer).select('phone');
-      await sendOrderSms({
-        phone: customer?.phone,
-        message: buildOrderDeliveringMessage(order),
-        context: `order_delivering:${order._id}`
-      });
-    }
-
     if (notifyDelivering) {
-      await createNotification({
+      lifecycleNotifications.push({
         userId: order.customer,
         actorId: userId,
         type: 'order_delivering',
@@ -2830,9 +3013,8 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
         allowSelf: true
       });
     }
-
     if (notifyDelivered) {
-      await createNotification({
+      lifecycleNotifications.push({
         userId: order.customer,
         actorId: userId,
         type: 'order_delivered',
@@ -2847,9 +3029,8 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
         allowSelf: true
       });
     }
-
     if (notifyCancelled) {
-      await createNotification({
+      lifecycleNotifications.push({
         userId: order.customer,
         actorId: userId,
         type: 'order_cancelled',
@@ -2865,11 +3046,152 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
       });
     }
 
-    await invalidateOrderCachesForMutation({
-      customerId: order.customer,
-      sellerIds: [userId]
-    });
-    return res.json(buildOrderResponse(populatedInstallment));
+    void dispatchSideEffect(
+      'order-lifecycle',
+      {
+        orderId: order._id,
+        customerId: order.customer,
+        sellerIds: [userId],
+        notifications: lifecycleNotifications,
+        smsMessages:
+          notifyDelivering && order.customer?.phone
+            ? [
+                {
+                  phone: order.customer.phone,
+                  message: buildOrderDeliveringMessage(order),
+                  context: `order_delivering:${order._id}`
+                }
+              ]
+            : notifyDelivering
+            ? [
+                {
+                  userId: order.customer,
+                  message: buildOrderDeliveringMessage(order),
+                  context: `order_delivering:${order._id}`
+                }
+              ]
+            : []
+      },
+      async () => {
+      await safeAsync(() => syncReviewReminderForOrderLifecycle(order), {
+        label: 'seller_installment_status_sync_review_reminder'
+      });
+      await safeAsync(
+        async () => {
+          const populatedInstallment = await baseOrderQuery().findById(order._id);
+          await ensureOrderProductSlugs([populatedInstallment]);
+        },
+        { label: 'seller_installment_status_populate_and_slug_order' }
+      );
+
+      if (notifyConfirmed) {
+        await safeAsync(
+          () =>
+            createNotification({
+              userId: order.customer,
+              actorId: userId,
+              type: 'order_created',
+              metadata: {
+                orderId: order._id,
+                deliveryAddress: order.deliveryAddress,
+                deliveryCity: order.deliveryCity,
+                status: 'confirmed',
+                paymentType: 'installment'
+              },
+              allowSelf: true
+            }),
+          { label: 'seller_installment_status_notify_confirmed' }
+        );
+      }
+
+      if (notifyDelivering && isTwilioMessagingConfigured()) {
+        await safeAsync(
+          async () => {
+            const customer = await User.findById(order.customer).select('phone');
+            await sendOrderSms({
+              phone: customer?.phone,
+              message: buildOrderDeliveringMessage(order),
+              context: `order_delivering:${order._id}`
+            });
+          },
+          { label: 'seller_installment_status_sms_delivering' }
+        );
+      }
+
+      if (notifyDelivering) {
+        await safeAsync(
+          () =>
+            createNotification({
+              userId: order.customer,
+              actorId: userId,
+              type: 'order_delivering',
+              metadata: {
+                orderId: order._id,
+                deliveryAddress: order.deliveryAddress,
+                deliveryCity: order.deliveryCity,
+                status: 'delivering',
+                paymentType: 'installment'
+              },
+              allowSelf: true
+            }),
+          { label: 'seller_installment_status_notify_delivering' }
+        );
+      }
+
+      if (notifyDelivered) {
+        await safeAsync(
+          () =>
+            createNotification({
+              userId: order.customer,
+              actorId: userId,
+              type: 'order_delivered',
+              metadata: {
+                orderId: order._id,
+                deliveryAddress: order.deliveryAddress,
+                deliveryCity: order.deliveryCity,
+                status: 'delivered',
+                deliveredAt: order.deliveredAt,
+                paymentType: 'installment'
+              },
+              allowSelf: true
+            }),
+          { label: 'seller_installment_status_notify_delivered' }
+        );
+      }
+
+      if (notifyCancelled) {
+        await safeAsync(
+          () =>
+            createNotification({
+              userId: order.customer,
+              actorId: userId,
+              type: 'order_cancelled',
+              metadata: {
+                orderId: order._id,
+                deliveryAddress: order.deliveryAddress,
+                deliveryCity: order.deliveryCity,
+                status: 'cancelled',
+                cancelledBy: 'seller',
+                paymentType: 'installment'
+              },
+              allowSelf: true
+            }),
+          { label: 'seller_installment_status_notify_cancelled' }
+        );
+      }
+
+      await safeAsync(
+        () =>
+          invalidateOrderCachesForMutation({
+            customerId: order.customer,
+            sellerIds: [userId]
+          }),
+        { label: 'seller_installment_status_invalidate_order_caches' }
+      );
+      },
+      { label: 'seller_installment_status_side_effects' }
+    );
+    return;
   }
 
   // Prevent seller from changing order status within 30 minutes of creation
@@ -2936,9 +3258,6 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   }
 
   await order.save();
-  await syncReviewReminderForOrderLifecycle(order);
-  const populated = await baseOrderQuery().findById(order._id);
-  await ensureOrderProductSlugs([populated]);
   const sellerIds = Array.isArray(order.items)
     ? order.items
         .map((item) => item?.snapshot?.shopId)
@@ -2954,8 +3273,11 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
     updatedAt: statusChangedAt.toISOString()
   });
 
+  res.json(buildOrderResponse(order));
+
+  const lifecycleNotifications = [];
   if (notifyPending && previousStatus !== 'pending') {
-    await createNotification({
+    lifecycleNotifications.push({
       userId: order.customer,
       actorId: userId,
       type: 'order_created',
@@ -2969,20 +3291,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
     });
   }
   if (notifyConfirmed && previousStatus !== 'confirmed') {
-    // Update product salesCount when order is confirmed
-    if (Array.isArray(order.items)) {
-      for (const item of order.items) {
-        if (item.product) {
-          const salesCount = await calculateProductSalesCount(item.product);
-          await Product.updateOne(
-            { _id: item.product },
-            { $set: { salesCount } }
-          );
-        }
-      }
-    }
-
-    await createNotification({
+    lifecycleNotifications.push({
       userId: order.customer,
       actorId: userId,
       type: 'order_created',
@@ -2996,7 +3305,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
     });
   }
   if (status === 'delivered') {
-    await createNotification({
+    lifecycleNotifications.push({
       userId: order.customer,
       actorId: userId,
       type: 'order_delivered',
@@ -3010,18 +3319,8 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
       allowSelf: true
     });
   }
-
-  if (notifyDelivering && previousStatus !== 'delivering' && isTwilioMessagingConfigured()) {
-    const customer = await User.findById(order.customer).select('phone');
-    await sendOrderSms({
-      phone: customer?.phone,
-      message: buildOrderDeliveringMessage(order),
-      context: `order_delivering:${order._id}`
-    });
-  }
-
   if (notifyDelivering && previousStatus !== 'delivering') {
-    await createNotification({
+    lifecycleNotifications.push({
       userId: order.customer,
       actorId: userId,
       type: 'order_delivering',
@@ -3034,10 +3333,8 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
       allowSelf: true
     });
   }
-
-  // Send cancellation notification
   if (status === 'cancelled' && previousStatus !== 'cancelled') {
-    await createNotification({
+    lifecycleNotifications.push({
       userId: order.customer,
       actorId: userId,
       type: 'order_cancelled',
@@ -3050,26 +3347,196 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
       },
       allowSelf: true
     });
-
-    // Update product salesCount when order is cancelled (decrease count)
-    if (Array.isArray(order.items)) {
-      for (const item of order.items) {
-        if (item.product) {
-          const salesCount = await calculateProductSalesCount(item.product);
-          await Product.updateOne(
-            { _id: item.product },
-            { $set: { salesCount } }
-          );
-        }
-      }
-    }
   }
+  const recalculateSalesProductIds =
+    (notifyConfirmed && previousStatus !== 'confirmed') ||
+    (status === 'cancelled' && previousStatus !== 'cancelled')
+      ? (order.items || []).map((item) => item.product).filter(Boolean)
+      : [];
 
-  await invalidateOrderCachesForMutation({
-    customerId: order.customer,
-    sellerIds: [userId]
-  });
-  res.json(buildOrderResponse(populated));
+  void dispatchSideEffect(
+    'order-lifecycle',
+    {
+      orderId: order._id,
+      customerId: order.customer,
+      sellerIds: [userId],
+      notifications: lifecycleNotifications,
+      smsMessages:
+        notifyDelivering && previousStatus !== 'delivering'
+          ? [
+              {
+                userId: order.customer,
+                message: buildOrderDeliveringMessage(order),
+                context: `order_delivering:${order._id}`
+              }
+            ]
+          : [],
+      recalculateSalesProductIds
+    },
+    async () => {
+    await safeAsync(() => syncReviewReminderForOrderLifecycle(order), {
+      label: 'seller_order_status_sync_review_reminder'
+    });
+    await safeAsync(
+      async () => {
+        const populated = await baseOrderQuery().findById(order._id);
+        await ensureOrderProductSlugs([populated]);
+      },
+      { label: 'seller_order_status_populate_and_slug_order' }
+    );
+
+    if (notifyPending && previousStatus !== 'pending') {
+      await safeAsync(
+        () =>
+          createNotification({
+            userId: order.customer,
+            actorId: userId,
+            type: 'order_created',
+            metadata: {
+              orderId: order._id,
+              deliveryAddress: order.deliveryAddress,
+              deliveryCity: order.deliveryCity,
+              status: 'pending'
+            },
+            allowSelf: true
+          }),
+        { label: 'seller_order_status_notify_pending' }
+      );
+    }
+
+    if (notifyConfirmed && previousStatus !== 'confirmed') {
+      await safeAsync(
+        async () => {
+          if (!Array.isArray(order.items)) return;
+          for (const item of order.items) {
+            if (item.product) {
+              // eslint-disable-next-line no-await-in-loop
+              const salesCount = await calculateProductSalesCount(item.product);
+              // eslint-disable-next-line no-await-in-loop
+              await Product.updateOne({ _id: item.product }, { $set: { salesCount } });
+            }
+          }
+        },
+        { label: 'seller_order_status_recalculate_sales_on_confirm' }
+      );
+
+      await safeAsync(
+        () =>
+          createNotification({
+            userId: order.customer,
+            actorId: userId,
+            type: 'order_created',
+            metadata: {
+              orderId: order._id,
+              deliveryAddress: order.deliveryAddress,
+              deliveryCity: order.deliveryCity,
+              status: 'confirmed'
+            },
+            allowSelf: true
+          }),
+        { label: 'seller_order_status_notify_confirmed' }
+      );
+    }
+
+    if (status === 'delivered') {
+      await safeAsync(
+        () =>
+          createNotification({
+            userId: order.customer,
+            actorId: userId,
+            type: 'order_delivered',
+            metadata: {
+              orderId: order._id,
+              deliveryAddress: order.deliveryAddress,
+              deliveryCity: order.deliveryCity,
+              status: 'delivered',
+              deliveredAt: order.deliveredAt
+            },
+            allowSelf: true
+          }),
+        { label: 'seller_order_status_notify_delivered' }
+      );
+    }
+
+    if (notifyDelivering && previousStatus !== 'delivering' && isTwilioMessagingConfigured()) {
+      await safeAsync(
+        async () => {
+          const customer = await User.findById(order.customer).select('phone');
+          await sendOrderSms({
+            phone: customer?.phone,
+            message: buildOrderDeliveringMessage(order),
+            context: `order_delivering:${order._id}`
+          });
+        },
+        { label: 'seller_order_status_sms_delivering' }
+      );
+    }
+
+    if (notifyDelivering && previousStatus !== 'delivering') {
+      await safeAsync(
+        () =>
+          createNotification({
+            userId: order.customer,
+            actorId: userId,
+            type: 'order_delivering',
+            metadata: {
+              orderId: order._id,
+              deliveryAddress: order.deliveryAddress,
+              deliveryCity: order.deliveryCity,
+              status: 'delivering'
+            },
+            allowSelf: true
+          }),
+        { label: 'seller_order_status_notify_delivering' }
+      );
+    }
+
+    if (status === 'cancelled' && previousStatus !== 'cancelled') {
+      await safeAsync(
+        () =>
+          createNotification({
+            userId: order.customer,
+            actorId: userId,
+            type: 'order_cancelled',
+            metadata: {
+              orderId: order._id,
+              deliveryAddress: order.deliveryAddress,
+              deliveryCity: order.deliveryCity,
+              status: 'cancelled',
+              cancelledBy: 'seller'
+            },
+            allowSelf: true
+          }),
+        { label: 'seller_order_status_notify_cancelled' }
+      );
+
+      await safeAsync(
+        async () => {
+          if (!Array.isArray(order.items)) return;
+          for (const item of order.items) {
+            if (item.product) {
+              // eslint-disable-next-line no-await-in-loop
+              const salesCount = await calculateProductSalesCount(item.product);
+              // eslint-disable-next-line no-await-in-loop
+              await Product.updateOne({ _id: item.product }, { $set: { salesCount } });
+            }
+          }
+        },
+        { label: 'seller_order_status_recalculate_sales_on_cancel' }
+      );
+    }
+
+    await safeAsync(
+      () =>
+        invalidateOrderCachesForMutation({
+          customerId: order.customer,
+          sellerIds: [userId]
+        }),
+      { label: 'seller_order_status_invalidate_order_caches' }
+    );
+    },
+    { label: 'seller_order_status_side_effects' }
+  );
 });
 
 export const sellerCancelOrder = asyncHandler(async (req, res) => {

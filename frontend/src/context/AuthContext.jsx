@@ -1,5 +1,5 @@
 import React, { createContext, useEffect, useState } from 'react';
-import api, { clearAllCache } from '../services/api';
+import api, { abortPendingRequests, clearAllCache } from '../services/api';
 import { jwtDecode } from 'jwt-decode';
 import storage from '../utils/storage';
 import indexedDB, { STORES } from '../utils/indexedDB';
@@ -198,39 +198,43 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
   };
 
+  const runWithTimeout = (task, timeoutMs = 1200) =>
+    Promise.race([
+      Promise.resolve().then(task),
+      new Promise((resolve) => setTimeout(resolve, timeoutMs))
+    ]).catch(() => {});
+
   const logout = async () => {
-    try {
-      if (user?.token) {
-        try {
-          await api.post('/auth/logout');
-        } catch {
-          // ignore logout auth API errors
-        }
-        try {
-          await api.post('/users/logout-cache');
-        } catch {
-          // ignore logout cache API errors
-        }
-      }
-      await clearAllCache();
-      await clearUserDataOnLogout();
-      await Promise.all([
+    const logoutToken = String(user?.token || '').trim();
+    const authConfig = logoutToken
+      ? { timeout: 2500, headers: { Authorization: `Bearer ${logoutToken}` } }
+      : { timeout: 2500 };
+    setUser(null);
+    queryClient.clear();
+    abortPendingRequests('USER_LOGOUT');
+
+    await Promise.allSettled([
+      storage.remove('qm_token'),
+      storage.remove('qm_user'),
+      clearUserDataOnLogout({ clearBrowserCaches: false })
+    ]);
+
+    if (typeof window !== 'undefined') {
+      window.location.replace('/');
+    }
+
+    runWithTimeout(async () => {
+      await Promise.allSettled([
+        logoutToken ? api.post('/auth/logout', {}, authConfig) : null,
+        logoutToken ? api.post('/users/logout-cache', {}, authConfig) : null,
+        clearAllCache(),
+        clearSearchCache(),
         indexedDB.clear(STORES.PRODUCTS),
         indexedDB.clear(STORES.SEARCH_RESULTS),
-        indexedDB.clear(STORES.SHOP_DATA)
+        indexedDB.clear(STORES.SHOP_DATA),
+        clearUserDataOnLogout({ clearBrowserCaches: true })
       ]);
-      await clearSearchCache();
-    } catch {
-      // ignore cache clear errors
-    }
-    queryClient.clear();
-    await storage.remove('qm_token');
-    await storage.remove('qm_user');
-    setUser(null);
-    // Full reload so the next user on the same device does not see any cached UI state
-    if (typeof window !== 'undefined') {
-      window.location.href = '/';
-    }
+    }, 2500);
   };
 
   useEffect(() => {
