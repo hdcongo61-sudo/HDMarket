@@ -73,6 +73,114 @@ const ORDER_STATUS = [
 ];
 
 const INSTALLMENT_SALE_STATUS_FILTERS = new Set(['confirmed', 'delivering', 'delivered', 'cancelled']);
+const ORDER_STATUS_GROUPS = {
+  buyer: {
+    payment_due: ['pending_payment'],
+    active: ['pending', 'paid', 'confirmed', 'ready_for_delivery', 'pending_installment', 'installment_active'],
+    pickup: ['ready_for_pickup', 'picked_up_confirmed'],
+    delivery: ['out_for_delivery', 'delivering', 'delivery_proof_submitted'],
+    completed: ['confirmed_by_client', 'delivered', 'completed'],
+    cancelled: ['cancelled']
+  },
+  seller: {
+    new: ['pending_payment', 'paid', 'pending', 'pending_installment'],
+    prepare: ['confirmed', 'ready_for_delivery'],
+    handoff: ['ready_for_pickup', 'out_for_delivery', 'delivering', 'delivery_proof_submitted'],
+    payment: ['pending_payment', 'paid', 'pending_installment', 'installment_active', 'overdue_installment'],
+    installments: ['pending_installment', 'installment_active', 'overdue_installment', 'completed'],
+    completed: ['picked_up_confirmed', 'confirmed_by_client', 'delivered', 'completed'],
+    problems: ['overdue_installment', 'dispute_opened', 'cancelled']
+  }
+};
+
+const applyOrderStatusFilter = (filter, { status, statusGroup, role = 'buyer' } = {}) => {
+  if (status && ORDER_STATUS.includes(status)) {
+    if (INSTALLMENT_SALE_STATUS_FILTERS.has(status)) {
+      filter.$and = [
+        ...(Array.isArray(filter.$and) ? filter.$and : []),
+        {
+          $or: [
+            { status },
+            { paymentType: 'installment', status: 'completed', installmentSaleStatus: status }
+          ]
+        }
+      ];
+    } else {
+      filter.status = status;
+    }
+    return filter;
+  }
+
+  const groupStatuses = ORDER_STATUS_GROUPS[role]?.[String(statusGroup || '').trim()];
+  if (Array.isArray(groupStatuses) && groupStatuses.length) {
+    filter.status = { $in: groupStatuses };
+  }
+  return filter;
+};
+
+const buildOrderSummary = async ({ baseFilter, role = 'buyer' }) => {
+  const match = { ...baseFilter, isDraft: false };
+  const [summaryRows, statusRows] = await Promise.all([
+    Order.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          totalAmount: { $sum: { $ifNull: ['$totalAmount', 0] } },
+          paymentPending: {
+            $sum: {
+              $cond: [{ $in: ['$status', ORDER_STATUS_GROUPS[role]?.payment || ORDER_STATUS_GROUPS.buyer.payment_due] }, 1, 0]
+            }
+          },
+          urgentCount: {
+            $sum: {
+              $cond: [{ $in: ['$status', ['pending_payment', 'overdue_installment', 'dispute_opened']] }, 1, 0]
+            }
+          },
+          activeCount: {
+            $sum: {
+              $cond: [
+                {
+                  $in: [
+                    '$status',
+                    ['pending_payment', 'paid', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery', 'pending', 'confirmed', 'delivering', 'installment_active']
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          }
+        }
+      }
+    ]),
+    Order.aggregate([
+      { $match: match },
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ])
+  ]);
+
+  const row = summaryRows[0] || {};
+  const byStatus = statusRows.reduce((acc, entry) => {
+    if (entry?._id) acc[entry._id] = Number(entry.count || 0);
+    return acc;
+  }, {});
+  const byGroup = Object.entries(ORDER_STATUS_GROUPS[role] || {}).reduce((acc, [groupKey, statuses]) => {
+    acc[groupKey] = statuses.reduce((sum, status) => sum + Number(byStatus[status] || 0), 0);
+    return acc;
+  }, { all: Number(row.total || 0) });
+
+  return {
+    total: Number(row.total || 0),
+    totalAmount: Number(row.totalAmount || 0),
+    paymentPending: Number(row.paymentPending || 0),
+    urgentCount: Number(row.urgentCount || 0),
+    activeCount: Number(row.activeCount || 0),
+    byStatus,
+    byGroup
+  };
+};
 const getDeliveryProofResubmissionLimit = async () => {
   const fallback = Math.max(1, Number(process.env.DELIVERY_PROOF_RESUBMISSION_LIMIT || 3));
   const configured = await getRuntimeConfig('delivery_proof_resubmission_limit', { fallback });
@@ -1788,24 +1896,10 @@ export const adminSearchProducts = asyncHandler(async (req, res) => {
 
 export const userListOrders = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
-  const { status, search = '', page = 1, limit = 6 } = req.query || {};
+  const { status, statusGroup, search = '', page = 1, limit = 6 } = req.query || {};
 
   const filter = userId ? { customer: userId, isDraft: false } : { customer: null, isDraft: false };
-  if (status && ORDER_STATUS.includes(status)) {
-    if (INSTALLMENT_SALE_STATUS_FILTERS.has(status)) {
-      filter.$and = [
-        ...(Array.isArray(filter.$and) ? filter.$and : []),
-        {
-          $or: [
-            { status },
-            { paymentType: 'installment', status: 'completed', installmentSaleStatus: status }
-          ]
-        }
-      ];
-    } else {
-      filter.status = status;
-    }
-  }
+  applyOrderStatusFilter(filter, { status, statusGroup, role: 'buyer' });
 
   // Add search functionality for product names
   if (search.trim()) {
@@ -1842,6 +1936,14 @@ export const userListOrders = asyncHandler(async (req, res) => {
     pageSize,
     totalPages
   });
+});
+
+export const userOrdersSummary = asyncHandler(async (req, res) => {
+  const userId = req.user?.id || req.user?._id;
+  const buyerMatchIds = userId && ensureObjectId(userId) ? [String(userId), new mongoose.Types.ObjectId(userId)] : [String(userId || '')];
+  const baseFilter = userId ? { customer: { $in: buyerMatchIds } } : { customer: null };
+  const summary = await buildOrderSummary({ baseFilter, role: 'buyer' });
+  res.json(summary);
 });
 
 // Get single order (buyer)
@@ -2389,24 +2491,10 @@ export const userSkipCancellationWindow = asyncHandler(async (req, res) => {
 
 export const sellerListOrders = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
-  const { status, page = 1, limit = 6 } = req.query || {};
+  const { status, statusGroup, page = 1, limit = 6 } = req.query || {};
 
   const filter = { 'items.snapshot.shopId': userId, isDraft: false };
-  if (status && ORDER_STATUS.includes(status)) {
-    if (INSTALLMENT_SALE_STATUS_FILTERS.has(status)) {
-      filter.$and = [
-        ...(Array.isArray(filter.$and) ? filter.$and : []),
-        {
-          $or: [
-            { status },
-            { paymentType: 'installment', status: 'completed', installmentSaleStatus: status }
-          ]
-        }
-      ];
-    } else {
-      filter.status = status;
-    }
-  }
+  applyOrderStatusFilter(filter, { status, statusGroup, role: 'seller' });
 
   const pageNumber = Math.max(1, Number(page) || 1);
   const requestedLimit = Number(limit) || 6;
@@ -2447,6 +2535,14 @@ export const sellerListOrders = asyncHandler(async (req, res) => {
     pageSize,
     totalPages
   });
+});
+
+export const sellerOrdersSummary = asyncHandler(async (req, res) => {
+  const userId = req.user?.id || req.user?._id;
+  const sellerMatchIds = ensureObjectId(userId) ? [String(userId), new mongoose.Types.ObjectId(userId)] : [String(userId)];
+  const baseFilter = { 'items.snapshot.shopId': { $in: sellerMatchIds } };
+  const summary = await buildOrderSummary({ baseFilter, role: 'seller' });
+  res.json(summary);
 });
 
 // Get single order (seller)

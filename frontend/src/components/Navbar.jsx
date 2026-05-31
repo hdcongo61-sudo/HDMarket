@@ -3376,7 +3376,7 @@ export default function Navbar() {
                           )}
                           {isAdminLike && (
                             <Link
-                              to="/admin/payment-verifiers"
+                              to="/admin/payment-verification?panel=verifiers"
                               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
                             >
                               <Users size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
@@ -4113,7 +4113,7 @@ export default function Navbar() {
                   )}
                   {isAdminLike && (
                     <NavLink
-                      to="/admin/payment-verifiers"
+                      to="/admin/payment-verification?panel=verifiers"
                       onClick={() => setIsMenuOpen(false)}
                       className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >

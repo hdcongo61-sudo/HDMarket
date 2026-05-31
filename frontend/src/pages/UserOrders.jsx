@@ -43,6 +43,7 @@ import OrderChat from '../components/OrderChat';
 import GlassHeader from '../components/orders/GlassHeader';
 import StatusBadge from '../components/orders/StatusBadge';
 import { OrderListSkeleton } from '../components/orders/OrderSkeletons';
+import { OrderCommandCenter, OrderFilterRail } from '../components/orders/OrderCommandCenter';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
 import CartContext from '../context/CartContext';
 import AuthContext from '../context/AuthContext';
@@ -52,6 +53,15 @@ import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { getPickupShopAddress, isPickupOrder } from '../utils/pickupAddress';
 import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
+import {
+  ORDER_FILTER_GROUPS,
+  getOrderGroupStatuses,
+  getOrderItems,
+  getOrderItemCount,
+  getOrderTotal,
+  getOrderUiState,
+  isOrderGroupKey
+} from '../utils/orderStatusEngine';
 import useReliableMutation from '../hooks/useReliableMutation';
 import useOrderRealtimeSync from '../hooks/useOrderRealtimeSync';
 import useBuyerOrdersListQuery from '../hooks/useBuyerOrdersListQuery';
@@ -117,26 +127,20 @@ const INSTALLMENT_SALE_STATUS_LABELS = {
   cancelled: 'Annulée'
 };
 
-const STATUS_TABS = [
-  { key: 'all', label: 'Toutes', icon: ClipboardList, count: null },
-  { key: 'pending_payment', label: 'Paiement', icon: Clock, count: null },
-  { key: 'paid', label: 'Payées', icon: CreditCard, count: null },
-  { key: 'ready_for_pickup', label: 'Prêtes au retrait', icon: Package, count: null },
-  { key: 'picked_up_confirmed', label: 'Retraits confirmés', icon: CheckCircle, count: null },
-  { key: 'ready_for_delivery', label: 'Prêtes à livrer', icon: Package, count: null },
-  { key: 'out_for_delivery', label: 'En livraison', icon: Truck, count: null },
-  { key: 'delivery_proof_submitted', label: 'Preuve soumise', icon: ClipboardList, count: null },
-  { key: 'confirmed_by_client', label: 'Confirmées client', icon: CheckCircle, count: null },
-  { key: 'pending', label: 'En attente', icon: Clock, count: null },
-  { key: 'pending_installment', label: 'Vente à confirmer', icon: Receipt, count: null },
-  { key: 'installment_active', label: 'Tranches actives', icon: CreditCard, count: null },
-  { key: 'overdue_installment', label: 'Tranches en retard', icon: AlertCircle, count: null },
-  { key: 'confirmed', label: 'Confirmées', icon: Package, count: null },
-  { key: 'delivering', label: 'En livraison', icon: Truck, count: null },
-  { key: 'delivered', label: 'Livrées', icon: CheckCircle, count: null },
-  { key: 'completed', label: 'Paiement terminé', icon: CheckCircle, count: null },
-  { key: 'cancelled', label: 'Annulées', icon: X, count: null }
-];
+const BUYER_TAB_ICONS = {
+  all: ClipboardList,
+  payment_due: CreditCard,
+  active: Clock,
+  pickup: Store,
+  delivery: Truck,
+  completed: CheckCircle,
+  cancelled: X
+};
+
+const STATUS_TABS = ORDER_FILTER_GROUPS.buyer.map((tab) => ({
+  ...tab,
+  icon: BUYER_TAB_ICONS[tab.key] || ClipboardList
+}));
 
 const PAGE_SIZE = 6;
 const ACTIVE_LIVE_STATUSES = new Set([
@@ -157,7 +161,16 @@ const ACTIVE_LIVE_STATUSES = new Set([
 const normalizeStatusFilter = (value) => {
   if (!value) return 'all';
   const safe = String(value).trim();
+  if (isOrderGroupKey('buyer', safe)) return safe;
   return Object.prototype.hasOwnProperty.call(STATUS_LABELS, safe) ? safe : 'all';
+};
+
+const orderMatchesBuyerFilter = (order, filterKey) => {
+  if (!filterKey || filterKey === 'all') return true;
+  if (isOrderGroupKey('buyer', filterKey)) {
+    return getOrderGroupStatuses('buyer', filterKey).includes(String(order?.status || '').trim().toLowerCase());
+  }
+  return String(order?.status || '').trim() === String(filterKey).trim();
 };
 
 const ORDER_FLOW = [
@@ -767,9 +780,9 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
 const OrderSummaryCard = ({ order }) => {
   const { t } = useAppSettings();
   const pickupOrder = isPickupOrder(order);
-  const orderItems = order.items?.length ? order.items : order.productSnapshot ? [{ snapshot: order.productSnapshot, quantity: 1, product: order.product }] : [];
-  const computedTotal = orderItems.reduce((s, i) => s + Number(i.snapshot?.price || 0) * Number(i.quantity || 1), 0);
-  const totalAmount = Number(order.totalAmount ?? computedTotal);
+  const orderItems = getOrderItems(order);
+  const totalAmount = getOrderTotal(order);
+  const uiState = getOrderUiState(order, 'buyer');
   const isInstallmentOrder = order.paymentType === 'installment';
   const installmentPlan = isInstallmentOrder ? order.installmentPlan || {} : null;
   const installmentTotal = Number(installmentPlan?.totalAmount ?? totalAmount);
@@ -787,7 +800,7 @@ const OrderSummaryCard = ({ order }) => {
   const firstItem = orderItems[0];
   const shopName = firstItem?.snapshot?.shopName || t('orders.shop', 'Boutique');
   const productTitle = firstItem?.snapshot?.title || t('orders.product', 'Produit');
-  const itemCount = orderItems.length;
+  const itemCount = getOrderItemCount(order);
 
   return (
     <Link
@@ -802,6 +815,18 @@ const OrderSummaryCard = ({ order }) => {
           <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
         </div>
         <StatusBadge status={statusBadgeKey} />
+      </div>
+      <div className="px-4 pt-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="truncate text-xs font-semibold text-neutral-500">{uiState.nextStep}</p>
+          <span className="shrink-0 text-[11px] font-bold text-neutral-500">{uiState.progress}%</span>
+        </div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${uiState.isUrgent ? 'bg-red-500' : 'bg-neutral-900 dark:bg-neutral-100'}`}
+            style={{ width: `${uiState.progress}%` }}
+          />
+        </div>
       </div>
       {/* Product summary */}
       <div className="p-4 flex gap-3">
@@ -870,7 +895,13 @@ const OrderSummaryCard = ({ order }) => {
             <span className="font-bold text-gray-900">
               {formatCurrency(isInstallmentOrder ? installmentPaid : totalAmount)}
             </span>
-            <span className="text-neutral-800 font-medium text-sm flex items-center gap-0.5">{t('orders.viewDetail', 'Voir le détail')} <ChevronRight className="w-4 h-4" /></span>
+            <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${
+              uiState.primaryAction.tone === 'urgent'
+                ? 'bg-red-50 text-red-700'
+                : 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-950'
+            }`}>
+              {uiState.primaryAction.label}
+            </span>
           </div>
         </div>
         {!pickupOrder && Number(order.deliveryFeeTotal ?? 0) > 0 && (
@@ -891,7 +922,7 @@ export default function UserOrders() {
   const [orders, setOrders] = useState([]);
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
-  const [stats, setStats] = useState({ total: 0, totalAmount: 0, byStatus: {} });
+  const [stats, setStats] = useState({ total: 0, totalAmount: 0, byStatus: {}, byGroup: {} });
   const [statsLoading, setStatsLoading] = useState(false);
   const [editAddressModalOpen, setEditAddressModalOpen] = useState(false);
   const [selectedOrderForEdit, setSelectedOrderForEdit] = useState(null);
@@ -937,10 +968,7 @@ export default function UserOrders() {
         const patched = prev.map((entry) =>
           String(entry?._id || '') === String(updatedOrder._id) ? updatedOrder : entry
         );
-        if (activeStatus === 'all') return patched;
-        return patched.filter(
-          (entry) => String(entry?.status || '').trim() === String(activeStatus).trim()
-        );
+        return patched.filter((entry) => orderMatchesBuyerFilter(entry, activeStatus));
       });
       queryClient.setQueriesData(
         { queryKey: orderQueryKeys.listRoot('user') },
@@ -1009,10 +1037,7 @@ export default function UserOrders() {
       if (!incomingOrderId) return;
       setOrders((prev) => {
         const patched = prev.map((entry) => applyRealtimeStatusPatch(entry, payload));
-        if (activeStatus === 'all') return patched;
-        return patched.filter(
-          (entry) => String(entry?.status || '').trim() === String(activeStatus).trim()
-        );
+        return patched.filter((entry) => orderMatchesBuyerFilter(entry, activeStatus));
       });
     };
 
@@ -1114,30 +1139,20 @@ export default function UserOrders() {
     setTouchEnd(null);
   };
 
-  // Load order statistics and available shops
+  // Load compact order summary without fetching the full order list.
   useEffect(() => {
     let active = true;
     const loadStats = async () => {
       setStatsLoading(true);
       try {
-        const { data } = await api.get('/orders?limit=1000');
+        const { data } = await api.get('/orders/summary');
         if (!active) return;
-        const allOrders = Array.isArray(data) ? data : data?.items || [];
-        const total = allOrders.length;
-        const totalAmount = allOrders.reduce((sum, order) => {
-          const items = order.items || (order.productSnapshot ? [{ snapshot: order.productSnapshot, quantity: 1 }] : []);
-          const computed = items.reduce(
-            (s, item) => s + Number(item.snapshot?.price || 0) * Number(item.quantity || 1),
-            0
-          );
-          return sum + Number(order.totalAmount ?? computed);
-        }, 0);
-        const byStatus = allOrders.reduce((acc, order) => {
-          const status = order.status || 'pending';
-          acc[status] = (acc[status] || 0) + 1;
-          return acc;
-        }, {});
-        setStats({ total, totalAmount, byStatus });
+        setStats({
+          total: Number(data?.total || 0),
+          totalAmount: Number(data?.totalAmount || 0),
+          byStatus: data?.byStatus || {},
+          byGroup: data?.byGroup || {}
+        });
       } catch (err) {
         console.error('Error loading stats:', err);
       } finally {
@@ -1214,7 +1229,63 @@ export default function UserOrders() {
   const emptyMessage =
     activeStatus === 'all'
       ? 'Vous n\'avez pas encore de commande.'
-      : `Aucune commande ${STATUS_LABELS[activeStatus].toLowerCase()} pour le moment.`;
+      : `Aucune commande ${(STATUS_LABELS[activeStatus] || STATUS_TABS.find((tab) => tab.key === activeStatus)?.label || 'sélectionnée').toLowerCase()} pour le moment.`;
+
+  const orderFilterCounts = {
+    ...stats.byStatus,
+    ...stats.byGroup,
+    all: stats.total
+  };
+  const activeTabLabel = STATUS_TABS.find((tab) => tab.key === activeStatus)?.label || 'Toutes';
+  const commandMetrics = [
+    {
+      label: t('orders.totalOrders', 'Commandes'),
+      value: statsLoading ? '...' : stats.total,
+      help: activeTabLabel,
+      icon: ClipboardList
+    },
+    {
+      label: t('orders.activeOrders', 'En cours'),
+      value: statsLoading ? '...' : stats.byGroup.active || 0,
+      help: t('orders.activeHelp', 'À suivre'),
+      icon: Clock
+    },
+    {
+      label: t('orders.paymentDue', 'À payer'),
+      value: statsLoading ? '...' : stats.byGroup.payment_due || 0,
+      help: t('orders.paymentProof', 'Preuve ou solde'),
+      icon: CreditCard
+    },
+    {
+      label: t('orders.delivery', 'Livraison'),
+      value: statsLoading ? '...' : stats.byGroup.delivery || 0,
+      help: t('orders.deliveryTracking', 'Suivi actif'),
+      icon: Truck
+    }
+  ];
+  const commandActions = [
+    {
+      label: t('orders.drafts', 'Brouillons'),
+      description: t('orders.resumeCheckout', 'Reprendre une commande'),
+      to: '/orders/draft',
+      icon: FileText,
+      tone: 'soft'
+    },
+    {
+      label: t('orders.messages', 'Messages'),
+      description: t('orders.contactSellers', 'Discussions commandes'),
+      to: '/orders/messages',
+      icon: Mail,
+      tone: 'light'
+    },
+    {
+      label: t('orders.stats', 'Stats'),
+      description: t('orders.spendingOverview', 'Vue achats et suivi'),
+      to: '/stats',
+      icon: TrendingUp,
+      tone: 'dark'
+    }
+  ];
 
   const cancelOrderMutation = useReliableMutation({
     mutationFn: async ({ orderId, idempotencyKey }) => {
@@ -1561,85 +1632,28 @@ export default function UserOrders() {
       </div>
 
       <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${isMobile ? 'py-4 pb-6' : 'py-6 pb-12'} pb-[env(safe-area-inset-bottom)]`}>
-        {/* Statistics Cards - Same layout as /seller/orders (readable on mobile) */}
-        {!statsLoading && stats.total > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 sm:mb-8">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-neutral-900">
-                  <ClipboardList className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-2xl font-bold text-gray-900">{stats.total}</span>
-              </div>
-              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{t('orders.totalOrders', 'Total commandes')}</p>
-              <p className="text-xs text-gray-500 mt-1">{t('orders.allYourOrders', 'Toutes vos commandes')}</p>
-            </div>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-neutral-700">
-                  <DollarSign className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalAmount)}</span>
-              </div>
-              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{t('orders.totalSpent', 'Total dépensé')}</p>
-              <p className="text-xs text-gray-500 mt-1">{t('orders.totalSpentHelp', 'Montant total de vos achats')}</p>
-            </div>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-neutral-700">
-                  <Clock className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-2xl font-bold text-gray-900">{stats.byStatus.pending || 0}</span>
-              </div>
-              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{t('orders.pending', 'En attente')}</p>
-              <p className="text-xs text-gray-500 mt-1">{t('orders.pendingHelp', 'Commandes en cours de traitement')}</p>
-            </div>
-          </div>
-        )}
+        <div className="mb-5 sm:mb-6">
+          <OrderCommandCenter
+            eyebrow={t('orders.buyerCommandCenter', 'Suivi personnel')}
+            title={t('orders.buyerHubTitle', 'Vos commandes, sans effort')}
+            subtitle={t('orders.buyerHubSubtitle', `${formatCurrency(stats.totalAmount)} d’achats suivis. Les commandes importantes restent accessibles en premier.`)}
+            metrics={commandMetrics}
+            actions={commandActions}
+          />
+        </div>
 
-        {/* Status Tabs */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-6 sm:mb-8">
-          <div
-            className={`flex gap-2 ${
-              isMobile ? 'overflow-x-auto pb-2 -mx-1 px-1 hide-scrollbar snap-x snap-mandatory' : 'flex-wrap'
-            }`}
-            style={isMobile ? { WebkitOverflowScrolling: 'touch' } : undefined}
-          >
-            {STATUS_TABS.map((tab) => {
-              const isActive = tab.key === activeStatus;
-              const Icon = tab.icon;
-              const count = tab.key === 'all' ? stats.total : stats.byStatus[tab.key] || 0;
-
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => {
-                    if (tab.key === activeStatus) return;
-                    setActiveStatus(tab.key);
-                    setPage(1);
-                  }}
-                  className={`group relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 min-h-[44px] ${
-                    isActive
-                      ? 'bg-neutral-900 text-white shadow-lg scale-105'
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
-                  } ${isMobile ? 'flex-shrink-0 snap-start' : ''}`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{tab.label}</span>
-                  {count > 0 && (
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                      isActive
-                        ? 'bg-white/20 text-white'
-                        : 'bg-neutral-100 text-neutral-700'
-                    }`}>
-                      {count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+        <div className="sticky top-2 z-20 mb-5 sm:static sm:z-auto sm:mb-6">
+          <OrderFilterRail
+            tabs={STATUS_TABS}
+            activeKey={activeStatus}
+            counts={orderFilterCounts}
+            mobile={isMobile}
+            onChange={(key) => {
+              if (key === activeStatus) return;
+              setActiveStatus(key);
+              setPage(1);
+            }}
+          />
         </div>
 
         {/* Orders List */}

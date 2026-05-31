@@ -13,7 +13,6 @@ import {
   SlidersHorizontal,
   FileText,
   BarChart3,
-  Shield,
   CheckCircle,
   Sparkles,
   ChevronLeft,
@@ -178,7 +177,6 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}) => [
       hasAnyPermission(u, ['manage_boosts'])
   },
   { to: '/admin/boost-management', label: t('nav.boostPricing', 'Tarification boost'), icon: Sparkles, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canManageBoosts || hasAnyPermission(u, ['manage_boosts']) },
-  { to: '/admin/payment-verifiers', label: t('nav.paymentVerifiers', 'Vérificateurs'), icon: Shield, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_permissions']) },
   { to: '/admin/reports', label: t('nav.reports', 'Rapports'), icon: FileText, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['view_logs']) },
   { to: '/admin/founder-intelligence', label: t('nav.founderIntelligence', 'Founder Intelligence'), icon: Crown, group: 'founder', show: (u) => u?.role === 'founder' },
   { to: '/admin/founder-notifications-intelligence', label: t('nav.founderNotificationsIntelligence', 'Notif Intelligence'), icon: Crown, group: 'founder', badge: Number(counters?.pendingTasks || 0), show: (u) => u?.role === 'founder' },
@@ -273,10 +271,10 @@ export default function AdminLayout() {
         end={item.end ?? false}
         onClick={onSelect || undefined}
         className={({ isActive }) =>
-          `group relative flex min-h-[44px] items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
+          `group relative flex min-h-[44px] items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 ${
             isActive
-              ? 'bg-slate-900 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-white/70 hover:text-slate-900'
+              ? 'bg-neutral-950 text-white shadow-sm dark:bg-white dark:text-neutral-950'
+              : 'text-neutral-600 hover:bg-white hover:text-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-900 dark:hover:text-white'
           } ${collapsed ? 'justify-center px-2' : ''}`
         }
       >
@@ -327,12 +325,12 @@ export default function AdminLayout() {
     });
 
   return (
-    <div className="glass-page-shell min-h-screen flex flex-col lg:h-[calc(100vh-5rem)] lg:min-h-0 lg:flex-row lg:overflow-hidden">
-      <header className="glass-header lg:hidden flex shrink-0 items-center justify-between gap-3 border-b border-white/30 px-4 py-3">
+    <div className="min-h-screen flex flex-col bg-neutral-50 text-neutral-950 dark:bg-neutral-950 dark:text-white lg:h-[calc(100vh-5rem)] lg:min-h-0 lg:flex-row lg:overflow-hidden">
+      <header className="lg:hidden flex shrink-0 items-center justify-between gap-3 border-b border-neutral-200 bg-white/90 px-4 py-3 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/90">
         <button
           type="button"
           onClick={() => setMobileMenuOpen((o) => !o)}
-          className="glass-card flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 hover:text-slate-900"
+          className="flex h-10 w-10 items-center justify-center rounded-2xl border border-neutral-200 bg-white text-neutral-600 hover:text-neutral-950 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200"
           aria-label={mobileMenuOpen ? t('nav.closeMenu', 'Fermer le menu') : t('nav.openMenu', 'Ouvrir le menu')}
         >
           {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
@@ -356,7 +354,7 @@ export default function AdminLayout() {
         />
       )}
       <aside
-        className={`glass-header lg:hidden fixed left-0 top-20 z-40 flex h-[calc(100vh-5rem)] w-72 max-w-[88vw] flex-col border-r border-white/30 shadow-xl transition-transform duration-200 ease-out ${
+        className={`lg:hidden fixed left-0 top-20 z-40 flex h-[calc(100vh-5rem)] w-72 max-w-[88vw] flex-col border-r border-neutral-200 bg-white/95 shadow-xl backdrop-blur-xl transition-transform duration-200 ease-out dark:border-neutral-800 dark:bg-neutral-950/95 ${
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -395,7 +393,7 @@ export default function AdminLayout() {
       </aside>
 
       <aside
-        className={`glass-header hidden shrink-0 flex-col border-r border-white/35 backdrop-blur-sm transition-[width] duration-200 lg:flex lg:h-full ${
+        className={`hidden shrink-0 flex-col border-r border-neutral-200 bg-white/92 backdrop-blur-xl transition-[width] duration-200 dark:border-neutral-800 dark:bg-neutral-950/92 lg:flex lg:h-full ${
           sidebarCollapsed ? 'w-[78px]' : 'w-[292px]'
         }`}
       >
@@ -444,7 +442,7 @@ export default function AdminLayout() {
           </nav>
           {!sidebarCollapsed ? (
             <div className="border-t border-white/35 px-3 py-3">
-              <div className="glass-card rounded-xl px-3 py-2.5">
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 dark:border-neutral-800 dark:bg-neutral-900">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">
                   Navigation
                 </p>

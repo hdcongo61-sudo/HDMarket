@@ -1,17 +1,18 @@
 import React, { useContext, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Clock3, Filter, RefreshCw, ShieldAlert } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock3, Filter, PackageCheck, RefreshCw, ShieldAlert, Truck } from 'lucide-react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
+import { AdminCommandHero, AdminSegmentedControl } from '../components/admin/AdminCommandSurface';
 
 const VALIDATION_TYPE_OPTIONS = [
-  { value: '', label: 'Toutes' },
-  { value: 'boostApproval', label: 'Boost' },
-  { value: 'productValidation', label: 'Produits/Paiements' },
-  { value: 'deliveryOps', label: 'Livraison' },
-  { value: 'disputes', label: 'Litiges' },
-  { value: 'shopConversion', label: 'Conversion boutique' }
+  { value: '', label: 'Toutes', icon: Filter },
+  { value: 'boostApproval', label: 'Boost', icon: CheckCircle2 },
+  { value: 'productValidation', label: 'Produits/Paiements', icon: PackageCheck },
+  { value: 'deliveryOps', label: 'Livraison', icon: Truck },
+  { value: 'disputes', label: 'Litiges', icon: ShieldAlert },
+  { value: 'shopConversion', label: 'Conversion boutique', icon: AlertCircle }
 ];
 
 const formatDateTime = (value) =>
@@ -94,82 +95,88 @@ export default function AdminTaskCenter() {
   });
 
   const tasks = useMemo(() => (Array.isArray(listQuery.data?.items) ? listQuery.data.items : []), [listQuery.data]);
+  const pendingTotal = Number(summaryQuery.data?.pendingTotal || 0);
+  const taskTypeCounts = summaryQuery.data?.pendingByType || summaryQuery.data?.byType || {};
+  const filterOptions = VALIDATION_TYPE_OPTIONS.map((option) => ({
+    ...option,
+    count: option.value ? Number(taskTypeCounts?.[option.value] || 0) : pendingTotal
+  }));
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-4 md:px-6">
+    <div className="min-h-screen bg-neutral-50 px-3 py-4 text-neutral-950 dark:bg-neutral-950 dark:text-white md:px-6">
       <div className="mx-auto max-w-6xl space-y-4">
-        <header className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">Pending Actions</h1>
-              <p className="mt-1 text-xs text-gray-500">
-                {summaryQuery.data
-                  ? `${Number(summaryQuery.data.pendingTotal || 0)} tâches en attente`
-                  : 'Chargement des compteurs...'}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
+        <AdminCommandHero
+          eyebrow={isFounder ? 'Founder operations' : 'Admin operations'}
+          title="Centre de commande"
+          subtitle="Une file unique pour les validations qui demandent une action humaine: produits, paiements, livraisons, litiges et conversions boutique."
+          meta={summaryQuery.data ? `${pendingTotal} tâche${pendingTotal > 1 ? 's' : ''} en attente` : 'Chargement des compteurs...'}
+          metrics={[
+            { label: 'En attente', value: pendingTotal, help: 'Toutes validations', icon: Clock3 },
+            { label: 'Produits', value: Number(taskTypeCounts?.productValidation || 0), help: 'Paiements inclus', icon: PackageCheck },
+            { label: 'Livraison', value: Number(taskTypeCounts?.deliveryOps || 0), help: 'À surveiller', icon: Truck },
+            { label: 'Litiges', value: Number(taskTypeCounts?.disputes || 0), help: 'Priorité élevée', icon: ShieldAlert }
+          ]}
+          actions={[
+            {
+              label: 'Actualiser',
+              description: 'Synchroniser les compteurs',
+              icon: RefreshCw,
+              tone: 'dark',
+              loading: summaryQuery.isFetching || listQuery.isFetching,
+              onClick: () => {
                 summaryQuery.refetch();
                 listQuery.refetch();
-              }}
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-gray-900 px-4 text-sm font-semibold text-white hover:bg-black"
-            >
-              <RefreshCw size={15} />
-              Refresh
-            </button>
-          </div>
-        </header>
+              }
+            }
+          ]}
+        />
 
-        <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
-          <div className="flex items-center gap-2">
-            <Filter size={16} className="text-gray-500" />
-            <select
-              value={validationType}
-              onChange={(event) => setValidationType(event.target.value)}
-              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700"
-            >
-              {VALIDATION_TYPE_OPTIONS.map((option) => (
-                <option key={option.value || 'all'} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </section>
+        <AdminSegmentedControl
+          options={filterOptions}
+          value={validationType}
+          onChange={(value) => setValidationType(value)}
+        />
 
         <section className="space-y-3">
           {listQuery.isLoading ? (
-            <div className="rounded-2xl bg-white p-4 text-sm text-gray-600 shadow-sm ring-1 ring-gray-200">
+            <div className="rounded-2xl border border-neutral-200 bg-white p-4 text-sm text-neutral-600 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300">
               Chargement des tâches...
             </div>
           ) : null}
 
           {tasks.map((task) => (
-            <article key={task.id} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
-              <div className="flex items-start justify-between gap-3">
+            <article key={task.id} className="rounded-[22px] border border-neutral-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-950">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-gray-900">
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-bold text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+                      {task.validationType || 'other'}
+                    </span>
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                      String(task.priority || '').toUpperCase() === 'HIGH' || String(task.priority || '').toUpperCase() === 'CRITICAL'
+                        ? 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300'
+                        : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300'
+                    }`}>
+                      {task.priority || 'NORMAL'}
+                    </span>
+                  </div>
+                  <p className="text-sm font-bold text-neutral-950 dark:text-white">
                     {task.title || 'Action de validation requise'}
                   </p>
-                  <p className="mt-1 text-sm text-gray-600">{task.message || 'Aucune description.'}</p>
-                  <p className="mt-2 text-xs text-gray-500">
-                    Type: {task.validationType || 'other'} · Priorité: {task.priority || 'NORMAL'}
-                  </p>
-                  <p className="mt-1 text-xs text-gray-400">
+                  <p className="mt-1 text-sm leading-6 text-neutral-600 dark:text-neutral-300">{task.message || 'Aucune description.'}</p>
+                  <p className="mt-2 text-xs text-neutral-400">
                     Créée: {formatDateTime(task.createdAt)}
-                    {task.actionDueAt ? ` · Due: ${formatDateTime(task.actionDueAt)}` : ''}
+                    {task.actionDueAt ? ` · Échéance: ${formatDateTime(task.actionDueAt)}` : ''}
                   </p>
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="flex shrink-0 gap-2 sm:flex-col">
                   {task.deepLink ? (
                     <button
                       type="button"
                       onClick={() => {
                         navigate(task.deepLink);
                       }}
-                      className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-gray-300 px-3 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                      className="inline-flex min-h-[40px] flex-1 items-center justify-center rounded-xl border border-neutral-300 px-3 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-900 sm:flex-none"
                     >
                       Ouvrir
                     </button>
@@ -177,7 +184,7 @@ export default function AdminTaskCenter() {
                   <button
                     type="button"
                     onClick={() => completeTaskMutation.mutate(task.id)}
-                    className="inline-flex min-h-[40px] items-center justify-center rounded-xl bg-gray-900 px-3 text-xs font-semibold text-white hover:bg-black disabled:opacity-60"
+                    className="inline-flex min-h-[40px] flex-1 items-center justify-center rounded-xl bg-neutral-950 px-3 text-xs font-semibold text-white hover:bg-black disabled:opacity-60 dark:bg-white dark:text-neutral-950 sm:flex-none"
                     disabled={completeTaskMutation.isPending}
                   >
                     Marquer fait
@@ -188,20 +195,20 @@ export default function AdminTaskCenter() {
           ))}
 
           {!listQuery.isLoading && tasks.length === 0 ? (
-            <div className="rounded-2xl bg-white p-6 text-center shadow-sm ring-1 ring-gray-200">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-600">
+            <div className="rounded-[24px] border border-neutral-200 bg-white p-8 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
                 <ShieldAlert size={20} />
               </div>
-              <p className="mt-3 text-sm font-semibold text-gray-800">Aucune tâche en attente</p>
-              <p className="mt-1 text-xs text-gray-500">La file opérationnelle est à jour.</p>
+              <p className="mt-3 text-sm font-bold text-neutral-900 dark:text-white">Aucune tâche en attente</p>
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">La file opérationnelle est à jour.</p>
             </div>
           ) : null}
         </section>
 
-        <footer className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-gray-200">
-          <p className="flex items-center gap-2 text-xs text-gray-500">
+        <footer className="rounded-2xl border border-neutral-200 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+          <p className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
             <Clock3 size={14} />
-            Les compteurs et la liste se synchronisent automatiquement avec la file de validation.
+            Le centre de commande lit les mêmes files que les compteurs du panneau admin/founder.
           </p>
         </footer>
       </div>

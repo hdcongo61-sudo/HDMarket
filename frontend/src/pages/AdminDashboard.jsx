@@ -1491,9 +1491,7 @@ export default function AdminDashboard() {
   return (
     <div className="glass-page-shell min-h-screen lg:min-h-0">
       <div className="glass-content-spacing mx-auto max-w-7xl space-y-8 py-6 sm:py-8 lg:px-8">
-        <section className="glass-card relative overflow-hidden rounded-3xl p-4 shadow-sm sm:p-6 dark:border-slate-700 dark:bg-slate-900/80">
-          <div className="pointer-events-none absolute -top-16 right-0 h-40 w-40 rounded-full bg-blue-500/10 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-20 left-12 h-40 w-40 rounded-full bg-purple-500/10 blur-3xl" />
+        <section className="relative overflow-hidden rounded-[28px] border border-neutral-200 bg-white p-4 shadow-[0_18px_55px_rgba(15,23,42,0.08)] sm:p-6 dark:border-neutral-800 dark:bg-neutral-950">
           <div className="relative space-y-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-2">
@@ -1524,18 +1522,18 @@ export default function AdminDashboard() {
                   {refreshing ? 'Actualisation...' : 'Actualiser'}
                 </button>
                 <Link
-                  to="/admin/settings"
-                  className="glass-card inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:text-slate-900 dark:text-slate-100"
+                  to="/admin/system-settings"
+                  className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-950 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800"
                 >
                   <Settings size={16} />
-                  Parametres
+                  Paramètres système
                 </Link>
                 <Link
-                  to="/admin/products"
-                  className="soft-card soft-card-purple inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-purple-900 transition hover:shadow-md dark:text-purple-100"
+                  to="/admin/task-center"
+                  className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-neutral-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black dark:bg-white dark:text-neutral-950 dark:hover:bg-neutral-200"
                 >
                   <BarChart3 size={16} />
-                  Produits
+                  Centre de commande
                 </Link>
               </div>
             </div>

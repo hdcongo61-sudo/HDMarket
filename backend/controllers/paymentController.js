@@ -36,12 +36,14 @@ export const createPayment = asyncHandler(async (req, res) => {
     product: product._id,
     status: { $in: ['waiting', 'verified'] }
   })
-    .select('_id status')
+    .select('_id status product user transactionNumber amount expectedAmount createdAt')
     .lean();
   if (existingPayment) {
-    return res
-      .status(409)
-      .json({ message: 'Un paiement existe déjà pour ce produit et attend une validation.' });
+    return res.status(200).json({
+      ...existingPayment,
+      alreadySubmitted: true,
+      message: 'Un paiement existe déjà pour ce produit et attend une validation.'
+    });
   }
 
   const sellerId = req.user.id;
@@ -125,7 +127,30 @@ export const createPayment = asyncHandler(async (req, res) => {
     status: 'waiting'
   };
 
-  let payment = await Payment.create(paymentPayload);
+  let payment;
+  try {
+    payment = await Payment.create(paymentPayload);
+  } catch (error) {
+    if (Number(error?.code) === 11000) {
+      const existing = await Payment.findOne({
+        $or: [
+          { product: product._id, status: { $in: ['waiting', 'verified'] } },
+          hasCommissionDue ? { transactionId: normalizedTransaction } : null,
+          hasCommissionDue ? { transactionNumber: normalizedTransaction } : null
+        ].filter(Boolean)
+      })
+        .select('_id status product user transactionNumber amount expectedAmount createdAt')
+        .lean();
+      if (existing) {
+        return res.status(200).json({
+          ...existing,
+          alreadySubmitted: true,
+          message: 'Paiement déjà enregistré. Il attend une validation.'
+        });
+      }
+    }
+    throw error;
+  }
 
   if (normalizedPromo) {
     try {

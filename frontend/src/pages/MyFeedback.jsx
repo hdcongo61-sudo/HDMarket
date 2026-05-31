@@ -7,8 +7,8 @@ import {
   CheckCircle,
   FileText,
   MessageCircle,
-  User,
-  X
+  Send,
+  User
 } from 'lucide-react';
 import BaseModal, { ModalBody, ModalHeader } from '../components/modals/BaseModal';
 
@@ -131,43 +131,44 @@ export default function MyFeedback() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-3xl mx-auto px-4 py-6">
+    <div className="min-h-screen bg-neutral-50 text-neutral-950 dark:bg-neutral-950 dark:text-white">
+      <div className="mx-auto max-w-4xl space-y-4 px-3 py-4 sm:px-4 sm:py-6">
         <Link
           to="/profile"
-          className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-neutral-600 mb-6"
+          className="inline-flex min-h-[40px] items-center gap-2 rounded-2xl border border-neutral-200 bg-white px-3 text-sm font-semibold text-neutral-600 transition hover:bg-neutral-50 hover:text-neutral-950 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-900 dark:hover:text-white"
         >
           <ArrowLeft size={18} />
           Retour au profil
         </Link>
 
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 mb-6">
-          <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 mb-4">
-            <div className="w-2 h-6 bg-emerald-600 rounded-full" />
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900">Avis sur l’amélioration</h1>
-              <p className="text-sm text-gray-500">
+        <section className="overflow-hidden rounded-[24px] border border-neutral-200 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.08)] dark:border-neutral-800 dark:bg-neutral-950">
+          <div className="border-b border-neutral-200 p-5 dark:border-neutral-800 sm:p-6">
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-neutral-500 dark:text-neutral-400">Voix utilisateur</p>
+            <h1 className="mt-2 text-2xl font-bold text-neutral-950 dark:text-white">Avis sur l’amélioration</h1>
+            <p className="mt-2 text-sm leading-6 text-neutral-500 dark:text-neutral-400">
                 Partagez vos idées pour améliorer HDMarket. Limité à 5 avis par utilisateur.
               </p>
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:max-w-sm">
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+                <p className="text-[11px] font-bold text-neutral-500 dark:text-neutral-400">Envoyés</p>
+                <p className="mt-1 text-lg font-bold text-neutral-950 dark:text-white">{stats.total}/5</p>
+              </div>
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+                <p className="text-[11px] font-bold text-neutral-500 dark:text-neutral-400">Restants</p>
+                <p className="mt-1 text-lg font-bold text-neutral-950 dark:text-white">{stats.remaining}</p>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-3 mb-6">
-            <div className="flex items-center justify-between">
-              <p className="text-xs uppercase tracking-wide text-gray-500">Vos avis envoyés</p>
-              <span className="text-xs font-semibold text-gray-500">{stats.total} / 5</span>
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4 p-5 sm:p-6">
             <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <FileText className="w-4 h-4 text-emerald-500" />
+              <label className="flex items-center gap-2 text-sm font-bold text-neutral-700 dark:text-neutral-200">
+                <FileText className="w-4 h-4 text-neutral-500" />
                 Sujet *
               </label>
               <input
                 type="text"
-                className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                className="min-h-[48px] w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 text-sm outline-none transition focus:border-neutral-400 focus:bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:text-white"
                 placeholder="Ex : Nouvelle fonctionnalité"
                 value={subject}
                 onChange={(e) => { setSubject(e.target.value); setSubmitError(''); setSubmitSuccess(''); }}
@@ -177,12 +178,12 @@ export default function MyFeedback() {
               />
             </div>
             <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <MessageCircle className="w-4 h-4 text-emerald-500" />
+              <label className="flex items-center gap-2 text-sm font-bold text-neutral-700 dark:text-neutral-200">
+                <MessageCircle className="w-4 h-4 text-neutral-500" />
                 Votre avis *
               </label>
               <textarea
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-emerald-500 focus:border-transparent placeholder-gray-400"
+                className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition placeholder:text-neutral-400 focus:border-neutral-400 focus:bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:text-white"
                 rows={4}
                 value={body}
                 onChange={(e) => { setBody(e.target.value); setSubmitError(''); setSubmitSuccess(''); }}
@@ -192,7 +193,7 @@ export default function MyFeedback() {
                 required
               />
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500">
+            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-neutral-500 dark:text-neutral-400">
               <span>
                 {stats.remaining > 0
                   ? `Il vous reste ${stats.remaining} avis sur 5.`
@@ -203,7 +204,7 @@ export default function MyFeedback() {
             {(submitError || submitSuccess) && (
               <div
                 className={`flex items-center gap-2 text-sm ${
-                  submitError ? 'text-red-600' : 'text-green-600'
+                  submitError ? 'text-red-600 dark:text-red-300' : 'text-emerald-600 dark:text-emerald-300'
                 }`}
               >
                 {submitError ? (
@@ -220,7 +221,7 @@ export default function MyFeedback() {
               <button
                 type="submit"
                 disabled={submitLoading || stats.remaining <= 0}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60"
+                className="inline-flex min-h-[48px] items-center gap-2 rounded-2xl bg-neutral-950 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-black disabled:opacity-60 dark:bg-white dark:text-neutral-950 dark:hover:bg-neutral-200"
               >
                 {submitLoading ? (
                   <span className="flex items-center gap-2">
@@ -229,23 +230,23 @@ export default function MyFeedback() {
                   </span>
                 ) : (
                   <>
-                    <MessageCircle className="w-4 h-4" />
+                    <Send className="w-4 h-4" />
                     Envoyer l’avis
                   </>
                 )}
               </button>
             </div>
           </form>
-        </div>
+        </section>
 
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Vos avis envoyés</h2>
+        <section className="rounded-[24px] border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 sm:p-6">
+          <h2 className="mb-4 text-lg font-bold text-neutral-950 dark:text-white">Vos avis envoyés</h2>
           {listLoading ? (
             <div className="space-y-2">
               {[1, 2].map((i) => (
                 <div
                   key={i}
-                  className="animate-pulse rounded-2xl border border-gray-100 bg-gray-50 p-4"
+                  className="animate-pulse rounded-2xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900"
                 >
                   <div className="h-4 w-1/2 rounded bg-gray-200" />
                   <div className="mt-2 h-3 w-3/4 rounded bg-gray-200" />
@@ -253,9 +254,9 @@ export default function MyFeedback() {
               ))}
             </div>
           ) : listError ? (
-            <p className="text-sm text-red-600">{listError}</p>
+            <p className="text-sm text-red-600 dark:text-red-300">{listError}</p>
           ) : items.length === 0 ? (
-            <p className="text-sm text-gray-500">Aucun avis envoyé pour le moment.</p>
+            <p className="rounded-2xl border border-dashed border-neutral-300 p-4 text-sm text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">Aucun avis envoyé pour le moment.</p>
           ) : (
             <div className="space-y-2">
               {items.map((item) => {
@@ -265,28 +266,28 @@ export default function MyFeedback() {
                     type="button"
                     key={item._id}
                     onClick={() => setModalItem(item)}
-                    className="w-full text-left rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 shadow-sm hover:border-emerald-200 transition-colors"
+                    className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-left shadow-sm transition hover:border-neutral-300 hover:bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-950"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="text-sm font-semibold text-gray-900">{item.subject}</p>
-                        <p className="text-xs text-gray-500">{formatDate(item.createdAt)}</p>
+                        <p className="text-sm font-bold text-neutral-950 dark:text-white">{item.subject}</p>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400">{formatDate(item.createdAt)}</p>
                       </div>
                       <span
                         className={`rounded-full px-2 py-1 text-[11px] font-semibold shrink-0 ${
-                          isRead ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                          isRead ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300'
                         }`}
                       >
                         {isRead ? 'Lu' : 'Non lu'}
                       </span>
                     </div>
-                    <p className="mt-2 text-xs text-gray-600 line-clamp-2">{item.body}</p>
+                    <p className="mt-2 line-clamp-2 text-xs text-neutral-600 dark:text-neutral-300">{item.body}</p>
                   </button>
                 );
               })}
             </div>
           )}
-        </div>
+        </section>
       </div>
 
       <BaseModal

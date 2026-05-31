@@ -1,13 +1,14 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { CheckCircle, Filter, MessageSquare, Search, User, FileText, UserPlus, UserMinus, Download, FileDown } from 'lucide-react';
+import { CheckCircle, Filter, MessageSquare, Search, User, FileText, UserPlus, UserMinus, FileDown, RefreshCw } from 'lucide-react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { appAlert } from '../utils/appDialog';
+import { AdminCommandHero, AdminSegmentedControl } from '../components/admin/AdminCommandSurface';
 
 const STATUS_FILTERS = [
-  { key: 'all', label: 'Tous' },
-  { key: 'unread', label: 'Non lus' },
-  { key: 'read', label: 'Lus' }
+  { value: 'all', label: 'Tous', icon: MessageSquare },
+  { value: 'unread', label: 'Non lus', icon: Filter },
+  { value: 'read', label: 'Lus', icon: CheckCircle }
 ];
 
 const PAGE_SIZE = 12;
@@ -142,7 +143,7 @@ export default function AdminFeedback() {
       doc.setFont(undefined, 'normal');
       doc.text(`Date d'export: ${new Date().toLocaleDateString('fr-FR')}`, 14, 28);
       doc.text(`Total: ${feedbackList.length} avis`, 14, 34);
-      doc.text(`Filtre: ${STATUS_FILTERS.find(f => f.key === statusFilter)?.label || 'Tous'}`, 14, 40);
+      doc.text(`Filtre: ${STATUS_FILTERS.find(f => f.value === statusFilter)?.label || 'Tous'}`, 14, 40);
 
       // Table
       const tableData = feedbackList.map((item, index) => [
@@ -275,25 +276,17 @@ export default function AdminFeedback() {
   };
 
   const handleToggleFeedbackReader = async (userId) => {
-    console.log('Toggle feedback reader - userId:', userId);
-    console.log('userId type:', typeof userId);
-    console.log('userId length:', userId?.length);
-
     if (!userId || typeof userId !== 'string') {
-      console.error('Invalid userId - not a string:', userId);
       await appAlert('ID utilisateur invalide');
       return;
     }
 
-    // Check if userId is a valid MongoDB ObjectId (24 hex characters)
     if (!/^[0-9a-fA-F]{24}$/.test(userId)) {
-      console.error('Invalid MongoDB ObjectId format:', userId);
       await appAlert(`Format d'ID invalide: ${userId}`);
       return;
     }
 
     try {
-      console.log('Making API request to:', `/admin/feedback-readers/${userId}/toggle`);
       const { data } = await api.patch(`/admin/feedback-readers/${userId}/toggle`);
       await appAlert(data.message || 'Statut mis a jour');
       await loadFeedbackReaders();
@@ -312,8 +305,6 @@ export default function AdminFeedback() {
     try {
       const { data } = await api.get(`/admin/users?search=${encodeURIComponent(userSearchQuery.trim())}&limit=10`);
       const users = Array.isArray(data) ? data.filter(u => u.role !== 'admin' && u.role !== 'founder') : [];
-      console.log('Search results:', users);
-      console.log('First user structure:', users[0]);
       setFoundUsers(users);
     } catch (err) {
       console.error('Search users error:', err);
@@ -329,61 +320,74 @@ export default function AdminFeedback() {
     return `${meta.total} ${totalLabel}`;
   }, [meta.total]);
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        <header className="flex flex-col gap-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Avis sur l'amelioration</h1>
-              <p className="text-sm text-gray-500">
-                Centralisez les retours utilisateurs et marquez-les comme lus.
-              </p>
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-white border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600">
-              <Filter className="h-4 w-4" />
-              {paginationLabel}
-            </div>
-          </div>
-          
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleExportPDF}
-              disabled={exporting || items.length === 0}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-3xl bg-gradient-to-r from-neutral-600 to-neutral-600 text-white text-sm font-semibold shadow-sm hover:shadow-md active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <FileText className="w-4 h-4" />
-              <span className="hidden sm:inline">{exporting ? 'Export en cours...' : 'Exporter en PDF'}</span>
-              <span className="sm:hidden">{exporting ? 'Export...' : 'PDF'}</span>
-            </button>
+  const readCount = items.filter((item) => item.readAt).length;
+  const unreadCount = items.filter((item) => !item.readAt).length;
+  const statusOptions = STATUS_FILTERS.map((option) => ({
+    ...option,
+    count: option.value === 'all'
+      ? meta.total
+      : option.value === 'read'
+        ? readCount
+        : unreadCount
+  }));
 
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={() => {
-                  setShowReaders(!showReaders);
-                  if (!showReaders && readers.length === 0) {
-                    loadFeedbackReaders();
+  return (
+    <div className="min-h-screen bg-neutral-50 text-neutral-950 dark:bg-neutral-950 dark:text-white">
+      <div className="mx-auto max-w-6xl space-y-4 px-3 py-4 sm:px-4 sm:py-6">
+        <AdminCommandHero
+          eyebrow="Voix utilisateurs"
+          title="Avis d’amélioration"
+          subtitle="Centralisez les suggestions, priorisez les retours non lus et gérez les personnes autorisées à lire les avis."
+          meta={`${paginationLabel} · page ${page}/${meta.totalPages || 1}`}
+          metrics={[
+            { label: 'Total', value: meta.total, help: 'Tous avis filtrés', icon: MessageSquare },
+            { label: 'Non lus', value: unreadCount, help: 'Sur cette page', icon: Filter },
+            { label: 'Lus', value: readCount, help: 'Sur cette page', icon: CheckCircle },
+            { label: 'Lecteurs', value: readers.length, help: isAdmin ? 'Autorisés' : 'Admin only', icon: User }
+          ]}
+          actions={[
+            {
+              label: 'Actualiser',
+              description: 'Recharger les avis',
+              icon: RefreshCw,
+              tone: 'dark',
+              loading,
+              onClick: loadFeedback
+            },
+            {
+              label: exporting ? 'Export...' : 'Exporter PDF',
+              description: 'Exporter la vue filtrée',
+              icon: FileText,
+              tone: 'neutral',
+              disabled: exporting || items.length === 0,
+              loading: exporting,
+              onClick: handleExportPDF
+            },
+            isAdmin
+              ? {
+                  label: showReaders ? 'Masquer lecteurs' : 'Lecteurs',
+                  description: 'Gérer les accès lecture',
+                  icon: User,
+                  tone: showReaders ? 'emerald' : 'neutral',
+                  onClick: () => {
+                    setShowReaders((prev) => !prev);
+                    if (!showReaders && readers.length === 0) {
+                      loadFeedbackReaders();
+                    }
                   }
-                }}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-3xl bg-white border-2 border-neutral-200 text-neutral-700 text-sm font-semibold hover:bg-neutral-50 active:scale-95 transition-all duration-200"
-              >
-                <User className="w-4 h-4" />
-                <span className="hidden sm:inline">Gerer les lecteurs</span>
-                <span className="sm:hidden">Lecteurs</span>
-              </button>
-            )}
-          </div>
-        </header>
+                }
+              : null
+          ].filter(Boolean)}
+        />
 
         {isAdmin && showReaders && (
-          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-4">
+          <section className="space-y-4 rounded-[24px] border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">Lecteurs d'avis autorises</h2>
+              <h2 className="text-lg font-bold text-neutral-950 dark:text-white">Lecteurs d’avis autorisés</h2>
               <button
+                type="button"
                 onClick={() => setShowReaders(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="grid h-9 w-9 place-items-center rounded-2xl text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-900 dark:hover:text-white"
               >
                 ×
               </button>
@@ -393,16 +397,17 @@ export default function AdminFeedback() {
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="Rechercher un utilisateur (nom, email, telephone)..."
+                  placeholder="Rechercher un utilisateur (nom, email, téléphone)..."
                   value={userSearchQuery}
                   onChange={(e) => setUserSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
-                  className="flex-1 px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                  className="min-h-[44px] min-w-0 flex-1 rounded-2xl border border-neutral-200 bg-neutral-50 px-3 text-sm outline-none transition focus:border-neutral-400 focus:bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:text-white"
                 />
                 <button
+                  type="button"
                   onClick={handleSearchUsers}
                   disabled={searchingUsers || !userSearchQuery.trim()}
-                  className="px-4 py-2 rounded-xl bg-neutral-600 text-white text-sm font-semibold hover:bg-neutral-700 active:scale-95 transition-all disabled:opacity-50"
+                  className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-neutral-950 px-4 text-sm font-bold text-white transition hover:bg-black disabled:opacity-60 dark:bg-white dark:text-neutral-950"
                 >
                   <Search className="w-4 h-4" />
                 </button>
@@ -410,19 +415,20 @@ export default function AdminFeedback() {
 
               {foundUsers.length > 0 && (
                 <div className="space-y-2 max-h-48 overflow-y-auto">
-                  <p className="text-xs text-gray-500 font-semibold">Resultats de recherche:</p>
+                  <p className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">Résultats de recherche:</p>
                   {foundUsers.map((user) => (
                     <div
                       key={user._id || user.id}
-                      className="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-gray-50"
+                      className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900"
                     >
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
-                        <p className="text-xs text-gray-500 truncate">{user.email} · {user.phone}</p>
+                        <p className="truncate text-sm font-semibold text-neutral-950 dark:text-white">{user.name}</p>
+                        <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">{user.email} · {user.phone}</p>
                       </div>
                       <button
+                        type="button"
                         onClick={() => handleToggleFeedbackReader(user._id || user.id)}
-                        className="ml-3 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-neutral-600 text-white text-xs font-semibold hover:bg-neutral-700 active:scale-95 transition-all"
+                        className="ml-3 inline-flex min-h-[38px] items-center gap-1 rounded-xl bg-neutral-950 px-3 text-xs font-bold text-white transition hover:bg-black dark:bg-white dark:text-neutral-950"
                       >
                         <UserPlus className="w-3.5 h-3.5" />
                         Ajouter
@@ -432,26 +438,27 @@ export default function AdminFeedback() {
                 </div>
               )}
 
-              <div className="pt-3 border-t border-gray-200">
-                <p className="text-xs text-gray-500 font-semibold mb-2">Lecteurs actuels ({readers.length}):</p>
+              <div className="border-t border-neutral-200 pt-3 dark:border-neutral-800">
+                <p className="mb-2 text-xs font-semibold text-neutral-500 dark:text-neutral-400">Lecteurs actuels ({readers.length}):</p>
                 {loadingReaders ? (
-                  <p className="text-sm text-gray-500">Chargement...</p>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400">Chargement...</p>
                 ) : readers.length === 0 ? (
-                  <p className="text-sm text-gray-500">Aucun lecteur autorise pour le moment.</p>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400">Aucun lecteur autorisé pour le moment.</p>
                 ) : (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {readers.map((reader) => (
                       <div
                         key={reader._id || reader.id}
-                        className="flex items-center justify-between p-3 rounded-xl border border-gray-200"
+                        className="flex items-center justify-between rounded-2xl border border-neutral-200 p-3 dark:border-neutral-800"
                       >
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 truncate">{reader.name}</p>
-                          <p className="text-xs text-gray-500 truncate">{reader.email} · {reader.phone}</p>
+                          <p className="truncate text-sm font-semibold text-neutral-950 dark:text-white">{reader.name}</p>
+                          <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">{reader.email} · {reader.phone}</p>
                         </div>
                         <button
+                          type="button"
                           onClick={() => handleToggleFeedbackReader(reader._id || reader.id)}
-                          className="ml-3 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 active:scale-95 transition-all"
+                          className="ml-3 inline-flex min-h-[38px] items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-700 transition hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
                         >
                           <UserMinus className="w-3.5 h-3.5" />
                           Retirer
@@ -465,29 +472,19 @@ export default function AdminFeedback() {
           </section>
         )}
 
-        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-4">
+        <section className="space-y-4 rounded-[24px] border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap gap-2">
-              {STATUS_FILTERS.map((filter) => (
-                <button
-                  key={filter.key}
-                  type="button"
-                  onClick={() => setStatusFilter(filter.key)}
-                  className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
-                    statusFilter === filter.key
-                      ? 'bg-neutral-600 text-white shadow'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
+            <AdminSegmentedControl
+              className="border-0 bg-transparent p-0 shadow-none"
+              options={statusOptions}
+              value={statusFilter}
+              onChange={setStatusFilter}
+            />
             <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
               <input
                 type="text"
-                className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                className="min-h-[44px] w-full rounded-2xl border border-neutral-200 bg-neutral-50 pl-9 pr-3 text-sm outline-none transition focus:border-neutral-400 focus:bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:text-white"
                 placeholder="Rechercher un avis"
                 value={searchDraft}
                 onChange={(event) => setSearchDraft(event.target.value)}
@@ -495,23 +492,26 @@ export default function AdminFeedback() {
             </div>
           </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">{error}</p>}
 
           {loading ? (
             <div className="space-y-3">
               {Array.from({ length: 4 }).map((_, index) => (
                 <div
                   key={`skeleton-${index}`}
-                  className="animate-pulse rounded-2xl border border-gray-100 bg-gray-50 p-4"
+                  className="animate-pulse rounded-2xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900"
                 >
-                  <div className="h-4 w-1/3 rounded bg-gray-200" />
-                  <div className="mt-3 h-3 w-full rounded bg-gray-200" />
-                  <div className="mt-2 h-3 w-4/5 rounded bg-gray-200" />
+                  <div className="h-4 w-1/3 rounded bg-neutral-200 dark:bg-neutral-800" />
+                  <div className="mt-3 h-3 w-full rounded bg-neutral-200 dark:bg-neutral-800" />
+                  <div className="mt-2 h-3 w-4/5 rounded bg-neutral-200 dark:bg-neutral-800" />
                 </div>
               ))}
             </div>
           ) : items.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-6 text-center text-sm text-gray-500">
+            <div className="rounded-[24px] border border-dashed border-neutral-300 bg-white p-8 text-center text-sm text-neutral-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400">
+              <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-neutral-100 text-neutral-500 dark:bg-neutral-900 dark:text-neutral-300">
+                <MessageSquare className="h-5 w-5" />
+              </div>
               Aucun avis disponible pour ce filtre.
             </div>
           ) : (
@@ -522,17 +522,17 @@ export default function AdminFeedback() {
                 return (
                   <article
                     key={item._id}
-                    className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm space-y-3"
+                    className="space-y-3 rounded-[22px] border border-neutral-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-950"
                   >
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <MessageSquare className="h-4 w-4 text-neutral-500" />
-                          <h3 className="text-base font-semibold text-gray-900">
+                          <MessageSquare className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
+                          <h3 className="text-base font-bold text-neutral-950 dark:text-white">
                             {item.subject}
                           </h3>
                         </div>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-neutral-500 dark:text-neutral-400">
                           Envoye le {formatDateTime(item.createdAt)}
                         </p>
                       </div>
@@ -547,11 +547,11 @@ export default function AdminFeedback() {
                       </span>
                     </div>
 
-                    <p className="text-sm text-gray-600 whitespace-pre-line break-words">{item.body}</p>
+                    <p className="whitespace-pre-line break-words text-sm leading-6 text-neutral-600 dark:text-neutral-300">{item.body}</p>
 
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="text-xs text-gray-500 flex items-center gap-2">
-                        <User className="h-4 w-4 text-gray-400" />
+                      <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
+                        <User className="h-4 w-4 text-neutral-400" />
                         <span>{author}</span>
                         {item.user?.phone ? <span>- {item.user.phone}</span> : null}
                       </div>
@@ -560,14 +560,14 @@ export default function AdminFeedback() {
                           type="button"
                           onClick={() => handleExportSinglePDF(item)}
                           disabled={exportingItemId === item._id}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 disabled:opacity-60 transition-all"
+                          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-xl border border-neutral-200 bg-neutral-50 px-3 text-xs font-bold text-neutral-700 transition hover:bg-neutral-100 disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200"
                           title="Exporter cet avis en PDF"
                         >
                           <FileDown className="h-3.5 w-3.5" />
                           {exportingItemId === item._id ? 'Export...' : 'PDF'}
                         </button>
                         {isRead ? (
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-neutral-500 dark:text-neutral-400">
                             Lu le {formatDateTime(item.readAt)}
                             {item.readBy?.name ? ` - ${item.readBy.name}` : ''}
                           </p>
@@ -576,7 +576,7 @@ export default function AdminFeedback() {
                             type="button"
                             onClick={() => handleMarkRead(item._id)}
                             disabled={actionId === item._id}
-                            className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 disabled:opacity-60"
+                            className="inline-flex min-h-[36px] items-center gap-2 rounded-xl bg-neutral-950 px-3 text-xs font-bold text-white transition hover:bg-black disabled:opacity-60 dark:bg-white dark:text-neutral-950"
                           >
                             <CheckCircle className="h-4 w-4" />
                             {actionId === item._id ? 'Mise a jour...' : 'Marquer comme lu'}
@@ -596,18 +596,18 @@ export default function AdminFeedback() {
                 type="button"
                 onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                 disabled={page <= 1}
-                className="rounded-full border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-600 hover:border-gray-300 disabled:opacity-50"
+                className="rounded-xl border border-neutral-200 px-4 py-2 text-xs font-bold text-neutral-600 hover:border-neutral-300 disabled:opacity-50 dark:border-neutral-800 dark:text-neutral-300"
               >
                 Precedent
               </button>
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-neutral-500 dark:text-neutral-400">
                 Page {page} / {meta.totalPages}
               </span>
               <button
                 type="button"
                 onClick={() => setPage((prev) => Math.min(meta.totalPages, prev + 1))}
                 disabled={page >= meta.totalPages}
-                className="rounded-full border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-600 hover:border-gray-300 disabled:opacity-50"
+                className="rounded-xl border border-neutral-200 px-4 py-2 text-xs font-bold text-neutral-600 hover:border-neutral-300 disabled:opacity-50 dark:border-neutral-800 dark:text-neutral-300"
               >
                 Suivant
               </button>

@@ -15,11 +15,13 @@ import {
   adminUpdateOrder,
   userCheckoutOrder,
   userListOrders,
+  userOrdersSummary,
   getUserOrder,
   userUpdateOrderStatus,
   userUpdateOrderAddress,
   userSkipCancellationWindow,
   sellerListOrders,
+  sellerOrdersSummary,
   sellerGetOrder,
   sellerUpdateOrderDeliveryFee,
   sellerSubmitDeliveryProof,
@@ -162,6 +164,8 @@ router.post('/inquiry', idempotencyMiddleware(), validate(schemas.orderInquiry),
 router.post('/draft', idempotencyMiddleware(), saveDraftOrder);
 router.get('/draft', getDraftOrders);
 router.delete('/draft/:id', validate(schemas.idParam, 'params'), deleteDraftOrder);
+router.get('/summary', cacheMiddleware({ domain: 'orders', scope: 'user', ttl: 45000 }), userOrdersSummary);
+router.get('/seller/summary', cacheMiddleware({ domain: 'orders', scope: 'seller', ttl: 45000 }), sellerOrdersSummary);
 router.get('/seller', cacheMiddleware({ domain: 'orders', scope: 'seller', ttl: 45000 }), sellerListOrders);
 router.get(
   '/detail/:id',

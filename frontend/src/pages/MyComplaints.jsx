@@ -281,35 +281,38 @@ export default function MyComplaints() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-4xl px-4 py-6 space-y-6">
+    <div className="min-h-screen bg-neutral-50 text-neutral-950 dark:bg-neutral-950 dark:text-white">
+      <div className="mx-auto max-w-5xl space-y-4 px-3 py-4 sm:px-4 sm:py-6">
         <Link
           to="/profile"
-          className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-neutral-600"
+          className="inline-flex min-h-[40px] items-center gap-2 rounded-2xl border border-neutral-200 bg-white px-3 text-sm font-semibold text-neutral-600 transition hover:bg-neutral-50 hover:text-neutral-950 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-900 dark:hover:text-white"
         >
           <ArrowLeft size={18} />
           Retour au profil
         </Link>
 
-        <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-          <div className="flex items-start gap-3 mb-4">
-            <div className="rounded-xl bg-neutral-100 p-2">
-              <ShieldAlert className="h-5 w-5 text-neutral-600" />
-            </div>
+        <section className="overflow-hidden rounded-[24px] border border-neutral-200 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.08)] dark:border-neutral-800 dark:bg-neutral-950">
+          <div className="border-b border-neutral-200 p-5 dark:border-neutral-800 sm:p-6">
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-neutral-500 dark:text-neutral-400">Support commande</p>
+            <div className="mt-2 flex items-start gap-3">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-neutral-100 text-neutral-600 dark:bg-neutral-900 dark:text-neutral-200">
+                <ShieldAlert className="h-5 w-5" />
+              </div>
             <div>
-              <h1 className="text-xl font-semibold text-gray-900">Gestion des litiges</h1>
-              <p className="text-sm text-gray-500">
+                <h1 className="text-2xl font-bold text-neutral-950 dark:text-white">Réclamations</h1>
+                <p className="mt-1 text-sm leading-6 text-neutral-500 dark:text-neutral-400">
                 Vous pouvez ouvrir un litige pour une commande livrée dans un délai de {DISPUTE_WINDOW_HOURS}h.
               </p>
             </div>
+            </div>
           </div>
 
-          <form onSubmit={submit} className="space-y-4">
+          <form onSubmit={submit} className="space-y-4 p-5 sm:p-6">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Commande concernée *</label>
+                <label className="text-sm font-bold text-neutral-700 dark:text-neutral-200">Commande concernée *</label>
                 <select
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm"
+                  className="min-h-[48px] w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-3 text-sm outline-none transition focus:border-neutral-400 focus:bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:text-white"
                   value={orderId}
                   onChange={(e) => {
                     setOrderId(e.target.value);
@@ -327,9 +330,9 @@ export default function MyComplaints() {
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Motif *</label>
+                <label className="text-sm font-bold text-neutral-700 dark:text-neutral-200">Motif *</label>
                 <select
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm"
+                  className="min-h-[48px] w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-3 text-sm outline-none transition focus:border-neutral-400 focus:bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:text-white"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   disabled={submitLoading}
@@ -344,12 +347,12 @@ export default function MyComplaints() {
             </div>
 
             <div className="space-y-2">
-              <label className="flex items-center justify-between text-sm font-medium text-gray-700">
+              <label className="flex items-center justify-between text-sm font-bold text-neutral-700 dark:text-neutral-200">
                 <span className="inline-flex items-center gap-2">
                   <MessageCircle className="h-4 w-4 text-neutral-500" />
                   Description *
                 </span>
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-neutral-500 dark:text-neutral-400">
                   {description.length}/{MAX_DESCRIPTION}
                 </span>
               </label>
@@ -360,7 +363,7 @@ export default function MyComplaints() {
                   setDescription(e.target.value.slice(0, MAX_DESCRIPTION));
                   setSubmitError('');
                 }}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm"
+                className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-neutral-400 focus:bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:text-white"
                 placeholder="Décrivez précisément le problème (état, article reçu, preuves, etc.)."
                 maxLength={MAX_DESCRIPTION}
                 required
@@ -368,10 +371,10 @@ export default function MyComplaints() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-bold text-neutral-700 dark:text-neutral-200">
                 Preuves (images/PDF, max {MAX_FILES})
               </label>
-              <label className="flex cursor-pointer items-center justify-between rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600 hover:border-neutral-300 hover:bg-neutral-50">
+              <label className="flex min-h-[52px] cursor-pointer items-center justify-between rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 px-4 text-sm text-neutral-600 transition hover:border-neutral-400 hover:bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                 <span className="inline-flex items-center gap-2">
                   <Upload className="h-4 w-4" />
                   Ajouter des preuves
@@ -423,7 +426,7 @@ export default function MyComplaints() {
               <button
                 type="submit"
                 disabled={submitLoading}
-                className="inline-flex items-center gap-2 rounded-xl bg-neutral-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-60"
+                className="inline-flex min-h-[48px] items-center gap-2 rounded-2xl bg-neutral-950 px-5 text-sm font-bold text-white transition hover:bg-black disabled:opacity-60 dark:bg-white dark:text-neutral-950 dark:hover:bg-neutral-200"
               >
                 {submitLoading ? (
                   <>
@@ -441,8 +444,8 @@ export default function MyComplaints() {
           </form>
         </section>
 
-        <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Historique des litiges</h2>
+        <section className="rounded-[24px] border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 sm:p-6">
+          <h2 className="mb-4 text-lg font-bold text-neutral-950 dark:text-white">Historique des réclamations</h2>
           {loading ? (
             <p className="text-sm text-gray-500">Chargement…</p>
           ) : listError ? (

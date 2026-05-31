@@ -7,28 +7,30 @@ import {
   Gavel,
   Paperclip,
   RefreshCw,
+  Search,
   ShieldAlert
 } from 'lucide-react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
+import { AdminCommandHero, AdminSegmentedControl } from '../components/admin/AdminCommandSurface';
 
 const STATUS_OPTIONS = [
-  { value: '', label: 'Tous' },
-  { value: 'OPEN', label: 'Ouverts' },
-  { value: 'SELLER_RESPONDED', label: 'Réponse vendeur' },
-  { value: 'UNDER_REVIEW', label: 'En revue' },
-  { value: 'RESOLVED_CLIENT', label: 'Résolus client' },
-  { value: 'RESOLVED_SELLER', label: 'Résolus vendeur' },
-  { value: 'REJECTED', label: 'Rejetés' }
+  { value: '', label: 'Tous', icon: ShieldAlert },
+  { value: 'OPEN', label: 'Ouverts', icon: AlertCircle },
+  { value: 'SELLER_RESPONDED', label: 'Réponse vendeur', icon: Clock3 },
+  { value: 'UNDER_REVIEW', label: 'En revue', icon: Gavel },
+  { value: 'RESOLVED_CLIENT', label: 'Résolus client', icon: CheckCircle2 },
+  { value: 'RESOLVED_SELLER', label: 'Résolus vendeur', icon: CheckCircle2 },
+  { value: 'REJECTED', label: 'Rejetés', icon: ShieldAlert }
 ];
 
 const STATUS_STYLES = {
-  OPEN: 'bg-amber-100 text-amber-800',
-  SELLER_RESPONDED: 'bg-neutral-100 text-neutral-800',
-  UNDER_REVIEW: 'bg-neutral-100 text-neutral-800',
-  RESOLVED_CLIENT: 'bg-emerald-100 text-emerald-800',
-  RESOLVED_SELLER: 'bg-green-100 text-green-800',
-  REJECTED: 'bg-neutral-100 text-neutral-800'
+  OPEN: 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300',
+  SELLER_RESPONDED: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200',
+  UNDER_REVIEW: 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300',
+  RESOLVED_CLIENT: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300',
+  RESOLVED_SELLER: 'bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-300',
+  REJECTED: 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300'
 };
 
 const STATUS_LABELS = Object.fromEntries(STATUS_OPTIONS.filter((o) => o.value).map((o) => [o.value, o.label]));
@@ -68,6 +70,7 @@ export default function AdminComplaints() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState('OPEN');
+  const [queryDraft, setQueryDraft] = useState('');
   const [query, setQuery] = useState('');
   const [refreshingDeadlines, setRefreshingDeadlines] = useState(false);
   const [actioningId, setActioningId] = useState('');
@@ -125,6 +128,13 @@ export default function AdminComplaints() {
     loadDisputes();
   }, [loadDisputes]);
 
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setQuery(queryDraft.trim());
+    }, 350);
+    return () => window.clearTimeout(timeout);
+  }, [queryDraft]);
+
   const triggerDeadlineCheck = async () => {
     setRefreshingDeadlines(true);
     try {
@@ -174,96 +184,109 @@ export default function AdminComplaints() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-neutral-50/20 lg:min-h-0 lg:bg-transparent">
-      <div className="mx-auto max-w-7xl px-4 py-8 space-y-6 sm:px-6 lg:px-8">
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-neutral-600 p-3 text-white">
-              <ShieldAlert className="h-6 w-6" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Arbitrage des litiges</h1>
-              <p className="text-sm text-gray-500">Gestion complète des réclamations post-livraison.</p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={triggerDeadlineCheck}
-              disabled={refreshingDeadlines}
-              className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700"
-            >
-              <Clock3 className={`h-4 w-4 ${refreshingDeadlines ? 'animate-spin' : ''}`} />
-              Vérifier deadlines
-            </button>
-            <button
-              type="button"
-              onClick={loadDisputes}
-              disabled={loading}
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              Actualiser
-            </button>
-          </div>
-        </header>
+  const activeCount = items.filter((item) => !['RESOLVED_CLIENT', 'RESOLVED_SELLER', 'REJECTED'].includes(item.status)).length;
+  const reviewCount = items.filter((item) => item.status === 'UNDER_REVIEW' || item.status === 'SELLER_RESPONDED').length;
+  const closedCount = items.filter((item) => ['RESOLVED_CLIENT', 'RESOLVED_SELLER', 'REJECTED'].includes(item.status)).length;
+  const statusOptions = STATUS_OPTIONS.map((option) => ({
+    ...option,
+    count: option.value ? items.filter((item) => item.status === option.value).length : items.length
+  }));
 
-        <section className="rounded-2xl border border-gray-200/60 bg-white p-4 shadow-sm">
-          <div className="grid gap-3 md:grid-cols-[220px_1fr]">
-            <select
+  return (
+    <div className="min-h-screen bg-neutral-50 text-neutral-950 dark:bg-neutral-950 dark:text-white lg:min-h-0">
+      <div className="mx-auto max-w-7xl space-y-4 px-3 py-4 sm:px-4 sm:py-6 lg:px-8">
+        <AdminCommandHero
+          eyebrow="Support commerce"
+          title="Réclamations & litiges"
+          subtitle="Arbitrez les réclamations post-livraison avec les preuves client, la réponse vendeur, les messages de commande et une décision admin traçable."
+          meta={query ? `Recherche active: ${query}` : 'File opérationnelle support'}
+          metrics={[
+            { label: 'Affichés', value: loading ? '...' : items.length, help: STATUS_LABELS[statusFilter] || 'Tous statuts', icon: ShieldAlert },
+            { label: 'Actifs', value: activeCount, help: 'À traiter', icon: AlertCircle },
+            { label: 'En revue', value: reviewCount, help: 'Vendeur/admin', icon: Gavel },
+            { label: 'Clôturés', value: closedCount, help: 'Décisions rendues', icon: CheckCircle2 }
+          ]}
+          actions={[
+            {
+              label: 'Deadlines',
+              description: 'Vérifier les réponses vendeur',
+              icon: Clock3,
+              tone: 'amber',
+              loading: refreshingDeadlines,
+              onClick: triggerDeadlineCheck
+            },
+            {
+              label: 'Actualiser',
+              description: 'Recharger les litiges',
+              icon: RefreshCw,
+              tone: 'dark',
+              loading,
+              onClick: loadDisputes
+            }
+          ]}
+        />
+
+        <section className="rounded-[22px] border border-neutral-200 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
+            <AdminSegmentedControl
+              className="border-0 bg-transparent p-0 shadow-none"
+              options={statusOptions}
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
-            >
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option.value || 'all'} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setStatusFilter(value)}
+            />
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
             <input
               type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+                value={queryDraft}
+                onChange={(e) => setQueryDraft(e.target.value)}
               placeholder="Rechercher (adresse, ville, paiement...)"
-              className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                className="min-h-[46px] w-full rounded-2xl border border-neutral-200 bg-neutral-50 pl-10 pr-3 text-sm font-medium outline-none transition focus:border-neutral-400 focus:bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:text-white"
             />
+            </div>
           </div>
         </section>
 
         {error && (
-          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-700 inline-flex items-center gap-2">
+          <div className="inline-flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
             <AlertCircle className="h-4 w-4" />
             {error}
           </div>
         )}
 
         {loading ? (
-          <div className="py-12 flex justify-center">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
+          <div className="grid gap-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="h-48 animate-pulse rounded-[24px] border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950" />
+            ))}
           </div>
         ) : items.length === 0 ? (
-          <p className="text-sm text-gray-500">Aucun litige pour ce filtre.</p>
+          <div className="rounded-[24px] border border-dashed border-neutral-300 bg-white p-8 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-neutral-100 text-neutral-500 dark:bg-neutral-900 dark:text-neutral-300">
+              <ShieldAlert className="h-5 w-5" />
+            </div>
+            <p className="mt-3 text-sm font-bold text-neutral-950 dark:text-white">Aucun litige pour ce filtre</p>
+            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">La file support est vide ou la recherche ne retourne aucun résultat.</p>
+          </div>
         ) : (
-          <ul className="space-y-4">
+          <ul className="space-y-3">
             {items.map((item) => {
               const draft = getDraft(item._id);
               const isClosed = ['RESOLVED_CLIENT', 'RESOLVED_SELLER', 'REJECTED'].includes(item.status);
               return (
-                <li key={item._id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                <li key={item._id} className="rounded-[24px] border border-neutral-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-950">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">
+                      <p className="text-sm font-bold text-neutral-950 dark:text-white">
                         Litige #{String(item._id).slice(-6)} · Cmd #{String(item?.orderId?._id || '').slice(-6)}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
                         Ouvert le {formatDate(item.createdAt)} · Motif: {reasonLabel(item.reason)}
                       </p>
                     </div>
                     <span
-                      className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
-                        STATUS_STYLES[item.status] || 'bg-gray-100 text-gray-700'
+                      className={`rounded-full px-3 py-1 text-[11px] font-bold ${
+                        STATUS_STYLES[item.status] || 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200'
                       }`}
                     >
                       {STATUS_LABELS[item.status] || item.status}
@@ -271,44 +294,44 @@ export default function AdminComplaints() {
                   </div>
 
                   <div className="mt-3 grid gap-3 text-sm md:grid-cols-3">
-                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                      <p className="text-xs font-semibold text-gray-600 mb-1">Client</p>
-                      <p className="font-medium text-gray-900">{item?.clientId?.name || '—'}</p>
-                      <p className="text-xs text-gray-600">{item?.clientId?.email || '—'}</p>
-                      <p className="text-xs text-gray-600">{item?.clientId?.phone || '—'}</p>
+                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900/70">
+                      <p className="mb-1 text-xs font-bold text-neutral-500 dark:text-neutral-400">Client</p>
+                      <p className="font-semibold text-neutral-950 dark:text-white">{item?.clientId?.name || '—'}</p>
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400">{item?.clientId?.email || '—'}</p>
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400">{item?.clientId?.phone || '—'}</p>
                     </div>
-                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                      <p className="text-xs font-semibold text-gray-600 mb-1">Vendeur</p>
-                      <p className="font-medium text-gray-900">
+                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900/70">
+                      <p className="mb-1 text-xs font-bold text-neutral-500 dark:text-neutral-400">Vendeur</p>
+                      <p className="font-semibold text-neutral-950 dark:text-white">
                         {item?.sellerId?.shopName || item?.sellerId?.name || '—'}
                       </p>
-                      <p className="text-xs text-gray-600">{item?.sellerId?.email || '—'}</p>
-                      <p className="text-xs text-gray-600">{item?.sellerId?.phone || '—'}</p>
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400">{item?.sellerId?.email || '—'}</p>
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400">{item?.sellerId?.phone || '—'}</p>
                     </div>
-                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                      <p className="text-xs font-semibold text-gray-600 mb-1">Commande / Paiement</p>
-                      <p className="text-xs text-gray-700">Statut: {item?.orderId?.status || '—'}</p>
-                      <p className="text-xs text-gray-700">Total: {money(item?.orderId?.totalAmount)}</p>
-                      <p className="text-xs text-gray-700">Payé: {money(item?.orderId?.paidAmount)}</p>
-                      <p className="text-xs text-gray-700">Reste: {money(item?.orderId?.remainingAmount)}</p>
-                      <p className="text-xs text-gray-700">
+                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900/70">
+                      <p className="mb-1 text-xs font-bold text-neutral-500 dark:text-neutral-400">Commande / Paiement</p>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-300">Statut: {item?.orderId?.status || '—'}</p>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-300">Total: {money(item?.orderId?.totalAmount)}</p>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-300">Payé: {money(item?.orderId?.paidAmount)}</p>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-300">Reste: {money(item?.orderId?.remainingAmount)}</p>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-300">
                         Paiement: {item?.orderId?.paymentName || '—'} ({item?.orderId?.paymentTransactionCode || '—'})
                       </p>
                     </div>
                   </div>
 
-                  <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm text-gray-700">
-                    <p className="text-xs font-semibold text-gray-600 mb-1">Livraison</p>
+                  <div className="mt-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900/70 dark:text-neutral-300">
+                    <p className="mb-1 text-xs font-bold text-neutral-500 dark:text-neutral-400">Livraison</p>
                     <p>
                       {item?.orderId?.deliveryAddress || '—'} · {item?.orderId?.deliveryCity || '—'}
                     </p>
-                    <p className="text-xs text-gray-500">Livré le: {formatDate(item?.orderId?.deliveredAt)}</p>
-                    <p className="text-xs text-gray-500">Deadline vendeur: {formatDate(item?.sellerDeadline)}</p>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400">Livré le: {formatDate(item?.orderId?.deliveredAt)}</p>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400">Deadline vendeur: {formatDate(item?.sellerDeadline)}</p>
                   </div>
 
                   <div className="mt-3">
-                    <p className="text-xs font-semibold text-gray-600 mb-1">Description client</p>
-                    <p className="text-sm text-gray-700 whitespace-pre-line">{item.description}</p>
+                    <p className="mb-1 text-xs font-bold text-neutral-500 dark:text-neutral-400">Description client</p>
+                    <p className="whitespace-pre-line text-sm leading-6 text-neutral-700 dark:text-neutral-300">{item.description}</p>
                   </div>
 
                   {item.proofImages?.length > 0 && (

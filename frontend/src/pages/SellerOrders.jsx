@@ -39,6 +39,7 @@ import GlassHeader from '../components/orders/GlassHeader';
 import AnimatedOrderTimeline from '../components/orders/AnimatedOrderTimeline';
 import StatusBadge from '../components/orders/StatusBadge';
 import { OrderListSkeleton } from '../components/orders/OrderSkeletons';
+import { OrderCommandCenter, OrderFilterRail } from '../components/orders/OrderCommandCenter';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
 import usePullToRefresh from '../hooks/usePullToRefresh';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
@@ -46,6 +47,15 @@ import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { getPickupShopAddress, isPickupOrder as resolvePickupOrder } from '../utils/pickupAddress';
 import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
+import {
+  ORDER_FILTER_GROUPS,
+  getOrderGroupStatuses,
+  getOrderItems,
+  getOrderItemCount,
+  getOrderTotal,
+  getOrderUiState,
+  isOrderGroupKey
+} from '../utils/orderStatusEngine';
 import useReliableMutation from '../hooks/useReliableMutation';
 import useOrderRealtimeSync from '../hooks/useOrderRealtimeSync';
 import useSellerOrdersListQuery from '../hooks/useSellerOrdersListQuery';
@@ -119,26 +129,21 @@ const INSTALLMENT_SALE_STATUS_LABELS = {
   cancelled: 'Annulée'
 };
 
-const STATUS_TABS = [
-  { key: 'all', label: 'Toutes', icon: ClipboardList, count: null },
-  { key: 'pending_payment', label: 'Paiement', icon: Clock, count: null },
-  { key: 'paid', label: 'Payées', icon: CreditCard, count: null },
-  { key: 'ready_for_pickup', label: 'Prêtes au retrait', icon: Package, count: null },
-  { key: 'picked_up_confirmed', label: 'Retraits confirmés', icon: CheckCircle, count: null },
-  { key: 'ready_for_delivery', label: 'Prêtes à livrer', icon: Package, count: null },
-  { key: 'out_for_delivery', label: 'En livraison', icon: Truck, count: null },
-  { key: 'delivery_proof_submitted', label: 'Preuve soumise', icon: ClipboardList, count: null },
-  { key: 'confirmed_by_client', label: 'Confirmées client', icon: CheckCircle, count: null },
-  { key: 'pending', label: 'En attente', icon: Clock, count: null },
-  { key: 'pending_installment', label: 'Vente à confirmer', icon: Receipt, count: null },
-  { key: 'installment_active', label: 'Tranches actives', icon: CreditCard, count: null },
-  { key: 'overdue_installment', label: 'Tranches en retard', icon: AlertCircle, count: null },
-  { key: 'confirmed', label: 'Confirmées', icon: Package, count: null },
-  { key: 'delivering', label: 'En livraison', icon: Truck, count: null },
-  { key: 'delivered', label: 'Livrées', icon: CheckCircle, count: null },
-  { key: 'completed', label: 'Paiement terminé', icon: CheckCircle, count: null },
-  { key: 'cancelled', label: 'Annulées', icon: X, count: null }
-];
+const SELLER_TAB_ICONS = {
+  all: ClipboardList,
+  new: Sparkles,
+  prepare: Package,
+  handoff: Truck,
+  payment: CreditCard,
+  installments: Receipt,
+  completed: CheckCircle,
+  problems: AlertCircle
+};
+
+const STATUS_TABS = ORDER_FILTER_GROUPS.seller.map((tab) => ({
+  ...tab,
+  icon: SELLER_TAB_ICONS[tab.key] || ClipboardList
+}));
 
 const PAGE_SIZE = 6;
 const ACTIVE_LIVE_STATUSES = new Set([
@@ -167,7 +172,16 @@ const SELLER_OFFLINE_QUEUEABLE_STATUSES = new Set([
 const normalizeStatusFilter = (value) => {
   if (!value) return 'all';
   const safe = String(value).trim();
+  if (isOrderGroupKey('seller', safe)) return safe;
   return Object.prototype.hasOwnProperty.call(STATUS_LABELS, safe) ? safe : 'all';
+};
+
+const orderMatchesSellerFilter = (order, filterKey) => {
+  if (!filterKey || filterKey === 'all') return true;
+  if (isOrderGroupKey('seller', filterKey)) {
+    return getOrderGroupStatuses('seller', filterKey).includes(String(order?.status || '').trim().toLowerCase());
+  }
+  return String(order?.status || '').trim() === String(filterKey).trim();
 };
 
 const ORDER_FLOW = [
@@ -439,9 +453,9 @@ const OrderProgress = ({ status }) => {
 // Compact order summary card - links to seller order detail page
 const SellerOrderSummaryCard = ({ order }) => {
   const { t } = useAppSettings();
-  const orderItems = Array.isArray(order.items) ? order.items : [];
-  const computedTotal = orderItems.reduce((s, i) => s + Number(i.snapshot?.price || 0) * Number(i.quantity || 1), 0);
-  const totalAmount = Number(order.totalAmount ?? computedTotal);
+  const orderItems = getOrderItems(order);
+  const totalAmount = getOrderTotal(order);
+  const uiState = getOrderUiState(order, 'seller');
   const isInstallmentOrder = order.paymentType === 'installment';
   const installmentPlan = isInstallmentOrder ? order.installmentPlan || {} : null;
   const installmentTotal = Number(installmentPlan?.totalAmount ?? totalAmount);
@@ -457,7 +471,7 @@ const SellerOrderSummaryCard = ({ order }) => {
   const statusBadgeKey = pickupCardStatus || order.status;
   const firstItem = orderItems[0];
   const productTitle = firstItem?.snapshot?.title || t('orders.product', 'Produit');
-  const itemCount = orderItems.length;
+  const itemCount = getOrderItemCount(order);
   const customerName = order.customer?.name || t('orders.customer', 'Client');
 
   return (
@@ -472,6 +486,18 @@ const SellerOrderSummaryCard = ({ order }) => {
           <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
         </div>
         <StatusBadge status={statusBadgeKey} />
+      </div>
+      <div className="px-4 pt-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="truncate text-xs font-semibold text-neutral-500">{uiState.nextStep}</p>
+          <span className="shrink-0 text-[11px] font-bold text-neutral-500">{uiState.progress}%</span>
+        </div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${uiState.isUrgent ? 'bg-red-500' : 'bg-neutral-900 dark:bg-neutral-100'}`}
+            style={{ width: `${uiState.progress}%` }}
+          />
+        </div>
       </div>
       <div className="p-4 flex gap-3">
         {firstItem?.snapshot?.image ? (
@@ -531,7 +557,15 @@ const SellerOrderSummaryCard = ({ order }) => {
           )}
           <div className="flex items-center gap-2">
             <span className="font-bold text-gray-900">{formatCurrency(totalAmount)}</span>
-            <span className="text-neutral-800 font-medium text-sm flex items-center gap-0.5">{t('orders.viewDetail', 'Voir le détail')} <ChevronRight className="w-4 h-4" /></span>
+            <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${
+              uiState.primaryAction.tone === 'urgent'
+                ? 'bg-red-50 text-red-700'
+                : uiState.primaryAction.tone === 'muted'
+                  ? 'bg-neutral-100 text-neutral-500'
+                  : 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-950'
+            }`}>
+              {uiState.primaryAction.label}
+            </span>
           </div>
         </div>
         {Number(order.deliveryFeeTotal ?? 0) > 0 && (
@@ -1005,7 +1039,7 @@ export default function SellerOrders() {
   const [cancelReason, setCancelReason] = useState('');
   const [queuedStatusActionCount, setQueuedStatusActionCount] = useState(0);
   const [statusQueueSyncing, setStatusQueueSyncing] = useState(false);
-  const [stats, setStats] = useState({ total: 0, totalAmount: 0, byStatus: {} });
+  const [stats, setStats] = useState({ total: 0, totalAmount: 0, byStatus: {}, byGroup: {} });
   const [statsLoading, setStatsLoading] = useState(false);
   const [installmentAnalytics, setInstallmentAnalytics] = useState({
     totalInstallmentSales: 0,
@@ -1045,10 +1079,7 @@ export default function SellerOrders() {
             String(entry?._id || '') === String(updatedOrder._id) ? updatedOrder : entry
           )
         );
-        if (activeStatus === 'all') return patched;
-        return patched.filter(
-          (entry) => String(entry?.status || '').trim() === String(activeStatus).trim()
-        );
+        return patched.filter((entry) => orderMatchesSellerFilter(entry, activeStatus));
       });
 
       queryClient.setQueriesData(
@@ -1253,10 +1284,7 @@ export default function SellerOrders() {
         const patched = dedupeOrders(
           prev.map((entry) => applyRealtimeStatusPatch(entry, payload))
         );
-        if (activeStatus === 'all') return patched;
-        return patched.filter(
-          (entry) => String(entry?.status || '').trim() === String(activeStatus).trim()
-        );
+        return patched.filter((entry) => orderMatchesSellerFilter(entry, activeStatus));
       });
     };
 
@@ -1265,37 +1293,20 @@ export default function SellerOrders() {
       window.removeEventListener('hdmarket:orders-status-updated', onStatusUpdated);
   }, [activeStatus]);
 
-  // Load order statistics
+  // Load compact order summary without fetching every seller order.
   useEffect(() => {
     let active = true;
     const loadStats = async () => {
       setStatsLoading(true);
       try {
-        const { data } = await api.get('/orders/seller?limit=1000');
+        const { data } = await api.get('/orders/seller/summary');
         if (!active) return;
-        const rawOrders = Array.isArray(data) ? data : data?.items || [];
-        // Deduplicate orders by _id
-        const seenIds = new Set();
-        const allOrders = rawOrders.filter((order) => {
-          if (!order?._id || seenIds.has(order._id)) return false;
-          seenIds.add(order._id);
-          return true;
+        setStats({
+          total: Number(data?.total || 0),
+          totalAmount: Number(data?.totalAmount || 0),
+          byStatus: data?.byStatus || {},
+          byGroup: data?.byGroup || {}
         });
-        const total = allOrders.length;
-        const totalAmount = allOrders.reduce((sum, order) => {
-          const items = order.items || [];
-          const computed = items.reduce(
-            (s, item) => s + Number(item.snapshot?.price || 0) * Number(item.quantity || 1),
-            0
-          );
-          return sum + Number(order.totalAmount ?? computed);
-        }, 0);
-        const byStatus = allOrders.reduce((acc, order) => {
-          const status = order.status || 'pending';
-          acc[status] = (acc[status] || 0) + 1;
-          return acc;
-        }, {});
-        setStats({ total, totalAmount, byStatus });
       } catch (err) {
         console.error('Error loading stats:', err);
       } finally {
@@ -1595,7 +1606,70 @@ export default function SellerOrders() {
   const emptyMessage =
     activeStatus === 'all'
       ? t('orders.noCustomerOrdersYet', 'Aucune commande client pour le moment.')
-      : t('orders.noOrdersWithStatusYet', `Aucune commande ${STATUS_LABELS[activeStatus].toLowerCase()} pour le moment.`);
+      : t('orders.noOrdersWithStatusYet', `Aucune commande ${(STATUS_LABELS[activeStatus] || STATUS_TABS.find((tab) => tab.key === activeStatus)?.label || 'sélectionnée').toLowerCase()} pour le moment.`);
+
+  const orderFilterCounts = {
+    ...stats.byStatus,
+    ...stats.byGroup,
+    all: stats.total
+  };
+  const activeTabLabel = STATUS_TABS.find((tab) => tab.key === activeStatus)?.label || 'Toutes';
+  const sellerMetrics = [
+    {
+      label: t('orders.totalOrders', 'Commandes'),
+      value: statsLoading ? '...' : stats.total,
+      help: activeTabLabel,
+      icon: ClipboardList
+    },
+    {
+      label: t('orders.newOrders', 'Nouvelles'),
+      value: statsLoading ? '...' : stats.byGroup.new || 0,
+      help: t('orders.toProcessNow', 'À traiter'),
+      icon: Sparkles
+    },
+    {
+      label: t('orders.prepare', 'À préparer'),
+      value: statsLoading ? '...' : stats.byGroup.prepare || 0,
+      help: t('orders.sellerPreparation', 'Préparation'),
+      icon: Package
+    },
+    {
+      label: t('orders.problems', 'Problèmes'),
+      value: statsLoading ? '...' : stats.byGroup.problems || 0,
+      help: t('orders.needsAttention', 'À surveiller'),
+      icon: AlertCircle
+    }
+  ];
+  const sellerActions = [
+    {
+      label: t('orders.installmentSales', 'Ventes en tranche'),
+      description: t('orders.installmentSalesHelp', 'Suivre les paiements'),
+      onClick: () => {
+        setActiveStatus('installments');
+        setPage(1);
+      },
+      icon: CreditCard,
+      tone: 'soft'
+    },
+    {
+      label: t('orders.stats', 'Stats'),
+      description: t('orders.sellerStatsHelp', 'Performance vendeur'),
+      to: '/stats',
+      icon: TrendingUp,
+      tone: 'dark'
+    },
+    ...(user?.role === 'admin' || user?.role === 'founder' || user?.role === 'manager'
+      ? [
+          {
+            label: t('orders.allAdminOrders', 'Commandes admin'),
+            description: t('orders.adminOrdersHelp', 'Vue opérationnelle globale'),
+            to: '/admin/orders',
+            icon: ShieldCheck,
+            tone: 'light'
+          }
+        ]
+      : [])
+  ];
 
   const loading = !initialLoadingDone && sellerOrdersListQuery.isLoading && orders.length === 0;
   const error =
@@ -1650,52 +1724,15 @@ export default function SellerOrders() {
               : `${queuedStatusActionCount} changement${queuedStatusActionCount > 1 ? 's' : ''} de statut en attente de connexion.`}
           </div>
         )}
-        {(user?.role === 'admin' || user?.role === 'founder' || user?.role === 'manager') && (
-          <div className="mb-4">
-            <Link
-              to="/admin/orders"
-              className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-            >
-              <ClipboardList className="h-3.5 w-3.5" />
-              {t('orders.allAdminOrders', 'Toutes les commandes (admin)')}
-            </Link>
-          </div>
-        )}
-        {/* Statistics Cards */}
-        {!statsLoading && stats.total > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-neutral-900">
-                  <ClipboardList className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-2xl font-bold text-gray-900">{stats.total}</span>
-              </div>
-              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{t('orders.totalOrders', 'Total commandes')}</p>
-              <p className="text-xs text-gray-500 mt-1">{t('orders.allCustomerOrders', 'Toutes les commandes clients')}</p>
-            </div>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-neutral-700">
-                  <DollarSign className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalAmount)}</span>
-              </div>
-              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{t('orders.revenue', "Chiffre d'affaires")}</p>
-              <p className="text-xs text-gray-500 mt-1">{t('orders.totalOrderAmount', 'Montant total des commandes')}</p>
-            </div>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-neutral-700">
-                  <Clock className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-2xl font-bold text-gray-900">{stats.byStatus.pending || 0}</span>
-              </div>
-              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{t('orders.pending', 'En attente')}</p>
-              <p className="text-xs text-gray-500 mt-1">{t('orders.pendingHelp', 'Commandes en cours de traitement')}</p>
-            </div>
-          </div>
-        )}
+        <div className="mb-5 sm:mb-6">
+          <OrderCommandCenter
+            eyebrow={t('orders.sellerCommandCenter', 'File vendeur')}
+            title={t('orders.sellerHubTitle', 'Traiter les commandes importantes')}
+            subtitle={t('orders.sellerHubSubtitle', `${formatCurrency(stats.totalAmount)} de commandes. Les nouvelles commandes, préparations et problèmes restent visibles en priorité.`)}
+            metrics={sellerMetrics}
+            actions={sellerActions}
+          />
+        </div>
 
         {!installmentAnalyticsLoading && installmentAnalytics.totalInstallmentSales > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -1742,44 +1779,18 @@ export default function SellerOrders() {
           </div>
         )}
 
-        {/* Status Tabs */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-8">
-          <div className="flex flex-wrap gap-2">
-            {STATUS_TABS.map((tab) => {
-              const isActive = tab.key === activeStatus;
-              const Icon = tab.icon;
-              const count = tab.key === 'all' ? stats.total : stats.byStatus[tab.key] || 0;
-              
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => {
-                    if (tab.key === activeStatus) return;
-                    setActiveStatus(tab.key);
-                    setPage(1);
-                  }}
-                  className={`group relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                    isActive
-                      ? 'bg-neutral-900 text-white shadow-lg scale-105'
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{tab.label}</span>
-                  {count > 0 && (
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                      isActive
-                        ? 'bg-white/20 text-white'
-                        : 'bg-neutral-100 text-neutral-700'
-                    }`}>
-                      {count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+        <div className="sticky top-2 z-20 mb-5 sm:static sm:z-auto sm:mb-6">
+          <OrderFilterRail
+            tabs={STATUS_TABS}
+            activeKey={activeStatus}
+            counts={orderFilterCounts}
+            mobile={isMobile}
+            onChange={(key) => {
+              if (key === activeStatus) return;
+              setActiveStatus(key);
+              setPage(1);
+            }}
+          />
         </div>
 
         {/* Orders List */}

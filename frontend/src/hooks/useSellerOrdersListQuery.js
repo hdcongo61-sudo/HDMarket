@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
 import { orderQueryKeys } from './useOrderQueryKeys';
 import useNetworkProfile from './useNetworkProfile';
+import { isOrderGroupKey } from '../utils/orderStatusEngine';
 
 const ACTIVE_ORDER_STATUSES = new Set([
   'pending_payment',
@@ -53,7 +54,11 @@ export const useSellerOrdersListQuery = ({
     queryFn: async () => {
       const params = { page, limit };
       if (status && status !== 'all') {
-        params.status = status;
+        if (isOrderGroupKey('seller', status)) {
+          params.statusGroup = status;
+        } else {
+          params.status = status;
+        }
       }
       const { data } = await api.get('/orders/seller', {
         params,

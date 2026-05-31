@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import api, { isApiPossiblyCommittedError, verifyTransactionCodeAvailability } from '../services/api';
 import useCommissionRate from '../hooks/useCommissionRate';
 import {
@@ -16,6 +16,7 @@ import {
 import { useNetworks, getNetworkPhoneByName, getFirstNetworkPhone } from '../hooks/useNetworks';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { appAlert } from '../utils/appDialog';
+import { createIdempotencyKey } from '../utils/idempotency';
 
 const defaultOperatorPhones = {
   MTN: '069822930',
@@ -42,6 +43,7 @@ const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
 export default function PaymentForm({ product, onSubmitted }) {
   const { commissionRatePercent, commissionRateLabel } = useCommissionRate();
+  const submitIdempotencyKeyRef = useRef('');
   const expected = useMemo(
     () => Math.round(product.price * (commissionRatePercent / 100) * 100) / 100,
     [commissionRatePercent, product.price]
@@ -200,10 +202,32 @@ export default function PaymentForm({ product, onSubmitted }) {
       try {
         const verification = await verifyTransactionCodeAvailability(digitsOnly);
         if (!verification.available) {
+          const alreadyRecorded = await reconcilePaymentAfterTimeout({
+            productId: product?._id,
+            transactionNumber: digitsOnly
+          });
+          if (alreadyRecorded) {
+            submitIdempotencyKeyRef.current = '';
+            appAlert('Paiement déjà enregistré. Il est en attente de vérification.');
+            if (onSubmitted) await onSubmitted();
+            return;
+          }
           appAlert(verification.message || 'Ce code de transaction est déjà utilisé.');
           return;
         }
       } catch (error) {
+        if (error?.response?.status === 409) {
+          const alreadyRecorded = await reconcilePaymentAfterTimeout({
+            productId: product?._id,
+            transactionNumber: digitsOnly
+          });
+          if (alreadyRecorded) {
+            submitIdempotencyKeyRef.current = '';
+            appAlert('Paiement déjà enregistré. Il est en attente de vérification.');
+            if (onSubmitted) await onSubmitted();
+            return;
+          }
+        }
         appAlert(error?.response?.data?.message || 'Impossible de vérifier le code de transaction.');
         return;
       }
@@ -232,19 +256,50 @@ export default function PaymentForm({ product, onSubmitted }) {
         payload.transactionNumber = digitsOnly;
       }
 
-      await api.post('/payments', payload, {
-        silentGlobalError: true
+      if (!submitIdempotencyKeyRef.current) {
+        submitIdempotencyKeyRef.current = createIdempotencyKey(`listing-payment-${product._id}`);
+      }
+
+      const { data } = await api.post('/payments', payload, {
+        silentGlobalError: true,
+        timeout: 45_000,
+        headers: {
+          'Idempotency-Key': submitIdempotencyKeyRef.current
+        }
       });
-      appAlert('Paiement soumis. En attente de vérification.');
+      submitIdempotencyKeyRef.current = '';
+      appAlert(
+        data?.alreadySubmitted
+          ? 'Paiement déjà enregistré. Il est en attente de vérification.'
+          : 'Paiement soumis. En attente de vérification.'
+      );
       if (onSubmitted) await onSubmitted();
     } catch (error) {
+      if (
+        error?.response?.status === 409 &&
+        /paiement existe d.j.|paiement existe deja|attend une validation/i.test(
+          String(error?.response?.data?.message || '')
+        )
+      ) {
+        submitIdempotencyKeyRef.current = '';
+        appAlert('Paiement déjà enregistré. Il est en attente de vérification.');
+        if (onSubmitted) {
+          try {
+            await onSubmitted();
+          } catch {
+            // no-op
+          }
+        }
+        return;
+      }
       if (isApiPossiblyCommittedError(error)) {
         const alreadyRecorded = await reconcilePaymentAfterTimeout({
           productId: product?._id,
           transactionNumber: digitsOnly
         });
         if (alreadyRecorded) {
-          appAlert('Paiement enregistré (vérifié automatiquement). En attente de validation.');
+          submitIdempotencyKeyRef.current = '';
+          appAlert('Paiement enregistré. En attente de vérification par l’admin.');
         } else {
           appAlert(
             'Le réseau est lent. Votre paiement peut déjà être enregistré. Vérifiez le statut avant de renvoyer.'
@@ -259,6 +314,7 @@ export default function PaymentForm({ product, onSubmitted }) {
         }
         return;
       }
+      submitIdempotencyKeyRef.current = '';
       appAlert(error.response?.data?.message || error.message);
     } finally {
       setLoading(false);

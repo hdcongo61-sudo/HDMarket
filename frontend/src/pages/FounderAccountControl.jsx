@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
   Ban,
+  Crown,
   Loader2,
   RefreshCcw,
   Search,
@@ -15,6 +16,7 @@ import {
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
+import { AdminCommandHero, AdminSegmentedControl } from '../components/admin/AdminCommandSurface';
 
 const CONFIRM_WORD = 'SUPPRIMER';
 
@@ -175,6 +177,12 @@ export default function FounderAccountControl() {
     );
   }, [auditQuery.data]);
 
+  const refreshFounderControl = () => {
+    queryClient.invalidateQueries({ queryKey: ['founder', 'deletion-candidates'] });
+    queryClient.invalidateQueries({ queryKey: ['founder', 'phone-blacklist'] });
+    queryClient.invalidateQueries({ queryKey: ['founder', 'deletion-audit'] });
+  };
+
   if (!canAccess) {
     return (
       <div className="min-h-screen bg-gray-50 px-4 py-8">
@@ -188,34 +196,30 @@ export default function FounderAccountControl() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 px-3 py-4 md:px-5 md:py-6">
+    <div className="min-h-screen bg-neutral-50 px-3 py-4 text-neutral-950 dark:bg-neutral-950 dark:text-white md:px-5 md:py-6">
       <div className="mx-auto max-w-7xl space-y-4">
-        <header className="rounded-2xl bg-white p-4 shadow-sm">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="inline-flex items-center gap-2 rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
-                <ShieldAlert size={14} />
-                Founder only
-              </p>
-              <h1 className="mt-2 text-xl font-bold text-gray-900">Suppression définitive & blacklist</h1>
-              <p className="mt-1 text-sm text-gray-600">
-                Supprime un compte définitivement puis bloque son numéro de téléphone.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                queryClient.invalidateQueries({ queryKey: ['founder', 'deletion-candidates'] });
-                queryClient.invalidateQueries({ queryKey: ['founder', 'phone-blacklist'] });
-                queryClient.invalidateQueries({ queryKey: ['founder', 'deletion-audit'] });
-              }}
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-gray-900 px-4 text-sm font-semibold text-white"
-            >
-              <RefreshCcw size={16} />
-              Refresh
-            </button>
-          </div>
-        </header>
+        <AdminCommandHero
+          eyebrow="Founder only"
+          title="Contrôle des comptes sensibles"
+          subtitle="Suppression définitive, blacklist téléphone et audit dans une surface unique, avec les mêmes règles de sécurité que le centre de commande."
+          meta="Les actions founder restent irréversibles et demandent une confirmation explicite."
+          metrics={[
+            { label: 'Comptes', value: deletionCandidates.length, help: 'Candidats affichés', icon: UserRound },
+            { label: 'Blacklist', value: blacklistEntries.length, help: showInactive ? 'Tous statuts' : 'Actifs', icon: Ban },
+            { label: 'Audit', value: auditEntries.length, help: 'Actions récentes', icon: ShieldAlert },
+            { label: 'Sécurité', value: CONFIRM_WORD, help: 'Mot requis', icon: Crown }
+          ]}
+          actions={[
+            {
+              label: 'Actualiser',
+              description: 'Recharger comptes, blacklist et audit',
+              icon: RefreshCcw,
+              tone: 'dark',
+              loading: deletionCandidatesQuery.isFetching || blacklistQuery.isFetching || auditQuery.isFetching,
+              onClick: refreshFounderControl
+            }
+          ]}
+        />
 
         {feedback.message ? (
           <div
@@ -229,28 +233,14 @@ export default function FounderAccountControl() {
           </div>
         ) : null}
 
-        <section className="rounded-2xl bg-white p-3 shadow-sm">
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setTab('accounts')}
-              className={`min-h-[44px] rounded-xl text-sm font-semibold ${
-                tab === 'accounts' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'
-              }`}
-            >
-              Comptes
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab('blacklist')}
-              className={`min-h-[44px] rounded-xl text-sm font-semibold ${
-                tab === 'blacklist' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'
-              }`}
-            >
-              Numéros blacklistés
-            </button>
-          </div>
-        </section>
+        <AdminSegmentedControl
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: 'accounts', label: 'Comptes', icon: UserRound, count: deletionCandidates.length },
+            { value: 'blacklist', label: 'Numéros blacklistés', icon: Ban, count: blacklistEntries.length }
+          ]}
+        />
 
         {tab === 'accounts' ? (
           <section className="space-y-3">

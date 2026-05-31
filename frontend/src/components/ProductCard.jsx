@@ -321,7 +321,9 @@ function ProductCard({
   const ratingAverage = Number(p.ratingAverage || 0).toFixed(1);
   const ratingCount = p.ratingCount || 0;
   const commentCount = p.commentCount || 0;
-  const isShopVerified = Boolean(p.user?.shopVerified ?? p.shopVerified);
+  const sellerAccountType = String(p?.user?.accountType || p?.accountType || '').trim().toLowerCase();
+  const isShopSeller = Boolean(p?.user && typeof p.user === 'object' && sellerAccountType === 'shop');
+  const isShopVerified = Boolean(isShopSeller && (p.user?.shopVerified ?? p.shopVerified));
   const shopLogoSrc = p.user?.shopLogo || p.shopLogo || null;
   const productCity = useMemo(() => String(p?.user?.city || p?.city || '').trim(), [p?.user?.city, p?.city]);
 
@@ -532,7 +534,7 @@ function ProductCard({
       lite: useLiteImageMode
     });
     const primaryImageSrcSet = getProductCardSrcSet(primaryImageOriginal, { lite: useLiteImageMode });
-    const shopName = p?.user?.shopName || p?.user?.name || 'HDMarket';
+    const shopName = p?.user?.shopName || 'Boutique HDMarket';
     const modernBadges = [
       hasActiveBoost ? { key: 'boost', label: 'Boost', tone: 'dark', icon: Zap } : null,
       hasDiscount ? { key: 'discount', label: `-${p.discount}%`, tone: 'dark' } : null,
@@ -566,7 +568,9 @@ function ProductCard({
     const trustLabel = freeDeliveryAvailable
       ? 'Livraison offerte'
       : pickupOnly
-        ? 'Retrait boutique'
+        ? isShopSeller
+          ? 'Retrait boutique'
+          : 'Retrait vendeur'
         : isShopVerified
           ? 'Boutique vérifiée'
           : '';
@@ -679,22 +683,28 @@ function ProductCard({
 
             {!isShopProfileCompact ? (
             <div className="flex min-w-0 items-center justify-between gap-2 text-[11px] text-neutral-500">
-              <Link
-                to={buildShopPath(p.user)}
-                {...externalLinkProps}
-                onClick={() => trackCardInteraction('shop_open')}
-                className="flex min-w-0 items-center gap-1.5 font-semibold text-neutral-600 hover:text-neutral-900 dark:text-neutral-300"
-              >
-                {shopLogoSrc ? (
-                  <img src={shopLogoSrc} alt="" className="h-5 w-5 shrink-0 rounded-full object-cover" loading="lazy" />
-                ) : (
-                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-neutral-100 text-[10px] text-neutral-500 dark:bg-neutral-800">
-                    {shopName.charAt(0).toUpperCase()}
-                  </span>
-                )}
-                <span className="truncate">{shopName}</span>
-                {isShopVerified ? <VerifiedBadge verified showLabel={false} className="shrink-0 text-[8px]" /> : null}
-              </Link>
+              {isShopSeller ? (
+                <Link
+                  to={buildShopPath(p.user)}
+                  {...externalLinkProps}
+                  onClick={() => trackCardInteraction('shop_open')}
+                  className="flex min-w-0 items-center gap-1.5 font-semibold text-neutral-600 hover:text-neutral-900 dark:text-neutral-300"
+                >
+                  {shopLogoSrc ? (
+                    <img src={shopLogoSrc} alt="" className="h-5 w-5 shrink-0 rounded-full object-cover" loading="lazy" />
+                  ) : (
+                    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-neutral-100 text-[10px] text-neutral-500 dark:bg-neutral-800">
+                      {shopName.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                  <span className="truncate">{shopName}</span>
+                  {isShopVerified ? <VerifiedBadge verified showLabel={false} className="shrink-0 text-[8px]" /> : null}
+                </Link>
+              ) : (
+                <span className="min-w-0 truncate text-[11px] font-medium text-neutral-500 dark:text-neutral-400">
+                  {productCity || conditionLabel}
+                </span>
+              )}
               {ratingAverage > 0 ? (
                 <span className="inline-flex shrink-0 items-center gap-1 font-semibold text-neutral-700 dark:text-neutral-200">
                   <Star className="h-3 w-3 fill-current" />
@@ -1222,7 +1232,7 @@ function ProductCard({
         )}
 
         {/* Boutique info */}
-        {isShopVerified && !useCompactMobile && (
+        {isShopSeller && !useCompactMobile && (
           <div className="flex items-center gap-1.5 pt-1">
             {shopLogoSrc && (
               <img
@@ -1239,7 +1249,7 @@ function ProductCard({
             >
               {p.user?.shopName || 'Boutique HDMarket'}
             </Link>
-            <VerifiedBadge verified showLabel={false} className="text-[8px]" />
+            {isShopVerified ? <VerifiedBadge verified showLabel={false} className="text-[8px]" /> : null}
           </div>
         )}
 

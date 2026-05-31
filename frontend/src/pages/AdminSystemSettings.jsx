@@ -9,7 +9,9 @@ import {
   Languages,
   MapPin,
   Plus,
+  RefreshCw,
   Save,
+  ShieldCheck,
   Trash2,
   Truck
 } from 'lucide-react';
@@ -19,6 +21,7 @@ import AuthContext from '../context/AuthContext';
 import { emitSettingsRefresh } from '../utils/settingsRefresh';
 import useIsMobile from '../hooks/useIsMobile';
 import { appConfirm } from '../utils/appDialog';
+import { AdminCommandHero, AdminSegmentedControl } from '../components/admin/AdminCommandSurface';
 
 const FEE_FIELDS = [
   { key: 'commissionRate', label: 'Taux commission (%)', type: 'number', step: 0.1 },
@@ -104,6 +107,16 @@ const NETWORK_RUNTIME_QUICK_FLAGS = [
     label: 'Navigation hors ligne',
     fallbackDescription: 'Autorise l’affichage du catalogue à partir des derniers snapshots en cache.'
   }
+];
+
+const SYSTEM_SECTION_OPTIONS = [
+  { value: 'fees', label: 'Frais', icon: Landmark },
+  { value: 'runtime', label: 'Runtime', icon: Globe2 },
+  { value: 'flags', label: 'Flags', icon: ShieldCheck },
+  { value: 'languages', label: 'Langues', icon: Languages },
+  { value: 'currencies', label: 'Devises', icon: Landmark },
+  { value: 'cities', label: 'Villes', icon: MapPin },
+  { value: 'communes', label: 'Communes', icon: Truck }
 ];
 
 const COMMERCE_RUNTIME_CONTROLS = [
@@ -308,6 +321,7 @@ export default function AdminSystemSettings() {
   const [runtimeEnvironment, setRuntimeEnvironment] = useState('');
   const [featureFlags, setFeatureFlags] = useState([]);
   const [featureSavingName, setFeatureSavingName] = useState('');
+  const [activeSystemSection, setActiveSystemSection] = useState('fees');
   const [openSections, setOpenSections] = useState({
     fees: true,
     runtime: false,
@@ -333,6 +347,18 @@ export default function AdminSystemSettings() {
     (sectionKey) => (isMobile ? Boolean(openSections[sectionKey]) : true),
     [isMobile, openSections]
   );
+
+  const focusSystemSection = useCallback((sectionKey) => {
+    const key = String(sectionKey || 'fees');
+    setActiveSystemSection(key);
+    if (isMobile) {
+      setOpenSections((prev) => ({ ...prev, [key]: true }));
+    }
+    window.setTimeout(() => {
+      if (typeof document === 'undefined') return;
+      document.getElementById(key)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  }, [isMobile]);
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
@@ -1190,57 +1216,67 @@ export default function AdminSystemSettings() {
     setCommuneForm((prev) => ({ ...prev, cityId: String(cities[0]._id || '') }));
   }, [cities, communeForm.cityId]);
 
-  return (
-    <div className={`min-h-screen bg-slate-50 text-slate-900 dark:bg-neutral-950 dark:text-neutral-50 ${isMobile ? 'pb-24' : ''}`}>
-      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-md dark:border-neutral-800 dark:bg-neutral-950/85">
-        <div className="mx-auto flex w-full max-w-6xl items-center gap-3 px-3 py-3 sm:px-4">
-          <Link
-            to="/admin"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-700 transition hover:bg-slate-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-900"
-            aria-label="Retour"
-          >
-            <ArrowLeft size={18} />
-          </Link>
-          <div className="min-w-0">
-            <h1 className="truncate text-base font-semibold sm:text-lg">Paramètres système</h1>
-            <p className="truncate text-xs text-slate-500 dark:text-neutral-400">
-              Configuration dynamique admin
-            </p>
-          </div>
-        </div>
-        {isMobile ? (
-          <div className="border-t border-slate-100 px-3 py-2 dark:border-neutral-800">
-            <div className="-mx-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <div className="flex w-max items-center gap-2">
-                {[
-                  ['fees', 'Frais'],
-                  ['runtime', 'Runtime'],
-                  ['flags', 'Flags'],
-                  ['languages', 'Langues'],
-                  ['currencies', 'Devises'],
-                  ['cities', 'Villes'],
-                  ['communes', 'Communes']
-                ].map(([key, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => toggleSection(key)}
-                    className={`inline-flex min-h-9 items-center rounded-full border px-3 text-xs font-semibold transition ${
-                      isSectionOpen(key)
-                        ? 'border-neutral-900 bg-neutral-900 text-white'
-                        : 'border-slate-200 bg-white text-slate-700'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </header>
+  const publicRuntimeCount = useMemo(
+    () => (runtimeSettings || []).filter((item) => item?.isPublic).length,
+    [runtimeSettings]
+  );
+  const enabledFeatureCount = useMemo(
+    () => (featureFlags || []).filter((item) => item?.enabled).length,
+    [featureFlags]
+  );
+  const systemMetrics = [
+    { label: 'Runtime', value: loading ? '...' : runtimeSettings.length, help: `${publicRuntimeCount} publics`, icon: Globe2 },
+    { label: 'Flags', value: loading ? '...' : enabledFeatureCount, help: `${featureFlags.length} configurés`, icon: ShieldCheck },
+    { label: 'Villes', value: loading ? '...' : cities.length, help: `${communes.length} communes`, icon: MapPin },
+    { label: 'Modifs', value: quickSaveCount, help: 'Non enregistrées', icon: Save }
+  ];
 
-      <div className="mx-auto grid w-full max-w-6xl gap-4 px-3 py-4 sm:gap-5 sm:px-4 sm:py-6 lg:grid-cols-2">
+  return (
+    <div className={`min-h-screen bg-neutral-50 text-neutral-950 dark:bg-neutral-950 dark:text-neutral-50 ${isMobile ? 'pb-24' : ''}`}>
+      <div className="mx-auto w-full max-w-6xl space-y-4 px-3 py-4 sm:px-4 sm:py-6">
+        <AdminCommandHero
+          eyebrow={isFounder ? 'Founder system control' : 'Admin system control'}
+          title="Paramètres système"
+          subtitle="Les options activées ici sont diffusées au front via les paramètres publics, puis appliquées au centre de commande, à la navigation admin et aux parcours utilisateurs."
+          meta={`Environnement: ${runtimeEnvironment || 'auto'} · propagation live via settings refresh`}
+          metrics={systemMetrics}
+          actions={[
+            {
+              label: 'Retour admin',
+              description: 'Revenir au panneau principal',
+              to: '/admin',
+              icon: ArrowLeft,
+              tone: 'neutral'
+            },
+            {
+              label: 'Actualiser',
+              description: 'Recharger paramètres et flags',
+              onClick: loadSettings,
+              icon: RefreshCw,
+              tone: 'dark',
+              loading
+            },
+            {
+              label: quickSaveLabel,
+              description: quickSaveCount ? `${quickSaveCount} modification${quickSaveCount > 1 ? 's' : ''}` : 'Aucune modification locale',
+              onClick: handleQuickSave,
+              icon: Save,
+              tone: quickSaveCount ? 'emerald' : 'neutral',
+              disabled: !quickSaveCount || isQuickSaveBusy,
+              loading: isQuickSaveBusy
+            }
+          ]}
+        />
+
+        <div className="sticky top-2 z-20">
+          <AdminSegmentedControl
+            options={SYSTEM_SECTION_OPTIONS}
+            value={activeSystemSection}
+            onChange={focusSystemSection}
+          />
+        </div>
+
+      <div className="grid w-full gap-4 sm:gap-5 lg:grid-cols-2">
         <section
           id="fees"
           className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-900 sm:p-4"
@@ -2364,6 +2400,7 @@ export default function AdminSystemSettings() {
           </div>
           </CollapsibleBody>
         </section>
+      </div>
       </div>
       {isMobile ? (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-2.5 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/95">
