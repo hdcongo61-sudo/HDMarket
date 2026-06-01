@@ -105,7 +105,7 @@ Style direction:
 - Practical
 - Mobile-first
 - Ecommerce-ready
-- Inspired by Apple, Threads, Linear, and high-end African commerce apps
+- Inspired by Apple, Taobao,  Threads, Linear, and high-end African commerce apps
 
 Animations must feel smooth and subtle like Apple products.
 

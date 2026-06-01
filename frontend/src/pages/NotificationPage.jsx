@@ -25,7 +25,6 @@ import NotificationItem from '../components/notifications/NotificationItem';
 import NotificationSkeleton from '../components/notifications/NotificationSkeleton';
 import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
 import { useAppSettings } from '../context/AppSettingsContext';
-import GlassHeader from '../components/ui/GlassHeader';
 import useNetworkProfile from '../hooks/useNetworkProfile';
 import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
 
@@ -184,31 +183,31 @@ const notificationMeta = (alert, t) => {
   const type = alert?.type || '';
   const explicitTitle = String(alert?.title || alert?.metadata?.title || '').trim();
   if (ORDER_TYPES.has(type) || type.startsWith('order_')) {
-    return { title: explicitTitle || t('notifications.orderUpdate', 'Mise à jour commande'), icon: <Package className="h-4 w-4" /> };
+    return { title: explicitTitle || t('notifications.orderUpdate', 'Mise à jour commande'), icon: <Package className="h-4 w-4" />, tone: 'order' };
   }
   if (DELIVERY_TYPES.has(type) || PLATFORM_DELIVERY_TYPES.has(type)) {
-    return { title: explicitTitle || t('notifications.deliveryUpdate', 'Mise à jour livraison'), icon: <Truck className="h-4 w-4" /> };
+    return { title: explicitTitle || t('notifications.deliveryUpdate', 'Mise à jour livraison'), icon: <Truck className="h-4 w-4" />, tone: 'delivery' };
   }
   if (DISPUTE_TYPES.has(type) || COMPLAINT_TYPES.has(type)) {
-    return { title: explicitTitle || t('notifications.disputeUpdate', 'Mise à jour litige'), icon: <Gavel className="h-4 w-4" /> };
+    return { title: explicitTitle || t('notifications.disputeUpdate', 'Mise à jour litige'), icon: <Gavel className="h-4 w-4" />, tone: 'risk' };
   }
-  if (VALIDATION_TYPES.has(type)) return { title: explicitTitle || t('notifications.validationRequired', 'Action requise'), icon: <ShieldAlert className="h-4 w-4" /> };
-  if (type === 'payment_pending' || type === 'payment_proof_submitted' || type === 'payment_validated') return { title: explicitTitle || t('notifications.paymentPending', 'Paiement en attente'), icon: <CreditCard className="h-4 w-4" /> };
-  if (type === 'order_message') return { title: explicitTitle || t('notifications.orderMessage', 'Message commande'), icon: <MessageSquare className="h-4 w-4" /> };
-  if (type === 'admin_broadcast') return { title: explicitTitle || t('notifications.adminMessage', 'Message admin'), icon: <ShieldAlert className="h-4 w-4" /> };
+  if (VALIDATION_TYPES.has(type)) return { title: explicitTitle || t('notifications.validationRequired', 'Action requise'), icon: <ShieldAlert className="h-4 w-4" />, tone: 'risk' };
+  if (type === 'payment_pending' || type === 'payment_proof_submitted' || type === 'payment_validated') return { title: explicitTitle || t('notifications.paymentPending', 'Paiement en attente'), icon: <CreditCard className="h-4 w-4" />, tone: 'payment' };
+  if (type === 'order_message') return { title: explicitTitle || t('notifications.orderMessage', 'Message commande'), icon: <MessageSquare className="h-4 w-4" />, tone: 'message' };
+  if (type === 'admin_broadcast') return { title: explicitTitle || t('notifications.adminMessage', 'Message admin'), icon: <ShieldAlert className="h-4 w-4" />, tone: 'admin' };
   if (type === 'product_boosted' || /boost/i.test(String(alert?.message || ''))) {
-    return { title: explicitTitle || t('notifications.boost', 'Boost'), icon: <Sparkles className="h-4 w-4" /> };
+    return { title: explicitTitle || t('notifications.boost', 'Boost'), icon: <Sparkles className="h-4 w-4" />, tone: 'boost' };
   }
   if (type === 'account_restriction' || type === 'account_restriction_lifted') {
-    return { title: explicitTitle || t('notifications.accountAlert', 'Alerte compte'), icon: <AlertCircle className="h-4 w-4" /> };
+    return { title: explicitTitle || t('notifications.accountAlert', 'Alerte compte'), icon: <AlertCircle className="h-4 w-4" />, tone: 'risk' };
   }
   if (type === 'shop_follow' || type === 'shop_review') {
-    return { title: explicitTitle || t('notifications.shop', 'Boutique'), icon: <Store className="h-4 w-4" /> };
+    return { title: explicitTitle || t('notifications.shop', 'Boutique'), icon: <Store className="h-4 w-4" />, tone: 'shop' };
   }
   if (type.startsWith('installment_')) {
-    return { title: explicitTitle || t('notifications.installment', 'Paiement par tranche'), icon: <ClipboardList className="h-4 w-4" /> };
+    return { title: explicitTitle || t('notifications.installment', 'Paiement par tranche'), icon: <ClipboardList className="h-4 w-4" />, tone: 'payment' };
   }
-  return { title: explicitTitle || t('notifications.notification', 'Notification'), icon: <Bell className="h-4 w-4" /> };
+  return { title: explicitTitle || t('notifications.notification', 'Notification'), icon: <Bell className="h-4 w-4" />, tone: 'system' };
 };
 
 const buildOrderNotificationPath = (alert, user) => {
@@ -522,10 +521,10 @@ export default function NotificationPage() {
 
   if (!user) {
     return (
-      <main className="glass-page-shell min-h-screen px-5 py-16 text-center">
+      <main className="hd-commerce-shell min-h-screen px-5 py-16 text-center">
         <div className="mx-auto max-w-sm">
-          <div className="glass-card mx-auto flex h-16 w-16 items-center justify-center rounded-full">
-            <Bell className="h-7 w-7 text-neutral-500 dark:text-neutral-300" />
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[24px] bg-[#ff6a00] text-white shadow-[0_16px_34px_rgba(255,106,0,0.24)]">
+            <Bell className="h-7 w-7" />
           </div>
           <h1 className="mt-5 text-2xl font-semibold text-neutral-950 dark:text-neutral-100">{t('notifications.title', 'Notifications')}</h1>
           <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
@@ -537,7 +536,7 @@ export default function NotificationPage() {
   }
 
   return (
-    <main className="glass-page-shell min-h-screen text-neutral-900 dark:text-neutral-100">
+    <main className="hd-commerce-shell min-h-screen text-neutral-900 dark:text-neutral-100">
       <div className="mx-auto w-full max-w-3xl">
         {(offlineSnapshotActive || rapid3GActive) && (
           <div className="px-4 pt-4">
@@ -554,27 +553,50 @@ export default function NotificationPage() {
             </section>
           </div>
         )}
-        <header className="sticky top-0 z-30 px-4 pb-3 pt-4">
-          <GlassHeader
-            title={t('notifications.title', 'Notifications')}
-            subtitle={
-              unreadCount > 0
-                ? `${unreadCount} ${t('notifications.newCount', `nouvelle${unreadCount > 1 ? 's' : ''}`)}`
-                : `${alerts.length} ${t('notifications.notificationCount', `notification${alerts.length > 1 ? 's' : ''}`)}`
-            }
-            className="rounded-2xl"
-          >
-            <button
-              type="button"
-              onClick={handleMarkAllRead}
-              disabled={markingAll || unreadCount < 1}
-              className="glass-card inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium text-neutral-700 transition hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-45 dark:text-neutral-200 dark:hover:bg-neutral-900"
-            >
-              <Check className="h-3.5 w-3.5" />
-              {markingAll ? '...' : t('notifications.markAllRead', 'Tout lire')}
-            </button>
-          </GlassHeader>
-          <div className="glass-card mt-3 overflow-x-auto rounded-2xl p-2">
+        <header className="sticky top-0 z-30 px-3 pb-3 pt-3">
+          <section className="relative overflow-hidden rounded-[26px] bg-[#ff3d13] p-4 text-white shadow-[0_16px_34px_rgba(255,106,0,0.22)]">
+            <div className="pointer-events-none absolute -right-8 top-0 h-24 w-24 rounded-full bg-white/14 blur-2xl" />
+            <div className="relative flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="inline-flex items-center gap-2 rounded-full bg-white/16 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide">
+                  <Bell className="h-3.5 w-3.5" />
+                  Centre d'activité
+                </div>
+                <h1 className="mt-3 text-2xl font-black leading-none tracking-tight">
+                  {t('notifications.title', 'Notifications')}
+                </h1>
+                <p className="mt-1 text-sm font-semibold text-white/86">
+                  {unreadCount > 0
+                    ? `${unreadCount} ${t('notifications.newCount', `nouvelle${unreadCount > 1 ? 's' : ''}`)}`
+                    : `${alerts.length} ${t('notifications.notificationCount', `notification${alerts.length > 1 ? 's' : ''}`)}`}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleMarkAllRead}
+                disabled={markingAll || unreadCount < 1}
+                className="inline-flex min-h-[42px] flex-shrink-0 items-center gap-1 rounded-full bg-white px-3 text-xs font-black text-[#ff5a1f] shadow-sm transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-55"
+              >
+                <Check className="h-3.5 w-3.5" />
+                {markingAll ? '...' : t('notifications.markAllRead', 'Tout lire')}
+              </button>
+            </div>
+            <div className="relative mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-2xl bg-white/14 px-3 py-2">
+                <p className="text-[10px] font-bold uppercase text-white/70">Non lues</p>
+                <p className="text-lg font-black leading-tight">{unreadCount}</p>
+              </div>
+              <div className="rounded-2xl bg-white/14 px-3 py-2">
+                <p className="text-[10px] font-bold uppercase text-white/70">Total</p>
+                <p className="text-lg font-black leading-tight">{alerts.length}</p>
+              </div>
+              <div className="rounded-2xl bg-white/14 px-3 py-2">
+                <p className="text-[10px] font-bold uppercase text-white/70">Priorité</p>
+                <p className="text-lg font-black leading-tight">{filterCounts.orders + filterCounts.delivery}</p>
+              </div>
+            </div>
+          </section>
+          <div className="mt-3 overflow-x-auto rounded-[22px] border border-orange-100 bg-white/92 p-2 shadow-[0_10px_26px_rgba(117,75,36,0.08)]">
             <div className="flex w-max items-center gap-2">
               {filters.map((filter) => {
                 const isActive = activeFilter === filter.key;
@@ -585,14 +607,14 @@ export default function NotificationPage() {
                     onClick={() => setActiveFilter(filter.key)}
                     className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition ${
                       isActive
-                        ? 'soft-card soft-card-purple text-purple-900 dark:text-purple-100'
-                        : 'glass-card text-neutral-600 hover:bg-white/80 dark:text-neutral-300 dark:hover:bg-neutral-900'
+                        ? 'bg-[#ff6a00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
+                        : 'bg-orange-50 text-[#9a4a00] hover:bg-orange-100 dark:text-neutral-300 dark:hover:bg-neutral-900'
                     }`}
                   >
                     {filter.label}
                     <span
                       className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                        isActive ? 'bg-white/30 dark:bg-black/20' : 'bg-neutral-100/80 dark:bg-neutral-800/80'
+                        isActive ? 'bg-white/25 dark:bg-black/20' : 'bg-white/80 dark:bg-neutral-800/80'
                       }`}
                     >
                       {filterCounts[filter.key] || 0}
@@ -604,7 +626,7 @@ export default function NotificationPage() {
           </div>
         </header>
 
-        <section className="relative px-4 pb-10" {...bind}>
+        <section className="relative px-3 pb-10" {...bind}>
           <AnimatePresence>
             {(pullDistance > 0 || refreshing) && (
               <motion.div
@@ -613,7 +635,7 @@ export default function NotificationPage() {
                 exit={{ opacity: 0, y: -8 }}
                 className="flex items-center justify-center py-2"
               >
-                <div className="glass-card inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs text-neutral-500 dark:text-neutral-300">
+                <div className="inline-flex items-center gap-2 rounded-full border border-orange-100 bg-white px-3 py-1 text-xs font-semibold text-[#9a4a00] shadow-sm dark:text-neutral-300">
                   <Bell className={`h-3.5 w-3.5 ${refreshing ? 'animate-pulse' : ''}`} />
                   {refreshing ? t('notifications.refreshing', 'Actualisation…') : t('notifications.pullToRefresh', 'Relâchez pour actualiser')}
                 </div>
@@ -622,7 +644,7 @@ export default function NotificationPage() {
           </AnimatePresence>
 
           {actionError && (
-            <div className="soft-card soft-card-red mt-4 rounded-xl px-3 py-2 text-xs text-red-700 dark:text-red-100">
+            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 dark:text-red-100">
               {actionError}
             </div>
           )}
@@ -633,7 +655,7 @@ export default function NotificationPage() {
             </div>
           ) : error && !offlineSnapshotActive ? (
             <div className="mt-6">
-              <div className="glass-card rounded-2xl p-1 shadow-sm">
+              <div className="rounded-2xl border border-orange-100 bg-white p-1 shadow-sm">
                 <NetworkFallbackCard
                   title={t('notifications.errors.loadTitle', 'Unable to load data.')}
                   message={t('notifications.errors.load', 'Network is slow, please retry.')}
@@ -656,10 +678,10 @@ export default function NotificationPage() {
                       : t('notifications.earlier', 'Plus tôt');
                 return (
                   <section key={bucket} className="pt-4">
-                    <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-500 dark:text-neutral-400">
+                    <h2 className="mb-2 px-1 text-[11px] font-black uppercase tracking-[0.08em] text-[#9a4a00] dark:text-neutral-400">
                       {title}
                     </h2>
-                    <div className="divide-y divide-white/35 dark:divide-neutral-800">
+                    <div className="space-y-2">
                       <AnimatePresence initial={false}>
                         {list.map((alert) => {
                           const isUnread = Boolean(alert?.isNew);
@@ -719,9 +741,9 @@ export default function NotificationPage() {
           </div>
           ) : (
             <div className="mt-14 text-center">
-              <div className="glass-card mx-auto max-w-md rounded-2xl p-6 shadow-sm">
-                <div className="glass-card mx-auto flex h-14 w-14 items-center justify-center rounded-full">
-                  <Bell className="h-6 w-6 text-neutral-500 dark:text-neutral-300" />
+              <div className="mx-auto max-w-md rounded-[26px] border border-orange-100 bg-white p-6 shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] bg-orange-50 text-[#ff6a00]">
+                  <Bell className="h-6 w-6" />
                 </div>
                 <h3 className="mt-4 text-base font-medium text-neutral-900 dark:text-neutral-100">
                   {t('notifications.emptyTitle', 'Aucune notification')}

@@ -1468,8 +1468,8 @@ export default function ProductForm(props) {
       onClick={() => {
         if (!disabled) onChange?.(!checked);
       }}
-      className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2 ${
-        checked ? 'border-neutral-900 bg-neutral-900' : 'border-gray-200 bg-gray-200'
+      className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:ring-offset-2 ${
+        checked ? 'border-[#ff6a00] bg-[#ff6a00]' : 'border-orange-100 bg-orange-50'
       } ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer active:scale-95'}`}
     >
       <span
@@ -1480,10 +1480,10 @@ export default function ProductForm(props) {
     </button>
   );
   const sectionShellClass =
-    'rounded-[22px] border border-neutral-200/80 bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] sm:p-5';
-  const innerPanelClass = 'rounded-2xl border border-neutral-200 bg-neutral-50/70 p-4';
+    'hd-form-card rounded-[22px] p-4 sm:p-5';
+  const innerPanelClass = 'rounded-2xl border border-orange-100 bg-orange-50/45 p-4';
   const inputClass =
-    'w-full min-w-0 rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 transition focus:border-transparent focus:ring-2 focus:ring-neutral-500';
+    'ui-input w-full min-w-0 rounded-[18px] px-4 py-3 text-sm text-gray-900 placeholder-gray-400';
   const sectionProgressItems = [
     { key: 'info', label: 'Infos', done: requiredFields.title && requiredFields.description },
     { key: 'price', label: 'Prix', done: requiredFields.category && requiredFields.price },
@@ -2981,7 +2981,7 @@ export default function ProductForm(props) {
                 <button
                   type="button"
                   onClick={onCancel}
-                  className="w-full min-h-[46px] rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 active:bg-gray-100"
+                  className="hd-soft-button w-full min-h-[46px] rounded-[18px] text-sm font-semibold"
                 >
                   Annuler
                 </button>
@@ -2990,7 +2990,7 @@ export default function ProductForm(props) {
             <button
               type="submit"
               disabled={submitDisabled}
-              className="flex min-h-[54px] w-full items-center justify-center gap-2 rounded-2xl bg-neutral-950 py-4 text-[17px] font-semibold text-white shadow-[0_16px_30px_rgba(15,23,42,0.20)] transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+              className="hd-primary-button flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[20px] py-4 text-[17px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? (
                 <>
@@ -3009,7 +3009,7 @@ export default function ProductForm(props) {
           <button
             type="submit"
             disabled={submitDisabled}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-neutral-950 py-4 font-semibold text-white shadow-[0_18px_40px_rgba(15,23,42,0.18)] transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="hd-primary-button flex w-full items-center justify-center gap-2 rounded-[20px] py-4 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? (
               <>

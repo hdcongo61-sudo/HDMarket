@@ -532,7 +532,7 @@ export default function OrderMessages() {
 
   if ((loading && effectiveConversations.length === 0 && !offlineSnapshotActive) || inquiryLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 relative">
+      <div className="hd-order-flow hd-commerce-shell min-h-screen dark:bg-gray-900 relative">
         {inquiryLoading && (
           <BaseModal
             isOpen={inquiryLoading}
@@ -566,7 +566,7 @@ export default function OrderMessages() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-gray-900">
+    <div className="hd-order-flow hd-commerce-shell min-h-screen dark:bg-gray-900">
       {/* Header: breadcrumb + title + stats */}
       <header className="border-b border-slate-200 dark:border-gray-800 bg-white dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-5">

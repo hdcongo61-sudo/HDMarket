@@ -172,6 +172,7 @@ const userSchema = new mongoose.Schema(
       delivery_request_assigned: { type: Boolean, default: true },
       delivery_request_in_progress: { type: Boolean, default: true },
       delivery_request_delivered: { type: Boolean, default: true },
+      delivery_distance_warning: { type: Boolean, default: true },
       order_cancelled: { type: Boolean, default: true },
       installment_due_reminder: { type: Boolean, default: true },
       installment_overdue_warning: { type: Boolean, default: true },

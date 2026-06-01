@@ -937,7 +937,7 @@ export default function UserDashboard() {
 
   if (loading && items.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="hd-my-flow hd-commerce-shell min-h-screen">
         <div className="max-w-7xl mx-auto px-4 py-12">
           <div className="space-y-8">
             <div className="space-y-4">
@@ -961,9 +961,9 @@ export default function UserDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="hd-my-flow hd-commerce-shell min-h-screen">
       {/* Header Section */}
-      <div className="bg-neutral-600 text-white">
+      <div className="hd-my-hero text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-2">
@@ -2494,15 +2494,15 @@ export default function UserDashboard() {
         mobileSheet
         fullscreen={isMobile}
         ariaLabel={editingProduct ? 'Modifier une annonce' : 'Publier une annonce'}
-        rootClassName={isMobile ? '!p-0' : ''}
+        rootClassName={isMobile ? '!p-0 hd-my-flow' : 'hd-my-flow'}
         panelClassName={
           isMobile
-            ? 'min-h-0 h-[100dvh] max-h-[100dvh] rounded-none border-0 bg-[#f2f2f7] sm:rounded-none'
-            : 'sm:max-w-5xl sm:max-h-[90vh] sm:rounded-3xl'
+            ? 'min-h-0 h-[100dvh] max-h-[100dvh] rounded-none border-0 bg-[#fff7ef] sm:rounded-none'
+            : 'sm:max-w-5xl sm:max-h-[90vh] sm:rounded-3xl border-orange-100 bg-[#fffaf4]'
         }
       >
             {/* Modal Header */}
-            <div className={`bg-neutral-600 text-white flex-shrink-0 ${isMobile ? 'px-4 py-4 safe-area-top' : 'px-6 py-5'}`}>
+            <div className={`hd-my-hero text-white flex-shrink-0 ${isMobile ? 'px-4 py-4 safe-area-top' : 'px-6 py-5'}`}>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className={`rounded-xl bg-white/20 backdrop-blur-sm flex-shrink-0 ${isMobile ? 'p-2.5' : 'p-3'}`}>

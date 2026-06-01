@@ -7,7 +7,7 @@ import MobileSplash from "../components/MobileSplash";
 import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
 import ShimmerSkeleton from "../components/ui/ShimmerSkeleton";
 import categoryGroups, { allCategoryOptions } from "../data/categories";
-import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame } from "lucide-react";
+import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store } from "lucide-react";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
 import { buildProductPath, buildShopPath } from "../utils/links";
 import AuthContext from "../context/AuthContext";
@@ -971,11 +971,30 @@ const loadDiscountProducts = async () => {
       ...discountProducts.filter(p => !highlights.topDeals.some(d => d._id === p._id)).slice(0, 4)
     ].slice(0, 8);
     const displayFlashDeals = (flashDeals.length ? flashDeals : fallbackDeals).slice(0, 8);
+    const heroProducts = [
+      ...displayFlashDeals,
+      ...topSalesProducts,
+      ...items
+    ].filter(Boolean).slice(0, 4);
+    const discoveryTabs = [
+      { label: 'Recommandé', to: '/' },
+      { label: 'Mode', to: '/categories/pret-porter' },
+      { label: 'Maison', to: '/categories/meubles' },
+      { label: '3C Tech', to: '/categories/telephones' },
+      { label: 'Promos', to: '/top-deals' }
+    ];
+    const shortcutItems = [
+      { label: 'Top Picks', icon: Award, to: '/top-ranking' },
+      { label: 'Boutiques', icon: Store, to: '/shops/verified' },
+      { label: 'Bon prix', icon: Zap, to: '/top-deals' },
+      { label: 'Livraison', icon: Truck, to: '/shops/free-delivery' },
+      { label: 'Découvrir', icon: Sparkles, to: '/discover' }
+    ];
 
     const scrollStyle = { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' };
 
     return (
-      <main className="max-w-7xl mx-auto px-3 max-[375px]:px-2.5 pt-2.5 max-[375px]:pt-1.5 pb-4 max-[375px]:pb-3 space-y-3 max-[375px]:space-y-2.5">
+      <main className="max-w-7xl mx-auto px-2.5 max-[375px]:px-2 pt-0 pb-4 max-[375px]:pb-3 space-y-3 max-[375px]:space-y-2.5">
         {user ? (
           <div className="rounded-xl border border-neutral-200 bg-white px-3 py-2 shadow-sm">
             <div className="flex items-center gap-2">
@@ -1013,8 +1032,156 @@ const loadDiscountProducts = async () => {
             </div>
           </Link>
         ) : null}
+        <section className="-mx-2.5 overflow-hidden rounded-b-[30px] bg-[#ff3d13] text-white shadow-[0_16px_34px_rgba(255,106,0,0.2)] max-[375px]:-mx-2">
+          <div className="relative px-4 pb-4 pt-4 max-[375px]:px-3">
+            <div className="pointer-events-none absolute -right-8 top-3 h-24 w-24 rounded-full bg-white/15 blur-2xl" />
+            <div className="pointer-events-none absolute left-32 -top-8 h-16 w-16 rounded-full bg-amber-200/20 blur-xl" />
+            <div className="relative flex items-center justify-between gap-3">
+              <Link to="/" className="flex items-center gap-2" {...externalLinkProps}>
+                <span className="text-[30px] font-black leading-none tracking-tight">HDMarket</span>
+              </Link>
+              <Link
+                to="/cities"
+                {...externalLinkProps}
+                className="inline-flex min-w-0 items-center gap-1 rounded-full bg-white/15 px-2.5 py-1.5 text-xs font-semibold backdrop-blur"
+              >
+                <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                <span className="max-w-[86px] truncate">{effectiveUserCity || 'Local'}</span>
+                <ChevronRight className="h-3 w-3 flex-shrink-0" />
+              </Link>
+            </div>
+
+            <div className="relative mt-4 flex gap-6 overflow-x-auto pb-2 hide-scrollbar" style={scrollStyle}>
+              {discoveryTabs.map((tab, index) => (
+                <Link
+                  key={tab.label}
+                  to={tab.to}
+                  {...externalLinkProps}
+                  className={`relative flex-shrink-0 text-base font-extrabold ${index === 0 ? 'text-white' : 'text-white/76'}`}
+                >
+                  {tab.label}
+                  {index === 0 ? <span className="absolute -bottom-2 left-1 h-1 w-7 rounded-full bg-white" /> : null}
+                </Link>
+              ))}
+            </div>
+
+            <div className="relative mt-4 flex h-[54px] items-center gap-2 rounded-full border-2 border-white bg-white px-3 shadow-[0_10px_26px_rgba(123,42,0,0.18)]">
+              <button
+                type="button"
+                onClick={() => setCategoryModalOpen(true)}
+                className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-orange-50 text-[#ff4f17] active:scale-95"
+                aria-label="Ouvrir les catégories"
+              >
+                <LayoutGrid className="h-5 w-5" />
+              </button>
+              <Link
+                to="/products"
+                {...externalLinkProps}
+                className="min-w-0 flex-1 truncate text-left text-[15px] font-semibold text-slate-700"
+              >
+                Rechercher produits, boutiques, ville...
+              </Link>
+              <Link
+                to="/products"
+                {...externalLinkProps}
+                className="inline-flex h-11 w-16 flex-shrink-0 items-center justify-center rounded-full bg-[#ff5a1f] text-white shadow-[0_8px_18px_rgba(255,90,31,0.28)] active:scale-95"
+                aria-label="Rechercher"
+              >
+                <Search className="h-6 w-6" />
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-[24px] border border-orange-100 bg-white p-3 shadow-[0_10px_28px_rgba(23,23,23,0.06)]">
+          <div className="grid grid-cols-5 gap-2">
+            {shortcutItems.map(({ label, icon: Icon, to }, index) => (
+              <Link
+                key={label}
+                to={to}
+                {...externalLinkProps}
+                className="flex min-w-0 flex-col items-center gap-1.5 rounded-2xl px-1 py-2 text-center active:scale-95"
+              >
+                <span className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl ${
+                  index === 0 ? 'bg-amber-100 text-amber-700' :
+                  index === 1 ? 'bg-orange-100 text-[#ff5a1f]' :
+                  index === 2 ? 'bg-rose-100 text-rose-600' :
+                  index === 3 ? 'bg-emerald-100 text-emerald-700' :
+                  'bg-slate-100 text-slate-700'
+                }`}>
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span className="max-w-full truncate text-[11px] font-bold text-slate-800">{label}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {heroProducts.length > 0 ? (
+          <section className="overflow-hidden rounded-[24px] bg-[#ff3d13] p-2 shadow-[0_12px_30px_rgba(255,69,20,0.22)]">
+            <div className="grid grid-cols-2 gap-2">
+              <Link
+                to="/top-deals"
+                {...externalLinkProps}
+                className="col-span-2 flex min-h-[118px] overflow-hidden rounded-[18px] bg-white/95 text-slate-950 active:scale-[0.99]"
+              >
+                <div className="flex flex-1 flex-col justify-between p-3">
+                  <div>
+                    <p className="text-[12px] font-black uppercase tracking-wide text-[#ff4f17]">Sélection chaude</p>
+                    <p className="mt-1 text-xl font-black leading-tight">Offres à suivre aujourd’hui</p>
+                  </div>
+                  <span className="inline-flex w-fit items-center gap-1 rounded-full bg-[#ff5a1f] px-3 py-1.5 text-xs font-black text-white">
+                    Voir <ChevronRight className="h-3.5 w-3.5" />
+                  </span>
+                </div>
+                <div className="grid w-[42%] grid-cols-2 gap-1 p-2">
+                  {heroProducts.slice(0, 4).map((product, idx) => (
+                    <div key={`hero-thumb-${product._id || idx}`} className="overflow-hidden rounded-xl bg-orange-50">
+                      <PreviewableImage
+                        src={resolveProductPrimaryImage(product)}
+                        images={resolveProductImageSet(product)}
+                        alt={product.title || 'Produit'}
+                        className="h-full w-full object-cover"
+                        loading={idx < 2 ? 'eager' : 'lazy'}
+                        reportContext={buildImageReportContext(product, buildHomeProductLink(product))}
+                        showHint={false}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </Link>
+              {heroProducts.slice(0, 2).map((product, idx) => (
+                <Link
+                  key={`hero-product-${product._id || idx}`}
+                  to={buildHomeProductLink(product)}
+                  {...externalLinkProps}
+                  className="overflow-hidden rounded-[18px] bg-white/95 active:scale-[0.98]"
+                >
+                  <div className="aspect-[1.18/1] overflow-hidden bg-orange-50">
+                    <PreviewableImage
+                      src={resolveProductPrimaryImage(product)}
+                      images={resolveProductImageSet(product)}
+                      alt={product.title || 'Produit'}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                      reportContext={buildImageReportContext(product, buildHomeProductLink(product))}
+                      showHint={false}
+                    />
+                  </div>
+                  <div className="p-2.5">
+                    <p className="line-clamp-1 text-[12px] font-black text-slate-900">{product.title}</p>
+                    <p className="mt-1 text-[17px] font-black leading-none text-[#ff4f17]">
+                      {Number(product.promoPrice ?? product.price ?? 0).toLocaleString()} F
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         {/* Mobile Categories Module */}
-        <section className="rounded-2xl border border-gray-200 bg-white p-3 max-[375px]:p-2.5 shadow-sm">
+        <section className="hidden rounded-2xl border border-gray-200 bg-white p-3 max-[375px]:p-2.5 shadow-sm">
           <div className="mb-2.5 max-[375px]:mb-2 flex items-center justify-between">
             <div className="flex items-center gap-2 max-[375px]:gap-1.5">
               <div className="inline-flex h-6 w-6 max-[375px]:h-5 max-[375px]:w-5 items-center justify-center rounded-lg bg-neutral-900">
@@ -1062,7 +1229,7 @@ const loadDiscountProducts = async () => {
         </section>
 
         {/* Mobile Hero */}
-        <section className="relative overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-900 shadow-sm min-h-[170px] max-[375px]:min-h-[155px]">
+        <section className="hidden relative overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-900 shadow-sm min-h-[170px] max-[375px]:min-h-[155px]">
           {heroBanner && (
             <div className="absolute inset-0">
               <img src={heroBanner} alt="Bannière HDMarket" className="h-full w-full object-cover" loading="eager" />
@@ -1106,7 +1273,7 @@ const loadDiscountProducts = async () => {
         </section>
 
         {/* Buyer or Seller callout */}
-        <div className="flex items-center justify-center gap-2 max-[375px]:gap-1.5 py-2.5 max-[375px]:py-2 px-3 max-[375px]:px-2.5 bg-neutral-50 rounded-xl border border-neutral-200/80">
+        <div className="hidden items-center justify-center gap-2 max-[375px]:gap-1.5 py-2.5 max-[375px]:py-2 px-3 max-[375px]:px-2.5 bg-neutral-50 rounded-xl border border-neutral-200/80">
           <ShoppingBag className="w-4 h-4 max-[375px]:w-3.5 max-[375px]:h-3.5 text-neutral-800 flex-shrink-0" />
           <span className="text-xs max-[375px]:text-[11px] text-gray-700 text-center">
             {commerceCallout} <span className="font-semibold text-neutral-700">{t('home.youChoose', 'vous choisissez')}</span>.
@@ -2568,7 +2735,7 @@ const loadDiscountProducts = async () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F7F8]">
+    <div className="hd-commerce-shell min-h-screen">
       <MobileSplash visible={showMobileSplash} logoSrc={appLogoMobile} label="HDMarket" />
       {(offlineSnapshotActive || rapid3GActive) && (
         <div className="mx-auto max-w-7xl px-2 pt-3 sm:px-4 lg:px-8">

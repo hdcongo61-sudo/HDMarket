@@ -84,6 +84,11 @@ const TEMPLATES = {
     message: `La livraison de ${resolveOrderLabel(metadata, snapshot)} est terminée.`,
     actionLabel: 'Voir commande'
   }),
+  delivery_distance_warning: ({ metadata, snapshot }) => ({
+    title: 'Livraison longue distance',
+    message: `Le vendeur de ${resolveOrderLabel(metadata, snapshot)} est dans une autre ville${metadata.buyerCity ? ` que ${metadata.buyerCity}` : ''}. Vérifiez les conditions de livraison, l'emballage et l'état du produit à la réception.`,
+    actionLabel: 'Voir commande'
+  }),
   review_reminder: ({ metadata, snapshot }) => ({
     title: 'Avis demandé',
     message: `Comment s'est passée ${resolveOrderLabel(metadata, snapshot)} ? Partagez votre expérience en laissant un avis.`,

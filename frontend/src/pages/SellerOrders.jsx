@@ -477,46 +477,48 @@ const SellerOrderSummaryCard = ({ order }) => {
   return (
     <Link
       to={`/seller/orders/detail/${order._id}`}
-      className="ui-card ui-card-interactive ui-card-fade-in group block overflow-hidden transition hover:bg-neutral-50 dark:hover:bg-neutral-900/80"
+      className="group block overflow-hidden rounded-[26px] border border-orange-100 bg-white shadow-[0_16px_38px_rgba(117,75,36,0.10)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(117,75,36,0.14)] dark:border-orange-900/30 dark:bg-neutral-950"
     >
-      <div className="ui-card-soft-separator flex items-center justify-between px-4 py-3 bg-gray-50/50">
+      <div className="flex items-center justify-between gap-3 border-b border-orange-50 bg-[#fff8ef] px-4 py-3 dark:border-orange-900/30 dark:bg-neutral-900/70">
         <div className="flex items-center gap-1.5 min-w-0">
-          <User className="w-4 h-4 text-gray-500 flex-shrink-0" />
-          <span className="font-semibold text-gray-900 truncate">{customerName}</span>
-          <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-orange-100 text-[#FF6A00]">
+            <User className="w-3.5 h-3.5" />
+          </span>
+          <span className="font-black text-gray-950 truncate dark:text-white">{customerName}</span>
+          <ChevronRight className="w-4 h-4 text-orange-300 flex-shrink-0" />
         </div>
         <StatusBadge status={statusBadgeKey} />
       </div>
       <div className="px-4 pt-3">
         <div className="flex items-center justify-between gap-3">
-          <p className="truncate text-xs font-semibold text-neutral-500">{uiState.nextStep}</p>
-          <span className="shrink-0 text-[11px] font-bold text-neutral-500">{uiState.progress}%</span>
+          <p className="truncate text-xs font-bold text-[#9A4A00]">{uiState.nextStep}</p>
+          <span className="shrink-0 text-[11px] font-black text-[#FF6A00]">{uiState.progress}%</span>
         </div>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-orange-50 dark:bg-neutral-800">
           <div
-            className={`h-full rounded-full transition-all duration-500 ${uiState.isUrgent ? 'bg-red-500' : 'bg-neutral-900 dark:bg-neutral-100'}`}
+            className={`h-full rounded-full transition-all duration-500 ${uiState.isUrgent ? 'bg-red-500' : 'bg-[#FF6A00]'}`}
             style={{ width: `${uiState.progress}%` }}
           />
         </div>
       </div>
       <div className="p-4 flex gap-3">
         {firstItem?.snapshot?.image ? (
-          <div className="ui-media-frame ui-media-frame-square h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0">
+          <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-[18px] bg-orange-50 sm:h-24 sm:w-24">
             <img
               src={firstItem.snapshot.image}
               alt={productTitle}
-              className="ui-media-img ui-media-img-cover"
+              className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
               loading="lazy"
               decoding="async"
             />
           </div>
         ) : (
-          <div className="ui-media-frame ui-media-frame-square w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center flex-shrink-0">
-            <Package className="w-8 h-8 text-neutral-800" />
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-[18px] bg-orange-50 flex items-center justify-center flex-shrink-0">
+            <Package className="w-8 h-8 text-[#FF6A00]" />
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-gray-900 text-sm line-clamp-2">{productTitle}</p>
+          <p className="font-black text-gray-950 text-sm line-clamp-2 dark:text-white">{productTitle}</p>
           {itemCount > 1 && <p className="text-xs text-gray-500 mt-0.5">+{itemCount - 1} autre{itemCount > 2 ? 's' : ''}</p>}
           <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
             <span>{formatCurrency(firstItem?.snapshot?.price ?? 0)}</span>
@@ -530,12 +532,12 @@ const SellerOrderSummaryCard = ({ order }) => {
           />
           {isInstallmentOrder && (
             <div className="mt-2 space-y-1">
-              <p className="text-xs font-semibold text-neutral-700">
+              <p className="text-xs font-bold text-[#9A4A00]">
                 {t('orders.installment', 'Tranche')}: {installmentProgress}% {t('orders.validated', 'validé')}
               </p>
-              <div className="h-1.5 rounded-full bg-neutral-100 overflow-hidden">
+              <div className="h-1.5 rounded-full bg-orange-50 overflow-hidden">
                 <div
-                  className="h-full bg-neutral-900"
+                  className="h-full bg-[#FF6A00]"
                   style={{ width: `${installmentProgress}%` }}
                 />
               </div>
@@ -556,13 +558,13 @@ const SellerOrderSummaryCard = ({ order }) => {
             <StatusBadge status={fullPaymentBadgeStatus} compact />
           )}
           <div className="flex items-center gap-2">
-            <span className="font-bold text-gray-900">{formatCurrency(totalAmount)}</span>
+            <span className="font-black text-[#FF6A00]">{formatCurrency(totalAmount)}</span>
             <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${
               uiState.primaryAction.tone === 'urgent'
                 ? 'bg-red-50 text-red-700'
                 : uiState.primaryAction.tone === 'muted'
-                  ? 'bg-neutral-100 text-neutral-500'
-                  : 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-950'
+                  ? 'bg-orange-50 text-[#9A4A00]'
+                  : 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.18)]'
             }`}>
               {uiState.primaryAction.label}
             </span>
@@ -1679,7 +1681,7 @@ export default function SellerOrders() {
 
   if (loading && orders.length === 0) {
     return (
-      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
+      <div className="hd-commerce-shell min-h-screen dark:bg-neutral-950">
         <GlassHeader title={t('orders.sellerTitle', 'Commandes vendeur')} subtitle={t('common.loading', 'Chargement...')} backTo="/" />
         <div className="max-w-7xl mx-auto px-4 py-6">
           <OrderListSkeleton items={5} />
@@ -1689,7 +1691,7 @@ export default function SellerOrders() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950" {...bind}>
+    <div className="hd-commerce-shell min-h-screen dark:bg-neutral-950" {...bind}>
       {(pullDistance > 0 || refreshing) && (
         <div className="fixed left-0 right-0 top-0 z-50 flex items-center justify-center gap-2 bg-neutral-900 py-2 text-white">
           <RefreshCw
@@ -1701,24 +1703,39 @@ export default function SellerOrders() {
           </span>
         </div>
       )}
-      <GlassHeader
-        title={t('orders.sellerTitle', 'Commandes vendeur')}
-        subtitle={t('orders.sellerSubtitle', 'Suivi, livraison et validation')}
-        backTo="/"
-        right={
+      <div className="px-4 pt-5 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-[28px] border border-orange-100 bg-white/80 px-4 py-4 shadow-[0_18px_42px_rgba(117,75,36,0.10)] backdrop-blur dark:border-orange-900/30 dark:bg-neutral-950/80">
+          <Link
+            to="/"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-orange-50 text-[#9A4A00] transition active:scale-95"
+            aria-label={t('common.back', 'Retour')}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#B45309]">
+              {t('orders.sellerCommandCenter', 'File vendeur')}
+            </p>
+            <h1 className="truncate text-2xl font-black text-neutral-950 dark:text-white">
+              {t('orders.sellerTitle', 'Commandes vendeur')}
+            </h1>
+            <p className="truncate text-sm text-neutral-500 dark:text-neutral-400">
+              {t('orders.sellerSubtitle', 'Suivi, livraison et validation')}
+            </p>
+          </div>
           <Link
             to="/stats"
-            className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+            className="inline-flex items-center gap-2 rounded-full border border-orange-100 bg-orange-50 px-3 py-2 text-xs font-bold text-[#9A4A00] transition hover:bg-orange-100 dark:border-orange-900/30 dark:bg-orange-950/30 dark:text-orange-200"
           >
             <TrendingUp className="h-3.5 w-3.5" />
             {t('orders.stats', 'Stats')}
           </Link>
-        }
-      />
+        </div>
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {(queuedStatusActionCount > 0 || statusQueueSyncing) && (
-          <div className="mb-4 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-medium text-violet-800 shadow-sm dark:border-violet-800 dark:bg-violet-900/20 dark:text-violet-300">
+          <div className="mb-4 rounded-[22px] border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-bold text-[#9A4A00] shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-200">
             {statusQueueSyncing
               ? 'Synchronisation des changements de statut en attente...'
               : `${queuedStatusActionCount} changement${queuedStatusActionCount > 1 ? 's' : ''} de statut en attente de connexion.`}
@@ -1736,9 +1753,9 @@ export default function SellerOrders() {
 
         {!installmentAnalyticsLoading && installmentAnalytics.totalInstallmentSales > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-6">
+            <div className="rounded-[24px] border border-orange-100 bg-white p-6 shadow-[0_14px_32px_rgba(117,75,36,0.08)]">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-neutral-900">
+                <div className="p-3 rounded-2xl bg-[#FF6A00]">
                   <CreditCard className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-2xl font-bold text-gray-900">
@@ -1750,9 +1767,9 @@ export default function SellerOrders() {
                 Terminées: {installmentAnalytics.completedOrders} • Retard: {installmentAnalytics.overdueOrders}
               </p>
             </div>
-            <div className="bg-white rounded-2xl border border-neutral-100 shadow-sm p-6">
+            <div className="rounded-[24px] border border-orange-100 bg-white p-6 shadow-[0_14px_32px_rgba(117,75,36,0.08)]">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-neutral-700">
+                <div className="p-3 rounded-2xl bg-[#FF6A00]">
                   <DollarSign className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-2xl font-bold text-gray-900">
@@ -1764,9 +1781,9 @@ export default function SellerOrders() {
                 Déjà collecté: {formatCurrency(installmentAnalytics.collectedAmount)}
               </p>
             </div>
-            <div className="bg-white rounded-2xl border border-neutral-100 shadow-sm p-6">
+            <div className="rounded-[24px] border border-orange-100 bg-white p-6 shadow-[0_14px_32px_rgba(117,75,36,0.08)]">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-neutral-700">
+                <div className="p-3 rounded-2xl bg-[#FF6A00]">
                   <AlertCircle className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-2xl font-bold text-gray-900">
@@ -1805,15 +1822,15 @@ export default function SellerOrders() {
             </div>
           </div>
         ) : orders.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
-            <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
-              <ClipboardList className="w-10 h-10 text-gray-400" />
+          <div className="rounded-[28px] border border-orange-100 bg-white/90 p-8 text-center shadow-[0_18px_42px_rgba(117,75,36,0.10)] sm:p-12">
+            <div className="mx-auto w-20 h-20 rounded-[24px] bg-orange-50 flex items-center justify-center mb-4">
+              <ClipboardList className="w-10 h-10 text-[#FF6A00]" />
             </div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">{t('orders.noOrders', 'Aucune commande')}</h3>
             <p className="text-sm text-gray-500 mb-6">{emptyMessage}</p>
             <Link
               to="/my"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-900 text-white font-semibold hover:bg-neutral-800 shadow-lg hover:shadow-xl transition-all"
+              className="hd-primary-button inline-flex items-center gap-2 px-6 py-3 font-bold"
             >
               <Sparkles className="w-4 h-4" />
               {t('orders.manageListings', 'Gérer mes annonces')}
@@ -1900,7 +1917,7 @@ export default function SellerOrders() {
 
             {/* Pagination */}
             {meta.totalPages > 1 && (
-              <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-between bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-between rounded-[24px] border border-orange-100 bg-white/90 p-6 shadow-sm">
                 <p className="text-sm text-gray-600">
                   Page <span className="font-bold text-gray-900">{page}</span> sur{' '}
                   <span className="font-bold text-gray-900">{meta.totalPages}</span> —{' '}
@@ -1911,7 +1928,7 @@ export default function SellerOrders() {
                     type="button"
                     onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                     disabled={page <= 1}
-                    className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    className="hd-soft-button px-4 py-2.5 text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Précédent
                   </button>
@@ -1919,7 +1936,7 @@ export default function SellerOrders() {
                     type="button"
                     onClick={() => setPage((prev) => Math.min(meta.totalPages, prev + 1))}
                     disabled={page >= meta.totalPages}
-                    className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    className="hd-soft-button px-4 py-2.5 text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Suivant
                   </button>

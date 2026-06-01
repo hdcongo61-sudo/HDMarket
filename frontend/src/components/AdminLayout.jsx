@@ -247,6 +247,14 @@ export default function AdminLayout() {
   }, [storageKey]);
 
   useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    document.body.classList.add('hd-admin-modal-scope');
+    return () => {
+      document.body.classList.remove('hd-admin-modal-scope');
+    };
+  }, []);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
     const payload = {
       sidebarCollapsed: Boolean(sidebarCollapsed),
@@ -273,7 +281,7 @@ export default function AdminLayout() {
         className={({ isActive }) =>
           `group relative flex min-h-[44px] items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 ${
             isActive
-              ? 'bg-neutral-950 text-white shadow-sm dark:bg-white dark:text-neutral-950'
+              ? 'hd-admin-nav-active text-white shadow-sm'
               : 'text-neutral-600 hover:bg-white hover:text-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-900 dark:hover:text-white'
           } ${collapsed ? 'justify-center px-2' : ''}`
         }
@@ -325,12 +333,12 @@ export default function AdminLayout() {
     });
 
   return (
-    <div className="min-h-screen flex flex-col bg-neutral-50 text-neutral-950 dark:bg-neutral-950 dark:text-white lg:h-[calc(100vh-5rem)] lg:min-h-0 lg:flex-row lg:overflow-hidden">
+    <div className="hd-admin-flow hd-commerce-shell min-h-screen flex flex-col bg-neutral-50 text-neutral-950 dark:bg-neutral-950 dark:text-white lg:h-[calc(100vh-5rem)] lg:min-h-0 lg:flex-row lg:overflow-hidden">
       <header className="lg:hidden flex shrink-0 items-center justify-between gap-3 border-b border-neutral-200 bg-white/90 px-4 py-3 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/90">
         <button
           type="button"
           onClick={() => setMobileMenuOpen((o) => !o)}
-          className="flex h-10 w-10 items-center justify-center rounded-2xl border border-neutral-200 bg-white text-neutral-600 hover:text-neutral-950 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200"
+          className="flex h-10 w-10 items-center justify-center rounded-2xl border border-orange-100 bg-white text-[#7a4a24] shadow-sm hover:text-[#ff6a00] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200"
           aria-label={mobileMenuOpen ? t('nav.closeMenu', 'Fermer le menu') : t('nav.openMenu', 'Ouvrir le menu')}
         >
           {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
@@ -402,7 +410,7 @@ export default function AdminLayout() {
             <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} gap-2`}>
               {!sidebarCollapsed ? (
                 <div className="flex min-w-0 items-center gap-2">
-                  <div className="relative h-9 w-9 rounded-xl bg-slate-900 flex shrink-0 items-center justify-center">
+                  <div className="relative h-9 w-9 rounded-xl bg-slate-900 flex shrink-0 items-center justify-center shadow-sm">
                     <BarChart3 size={18} className="text-white" />
                     {offlineQueueTotal > 0 ? (
                       <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-violet-500 px-1 py-0.5 text-[10px] font-semibold text-white">

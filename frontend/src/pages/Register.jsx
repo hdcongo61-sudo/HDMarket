@@ -343,11 +343,11 @@ export default function Register() {
   }
 
   return (
-    <main className="glass-page-shell min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 px-4 py-6 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 sm:py-10">
+    <main className="glass-page-shell hd-commerce-shell min-h-screen px-4 py-6 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 sm:py-10">
       <div className="mx-auto w-full max-w-6xl">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:gap-6">
-          <section className="glass-card relative overflow-hidden rounded-3xl border border-white/65 bg-white/85 p-5 shadow-xl dark:border-slate-700/60 dark:bg-slate-900/80 sm:p-7">
-            <div className="pointer-events-none absolute left-0 right-0 top-0 h-44 -translate-y-1/3 bg-gradient-to-b from-blue-100/70 via-blue-50/50 to-transparent blur-3xl dark:from-blue-800/25 dark:via-blue-900/10" />
+          <section className="hd-form-card relative overflow-hidden rounded-3xl p-5 dark:border-slate-700/60 dark:bg-slate-900/80 sm:p-7">
+            <div className="pointer-events-none absolute left-0 right-0 top-0 h-44 -translate-y-1/3 bg-gradient-to-b from-orange-100/80 via-orange-50/55 to-transparent blur-3xl dark:from-orange-800/25 dark:via-orange-900/10" />
             {!successPayload ? (
               <>
                 <header className="relative mb-6">
@@ -371,10 +371,10 @@ export default function Register() {
                 </header>
 
                 <div className="mb-5 grid grid-cols-2 gap-2">
-                  <div className={`rounded-xl px-3 py-2 text-xs font-semibold ${step === 1 ? 'soft-card soft-card-purple text-purple-900 dark:text-purple-100' : 'glass-card text-slate-500 dark:text-slate-300'}`}>
+                  <div className={`rounded-xl px-3 py-2 text-xs font-semibold ${step === 1 ? 'hd-soft-button text-[#9a4a00] dark:text-orange-100' : 'glass-card text-slate-500 dark:text-slate-300'}`}>
                     {copy.step1}
                   </div>
-                  <div className={`rounded-xl px-3 py-2 text-xs font-semibold ${step === 2 ? 'soft-card soft-card-purple text-purple-900 dark:text-purple-100' : 'glass-card text-slate-500 dark:text-slate-300'}`}>
+                  <div className={`rounded-xl px-3 py-2 text-xs font-semibold ${step === 2 ? 'hd-soft-button text-[#9a4a00] dark:text-orange-100' : 'glass-card text-slate-500 dark:text-slate-300'}`}>
                     {copy.step2}
                   </div>
                 </div>
@@ -472,7 +472,7 @@ export default function Register() {
                             type="button"
                             onClick={sendVerificationCode}
                             disabled={codeSending || !form.email.trim()}
-                            className="glass-card min-h-[48px] rounded-xl px-3 text-xs font-semibold text-slate-700 disabled:opacity-60 dark:text-slate-100"
+                            className="hd-soft-button min-h-[48px] rounded-[18px] px-3 text-xs font-semibold disabled:opacity-60 dark:text-orange-100"
                           >
                             {codeSending ? copy.sendingCode : codeSent ? copy.resendCode : copy.sendCode}
                           </button>
@@ -492,7 +492,7 @@ export default function Register() {
                           setStep(2);
                           setTimeout(() => passwordRef.current?.focus(), 80);
                         }}
-                        className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-gradient-to-t from-blue-600 via-blue-500 to-blue-400 px-4 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:from-blue-700 hover:via-blue-600 hover:to-blue-500 active:scale-[0.98]"
+                        className="hd-primary-button inline-flex min-h-[48px] w-full items-center justify-center rounded-[18px] px-4 text-sm font-semibold text-white"
                       >
                         {copy.continueStep2}
                       </button>
@@ -654,7 +654,7 @@ export default function Register() {
                               key={option.value}
                               className={`min-h-[48px] rounded-xl px-3 py-3 text-center text-sm font-semibold transition ${
                                 form.gender === option.value
-                                  ? 'soft-card soft-card-purple text-purple-900 dark:text-purple-100'
+                                  ? 'hd-soft-button text-[#9a4a00] dark:text-orange-100'
                                   : 'glass-card text-slate-700 dark:text-slate-100'
                               }`}
                             >
@@ -708,14 +708,14 @@ export default function Register() {
                         <button
                           type="button"
                           onClick={() => setStep(1)}
-                          className="glass-card min-h-[48px] rounded-xl px-4 text-sm font-semibold text-slate-700 dark:text-slate-100"
+                          className="hd-soft-button min-h-[48px] rounded-[18px] px-4 text-sm font-semibold dark:text-orange-100"
                         >
                           {copy.back}
                         </button>
                         <button
                           type="submit"
                           disabled={!canSubmit}
-                          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-gradient-to-t from-blue-600 via-blue-500 to-blue-400 px-4 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:from-blue-700 hover:via-blue-600 hover:to-blue-500 disabled:opacity-60"
+                          className="hd-primary-button inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[18px] px-4 text-sm font-semibold text-white disabled:opacity-60"
                         >
                           {loading ? <Loader2 size={16} className="animate-spin" /> : null}
                           {loading ? copy.creatingAccount : copy.createAccount}

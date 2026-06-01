@@ -65,7 +65,8 @@ import {
   MoreVertical,
   Edit,
   Grid3x3,
-  Plus
+  Plus,
+  Compass
 } from "lucide-react";
 import VerifiedBadge from "./VerifiedBadge";
 
@@ -675,18 +676,19 @@ export default function Navbar() {
   // Default navigation items
   const defaultNavItems = [
     { id: 'home', label: t('nav.home', 'Accueil'), path: '/', icon: Home, badge: null, visible: true, order: 0 },
-    { id: 'shops', label: t('nav.shops', 'Boutiques'), path: '/shops/verified', icon: Store, badge: null, visible: true, order: 1 },
+    { id: 'discover', label: t('nav.discover', 'Découvrir'), path: '/discover', icon: Compass, badge: null, visible: true, order: 1 },
     { id: 'favorites', label: t('nav.favorites', 'Favoris'), path: '/favorites', icon: Heart, badge: favoritesCount, visible: true, order: 2 },
     { id: 'cart', label: t('nav.cart', 'Panier'), path: '/cart', icon: ShoppingCart, badge: cartCount, visible: true, order: 3 },
     { id: 'menu', label: t('nav.menu', 'Menu'), path: null, icon: Menu, badge: null, visible: true, order: 4, isButton: true },
     // Additional items for expanded view
-    { id: 'profile', label: t('nav.profile', 'Profil'), path: '/profile', icon: User, badge: null, visible: user ? true : false, order: 5 },
-    { id: 'notifications', label: t('nav.notifications', 'Notifications'), path: '/notifications', icon: Bell, badge: commentAlerts, visible: user ? true : false, order: 6 },
-    { id: 'orders', label: t('nav.orders', 'Commandes'), path: '/orders', icon: ClipboardList, badge: activeOrders, visible: user ? true : false, order: 7 },
-    { id: 'messages', label: t('nav.messages', 'Messages'), path: '/orders/messages', icon: MessageSquare, badge: unreadOrderMessages, visible: user ? chatEnabled : false, order: 8 },
-    { id: 'my', label: t('nav.myListings', 'Mes annonces'), path: '/my', icon: Package, badge: null, visible: user ? true : false, order: 9 },
-    { id: 'shop-conversion', label: t('nav.becomeShop', 'Devenir Boutique'), path: '/shop-conversion-request', icon: Store, badge: null, visible: user && user.accountType !== 'shop' && shopConversionEnabled ? true : false, order: 10 },
-    { id: 'suggestions', label: t('nav.suggestions', 'Suggestions'), path: '/suggestions', icon: Sparkles, badge: null, visible: aiRecommendationsEnabled, order: 11 }
+    { id: 'shops', label: t('nav.shops', 'Boutiques'), path: '/shops/verified', icon: Store, badge: null, visible: true, order: 5 },
+    { id: 'profile', label: t('nav.profile', 'Profil'), path: '/profile', icon: User, badge: null, visible: user ? true : false, order: 6 },
+    { id: 'notifications', label: t('nav.notifications', 'Notifications'), path: '/notifications', icon: Bell, badge: commentAlerts, visible: user ? true : false, order: 7 },
+    { id: 'orders', label: t('nav.orders', 'Commandes'), path: '/orders', icon: ClipboardList, badge: activeOrders, visible: user ? true : false, order: 8 },
+    { id: 'messages', label: t('nav.messages', 'Messages'), path: '/orders/messages', icon: MessageSquare, badge: unreadOrderMessages, visible: user ? chatEnabled : false, order: 9 },
+    { id: 'my', label: t('nav.myListings', 'Mes annonces'), path: '/my', icon: Package, badge: null, visible: user ? true : false, order: 10 },
+    { id: 'shop-conversion', label: t('nav.becomeShop', 'Devenir Boutique'), path: '/shop-conversion-request', icon: Store, badge: null, visible: user && user.accountType !== 'shop' && shopConversionEnabled ? true : false, order: 11 },
+    { id: 'suggestions', label: t('nav.suggestions', 'Suggestions'), path: '/suggestions', icon: Sparkles, badge: null, visible: aiRecommendationsEnabled, order: 12 }
   ];
 
   const navItems = (customNavItems || defaultNavItems).map((item) => {
@@ -2840,7 +2842,7 @@ export default function Navbar() {
       {isSearchFullScreen && isMobileLayout && (
         <div
           ref={searchOverlayRef}
-          className="fixed inset-0 z-[100] bg-white dark:bg-gray-900"
+          className="hd-search-flow hd-commerce-shell fixed inset-0 z-[100]"
           style={{ paddingTop: 'env(safe-area-inset-top)' }}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
@@ -2848,7 +2850,7 @@ export default function Navbar() {
         >
           <div className="h-full flex flex-col">
             {/* Header */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <div className="hd-search-panel flex items-center gap-3 border-x-0 border-t-0 px-4 py-3">
               <button
                 type="button"
                 onClick={() => {
@@ -2858,19 +2860,19 @@ export default function Navbar() {
                   if (searchInputRef.current) searchInputRef.current.blur();
                   triggerHaptic(50);
                 }}
-                className="p-2 -ml-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                className="hd-soft-button -ml-2 p-2 text-[#9A4A00]"
               >
                 <ArrowDown size={20} />
               </button>
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#FF6A00]" size={18} />
                 <input
                   ref={searchInputRef}
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t('nav.search', 'Rechercher')}
-                  className="w-full pl-10 pr-4 py-3 bg-gray-100 dark:bg-gray-800 border-0 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:bg-white dark:focus:bg-gray-700 transition-all text-sm"
+                  className="hd-global-search w-full rounded-full py-3 pl-11 pr-10 text-sm transition-all placeholder:text-stone-400"
                   onKeyDown={handleSearchKeyDown}
                   autoFocus
                 />
@@ -2881,7 +2883,7 @@ export default function Navbar() {
                       setSearchQuery('');
                       triggerHaptic(50);
                     }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-stone-400 hover:text-stone-700"
                   >
                     <X size={18} />
                   </button>
@@ -2891,7 +2893,7 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={() => handleSaveSearch(searchQuery, filters)}
-                  className="p-2 text-neutral-900 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-900/20 rounded-lg transition-colors"
+                  className="hd-soft-button p-2 text-[#FF6A00]"
                   title={t('nav.saveSearch', 'Sauvegarder la recherche')}
                 >
                   <Save size={18} />
@@ -2900,7 +2902,7 @@ export default function Navbar() {
             </div>
 
             {/* Quick Actions & Saved Searches & Search Suggestions */}
-            <div className="overflow-y-auto flex-1 bg-white dark:bg-gray-900">
+            <div className="flex-1 overflow-y-auto">
               {!searchQuery.trim() && (
                 <>
                   <div className="px-4 py-3">
@@ -2919,8 +2921,8 @@ export default function Navbar() {
 
             {/* Bottom Sheet for Filters on Mobile */}
             {showBottomSheet && (
-              <div className="fixed inset-x-0 bottom-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 rounded-t-3xl shadow-2xl z-[101] max-h-[80vh] overflow-y-auto">
-                <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
+              <div className="hd-search-panel fixed inset-x-0 bottom-0 z-[101] max-h-[80vh] overflow-y-auto rounded-t-[30px] border-x-0 border-b-0">
+                <div className="sticky top-0 flex items-center justify-between border-b border-orange-100 bg-[#fffaf4]/95 px-4 py-3 backdrop-blur">
                   <h3 className="font-bold text-lg text-gray-900 dark:text-white">{t('nav.filters', 'Filtres')}</h3>
                   <button
                     type="button"
@@ -2928,7 +2930,7 @@ export default function Navbar() {
                       setShowBottomSheet(false);
                       triggerHaptic(50);
                     }}
-                    className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+                    className="hd-soft-button p-2 text-[#9A4A00]"
                   >
                     <X size={20} />
                   </button>
@@ -2944,7 +2946,7 @@ export default function Navbar() {
 
       {/* 🎯 NAVBAR PRINCIPALE - Proposal A: Two-Tier Layout */}
       <nav
-        className="hd-main-nav fixed top-0 left-0 right-0 z-50 ui-glass-header shadow-sm"
+        className="hd-main-nav fixed top-0 left-0 right-0 z-50 shadow-sm"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         {/* Top Bar: Logo, Search, Actions */}
@@ -2969,7 +2971,7 @@ export default function Navbar() {
                 </>
               ) : (
                 <>
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-black rounded-xl flex items-center justify-center shadow-md sm:shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#FF6A00] rounded-xl flex items-center justify-center shadow-md sm:shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
                     <span className="text-white font-black text-sm sm:text-base">HD</span>
                   </div>
                   <div className="hidden sm:flex flex-col">
@@ -2982,17 +2984,32 @@ export default function Navbar() {
               )}
             </Link>
 
+            <button
+              type="button"
+              onClick={() => {
+                setIsSearchFullScreen(true);
+                setShowResults(true);
+                setTimeout(() => searchInputRef.current?.focus?.(), 60);
+                triggerHaptic('light');
+              }}
+              className="hd-mobile-search-pill flex flex-1 items-center gap-2 rounded-full px-3 py-2.5 text-left text-sm font-medium text-stone-500 lg:hidden"
+              aria-label={t('nav.search', 'Rechercher')}
+            >
+              <Search className="h-4 w-4 text-[#FF6A00]" />
+              <span className="min-w-0 flex-1 truncate">{t('nav.searchMobile', 'Rechercher sur HDMarket')}</span>
+            </button>
+
             {/* === ACTIONS MOBILE SIMPLIFIÉES === */}
             {user && (
               <div className="md:hidden flex items-center gap-2">
                 <Link
                   to="/notifications"
-                  className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 active:scale-95"
+                  className="relative flex items-center justify-center w-10 h-10 rounded-full bg-orange-50 text-[#9A4A00] hover:bg-orange-100 transition-all duration-200 active:scale-95"
                   aria-label={t('nav.notifications', 'Notifications')}
                 >
-                  <Bell className="text-gray-600 dark:text-gray-300" size={18} />
+                  <Bell size={18} />
                   {commentAlerts > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 bg-neutral-900 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-lg">
+                    <span className="absolute -top-0.5 -right-0.5 bg-[#FF6A00] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-lg">
                       {commentAlerts > 99 ? '99+' : commentAlerts}
                     </span>
                   )}
@@ -3001,16 +3018,16 @@ export default function Navbar() {
             )}
 
             {/* === SEARCH BAR (Centered in Top Bar) === */}
-            <div className="hidden lg:flex flex-1 max-w-xl mx-4">
+            <div className="hd-search-flow hidden lg:flex flex-1 max-w-xl mx-4">
               <div className="relative w-full">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#FF6A00]" size={20} />
                 <input
                   ref={searchInputRef}
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t('nav.searchPlaceholderFull', 'Rechercher produits, boutiques, catégories...')}
-                  className="w-full pl-12 pr-20 py-3 bg-gray-100 dark:bg-gray-800 border-0 rounded-2xl focus:ring-2 focus:ring-neutral-500 focus:bg-white dark:focus:bg-gray-700 transition-all duration-200 placeholder-gray-500 text-sm"
+                  className="hd-global-search w-full rounded-full py-3 pl-12 pr-24 text-sm transition-all duration-200 placeholder:text-stone-500"
                   onFocus={() => { 
                     setShowResults(true); 
                     if (isMobileLayout) setIsSearchFullScreen(true);
@@ -3022,13 +3039,13 @@ export default function Navbar() {
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
                   <button 
                     onClick={handleOpenHistoryPanel} 
-                    className="text-xs font-semibold text-neutral-900 dark:text-neutral-300 hover:text-neutral-800 dark:hover:text-neutral-300 px-2 py-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-900/20 transition-colors"
+                    className="hd-soft-button px-2.5 py-1 text-xs font-bold"
                   >
                     {t('nav.history', 'Historique')}
                   </button>
                 </div>
                 {showResults && (
-                  <div className="absolute top-14 left-0 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl max-h-80 overflow-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 z-50 w-full">
+                  <div className="hd-search-panel absolute left-0 right-0 top-14 z-50 max-h-80 w-full overflow-auto rounded-[24px] scrollbar-thin scrollbar-thumb-orange-200">
                     {isHistoryPanelOpen ? renderHistoryResults() : renderDesktopSearchResults()}
                   </div>
                 )}
@@ -3042,12 +3059,12 @@ export default function Navbar() {
                 <>
                   <Link
                     to="/notifications"
-                    className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200"
+                    className="relative flex items-center justify-center w-10 h-10 rounded-full bg-orange-50 text-[#9A4A00] hover:bg-orange-100 transition-all duration-200"
                     aria-label={t('nav.notifications', 'Notifications')}
                   >
                     <Bell size={18} />
                     {commentAlerts > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-neutral-900 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                      <span className="absolute -top-1 -right-1 bg-[#FF6A00] text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                         {commentAlerts > 99 ? '99+' : commentAlerts}
                       </span>
                     )}
@@ -3055,12 +3072,12 @@ export default function Navbar() {
                   {chatEnabled && (
                     <Link
                       to="/orders/messages"
-                      className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200"
+                      className="relative flex items-center justify-center w-10 h-10 rounded-full bg-orange-50 text-[#9A4A00] hover:bg-orange-100 transition-all duration-200"
                       aria-label={t('nav.messages', 'Messages')}
                     >
                       <MessageSquare size={18} />
                       {hasUnreadOrderMessages && (
-                        <span className="absolute -top-1 -right-1 bg-neutral-900 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-pulse">
+                          <span className="absolute -top-1 -right-1 bg-[#FF6A00] text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-pulse">
                           {unreadOrderMessagesBadge}
                         </span>
                       )}
@@ -3068,7 +3085,7 @@ export default function Navbar() {
                   )}
                   <Link
                     to="/favorites"
-                    className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200"
+                    className="relative flex items-center justify-center w-10 h-10 rounded-full bg-orange-50 text-[#9A4A00] hover:bg-orange-100 transition-all duration-200"
                     aria-label={t('nav.favorites', 'Favoris')}
                   >
                     <Heart size={18} />
@@ -3080,12 +3097,12 @@ export default function Navbar() {
                   </Link>
                   <Link
                     to="/cart"
-                    className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200"
+                    className="relative flex items-center justify-center w-10 h-10 rounded-full bg-orange-50 text-[#9A4A00] hover:bg-orange-100 transition-all duration-200"
                     aria-label={t('nav.cart', 'Panier')}
                   >
                     <ShoppingCart size={18} />
                     {cartCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-black text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                        <span className="absolute -top-1 -right-1 bg-[#FF6A00] text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                         {cartCount > 99 ? '99+' : cartCount}
                       </span>
                     )}
@@ -3111,7 +3128,7 @@ export default function Navbar() {
                 </div>
               ) : (
                 <div className="relative group">
-                  <button className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:ring-offset-2 dark:focus:ring-offset-gray-900">
+                  <button className="hd-soft-button flex items-center gap-2 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/30 focus:ring-offset-2">
                     {resolveUserProfileImage(user) ? (
                       <img
                         src={resolveUserProfileImage(user)}
@@ -3132,9 +3149,9 @@ export default function Navbar() {
                   </button>
 
                   {/* Dropdown panel: professional layout with sections */}
-                  <div className="absolute right-0 mt-2 w-72 max-h-[min(28rem,calc(100vh-5rem))] bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700 rounded-2xl shadow-xl shadow-black/10 dark:shadow-black/30 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden flex flex-col">
+                  <div className="hd-menu-panel absolute right-0 mt-2 flex max-h-[min(28rem,calc(100vh-5rem))] w-72 flex-col overflow-hidden rounded-[24px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                     {/* User header (fixed at top) */}
-                    <div className="flex-shrink-0 p-4 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800/80 dark:to-gray-800 border-b border-gray-100 dark:border-gray-700">
+                    <div className="flex-shrink-0 border-b border-orange-100 bg-[#fff7ef] p-4">
                       <div className="flex items-center gap-3">
                         {resolveUserProfileImage(user) ? (
                           <img
@@ -3510,7 +3527,7 @@ export default function Navbar() {
                 {/* MEGA MENU CATÉGORIES */}
                 {isCategoryMenuOpen && (
                   <div 
-                    className="absolute left-0 mt-0 w-[800px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                    className="hd-menu-panel absolute left-0 z-50 mt-0 w-[800px] overflow-hidden rounded-[24px]"
                     onMouseEnter={handleCategoryMenuOpen}
                     onMouseLeave={handleCategoryMenuDelayedClose}
                   >
@@ -3574,7 +3591,7 @@ export default function Navbar() {
                 {/* ENHANCED BOUTIQUES MENU */}
                 {isShopMenuOpen && (
                   <div 
-                    className="absolute left-0 mt-0 w-96 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                    className="hd-menu-panel absolute left-0 z-50 mt-0 w-96 overflow-hidden rounded-[24px]"
                     onMouseEnter={handleShopMenuOpen}
                     onMouseLeave={handleShopMenuDelayedClose}
                   >
@@ -3717,7 +3734,7 @@ export default function Navbar() {
               {user && sellingEnabled && (
                 <Link
                   to="/my"
-                  className="ml-auto px-4 py-2 bg-white dark:bg-gray-800 text-neutral-900 dark:text-neutral-300 font-bold text-sm rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900/20 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg"
+                  className="hd-soft-button ml-auto flex items-center gap-2 px-4 py-2 text-sm font-bold"
                 >
                   <Plus size={16} />
                   {t('nav.sell', 'Vendre')}
@@ -3727,90 +3744,50 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* === BARRE DE RECHERCHE MOBILE === */}
-        <div
-          className={`lg:hidden mt-2 border-t border-gray-200/60 dark:border-gray-800/60 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md mb-6 ${
-            shouldHideSearchBar ? 'hidden' : ''
-          }`}
-        >
-          <div className="max-w-7xl mx-auto px-4 py-3">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={t('nav.searchPlaceholderShort', 'Rechercher produits, boutiques...')}
-                className="w-full pl-11 pr-20 py-3 bg-gray-50 dark:bg-gray-800/80 border border-gray-200/60 dark:border-gray-700/60 rounded-2xl focus:ring-2 focus:ring-[#0A0A0A]/50 focus:border-[#0A0A0A] focus:bg-white dark:focus:bg-gray-800 transition-all duration-200 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 shadow-sm focus:shadow-md"
-                onFocus={() => { 
-                  setShowResults(true); 
-                  if (isMobileLayout) setIsSearchFullScreen(true);
-                  if (user && searchHistory.length === 0) fetchSearchHistory(); 
-                }}
-                onKeyDown={handleSearchKeyDown}
-                onBlur={() => setTimeout(() => setShowResults(false), 250)}
-              />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <button 
-                  onClick={handleOpenHistoryPanel} 
-                  className="text-xs font-semibold text-neutral-900 dark:text-neutral-300 hover:text-neutral-800 dark:hover:text-neutral-300 px-2 py-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-900/20 transition-colors"
-                >
-                  {t('nav.history', 'Historique')}
-                </button>
-              </div>
-              {showResults && !isSearchFullScreen && (
-                <div className="absolute top-14 left-0 right-0 bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-2xl max-h-80 overflow-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 z-40 backdrop-blur-xl">
-                  {isHistoryPanelOpen ? renderHistoryResults() : renderMobileSearchResults()}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
       </nav>
 
       {/* === MENU MOBILE OVERLAY === */}
       {isMenuOpen && (
         <div
-          className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+          className="md:hidden fixed inset-0 z-40 bg-stone-950/35 backdrop-blur-sm"
           style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4.5rem)' }}
         >
-          <div className="bg-white dark:bg-gray-900 h-full overflow-y-auto pb-32">
-            <div className="max-w-7xl mx-auto px-4 py-6 space-y-3">
+          <div className="hd-mobile-menu-sheet mx-3 h-[calc(100%-0.75rem)] overflow-hidden rounded-[30px] border border-orange-100 bg-[#fffaf4] shadow-[0_28px_70px_rgba(124,58,0,0.22)] dark:border-orange-900/40 dark:bg-neutral-950">
+            <div className="h-full overflow-y-auto px-3 py-4 pb-32 space-y-3">
 
               {/* User avatar / profile card */}
               {user ? (
                 <Link
                   to="/profile"
                   onClick={() => setIsMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 mb-1 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  className="flex items-center gap-3 rounded-[24px] border border-orange-100 bg-gradient-to-br from-[#FF6A00] to-[#ff8a2a] px-4 py-4 text-white shadow-[0_16px_38px_rgba(255,106,0,0.28)] transition active:scale-[0.99]"
                 >
                   {resolveUserProfileImage(user) ? (
                     <img
                       src={resolveUserProfileImage(user)}
                       alt={user.name || t('nav.user', 'Utilisateur')}
-                      className="h-12 w-12 rounded-full object-cover ring-2 ring-black/10 dark:ring-white/10 flex-shrink-0"
+                      className="h-12 w-12 rounded-full object-cover ring-2 ring-white/60 flex-shrink-0"
                     />
                   ) : (
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-neutral-700 to-neutral-900 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                    <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-lg flex-shrink-0 ring-1 ring-white/40">
                       {user.name?.charAt(0)?.toUpperCase() || 'U'}
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-gray-900 dark:text-white truncate">
+                    <p className="font-bold truncate">
                       {user.name || t('nav.user', 'Utilisateur')}
                     </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
+                    <p className="text-sm text-white/80 truncate">{user.email}</p>
                   </div>
                 </Link>
               ) : (
                 <Link
                   to="/login"
                   onClick={() => setIsMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 mb-1 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  className="flex items-center gap-3 rounded-[24px] border border-orange-100 bg-white px-4 py-4 shadow-sm transition active:scale-[0.99] dark:border-orange-900/40 dark:bg-neutral-900"
                 >
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-neutral-300 to-neutral-400 dark:from-neutral-600 dark:to-neutral-700 flex items-center justify-center flex-shrink-0">
-                    <User size={24} className="text-white" />
+                  <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center flex-shrink-0 text-[#FF6A00]">
+                    <User size={24} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-gray-900 dark:text-white">{t('nav.login', 'Connexion')}</p>
@@ -4360,7 +4337,7 @@ export default function Navbar() {
               triggerHaptic('medium');
             }}
           >
-            <div className="bg-black dark:bg-neutral-900 text-white p-1.5 rounded-full shadow-lg">
+            <div className="bg-[#FF6A00] text-white p-1.5 rounded-full shadow-lg">
               <ChevronUp size={12} className="animate-bounce" />
             </div>
           </div>
@@ -4386,25 +4363,25 @@ export default function Navbar() {
                     }}
                     onTouchStart={handleBottomBarTouchStart}
                     onTouchEnd={handleBottomBarTouchEnd}
-                    className={`relative flex flex-col items-center justify-center gap-1.5 px-4 py-2 rounded-2xl transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 active:scale-95 ${
-                      isMenuOpen ? 'text-neutral-900 dark:text-neutral-300 scale-105' : ''
+                    className={`relative flex flex-col items-center justify-center gap-1.5 px-4 py-2 rounded-2xl transition-all duration-300 text-stone-500 hover:text-[#FF6A00] active:scale-95 ${
+                      isMenuOpen ? 'text-[#FF6A00] scale-105' : ''
                     }`}
                   >
                     <div className={`relative transition-all duration-300 ${isMenuOpen ? 'scale-110' : ''}`}>
                       {isMenuOpen ? (
-                        <X size={22} className="text-neutral-900 dark:text-neutral-300" strokeWidth={2.5} />
+                        <X size={22} className="text-[#FF6A00]" strokeWidth={2.5} />
                       ) : (
                         <Icon size={22} strokeWidth={2} />
                       )}
                       {isMenuOpen && (
-                        <div className="absolute inset-0 -z-10 bg-neutral-100 dark:bg-neutral-900/40 rounded-full blur-md animate-pulse" />
+                        <div className="absolute inset-0 -z-10 bg-orange-100 rounded-full blur-md animate-pulse" />
                       )}
                     </div>
-                    <span className={`text-[11px] font-semibold transition-all ${isMenuOpen ? 'text-neutral-900 dark:text-neutral-300' : ''}`}>
+                    <span className={`text-[11px] font-semibold transition-all ${isMenuOpen ? 'text-[#FF6A00]' : ''}`}>
                       {item.label}
                     </span>
                     {isMenuOpen && (
-                      <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-black dark:bg-neutral-400 rounded-full" />
+                      <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-[#FF6A00] rounded-full" />
                     )}
                     {/* Quick Actions Menu */}
                     {enableBottomBarQuickActions && showQuickActions === item.id && (
@@ -4444,9 +4421,9 @@ export default function Navbar() {
                   onTouchEnd={handleBottomBarTouchEnd}
                   className={({ isActive: navIsActive }) =>
                     `relative flex flex-col items-center justify-center gap-1.5 px-4 py-2 rounded-2xl transition-all duration-300 ${
-                      navIsActive 
-                        ? "text-neutral-900 dark:text-neutral-300 scale-105" 
-                        : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                      navIsActive
+                        ? "text-[#FF6A00] scale-105"
+                        : "text-stone-500 hover:text-[#FF6A00]"
                     }`
                   }
                   onClick={() => {
@@ -4460,26 +4437,26 @@ export default function Navbar() {
                       <div className={`relative transition-all duration-300 ${navIsActive ? 'scale-110' : ''}`}>
                         <Icon 
                           size={22} 
-                          className={navIsActive ? 'text-neutral-900 dark:text-neutral-300' : ''}
+                          className={navIsActive ? 'text-[#FF6A00]' : ''}
                           strokeWidth={navIsActive ? 2.5 : 2}
                           fill={item.id === 'favorites' && navIsActive ? 'currentColor' : 'none'}
                         />
                         {navIsActive && (
-                          <div className="absolute inset-0 -z-10 bg-neutral-100 dark:bg-neutral-900/40 rounded-full blur-md animate-pulse" />
+                          <div className="absolute inset-0 -z-10 bg-orange-100 rounded-full blur-md animate-pulse" />
                         )}
                       </div>
-                      <span className={`text-[11px] font-semibold transition-all ${navIsActive ? 'text-neutral-900 dark:text-neutral-300' : ''}`}>
+                      <span className={`text-[11px] font-semibold transition-all ${navIsActive ? 'text-[#FF6A00]' : ''}`}>
                         {item.label}
                       </span>
                       {badge > 0 && (
                         <span className={`absolute -top-0.5 right-2.5 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-lg transition-all ${
-                          navIsActive ? 'bg-black' : item.id === 'favorites' ? 'bg-neutral-500' : 'bg-black'
+                          navIsActive ? 'bg-[#FF6A00]' : item.id === 'favorites' ? 'bg-rose-500' : 'bg-[#FF6A00]'
                         }`}>
                           {badge > 99 ? '99+' : badge}
                         </span>
                       )}
                       {navIsActive && (
-                        <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-black dark:bg-neutral-400 rounded-full" />
+                        <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-[#FF6A00] rounded-full" />
                       )}
                       {/* Quick Actions Menu */}
                       {enableBottomBarQuickActions && showQuickActions === item.id && (

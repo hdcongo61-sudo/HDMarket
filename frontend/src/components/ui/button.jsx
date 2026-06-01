@@ -4,16 +4,16 @@ import cn from '../../lib/utils';
 
 const VARIANT_CLASSES = {
   default:
-    'border border-neutral-950 bg-neutral-950 text-white shadow-[0_10px_24px_rgba(15,23,42,0.14)] hover:bg-neutral-800 dark:border-white dark:bg-white dark:text-neutral-950 dark:hover:bg-neutral-200',
+    'border border-[#ff6a00] bg-gradient-to-b from-[#ff8a1f] to-[#ff5a1f] text-white shadow-[0_12px_26px_rgba(255,106,0,0.24)] hover:from-[#ff7c0a] hover:to-[#e85f00] dark:border-[#ff8a1f] dark:from-[#ff8a1f] dark:to-[#ff5a1f] dark:text-white',
   destructive:
     'border border-red-600 bg-red-600 text-white shadow-[0_10px_24px_rgba(220,38,38,0.18)] hover:bg-red-700',
   outline:
-    'border border-neutral-200 bg-white/88 text-neutral-900 shadow-sm backdrop-blur hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950/88 dark:text-neutral-100 dark:hover:bg-neutral-900',
+    'border border-orange-200 bg-white/90 text-slate-900 shadow-sm backdrop-blur hover:border-orange-300 hover:bg-orange-50 dark:border-orange-900/60 dark:bg-neutral-950/88 dark:text-neutral-100 dark:hover:bg-orange-950/20',
   secondary:
-    'border border-neutral-200 bg-neutral-100 text-neutral-900 hover:bg-neutral-200 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800',
+    'border border-orange-100 bg-[#fff0e4] text-[#9a4a00] hover:bg-orange-100 dark:border-orange-900/60 dark:bg-orange-950/25 dark:text-orange-100 dark:hover:bg-orange-950/40',
   ghost:
-    'border border-transparent text-neutral-800 hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-900',
-  link: 'border border-transparent text-neutral-950 underline-offset-4 hover:underline dark:text-white'
+    'border border-transparent text-slate-800 hover:bg-orange-50 hover:text-[#b45100] dark:text-neutral-100 dark:hover:bg-orange-950/25',
+  link: 'border border-transparent text-[#d45a00] underline-offset-4 hover:underline dark:text-orange-200'
 };
 
 const SIZE_CLASSES = {
@@ -27,7 +27,7 @@ export function buttonVariants({ variant = 'default', size = 'default', classNam
   return cn(
     'ui-btn inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[18px] text-sm font-semibold ring-offset-background',
     'transition-all duration-200 ease-out active:scale-[0.98]',
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950/20 focus-visible:ring-offset-2 dark:focus-visible:ring-white/30',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/30 focus-visible:ring-offset-2 dark:focus-visible:ring-orange-300/30',
     'disabled:pointer-events-none disabled:opacity-50',
     VARIANT_CLASSES[variant] || VARIANT_CLASSES.default,
     SIZE_CLASSES[size] || SIZE_CLASSES.default,

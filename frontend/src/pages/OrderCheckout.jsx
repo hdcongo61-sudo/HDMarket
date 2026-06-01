@@ -998,7 +998,7 @@ export default function OrderCheckout() {
 
   if (!items.length) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center px-4 py-10">
+      <div className="hd-order-flow hd-commerce-shell min-h-screen dark:bg-black flex items-center justify-center px-4 py-10">
         <div className="max-w-md w-full text-center">
           <div className="mx-auto w-20 h-20 rounded-2xl bg-neutral-100 flex items-center justify-center mb-6 shadow-lg border border-neutral-200">
             <ClipboardList size={32} className="text-neutral-900" />
@@ -1020,7 +1020,7 @@ export default function OrderCheckout() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black">
+    <div className="hd-order-flow hd-commerce-shell min-h-screen dark:bg-black">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
       {/* Header Enhanced */}
       <header className="bg-white rounded-2xl p-6 sm:p-8 border border-neutral-200 shadow-lg">

@@ -161,13 +161,15 @@ export default function TopFavorites() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-8 space-y-8 pb-12 md:pb-16">
-      <header className="space-y-2">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Favoris de la communauté</h1>
-        <p className="text-sm text-gray-500">
-          Les annonces les plus sauvegardées par les acheteurs sur HDMarket.
-        </p>
-      </header>
+    <div className="hd-products-flow">
+      <div className="max-w-7xl mx-auto px-3 py-5 pb-24 sm:px-6 sm:py-8 md:px-8 md:pb-16 space-y-6">
+        <header className="hd-products-hero rounded-[28px] p-5 text-white shadow-[0_18px_46px_rgba(15,23,42,0.08)] sm:p-6">
+          <p className="mb-2 text-xs font-black uppercase tracking-wide text-white/78">Favoris</p>
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">Favoris de la communauté</h1>
+          <p className="mt-2 max-w-2xl text-sm text-white/86">
+            Les annonces les plus sauvegardées par les acheteurs, présentées comme un flux commerce à scanner vite.
+          </p>
+        </header>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
@@ -197,6 +199,7 @@ export default function TopFavorites() {
           Aucun favori pour le moment. Ajoutez des produits à vos favoris pour les voir ici !
         </p>
       )}
+      </div>
     </div>
   );
 }

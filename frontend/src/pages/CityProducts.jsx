@@ -153,31 +153,32 @@ export default function CityProducts() {
   }, [selectedCity]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="hd-products-flow">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6">
-        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
+        <header className="hd-products-hero flex flex-col gap-3 rounded-[28px] p-5 text-white sm:gap-4 sm:p-6 md:flex-row md:items-end md:justify-between">
           <div>
             <button
               onClick={() => navigate(-1)}
-              className="inline-flex items-center gap-2 mb-3 sm:mb-4 text-sm font-semibold text-gray-600 hover:text-neutral-600 transition-colors"
+              className="inline-flex items-center gap-2 mb-3 sm:mb-4 text-sm font-semibold text-white/86 hover:text-white transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               Retour
             </button>
-            <h1 className="text-xl sm:text-3xl font-bold text-gray-900">{title}</h1>
-            <p className="text-xs sm:text-sm text-gray-500">
+            <p className="mb-2 text-xs font-black uppercase tracking-wide text-white/78">Ville</p>
+            <h1 className="text-xl sm:text-3xl font-black text-white">{title}</h1>
+            <p className="mt-2 text-xs sm:text-sm text-white/86">
               Consultez les annonces publiées depuis nos principales villes de la République du Congo.
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <label htmlFor="city-select" className="text-sm text-gray-600">
+            <label htmlFor="city-select" className="text-sm font-bold text-white/86">
               Choisir une ville
             </label>
             <select
               id="city-select"
               value={selectedCity}
               onChange={(event) => setSelectedCity(event.target.value)}
-              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-200"
+              className="rounded-full border border-white/30 bg-white px-3 py-2 text-sm font-black text-stone-800 focus:border-white focus:outline-none focus:ring-2 focus:ring-white/30"
             >
               {cityOptions.map((city) => (
                 <option key={city} value={city}>

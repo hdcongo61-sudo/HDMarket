@@ -132,7 +132,7 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
                   value={deliveryCity}
                   onChange={(e) => setDeliveryCity(e.target.value)}
                   required
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 transition-all"
+                  className="ui-input w-full rounded-[18px] px-4 py-3 text-gray-900 dark:text-white"
                 >
                   {cityOptions.map((city) => (
                     <option key={city} value={city}>
@@ -157,7 +157,7 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all disabled:opacity-50"
+              className="hd-soft-button flex-1 px-4 py-2.5 rounded-[18px] font-semibold disabled:opacity-50"
             >
               Annuler
             </button>
@@ -165,7 +165,7 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
               <button
                 type="submit"
                 disabled={loading || !deliveryAddress.trim()}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="hd-primary-button flex-1 px-4 py-2.5 rounded-[18px] text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Enregistrement...' : 'Enregistrer'}
               </button>

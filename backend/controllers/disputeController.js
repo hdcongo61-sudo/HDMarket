@@ -13,6 +13,7 @@ import {
   createNotification,
   resolveValidationTaskNotifications
 } from '../utils/notificationService.js';
+import { notifyBuyerOrderCancelled } from '../utils/orderCancellationNotification.js';
 import { getManyRuntimeConfigs } from '../services/configService.js';
 
 const ORDER_DISPUTE_STATUS = 'dispute_opened';
@@ -744,7 +745,12 @@ export const resolveAdminDispute = asyncHandler(async (req, res) => {
 
       const orderPatch =
         resolutionType === 'refund_full'
-          ? { status: 'cancelled', cancelledAt: now, cancellationReason: `Litige ${dispute._id}` }
+          ? {
+              status: 'cancelled',
+              cancelledAt: now,
+              cancelledBy: req.user.id,
+              cancellationReason: `Litige ${dispute._id}`
+            }
           : { status: 'completed' };
       await Order.updateOne({ _id: dispute.orderId }, { $set: orderPatch }, { session });
 
@@ -801,6 +807,22 @@ export const resolveAdminDispute = asyncHandler(async (req, res) => {
         resolutionType
       }
     }),
+    resolutionType === 'refund_full'
+      ? notifyBuyerOrderCancelled({
+          order: {
+            _id: dispute.orderId,
+            customer: dispute.clientId,
+            cancellationReason: `Litige ${dispute._id}`
+          },
+          actorId: req.user.id,
+          cancelledBy: 'admin',
+          reason: `Litige ${dispute._id}`,
+          extraMetadata: {
+            disputeId: dispute._id,
+            resolutionType
+          }
+        })
+      : Promise.resolve(null),
     createNotification({
       userId: dispute.sellerId,
       actorId: req.user.id,
@@ -811,7 +833,7 @@ export const resolveAdminDispute = asyncHandler(async (req, res) => {
         status: nextStatus,
         resolutionType
       }
-    })
+    }),
   ]);
 
   await resolveValidationTaskNotifications({

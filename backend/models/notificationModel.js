@@ -60,6 +60,7 @@ const notificationSchema = new mongoose.Schema(
       'order_cancellation_window_skipped',
       'order_message',
       'order_cancelled',
+      'delivery_distance_warning',
       'delivery_assigned',
       'delivery_in_progress',
       'delivery_completed',

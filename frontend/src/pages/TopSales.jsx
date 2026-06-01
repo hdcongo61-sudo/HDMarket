@@ -68,13 +68,13 @@ export default function TopSales() {
   const formatCount = (value) => Number(value || 0).toLocaleString('fr-FR');
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="hd-products-flow">
       <main className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6">
         {/* Header */}
-        <header className="bg-gradient-to-br from-orange-50 via-white to-red-50 dark:from-gray-900 dark:via-gray-800 dark:to-orange-950/20 rounded-3xl p-4 sm:p-6 lg:p-8 border border-gray-200/60 dark:border-gray-700/50 shadow-lg">
+        <header className="hd-products-hero rounded-3xl p-4 text-white sm:p-6 lg:p-8">
           <button
             onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 mb-4 text-sm font-semibold text-gray-600 hover:text-neutral-600 transition-colors"
+            className="inline-flex items-center gap-2 mb-4 text-sm font-semibold text-white/86 hover:text-white transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Retour
@@ -84,10 +84,10 @@ export default function TopSales() {
               <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-3xl lg:text-4xl font-black text-gray-900 dark:text-white">
+              <h1 className="text-xl sm:text-3xl lg:text-4xl font-black text-white">
                 Produits les plus vendus
               </h1>
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
+              <p className="text-xs sm:text-sm text-white/86 mt-1">
                 Les best-sellers de HDMarket basés sur les ventes réelles
               </p>
             </div>

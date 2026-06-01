@@ -805,25 +805,27 @@ const OrderSummaryCard = ({ order }) => {
   return (
     <Link
       to={`/orders/detail/${order._id}`}
-      className="ui-card ui-card-interactive ui-card-fade-in group block overflow-hidden transition hover:bg-neutral-50 dark:hover:bg-neutral-900/80"
+      className="group block overflow-hidden rounded-[26px] border border-orange-100 bg-white shadow-[0_16px_38px_rgba(117,75,36,0.10)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(117,75,36,0.14)] dark:border-orange-900/30 dark:bg-neutral-950"
     >
       {/* Seller + Status header */}
-      <div className="ui-card-soft-separator flex items-center justify-between px-4 py-3 bg-gray-50/50">
+      <div className="flex items-center justify-between gap-3 border-b border-orange-50 bg-[#fff8ef] px-4 py-3 dark:border-orange-900/30 dark:bg-neutral-900/70">
         <div className="flex items-center gap-1.5 min-w-0">
-          <Store className="w-4 h-4 text-gray-500 flex-shrink-0" />
-          <span className="font-semibold text-gray-900 truncate">{shopName}</span>
-          <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-orange-100 text-[#FF6A00]">
+            <Store className="w-3.5 h-3.5" />
+          </span>
+          <span className="font-black text-gray-950 truncate dark:text-white">{shopName}</span>
+          <ChevronRight className="w-4 h-4 text-orange-300 flex-shrink-0" />
         </div>
         <StatusBadge status={statusBadgeKey} />
       </div>
       <div className="px-4 pt-3">
         <div className="flex items-center justify-between gap-3">
-          <p className="truncate text-xs font-semibold text-neutral-500">{uiState.nextStep}</p>
-          <span className="shrink-0 text-[11px] font-bold text-neutral-500">{uiState.progress}%</span>
+          <p className="truncate text-xs font-bold text-[#9A4A00]">{uiState.nextStep}</p>
+          <span className="shrink-0 text-[11px] font-black text-[#FF6A00]">{uiState.progress}%</span>
         </div>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-orange-50 dark:bg-neutral-800">
           <div
-            className={`h-full rounded-full transition-all duration-500 ${uiState.isUrgent ? 'bg-red-500' : 'bg-neutral-900 dark:bg-neutral-100'}`}
+            className={`h-full rounded-full transition-all duration-500 ${uiState.isUrgent ? 'bg-red-500' : 'bg-[#FF6A00]'}`}
             style={{ width: `${uiState.progress}%` }}
           />
         </div>
@@ -831,22 +833,22 @@ const OrderSummaryCard = ({ order }) => {
       {/* Product summary */}
       <div className="p-4 flex gap-3">
         {firstItem?.snapshot?.image ? (
-          <div className="ui-media-frame ui-media-frame-square h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0">
+          <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-[18px] bg-orange-50 sm:h-24 sm:w-24">
             <img
               src={firstItem.snapshot.image}
               alt={productTitle}
-              className="ui-media-img ui-media-img-cover"
+              className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
               loading="lazy"
               decoding="async"
             />
           </div>
         ) : (
-          <div className="ui-media-frame ui-media-frame-square w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center flex-shrink-0">
-            <Package className="w-8 h-8 text-neutral-800" />
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-[18px] bg-orange-50 flex items-center justify-center flex-shrink-0">
+            <Package className="w-8 h-8 text-[#FF6A00]" />
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-gray-900 text-sm line-clamp-2">{productTitle}</p>
+          <p className="font-black text-gray-950 text-sm line-clamp-2 dark:text-white">{productTitle}</p>
           {itemCount > 1 && <p className="text-xs text-gray-500 mt-0.5">+{itemCount - 1} autre{itemCount > 2 ? 's' : ''}</p>}
           <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
             <span>{formatCurrency(firstItem?.snapshot?.price ?? 0)}</span>
@@ -860,12 +862,12 @@ const OrderSummaryCard = ({ order }) => {
           />
           {isInstallmentOrder && (
             <div className="mt-2 space-y-1">
-              <p className="text-xs font-semibold text-neutral-700">
+              <p className="text-xs font-bold text-[#9A4A00]">
                 {t('orders.installmentProgress', 'Progression tranche')}: {installmentProgress}%
               </p>
-              <div className="h-1.5 rounded-full bg-neutral-100 overflow-hidden">
+              <div className="h-1.5 rounded-full bg-orange-50 overflow-hidden">
                 <div
-                  className="h-full bg-neutral-900"
+                  className="h-full bg-[#FF6A00]"
                   style={{ width: `${installmentProgress}%` }}
                 />
               </div>
@@ -892,13 +894,13 @@ const OrderSummaryCard = ({ order }) => {
             <StatusBadge status={fullPaymentBadgeStatus} compact />
           )}
           <div className="flex items-center gap-2">
-            <span className="font-bold text-gray-900">
+            <span className="font-black text-[#FF6A00]">
               {formatCurrency(isInstallmentOrder ? installmentPaid : totalAmount)}
             </span>
             <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${
               uiState.primaryAction.tone === 'urgent'
                 ? 'bg-red-50 text-red-700'
-                : 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-950'
+                : 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.18)]'
             }`}>
               {uiState.primaryAction.label}
             </span>
@@ -1565,7 +1567,7 @@ export default function UserOrders() {
 
   if (loading && orders.length === 0) {
     return (
-      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
+      <div className="hd-commerce-shell min-h-screen dark:bg-neutral-950">
         <GlassHeader title={t('orders.title', 'Mes commandes')} subtitle={t('common.loading', 'Chargement...')} backTo="/" />
         <div className="max-w-7xl mx-auto px-4 py-6">
           <OrderListSkeleton items={5} />
@@ -1576,7 +1578,7 @@ export default function UserOrders() {
 
   return (
     <div
-      className="min-h-screen bg-neutral-50 dark:bg-neutral-950"
+      className="hd-commerce-shell min-h-screen dark:bg-neutral-950"
       ref={containerRef}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -1615,20 +1617,35 @@ export default function UserOrders() {
       )}
 
       <div className={!isOnline ? 'mt-10' : ''}>
-        <GlassHeader
-          title={t('orders.title', 'Mes commandes')}
-          subtitle={t('orders.subtitle', 'Suivi livraison et paiement')}
-          backTo="/"
-          right={
+        <div className="px-4 pt-5 sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-[28px] border border-orange-100 bg-white/80 px-4 py-4 shadow-[0_18px_42px_rgba(117,75,36,0.10)] backdrop-blur dark:border-orange-900/30 dark:bg-neutral-950/80">
+            <Link
+              to="/"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-orange-50 text-[#9A4A00] transition active:scale-95"
+              aria-label={t('common.back', 'Retour')}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#B45309]">
+                {t('orders.buyerCommandCenter', 'Suivi personnel')}
+              </p>
+              <h1 className="truncate text-2xl font-black text-neutral-950 dark:text-white">
+                {t('orders.title', 'Mes commandes')}
+              </h1>
+              <p className="truncate text-sm text-neutral-500 dark:text-neutral-400">
+                {t('orders.subtitle', 'Suivi livraison et paiement')}
+              </p>
+            </div>
             <Link
               to="/stats"
-              className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+              className="inline-flex items-center gap-2 rounded-full border border-orange-100 bg-orange-50 px-3 py-2 text-xs font-bold text-[#9A4A00] transition hover:bg-orange-100 dark:border-orange-900/30 dark:bg-orange-950/30 dark:text-orange-200"
             >
               <TrendingUp className="h-3.5 w-3.5" />
               {t('orders.stats', 'Stats')}
             </Link>
-          }
-        />
+          </div>
+        </div>
       </div>
 
       <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${isMobile ? 'py-4 pb-6' : 'py-6 pb-12'} pb-[env(safe-area-inset-bottom)]`}>
@@ -1668,16 +1685,16 @@ export default function UserOrders() {
             </div>
           </div>
         ) : orders.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
-            <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
-              <ClipboardList className="w-10 h-10 text-gray-400" />
+          <div className="rounded-[28px] border border-orange-100 bg-white/90 p-8 text-center shadow-[0_18px_42px_rgba(117,75,36,0.10)] sm:p-12">
+            <div className="mx-auto w-20 h-20 rounded-[24px] bg-orange-50 flex items-center justify-center mb-4">
+              <ClipboardList className="w-10 h-10 text-[#FF6A00]" />
             </div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">{t('orders.noOrders', 'Aucune commande')}</h3>
             <p className="text-sm text-gray-500 mb-6">{emptyMessage}</p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
                 to="/"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 min-h-[48px] rounded-xl bg-neutral-900 text-white font-semibold hover:bg-neutral-800 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
+                className="hd-primary-button w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 min-h-[48px] font-bold"
               >
                 <Sparkles className="w-4 h-4" />
                 {t('orders.discoverProducts', 'Découvrir nos produits')}
@@ -1809,7 +1826,7 @@ export default function UserOrders() {
 
             {/* Pagination */}
             {meta.totalPages > 1 && (
-              <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-between bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-between rounded-[24px] border border-orange-100 bg-white/90 p-6 shadow-sm">
                 <p className="text-sm text-gray-600">
                   {t('orders.page', 'Page')} <span className="font-bold text-gray-900">{page}</span> {t('orders.of', 'sur')}{' '}
                   <span className="font-bold text-gray-900">{meta.totalPages}</span> —{' '}
@@ -1820,7 +1837,7 @@ export default function UserOrders() {
                     type="button"
                     onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                     disabled={page <= 1}
-                    className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    className="hd-soft-button px-4 py-2.5 text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {t('orders.previous', 'Précédent')}
                   </button>
@@ -1828,7 +1845,7 @@ export default function UserOrders() {
                     type="button"
                     onClick={() => setPage((prev) => Math.min(meta.totalPages, prev + 1))}
                     disabled={page >= meta.totalPages}
-                    className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    className="hd-soft-button px-4 py-2.5 text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {t('orders.next', 'Suivant')}
                   </button>

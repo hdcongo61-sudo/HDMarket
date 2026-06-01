@@ -182,17 +182,17 @@ export default function Cart() {
   };
 
   return ( 
-    <main className="min-h-screen bg-[#F2F2F7] dark:bg-black">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
-      {/* Header Enhanced */}
-      <header className="apple-card rounded-[16px] p-6 sm:p-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <main className="hd-products-flow min-h-screen">
+      <div className="max-w-7xl mx-auto px-3 py-5 pb-24 sm:px-6 sm:py-8 lg:px-8 space-y-5 sm:space-y-7">
+      <header className="hd-products-hero rounded-[28px] p-5 text-white shadow-[0_18px_46px_rgba(255,106,0,0.14)] sm:p-7">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-2">
-            <h1 className="text-2xl sm:text-4xl font-black text-gray-900">Mon Panier</h1>
-            <p className="text-gray-600 font-medium">
+            <p className="text-xs font-black uppercase tracking-wide text-white/76">Commande</p>
+            <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white">Mon panier</h1>
+            <p className="max-w-2xl text-sm font-semibold leading-6 text-white/86">
               {items.length > 0 
                 ? `${items.length} article${items.length > 1 ? 's' : ''} dans votre panier`
-                : 'Votre panier est vide'
+                : 'Votre panier est vide, explorez les sélections HDMarket.'
               }
             </p>
           </div>
@@ -202,7 +202,7 @@ export default function Cart() {
               <button
                 onClick={() => setShowClearConfirm(true)}
                 disabled={disableAll}
-                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[#FF3B30] bg-white border border-[#FF3B30]/30 rounded-full hover:bg-[#FF3B30]/8 tap-feedback transition-all shadow-[0_1px_3px_rgba(0,0,0,0.04)] disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-full border border-white/28 bg-white/16 px-5 py-2.5 text-sm font-black text-white shadow-sm transition-all hover:bg-white/24 disabled:opacity-60"
               >
                 <TrashIcon className="w-4 h-4" />
                 Vider le panier
@@ -305,39 +305,39 @@ export default function Cart() {
       </BaseModal>
 
       {error && (
-        <div className="bg-red-50 border-2 border-red-200 rounded-3xl p-4 sm:p-6 shadow-sm">
+        <div className="rounded-[24px] border border-red-200 bg-red-50 p-4 shadow-sm sm:p-5">
           <p className="text-red-700 text-sm font-semibold">{error}</p>
         </div>
       )}
 
       {loading && items.length === 0 ? (
-        <div className="flex items-center justify-center py-16">
+        <div className="flex items-center justify-center rounded-[28px] border border-orange-100 bg-white/86 py-16 shadow-sm">
           <div className="flex items-center gap-3 text-gray-600">
-            <div className="w-6 h-6 border-2 border-[#0A0A0A] border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-[#FF6A00] border-t-transparent rounded-full animate-spin" />
             <span className="font-medium">Chargement du panier...</span>
           </div>
         </div>
       ) : items.length === 0 ? (
-        <div className="text-center py-16 sm:py-20">
-          <div className="w-32 h-32 bg-gradient-to-br from-gray-100 to-gray-200 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-            <ShoppingBagIcon className="w-16 h-16 text-gray-400" />
+        <div className="rounded-[28px] border border-orange-100 bg-white px-6 py-14 text-center shadow-[0_18px_45px_rgba(117,75,36,0.08)] sm:py-16">
+          <div className="w-24 h-24 bg-orange-50 rounded-[28px] flex items-center justify-center mx-auto mb-6 ring-1 ring-orange-100">
+            <ShoppingBagIcon className="w-12 h-12 text-[#FF6A00]" />
           </div>
-          <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-3">Panier vide</h2>
-          <p className="text-gray-600 mb-8 max-w-sm mx-auto font-medium">
+          <h2 className="text-2xl sm:text-3xl font-black text-stone-950 mb-3">Panier vide</h2>
+          <p className="text-stone-600 mb-8 max-w-sm mx-auto font-medium">
             Votre panier est vide. Découvrez nos produits et ajoutez vos articles préférés.
           </p>
           <Link
             to="/products"
-            className="inline-flex items-center justify-center gap-2 bg-neutral-600 text-white px-6 py-3.5 min-h-[48px] rounded-3xl hover:bg-neutral-700 transition-all duration-200 tap-feedback font-semibold shadow-sm"
+            className="hd-primary-button inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full px-6 py-3.5 font-black"
           >
             <ShoppingBagIcon className="w-5 h-5" />
             Découvrir les produits
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-6 sm:gap-8">
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_400px] xl:gap-7">
           {/* Cart Items Enhanced */}
-          <div className="space-y-4 sm:space-y-5">
+          <div className="space-y-3 sm:space-y-4">
             {items.map((item) => {
               const { product, quantity, lineTotal } = item;
               const sellerPhone = product.user?.phone || product?.contactPhone;
@@ -350,24 +350,24 @@ export default function Cart() {
               return (
                 <div
                   key={cartItemKey}
-                  className="group bg-white rounded-xl sm:rounded-3xl border-2 border-gray-200 p-2 sm:p-5 lg:p-6 hover:shadow-xl transition-all duration-300 hover:border-neutral-200"
+                  className="group rounded-[24px] border border-orange-100 bg-white p-3 shadow-[0_12px_32px_rgba(117,75,36,0.07)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_45px_rgba(117,75,36,0.11)] sm:p-5"
                 >
-                  <div className="flex flex-col md:flex-row gap-2 sm:gap-5 lg:gap-6">
+                  <div className="flex gap-3 sm:gap-5">
                     {/* Product Image Enhanced - Much Smaller on Mobile */}
-                    <div className="w-20 sm:w-full md:w-36 lg:w-44 flex-shrink-0">
+                    <div className="w-24 shrink-0 sm:w-36 lg:w-40">
                       <Link
                         to={buildProductPath(product)}
                         {...externalLinkProps}
-                        className="block relative overflow-hidden rounded-lg sm:rounded-2xl aspect-square bg-gradient-to-br from-gray-100 to-gray-200 group-hover:shadow-lg transition-all duration-300"
+                        className="block relative overflow-hidden rounded-[18px] aspect-square bg-orange-50 transition-all duration-300"
                       >
                         <img
                           src={product.images?.[0] || 'https://via.placeholder.com/300'}
                           alt={product.title}
-                          className="absolute inset-0 h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                           loading="lazy"
                         />
                         {discount > 0 && (
-                          <div className="absolute top-1 left-1 sm:top-3 sm:left-3 bg-gradient-to-r from-red-500 via-neutral-500 to-red-600 text-white text-[9px] sm:text-xs font-black px-1.5 py-0.5 sm:px-3 sm:py-1.5 rounded-full shadow-lg ring-1 sm:ring-2 ring-white">
+                          <div className="absolute left-2 top-2 rounded-full bg-[#FF4D1C] px-2 py-1 text-[10px] font-black text-white shadow-sm">
                             -{discount}%
                           </div>
                         )}
@@ -375,17 +375,17 @@ export default function Cart() {
                     </div>
 
                     {/* Product Details Enhanced - Much Smaller on Mobile */}
-                    <div className="flex-1 space-y-1.5 sm:space-y-4 min-w-0">
-                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-2 sm:gap-4">
+                    <div className="min-w-0 flex-1 space-y-3">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                         <div className="space-y-1.5 sm:space-y-3 flex-1 min-w-0">
                   <Link
                     to={buildProductPath(product)}
                     {...externalLinkProps}
-                    className="text-sm sm:text-xl lg:text-2xl font-black text-gray-900 hover:text-neutral-600 transition-colors line-clamp-2"
+                    className="line-clamp-2 text-sm font-black text-stone-950 transition-colors hover:text-[#FF6A00] sm:text-lg"
                   >
                             {product.title}
                           </Link>
-                          <p className="text-[10px] sm:text-sm text-gray-600 font-medium">Catégorie : <span className="text-gray-900">{product.category}</span></p>
+                          <p className="text-[11px] sm:text-sm text-stone-500 font-semibold">Catégorie : <span className="text-stone-800">{product.category}</span></p>
                           <SelectedAttributesList
                             selectedAttributes={item.selectedAttributes}
                             compact
@@ -394,7 +394,7 @@ export default function Cart() {
                           
                           {/* Price Display Enhanced - Much Smaller on Mobile */}
                           <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap">
-                            <span className="text-sm sm:text-2xl lg:text-3xl font-black text-neutral-600">
+                            <span className="text-lg font-black text-[#FF6A00] sm:text-2xl">
                               {formatPrice(product.price)}
                             </span>
                             {discount > 0 && (
@@ -402,7 +402,7 @@ export default function Cart() {
                                 <span className="text-xs sm:text-lg text-gray-400 line-through font-bold">
                                   {formatPrice(originalPrice)}
                                 </span>
-                                <span className="text-[9px] sm:text-xs bg-gradient-to-r from-green-500 to-emerald-600 text-white px-1.5 py-0.5 sm:px-3 sm:py-1.5 rounded-full font-black shadow-sm">
+                                <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-700 ring-1 ring-emerald-100 sm:text-xs">
                                   Éco: {formatPrice((originalPrice - product.price) * quantity)}
                                 </span>
                               </>
@@ -411,11 +411,11 @@ export default function Cart() {
                         </div>
 
                         {/* Quantity Controls Enhanced - Apple Style - Much Smaller on Mobile */}
-                        <div className="flex flex-col items-end gap-1.5 sm:gap-4">
-                          <div className="flex items-center gap-1 sm:gap-2 bg-gray-50 rounded-xl sm:rounded-3xl p-0.5 sm:p-1 border border-gray-200">
+                        <div className="flex flex-row items-center justify-between gap-2 lg:flex-col lg:items-end">
+                          <div className="flex items-center gap-1 rounded-full border border-orange-100 bg-orange-50/70 p-1">
                             <button
                               type="button"
-                              className="min-w-[44px] min-h-[44px] w-10 h-10 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-gray-700 hover:bg-white disabled:opacity-40 transition-all duration-200 tap-feedback shadow-sm"
+                              className="flex h-9 min-h-[40px] w-9 min-w-[40px] items-center justify-center rounded-full bg-white text-stone-700 shadow-sm transition hover:text-[#FF6A00] disabled:opacity-40"
                               onClick={() => changeQuantity(item, quantity - 1)}
                               disabled={disableAll || pending[cartItemKey] || quantity <= 1}
                             >
@@ -426,7 +426,7 @@ export default function Cart() {
                               <input
                                 type="number"
                                 min="1"
-                                className="w-full bg-transparent border-0 text-center h-7 sm:h-10 font-black text-gray-900 text-xs sm:text-base focus:outline-none"
+                                className="h-8 w-full border-0 bg-transparent text-center text-sm font-black text-stone-900 focus:outline-none"
                                 value={quantity}
                                 onChange={(e) => changeQuantity(item, e.target.value)}
                                 disabled={disableAll || pending[cartItemKey]}
@@ -435,7 +435,7 @@ export default function Cart() {
                             
                             <button
                               type="button"
-                              className="min-w-[44px] min-h-[44px] w-10 h-10 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-gray-700 hover:bg-white disabled:opacity-40 transition-all duration-200 tap-feedback shadow-sm"
+                              className="flex h-9 min-h-[40px] w-9 min-w-[40px] items-center justify-center rounded-full bg-white text-stone-700 shadow-sm transition hover:text-[#FF6A00] disabled:opacity-40"
                               onClick={() => changeQuantity(item, quantity + 1)}
                               disabled={disableAll || pending[cartItemKey]}
                             >
@@ -444,9 +444,9 @@ export default function Cart() {
                           </div>
 
                           {/* Line Total Enhanced - Much Smaller on Mobile */}
-                          <div className="text-right bg-neutral-50 px-2 py-1 sm:px-4 sm:py-2 rounded-lg sm:rounded-2xl border border-neutral-100">
-                            <span className="text-[9px] sm:text-xs text-gray-600 font-medium block mb-0.5 sm:mb-1">Sous-total</span>
-                            <div className="text-sm sm:text-xl lg:text-2xl font-black text-neutral-600">
+                          <div className="rounded-2xl border border-orange-100 bg-white px-3 py-2 text-right">
+                            <span className="block text-[10px] font-bold text-stone-500">Sous-total</span>
+                            <div className="text-sm font-black text-stone-950 sm:text-lg">
                               {formatPrice(lineTotal)}
                             </div>
                           </div>
@@ -454,12 +454,12 @@ export default function Cart() {
                       </div>
 
                       {/* Actions Enhanced - Compact Design for Mobile */}
-                      <div className="flex items-center gap-2 sm:gap-3 pt-2 sm:pt-4 border-t-2 border-gray-100 w-full">
+                      <div className="flex items-center gap-2 border-t border-orange-100 pt-3 w-full">
                         {whatsappLink && (
                           <button
                             type="button"
                             onClick={() => handleWhatsappClick(item, whatsappLink)}
-                            className="flex-1 min-w-0 inline-flex items-center gap-1.5 sm:gap-2 bg-green-50 border border-green-200 text-green-700 px-2.5 py-2 sm:px-5 sm:py-3 rounded-xl sm:rounded-3xl hover:bg-green-100 transition-all duration-200 active:scale-95 font-semibold text-xs sm:text-sm shadow-sm overflow-hidden"
+                            className="inline-flex min-w-0 flex-1 items-center gap-2 overflow-hidden rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-bold text-emerald-700 shadow-sm transition-all hover:bg-emerald-100 active:scale-95 sm:text-sm"
                           >
                             <WhatsAppIcon className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                             <div className="flex flex-col items-start leading-tight text-left min-w-0 flex-1 overflow-hidden">
@@ -480,7 +480,7 @@ export default function Cart() {
                           type="button"
                           onClick={() => handleRemove(item)}
                           disabled={disableAll || pending[cartItemKey]}
-                          className="flex-shrink-0 inline-flex items-center justify-center gap-1.5 sm:gap-2 text-red-600 bg-white border border-red-300 px-3 py-2 sm:px-5 sm:py-3 rounded-xl sm:rounded-3xl hover:bg-red-50 transition-all duration-200 active:scale-95 disabled:opacity-60 font-semibold text-xs sm:text-sm shadow-sm"
+                          className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border border-red-200 bg-white px-3 py-2.5 text-xs font-bold text-red-600 shadow-sm transition-all hover:bg-red-50 active:scale-95 disabled:opacity-60 sm:text-sm"
                         >
                           <TrashIcon className="w-4 h-4 flex-shrink-0" />
                           <span className="hidden sm:inline">Supprimer</span>
@@ -495,43 +495,43 @@ export default function Cart() {
           </div>
 
           {/* Order Summary Enhanced */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-3xl border-2 border-gray-200 p-6 sm:p-8 sticky top-6 shadow-xl">
-              <h2 className="text-2xl font-black text-gray-900 mb-6">Résumé de la commande</h2>
+          <div className="space-y-4">
+            <div className="sticky top-6 rounded-[28px] border border-orange-100 bg-white p-5 shadow-[0_18px_45px_rgba(117,75,36,0.09)] sm:p-6">
+              <h2 className="mb-5 text-xl font-black text-stone-950">Résumé</h2>
               
               <div className="space-y-4">
                 {/* Items Count Enhanced */}
-                <div className="flex justify-between items-center py-3 px-4 bg-gray-50 rounded-2xl">
-                  <span className="text-gray-700 font-semibold">Articles ({totals.quantity})</span>
-                  <span className="font-black text-gray-900 text-lg">{formatPrice(totals.subtotal)}</span>
+                <div className="flex justify-between items-center rounded-2xl bg-orange-50/70 px-4 py-3">
+                  <span className="text-stone-700 font-semibold">Articles ({totals.quantity})</span>
+                  <span className="font-black text-stone-950 text-lg">{formatPrice(totals.subtotal)}</span>
                 </div>
 
                 {/* Savings Enhanced */}
                 {totalSavings > 0 && (
-                  <div className="flex justify-between items-center py-3 px-4 bg-green-50 rounded-2xl border border-green-200">
+                  <div className="flex justify-between items-center rounded-2xl border border-green-200 bg-green-50 px-4 py-3">
                     <span className="text-green-700 font-semibold">Économies</span>
                     <span className="font-black text-green-600 text-lg">-{formatPrice(totalSavings)}</span>
                   </div>
                 )}
 
                 {/* Shipping Estimate Enhanced */}
-                <div className="flex justify-between items-center py-3 px-4 bg-neutral-50 rounded-2xl border border-neutral-200">
-                  <span className="text-gray-700 font-semibold">Livraison estimée</span>
-                  <span className="font-black text-neutral-600">Gratuite</span>
+                <div className="flex justify-between items-center rounded-2xl border border-orange-100 bg-white px-4 py-3">
+                  <span className="text-stone-700 font-semibold">Livraison estimée</span>
+                  <span className="font-black text-[#FF6A00]">À confirmer</span>
                 </div>
 
                 {/* Divider Enhanced */}
-                <div className="border-t-2 border-gray-200 pt-5">
+                <div className="border-t border-orange-100 pt-5">
                   <div className="flex justify-between items-center">
-                    <span className="text-xl font-black text-gray-900">Total</span>
-                    <span className="text-3xl font-black text-neutral-600">{formatPrice(totals.subtotal)}</span>
+                    <span className="text-xl font-black text-stone-950">Total</span>
+                    <span className="text-3xl font-black text-[#FF6A00]">{formatPrice(totals.subtotal)}</span>
                   </div>
                 </div>
 
                 {/* Info Note Enhanced */}
-                <div className="bg-gradient-to-br from-neutral-50 to-neutral-50 border-2 border-neutral-200 rounded-2xl p-4">
-                  <p className="text-xs text-neutral-800 text-center font-medium leading-relaxed">
-                    💡 Les paiements sont sécurisés et gérés après validation des annonces. 
+                <div className="rounded-2xl border border-orange-100 bg-orange-50/70 p-4">
+                  <p className="text-center text-xs font-semibold leading-relaxed text-stone-700">
+                    Les paiements sont sécurisés et gérés après validation des annonces.
                     Contactez directement les vendeurs pour finaliser vos achats.
                   </p>
                 </div>
@@ -541,21 +541,21 @@ export default function Cart() {
                   <button
                     type="button"
                     onClick={handleCheckoutClick}
-                    className="apple-btn-primary block w-full text-center py-4 min-h-[52px]"
+                    className="hd-primary-button block min-h-[52px] w-full rounded-full py-4 text-center font-black"
                   >
-                    Continuer mes achats
+                    Passer la commande
                   </button>
                 </div>
               </div>
             </div>
 
             {/* Security Badges Enhanced */}
-            <div className="bg-gradient-to-br from-gray-50 to-neutral-50 rounded-3xl p-6 text-center border-2 border-gray-200">
-              <h3 className="font-black text-gray-900 mb-4">Paiement sécurisé</h3>
-              <div className="flex flex-col sm:flex-row justify-center items-center gap-4 text-gray-600">
-                <div className="text-xs font-semibold">🔒 Paiement sécurisé</div>
-                <div className="text-xs font-semibold">🚚 Livraison garantie</div>
-                <div className="text-xs font-semibold">💬 Support 24/7</div>
+            <div className="rounded-[24px] border border-orange-100 bg-white p-5 text-center shadow-sm">
+              <h3 className="font-black text-stone-950 mb-4">Achat protégé</h3>
+              <div className="flex flex-col sm:flex-row justify-center items-center gap-3 text-stone-600">
+                <div className="text-xs font-semibold">Paiement vérifié</div>
+                <div className="text-xs font-semibold">Livraison suivie</div>
+                <div className="text-xs font-semibold">Support HDMarket</div>
               </div>
             </div>
           </div>

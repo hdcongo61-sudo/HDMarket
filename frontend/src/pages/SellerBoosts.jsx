@@ -71,7 +71,7 @@ export default function SellerBoosts() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100 via-white to-slate-50 pb-8 pt-4 sm:py-6">
+    <div className="hd-my-flow hd-commerce-shell min-h-screen pb-8 pt-4 sm:py-6">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-3 sm:gap-6 sm:px-4">
         <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-4 shadow-sm backdrop-blur sm:p-6">
           <div className="flex flex-col gap-3">

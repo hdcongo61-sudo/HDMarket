@@ -907,7 +907,7 @@ export default function OrderDetail() {
 
   if (loading && !order) {
     return (
-      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
+      <div className="hd-order-flow hd-commerce-shell min-h-screen dark:bg-neutral-950">
         <GlassHeader title="Commande" subtitle="Chargement..." backTo="/orders" />
         <OrderDetailSkeleton />
       </div>
@@ -916,7 +916,7 @@ export default function OrderDetail() {
 
   if (queryErrorMessage || !order) {
     return (
-      <div className="min-h-screen bg-gray-50 p-4">
+      <div className="hd-order-flow hd-commerce-shell min-h-screen p-4">
         <Link to="/orders" className="inline-flex items-center gap-2 text-neutral-600 font-medium mb-4">
           <ArrowLeft className="w-4 h-4" /> Retour aux commandes
         </Link>
@@ -1071,7 +1071,7 @@ export default function OrderDetail() {
   const proofPreviewIsSignature = /signature/i.test(String(proofPreview?.label || ''));
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
+    <div className="hd-order-flow hd-commerce-shell min-h-screen dark:bg-neutral-950">
       <GlassHeader
         title={`Commande #${order._id.slice(-6)}`}
         subtitle="Détail client"

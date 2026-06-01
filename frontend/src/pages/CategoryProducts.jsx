@@ -264,6 +264,7 @@ export default function CategoryProducts() {
 
   if (!categoryMeta) {
     return (
+      <div className="hd-products-flow">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-8 py-8 space-y-8">
         <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Catégorie introuvable</h1>
@@ -300,10 +301,12 @@ export default function CategoryProducts() {
           </div>
         </div>
       </div>
+      </div>
     );
   }
 
   return (
+    <div className="hd-products-flow">
     <div className="mx-auto max-w-7xl space-y-5 px-3 py-5 pb-24 sm:space-y-7 sm:px-6 sm:py-8 md:px-8 md:pb-16">
       <header className="space-y-4">
         {(offlineSnapshotActive || rapid3GActive) && (
@@ -333,14 +336,14 @@ export default function CategoryProducts() {
           <span className="text-gray-900 font-semibold">{categoryMeta.label}</span>
         </nav>
 
-        <div className="rounded-[28px] border border-neutral-200 bg-white p-4 shadow-[0_14px_38px_rgba(15,23,42,0.07)] sm:p-5">
+        <div className="hd-products-hero rounded-[28px] border border-neutral-200 p-4 text-white shadow-[0_14px_38px_rgba(15,23,42,0.07)] sm:p-5">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div className="min-w-0">
-              <p className="mb-1 text-xs font-bold uppercase tracking-wide text-neutral-500">
+              <p className="mb-1 text-xs font-bold uppercase tracking-wide text-white/78">
                 {group?.label || 'Catégorie'}
               </p>
-              <h1 className="text-2xl font-black tracking-tight text-gray-950 md:text-3xl">{categoryMeta.label}</h1>
-              <p className="mt-1 text-sm text-gray-600">
+              <h1 className="text-2xl font-black tracking-tight text-white md:text-3xl">{categoryMeta.label}</h1>
+              <p className="mt-1 text-sm text-white/82">
                 Sélection approuvée, affichée avec des cartes plus rapides à scanner sur mobile.
               </p>
             </div>
@@ -358,7 +361,7 @@ export default function CategoryProducts() {
                   id="category-sort"
                   value={sort}
                   onChange={(event) => setSort(event.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 bg-neutral-50 px-3 py-3 text-sm font-semibold text-neutral-800 focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-200 md:w-56"
+                  className="w-full rounded-full border border-white/30 bg-white px-3 py-3 text-sm font-black text-neutral-800 focus:border-white focus:outline-none focus:ring-2 focus:ring-white/30 md:w-56"
                 >
                   {SORT_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -368,7 +371,7 @@ export default function CategoryProducts() {
                 </select>
               </div>
 
-              <div className="inline-grid h-11 w-full grid-cols-2 rounded-2xl border border-neutral-200 bg-neutral-50 p-1 md:w-40">
+              <div className="inline-grid h-11 w-full grid-cols-2 rounded-full border border-white/30 bg-white/20 p-1 md:w-40">
                 {[
                   { value: 'grid', label: 'Grille', icon: Grid2X2 },
                   { value: 'list', label: 'Liste', icon: List }
@@ -383,7 +386,7 @@ export default function CategoryProducts() {
                       className={`inline-flex items-center justify-center gap-1.5 rounded-xl text-xs font-bold transition ${
                         active
                           ? 'bg-white text-neutral-950 shadow-sm'
-                          : 'text-neutral-500 hover:text-neutral-900'
+                          : 'text-white/78 hover:text-white'
                       }`}
                       aria-pressed={active}
                     >
@@ -398,7 +401,7 @@ export default function CategoryProducts() {
         </div>
 
         {group && (
-          <div className="overflow-x-auto rounded-[22px] border border-gray-200 bg-white p-2 shadow-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="hd-products-toolbar overflow-x-auto rounded-[22px] p-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <div className="flex min-w-max gap-2">
               {group.options.map((option) => {
                 const isActive = option.value === categoryMeta.value;
@@ -408,8 +411,8 @@ export default function CategoryProducts() {
                     to={`/categories/${option.value}`}
                     className={`inline-flex items-center gap-1 rounded-2xl border px-3 py-2 text-xs font-bold transition-colors ${
                       isActive
-                        ? 'border-neutral-950 bg-neutral-950 text-white shadow-sm'
-                        : 'border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 hover:border-gray-300'
+                        ? 'hd-products-chip-active shadow-sm'
+                        : 'hd-products-chip hover:bg-gray-100 hover:border-gray-300'
                     }`}
                   >
                     {option.label}
@@ -475,6 +478,7 @@ export default function CategoryProducts() {
           sous-catégories.
         </div>
       )}
+    </div>
     </div>
   );
 }

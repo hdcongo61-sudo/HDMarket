@@ -35,6 +35,7 @@ import {
   Download,
   ChevronDown,
   ChevronRight,
+  Settings,
   RotateCcw,
   FlipHorizontal,
   ZoomIn,
@@ -1576,7 +1577,7 @@ export default function Profile() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="hd-profile-flow hd-commerce-shell min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 bg-neutral-900 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <User className="w-8 h-8 text-white" />
@@ -1588,64 +1589,154 @@ export default function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 py-6">
+    <div className="hd-profile-flow hd-commerce-shell min-h-screen">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
         {/* En-tête */}
-        <div className="text-center mb-8">
-          {profileImagePreview ? (
-            <img
-              src={profileImagePreview}
-              alt={form.name || 'Profil'}
-              className="mx-auto mb-4 h-20 w-20 rounded-2xl object-cover ring-2 ring-neutral-200"
-            />
-          ) : (
-            <div className="w-20 h-20 bg-neutral-900 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <User className="w-10 h-10 text-white" />
+        <section className="mb-5 overflow-hidden rounded-[28px] border border-orange-100 bg-gradient-to-br from-[#fff7ed] via-white to-[#ffe1c2] p-4 shadow-[0_18px_48px_rgba(255,106,0,0.12)] sm:mb-8 sm:p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              {profileImagePreview ? (
+                <img
+                  src={profileImagePreview}
+                  alt={form.name || 'Profil'}
+                  className="h-[72px] w-[72px] flex-shrink-0 rounded-[24px] border-2 border-white object-cover shadow-[0_10px_24px_rgba(15,23,42,0.12)]"
+                />
+              ) : (
+                <div className="flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center rounded-[24px] border-2 border-white bg-[#ff6a00] shadow-[0_10px_24px_rgba(255,106,0,0.22)]">
+                  <User className="h-9 w-9 text-white" />
+                </div>
+              )}
+              <div className="min-w-0">
+                <div className="inline-flex max-w-full items-center rounded-xl border border-orange-100 bg-white/85 px-3 py-1.5 shadow-sm">
+                  <span className="truncate text-sm font-bold text-slate-900">
+                    {form.name ? `Salut, ${form.name}` : 'Compléter votre profil'}
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-semibold text-slate-700">
+                  <span className="inline-flex items-center gap-1">
+                    <MapPin className="h-3.5 w-3.5 text-[#ff6a00]" />
+                    {(user?.city || 'Ville')}{user?.commune ? ` · ${user.commune}` : ''}
+                  </span>
+                  <span className="text-slate-300">|</span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('security')}
+                    className="inline-flex items-center gap-1 text-slate-700"
+                  >
+                    <Shield className="h-3.5 w-3.5 text-[#ff6a00]" />
+                    Compte sécurisé
+                  </button>
+                </div>
+              </div>
             </div>
-          )}
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Mon Profil</h1>
-          <p className="text-gray-500">Gérez vos informations et consultez vos statistiques</p>
-          {user?.address ? (
-            <p className="mt-2 flex items-center justify-center text-sm text-gray-600 gap-2">
-              <MapPin className="w-4 h-4 text-neutral-700" />
-              <span>{user.address}</span>
-            </p>
-          ) : null}
-          {user?.city || user?.commune ? (
-            <p className="mt-1 flex items-center justify-center text-sm text-gray-500 gap-2">
-              <MapPin className="w-4 h-4 text-neutral-500" />
-              <span>
-                {user?.city || 'Ville inconnue'}
-                {user?.commune ? ` • ${user.commune}` : ''}
-              </span>
-            </p>
-          ) : null}
+            <div className="flex flex-shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab('notifications')}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/90 text-slate-900 shadow-sm active:scale-95"
+                aria-label="Notifications"
+              >
+                <Bell className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('security')}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/90 text-slate-900 shadow-sm active:scale-95"
+                aria-label="Paramètres"
+              >
+                <Settings className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-[24px] bg-gradient-to-r from-[#ff8a1f] to-[#ff4f17] p-4 text-white shadow-[0_14px_30px_rgba(255,106,0,0.28)]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-2xl font-black leading-none">HD VIP</p>
+                <p className="mt-1 truncate text-sm font-semibold text-white/90">
+                  Profil complété à {profileCompletionPercent}% · plus de confiance pour vendre
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('profile')}
+                className="flex-shrink-0 rounded-full bg-white px-4 py-2 text-sm font-black text-[#ff5a1f] active:scale-95"
+              >
+                Voir
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-4 gap-2 rounded-[24px] bg-white/90 p-3 shadow-sm">
+            {[
+              { label: 'Favoris', icon: Heart, value: stats.engagement?.favoritesReceived || 0, tab: 'stats' },
+              { label: 'Boutique', icon: Store, value: stats.listings?.total || 0, tab: user?.accountType === 'shop' ? 'shop' : 'profile' },
+              { label: 'Vues', icon: Clock, value: stats.performance?.views || 0, tab: 'stats' },
+              { label: 'Avis', icon: Star, value: stats.reviews?.total || 0, tab: 'stats' }
+            ].map(({ label, icon: Icon, value, tab }) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => setActiveTab(tab)}
+                className="flex min-w-0 flex-col items-center gap-1.5 rounded-2xl px-1 py-2 text-center active:scale-95"
+              >
+                <Icon className="h-6 w-6 text-slate-900" />
+                <span className="text-[11px] font-bold text-slate-800">{label}</span>
+                <span className="text-[10px] font-black text-[#ff6a00]">{formatNumber(value)}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-4 rounded-[24px] bg-white/95 p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h1 className="text-xl font-black text-slate-950">Mes commandes</h1>
+              <button
+                type="button"
+                onClick={() => setActiveTab('orders')}
+                className="inline-flex items-center text-sm font-bold text-slate-500"
+              >
+                Tout <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="mt-4 grid grid-cols-4 gap-2">
+              {[
+                { label: 'À payer', icon: DollarSign, value: stats.orders?.purchases?.byStatus?.pending?.count || 0 },
+                { label: 'Acceptées', icon: Package, value: stats.orders?.purchases?.byStatus?.confirmed?.count || 0 },
+                { label: 'Livraison', icon: Truck, value: stats.orders?.purchases?.byStatus?.delivering?.count || 0 },
+                { label: 'Avis', icon: MessageCircle, value: stats.orders?.purchases?.byStatus?.delivered?.count || 0 }
+              ].map(({ label, icon: Icon, value }) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => setActiveTab('orders')}
+                  className="relative flex min-w-0 flex-col items-center gap-1.5 rounded-2xl py-2 text-center active:scale-95"
+                >
+                  <Icon className="h-6 w-6 text-slate-900" />
+                  {value > 0 ? (
+                    <span className="absolute right-2 top-0 rounded-full bg-[#ff5a1f] px-1.5 py-0.5 text-[10px] font-black leading-none text-white">
+                      {formatNumber(value)}
+                    </span>
+                  ) : null}
+                  <span className="text-[11px] font-bold text-slate-800">{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {userShopLink && (
             <Link
               to={userShopLink}
-              className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-xl border border-neutral-200 text-sm font-semibold text-neutral-800 hover:bg-neutral-50 transition-colors"
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm font-black text-slate-900 shadow-sm transition-colors hover:bg-orange-50"
             >
-              <Store className="w-4 h-4" />
+              <Store className="h-4 w-4 text-[#ff6a00]" />
               Voir ma boutique publique
             </Link>
           )}
-
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:hidden">
-            {mobileHighlights.map(({ label, value }) => (
-              <div
-                key={label}
-                className="bg-white border border-gray-100 rounded-2xl p-3 shadow-sm flex flex-col"
-              >
-                <span className="text-[11px] uppercase tracking-wide text-gray-400">{label}</span>
-                <span className="text-lg font-bold text-gray-900">{formatNumber(value)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        </section>
 
         {/* Navigation par onglets — mobile: sticky horizontal avec indicateur animé + progression */}
         {isMobile ? (
-          <div className="sticky top-0 z-30 -mx-4 px-4 pt-2 pb-3 mb-4 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200/80 dark:border-gray-800/80 shadow-sm">
+          <div className="hd-profile-sticky sticky top-0 z-30 -mx-4 px-4 pt-2 pb-3 mb-4 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200/80 dark:border-gray-800/80 shadow-sm">
             {/* Barre de progression du profil */}
             <div className="mb-3">
               <div className="flex items-center justify-between text-xs mb-1.5">
@@ -2864,6 +2955,8 @@ export default function Profile() {
           size="lg"
           mobileSheet
           ariaLabel="Mes commandes"
+          rootClassName="hd-profile-flow"
+          panelClassName="border-orange-100 bg-[#fffaf4]"
         >
           <ModalHeader
             icon={<ClipboardList className="w-5 h-5 text-neutral-700" />}
@@ -3287,6 +3380,8 @@ export default function Profile() {
               size="lg"
               mobileSheet
               ariaLabel="Détail commande"
+              rootClassName="hd-profile-flow"
+              panelClassName="border-orange-100 bg-[#fffaf4]"
             >
               <ModalHeader
                 icon={<ClipboardList className="w-5 h-5 text-neutral-700" />}
@@ -3692,6 +3787,8 @@ export default function Profile() {
           size="md"
           mobileSheet={true}
           ariaLabel="Modifier la photo de profil"
+          rootClassName="hd-profile-flow"
+          panelClassName="border-orange-100 bg-[#fffaf4]"
         >
           <ModalHeader
             title="Modifier la photo de profil"
@@ -3859,6 +3956,8 @@ export default function Profile() {
           size="lg"
           mobileSheet={true}
           ariaLabel="Sélectionner la position boutique sur la carte"
+          rootClassName="hd-profile-flow"
+          panelClassName="border-orange-100 bg-[#fffaf4]"
         >
           <ModalHeader
             title="Sélectionner sur carte"

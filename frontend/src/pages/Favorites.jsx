@@ -172,43 +172,45 @@ export default function Favorites() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 space-y-4 sm:space-y-8 pb-12 md:pb-16">
-      <header className="text-center sm:text-left">
+    <div className="hd-products-flow min-h-screen">
+      <div className="mx-auto max-w-7xl space-y-5 px-3 py-5 pb-24 sm:space-y-7 sm:px-6 sm:py-8 lg:px-8 md:pb-16">
+      <header className="hd-products-hero rounded-[28px] p-5 text-white shadow-[0_18px_46px_rgba(255,106,0,0.14)] sm:p-7">
         <button
           onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 mb-4 text-sm font-semibold text-gray-600 hover:text-neutral-600 transition-colors"
+          className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/24 bg-white/14 px-3 py-2 text-sm font-black text-white/90 transition hover:bg-white/22 hover:text-white"
         >
           <ArrowLeft className="w-4 h-4" />
           Retour
         </button>
-        <p className="text-sm uppercase tracking-wide text-neutral-600 font-semibold">
+        <p className="text-xs uppercase tracking-wide text-white/76 font-black">
           Vos favoris
         </p>
-        <h1 className="text-xl sm:text-3xl font-bold text-gray-900 mt-1">Articles enregistrés</h1>
-        <p className="text-xs sm:text-base text-gray-600 mt-2">
+        <h1 className="mt-1 text-2xl font-black tracking-tight text-white sm:text-4xl">Articles enregistrés</h1>
+        <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-white/86 sm:text-base">
           Retrouvez rapidement les produits que vous avez ajoutés à votre liste de souhaits.
         </p>
       </header>
 
       {loading ? (
-        <div className="rounded-3xl border border-dashed border-gray-200 bg-white px-6 py-12 text-center shadow-sm">
-          <p className="text-gray-600">Chargement de vos favoris…</p>
+        <div className="rounded-[28px] border border-orange-100 bg-white/88 px-6 py-12 text-center shadow-sm">
+          <div className="mx-auto mb-4 h-6 w-6 animate-spin rounded-full border-2 border-[#FF6A00] border-t-transparent" />
+          <p className="font-semibold text-stone-600">Chargement de vos favoris…</p>
         </div>
       ) : hasFavorites ? (
         <>
           {/* Filters — Category & Price */}
-          <div className="flex flex-wrap items-center gap-3 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 shadow-sm">
-            <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-              <Filter className="w-4 h-4 text-neutral-500" />
+          <div className="hd-products-toolbar sticky top-20 z-20 flex flex-wrap items-center gap-3 rounded-[24px] p-3 shadow-sm sm:p-4">
+            <div className="flex items-center gap-2 text-sm font-black text-stone-800">
+              <Filter className="w-4 h-4 text-[#FF6A00]" />
               Filtres
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <div className="flex items-center gap-2">
-                <Tag className="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden />
+                <Tag className="w-4 h-4 text-[#FF6A00]" aria-hidden />
                 <select
                   value={filterCategory}
                   onChange={(e) => setFilterCategory(e.target.value)}
-                  className="rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm py-2 pl-3 pr-8 focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 min-w-[160px]"
+                  className="min-h-[42px] min-w-[160px] rounded-full border border-orange-100 bg-white py-2 pl-3 pr-8 text-sm font-bold text-stone-900 focus:border-[#FF6A00] focus:ring-2 focus:ring-orange-100"
                   aria-label="Filtrer par catégorie"
                 >
                   <option value="">Toutes les catégories</option>
@@ -220,11 +222,11 @@ export default function Favorites() {
                 </select>
               </div>
               <div className="flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden />
+                <DollarSign className="w-4 h-4 text-[#FF6A00]" aria-hidden />
                 <select
                   value={filterPrice}
                   onChange={(e) => setFilterPrice(e.target.value)}
-                  className="rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm py-2 pl-3 pr-8 focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 min-w-[180px]"
+                  className="min-h-[42px] min-w-[180px] rounded-full border border-orange-100 bg-white py-2 pl-3 pr-8 text-sm font-bold text-stone-900 focus:border-[#FF6A00] focus:ring-2 focus:ring-orange-100"
                   aria-label="Filtrer par prix"
                 >
                   {PRICE_RANGES.map((r) => (
@@ -242,33 +244,33 @@ export default function Favorites() {
                     setFilterPrice('all');
                     setPage(1);
                   }}
-                  className="text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:underline"
+                  className="hd-products-chip-active rounded-full px-3 py-2 text-sm font-black"
                 >
                   Réinitialiser
                 </button>
               )}
             </div>
-            <p className="w-full sm:w-auto text-xs text-gray-500 dark:text-gray-400 mt-1 sm:mt-0">
+            <p className="w-full text-xs font-bold text-stone-500 sm:mt-0 sm:w-auto">
               {filteredFavorites.length} article{filteredFavorites.length !== 1 ? 's' : ''}
               {(filterCategory || filterPrice !== 'all') && ` sur ${favorites.length}`}
             </p>
           </div>
 
           {filteredFavorites.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 px-6 py-10 text-center">
-              <p className="text-gray-700 dark:text-gray-300 font-medium">Aucun favori ne correspond aux filtres.</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Modifiez les filtres ou réinitialisez.</p>
+            <div className="rounded-[28px] border border-dashed border-orange-200 bg-white px-6 py-10 text-center shadow-sm">
+              <p className="font-black text-stone-900">Aucun favori ne correspond aux filtres.</p>
+              <p className="mt-1 text-sm text-stone-500">Modifiez les filtres ou réinitialisez.</p>
               <button
                 type="button"
                 onClick={() => { setFilterCategory(''); setFilterPrice('all'); setPage(1); }}
-                className="mt-3 text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:underline"
+                className="hd-primary-button mt-4 rounded-full px-5 py-2.5 text-sm font-black"
               >
                 Réinitialiser les filtres
               </button>
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 lg:gap-5">
+              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
                 {paginatedFavorites.map((product) => (
                   <ProductCard key={product._id} p={product} />
                 ))}
@@ -278,19 +280,23 @@ export default function Favorites() {
           )}
         </>
       ) : (
-        <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center shadow-sm">
-          <p className="text-lg font-semibold text-gray-700">Aucun favori pour le moment</p>
-          <p className="text-gray-500 mt-2">
+        <div className="rounded-[28px] border border-orange-100 bg-white px-6 py-14 text-center shadow-[0_18px_45px_rgba(117,75,36,0.08)]">
+          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-[24px] bg-orange-50 text-[#FF6A00] ring-1 ring-orange-100">
+            <Tag className="h-9 w-9" />
+          </div>
+          <p className="text-lg font-black text-stone-950">Aucun favori pour le moment</p>
+          <p className="mt-2 text-stone-500">
             Explorez le catalogue et cliquez sur le coeur d&apos;un produit pour le retrouver ici.
           </p>
           <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-full bg-neutral-600 px-6 py-3 font-medium text-white mt-6 hover:bg-neutral-700 transition"
+            to="/products"
+            className="hd-primary-button mt-6 inline-flex items-center justify-center rounded-full px-6 py-3 font-black"
           >
             Découvrir les produits
           </Link>
         </div>
       )}
+      </div>
     </div>
   );
 }

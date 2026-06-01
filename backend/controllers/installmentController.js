@@ -21,6 +21,7 @@ import {
   normalizeTransactionCode,
   TRANSACTION_CODE_REUSED_MESSAGE
 } from '../utils/transactionCodeService.js';
+import { notifyBuyerOrderCancelled } from '../utils/orderCancellationNotification.js';
 import { getVerifiedProductIds } from '../utils/publicProductVisibility.js';
 import {
   calculateInstallmentPenalty,
@@ -31,6 +32,7 @@ import { scheduleOrderReviewReminder } from '../services/orderReviewReminderServ
 import { getOrderAllowedActions } from '../services/orderStatusFlowService.js';
 import { emitOrderStatusUpdated } from '../sockets/chatSocket.js';
 import { validateSelectedAttributesForProduct } from '../utils/productAttributes.js';
+import { notifyBuyerDeliveryDistanceWarning } from '../utils/deliveryDistanceWarning.js';
 
 const ensureObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -494,6 +496,12 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
       },
       allowSelf: true
     });
+    await notifyBuyerDeliveryDistanceWarning({
+      order: createdOrder,
+      buyerId: customer._id,
+      actorId: customer._id,
+      productId: product._id
+    }).catch(() => {});
   } catch (error) {
     throw error;
   }
@@ -637,6 +645,13 @@ export const sellerConfirmInstallmentSale = asyncHandler(async (req, res) => {
     order.cancelledBy = userId;
     order.cancellationReason = 'Preuve de vente rejetée par le vendeur.';
     await order.save();
+    await notifyBuyerOrderCancelled({
+      order,
+      actorId: userId,
+      cancelledBy: 'seller',
+      reason: order.cancellationReason,
+      productId: order.items?.[0]?.product || null
+    }).catch(() => {});
     return res.json({ message: 'Commande annulée.' });
   }
 

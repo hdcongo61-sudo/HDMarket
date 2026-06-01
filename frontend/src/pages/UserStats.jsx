@@ -40,6 +40,8 @@ import PeriodComparisonIndicator from '../components/analytics/PeriodComparisonI
 import BaseModal from '../components/modals/BaseModal';
 
 const numberFormatter = new Intl.NumberFormat('fr-FR');
+const STATS_REQUEST_TIMEOUT_MS = 25000;
+const STATS_CLIENT_TIMEOUT_MS = 26000;
 const formatNumber = (value) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 0) return '0';
@@ -187,55 +189,87 @@ const DEFAULT_DELIVERY_STATS_OVERVIEW = {
   pickupOnlyOrdersCount: 0
 };
 
-const StatCard = ({ icon: Icon, label, value, subtitle, gradient, iconBg, trend }) => (
-  <div className="group relative overflow-hidden rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300">
-    <div className={`absolute inset-0 ${gradient.replace('from-', 'bg-').split(' ')[0]} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}></div>
-    <div className="relative p-6">
-      <div className="flex items-start justify-between mb-4">
-        <div className={`p-3 rounded-xl ${iconBg} shadow-sm`}>
-          <Icon className="w-6 h-6 text-white" />
-        </div>
-        {trend && (
-          <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-neutral-50 border border-neutral-200">
-            <TrendingUp className="w-3 h-3 text-neutral-600" />
-            <span className="text-xs font-bold text-neutral-700">{trend}</span>
-          </div>
-        )}
-      </div>
-      <div className="space-y-1">
-        <p className="text-sm font-medium text-gray-600">{label}</p>
-        <p className="text-3xl font-bold text-gray-900">{value}</p>
-        {subtitle && (
-          <p className="text-xs text-gray-500 mt-2">{subtitle}</p>
-        )}
-      </div>
-    </div>
-  </div>
-);
-
-const MetricCard = ({ title, value, subtitle, icon: Icon, color = "indigo" }) => {
-  const colorClasses = {
-    indigo: { icon: "bg-neutral-600", bg: "bg-neutral-50", border: "border-neutral-100", text: "text-neutral-600" },
-    emerald: { icon: "bg-neutral-600", bg: "bg-neutral-50", border: "border-neutral-100", text: "text-neutral-600" },
-    amber: { icon: "bg-neutral-600", bg: "bg-neutral-50", border: "border-neutral-100", text: "text-neutral-600" },
-    purple: { icon: "bg-neutral-600", bg: "bg-neutral-50", border: "border-neutral-100", text: "text-neutral-600" },
-    rose: { icon: "bg-neutral-600", bg: "bg-neutral-50", border: "border-neutral-100", text: "text-neutral-600" }
+const StatCard = ({ icon: Icon, label, value, subtitle, accent = 'default', trend }) => {
+  const accentMap = {
+    default: 'bg-neutral-950 text-white',
+    good: 'bg-emerald-700 text-white',
+    warning: 'bg-amber-600 text-white',
+    danger: 'bg-rose-700 text-white'
   };
-  const classes = colorClasses[color] || colorClasses.indigo;
 
   return (
-    <div className={`rounded-xl border ${classes.border} ${classes.bg} p-4`}>
-      <div className="flex items-center justify-between mb-2">
-        <div className={`p-2 rounded-lg ${classes.icon}`}>
-          <Icon className="w-4 h-4 text-white" />
+    <div className="rounded-[22px] border border-neutral-200 bg-white p-4 shadow-[0_18px_45px_rgba(15,23,42,0.06)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(15,23,42,0.09)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${accentMap[accent] || accentMap.default}`}>
+          <Icon className="h-4 w-4" />
         </div>
-        <span className="text-2xl font-bold text-gray-900">{value}</span>
+        {trend ? (
+          <span className="inline-flex items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-1 text-[11px] font-semibold text-neutral-700">
+            <TrendingUp className="h-3 w-3" />
+            {trend}
+          </span>
+        ) : null}
       </div>
-      <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">{title}</p>
-      {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
+      <div className="mt-5">
+        <p className="text-[13px] font-medium text-neutral-500">{label}</p>
+        <p className="mt-1 text-2xl font-semibold text-neutral-950 sm:text-3xl">{value}</p>
+        {subtitle ? <p className="mt-2 text-xs leading-5 text-neutral-500">{subtitle}</p> : null}
+      </div>
     </div>
   );
 };
+
+const MetricCard = ({ title, value, subtitle, icon: Icon }) => (
+  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+    <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-neutral-800 shadow-sm">
+        <Icon className="h-4 w-4" />
+      </div>
+      <span className="text-right text-xl font-semibold text-neutral-950">{value}</span>
+    </div>
+    <p className="text-xs font-semibold uppercase text-neutral-500">{title}</p>
+    {subtitle ? <p className="mt-1 text-xs leading-5 text-neutral-500">{subtitle}</p> : null}
+  </div>
+);
+
+const ProgressRow = ({ label, value, helper, tone = 'neutral' }) => {
+  const parsed = Math.max(0, Math.min(100, Number(value || 0)));
+  const toneMap = {
+    neutral: 'bg-neutral-950',
+    good: 'bg-emerald-700',
+    warning: 'bg-amber-600',
+    danger: 'bg-rose-700'
+  };
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span className="font-medium text-neutral-700">{label}</span>
+        <span className="font-semibold text-neutral-950">{parsed.toFixed(0)}%</span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-neutral-100">
+        <div className={`h-full rounded-full ${toneMap[tone] || toneMap.neutral}`} style={{ width: `${parsed}%` }} />
+      </div>
+      {helper ? <p className="text-xs leading-5 text-neutral-500">{helper}</p> : null}
+    </div>
+  );
+};
+
+const InsightCard = ({ icon: Icon, title, children, actionLabel, to }) => (
+  <div className="rounded-[22px] border border-neutral-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)]">
+    <div className="mb-4 flex items-center gap-3">
+      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-neutral-950 text-white">
+        <Icon className="h-4 w-4" />
+      </div>
+      <h3 className="text-base font-semibold text-neutral-950">{title}</h3>
+    </div>
+    <div className="text-sm leading-6 text-neutral-600">{children}</div>
+    {to && actionLabel ? (
+      <Link to={to} className="mt-5 inline-flex text-sm font-semibold text-neutral-950 hover:text-neutral-600">
+        {actionLabel}
+      </Link>
+    ) : null}
+  </div>
+);
 
 export default function UserStats() {
   const { user } = useContext(AuthContext);
@@ -343,7 +377,7 @@ export default function UserStats() {
         });
       }
       const requestPromise = directGet('/users/profile/stats', {
-        timeout: 10000,
+        timeout: STATS_REQUEST_TIMEOUT_MS,
         params: {}
       });
       const timeoutPromise = new Promise((_, reject) => {
@@ -351,7 +385,7 @@ export default function UserStats() {
           const timeoutError = new Error('Timeout stats request');
           timeoutError.code = 'CLIENT_TIMEOUT';
           reject(timeoutError);
-        }, 6000);
+        }, STATS_CLIENT_TIMEOUT_MS);
       });
       const { data, status } = await Promise.race([requestPromise, timeoutPromise]);
       if (!isMountedRef.current) return;
@@ -756,6 +790,86 @@ export default function UserStats() {
     () => stats.orders?.sales || DEFAULT_STATS.orders.sales,
     [stats.orders]
   );
+  const performanceModel = useMemo(() => {
+    const totalListings = Number(stats.listings.total || 0);
+    const approvedListings = Number(stats.listings.approved || 0);
+    const rejectedListings = Number(stats.listings.rejected || 0);
+    const views = Number(stats.performance.views || sellerAnalytics.summary.views || 0);
+    const clicks = Number(stats.performance.clicks || 0);
+    const conversionRate = Number(
+      sellerAnalytics.summary.conversionRate || stats.performance.conversion || 0
+    );
+    const salesCount = Number(salesStats.totalCount || sellerAnalytics.summary.orders || 0);
+    const cancelledSales = Number(salesStats.byStatus?.cancelled?.count || 0);
+    const deliveredSales = Number(salesStats.byStatus?.delivered?.count || 0);
+    const deliveryOrders = Number(deliveryStatsOverview.deliveryOrdersCount || 0);
+    const freeDeliveryOrders = Number(deliveryStatsOverview.freeDeliveryOrdersCount || 0);
+    const approvalRate = totalListings ? (approvedListings / totalListings) * 100 : 0;
+    const rejectionRate = totalListings ? (rejectedListings / totalListings) * 100 : 0;
+    const clickRate = views ? (clicks / views) * 100 : 0;
+    const completionRate = salesCount ? (deliveredSales / salesCount) * 100 : 0;
+    const cancellationRate = salesCount ? (cancelledSales / salesCount) * 100 : 0;
+    const freeDeliveryRate = deliveryOrders ? (freeDeliveryOrders / deliveryOrders) * 100 : 0;
+    const revenue = Number(sellerAnalytics.summary.revenue || salesStats.totalAmount || 0);
+    const avgOrderValue = salesCount ? revenue / salesCount : 0;
+    const healthScore = Math.round(
+      Math.max(
+        0,
+        Math.min(
+          100,
+          approvalRate * 0.3 +
+            Math.min(conversionRate * 10, 30) +
+            Math.max(0, 20 - cancellationRate) +
+            Math.min(completionRate * 0.2, 20)
+        )
+      )
+    );
+
+    const priorities = [];
+    if (Number(stats.listings.pending || 0) > 0) {
+      priorities.push({
+        title: 'Valider les annonces en attente',
+        detail: `${formatNumber(stats.listings.pending)} annonce(s) attendent une action ou une validation.`
+      });
+    }
+    if (rejectionRate > 10) {
+      priorities.push({
+        title: 'Réduire les rejets',
+        detail: 'Revoyez les photos, descriptions et preuves demandées avant publication.'
+      });
+    }
+    if (views > 50 && conversionRate < 2) {
+      priorities.push({
+        title: 'Transformer les vues en commandes',
+        detail: 'Ajustez prix, photos principales, disponibilité livraison et réponses vendeur.'
+      });
+    }
+    if (cancellationRate > 15) {
+      priorities.push({
+        title: 'Limiter les annulations',
+        detail: 'Confirmez le stock et le délai avant d’accepter les commandes.'
+      });
+    }
+    if (deliveryOrders > 0 && freeDeliveryRate < 20) {
+      priorities.push({
+        title: 'Tester une livraison plus attractive',
+        detail: 'Une offre livraison claire peut augmenter les commandes hors boutique.'
+      });
+    }
+
+    return {
+      approvalRate,
+      rejectionRate,
+      clickRate,
+      conversionRate,
+      completionRate,
+      cancellationRate,
+      freeDeliveryRate,
+      healthScore,
+      avgOrderValue,
+      priorities: priorities.slice(0, 4)
+    };
+  }, [deliveryStatsOverview, salesStats, sellerAnalytics.summary, stats]);
 
   if (!user) {
     return (
@@ -853,24 +967,31 @@ export default function UserStats() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f7f5f0]">
       <DebugPanel />
-      {/* Header Section */}
-      <div className="bg-neutral-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-2">
+      <div className="border-b border-neutral-200 bg-[#f7f5f0]/90 backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="mb-5 inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-800 shadow-sm transition hover:bg-neutral-50"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Retour
+              </button>
               <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
-                  <BarChart3 className="w-6 h-6" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-neutral-950 text-white shadow-lg">
+                  <BarChart3 className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-white/80 uppercase tracking-wide">Tableau de bord</p>
-                  <h1 className="text-3xl font-bold">Statistiques & Performance</h1>
+                  <p className="text-sm font-semibold text-neutral-500">Centre de performance</p>
+                  <h1 className="text-3xl font-semibold text-neutral-950 sm:text-4xl">Statistiques</h1>
                 </div>
               </div>
-              <p className="text-white/90 text-sm max-w-2xl">
-                Analysez vos performances, suivez votre croissance et optimisez votre présence sur HDMarket.
+              <p className="mt-4 text-sm leading-6 text-neutral-600 sm:text-base">
+                Une lecture simple de ce qui compte: visibilité, commandes, revenu, santé vendeur et actions à faire maintenant.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -878,14 +999,14 @@ export default function UserStats() {
                 type="button"
                 onClick={handleRefresh}
                 disabled={refreshing}
-                className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition-all disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-900 shadow-sm transition hover:bg-neutral-50 disabled:opacity-60"
               >
                 <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                 {refreshing ? 'Actualisation...' : 'Actualiser'}
               </button>
               <Link
                 to="/my"
-                className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition-all"
+                className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-900 shadow-sm transition hover:bg-neutral-50"
               >
                 <Package className="w-4 h-4" />
                 Mes annonces
@@ -893,7 +1014,7 @@ export default function UserStats() {
               {userShopLink && (
                 <Link
                   to={userShopLink}
-                  className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition-all"
+                  className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-900 shadow-sm transition hover:bg-neutral-50"
                 >
                   <Store className="w-4 h-4" />
                   Ma boutique
@@ -901,7 +1022,7 @@ export default function UserStats() {
               )}
               <Link
                 to="/profile"
-                className="inline-flex items-center gap-2 rounded-xl bg-white text-neutral-600 px-4 py-2.5 text-sm font-semibold hover:bg-white/90 transition-all shadow-lg"
+                className="inline-flex items-center gap-2 rounded-full bg-neutral-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-neutral-800"
               >
                 <Users className="w-4 h-4" />
                 Mon profil
@@ -911,40 +1032,87 @@ export default function UserStats() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 pb-12">
-        {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="mx-auto max-w-7xl px-4 py-6 pb-12 sm:px-6 lg:px-8">
+        <section className="mb-6 grid grid-cols-1 gap-4 xl:grid-cols-[1.25fr_0.75fr]">
+          <div className="rounded-[26px] border border-neutral-200 bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.07)] sm:p-6">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-neutral-500">Score de santé</p>
+                <div className="mt-2 flex items-end gap-3">
+                  <span className="text-5xl font-semibold text-neutral-950">{performanceModel.healthScore}</span>
+                  <span className="pb-2 text-sm font-medium text-neutral-500">/100</span>
+                </div>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-neutral-600">
+                  Score basé sur validation des annonces, conversion, commandes livrées et annulations.
+                </p>
+              </div>
+              <div className="grid min-w-0 flex-1 grid-cols-1 gap-4 sm:grid-cols-3 lg:max-w-xl">
+                <ProgressRow
+                  label="Validation"
+                  value={performanceModel.approvalRate}
+                  helper={`${formatNumber(stats.listings.approved)} annonces approuvées`}
+                  tone={performanceModel.approvalRate >= 70 ? 'good' : 'warning'}
+                />
+                <ProgressRow
+                  label="Conversion"
+                  value={Math.min(100, performanceModel.conversionRate * 10)}
+                  helper={`${Number(performanceModel.conversionRate || 0).toFixed(2)}% réel`}
+                  tone={performanceModel.conversionRate >= 3 ? 'good' : 'warning'}
+                />
+                <ProgressRow
+                  label="Annulations"
+                  value={Math.max(0, 100 - performanceModel.cancellationRate)}
+                  helper={`${Number(performanceModel.cancellationRate || 0).toFixed(1)}% annulées`}
+                  tone={performanceModel.cancellationRate <= 10 ? 'good' : 'danger'}
+                />
+              </div>
+            </div>
+          </div>
+
+          <InsightCard icon={Sparkles} title="Prochaine meilleure action" to="/my" actionLabel="Ouvrir mes annonces">
+            {performanceModel.priorities.length ? (
+              <div className="space-y-3">
+                {performanceModel.priorities.slice(0, 2).map((item) => (
+                  <div key={item.title} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3">
+                    <p className="font-semibold text-neutral-950">{item.title}</p>
+                    <p className="mt-1 text-xs leading-5 text-neutral-500">{item.detail}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p>Vos indicateurs sont stables. Continuez à publier régulièrement et gardez vos délais de réponse courts.</p>
+            )}
+          </InsightCard>
+        </section>
+
+        <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
           <StatCard
             icon={Package}
-            label="Annonces totales"
+            label="Annonces"
             value={formatNumber(stats.listings.total)}
             subtitle={`${formatNumber(stats.listings.approved)} approuvées`}
-            gradient="bg-neutral-600"
-            iconBg="bg-neutral-600"
+            accent="default"
           />
           <StatCard
-            icon={Heart}
-            label="Favoris reçus"
-            value={formatNumber(stats.engagement.favoritesReceived)}
-            subtitle={`${formatNumber(stats.engagement.commentsReceived)} commentaires`}
-            gradient="bg-neutral-600"
-            iconBg="bg-neutral-600"
+            icon={ShoppingBag}
+            label="Commandes"
+            value={formatNumber(purchaseStats.totalCount + salesStats.totalCount)}
+            subtitle={`${formatNumber(salesStats.totalCount)} ventes · ${formatNumber(purchaseStats.totalCount)} achats`}
+            accent="good"
           />
           <StatCard
             icon={Eye}
-            label="Vues totales"
+            label="Visibilité"
             value={formatNumber(stats.performance.views)}
-            subtitle={`${formatNumber(stats.performance.clicks)} clics WhatsApp`}
-            gradient="bg-neutral-600"
-            iconBg="bg-neutral-600"
+            subtitle={`${Number(performanceModel.clickRate || 0).toFixed(1)}% clics / vues`}
+            accent="warning"
           />
           <StatCard
             icon={DollarSign}
-            label="Budget annonces"
-            value={formatCurrency(stats.advertismentSpend)}
-            subtitle="Total des frais confirmés"
-            gradient="bg-neutral-600"
-            iconBg="bg-neutral-600"
+            label="Revenu moyen"
+            value={formatCurrency(performanceModel.avgOrderValue)}
+            subtitle={`${formatCurrency(sellerAnalytics.summary.revenue || salesStats.totalAmount)} générés`}
+            accent="default"
           />
         </div>
 

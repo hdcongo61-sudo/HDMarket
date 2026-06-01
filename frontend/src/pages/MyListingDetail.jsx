@@ -171,7 +171,7 @@ export default function MyListingDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100">
+      <div className="hd-my-flow hd-commerce-shell min-h-screen">
         <div className="mx-auto max-w-6xl px-4 py-5 space-y-4">
           <div className="h-10 w-full rounded-2xl bg-white border border-gray-100 animate-pulse" />
           <div className="h-56 w-full rounded-3xl bg-white border border-gray-100 animate-pulse" />
@@ -184,7 +184,7 @@ export default function MyListingDetail() {
 
   if (!product || error) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100">
+      <div className="hd-my-flow hd-commerce-shell min-h-screen">
         <div className="mx-auto max-w-xl px-4 py-10">
           <div className="rounded-3xl border border-red-100 bg-white p-6 shadow-sm">
             <div className="flex items-start gap-3">
@@ -277,7 +277,7 @@ export default function MyListingDetail() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pb-28 md:pb-8">
+    <div className="hd-my-flow hd-commerce-shell min-h-screen pb-28 md:pb-8">
       <header className="sticky top-0 z-30 border-b border-white/60 bg-white/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <button
@@ -428,7 +428,7 @@ export default function MyListingDetail() {
         </div>
       </main>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 p-3 backdrop-blur md:hidden">
+      <div className="hd-my-sticky fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 p-3 backdrop-blur md:hidden">
         <div className="mx-auto flex max-w-6xl items-center gap-2">
           {productIdentifier ? (
             <Link

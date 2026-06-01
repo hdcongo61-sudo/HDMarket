@@ -226,18 +226,17 @@ export default function Suggestions() {
 
   if (loading && items.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 py-12">
+      <div className="hd-products-flow min-h-screen">
+        <div className="max-w-7xl mx-auto px-3 py-6 pb-24 sm:px-6 lg:px-8">
           <div className="space-y-8">
-            {/* Header skeleton */}
-            <div className="space-y-4">
-              <div className="h-8 bg-gray-200 rounded-xl w-64 animate-pulse"></div>
-              <div className="h-4 bg-gray-200 rounded-lg w-96 animate-pulse"></div>
+            <div className="hd-products-hero rounded-[28px] p-5 sm:p-7">
+              <div className="h-7 w-56 animate-pulse rounded-full bg-white/25" />
+              <div className="mt-4 h-10 w-72 max-w-full animate-pulse rounded-2xl bg-white/20" />
+              <div className="mt-3 h-4 w-96 max-w-full animate-pulse rounded-full bg-white/20" />
             </div>
-            {/* Cards skeleton */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
               {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                <div key={i} className="h-80 bg-white rounded-2xl border border-gray-100 animate-pulse"></div>
+                <div key={i} className="h-72 animate-pulse rounded-[24px] border border-orange-100 bg-white shadow-sm" />
               ))}
             </div>
           </div>
@@ -247,22 +246,17 @@ export default function Suggestions() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header Section */}
-      <div className="bg-neutral-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
-                  <Sparkles className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-white/80 uppercase tracking-wide">Suggestions personnalisées</p>
-                  <h1 className="text-3xl font-bold">Découvrez pour vous</h1>
-                </div>
+    <div className="hd-products-flow min-h-screen">
+      <div className="mx-auto max-w-7xl space-y-5 px-3 py-5 pb-24 sm:space-y-7 sm:px-6 sm:py-8 lg:px-8 md:pb-16">
+        <header className="hd-products-hero rounded-[28px] p-5 text-white shadow-[0_18px_46px_rgba(255,106,0,0.14)] sm:p-7">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-2xl">
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/16 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-white ring-1 ring-white/20">
+                <Sparkles className="h-3.5 w-3.5" />
+                Suggestions personnalisées
               </div>
-              <p className="text-white/90 text-sm max-w-2xl">
+              <h1 className="text-2xl font-black tracking-tight text-white sm:text-4xl">Découvrez pour vous</h1>
+              <p className="mt-2 text-sm font-semibold leading-6 text-white/86">
                 Des produits sélectionnés spécialement pour vous, basés sur vos recherches et consultations récentes.
               </p>
             </div>
@@ -270,69 +264,67 @@ export default function Suggestions() {
               type="button"
               onClick={handleRefresh}
               disabled={refreshing || loading}
-              className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition-all disabled:opacity-50"
+              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full border border-white/28 bg-white/16 px-4 py-2.5 text-sm font-black text-white transition hover:bg-white/24 disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
               Actualiser
             </button>
           </div>
-        </div>
-      </div>
+        </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 pb-12">
         {/* Statistics Cards */}
         {views.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-neutral-600">
+          <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
+            <div className="rounded-[22px] border border-orange-100 bg-white p-4 shadow-sm sm:p-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-stone-950">
                   <Eye className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-2xl font-bold text-gray-900">{formatNumber(views.length)}</span>
+                <span className="text-xl font-black text-stone-950 sm:text-2xl">{formatNumber(views.length)}</span>
               </div>
-              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Produits consultés</p>
-              <p className="text-xs text-gray-500 mt-1">Vos vues récentes</p>
+              <p className="text-[11px] font-black uppercase tracking-wide text-stone-700 sm:text-sm">Consultés</p>
+              <p className="mt-1 hidden text-xs text-stone-500 sm:block">Vos vues récentes</p>
             </div>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-neutral-600">
+            <div className="rounded-[22px] border border-orange-100 bg-white p-4 shadow-sm sm:p-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#FF6A00]">
                   <Target className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-2xl font-bold text-gray-900">{formatNumber(preferredCategories.length)}</span>
+                <span className="text-xl font-black text-stone-950 sm:text-2xl">{formatNumber(preferredCategories.length)}</span>
               </div>
-              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Catégories préférées</p>
-              <p className="text-xs text-gray-500 mt-1">Basé sur vos intérêts</p>
+              <p className="text-[11px] font-black uppercase tracking-wide text-stone-700 sm:text-sm">Catégories</p>
+              <p className="mt-1 hidden text-xs text-stone-500 sm:block">Basé sur vos intérêts</p>
             </div>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-emerald-600">
+            <div className="rounded-[22px] border border-orange-100 bg-white p-4 shadow-sm sm:p-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-700">
                   <ShoppingBag className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-2xl font-bold text-gray-900">{formatNumber(items.length)}</span>
+                <span className="text-xl font-black text-stone-950 sm:text-2xl">{formatNumber(items.length)}</span>
               </div>
-              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Suggestions</p>
-              <p className="text-xs text-gray-500 mt-1">Produits recommandés</p>
+              <p className="text-[11px] font-black uppercase tracking-wide text-stone-700 sm:text-sm">Suggestions</p>
+              <p className="mt-1 hidden text-xs text-stone-500 sm:block">Produits recommandés</p>
             </div>
           </div>
         )}
 
         {/* Category Badges */}
         {preferredCategories.length > 0 && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-8">
+          <div className="hd-products-toolbar rounded-[24px] p-3 shadow-sm sm:p-4">
             <div className="flex items-center gap-2 mb-3">
-              <Filter className="w-4 h-4 text-gray-500" />
-              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Catégories suggérées</h3>
+              <Filter className="w-4 h-4 text-[#FF6A00]" />
+              <h3 className="text-sm font-black text-stone-950 uppercase tracking-wide">Catégories suggérées</h3>
             </div>
             <div className="flex flex-wrap gap-2">
               {preferredCategories.map((category) => (
                 <div
                   key={category}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-neutral-50 border border-neutral-200"
+                  className="hd-products-chip inline-flex items-center gap-2 rounded-full px-4 py-2"
                 >
-                  <TrendingUp className="w-4 h-4 text-neutral-600" />
-                  <span className="text-sm font-semibold text-neutral-700">{CATEGORY_LABELS[category] || category}</span>
+                  <TrendingUp className="w-4 h-4 text-[#FF6A00]" />
+                  <span className="text-sm font-black text-stone-800">{CATEGORY_LABELS[category] || category}</span>
                   {categoryStats[category] > 0 && (
-                    <span className="px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-700 text-xs font-bold">
+                    <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-black text-[#9A4A00]">
                       {categoryStats[category]}
                     </span>
                   )}
@@ -344,7 +336,7 @@ export default function Suggestions() {
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-6 mb-8">
+          <div className="rounded-[24px] border border-red-200 bg-red-50 p-5 shadow-sm">
             <div className="flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
               <div>
@@ -357,25 +349,25 @@ export default function Suggestions() {
 
         {/* Empty State - No Views */}
         {!preferredCategories.length && !loading && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
-            <div className="mx-auto w-20 h-20 rounded-2xl bg-neutral-100 flex items-center justify-center mb-4">
-              <Search className="w-10 h-10 text-neutral-600" />
+          <div className="rounded-[28px] border border-orange-100 bg-white p-8 text-center shadow-[0_18px_45px_rgba(117,75,36,0.08)] sm:p-12">
+            <div className="mx-auto w-20 h-20 rounded-[24px] bg-orange-50 flex items-center justify-center mb-4 ring-1 ring-orange-100">
+              <Search className="w-10 h-10 text-[#FF6A00]" />
             </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Aucune suggestion disponible</h3>
-            <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
+            <h3 className="text-lg font-black text-stone-950 mb-2">Aucune suggestion disponible</h3>
+            <p className="text-sm text-stone-500 mb-6 max-w-md mx-auto">
               Consultez quelques produits pour obtenir des suggestions personnalisées basées sur vos intérêts.
             </p>
             <div className="flex flex-wrap gap-3 justify-center">
               <Link
-                to="/"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-lg hover:shadow-xl transition-all"
+                to="/products"
+                className="hd-primary-button inline-flex items-center gap-2 rounded-full px-6 py-3 font-black"
               >
                 <ShoppingBag className="w-4 h-4" />
                 Explorer les produits
               </Link>
               <Link
                 to="/shops/verified"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border-2 border-neutral-200 bg-white text-neutral-600 font-semibold hover:bg-neutral-50 transition-all"
+                className="hd-products-chip inline-flex items-center gap-2 rounded-full px-6 py-3 font-black"
               >
                 <Award className="w-4 h-4" />
                 Boutiques vérifiées
@@ -386,18 +378,18 @@ export default function Suggestions() {
 
         {/* Empty State - No Items but has Categories */}
         {!loading && items.length === 0 && preferredCategories.length > 0 && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
-            <div className="mx-auto w-20 h-20 rounded-2xl bg-amber-100 flex items-center justify-center mb-4">
-              <Zap className="w-10 h-10 text-amber-600" />
+          <div className="rounded-[28px] border border-orange-100 bg-white p-8 text-center shadow-[0_18px_45px_rgba(117,75,36,0.08)] sm:p-12">
+            <div className="mx-auto w-20 h-20 rounded-[24px] bg-orange-50 flex items-center justify-center mb-4 ring-1 ring-orange-100">
+              <Zap className="w-10 h-10 text-[#FF6A00]" />
             </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Aucune suggestion disponible</h3>
-            <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
+            <h3 className="text-lg font-black text-stone-950 mb-2">Aucune suggestion disponible</h3>
+            <p className="text-sm text-stone-500 mb-6 max-w-md mx-auto">
               Nous avons analysé vos préférences, mais aucun nouveau produit ne correspond à vos critères pour le moment.
             </p>
             <button
               type="button"
               onClick={handleRefresh}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-lg hover:shadow-xl transition-all"
+              className="hd-primary-button inline-flex items-center gap-2 rounded-full px-6 py-3 font-black"
             >
               <RefreshCw className="w-4 h-4" />
               Actualiser les suggestions
@@ -408,15 +400,15 @@ export default function Suggestions() {
         {/* Products Grid */}
         {items.length > 0 && (
           <>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Produits recommandés</h2>
-                <p className="text-sm text-gray-500 mt-1">
+                <h2 className="text-xl font-black text-stone-950">Produits recommandés</h2>
+                <p className="text-sm font-semibold text-stone-500 mt-1">
                   {items.length} produit{items.length > 1 ? 's' : ''} suggéré{items.length > 1 ? 's' : ''} pour vous
                 </p>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
               {items.map((product) => (
                 <ProductCard key={product._id} p={product} />
               ))}
@@ -426,9 +418,9 @@ export default function Suggestions() {
 
         {/* Loading More */}
         {loading && items.length > 0 && (
-          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-80 bg-white rounded-2xl border border-gray-100 animate-pulse"></div>
+              <div key={i} className="h-72 animate-pulse rounded-[24px] border border-orange-100 bg-white shadow-sm" />
             ))}
           </div>
         )}
@@ -439,7 +431,7 @@ export default function Suggestions() {
             <button
               type="button"
               onClick={loadMore}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-lg hover:shadow-xl transition-all"
+              className="hd-primary-button inline-flex items-center gap-2 rounded-full px-6 py-3 font-black"
             >
               <ArrowRight className="w-4 h-4" />
               Charger plus de suggestions
@@ -450,7 +442,7 @@ export default function Suggestions() {
         {/* End of Results */}
         {!hasMore && items.length > 0 && (
           <div className="mt-8 text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 text-gray-600 text-sm">
+            <div className="inline-flex items-center gap-2 rounded-full border border-orange-100 bg-white px-4 py-2 text-sm font-bold text-stone-600 shadow-sm">
               <CheckCircle className="w-4 h-4" />
               <span>Toutes les suggestions ont été chargées</span>
             </div>

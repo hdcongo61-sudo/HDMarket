@@ -344,11 +344,11 @@ export default function Login() {
                           type="checkbox"
                           checked={rememberMe}
                           onChange={(e) => setRememberMe(e.target.checked)}
-                          className="h-4 w-4 rounded border-slate-300 accent-slate-950 dark:border-neutral-700 dark:accent-white"
+                          className="h-4 w-4 rounded border-orange-200 accent-[#ff6a00] dark:border-neutral-700"
                         />
                         {copy.rememberMe}
                       </label>
-                      <Link to="/forgot-password" className="text-sm font-semibold text-slate-900 transition hover:text-emerald-700 dark:text-white dark:hover:text-emerald-200">
+                      <Link to="/forgot-password" className="text-sm font-semibold text-[#d45a00] transition hover:text-[#9a4a00] dark:text-orange-200 dark:hover:text-orange-100">
                         {copy.forgotPassword}
                       </Link>
                     </div>
@@ -357,7 +357,7 @@ export default function Login() {
                       type="submit"
                       disabled={loading || !form.phone.trim() || !form.password.trim()}
                       whileTap={{ scale: 0.985 }}
-                      className="group inline-flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[18px] bg-slate-950 px-4 text-[15px] font-semibold text-white shadow-[0_18px_34px_rgba(15,23,42,0.22)] transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-55 dark:bg-white dark:text-slate-950 dark:hover:bg-neutral-100"
+                      className="hd-primary-button group inline-flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[18px] px-4 text-[15px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-55"
                     >
                       {loading ? <Loader2 size={17} className="animate-spin" /> : null}
                       {loading ? copy.submitting : copy.submit}

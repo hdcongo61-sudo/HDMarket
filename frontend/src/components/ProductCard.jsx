@@ -72,9 +72,12 @@ function ProductCard({
   const isInFavorites = isFavorite(p._id);
   const [whatsappClicks, setWhatsappClicks] = useState(p.whatsappClicks || 0);
   const [favoriteCount, setFavoriteCount] = useState(p.favoritesCount || 0);
+  const [favoritePending, setFavoritePending] = useState(false);
+  const [favoriteOverride, setFavoriteOverride] = useState(null);
   const externalLinkProps = useDesktopExternalLink();
   const resolvedProductLink = productLink || buildProductPath(p);
   const handleProductClick = onProductClick || recordProductView;
+  const favoriteActive = favoriteOverride ?? isInFavorites;
 
   // Get all product images
   const productImages = useMemo(() => {
@@ -252,7 +255,15 @@ function ProductCard({
 
   useEffect(() => {
     setFavoriteCount(p.favoritesCount || 0);
+    setFavoriteOverride(null);
+    setFavoritePending(false);
   }, [p._id, p.favoritesCount]);
+
+  useEffect(() => {
+    if (!favoritePending) {
+      setFavoriteOverride(null);
+    }
+  }, [isInFavorites, favoritePending]);
 
   // === LOGIQUE D'AUTHENTIFICATION ===
   const currentPath = `${location.pathname}${location.search}${location.hash}`;
@@ -430,16 +441,30 @@ function ProductCard({
       redirectToLogin();
       return;
     }
+    if (favoritePending) return;
+    const nextFavoriteState = !favoriteActive;
+    setFavoritePending(true);
+    setFavoriteOverride(nextFavoriteState);
+    setFavoriteCount((prev) =>
+      nextFavoriteState ? prev + 1 : Math.max(0, prev - 1)
+    );
     try {
-      trackCardInteraction(isInFavorites ? 'favorite_remove' : 'favorite_add');
+      trackCardInteraction(nextFavoriteState ? 'favorite_add' : 'favorite_remove');
       const result = await toggleFavorite(p);
-      if (result === true) {
-        setFavoriteCount((prev) => prev + 1);
-      } else if (result === false) {
-        setFavoriteCount((prev) => Math.max(0, prev - 1));
+      if (typeof result === 'boolean' && result !== nextFavoriteState) {
+        setFavoriteOverride(result);
+        setFavoriteCount((prev) =>
+          result ? prev + 1 : Math.max(0, prev - 1)
+        );
       }
     } catch (error) {
+      setFavoriteOverride(isInFavorites);
+      setFavoriteCount((prev) =>
+        nextFavoriteState ? Math.max(0, prev - 1) : prev + 1
+      );
       console.error('Impossible de modifier les favoris.', error);
+    } finally {
+      setFavoritePending(false);
     }
   };
 
@@ -535,22 +560,42 @@ function ProductCard({
     });
     const primaryImageSrcSet = getProductCardSrcSet(primaryImageOriginal, { lite: useLiteImageMode });
     const shopName = p?.user?.shopName || 'Boutique HDMarket';
+    const useTaobaoMobileCard = Boolean(isMobile && !isListCard && !isShopProfileCompact);
+    const mobilePromoLabel = hasActivePromo
+      ? `${promoScopeLabel} -${promoPercentLabel}%`
+      : hasDiscount
+        ? `Officiel -${Math.round(Number(p.discount || 0))}%`
+        : hasActiveBoost
+          ? 'Sélection HDMarket'
+          : freeDeliveryAvailable
+            ? 'Livraison offerte'
+            : isNew
+              ? 'Nouveau'
+              : '';
+    const mobileInterestCount = Number(salesCount || p.views || favoriteCount || whatsappClicks || 0);
+    const mobileInterestLabel = mobileInterestCount > 0
+      ? `${formatSalesCount(mobileInterestCount)}+ intéressés`
+      : productCity || conditionLabel;
     const modernBadges = [
       hasActiveBoost ? { key: 'boost', label: 'Boost', tone: 'dark', icon: Zap } : null,
       hasDiscount ? { key: 'discount', label: `-${p.discount}%`, tone: 'dark' } : null,
       installmentAvailable ? { key: 'installment', label: 'Tranche', tone: 'soft', icon: Clock } : null,
       wholesaleEnabled ? { key: 'wholesale', label: wholesaleMinQty ? `Gros ${wholesaleMinQty}+` : 'Gros', tone: 'emerald', icon: Boxes } : null
     ].filter(Boolean);
-    const cardRadius = isShopProfileCompact ? 'rounded-2xl' : 'rounded-[22px]';
+    const cardRadius = useTaobaoMobileCard ? 'rounded-[14px]' : isShopProfileCompact ? 'rounded-2xl' : 'rounded-[22px]';
     const imageAspect = isListCard
       ? 'h-auto min-h-[132px] w-[38%] shrink-0'
       : isShopProfileCompact
       ? 'aspect-[4/3]'
+      : useTaobaoMobileCard
+        ? 'aspect-[1/1]'
       : useCompactMobile && !categoryListing
         ? 'aspect-[1/1]'
         : 'aspect-[4/5]';
     const bodyPadding = isShopProfileCompact
       ? 'p-2'
+      : useTaobaoMobileCard
+        ? 'px-2.5 pb-2.5 pt-2'
       : useCompactMobile
         ? 'p-2.5'
         : 'p-3 sm:p-3.5';
@@ -579,7 +624,11 @@ function ProductCard({
       <>
         <article
           ref={cardRef}
-          className={`group relative flex h-full min-w-0 overflow-hidden border border-neutral-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.07)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_44px_rgba(15,23,42,0.10)] dark:border-neutral-800 dark:bg-neutral-950 ${cardRadius} ${
+          className={`hd-product-card group relative flex h-full min-w-0 overflow-hidden transition duration-200 hover:-translate-y-0.5 dark:border-neutral-800 dark:bg-neutral-950 ${cardRadius} ${
+            useTaobaoMobileCard
+              ? 'border-0 bg-white shadow-[0_1px_0_rgba(117,75,36,0.04)] hover:shadow-[0_8px_24px_rgba(117,75,36,0.1)]'
+              : 'border hover:shadow-[0_18px_44px_rgba(117,75,36,0.14)]'
+          } ${
             isListCard ? 'flex-row' : 'flex-col'
           }`}
         >
@@ -618,15 +667,15 @@ function ProductCard({
             />
             {!imageLoaded && <div className="absolute inset-0 animate-pulse bg-neutral-200 dark:bg-neutral-800" />}
 
-            <div className="absolute left-1.5 top-1.5 flex max-w-[calc(100%-3.7rem)] flex-wrap gap-1 sm:left-2 sm:top-2 sm:gap-1.5">
+            <div className={`absolute left-1.5 top-1.5 max-w-[calc(100%-3.7rem)] flex-wrap gap-1 sm:left-2 sm:top-2 sm:gap-1.5 ${useTaobaoMobileCard ? 'hidden' : 'flex'}`}>
               {visibleBadges.map((badge) => {
                 const Icon = badge.icon;
                 const badgeClass =
                   badge.tone === 'emerald'
                     ? 'bg-emerald-600 text-white'
                     : badge.tone === 'soft'
-                      ? 'bg-white/92 text-neutral-900'
-                      : 'bg-neutral-950 text-white';
+                      ? 'bg-white/92 text-stone-900'
+                      : 'bg-[#FF6A00] text-white';
                 return (
                   <span
                     key={badge.key}
@@ -642,15 +691,25 @@ function ProductCard({
             <button
               type="button"
               onClick={handleFavoriteToggle}
-              className={`absolute right-1.5 top-1.5 inline-flex items-center justify-center rounded-full bg-white/92 text-neutral-700 shadow-sm backdrop-blur transition active:scale-95 dark:bg-neutral-950/90 dark:text-neutral-200 sm:right-2 sm:top-2 ${
+              disabled={favoritePending}
+              className={`absolute right-1.5 top-1.5 items-center justify-center rounded-full shadow-sm backdrop-blur transition active:scale-95 disabled:cursor-wait sm:right-2 sm:top-2 ${
+                favoriteActive
+                  ? 'bg-[#FF6A00] text-white shadow-[0_10px_22px_rgba(255,106,0,0.28)]'
+                  : 'bg-white/94 text-neutral-700 hover:bg-orange-50 hover:text-[#FF6A00] dark:bg-neutral-950/90 dark:text-neutral-200'
+              } ${
+                useTaobaoMobileCard ? 'hidden' : 'inline-flex'
+              } ${
                 isShopProfileCompact ? 'h-8 w-8' : 'h-10 w-10'
-              }`}
-              aria-label={isInFavorites ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              } ${favoritePending ? 'scale-95 opacity-80' : ''}`}
+              aria-label={favoriteActive ? 'Retirer des favoris' : 'Ajouter aux favoris'}
             >
-              <Heart className="h-4 w-4" fill={isInFavorites ? 'currentColor' : 'none'} />
+              <Heart
+                className={`h-4 w-4 transition-transform duration-150 ${favoritePending ? 'scale-90' : favoriteActive ? 'scale-110' : ''}`}
+                fill={favoriteActive ? 'currentColor' : 'none'}
+              />
             </button>
 
-            {productCity ? (
+            {productCity && !useTaobaoMobileCard ? (
               <span className="absolute bottom-1.5 left-1.5 inline-flex max-w-[calc(100%-0.75rem)] items-center gap-1 rounded-full bg-white/92 px-2 py-0.5 text-[10px] font-semibold text-neutral-700 shadow-sm backdrop-blur dark:bg-neutral-950/90 dark:text-neutral-200 sm:bottom-2 sm:left-2 sm:px-2.5 sm:py-1 sm:text-[11px]">
                 <MapPin className="h-3 w-3 shrink-0" />
                 <span className="truncate">{productCity}</span>
@@ -659,29 +718,57 @@ function ProductCard({
           </Link>
 
           <div className={`flex flex-1 flex-col gap-2 ${bodyPadding}`}>
-            <Link
-              to={resolvedProductLink}
-              {...externalLinkProps}
-              onClick={() => {
-                trackBoostClick();
-                trackCardInteraction('title_open');
-                handleProductClick?.(p);
-              }}
-              className={`font-semibold leading-tight text-neutral-950 transition hover:text-neutral-700 dark:text-neutral-50 ${titleClass}`}
-            >
-              {p.title}
-            </Link>
+            {useTaobaoMobileCard ? (
+              <Link
+                to={resolvedProductLink}
+                {...externalLinkProps}
+                onClick={() => {
+                  trackBoostClick();
+                  trackCardInteraction('title_open');
+                  handleProductClick?.(p);
+                }}
+                className="line-clamp-2 min-h-[2.15rem] text-[13px] font-black leading-[1.15] text-slate-950 transition hover:text-slate-800"
+              >
+                {mobilePromoLabel ? (
+                  <span className="mr-1 font-black italic text-rose-600">{mobilePromoLabel}</span>
+                ) : null}
+                <span>{p.title}</span>
+              </Link>
+            ) : (
+              <Link
+                to={resolvedProductLink}
+                {...externalLinkProps}
+                onClick={() => {
+                  trackBoostClick();
+                  trackCardInteraction('title_open');
+                  handleProductClick?.(p);
+                }}
+                className={`font-semibold leading-tight text-neutral-950 transition hover:text-neutral-700 dark:text-neutral-50 ${titleClass}`}
+              >
+                {p.title}
+              </Link>
+            )}
 
-            <div className="flex flex-wrap items-baseline gap-1.5">
-              <span className={`${priceClass} font-black tracking-tight text-neutral-950 dark:text-white`}>
+            <div className={`flex flex-wrap items-baseline gap-1.5 ${useTaobaoMobileCard ? '-mt-0.5' : ''}`}>
+              <span className={`${useTaobaoMobileCard ? 'text-[clamp(17px,5.2vw,22px)] leading-none' : priceClass} hd-product-price font-black tracking-tight dark:text-orange-300`}>
                 {discountedPrice}
               </span>
-              {originalPrice && !isShopProfileCompact ? (
+              {useTaobaoMobileCard && hasDiscount ? (
+                <span className="text-[12px] font-bold text-[#ff5a1f]">après remise</span>
+              ) : null}
+              {originalPrice && !isShopProfileCompact && !useTaobaoMobileCard ? (
                 <span className="text-xs font-medium text-neutral-400 line-through">{originalPrice}</span>
               ) : null}
             </div>
 
-            {!isShopProfileCompact ? (
+            {useTaobaoMobileCard ? (
+              <div className="flex min-w-0 items-center gap-2 text-[12px] font-semibold text-neutral-500">
+                {originalPrice ? <span className="line-through">{originalPrice}</span> : null}
+                <span className="truncate">{mobileInterestLabel}</span>
+              </div>
+            ) : null}
+
+            {!isShopProfileCompact && !useTaobaoMobileCard ? (
             <div className="flex min-w-0 items-center justify-between gap-2 text-[11px] text-neutral-500">
               {isShopSeller ? (
                 <Link
@@ -714,14 +801,14 @@ function ProductCard({
             </div>
             ) : null}
 
-            {trustLabel && !isShopProfileCompact ? (
-              <div className="inline-flex w-fit max-w-full items-center gap-1 rounded-full bg-neutral-50 px-2 py-1 text-[10px] font-bold text-neutral-600 dark:bg-neutral-900 dark:text-neutral-300">
+            {trustLabel && !isShopProfileCompact && !useTaobaoMobileCard ? (
+              <div className="inline-flex w-fit max-w-full items-center gap-1 rounded-full bg-orange-50 px-2 py-1 text-[10px] font-bold text-[#9A4A00] dark:bg-neutral-900 dark:text-orange-300">
                 <ShieldCheck className="h-3 w-3 shrink-0" />
                 <span className="truncate">{trustLabel}</span>
               </div>
             ) : null}
 
-            <div className="mt-auto grid grid-cols-[1fr_auto] items-center gap-2 border-t border-neutral-100 pt-2 dark:border-neutral-800">
+            <div className={`mt-auto grid-cols-[1fr_auto] items-center gap-2 border-t border-neutral-100 pt-2 dark:border-neutral-800 ${useTaobaoMobileCard ? 'hidden' : 'grid'}`}>
               <Link
                 to={resolvedProductLink}
                 {...externalLinkProps}
@@ -730,7 +817,7 @@ function ProductCard({
                   trackCardInteraction('cta_open');
                   handleProductClick?.(p);
                 }}
-                className={`inline-flex items-center justify-center rounded-xl bg-neutral-950 px-3 text-xs font-bold text-white transition active:scale-[0.98] dark:bg-white dark:text-neutral-950 ${
+                className={`inline-flex items-center justify-center rounded-xl bg-[#FF6A00] px-3 text-xs font-bold text-white shadow-[0_8px_18px_rgba(255,106,0,0.22)] transition active:scale-[0.98] dark:bg-orange-500 dark:text-white ${
                   isShopProfileCompact ? 'h-8' : 'h-10'
                 }`}
               >
@@ -745,7 +832,7 @@ function ProductCard({
                     handleAddToCart();
                   }}
                   disabled={adding || inCart}
-                  className={`inline-flex items-center justify-center rounded-xl border border-neutral-200 bg-white text-neutral-800 transition active:scale-95 disabled:opacity-45 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 ${
+                  className={`inline-flex items-center justify-center rounded-xl border border-orange-100 bg-white text-[#9A4A00] transition active:scale-95 disabled:opacity-45 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 ${
                     isShopProfileCompact ? 'h-8 w-8' : 'h-10 w-10'
                   }`}
                   aria-label={inCart ? 'Déjà dans le panier' : 'Ajouter au panier'}
@@ -1075,18 +1162,23 @@ function ProductCard({
           <button
             type="button"
             onClick={(event) => handleFavoriteToggle(event)}
-            className="absolute top-1.5 sm:top-2 right-1.5 sm:right-2 z-30 bg-white/95 backdrop-blur-sm min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 p-2 sm:p-1.5 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 tap-feedback flex items-center justify-center group/fav"
-            aria-label={isInFavorites ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+            disabled={favoritePending}
+            className={`absolute top-1.5 sm:top-2 right-1.5 sm:right-2 z-30 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full p-2 shadow-lg backdrop-blur-sm transition-all duration-150 tap-feedback sm:min-h-0 sm:min-w-0 sm:p-1.5 ${
+              favoriteActive
+                ? 'bg-[#FF6A00] text-white shadow-[0_12px_24px_rgba(255,106,0,0.3)]'
+                : 'bg-white/95 text-gray-600 hover:scale-110 hover:bg-orange-50 hover:text-[#FF6A00] hover:shadow-xl'
+            } ${favoritePending ? 'scale-95 cursor-wait opacity-85' : ''}`}
+            aria-label={favoriteActive ? 'Retirer des favoris' : 'Ajouter aux favoris'}
           >
             <Heart
               size={14}
               className={`sm:w-4 sm:h-4 transition-all duration-300 ${
-                isInFavorites
-                  ? 'text-neutral-700 dark:text-neutral-200 transform scale-110'
-                  : 'text-gray-600 group-hover/fav:text-neutral-900 dark:group-hover/fav:text-neutral-100'
+                favoriteActive
+                  ? 'scale-110 text-white'
+                  : 'text-current'
               }`}
               strokeWidth={2}
-              fill={isInFavorites ? 'currentColor' : 'none'}
+              fill={favoriteActive ? 'currentColor' : 'none'}
             />
           </button>
         )}

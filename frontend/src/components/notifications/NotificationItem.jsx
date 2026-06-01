@@ -11,6 +11,17 @@ const previewText = (message, max = 120) => {
   return `${safe.slice(0, max - 1)}…`;
 };
 
+const toneClass = (tone = '') => {
+  if (tone === 'risk') return 'bg-red-50 text-red-700 border-red-100';
+  if (tone === 'delivery') return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+  if (tone === 'payment') return 'bg-amber-50 text-amber-700 border-amber-100';
+  if (tone === 'boost') return 'bg-orange-50 text-[#ff6a00] border-orange-100';
+  if (tone === 'shop') return 'bg-sky-50 text-sky-700 border-sky-100';
+  if (tone === 'admin') return 'bg-slate-100 text-slate-700 border-slate-200';
+  if (tone === 'message') return 'bg-violet-50 text-violet-700 border-violet-100';
+  return 'bg-orange-50 text-[#9a4a00] border-orange-100';
+};
+
 export default function NotificationItem({
   alert,
   meta,
@@ -76,7 +87,7 @@ export default function NotificationItem({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
-            className="py-3"
+            className="py-0"
           >
             <div
               role="button"
@@ -91,49 +102,59 @@ export default function NotificationItem({
               onPointerDown={startLongPress}
               onPointerUp={cancelLongPress}
               onPointerLeave={cancelLongPress}
-              className={`glass-card ui-card-interactive ui-card-fade-in group relative flex w-full items-start gap-3 rounded-2xl px-3.5 py-3 text-left shadow-sm transition-all hover:scale-[1.005] ${
-                isUnread ? 'ui-unread-accent' : ''
+              className={`group relative flex w-full items-start gap-3 rounded-[22px] border px-3.5 py-3.5 text-left shadow-[0_10px_26px_rgba(117,75,36,0.07)] transition-all hover:scale-[1.002] ${
+                isUnread
+                  ? 'border-orange-200 bg-white'
+                  : 'border-orange-100/80 bg-white/88'
               }`}
             >
+              {isUnread ? (
+                <span className="absolute left-0 top-5 h-9 w-1 rounded-r-full bg-[#ff6a00]" />
+              ) : null}
               <div className="relative mt-0.5 flex-shrink-0">
                 {actorAvatar ? (
                   <img
                     src={actorAvatar}
                     alt={alert?.actor?.name || alert?.user?.name || 'Utilisateur'}
-                    className="h-10 w-10 rounded-full object-cover"
+                    className="h-11 w-11 rounded-[17px] object-cover ring-2 ring-orange-50"
                   />
                 ) : avatarLetter ? (
-                  <div className="glass-card flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold text-neutral-700 dark:text-neutral-200">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-[17px] border border-orange-100 bg-orange-50 text-sm font-black text-[#ff6a00] dark:text-neutral-200">
                     {avatarLetter}
                   </div>
                 ) : (
-                  <div className="glass-card flex h-10 w-10 items-center justify-center rounded-full text-neutral-600 dark:text-neutral-300">
+                  <div className={`flex h-11 w-11 items-center justify-center rounded-[17px] border ${toneClass(meta?.tone)}`}>
                     {meta.icon}
                   </div>
                 )}
                 {isUnread && (
-                  <span className="status-pending-dot absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-neutral-900 dark:bg-neutral-100" />
+                  <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-[#ff6a00]" />
                 )}
               </div>
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-start gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-neutral-950 dark:text-neutral-100">
+                    <p className="line-clamp-1 text-[14px] font-black leading-tight text-neutral-950 dark:text-neutral-100">
                       {meta.title}
                     </p>
-                    <p className="mt-0.5 text-xs font-medium text-neutral-500 dark:text-neutral-400">
-                      {timeLabel}
-                    </p>
+                    <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
+                      <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-black ${toneClass(meta?.tone)}`}>
+                        {String(alert?.type || 'info').replaceAll('_', ' ')}
+                      </span>
+                      <span className="text-[11px] font-bold text-neutral-400 dark:text-neutral-500">
+                        {timeLabel}
+                      </span>
+                    </div>
                   </div>
                   {isUnread && (
-                    <span className="rounded-full border border-neutral-300 bg-neutral-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+                    <span className="rounded-full bg-[#ff6a00] px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white">
                       {t('notifications.newBadge', 'New')}
                     </span>
                   )}
                 </div>
 
-                <p className="mt-2 text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
+                <p className="mt-2 text-[13px] font-medium leading-relaxed text-neutral-700 dark:text-neutral-300">
                   {isExpanded ? alert.message : previewText(alert.message)}
                 </p>
 
@@ -154,7 +175,7 @@ export default function NotificationItem({
                             event.stopPropagation();
                             onNavigateAction?.(item.to);
                           }}
-                          className="glass-card inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium text-neutral-700 transition hover:bg-white/80 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                          className="inline-flex items-center gap-1 rounded-full bg-[#ff6a00] px-3 py-1.5 text-xs font-black text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)] transition active:scale-95"
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
                           {item.label || t('notifications.view', 'Voir')}
@@ -167,7 +188,7 @@ export default function NotificationItem({
                             event.stopPropagation();
                             onMarkRead?.();
                           }}
-                          className="glass-card inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium text-neutral-600 transition hover:bg-white/80 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                          className="inline-flex items-center gap-1 rounded-full border border-orange-100 bg-orange-50 px-3 py-1.5 text-xs font-bold text-[#9a4a00] transition active:scale-95 dark:text-neutral-300"
                         >
                           {t('notifications.markAsRead', 'Marquer comme lu')}
                         </button>
@@ -202,7 +223,7 @@ export default function NotificationItem({
             onClick={() => setMenuOpen(false)}
           >
             <motion.div
-              className="glass-card absolute inset-x-4 bottom-4 rounded-2xl p-2 shadow-xl"
+                className="absolute inset-x-4 bottom-4 rounded-[24px] border border-orange-100 bg-white p-2 shadow-xl"
               initial={{ y: 24, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 24, opacity: 0 }}
@@ -216,7 +237,7 @@ export default function NotificationItem({
                     onMarkRead?.();
                     setMenuOpen(false);
                   }}
-                  className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-neutral-800 hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                  className="w-full rounded-[18px] px-3 py-2.5 text-left text-sm font-bold text-[#9a4a00] hover:bg-orange-50 dark:text-neutral-200 dark:hover:bg-neutral-800"
                 >
                   {t('notifications.markAsRead', 'Marquer comme lu')}
                 </button>
@@ -227,14 +248,14 @@ export default function NotificationItem({
                   onDelete?.();
                   setMenuOpen(false);
                 }}
-                className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-neutral-600 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-950/40"
+                className="w-full rounded-[18px] px-3 py-2.5 text-left text-sm font-bold text-red-600 hover:bg-red-50 dark:text-neutral-300 dark:hover:bg-neutral-950/40"
               >
                 {t('notifications.delete', 'Supprimer')}
               </button>
               <button
                 type="button"
                 onClick={() => setMenuOpen(false)}
-                className="mt-1 w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                className="mt-1 w-full rounded-[18px] px-3 py-2.5 text-left text-sm font-bold text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
               >
                 {t('common.cancel', 'Annuler')}
               </button>

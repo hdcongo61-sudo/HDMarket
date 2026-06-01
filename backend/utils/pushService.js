@@ -652,6 +652,11 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       body = `${yourOrderSubject} a été annulée par le vendeur.${reason}${refundText}`;
       break;
     }
+    case 'delivery_distance_warning': {
+      title = 'Livraison longue distance';
+      body = `${yourOrderSubject} vient d'une autre ville. Vérifiez l'emballage, les conditions de livraison et l'état du produit à la réception.`;
+      break;
+    }
     case 'complaint_resolved': {
       const subjectLabel = metadata.subject ? ` (${metadata.subject})` : '';
       title = 'Réclamation résolue';

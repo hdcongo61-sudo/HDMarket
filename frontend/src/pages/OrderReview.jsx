@@ -136,7 +136,7 @@ export default function OrderReview() {
 
   if (reviewQuery.isLoading) {
     return (
-      <main className="min-h-screen bg-gray-50 px-4 py-6">
+      <main className="hd-order-flow hd-commerce-shell min-h-screen px-4 py-6">
         <div className="mx-auto max-w-3xl rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
           <p className="text-sm text-gray-600">Chargement de la page d'avis...</p>
         </div>
@@ -146,7 +146,7 @@ export default function OrderReview() {
 
   if (reviewQuery.error) {
     return (
-      <main className="min-h-screen bg-gray-50 px-4 py-6">
+      <main className="hd-order-flow hd-commerce-shell min-h-screen px-4 py-6">
         <div className="mx-auto max-w-3xl rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
           <p className="text-sm text-red-700">
             {reviewQuery.error?.response?.data?.message ||
@@ -164,7 +164,7 @@ export default function OrderReview() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-4 sm:px-6">
+    <main className="hd-order-flow hd-commerce-shell min-h-screen px-4 py-4 sm:px-6">
       <div className="mx-auto max-w-3xl space-y-4">
         <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
           <div className="flex flex-wrap items-start justify-between gap-3">

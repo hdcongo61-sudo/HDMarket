@@ -45,17 +45,19 @@ export default function CertifiedProducts() {
   }, [page]);
 
   return (
-    <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 space-y-4 sm:space-y-8 pb-8">
-      <header className="space-y-2">
+    <div className="hd-products-flow">
+    <div className="max-w-7xl mx-auto px-2 py-5 sm:px-4 sm:py-8 lg:px-8 space-y-4 sm:space-y-8 pb-24">
+      <header className="hd-products-hero rounded-[28px] p-5 text-white sm:p-6">
         <button
           onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 mb-4 text-sm font-semibold text-gray-600 hover:text-neutral-600 transition-colors"
+          className="inline-flex items-center gap-2 mb-4 text-sm font-semibold text-white/86 hover:text-white transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Retour
         </button>
-        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">Produits certifiés</h1>
-        <p className="text-xs sm:text-sm text-gray-500">
+        <p className="mb-2 text-xs font-black uppercase tracking-wide text-white/78">Confiance</p>
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white">Produits certifiés</h1>
+        <p className="mt-2 text-xs sm:text-sm text-white/86">
           Toutes les annonces approuvées par nos équipes certifiées HDMarket.
         </p>
       </header>
@@ -110,6 +112,7 @@ export default function CertifiedProducts() {
           Aucun produit certifié n’est disponible pour le moment. Revenez plus tard.
         </p>
       )}
+    </div>
     </div>
   );
 }

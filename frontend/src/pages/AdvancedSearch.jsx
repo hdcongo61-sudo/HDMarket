@@ -285,16 +285,16 @@ export default function AdvancedSearch() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="hd-search-flow hd-commerce-shell min-h-screen">
       {/* Header */}
-      <div className="bg-neutral-600 text-white">
+      <div className="hd-search-hero text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+            <div className="rounded-[20px] bg-white/18 p-3 backdrop-blur-sm ring-1 ring-white/24">
               <Search className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold">Recherche avancée</h1>
+              <h1 className="text-3xl font-black">Recherche avancée</h1>
               <p className="text-white/90 text-sm mt-1">
                 Trouvez exactement ce que vous cherchez avec nos filtres avancés
               </p>
@@ -302,8 +302,8 @@ export default function AdvancedSearch() {
           </div>
 
           {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <div className="relative max-w-3xl">
+            <Search className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#FF6A00]" />
             <input
               type="text"
               value={searchQuery}
@@ -312,7 +312,7 @@ export default function AdvancedSearch() {
                 setPage(1);
               }}
               placeholder="Rechercher un produit..."
-              className="w-full pl-12 pr-4 py-4 rounded-xl bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white/50 shadow-lg"
+              className="hd-global-search w-full rounded-full py-4 pl-14 pr-5 text-gray-900 placeholder:text-stone-400 focus:outline-none"
             />
           </div>
         </div>
@@ -322,7 +322,7 @@ export default function AdvancedSearch() {
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Filters Sidebar */}
           <aside className={`lg:w-80 flex-shrink-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm sticky top-4">
+            <div className="hd-search-panel sticky top-4 rounded-[24px]">
               {/* Filters Header */}
               <div className="p-4 border-b border-gray-200">
                 <div className="flex items-center justify-between mb-2">
@@ -334,7 +334,7 @@ export default function AdvancedSearch() {
                     <button
                       type="button"
                       onClick={clearAllFilters}
-                      className="text-xs font-semibold text-neutral-600 hover:text-neutral-700"
+                      className="text-xs font-bold text-[#B45309] hover:text-[#FF6A00]"
                     >
                       Tout effacer
                     </button>
@@ -612,7 +612,7 @@ export default function AdvancedSearch() {
               </section>
             )}
             {/* Results Header */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-6">
+            <div className="hd-search-panel mb-6 rounded-[24px] p-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">
@@ -629,7 +629,7 @@ export default function AdvancedSearch() {
                   <button
                     type="button"
                     onClick={() => setShowFilters(!showFilters)}
-                    className="lg:hidden inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    className="hd-soft-button inline-flex items-center gap-2 px-4 py-2 text-sm font-bold lg:hidden"
                   >
                     <Filter className="w-4 h-4" />
                     Filtres
@@ -726,7 +726,7 @@ export default function AdvancedSearch() {
                 <button
                   type="button"
                   onClick={clearAllFilters}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 transition-colors"
+                  className="hd-primary-button inline-flex items-center gap-2 px-6 py-3 font-bold"
                 >
                   <RefreshCw className="w-4 h-4" />
                   Réinitialiser les filtres

@@ -184,14 +184,14 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
   };
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
+    <form onSubmit={handleSubmit} className="hd-form-card rounded-3xl p-3 sm:p-5">
       <div className="mb-4 flex items-center gap-2">
-        <Sparkles className="h-5 w-5 text-neutral-600" />
+        <Sparkles className="h-5 w-5 text-[#ff6a00]" />
         <h3 className="text-base font-black text-slate-900 sm:text-lg">Nouvelle demande de boost</h3>
       </div>
 
       <div className="space-y-3">
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+        <div className="rounded-2xl border border-orange-100 bg-orange-50/55 p-3">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-600">Type de boost</p>
           <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:hidden">
             {BOOST_TYPES.map((item) => (
@@ -201,8 +201,8 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
                 onClick={() => setBoostType(item.value)}
                 className={`shrink-0 rounded-full border px-3 py-2 text-xs font-semibold transition ${
                   boostType === item.value
-                    ? 'border-neutral-600 bg-neutral-600 text-white'
-                    : 'border-slate-300 bg-white text-slate-700'
+                    ? 'border-[#ff6a00] bg-[#ff6a00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
+                    : 'border-orange-100 bg-white text-slate-700'
                 }`}
               >
                 {item.label}
@@ -214,7 +214,7 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
             <select
               value={boostType}
               onChange={(e) => setBoostType(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-neutral-500 focus:ring-2 focus:ring-neutral-100"
+              className="ui-input w-full rounded-[18px] px-3 py-2.5 text-sm"
             >
               {BOOST_TYPES.map((item) => (
                 <option key={item.value} value={item.value}>
@@ -234,7 +234,7 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
               max={365}
               value={duration}
               onChange={(e) => setDuration(Math.max(1, Number(e.target.value || 1)))}
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-neutral-500 focus:ring-2 focus:ring-neutral-100"
+              className="ui-input w-full rounded-[18px] px-3 py-2.5 text-sm"
             />
           </label>
           {requiresCity && (
@@ -243,7 +243,7 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
               <select
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-neutral-500 focus:ring-2 focus:ring-neutral-100"
+                className="ui-input w-full rounded-[18px] px-3 py-2.5 text-sm"
               >
                 {cityOptions.length === 0 && <option value="">Aucune ville configurée</option>}
                 {cityOptions.map((item) => (
@@ -283,8 +283,8 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
         </div>
       )}
 
-      <div className="mt-4 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-        <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+      <div className="mt-4 space-y-3 rounded-2xl border border-orange-100 bg-orange-50/45 p-3">
+        <div className="rounded-2xl border border-orange-100 bg-white/85 p-3">
           <p className="text-sm font-semibold text-neutral-900">
             Montant à payer: <span className="text-base">{formatPrice(preview?.totalPrice || 0)}</span>
           </p>
@@ -292,7 +292,7 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
             Après paiement Mobile Money, renseignez le nom de l’expéditeur et l’ID de transaction.
           </p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-3">
+        <div className="rounded-2xl border border-orange-100 bg-white p-3">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-600">Opérateur Mobile Money</p>
           {networksLoading ? (
             <p className="text-sm text-slate-500">Chargement des réseaux...</p>
@@ -305,8 +305,8 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
                   onClick={() => setPaymentOperator(network.name)}
                   className={`rounded-xl border px-3 py-2 text-left transition-colors ${
                     paymentOperator === network.name
-                      ? 'border-neutral-500 bg-neutral-50 text-neutral-700'
-                      : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                      ? 'border-[#ff6a00] bg-orange-50 text-[#9a4a00] shadow-sm'
+                      : 'border-orange-100 bg-white text-slate-700 hover:border-orange-200'
                   }`}
                 >
                   <p className="text-sm font-semibold">{network.name}</p>
@@ -318,7 +318,7 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
             </div>
           )}
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-3">
+        <div className="rounded-2xl border border-orange-100 bg-white p-3">
           <p className="mb-1 text-sm font-semibold text-slate-800">
             Exemple: où trouver l’ID de transaction
           </p>
@@ -334,21 +334,21 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="space-y-1">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Nom de l’expéditeur</span>
-            <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 focus-within:border-neutral-500 focus-within:ring-2 focus-within:ring-neutral-100">
+            <div className="hd-field-shell flex items-center gap-2 rounded-[18px] px-3 py-2.5 focus-within:border-orange-300 focus-within:ring-4 focus-within:ring-orange-500/10">
               <CreditCard className="h-4 w-4 text-slate-400" />
               <input
                 type="text"
                 value={paymentSenderName}
                 onChange={(e) => setPaymentSenderName(e.target.value)}
                 placeholder="Ex: Jean K."
-                className="w-full border-none p-0 text-sm text-slate-800 focus:outline-none"
+                className="min-h-0 w-full border-none bg-transparent p-0 text-sm text-slate-800 shadow-none focus:outline-none focus:ring-0"
                 required
               />
             </div>
           </label>
           <label className="space-y-1">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">ID transaction (10 chiffres)</span>
-            <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 focus-within:border-neutral-500 focus-within:ring-2 focus-within:ring-neutral-100">
+            <div className="hd-field-shell flex items-center gap-2 rounded-[18px] px-3 py-2.5 focus-within:border-orange-300 focus-within:ring-4 focus-within:ring-orange-500/10">
               <Hash className="h-4 w-4 text-slate-400" />
               <input
                 type="text"
@@ -357,7 +357,7 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
                 value={paymentTransactionId}
                 onChange={(e) => setPaymentTransactionId(e.target.value.replace(/\D/g, '').slice(0, 10))}
                 placeholder="1234567890"
-                className="w-full border-none p-0 text-sm font-mono text-slate-800 focus:outline-none"
+                className="min-h-0 w-full border-none bg-transparent p-0 text-sm font-mono text-slate-800 shadow-none focus:outline-none focus:ring-0"
                 required
               />
             </div>
@@ -365,7 +365,7 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-neutral-100 bg-neutral-50 p-3">
+      <div className="mt-4 rounded-2xl border border-orange-100 bg-white/85 p-3">
         <div className="mb-2 flex items-center gap-2">
           <Receipt className="h-4 w-4 text-neutral-700" />
           <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-700">Prévisualisation du prix</p>
@@ -397,11 +397,11 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
         </div>
       )}
 
-      <div className="sticky bottom-0 z-[2] -mx-3 mt-4 border-t border-slate-200 bg-white/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur sm:static sm:mx-0 sm:border-t-0 sm:bg-transparent sm:p-0">
+      <div className="sticky bottom-0 z-[2] -mx-3 mt-4 border-t border-orange-100 bg-white/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur sm:static sm:mx-0 sm:border-t-0 sm:bg-transparent sm:p-0">
         <button
           type="submit"
           disabled={submitting}
-          className="inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-xl bg-neutral-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-60 sm:w-auto"
+          className="hd-primary-button inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-[18px] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60 sm:w-auto"
         >
           {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
           {submitting ? 'Envoi...' : 'Envoyer la demande'}

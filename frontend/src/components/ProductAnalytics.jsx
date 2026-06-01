@@ -46,6 +46,8 @@ export default function ProductAnalytics({ productId, productTitle, onClose }) {
       size="xl"
       mobileSheet={true}
       ariaLabelledBy={titleId}
+      rootClassName="hd-my-flow"
+      panelClassName="border-orange-100 bg-[#fffaf4]"
     >
       <ModalHeader
         titleId={titleId}

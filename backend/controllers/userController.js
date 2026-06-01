@@ -5,6 +5,7 @@ import Comment from '../models/commentModel.js';
 import Product from '../models/productModel.js';
 import Rating from '../models/ratingModel.js';
 import Order from '../models/orderModel.js';
+import Payment from '../models/paymentModel.js';
 import Notification from '../models/notificationModel.js';
 import SearchHistory from '../models/searchHistoryModel.js';
 import ProductView from '../models/productViewModel.js';
@@ -62,6 +63,7 @@ const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   delivery_request_assigned: true,
   delivery_request_in_progress: true,
   delivery_request_delivered: true,
+  delivery_distance_warning: true,
   order_delivering: true,
   order_delivered: true,
   order_cancelled: true,
@@ -234,15 +236,168 @@ const ensureValidUserId = (userId) => {
 
 const collectUserStats = async (userId) => {
   ensureValidUserId(userId);
+  const userObjectId = new mongoose.Types.ObjectId(userId);
 
-  const [products, userDoc] = await Promise.all([
-    Product.find({ user: userId })
-      .select(
-        '_id status favoritesCount whatsappClicks views title price images createdAt category condition city payment advertismentSpend slug'
-      )
-      .populate('payment', 'amount status')
-      .lean(),
-    User.findById(userId).select('-password').lean()
+  const [
+    userDoc,
+    productStatsResult,
+    commentStatsResult,
+    paymentStatsResult,
+    buyerAgg
+  ] = await Promise.all([
+    User.findById(userId).select('-password').lean(),
+    Product.aggregate([
+      { $match: { user: userObjectId } },
+      {
+        $facet: {
+          summary: [
+            {
+              $group: {
+                _id: null,
+                total: { $sum: 1 },
+                approved: { $sum: { $cond: [{ $eq: ['$status', 'approved'] }, 1, 0] } },
+                pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+                rejected: { $sum: { $cond: [{ $eq: ['$status', 'rejected'] }, 1, 0] } },
+                disabled: { $sum: { $cond: [{ $eq: ['$status', 'disabled'] }, 1, 0] } },
+                favoritesReceived: { $sum: { $ifNull: ['$favoritesCount', 0] } },
+                whatsappClicks: { $sum: { $ifNull: ['$whatsappClicks', 0] } },
+                totalViews: { $sum: { $ifNull: ['$viewsCount', { $ifNull: ['$views', 0] }] } },
+                advertismentSpend: { $sum: { $ifNull: ['$advertismentSpend', 0] } }
+              }
+            }
+          ],
+          categories: [
+            { $match: { category: { $nin: [null, ''] } } },
+            { $group: { _id: '$category', count: { $sum: 1 } } },
+            { $sort: { count: -1, _id: 1 } },
+            { $limit: 8 },
+            { $project: { _id: 0, category: '$_id', count: 1 } }
+          ],
+          conditions: [
+            { $match: { condition: { $in: ['new', 'used'] } } },
+            { $group: { _id: '$condition', count: { $sum: 1 } } },
+            { $project: { _id: 0, condition: '$_id', count: 1 } }
+          ],
+          timeline: [
+            {
+              $project: {
+                year: { $year: '$createdAt' },
+                month: { $month: '$createdAt' },
+                favorites: { $ifNull: ['$favoritesCount', 0] },
+                clicks: { $ifNull: ['$whatsappClicks', 0] }
+              }
+            },
+            {
+              $group: {
+                _id: { year: '$year', month: '$month' },
+                count: { $sum: 1 },
+                favorites: { $sum: '$favorites' },
+                clicks: { $sum: '$clicks' }
+              }
+            },
+            { $sort: { '_id.year': -1, '_id.month': -1 } },
+            { $limit: 6 },
+            { $sort: { '_id.year': 1, '_id.month': 1 } },
+            {
+              $project: {
+                _id: 0,
+                year: '$_id.year',
+                month: '$_id.month',
+                count: 1,
+                favorites: 1,
+                clicks: 1
+              }
+            }
+          ],
+          topProducts: [
+            {
+              $addFields: {
+                score: {
+                  $add: [
+                    { $ifNull: ['$favoritesCount', 0] },
+                    { $ifNull: ['$whatsappClicks', 0] }
+                  ]
+                }
+              }
+            },
+            { $sort: { score: -1, createdAt: -1 } },
+            { $limit: 5 },
+            {
+              $project: {
+                _id: 1,
+                slug: 1,
+                title: 1,
+                status: 1,
+                price: 1,
+                favorites: { $ifNull: ['$favoritesCount', 0] },
+                whatsappClicks: { $ifNull: ['$whatsappClicks', 0] },
+                image: { $arrayElemAt: ['$images', 0] },
+                createdAt: 1,
+                category: 1
+              }
+            }
+          ]
+        }
+      }
+    ]).option({ maxTimeMS: 7000 }),
+    Product.aggregate([
+      { $match: { user: userObjectId } },
+      {
+        $lookup: {
+          from: Comment.collection.name,
+          let: { productId: '$_id' },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$product', '$$productId'] } } },
+            { $count: 'count' }
+          ],
+          as: 'commentStats'
+        }
+      },
+      {
+        $project: {
+          commentCount: { $ifNull: [{ $arrayElemAt: ['$commentStats.count', 0] }, 0] }
+        }
+      },
+      {
+        $group: { _id: null, total: { $sum: '$commentCount' } }
+      }
+    ]).option({ maxTimeMS: 7000 }),
+    Payment.aggregate([
+      {
+        $match: {
+          user: userObjectId,
+          paymentType: { $in: ['LISTING_FEE', 'BOOST_FEE'] }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          amount: { $sum: { $ifNull: ['$amount', { $ifNull: ['$amountPaid', 0] }] } }
+        }
+      }
+    ]).option({ maxTimeMS: 7000 }),
+    Order.aggregate([
+      { $match: { customer: userObjectId, isDraft: { $ne: true } } },
+      {
+        $project: {
+          status: 1,
+          totalAmount: { $ifNull: ['$totalAmount', 0] },
+          paidAmount: { $ifNull: ['$paidAmount', 0] },
+          remainingAmount: { $ifNull: ['$remainingAmount', 0] },
+          itemCount: { $sum: '$items.quantity' }
+        }
+      },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+          totalAmount: { $sum: '$totalAmount' },
+          paidAmount: { $sum: '$paidAmount' },
+          remainingAmount: { $sum: '$remainingAmount' },
+          items: { $sum: '$itemCount' }
+        }
+      }
+    ]).option({ maxTimeMS: 7000 })
   ]);
 
   if (!userDoc) {
@@ -275,33 +430,8 @@ const collectUserStats = async (userId) => {
     'completed',
     'cancelled'
   ];
-  const userObjectId = new mongoose.Types.ObjectId(userId);
-
-  const buyerAggPromise = Order.aggregate([
-    { $match: { customer: userObjectId, isDraft: { $ne: true } } },
-    {
-      $project: {
-        status: 1,
-        totalAmount: { $ifNull: ['$totalAmount', 0] },
-        paidAmount: { $ifNull: ['$paidAmount', 0] },
-        remainingAmount: { $ifNull: ['$remainingAmount', 0] },
-        itemCount: { $sum: '$items.quantity' }
-      }
-    },
-    {
-      $group: {
-        _id: '$status',
-        count: { $sum: 1 },
-        totalAmount: { $sum: '$totalAmount' },
-        paidAmount: { $sum: '$paidAmount' },
-        remainingAmount: { $sum: '$remainingAmount' },
-        items: { $sum: '$itemCount' }
-      }
-    }
-  ]).option({ maxTimeMS: 10000 });
-
-  const sellerAggPromise = isSellerAccount
-    ? Order.aggregate([
+  const sellerAgg = isSellerAccount
+    ? await Order.aggregate([
         // Match seller first (can use index) before unwind to avoid full collection scan.
         { $match: { isDraft: { $ne: true }, 'items.snapshot.shopId': userObjectId } },
         { $unwind: '$items' },
@@ -316,9 +446,7 @@ const collectUserStats = async (userId) => {
           }
         }
       ]).option({ maxTimeMS: 10000 })
-    : Promise.resolve([]);
-
-  const [buyerAgg, sellerAgg] = await Promise.all([buyerAggPromise, sellerAggPromise]);
+    : [];
 
   const purchaseByStatus = orderStatusKeys.reduce((acc, status) => {
     acc[status] = { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0, items: 0 };
@@ -377,60 +505,23 @@ const collectUserStats = async (userId) => {
     { totalCount: 0, totalAmount: 0 }
   );
 
+  const productStats = productStatsResult?.[0] || {};
+  const productSummary = productStats.summary?.[0] || {};
   const listings = {
-    total: products.length,
-    approved: 0,
-    pending: 0,
-    rejected: 0,
-    disabled: 0
+    total: Number(productSummary.total || 0),
+    approved: Number(productSummary.approved || 0),
+    pending: Number(productSummary.pending || 0),
+    rejected: Number(productSummary.rejected || 0),
+    disabled: Number(productSummary.disabled || 0)
   };
 
-  let favoritesReceived = 0;
-  let whatsappClicks = 0;
-  let totalViews = 0;
-
-  const categoryCounts = new Map();
-  const conditionCounts = new Map();
-  const timelineMap = new Map();
-
-  products.forEach((product) => {
-    if (product?.status && Object.prototype.hasOwnProperty.call(listings, product.status)) {
-      listings[product.status] += 1;
-    }
-
-    favoritesReceived += Number(product?.favoritesCount || 0);
-    whatsappClicks += Number(product?.whatsappClicks || 0);
-    totalViews += Number(product?.views || 0);
-
-    if (product?.category) {
-      categoryCounts.set(product.category, (categoryCounts.get(product.category) || 0) + 1);
-    }
-
-    if (product?.condition) {
-      conditionCounts.set(product.condition, (conditionCounts.get(product.condition) || 0) + 1);
-    }
-
-    if (product?.createdAt) {
-      const createdAt = new Date(product.createdAt);
-      const key = `${createdAt.getFullYear()}-${createdAt.getMonth() + 1}`;
-      const entry = timelineMap.get(key) || { count: 0, favorites: 0, clicks: 0 };
-      entry.count += 1;
-      entry.favorites += Number(product?.favoritesCount || 0);
-      entry.clicks += Number(product?.whatsappClicks || 0);
-      timelineMap.set(key, entry);
-    }
-  });
-
-  const productIds = products.map((product) => product._id);
-  const advertismentSpend = products.reduce((sum, product) => {
-    const fee = Number(product?.payment?.amount || product?.advertismentSpend || 0);
-    return sum + (Number.isFinite(fee) ? fee : 0);
-  }, 0);
-
-  let commentsReceived = 0;
-  if (productIds.length) {
-    commentsReceived = await Comment.countDocuments({ product: { $in: productIds } });
-  }
+  const favoritesReceived = Number(productSummary.favoritesReceived || 0);
+  const whatsappClicks = Number(productSummary.whatsappClicks || 0);
+  const totalViews = Number(productSummary.totalViews || 0);
+  const commentsReceived = Number(commentStatsResult?.[0]?.total || 0);
+  const productAdvertismentSpend = Number(productSummary.advertismentSpend || 0);
+  const paymentAdvertismentSpend = Number(paymentStatsResult?.[0]?.amount || 0);
+  const advertismentSpend = Math.max(productAdvertismentSpend, paymentAdvertismentSpend);
 
   const performance = {
     views: totalViews,
@@ -444,9 +535,10 @@ const collectUserStats = async (userId) => {
     return date.toLocaleString('fr-FR', { month: 'short' });
   };
 
-  const timeline = Array.from(timelineMap.entries())
-    .map(([key, value]) => {
-      const [year, month] = key.split('-').map(Number);
+  const timeline = (productStats.timeline || [])
+    .map((value) => {
+      const year = Number(value.year);
+      const month = Number(value.month);
       const timestamp = new Date(year, month - 1, 1).getTime();
       return {
         label: `${formatLabel(month, year)} ${String(year).slice(-2)}`,
@@ -458,41 +550,14 @@ const collectUserStats = async (userId) => {
         timestamp
       };
     })
-    .sort((a, b) => a.timestamp - b.timestamp)
-    .slice(-6);
+    .sort((a, b) => a.timestamp - b.timestamp);
 
   const breakdown = {
-    categories: Array.from(categoryCounts.entries())
-      .map(([category, count]) => ({ category, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 8),
-    conditions: ['new', 'used']
-      .map((condition) => ({
-        condition,
-        count: conditionCounts.get(condition) || 0
-      }))
-      .filter((item) => item.count > 0)
+    categories: productStats.categories || [],
+    conditions: productStats.conditions || []
   };
 
-  const topProducts = [...products]
-    .sort((a, b) => {
-      const scoreA = Number(a?.favoritesCount || 0) + Number(a?.whatsappClicks || 0);
-      const scoreB = Number(b?.favoritesCount || 0) + Number(b?.whatsappClicks || 0);
-      return scoreB - scoreA;
-    })
-    .slice(0, 5)
-    .map((product) => ({
-      _id: product._id,
-      slug: product.slug,
-      title: product.title,
-      status: product.status,
-      price: product.price,
-      favorites: product.favoritesCount || 0,
-      whatsappClicks: product.whatsappClicks || 0,
-      image: Array.isArray(product.images) ? product.images[0] : null,
-      createdAt: product.createdAt,
-      category: product.category
-    }));
+  const topProducts = productStats.topProducts || [];
 
   const followedShopIds = Array.isArray(userDoc?.followingShops)
     ? userDoc.followingShops
@@ -1505,6 +1570,7 @@ const NOTIFICATION_TITLES = Object.freeze({
   order_accepted: 'Commande acceptée',
   order_rejected: 'Commande rejetée',
   order_cancelled: 'Commande annulée',
+  delivery_distance_warning: 'Livraison longue distance',
   order_delivering: 'Livraison en cours',
   order_delivered: 'Commande livrée',
   payment_pending: 'Paiement en attente',
@@ -1934,6 +2000,11 @@ export const getNotifications = asyncHandler(async (req, res) => {
             : ' Remboursement demandé.'
           : '';
         message = `${actorName} a annulé ${orderSubject}.${reason}${refundText}`;
+        break;
+      }
+      case 'delivery_distance_warning': {
+        const buyerCity = metadata.buyerCity ? ` vers ${metadata.buyerCity}` : '';
+        message = `Cette commande vient d'une autre ville${buyerCity}. Vérifiez les conditions de livraison, l'emballage et l'état du produit à la réception.`;
         break;
       }
       case 'boost_expired': {

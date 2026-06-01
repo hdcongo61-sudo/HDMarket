@@ -370,7 +370,7 @@ export default function PaymentForm({ product, onSubmitted }) {
     const paidCommissionDue = Number(product.payment?.commissionDueAmount ?? product.payment?.amount ?? expected);
 
     return (
-      <div className="max-w-2xl mx-auto">
+      <div className="hd-my-flow max-w-2xl mx-auto">
         <div className="text-center mb-6">
           <div className="w-16 h-16 bg-gradient-to-br from-neutral-500 to-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Shield className="w-8 h-8 text-white" />
@@ -451,7 +451,7 @@ export default function PaymentForm({ product, onSubmitted }) {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="hd-my-flow max-w-2xl mx-auto">
       <div className="text-center mb-8">
         <div className="w-16 h-16 bg-gradient-to-br from-neutral-500 to-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <CreditCard className="w-8 h-8 text-white" />
@@ -496,7 +496,7 @@ export default function PaymentForm({ product, onSubmitted }) {
           <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="text"
-              className="flex-1 px-4 py-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-slate-400 dark:placeholder-slate-500"
+              className="ui-input flex-1 rounded-[18px] px-4 py-3 placeholder-slate-400 dark:placeholder-slate-500"
               placeholder="Ex: FIRST10"
               value={form.promoCode}
               onChange={(e) => setForm((prev) => ({ ...prev, promoCode: e.target.value.toUpperCase() }))}
@@ -506,7 +506,7 @@ export default function PaymentForm({ product, onSubmitted }) {
               type="button"
               onClick={validatePromo}
               disabled={loading || promoLoading}
-              className="px-4 py-3 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-700 text-sm font-semibold hover:bg-neutral-100 disabled:opacity-50"
+              className="hd-soft-button px-4 py-3 rounded-[18px] text-sm font-semibold disabled:opacity-50"
             >
               {promoLoading ? 'Validation...' : 'Valider le code'}
             </button>
@@ -560,7 +560,7 @@ export default function PaymentForm({ product, onSubmitted }) {
                   <span>Nom du payeur *</span>
                 </label>
                 <input
-                  className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-900/70 border border-gray-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-slate-400 dark:placeholder-slate-500"
+                  className="ui-input w-full rounded-[18px] px-4 py-3 placeholder-slate-400 dark:placeholder-slate-500"
                   placeholder="Votre nom complet"
                   value={form.payerName}
                   onChange={(e) => setForm({ ...form, payerName: e.target.value })}
@@ -575,7 +575,7 @@ export default function PaymentForm({ product, onSubmitted }) {
                   <span>Opérateur mobile *</span>
                 </label>
                 <select
-                  className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-900/70 border border-gray-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
+                  className="ui-input w-full rounded-[18px] px-4 py-3"
                   value={form.operator}
                   onChange={(e) => setForm({ ...form, operator: e.target.value })}
                   disabled={loading}
@@ -617,7 +617,7 @@ export default function PaymentForm({ product, onSubmitted }) {
                   type="text"
                   inputMode="numeric"
                   maxLength={10}
-                  className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-900/70 border border-gray-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-slate-400 dark:placeholder-slate-500"
+                  className="ui-input w-full rounded-[18px] px-4 py-3 placeholder-slate-400 dark:placeholder-slate-500"
                   placeholder="10 chiffres (ex: 7232173826)"
                   value={form.transactionNumber}
                   onChange={(e) => {
@@ -637,7 +637,7 @@ export default function PaymentForm({ product, onSubmitted }) {
                 </label>
                 <input
                   type="number"
-                  className="w-full px-4 py-3 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-gray-600 dark:text-slate-300"
+                  className="ui-input w-full rounded-[18px] px-4 py-3 text-gray-600 dark:text-slate-300"
                   value={commissionDue}
                   disabled
                 />
@@ -654,7 +654,7 @@ export default function PaymentForm({ product, onSubmitted }) {
           <button
             type="submit"
             disabled={isSubmitDisabled}
-            className="w-full py-4 bg-gradient-to-r from-neutral-600 to-neutral-600 text-white font-semibold rounded-xl hover:from-neutral-700 hover:to-neutral-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 shadow-lg"
+            className="hd-primary-button flex w-full items-center justify-center gap-2 rounded-[20px] py-4 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? (
               <>

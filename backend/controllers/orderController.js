@@ -50,6 +50,10 @@ import {
 import { emitOrderStatusUpdated } from '../sockets/chatSocket.js';
 import { validateSelectedAttributesForProduct } from '../utils/productAttributes.js';
 import { dispatchSideEffect } from '../utils/dispatchSideEffect.js';
+import {
+  buildDeliveryDistanceWarningPayload,
+  notifyBuyerDeliveryDistanceWarning
+} from '../utils/deliveryDistanceWarning.js';
 
 const ORDER_STATUS = [
   'pending_payment',
@@ -823,6 +827,12 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
     },
     allowSelf: true
   });
+  await notifyBuyerDeliveryDistanceWarning({
+    order,
+    buyerId: customer._id,
+    actorId: req.user.id,
+    productId: orderItems[0]?.product || null
+  }).catch(() => {});
 
   await sendOrderSms({
     phone: customer.phone,
@@ -1203,7 +1213,17 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
         deliveryFeeLocked: Boolean(order.deliveryFeeLocked)
       },
       allowSelf: true
-    }))
+    })),
+    ...createdOrders
+      .map((order, index) =>
+        buildDeliveryDistanceWarningPayload({
+          order,
+          buyerId: customer._id,
+          actorId: userId,
+          productId: orderPayloads[index]?.items?.[0]?.product || null
+        })
+      )
+      .filter(Boolean)
   ];
 
   if (useFullPayment) {
@@ -1304,8 +1324,8 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     await safeAsync(
       async () =>
         Promise.all(
-          createdOrders.map((order) =>
-            createNotification({
+          [
+            ...createdOrders.map((order) => ({
               userId: customer._id,
               actorId: userId,
               type: 'order_created',
@@ -1320,8 +1340,18 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
                 deliveryFeeLocked: Boolean(order.deliveryFeeLocked)
               },
               allowSelf: true
-            })
-          )
+            })),
+            ...createdOrders
+              .map((order, index) =>
+                buildDeliveryDistanceWarningPayload({
+                  order,
+                  buyerId: customer._id,
+                  actorId: userId,
+                  productId: orderPayloads[index]?.items?.[0]?.product || null
+                })
+              )
+              .filter(Boolean)
+          ].map((payload) => createNotification(payload))
         ),
       { label: 'checkout_notify_customer' }
     );

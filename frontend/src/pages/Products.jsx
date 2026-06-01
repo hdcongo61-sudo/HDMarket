@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { SlidersHorizontal } from 'lucide-react';
+import { CreditCard, Search, ShieldCheck, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import api, { isApiCanceledError } from '../services/api';
 import ProductCard from '../components/ProductCard';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
@@ -309,53 +309,52 @@ const paginationButtons = useMemo(() => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="hd-products-flow">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6">
-        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
-          <div className="flex-1">
-            <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Tous les produits</h1>
-            <p className="text-xs sm:text-sm text-gray-500">
-              Parcourez les annonces disponibles sur HDMarket et découvrez les nouveautés.
-            </p>
-          </div>
-          <Link
-            to="/search"
-            className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-sm font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors"
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-            Recherche avancée
-          </Link>
-          <form
-            onSubmit={handleSearchSubmit}
-            className="w-full md:w-auto flex flex-col sm:flex-row gap-2 sm:items-center"
-          >
-            <div className="relative flex-1 sm:min-w-[280px]">
-              <input
-                type="search"
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Rechercher un produit..."
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-base sm:text-sm focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-200"
-              />
+        <header className="hd-products-hero overflow-hidden rounded-[28px] p-4 text-white sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0">
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/16 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-white ring-1 ring-white/20">
+                <Sparkles className="h-3.5 w-3.5" />
+                Catalogue HDMarket
+              </div>
+              <h1 className="text-2xl font-black leading-tight sm:text-4xl">Tous les produits</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/88">
+                Parcourez les annonces disponibles avec une navigation rapide, des filtres lisibles et des cartes pensées pour mobile.
+              </p>
             </div>
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                className="inline-flex items-center gap-2 rounded-xl bg-neutral-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-neutral-700"
-              >
-                Rechercher
-              </button>
-              {searchTerm && (
+            <form
+              onSubmit={handleSearchSubmit}
+              className="w-full lg:max-w-xl"
+            >
+              <div className="hd-products-search flex items-center gap-2 rounded-full bg-white px-3 py-2">
+                <Search className="h-5 w-5 shrink-0 text-[#FF6A00]" />
+                <input
+                  type="search"
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
+                  placeholder="Rechercher un produit..."
+                  className="min-h-0 flex-1 border-0 bg-transparent px-0 py-2 text-sm font-semibold text-stone-900 placeholder:text-stone-400 focus:ring-0"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={clearSearch}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-orange-50 text-[#9A4A00]"
+                    aria-label="Effacer la recherche"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
                 <button
-                  type="button"
-                  onClick={clearSearch}
-                  className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100"
+                  type="submit"
+                  className="hd-primary-button min-h-0 rounded-full px-4 py-2 text-sm font-black"
                 >
-                  Effacer
+                  Rechercher
                 </button>
-              )}
-            </div>
-          </form>
+              </div>
+            </form>
+          </div>
         </header>
 
         {(offlineSnapshotActive || rapid3GActive) && (
@@ -372,13 +371,13 @@ const paginationButtons = useMemo(() => {
           </section>
         )}
 
-        <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 sm:gap-3">
+        <section className="hd-products-toolbar sticky top-20 z-20 flex flex-col gap-3 rounded-[24px] px-3 py-3 md:flex-row md:items-center md:justify-between sm:px-4">
           <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-500 flex-wrap">
             <span>
               {items.length} résultat{items.length > 1 ? 's' : ''} affiché{items.length > 1 ? 's' : ''}
             </span>
             {searchTerm && (
-              <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700">
+              <span className="hd-products-chip-active rounded-full px-3 py-1 text-xs font-semibold">
                 Filtre&nbsp;:&nbsp;{searchTerm}
               </span>
             )}
@@ -386,7 +385,7 @@ const paginationButtons = useMemo(() => {
               <button
                 type="button"
                 onClick={clearCategoryFilter}
-                className="inline-flex items-center gap-2 rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700 hover:bg-neutral-200 transition-colors"
+                className="hd-products-chip-active inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold"
               >
                 Catégorie&nbsp;:&nbsp;{categoryMeta?.label || categoryFilter}
                 <span aria-hidden="true">×</span>
@@ -396,31 +395,36 @@ const paginationButtons = useMemo(() => {
               <button
                 type="button"
                 onClick={() => handleInstallmentFilterChange(false)}
-                className="inline-flex items-center gap-2 rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700 hover:bg-neutral-200 transition-colors"
+                className="hd-products-chip-active inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold"
               >
                 Paiement par tranche
                 <span aria-hidden="true">×</span>
               </button>
             )}
           </div>
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <label className="inline-flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <Link
+              to="/search"
+              className="hd-products-chip inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-black sm:text-sm"
+            >
+              <SlidersHorizontal className="w-4 h-4 text-[#FF6A00]" />
+              Recherche avancée
+            </Link>
+            <label className="hd-products-chip inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-black sm:text-sm">
               <input
                 type="checkbox"
                 checked={installmentOnly}
                 onChange={(event) => handleInstallmentFilterChange(event.target.checked)}
                 className="h-4 w-4 rounded border-gray-300 text-neutral-600 focus:ring-neutral-500"
               />
+              <CreditCard className="h-4 w-4 text-[#FF6A00]" />
               Tranche uniquement
-            </label>
-            <label htmlFor="sort-options" className="text-xs sm:text-sm text-gray-600">
-              Trier par
             </label>
             <select
               id="sort-options"
               value={sort}
               onChange={(event) => setSort(event.target.value)}
-              className="rounded-lg sm:rounded-xl border border-gray-200 bg-white px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-200"
+              className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-black text-stone-700 focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-200 sm:text-sm"
             >
               {SORT_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -444,11 +448,11 @@ const paginationButtons = useMemo(() => {
         {loading && page === 1 ? (
           <ProductCardSkeleton
             count={6}
-            className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3"
+            className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4"
           />
         ) : items.length ? (
           <>
-            <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {items.map((product) => (
                 <ProductCard
                   key={product._id}
@@ -476,8 +480,9 @@ const paginationButtons = useMemo(() => {
             )}
           </>
         ) : (
-          <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
-            Aucun produit ne correspond à votre recherche pour le moment.
+          <div className="rounded-[24px] border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
+            <ShieldCheck className="mx-auto mb-3 h-10 w-10 text-[#FF6A00]" />
+            <p className="font-bold text-stone-900">Aucun produit ne correspond à votre recherche pour le moment.</p>
           </div>
         )}
 
@@ -503,7 +508,7 @@ const paginationButtons = useMemo(() => {
           </div>
         )}
 
-        <section className="rounded-xl border border-neutral-100 bg-white px-4 py-4 text-sm text-neutral-700 sm:px-6 sm:py-5">
+        <section className="rounded-[24px] border border-neutral-100 bg-white px-4 py-4 text-sm text-neutral-700 sm:px-6 sm:py-5">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="font-semibold text-neutral-800">
               Besoin d&apos;une catégorie spécifique&nbsp;?

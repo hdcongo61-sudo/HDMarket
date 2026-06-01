@@ -170,7 +170,7 @@ export default function UserSettings() {
   }, [hardRefreshing, queryClient, refreshSettings, showToast, softRefreshCurrentRoute, t]);
 
   return (
-    <div className="ui-page min-h-screen">
+    <div className="hd-profile-flow hd-commerce-shell min-h-screen">
       <header className="ui-glass-header sticky top-20 z-20">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
           <Link
@@ -190,7 +190,7 @@ export default function UserSettings() {
       </header>
 
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-20 pt-6">
-        <section className="ui-card px-4 py-5">
+        <section className="ui-card rounded-[24px] px-4 py-5">
           <div className="mb-3 flex items-center gap-2">
             <UserCircle size={18} className="text-gray-500 dark:text-neutral-300" />
             <h2 className="text-sm font-semibold">{t('settings.profile', 'Profil')}</h2>
@@ -202,23 +202,23 @@ export default function UserSettings() {
           </div>
         </section>
 
-        <section className="ui-card space-y-4 px-4 py-5">
+        <section className="ui-card rounded-[24px] space-y-4 px-4 py-5">
           <h2 className="text-sm font-semibold">{t('settings.language', 'Langue')}</h2>
           <LanguageSwitcher />
         </section>
 
-        <section className="ui-card space-y-4 px-4 py-5">
+        <section className="ui-card rounded-[24px] space-y-4 px-4 py-5">
           <h2 className="text-sm font-semibold">{t('settings.currency', 'Devise')}</h2>
           <CurrencySelector />
           <p className="text-xs text-gray-500 dark:text-neutral-400">{t('settings.pricePreview', 'Apercu prix')}: {previewPrice}</p>
         </section>
 
-        <section className="ui-card space-y-4 px-4 py-5">
+        <section className="ui-card rounded-[24px] space-y-4 px-4 py-5">
           <h2 className="text-sm font-semibold">{t('settings.city', 'Ville')}</h2>
           <CitySelector />
         </section>
 
-        <section className="ui-card space-y-4 px-4 py-5">
+        <section className="ui-card rounded-[24px] space-y-4 px-4 py-5">
           <div className="flex items-center gap-2">
             <Palette size={16} className="text-gray-500 dark:text-neutral-300" />
             <h2 className="text-sm font-semibold">{t('settings.appearance', 'Apparence')}</h2>
@@ -236,7 +236,7 @@ export default function UserSettings() {
           </select>
         </section>
 
-        <section className="ui-card space-y-4 px-4 py-5">
+        <section className="ui-card rounded-[24px] space-y-4 px-4 py-5">
           <div className="flex items-center gap-2">
             <RefreshCcw size={16} className="text-gray-500 dark:text-neutral-300" />
             <h2 className="text-sm font-semibold">{t('settings.cache.title', 'Maintenance cache')}</h2>
@@ -251,7 +251,7 @@ export default function UserSettings() {
             type="button"
             onClick={handleClearPwaCache}
             disabled={clearingPwaCache}
-            className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="hd-soft-button inline-flex min-h-11 w-full items-center justify-center px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
           >
             {clearingPwaCache
               ? t('settings.cache.clearing', 'Nettoyage en cours...')
@@ -261,7 +261,7 @@ export default function UserSettings() {
             type="button"
             onClick={handleHardRefresh}
             disabled={hardRefreshing || clearingPwaCache}
-            className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+            className="hd-primary-button inline-flex min-h-11 w-full items-center justify-center px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
           >
             {hardRefreshing
               ? t('settings.cache.refreshing', 'Actualisation...')

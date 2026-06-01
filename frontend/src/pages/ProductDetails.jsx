@@ -26,7 +26,8 @@ import {
   ChevronDown,
   ChevronUp,
   Flag,
-  Trash2
+  Trash2,
+  Search
 } from "lucide-react";
 import AuthContext from "../context/AuthContext";
 import CartContext from "../context/CartContext";
@@ -1516,6 +1517,7 @@ export default function ProductDetails() {
   const ratingAverage = Number(product?.ratingAverage || 0).toFixed(1);
   const ratingCount = product?.ratingCount || 0;
   const commentCount = product?.commentCount || 0;
+  const cartCount = Array.isArray(cart?.items) ? cart.items.length : 0;
   const totalViews = Number(product?.viewsCount ?? product?.views ?? 0);
   const totalOrdersQty = Number(product?.salesCount || 0);
   const todayViews = Number(product?.todayViewsCount || 0);
@@ -1955,11 +1957,11 @@ export default function ProductDetails() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28, ease: "easeOut" }}
-      className="product-detail-page min-h-screen bg-gray-50 pb-28 safe-area-bottom dark:bg-black"
+      className="product-detail-page product-detail-taobao min-h-screen bg-gray-50 pb-28 safe-area-bottom dark:bg-black"
     >
-      <header className="sticky top-0 z-30 border-b border-neutral-200/80 bg-white/80 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/80">
+      <header className="product-detail-mobile-header sticky top-0 z-30 border-b border-neutral-200/80 bg-white/90 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/80">
         <div
-          className="flex items-center justify-between px-4 py-3"
+          className="flex items-center justify-between gap-2 px-3 py-3"
           style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 10px)' }}
         >
           <button
@@ -1970,9 +1972,34 @@ export default function ProductDetails() {
           >
             <ArrowLeft size={18} />
           </button>
-          <p className="mx-3 line-clamp-1 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-            {product.title}
-          </p>
+          <button
+            type="button"
+            onClick={() => navigate(`/products?search=${encodeURIComponent(product.title || '')}`)}
+            className="product-detail-search-pill flex min-w-0 flex-1 items-center gap-2 rounded-full bg-gray-100 px-3 py-2.5 text-left text-sm font-semibold text-gray-500"
+          >
+            <Search size={17} />
+            <span className="truncate">{product.title}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleNativeShare}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-700 transition-transform active:scale-95 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+            aria-label="Partager"
+          >
+            <Share2 size={18} />
+          </button>
+          <Link
+            to="/cart"
+            className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-700 transition-transform active:scale-95 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+            aria-label="Panier"
+          >
+            <ShoppingCart size={18} />
+            {cartCount > 0 && (
+              <span className="absolute -right-1 -top-1 min-w-[18px] rounded-full bg-[#FF6A00] px-1 text-center text-[10px] font-black text-white">
+                {cartCount > 99 ? '99+' : cartCount}
+              </span>
+            )}
+          </Link>
           <button
             type="button"
             onClick={handleFavoriteToggle}
@@ -1989,8 +2016,8 @@ export default function ProductDetails() {
       </header>
 
       {/* 1. Galerie produit redesign */}
-      <section className="px-4 pt-4">
-        <div className="relative overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-xl shadow-gray-200/50 dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-none">
+      <section className="pt-0">
+        <div className="product-detail-hero-gallery relative overflow-hidden border border-gray-100 bg-white shadow-xl shadow-gray-200/50 dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-none">
           {galleryImages.length > 1 ? (
             <Swiper
               modules={[Pagination]}
@@ -2085,14 +2112,14 @@ export default function ProductDetails() {
         </div>
 
         {galleryImages.length > 1 && (
-          <div className="mt-4 flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="product-detail-thumb-rail flex gap-2 overflow-x-auto px-3 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {galleryImages.map((image, index) => (
               <button
                 key={`mobile-thumb-${image || index}`}
                 type="button"
                 onClick={() => setSelectedImage(index)}
-                className={`h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100 transition-all duration-300 ${selectedImage === index
-                  ? 'ring-2 ring-neutral-900 ring-offset-1 opacity-100 shadow-md'
+                className={`product-detail-thumb h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100 transition-all duration-300 ${selectedImage === index
+                  ? 'is-active opacity-100 shadow-md'
                   : 'opacity-50 hover:opacity-100 border border-gray-200'
                   }`}
               >
@@ -2104,24 +2131,27 @@ export default function ProductDetails() {
       </section>
 
       {/* 2. Price Block */}
-      <div className="px-4 pt-3 pb-1">
+      <div className="product-detail-price-card mx-0 bg-white px-4 pb-1 pt-4">
         {hasDiscount ? (
           <div className="flex items-baseline gap-2 flex-wrap">
-            <span className="text-2xl font-black text-gray-900">
+            <span className="text-3xl font-black text-[#FF6A00]">
               {formatPriceWithStoredSettings(finalPrice)}
             </span>
             <span className="text-sm text-gray-400 line-through font-bold">
               {formatPriceWithStoredSettings(originalPrice)}
             </span>
-            <span className="bg-neutral-900 text-white px-2 py-0.5 rounded-full text-xs font-black">
+            <span className="bg-[#FF6A00] text-white px-2 py-0.5 rounded-full text-xs font-black">
               -{discountPercentage}%
             </span>
           </div>
         ) : (
-          <span className="text-2xl font-black text-gray-900">
+          <span className="text-3xl font-black text-[#FF6A00]">
             {formatPriceWithStoredSettings(finalPrice)}
           </span>
         )}
+        <p className="mt-1 text-xs font-semibold text-rose-500">
+          Prix affiché après avantages éventuels HDMarket.
+        </p>
       </div>
       {installmentOffer.available && (
         <div className="px-4 pb-2">
@@ -2138,12 +2168,12 @@ export default function ProductDetails() {
       {wholesaleEnabled && <div className="px-4 pb-2">{renderWholesaleSection({ compact: true })}</div>}
 
       {/* 3. Title */}
-      <div className="px-4 pb-1">
+      <div className="bg-white px-4 pb-1">
         <h1 className="text-lg font-bold text-gray-900 leading-tight">{product.title}</h1>
       </div>
 
       {/* 4. Stats Line */}
-      <div className="px-4 pb-2 flex items-center gap-3 text-xs text-gray-500">
+      <div className="bg-white px-4 pb-3 flex items-center gap-3 text-xs text-gray-500">
         <span className="flex items-center gap-1">
           <Star size={14} className="text-neutral-500" fill="currentColor" />
           <span className="font-semibold text-gray-700">{ratingAverage}</span>
@@ -2171,7 +2201,7 @@ export default function ProductDetails() {
       )}
 
       {/* 5. Quick Info Pills */}
-      <div className="px-4 pb-3 flex flex-wrap gap-2">
+      <div className="product-detail-tags bg-white px-4 pb-4 flex flex-wrap gap-2">
         <span className={`py-1.5 px-3 rounded-full text-xs font-bold ${stockStatus.className}`}>
           {stockStatus.label}
         </span>
@@ -2219,7 +2249,7 @@ export default function ProductDetails() {
 
       {/* 7. Seller Compact Strip (expandable) */}
       {product.user && (
-        <div className="product-shop-card mx-4 mb-3 overflow-hidden rounded-[24px] border border-gray-100 bg-white shadow-sm">
+        <div className="product-shop-card mx-0 mb-3 overflow-hidden border-x-0 border-y border-gray-100 bg-white shadow-sm">
           <button
             type="button"
             onClick={() => setSellerExpanded((prev) => !prev)}
@@ -2384,7 +2414,7 @@ export default function ProductDetails() {
       )}
 
       {/* 8. Accordion: Description */}
-      <div className="mx-4 mb-2 rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+      <div className="mx-0 mb-2 overflow-hidden border-x-0 border-y border-gray-100 bg-white shadow-sm">
         <button type="button" onClick={() => toggleSection('description')} className="w-full flex items-center justify-between p-4 min-h-[52px] text-left tap-feedback">
           <span className="text-sm font-bold text-gray-900">Description</span>
           {expandedSections.description ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
@@ -2397,7 +2427,7 @@ export default function ProductDetails() {
       </div>
 
       {/* 9. Accordion: Spécifications */}
-      <div className="mx-4 mb-2 rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+      <div className="mx-0 mb-2 overflow-hidden border-x-0 border-y border-gray-100 bg-white shadow-sm">
         <button type="button" onClick={() => toggleSection('specifications')} className="w-full flex items-center justify-between p-4 min-h-[52px] text-left tap-feedback">
           <span className="text-sm font-bold text-gray-900">Spécifications</span>
           {expandedSections.specifications ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
@@ -2440,7 +2470,7 @@ export default function ProductDetails() {
       </div>
 
       {/* 10. Accordion: Livraison */}
-      <div className="mx-4 mb-3 rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+      <div className="mx-0 mb-3 overflow-hidden border-x-0 border-y border-gray-100 bg-white shadow-sm">
         <button type="button" onClick={() => toggleSection('shipping')} className="w-full flex items-center justify-between p-4 min-h-[52px] text-left tap-feedback">
           <span className="text-sm font-bold text-gray-900">Livraison</span>
           {expandedSections.shipping ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
@@ -2472,9 +2502,9 @@ export default function ProductDetails() {
       </div>
 
       {/* 11. Reviews Summary */}
-      <div className="mx-4 mb-3 rounded-2xl border border-gray-100 bg-white shadow-sm p-4">
+      <div className="mx-0 mb-3 border-x-0 border-y border-gray-100 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-bold text-gray-900">Avis clients</span>
+          <span className="text-lg font-black text-gray-900">Avis · {commentCount}</span>
           <button type="button" onClick={() => setIsReviewsModalOpen(true)} className="text-xs font-semibold text-neutral-800">
             Voir tout
           </button>
@@ -2566,9 +2596,9 @@ export default function ProductDetails() {
 
       {/* 12. Shop Gallery */}
       {isProfessional && (
-        <div className="mx-4 mb-3 rounded-2xl border border-gray-100 bg-white shadow-sm p-4">
+        <div className="mx-0 mb-3 border-x-0 border-y border-gray-100 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-bold text-gray-900">Photos de la boutique</span>
+            <span className="text-lg font-black text-gray-900">Boutique recommande</span>
           </div>
           {shopGalleryImages.length > 0 ? (
             <div className="grid grid-cols-3 gap-2">
@@ -2593,7 +2623,7 @@ export default function ProductDetails() {
       {(relatedLoading || relatedProducts.length > 0) && (
         <div className="mb-3">
           <div className="flex items-center justify-between px-4 mb-2">
-            <span className="text-sm font-bold text-gray-900">Produits similaires</span>
+            <span className="text-lg font-black text-gray-900">Recommandé pour vous</span>
             <Link to={`/products?category=${product.category}`} className="text-xs font-semibold text-neutral-800">
               Voir tout
             </Link>
@@ -2773,41 +2803,42 @@ export default function ProductDetails() {
 
       {/* 16. Sticky Bottom Bar */}
       {!isOwnProduct && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-gray-200 shadow-lg"
+      <div className="product-detail-bottom-bar fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-gray-200 shadow-lg"
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-          <div className="px-4 py-3 space-y-2.5">
-            <div className="flex items-center gap-2">
-              <div className="flex-1 min-w-0">
-                <span className="text-lg font-black text-gray-900 block truncate">
-                  {formatPriceWithStoredSettings(
-                    wholesaleEnabled && normalizedQuantity > 1 ? computedLineTotal : finalPrice
-                  )}
-                </span>
-                <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
-                  <span className={`rounded-full px-2 py-0.5 ${stockStatus.className}`}>{stockStatus.label}</span>
-                  {wholesaleEnabled && normalizedQuantity > 1 && (
-                    <span>
-                      {normalizedQuantity} unités · {formatPriceWithStoredSettings(appliedUnitPrice)}/u
-                    </span>
-                  )}
+          <div className="px-3 py-3">
+            <div className="grid grid-cols-[54px_54px_54px_minmax(0,1fr)] items-center gap-2">
+              {isProfessional && shopIdentifier ? (
+                <Link to={buildShopPath(shopIdentifier)} className="flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold text-slate-600">
+                  <Store size={20} />
+                  <span>Boutique</span>
+                </Link>
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold text-slate-600">
+                  <Store size={20} />
+                  <span>Vendeur</span>
                 </div>
-              </div>
-              {whatsappLink && (
+              )}
+              {whatsappLink ? (
                 <a href={whatsappLink} target="_blank" rel="noopener noreferrer" onClick={handleWhatsappClick}
-                  className="flex items-center justify-center w-11 h-11 rounded-full bg-neutral-500 text-white active:scale-90 transition-transform shadow-sm">
+                  className="flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold text-slate-600">
                   <MessageCircle size={20} />
+                  <span>Chat</span>
                 </a>
+              ) : (
+                <button type="button" onClick={() => setIsReviewsModalOpen(true)} className="flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold text-slate-600">
+                  <MessageCircle size={20} />
+                  <span>Avis</span>
+                </button>
               )}
               <button type="button" onClick={handleFavoriteToggle}
-                className="flex items-center justify-center w-11 h-11 rounded-full border border-gray-200 bg-white active:scale-90 transition-transform">
-                <Heart size={20} className={isInFavorites ? 'text-neutral-700' : 'text-gray-400'} fill={isInFavorites ? 'currentColor' : 'none'} />
+                className="flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold text-slate-600">
+                <Heart size={20} className={isInFavorites ? 'text-[#FF6A00]' : ''} fill={isInFavorites ? 'currentColor' : 'none'} />
+                <span>{favoriteCount || 'Favori'}</span>
               </button>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 overflow-hidden rounded-[18px]">
               <button onClick={handleAddToCart} disabled={addingToCart || inCart || isOutOfStock || isOptionSelectionBlocked}
-                className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-2xl font-semibold text-sm transition-all active:scale-95 ${inCart || isOutOfStock || isOptionSelectionBlocked ? 'bg-gray-200 text-gray-500' : 'bg-neutral-950 text-white shadow-[0_16px_32px_-22px_rgba(15,23,42,0.8)]'
+                className={`flex min-h-[54px] items-center justify-center gap-1.5 px-2 py-2.5 font-black text-sm transition-all active:scale-95 ${inCart || isOutOfStock || isOptionSelectionBlocked ? 'bg-gray-200 text-gray-500' : 'bg-gradient-to-r from-[#FFCD1F] to-[#FF9A1F] text-white shadow-[0_16px_32px_-22px_rgba(15,23,42,0.8)]'
                   }`}>
-                <ShoppingCart size={17} />
                 <span>
                   {isOptionSelectionBlocked
                     ? 'Choisir les options'
@@ -2826,12 +2857,12 @@ export default function ProductDetails() {
                 type="button"
                 onClick={handleBuyNow}
                 disabled={addingToCart || isOutOfStock || isOptionSelectionBlocked}
-                className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-2xl font-semibold text-sm transition-all active:scale-95 ${isOutOfStock || isOptionSelectionBlocked ? 'bg-gray-200 text-gray-500' : 'bg-neutral-500 text-white'
+                className={`flex min-h-[54px] items-center justify-center gap-1.5 px-2 py-2.5 font-black text-sm transition-all active:scale-95 ${isOutOfStock || isOptionSelectionBlocked ? 'bg-gray-200 text-gray-500' : 'bg-gradient-to-r from-[#FF6A00] to-[#FF3D1F] text-white'
                   }`}
               >
-                <ShoppingCart size={17} />
                 <span>{isOptionSelectionBlocked ? 'Choisir' : inCart ? 'Commander' : addingToCart ? '...' : 'Acheter'}</span>
               </button>
+              </div>
             </div>
           </div>
         </div>
@@ -2853,7 +2884,7 @@ export default function ProductDetails() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28, ease: "easeOut" }}
-      className="product-detail-page min-h-screen bg-gray-50 dark:bg-black"
+      className="product-detail-page product-detail-taobao min-h-screen bg-gray-50 dark:bg-black"
     >
       {/* 🎯 NAVIGATION ENHANCED */}
       <nav className="product-detail-subnav sticky top-0 z-10 border-b border-neutral-200/80 bg-white/80 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/80 sm:z-40">
@@ -4350,6 +4381,7 @@ export default function ProductDetails() {
         size="md"
         mobileSheet
         ariaLabel="Avis et notes"
+        panelClassName="product-detail-modal-panel"
       >
         <ModalHeader
           title="Avis & notes"
