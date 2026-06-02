@@ -479,8 +479,7 @@ function AppContent() {
       {!isCourierRoute ? <Navbar /> : null}
       <NetworkStatusBanner />
       <main
-        className="app-main-shell pt-20 sm:pt-24 md:pt-32 pb-24 md:pb-0 main-content mobile-nav-safe no-ios-callout"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 5rem)' }}
+        className="app-main-shell pt-[calc(env(safe-area-inset-top,0px)+4rem)] pb-24 md:pb-0 lg:pt-[calc(env(safe-area-inset-top,0px)+7rem)] main-content mobile-nav-safe no-ios-callout"
       >
         <AnimatePresence mode="wait" initial={false}>
           <motion.div

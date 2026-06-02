@@ -1,9 +1,7 @@
 import React from 'react';
 import { Heart, MessageCircle, Navigation, Phone, Share2, Store } from 'lucide-react';
-import { Link } from 'react-router-dom';
 
 export default function ShopBottomActions({
-  slug,
   user,
   shopPhone,
   onMessage,
@@ -16,62 +14,63 @@ export default function ShopBottomActions({
   t
 }) {
   const btnBase =
-    'inline-flex min-h-[48px] w-full items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-semibold shadow-sm transition active:scale-95';
+    'inline-flex min-h-[46px] w-full items-center justify-center gap-1.5 rounded-full px-3 text-xs font-black transition active:scale-95';
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200 bg-white/95 px-3 py-2.5 shadow-[0_-10px_30px_-24px_rgba(15,23,42,0.45)] backdrop-blur-xl [padding-bottom:calc(env(safe-area-inset-bottom)+0.5rem)] dark:border-neutral-800 dark:bg-neutral-950/95">
-      <div className="grid grid-cols-3 gap-2">
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-orange-100/80 bg-white/96 px-3 py-2 shadow-[0_-18px_42px_-30px_rgba(255,106,0,0.85)] backdrop-blur-xl [padding-bottom:calc(env(safe-area-inset-bottom)+0.5rem)] dark:border-neutral-800 dark:bg-neutral-950/96">
+      <div className="grid grid-cols-[1fr_1fr_1.45fr] gap-2">
         <button
           type="button"
           onClick={onMessage}
-          className={`${btnBase} border-neutral-950 bg-neutral-950 text-white hover:bg-neutral-800 dark:border-white dark:bg-white dark:text-neutral-950`}
+          className={`${btnBase} bg-[#fff7ef] text-[#FF6A00] ring-1 ring-orange-100 hover:bg-orange-50 dark:bg-neutral-900 dark:ring-neutral-800`}
         >
           <MessageCircle size={15} />
           <span className="truncate">{t('shop_profile.message', 'Message')}</span>
         </button>
 
         {user && shopPhone ? (
-          <a
-            href={`tel:${shopPhone}`}
-            className={`${btnBase} border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300`}
+          <button
+            type="button"
+            className={`${btnBase} cursor-default bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30`}
+            aria-label={t('shop_profile.phone', 'Téléphone')}
+            title={shopPhone}
           >
             <Phone size={15} />
-            <span className="truncate">{t('shop_profile.call', 'Appeler')}</span>
-          </a>
+            <span className="truncate">{t('shop_profile.phone', 'Téléphone')}</span>
+          </button>
         ) : (
-          <Link
-            to="/login"
-            state={{ from: `/shop/${slug}` }}
-            className={`${btnBase} border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100`}
+          <button
+            type="button"
+            className={`${btnBase} bg-[#fff7ef] text-slate-800 ring-1 ring-orange-100 hover:bg-orange-50 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-800`}
           >
             <Phone size={15} />
-            <span className="truncate">{t('shop_profile.call', 'Appeler')}</span>
-          </Link>
+            <span className="truncate">{t('shop_profile.phone', 'Téléphone')}</span>
+          </button>
         )}
 
         <button
           type="button"
-          onClick={onDirections}
-          className={`${btnBase} border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100`}
+          onClick={onPrimaryAction}
+          className={`${btnBase} bg-gradient-to-r from-[#FFB000] to-[#FF6A00] text-white shadow-[0_16px_28px_-18px_rgba(255,106,0,0.9)]`}
         >
-          <Navigation size={15} />
-          <span className="truncate">GPS</span>
+          <Store size={15} />
+          <span className="truncate">{t('shop_profile.view_products', 'Produits')}</span>
         </button>
       </div>
 
       <div className="mt-2 grid grid-cols-3 gap-2">
         <button
           type="button"
-          onClick={onPrimaryAction}
-          className={`${btnBase} border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100`}
+          onClick={onDirections}
+          className={`${btnBase} bg-white text-slate-800 ring-1 ring-stone-200 hover:bg-stone-50 dark:bg-neutral-950 dark:text-neutral-100 dark:ring-neutral-800`}
         >
-          <Store size={15} />
-          <span className="truncate">{t('shop_profile.view_products', 'Produits')}</span>
+          <Navigation size={15} />
+          <span className="truncate">GPS</span>
         </button>
         <button
           type="button"
           onClick={onShare}
-          className={`${btnBase} border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100`}
+          className={`${btnBase} bg-white text-slate-800 ring-1 ring-stone-200 hover:bg-stone-50 dark:bg-neutral-950 dark:text-neutral-100 dark:ring-neutral-800`}
         >
           <Share2 size={15} />
           <span className="truncate">{t('shop_profile.share', 'Partager')}</span>
@@ -82,9 +81,9 @@ export default function ShopBottomActions({
           disabled={followDisabled}
           className={`${btnBase} ${
             isFollowing
-              ? 'border-rose-200 bg-rose-50 text-rose-700'
-              : 'border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100'
-          } ${followDisabled ? 'cursor-not-allowed border-neutral-200 bg-neutral-100 text-neutral-400 shadow-none dark:border-neutral-800 dark:bg-neutral-900' : ''}`}
+              ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-100'
+              : 'bg-white text-slate-800 ring-1 ring-stone-200 hover:bg-stone-50 dark:bg-neutral-950 dark:text-neutral-100 dark:ring-neutral-800'
+          } ${followDisabled ? 'cursor-not-allowed bg-neutral-100 text-neutral-400 shadow-none ring-neutral-200 dark:bg-neutral-900' : ''}`}
         >
           <Heart size={15} className={isFollowing ? 'fill-current' : ''} />
           <span className="truncate">{t('shop_profile.follow', 'Suivre')}</span>

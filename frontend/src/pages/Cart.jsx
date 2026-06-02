@@ -410,23 +410,32 @@ export default function Cart() {
                           </div>
                         </div>
 
-                        {/* Quantity Controls Enhanced - Apple Style - Much Smaller on Mobile */}
                         <div className="flex flex-row items-center justify-between gap-2 lg:flex-col lg:items-end">
-                          <div className="flex items-center gap-1 rounded-full border border-orange-100 bg-orange-50/70 p-1">
+                          <div className="rounded-[20px] border border-orange-100 bg-[#fff7ed] p-1.5 shadow-[0_8px_20px_rgba(255,106,0,0.08)]">
+                            <div className="mb-1 flex items-center justify-center gap-1 px-2 text-[10px] font-black uppercase tracking-wide text-[#9A4A00]">
+                              Qté
+                              {pending[cartItemKey] ? (
+                                <span className="h-2 w-2 animate-pulse rounded-full bg-[#FF6A00]" />
+                              ) : null}
+                            </div>
+                            <div className="flex items-center gap-1">
                             <button
                               type="button"
-                              className="flex h-9 min-h-[40px] w-9 min-w-[40px] items-center justify-center rounded-full bg-white text-stone-700 shadow-sm transition hover:text-[#FF6A00] disabled:opacity-40"
+                              className="flex h-10 min-h-[40px] w-10 min-w-[40px] items-center justify-center rounded-full bg-white text-stone-800 shadow-sm ring-1 ring-orange-100 transition hover:text-[#FF6A00] active:scale-95 disabled:opacity-40"
                               onClick={() => changeQuantity(item, quantity - 1)}
                               disabled={disableAll || pending[cartItemKey] || quantity <= 1}
+                              aria-label="Diminuer la quantité"
                             >
-                              <span className="text-base sm:text-xl font-semibold">−</span>
+                              <span className="text-lg font-black">−</span>
                             </button>
                             
-                            <div className="w-10 sm:w-14 text-center">
+                            <div className="relative w-12 sm:w-16">
                               <input
                                 type="number"
                                 min="1"
-                                className="h-8 w-full border-0 bg-transparent text-center text-sm font-black text-stone-900 focus:outline-none"
+                                inputMode="numeric"
+                                aria-label="Quantité"
+                                className="h-10 w-full rounded-full border border-orange-200 bg-white text-center text-base font-black text-slate-950 shadow-inner outline-none transition focus:border-[#FF6A00] focus:ring-2 focus:ring-orange-100 disabled:bg-stone-50 disabled:text-stone-400"
                                 value={quantity}
                                 onChange={(e) => changeQuantity(item, e.target.value)}
                                 disabled={disableAll || pending[cartItemKey]}
@@ -435,12 +444,14 @@ export default function Cart() {
                             
                             <button
                               type="button"
-                              className="flex h-9 min-h-[40px] w-9 min-w-[40px] items-center justify-center rounded-full bg-white text-stone-700 shadow-sm transition hover:text-[#FF6A00] disabled:opacity-40"
+                              className="flex h-10 min-h-[40px] w-10 min-w-[40px] items-center justify-center rounded-full bg-white text-stone-800 shadow-sm ring-1 ring-orange-100 transition hover:text-[#FF6A00] active:scale-95 disabled:opacity-40"
                               onClick={() => changeQuantity(item, quantity + 1)}
                               disabled={disableAll || pending[cartItemKey]}
+                              aria-label="Augmenter la quantité"
                             >
-                              <span className="text-base sm:text-xl font-semibold">+</span>
+                              <span className="text-lg font-black">+</span>
                             </button>
+                            </div>
                           </div>
 
                           {/* Line Total Enhanced - Much Smaller on Mobile */}
@@ -459,17 +470,19 @@ export default function Cart() {
                           <button
                             type="button"
                             onClick={() => handleWhatsappClick(item, whatsappLink)}
-                            className="inline-flex min-w-0 flex-1 items-center gap-2 overflow-hidden rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-bold text-emerald-700 shadow-sm transition-all hover:bg-emerald-100 active:scale-95 sm:text-sm"
+                            className="inline-flex min-w-0 flex-1 items-center gap-2 overflow-hidden rounded-full border border-emerald-200 bg-gradient-to-r from-emerald-50 to-white px-3 py-2.5 text-xs font-black text-emerald-700 shadow-[0_8px_18px_rgba(16,185,129,0.10)] transition-all hover:bg-emerald-100 active:scale-95 sm:text-sm"
                           >
-                            <WhatsAppIcon className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
+                              <WhatsAppIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                            </span>
                             <div className="flex flex-col items-start leading-tight text-left min-w-0 flex-1 overflow-hidden">
-                              <span className="text-xs sm:text-sm font-bold truncate w-full">Commander</span>
+                              <span className="w-full truncate text-xs font-black sm:text-sm">Contacter</span>
                               {sellerPhone && (
-                                <span className="text-[10px] sm:text-xs text-green-600 font-medium truncate w-full">
+                                <span className="w-full truncate text-[10px] font-bold text-emerald-600 sm:text-xs">
                                   {sellerPhone}
                                 </span>
                               )}
-                              <span className="text-[10px] text-green-500 whitespace-nowrap">
+                              <span className="whitespace-nowrap text-[10px] font-bold text-emerald-500">
                                 {clickCount} clic{clickCount > 1 ? 's' : ''}
                               </span>
                             </div>

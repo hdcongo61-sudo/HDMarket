@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, ExternalLink, MoreHorizontal } from 'lucide-react';
+import { ChevronDown, ExternalLink, Loader2, MoreHorizontal, Trash2 } from 'lucide-react';
 import SwipeActions from './SwipeActions';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { resolveUserProfileImage } from '../../utils/userAvatar';
@@ -32,7 +32,9 @@ export default function NotificationItem({
   onToggleExpand,
   onMarkRead,
   onDelete,
-  onNavigateAction
+  onNavigateAction,
+  markReadPending = false,
+  deletePending = false
 }) {
   const { t } = useAppSettings();
   const longPressTimer = useRef(null);
@@ -48,6 +50,28 @@ export default function NotificationItem({
     () => resolveUserProfileImage(alert?.actor || alert?.user || {}),
     [alert?.actor, alert?.user]
   );
+  const actorName = useMemo(() => {
+    const actor = alert?.actor || alert?.user || {};
+    return String(actor?.shopName || actor?.name || alert?.metadata?.actorName || '').trim();
+  }, [alert?.actor, alert?.metadata?.actorName, alert?.user]);
+  const actorRole = useMemo(() => {
+    const actor = alert?.actor || alert?.user || {};
+    const role = String(actor?.role || '').toLowerCase();
+    const accountType = String(actor?.accountType || '').toLowerCase();
+    if (role === 'founder') return 'Founder';
+    if (role === 'admin' || role === 'manager') return 'Admin';
+    if (accountType === 'shop' || role === 'seller') return 'Boutique';
+    return 'Utilisateur';
+  }, [alert?.actor, alert?.user]);
+  const reminderLabel = useMemo(() => {
+    const reminderType = String(alert?.metadata?.reminderType || '').trim();
+    if (!reminderType && !String(alert?.type || '').includes('reminder')) return '';
+    if (reminderType === 'seller' || reminderType === 'delay_detected') return 'Commande à traiter';
+    if (reminderType === 'buyer_confirmation') return 'Confirmation livraison';
+    if (reminderType === 'review') return 'Avis à laisser';
+    if (reminderType === 'escalation') return 'Escalade admin';
+    return 'Rappel';
+  }, [alert?.metadata?.reminderType, alert?.type]);
 
   const visibleActions = useMemo(() => {
     if (!Array.isArray(actions) || !actions.length) return [];
@@ -142,6 +166,17 @@ export default function NotificationItem({
                       <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-black ${toneClass(meta?.tone)}`}>
                         {String(alert?.type || 'info').replaceAll('_', ' ')}
                       </span>
+                      {actorName ? (
+                        <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-black text-neutral-600 ring-1 ring-orange-100 dark:bg-neutral-900 dark:text-neutral-300 dark:ring-neutral-800">
+                          <span className="truncate">{actorName}</span>
+                          <span className="text-neutral-400">· {actorRole}</span>
+                        </span>
+                      ) : null}
+                      {reminderLabel ? (
+                        <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700 ring-1 ring-amber-100">
+                          {reminderLabel}
+                        </span>
+                      ) : null}
                       <span className="text-[11px] font-bold text-neutral-400 dark:text-neutral-500">
                         {timeLabel}
                       </span>
@@ -168,31 +203,51 @@ export default function NotificationItem({
                       className="mt-3 flex flex-wrap items-center gap-2 overflow-hidden"
                     >
                       {visibleActions.map((item) => (
-                        <button
+                        <motion.button
                           key={`${alert?._id || 'notification'}-${item.to}-${item.label}`}
                           type="button"
+                          whileTap={{ scale: 0.96 }}
+                          whileHover={{ y: -1 }}
                           onClick={(event) => {
                             event.stopPropagation();
                             onNavigateAction?.(item.to);
                           }}
-                          className="inline-flex items-center gap-1 rounded-full bg-[#ff6a00] px-3 py-1.5 text-xs font-black text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)] transition active:scale-95"
+                          className="inline-flex min-h-[34px] items-center gap-1 rounded-full bg-[#ff6a00] px-3 py-1.5 text-xs font-black text-white shadow-[0_10px_22px_rgba(255,106,0,0.22)] transition duration-200 hover:bg-[#f45f00]"
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
                           {item.label || t('notifications.view', 'Voir')}
-                        </button>
+                        </motion.button>
                       ))}
                       {isUnread ? (
-                        <button
+                        <motion.button
                           type="button"
+                          whileTap={{ scale: 0.96 }}
+                          whileHover={{ y: -1 }}
+                          disabled={markReadPending}
                           onClick={(event) => {
                             event.stopPropagation();
                             onMarkRead?.();
                           }}
-                          className="inline-flex items-center gap-1 rounded-full border border-orange-100 bg-orange-50 px-3 py-1.5 text-xs font-bold text-[#9a4a00] transition active:scale-95 dark:text-neutral-300"
+                          className="inline-flex min-h-[34px] items-center gap-1 rounded-full border border-orange-100 bg-orange-50 px-3 py-1.5 text-xs font-bold text-[#9a4a00] transition duration-200 hover:bg-orange-100 disabled:opacity-60 dark:text-neutral-300"
                         >
-                          {t('notifications.markAsRead', 'Marquer comme lu')}
-                        </button>
+                          {markReadPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                          {markReadPending ? t('common.loading', 'Chargement...') : t('notifications.markAsRead', 'Marquer comme lu')}
+                        </motion.button>
                       ) : null}
+                      <motion.button
+                        type="button"
+                        whileTap={{ scale: 0.96 }}
+                        whileHover={{ y: -1 }}
+                        disabled={deletePending}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onDelete?.();
+                        }}
+                        className="inline-flex min-h-[34px] items-center gap-1 rounded-full bg-red-50 px-3 py-1.5 text-xs font-black text-red-600 ring-1 ring-red-100 transition duration-200 hover:bg-red-100 disabled:opacity-60"
+                      >
+                        {deletePending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                        {deletePending ? t('common.loading', 'Chargement...') : t('notifications.delete', 'Supprimer')}
+                      </motion.button>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -245,11 +300,13 @@ export default function NotificationItem({
               <button
                 type="button"
                 onClick={() => {
-                  onDelete?.();
+                  if (!deletePending) onDelete?.();
                   setMenuOpen(false);
                 }}
-                className="w-full rounded-[18px] px-3 py-2.5 text-left text-sm font-bold text-red-600 hover:bg-red-50 dark:text-neutral-300 dark:hover:bg-neutral-950/40"
+                disabled={deletePending}
+                className="inline-flex w-full items-center gap-2 rounded-[18px] px-3 py-2.5 text-left text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-60 dark:text-neutral-300 dark:hover:bg-neutral-950/40"
               >
+                {deletePending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                 {t('notifications.delete', 'Supprimer')}
               </button>
               <button

@@ -664,7 +664,7 @@ export default function AdvancedSearch() {
               <div className="mb-6">
                 <NetworkFallbackCard
                   title="Impossible de charger les résultats."
-                  message="Le réseau est lent ou indisponible. Réessayez."
+                  message="Les résultats mettent plus de temps à charger. Réessayez dans un instant."
                   onRetry={fetchProducts}
                   retryLabel="Réessayer"
                   refreshLabel="Actualiser la page"

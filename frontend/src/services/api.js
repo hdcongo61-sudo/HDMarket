@@ -767,7 +767,7 @@ api.interceptors.response.use(
     if (isTimeoutError) {
       error.isTimeout = true;
       error.userMessage = isMutationMethod
-        ? 'Réseau lent. L’action peut déjà être enregistrée. Vérifiez avant de renvoyer.'
+        ? 'Action en cours de confirmation. Synchronisation automatique.'
         : 'Le serveur met trop de temps à répondre. Réessayez.';
       error.possiblyCommitted = Boolean(isMutationMethod);
       if (!error.response) {

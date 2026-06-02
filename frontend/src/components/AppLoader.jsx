@@ -78,7 +78,7 @@ export default function AppLoader({
           )}
         </div>
         <span className="mt-4 text-[11px] font-semibold uppercase tracking-[0.3em] text-gray-400">
-          {timedOut ? 'Réseau lent' : 'Chargement'}
+          {timedOut ? 'Synchronisation' : 'Chargement'}
         </span>
         {timedOut ? (
           <div className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-center shadow-sm">

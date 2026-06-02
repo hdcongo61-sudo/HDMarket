@@ -710,7 +710,7 @@ export default function CourierDashboard() {
                 title={extractMessage(hardError, 'Unable to load data.')}
                 message={
                   timeoutDetected
-                    ? 'Network is slow, please retry.'
+                    ? 'Loading is taking longer than expected. Please try again shortly.'
                     : 'Unable to load deliveries right now.'
                 }
                 onRetry={handleRefresh}

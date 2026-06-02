@@ -16,7 +16,7 @@ const mapRegisterErrorMessage = (error, isFrench = true) => {
   const rawMessage = String(error?.response?.data?.message || error?.message || '').toLowerCase();
 
   if (code.includes('TIMEDOUT') || rawMessage.includes('timeout')) {
-    return isFrench ? 'Connexion lente. Veuillez réessayer.' : 'Network is slow. Please retry.';
+    return isFrench ? 'La demande prend plus de temps que prévu. Réessayez dans un instant.' : 'The request is taking longer than expected. Please try again shortly.';
   }
   if (status === 409 || rawMessage.includes('already') || rawMessage.includes('déjà')) {
     return isFrench
@@ -109,7 +109,7 @@ export default function Register() {
     back: isFrench ? 'Retour' : 'Back',
     createAccount: isFrench ? 'Créer le compte' : 'Create account',
     creatingAccount: isFrench ? 'Création...' : 'Creating...',
-    slowNetwork: isFrench ? 'Réseau lent, veuillez réessayer.' : 'Network is slow, please retry.',
+    slowNetwork: isFrench ? 'Création du compte en cours, merci de patienter.' : 'Account creation in progress, please wait.',
     haveAccount: isFrench ? 'Vous avez déjà un compte ?' : 'Already have an account?',
     signIn: isFrench ? 'Se connecter' : 'Sign in',
     nextStepError: isFrench

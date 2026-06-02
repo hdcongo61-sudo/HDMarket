@@ -257,7 +257,6 @@ export default function Navbar() {
     () => [
       { id: 'new_products', label: t('nav.newProducts', 'Nouveaux produits'), path: '/products?sort=new', icon: Sparkles },
       { id: 'top_deals', label: t('nav.bestDeals', 'Meilleures offres'), path: '/products?sort=price_asc', icon: Flame },
-      { id: 'verified_shops', label: t('nav.verifiedShops', 'Boutiques vérifiées'), path: '/shops/verified', icon: ShieldCheck },
       { id: 'trending', label: t('nav.trending', 'Tendances'), path: '/products?sort=popular', icon: TrendingUp }
     ],
     [t]
@@ -642,11 +641,13 @@ export default function Navbar() {
     api.get('/search/quick-filters')
       .then(({ data }) => {
         if (cancelled || !Array.isArray(data) || data.length === 0) return;
-        const withIcons = data.map((t) => ({
-          ...t,
-          fromServer: true,
-          icon: QUICK_FILTER_ICONS[t.icon] || Sparkles
-        }));
+        const withIcons = data
+          .filter((template) => template?.id !== 'verified_shops')
+          .map((t) => ({
+            ...t,
+            fromServer: true,
+            icon: QUICK_FILTER_ICONS[t.icon] || Sparkles
+          }));
         setSearchTemplates(withIcons);
       })
       .catch(() => { /* keep initial default templates */ });
@@ -3527,43 +3528,71 @@ export default function Navbar() {
                 {/* MEGA MENU CATÉGORIES */}
                 {isCategoryMenuOpen && (
                   <div 
-                    className="hd-menu-panel absolute left-0 z-50 mt-0 w-[800px] overflow-hidden rounded-[24px]"
+                    className="hd-menu-panel absolute left-0 z-50 mt-0 w-[860px] overflow-hidden rounded-[26px]"
                     onMouseEnter={handleCategoryMenuOpen}
                     onMouseLeave={handleCategoryMenuDelayedClose}
                   >
-                    <div className="p-6">
-                      <div className="grid grid-cols-3 gap-6">
+                    <div className="p-5">
+                      <div className="mb-5 rounded-[22px] bg-gradient-to-br from-[#ff4f1f] via-[#ff6a00] to-[#ff922e] p-4 text-white shadow-[0_14px_32px_rgba(255,106,0,0.16)]">
+                        <p className="text-xs font-black uppercase tracking-wide text-white/78">
+                          {t('nav.categories', 'Catégories')}
+                        </p>
+                        <h3 className="mt-1 text-xl font-black tracking-tight text-white">
+                          Explorer les univers HDMarket
+                        </h3>
+                        <p className="mt-1 max-w-2xl text-sm font-semibold text-white/84">
+                          Accédez vite aux familles les plus utiles, puis affinez par sous-catégorie.
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3">
                         {categoryGroups.map((group) => {
                           const Icon = group.icon;
                           return (
-                            <div key={group.id} className="space-y-2">
-                              <div className="flex items-center gap-2 mb-3">
-                                {Icon && <Icon className="w-5 h-5 text-neutral-900" />}
-                                <h3 className="font-bold text-gray-900 dark:text-white text-sm">
+                            <div key={group.id} className="rounded-[20px] border border-orange-100 bg-white p-3 shadow-sm">
+                              <Link
+                                to={`/categories/${group.options?.[0]?.value || ''}`}
+                                onClick={() => setIsCategoryMenuOpen(false)}
+                                className="mb-3 flex items-center gap-2 rounded-2xl p-1 transition hover:bg-orange-50"
+                              >
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-[#FF6A00] ring-1 ring-orange-100">
+                                  {Icon && <Icon className="w-5 h-5" />}
+                                </span>
+                                <h3 className="text-sm font-black text-stone-950">
                                   {group.label}
                                 </h3>
-                              </div>
-                              <ul className="space-y-1">
-                                {group.options.map((option) => (
+                              </Link>
+                              <ul className="flex flex-wrap gap-1.5">
+                                {group.options.slice(0, 5).map((option) => (
                                   <li key={option.value}>
                                     <Link
                                       to={`/categories/${option.value}`}
-                                      className="block px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-900/20 hover:text-neutral-900 dark:hover:text-neutral-300 transition-colors"
+                                      className="block rounded-full border border-orange-100 bg-orange-50/70 px-2.5 py-1.5 text-xs font-black text-[#9A4A00] transition hover:bg-orange-100"
                                       onClick={() => setIsCategoryMenuOpen(false)}
                                     >
                                       {option.label}
                                     </Link>
                                   </li>
                                 ))}
+                                {group.options.length > 5 ? (
+                                  <li>
+                                    <Link
+                                      to={`/categories/${group.options?.[0]?.value || ''}`}
+                                      className="block rounded-full border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-black text-stone-600 transition hover:border-orange-100 hover:text-[#FF6A00]"
+                                      onClick={() => setIsCategoryMenuOpen(false)}
+                                    >
+                                      +{group.options.length - 5}
+                                    </Link>
+                                  </li>
+                                ) : null}
                               </ul>
                             </div>
                           );
                         })}
                       </div>
-                      <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                      <div className="mt-5 border-t border-orange-100 pt-4">
                         <Link
                           to="/products"
-                          className="text-sm font-semibold text-neutral-900 hover:text-neutral-800 dark:text-neutral-300 flex items-center gap-2"
+                          className="hd-primary-button inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-black"
                           onClick={() => setIsCategoryMenuOpen(false)}
                         >
                           {t('nav.viewAllCategories', 'Voir toutes les catégories →')}
@@ -4603,9 +4632,6 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* ESPACES POUR LES BARRES FIXES */}
-      <div className="h-16 lg:h-24"></div>
-      <div className="md:hidden h-20"></div>
     </>
   );
 }

@@ -303,9 +303,12 @@ export default function ShopConversionRequest() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600">Veuillez vous connecter pour accéder à cette page.</p>
+      <div className="hd-products-flow flex min-h-screen items-center justify-center bg-[#f6f2ec] px-4">
+        <div className="rounded-[28px] border border-orange-100 bg-white p-6 text-center shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] bg-orange-50 text-[#FF6A00]">
+            <Store className="h-8 w-8" />
+          </div>
+          <p className="text-sm font-semibold text-stone-600">Veuillez vous connecter pour accéder à cette page.</p>
         </div>
       </div>
     );
@@ -318,46 +321,65 @@ export default function ShopConversionRequest() {
   const hasPendingRequest = requests.some((r) => r.status === 'pending');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-neutral-50/20 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-neutral-500 to-neutral-600 text-white">
-              <Store size={24} />
+    <div className="hd-products-flow min-h-screen bg-[#f6f2ec] px-3 py-4 pb-24 text-stone-950 sm:px-5 sm:py-6">
+      <div className="mx-auto max-w-5xl space-y-4">
+        <section className="hd-products-hero rounded-[28px] p-5 text-white sm:p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/16 px-3 py-1.5 ring-1 ring-white/20">
+                <Store className="h-4 w-4" />
+                <span className="text-xs font-black uppercase tracking-wide">Compte vendeur</span>
+              </div>
+              <h1 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">Devenir Boutique</h1>
+              <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-white/86">
+                Soumettez votre demande, ajoutez vos preuves et suivez la validation depuis un espace clair.
+              </p>
             </div>
-            <h1 className="text-3xl font-black text-gray-900">Devenir Boutique</h1>
+            <div className="grid grid-cols-2 gap-2 text-center sm:min-w-64">
+              <div className="rounded-2xl bg-white/14 px-3 py-2 ring-1 ring-white/18">
+                <p className="text-lg font-black">{requiredAmountLabel}</p>
+                <p className="text-[11px] font-bold text-white/72">montant</p>
+              </div>
+              <div className="rounded-2xl bg-white/14 px-3 py-2 ring-1 ring-white/18">
+                <p className="text-lg font-black">48h</p>
+                <p className="text-[11px] font-bold text-white/72">traitement</p>
+              </div>
+            </div>
           </div>
-          <p className="text-gray-600">
-            Soumettez une demande pour convertir votre compte particulier en boutique. Traitement
-            sous 48h.
-          </p>
-        </div>
+        </section>
 
         {/* Existing Requests */}
         {requests.length > 0 && (
-          <div className="mb-8 bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Mes demandes</h2>
-            <div className="space-y-4">
+          <section className="rounded-[28px] border border-orange-100 bg-white p-5 shadow-[0_14px_34px_rgba(117,75,36,0.08)] sm:p-6">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-wide text-[#FF6A00]">Suivi</p>
+                <h2 className="mt-1 text-xl font-black text-stone-950">Mes demandes</h2>
+              </div>
+              {loadingRequests ? (
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-orange-200 border-t-[#FF6A00]" />
+              ) : null}
+            </div>
+            <div className="space-y-3">
               {requests.map((request) => (
                 <div
                   key={request._id}
-                  className="p-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors"
+                  className="rounded-[22px] border border-orange-100 bg-orange-50/30 p-4 transition hover:bg-orange-50"
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{request.shopName}</h3>
-                      <p className="text-sm text-gray-600">{request.shopAddress}</p>
+                  <div className="mb-2 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="truncate text-sm font-black text-stone-950">{request.shopName}</h3>
+                      <p className="mt-0.5 text-xs font-semibold text-stone-500">{request.shopAddress}</p>
                     </div>
                     {getStatusBadge(request.status)}
                   </div>
-                  <div className="text-xs text-gray-500 mt-2">
+                  <div className="mt-2 text-xs font-semibold text-stone-500">
                     Soumise le {formatDate(request.createdAt)}
                     {request.processedAt && ` · Traitée le ${formatDate(request.processedAt)}`}
                   </div>
                   {request.rejectionReason && (
-                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-sm text-red-700">
+                    <div className="mt-3 rounded-2xl border border-red-100 bg-red-50 p-3">
+                      <p className="text-sm font-semibold text-red-700">
                         <strong>Raison du rejet:</strong> {request.rejectionReason}
                       </p>
                     </div>
@@ -365,34 +387,38 @@ export default function ShopConversionRequest() {
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
         {/* Form */}
         {!shopConversionEnabled ? (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800 shadow-sm">
+          <div className="rounded-[28px] border border-amber-100 bg-amber-50 p-6 text-sm font-bold text-amber-800 shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
             Les demandes Devenir Boutique sont temporairement désactivées par l’administration.
           </div>
         ) : !hasPendingRequest ? (
-          <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8">
+          <form onSubmit={handleSubmit} className="rounded-[28px] border border-orange-100 bg-white p-5 shadow-[0_14px_34px_rgba(117,75,36,0.08)] sm:p-6">
             {error && (
-              <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3">
+              <div className="mb-6 flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 p-4">
                 <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
-                <p className="text-sm text-red-700">{error}</p>
+                <p className="text-sm font-semibold text-red-700">{error}</p>
               </div>
             )}
 
             <div className="space-y-6">
+              <div>
+                <p className="text-xs font-black uppercase tracking-wide text-[#FF6A00]">Informations boutique</p>
+                <h2 className="mt-1 text-xl font-black text-stone-950">Profil public</h2>
+              </div>
               {/* Shop Name */}
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">
+                <label className="mb-2 block text-sm font-black text-stone-800">
                   Nom de la boutique <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={form.shopName}
                   onChange={(e) => setForm((prev) => ({ ...prev, shopName: e.target.value }))}
-                  className="w-full rounded-xl border-2 border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 transition-all"
+                  className="min-h-[52px] w-full rounded-[18px] border border-orange-100 bg-orange-50/35 px-4 text-sm font-semibold outline-none transition focus:border-[#FF6A00] focus:bg-white focus:ring-4 focus:ring-orange-100"
                   placeholder="Ex: Ma Super Boutique"
                   required
                 />
@@ -400,14 +426,14 @@ export default function ShopConversionRequest() {
 
               {/* Shop Address */}
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">
+                <label className="mb-2 block text-sm font-black text-stone-800">
                   Adresse de la boutique <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={form.shopAddress}
                   onChange={(e) => setForm((prev) => ({ ...prev, shopAddress: e.target.value }))}
-                  className="w-full rounded-xl border-2 border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 transition-all"
+                  className="min-h-[52px] w-full rounded-[18px] border border-orange-100 bg-orange-50/35 px-4 text-sm font-semibold outline-none transition focus:border-[#FF6A00] focus:bg-white focus:ring-4 focus:ring-orange-100"
                   placeholder="Ex: Avenue de la République, Brazzaville"
                   required
                 />
@@ -415,7 +441,7 @@ export default function ShopConversionRequest() {
 
               {/* Shop Description */}
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">
+                <label className="mb-2 block text-sm font-black text-stone-800">
                   Description de la boutique
                 </label>
                 <textarea
@@ -424,14 +450,14 @@ export default function ShopConversionRequest() {
                     setForm((prev) => ({ ...prev, shopDescription: e.target.value }))
                   }
                   rows={4}
-                  className="w-full rounded-xl border-2 border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 transition-all resize-none"
+                  className="w-full resize-none rounded-[18px] border border-orange-100 bg-orange-50/35 px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#FF6A00] focus:bg-white focus:ring-4 focus:ring-orange-100"
                   placeholder="Décrivez votre boutique..."
                 />
               </div>
 
               {/* Shop Logo */}
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">
+                <label className="mb-2 block text-sm font-black text-stone-800">
                   Logo de la boutique
                 </label>
                 {shopLogoPreview ? (
@@ -439,20 +465,20 @@ export default function ShopConversionRequest() {
                     <img
                       src={shopLogoPreview}
                       alt="Logo preview"
-                      className="w-32 h-32 object-cover rounded-xl border-2 border-gray-300"
+                      className="h-32 w-32 rounded-[22px] border border-orange-100 object-cover"
                     />
                     <button
                       type="button"
                       onClick={removeShopLogo}
-                      className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                      className="absolute -right-2 -top-2 rounded-full bg-red-500 p-1 text-white transition-colors hover:bg-red-600"
                     >
                       <X size={16} />
                     </button>
                   </div>
                 ) : (
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
-                    <ImageIcon className="text-gray-400 mb-2" size={32} />
-                    <span className="text-sm text-gray-600">Cliquez pour ajouter un logo</span>
+                  <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-[22px] border border-dashed border-orange-200 bg-orange-50/40 transition-colors hover:bg-orange-50">
+                    <ImageIcon className="mb-2 text-[#FF6A00]" size={32} />
+                    <span className="text-sm font-black text-[#9A4A00]">Cliquez pour ajouter un logo</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -464,52 +490,52 @@ export default function ShopConversionRequest() {
               </div>
 
               {/* Payment Section */}
-              <div className="pt-6 border-t border-gray-200">
-                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <DollarSign size={20} className="text-neutral-600" />
+              <div className="border-t border-orange-100 pt-6">
+                <h3 className="mb-4 flex items-center gap-2 text-xl font-black text-stone-950">
+                  <DollarSign size={20} className="text-[#FF6A00]" />
                   Informations de paiement
                 </h3>
-                <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 mb-6">
-                  <p className="text-sm font-semibold text-neutral-900 mb-1">
-                    Montant requis: <span className="text-lg">{requiredAmountLabel}</span>
+                <div className="mb-6 rounded-[22px] border border-orange-100 bg-orange-50/50 p-4">
+                  <p className="mb-1 text-sm font-black text-stone-950">
+                    Montant requis: <span className="text-lg text-[#FF6A00]">{requiredAmountLabel}</span>
                   </p>
-                  <p className="text-xs text-neutral-700">
+                  <p className="text-xs font-semibold leading-5 text-stone-600">
                     Veuillez effectuer un paiement de {requiredAmountLabel} et fournir les informations de
                     transaction ci-dessous.
                   </p>
                 </div>
 
                 {/* Transaction image example */}
-                <div className="mb-6 rounded-xl border border-gray-200 bg-gray-50 p-4">
-                  <p className="text-sm font-semibold text-gray-800 mb-2">
+                <div className="mb-6 rounded-[22px] border border-orange-100 bg-white p-4 shadow-sm">
+                  <p className="mb-2 text-sm font-black text-stone-900">
                     Exemple de message de confirmation (où trouver l’ID de la transaction)
                   </p>
-                  <p className="text-xs text-gray-600 mb-3">
+                  <p className="mb-3 text-xs font-semibold leading-5 text-stone-600">
                     Après votre paiement Mobile Money, vous recevrez un SMS. L’<strong>ID de la transaction</strong> (souvent noté « ID : ») est le numéro à 10 chiffres à indiquer ci-dessous.
                   </p>
                   <div className="flex justify-center">
                     <img
                       src="/images/transaction-sms-example-shop-conversion.png"
                       alt="Exemple de SMS de confirmation avec l’ID de la transaction"
-                      className="max-w-full rounded-lg border border-gray-200 shadow-sm max-h-64 object-contain"
+                      className="max-h-64 max-w-full rounded-2xl border border-orange-100 object-contain shadow-sm"
                     />
                   </div>
                 </div>
 
                 {/* Transaction Name */}
                 <div className="mb-4">
-                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                  <label className="mb-2 block text-sm font-black text-stone-800">
                     Nom de la transaction <span className="text-red-500">*</span>
                   </label>
-                  <div className="flex items-center gap-3 rounded-xl border-2 border-gray-300 px-4 py-3 bg-white focus-within:ring-2 focus-within:ring-neutral-500 focus-within:border-neutral-500 transition-all">
-                    <CreditCard size={18} className="text-gray-400 flex-shrink-0" />
+                  <div className="flex items-center gap-3 rounded-[18px] border border-orange-100 bg-orange-50/35 px-4 py-3 transition-all focus-within:border-[#FF6A00] focus-within:bg-white focus-within:ring-4 focus-within:ring-orange-100">
+                    <CreditCard size={18} className="flex-shrink-0 text-[#FF6A00]" />
                     <input
                       type="text"
                       value={form.transactionName}
                       onChange={(e) =>
                         setForm((prev) => ({ ...prev, transactionName: e.target.value }))
                       }
-                      className="w-full border-none p-0 text-sm focus:outline-none"
+                      className="w-full border-none bg-transparent p-0 text-sm font-semibold focus:outline-none"
                       placeholder="Ex: Jean K."
                       required
                     />
@@ -518,7 +544,7 @@ export default function ShopConversionRequest() {
 
                 {/* Operator Selection */}
                 <div className="mb-4">
-                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                  <label className="mb-2 block text-sm font-black text-stone-800">
                     Opérateur Mobile Money <span className="text-red-500">*</span>
                   </label>
                   {networksLoading ? (
@@ -527,20 +553,20 @@ export default function ShopConversionRequest() {
                     </div>
                   ) : activeNetworks.length > 0 ? (
                     <div className="space-y-2">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         {activeNetworks.map((network) => (
                           <button
                             key={network._id}
                             type="button"
                             onClick={() => setForm((prev) => ({ ...prev, operator: network.name }))}
-                            className={`px-4 py-3 rounded-xl border-2 font-semibold text-sm transition-all text-left ${
+                            className={`rounded-[18px] border px-4 py-3 text-left text-sm font-black transition-all ${
                               form.operator === network.name
-                                ? 'border-neutral-600 bg-neutral-50 text-neutral-700'
-                                : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                                ? 'border-[#FF6A00] bg-orange-50 text-[#9A4A00] shadow-sm'
+                                : 'border-orange-100 bg-white text-stone-700 hover:bg-orange-50'
                             }`}
                           >
                             <div className="font-bold">{network.name}</div>
-                            <div className="text-xs text-gray-600 mt-1">{network.phoneNumber}</div>
+                            <div className="mt-1 text-xs text-stone-500">{network.phoneNumber}</div>
                           </button>
                         ))}
                       </div>
@@ -550,10 +576,10 @@ export default function ShopConversionRequest() {
                       <button
                         type="button"
                         onClick={() => setForm((prev) => ({ ...prev, operator: 'MTN' }))}
-                        className={`px-4 py-3 rounded-xl border-2 font-semibold text-sm transition-all ${
+                        className={`rounded-[18px] border px-4 py-3 text-sm font-black transition-all ${
                           form.operator === 'MTN'
-                            ? 'border-neutral-600 bg-neutral-50 text-neutral-700'
-                            : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                            ? 'border-[#FF6A00] bg-orange-50 text-[#9A4A00]'
+                            : 'border-orange-100 bg-white text-stone-700 hover:bg-orange-50'
                         }`}
                       >
                         MTN
@@ -561,10 +587,10 @@ export default function ShopConversionRequest() {
                       <button
                         type="button"
                         onClick={() => setForm((prev) => ({ ...prev, operator: 'Airtel' }))}
-                        className={`px-4 py-3 rounded-xl border-2 font-semibold text-sm transition-all ${
+                        className={`rounded-[18px] border px-4 py-3 text-sm font-black transition-all ${
                           form.operator === 'Airtel'
-                            ? 'border-neutral-600 bg-neutral-50 text-neutral-700'
-                            : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                            ? 'border-[#FF6A00] bg-orange-50 text-[#9A4A00]'
+                            : 'border-orange-100 bg-white text-stone-700 hover:bg-orange-50'
                         }`}
                       >
                         Airtel
@@ -575,30 +601,30 @@ export default function ShopConversionRequest() {
 
                 {/* Transaction Number */}
                 <div className="mb-4">
-                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                  <label className="mb-2 block text-sm font-black text-stone-800">
                     Numéro de transaction (10 chiffres) <span className="text-red-500">*</span>
                   </label>
-                  <div className="flex items-center gap-3 rounded-xl border-2 border-gray-300 px-4 py-3 bg-white focus-within:ring-2 focus-within:ring-neutral-500 focus-within:border-neutral-500 transition-all">
-                    <Hash size={18} className="text-gray-400 flex-shrink-0" />
+                  <div className="flex items-center gap-3 rounded-[18px] border border-orange-100 bg-orange-50/35 px-4 py-3 transition-all focus-within:border-[#FF6A00] focus-within:bg-white focus-within:ring-4 focus-within:ring-orange-100">
+                    <Hash size={18} className="flex-shrink-0 text-[#FF6A00]" />
                     <input
                       type="text"
                       inputMode="numeric"
                       maxLength={10}
                       value={form.transactionNumber}
                       onChange={handleTransactionNumberChange}
-                      className="w-full border-none p-0 text-sm font-mono focus:outline-none"
+                      className="w-full border-none bg-transparent p-0 font-mono text-sm font-semibold focus:outline-none"
                       placeholder="1234567890"
                       required
                     />
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="mt-1 text-xs font-semibold text-stone-500">
                     Le numéro de transaction se trouve dans le SMS de confirmation Mobile Money
                   </p>
                 </div>
 
                 {/* Payment Amount */}
                 <div className="mb-4">
-                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                  <label className="mb-2 block text-sm font-black text-stone-800">
                     Montant payé <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -606,21 +632,21 @@ export default function ShopConversionRequest() {
                     value={form.paymentAmount}
                     disabled
                     readOnly
-                    className="w-full rounded-xl border-2 border-gray-300 px-4 py-3 text-sm bg-gray-100 text-gray-700 cursor-not-allowed"
+                    className="min-h-[52px] w-full cursor-not-allowed rounded-[18px] border border-orange-100 bg-stone-100 px-4 text-sm font-black text-stone-700"
                     placeholder="50000"
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="mt-1 text-xs font-semibold text-stone-500">
                     Montant fixe requis pour la conversion en boutique
                   </p>
                 </div>
 
                 {/* Preuve de boutique */}
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                  <label className="mb-2 block text-sm font-black text-stone-800">
                     Preuve de boutique <span className="text-red-500">*</span>
                   </label>
-                  <p className="text-xs text-gray-600 mb-3">
+                  <p className="mb-3 text-xs font-semibold leading-5 text-stone-600">
                     Joignez une preuve d’existence de votre boutique : papier de la boutique, photo de la boutique, ou une facture portant le nom de la boutique.
                   </p>
                   {paymentProofPreview ? (
@@ -628,23 +654,23 @@ export default function ShopConversionRequest() {
                       <img
                         src={paymentProofPreview}
                         alt="Aperçu de la preuve de boutique"
-                        className="max-w-md h-auto rounded-xl border-2 border-gray-300"
+                        className="h-auto max-w-md rounded-[22px] border border-orange-100"
                       />
                       <button
                         type="button"
                         onClick={removePaymentProof}
-                        className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                        className="absolute -right-2 -top-2 rounded-full bg-red-500 p-1 text-white transition-colors hover:bg-red-600"
                       >
                         <X size={16} />
                       </button>
                     </div>
                   ) : (
-                    <label className="flex flex-col items-center justify-center w-full min-h-[140px] py-6 px-4 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 hover:border-neutral-300 transition-colors">
-                      <FileImage className="text-gray-400 mb-2 flex-shrink-0" size={32} />
-                      <span className="text-sm text-gray-600 text-center">
+                    <label className="flex min-h-[150px] w-full cursor-pointer flex-col items-center justify-center rounded-[22px] border border-dashed border-orange-200 bg-orange-50/40 px-4 py-6 transition-colors hover:bg-orange-50">
+                      <FileImage className="mb-2 flex-shrink-0 text-[#FF6A00]" size={32} />
+                      <span className="text-center text-sm font-black text-[#9A4A00]">
                         Cliquez pour ajouter une preuve
                       </span>
-                      <span className="text-xs text-gray-500 text-center mt-1">
+                      <span className="mt-1 text-center text-xs font-semibold text-stone-500">
                         Papier de la boutique, photo ou facture avec le nom de la boutique
                       </span>
                       <input
@@ -663,24 +689,24 @@ export default function ShopConversionRequest() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 rounded-xl bg-gradient-to-r from-neutral-600 to-neutral-600 text-white font-bold text-sm hover:from-neutral-700 hover:to-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
+                className="hd-primary-button flex min-h-[54px] w-full items-center justify-center rounded-full px-6 text-sm font-black disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading ? 'Envoi en cours...' : 'Soumettre la demande'}
               </button>
 
-              <p className="text-xs text-center text-gray-500">
+              <p className="text-center text-xs font-semibold leading-5 text-stone-500">
                 Votre demande sera traitée sous 48h. Vous recevrez une notification une fois la
                 demande traitée.
               </p>
             </div>
           </form>
         ) : (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6">
+          <div className="rounded-[28px] border border-amber-100 bg-amber-50 p-6 shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
             <div className="flex items-start gap-3">
-              <Clock className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
+              <Clock className="mt-0.5 flex-shrink-0 text-amber-600" size={20} />
               <div>
-                <h3 className="font-semibold text-yellow-900 mb-1">Demande en attente</h3>
-                <p className="text-sm text-yellow-700">
+                <h3 className="mb-1 font-black text-amber-900">Demande en attente</h3>
+                <p className="text-sm font-semibold leading-6 text-amber-700">
                   Vous avez déjà une demande en attente de traitement. Veuillez attendre la réponse
                   avant de soumettre une nouvelle demande.
                 </p>

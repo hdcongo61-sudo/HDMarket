@@ -26,7 +26,7 @@ const CHAT_ON_SCROLL_EXTRA = 56;
 const welcomeMessage = {
   id: 'welcome',
   from: 'assistant',
-  text: "Bonjour. Je suis l'assistant HDMarket. Choisissez une option pour continuer.",
+  text: "Bonjour. Je suis l'assistant HDMarket. Choisissez un sujet pour avancer rapidement.",
   createdAt: new Date().toISOString(),
   kind: 'info'
 };
@@ -419,7 +419,7 @@ const ChatBox = () => {
           <button
             type="button"
             onClick={isButtonCollapsed ? handleExpandButton : handleShowChat}
-            className={`flex items-center justify-center gap-2 rounded-full bg-black text-white shadow-lg transition-all duration-300 ${
+            className={`flex items-center justify-center gap-2 rounded-full bg-[#ff6a00] text-white shadow-[0_16px_40px_rgba(255,106,0,0.28)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#f05f00] active:translate-y-0 ${
               isButtonCollapsed ? 'h-11 w-11 min-w-11 rounded-l-full' : 'px-4 py-2.5 pl-4 pr-12'
             }`}
             title="Afficher l'assistant"
@@ -436,11 +436,11 @@ const ChatBox = () => {
           {!isButtonCollapsed && (
             <button
               type="button"
-              onClick={(event) => {
+            onClick={(event) => {
                 event.stopPropagation();
                 handleCollapseButton();
               }}
-              className="absolute -right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-black text-white shadow-md transition-colors hover:bg-neutral-800"
+              className="absolute -right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-[#111827] text-white shadow-md transition-colors hover:bg-[#ff6a00]"
               title="Rentrer le bouton"
               aria-label="Rentrer le bouton"
             >
@@ -465,23 +465,23 @@ const ChatBox = () => {
       style={fabContainerStyle}
     >
       {isOpen && (
-        <div className="mb-3 w-[360px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl dark:border-neutral-800 dark:bg-neutral-950">
-          <div className="sticky top-0 z-10 border-b border-neutral-200/70 bg-white/85 px-4 py-3 backdrop-blur-md dark:border-neutral-800 dark:bg-neutral-950/85">
+        <div className="mb-3 w-[380px] max-w-[calc(100vw-1rem)] overflow-hidden rounded-[28px] border border-orange-100 bg-[#fffaf4] shadow-[0_24px_70px_rgba(17,24,39,0.20)] ring-1 ring-white/80 dark:border-orange-950/60 dark:bg-neutral-950">
+          <div className="sticky top-0 z-10 border-b border-orange-100/80 bg-gradient-to-br from-[#ff6a00] via-[#ff7a1a] to-[#f04423] px-4 pb-3 pt-4 text-white dark:border-orange-950/60">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/18 text-white shadow-inner ring-1 ring-white/25 backdrop-blur">
                   <Sparkles className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Assistant HDMarket</h3>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400">Support guidé sans saisie libre</p>
+                  <h3 className="text-base font-extrabold tracking-tight">Assistant HDMarket</h3>
+                  <p className="text-xs font-medium text-white/80">Commandes, paiements, livraison</p>
                 </div>
               </div>
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={handleHideChat}
-                  className="rounded-lg p-2 text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+                  className="rounded-full p-2 text-white/80 transition hover:bg-white/15 hover:text-white"
                   aria-label="Masquer le chat"
                   title="Masquer le chat"
                 >
@@ -490,7 +490,7 @@ const ChatBox = () => {
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="rounded-lg p-2 text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+                  className="rounded-full p-2 text-white/80 transition hover:bg-white/15 hover:text-white"
                   aria-label="Fermer le chat"
                   title="Fermer le chat"
                 >
@@ -499,22 +499,22 @@ const ChatBox = () => {
               </div>
             </div>
 
-            <div className="mt-2 flex items-center gap-2 rounded-lg bg-neutral-100 px-3 py-1.5 text-xs text-neutral-600 dark:bg-neutral-900 dark:text-neutral-300">
+            <div className="mt-3 flex items-center gap-2 rounded-2xl bg-white/16 px-3 py-2 text-xs font-semibold text-white/90 ring-1 ring-white/20 backdrop-blur">
               <Shield className="h-3.5 w-3.5" />
-              <span>Assistant structuré · Réponses officielles</span>
+              <span>Réponses officielles · Parcours guidé</span>
             </div>
           </div>
 
           <div
             ref={listRef}
             onScroll={handleScroll}
-            className="relative max-h-[360px] min-h-[220px] space-y-1 overflow-y-auto px-3 py-3"
+            className="relative max-h-[390px] min-h-[260px] space-y-1 overflow-y-auto bg-[#fffaf4] px-3 py-3 dark:bg-neutral-950"
           >
             {groupedMessages.map((item, index) => {
               if (item.type === 'date') {
                 return (
                   <div key={`date-${item.date}-${index}`} className="my-3 flex items-center justify-center">
-                    <div className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-500 dark:bg-neutral-900 dark:text-neutral-400">
+                    <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-neutral-500 shadow-sm ring-1 ring-orange-100 dark:bg-neutral-900 dark:text-neutral-400 dark:ring-neutral-800">
                       {formatDateHeader(item.date)}
                     </div>
                   </div>
@@ -527,8 +527,8 @@ const ChatBox = () => {
                   <div
                     className={`max-w-[86%] rounded-2xl px-3 py-2 text-sm ${
                       isUser
-                        ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
-                        : 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900 dark:text-neutral-200'
+                        ? 'bg-[#ff6a00] text-white shadow-[0_10px_24px_rgba(255,106,0,0.20)]'
+                        : 'bg-white text-neutral-800 shadow-sm ring-1 ring-orange-100 dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-800'
                     }`}
                   >
                     <p className="whitespace-pre-wrap leading-relaxed">{item.text}</p>
@@ -536,7 +536,7 @@ const ChatBox = () => {
                       <button
                         type="button"
                         onClick={() => openLink(item.link)}
-                        className="mt-2 inline-flex items-center gap-1 rounded-full border border-neutral-300 px-2.5 py-1 text-xs font-medium text-neutral-700 transition hover:bg-white dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                        className="mt-2 inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-bold text-[#ff6a00] transition hover:bg-orange-100 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-200"
                       >
                         <ExternalLink className="h-3 w-3" />
                         Ouvrir
@@ -552,8 +552,8 @@ const ChatBox = () => {
 
             {loadingSession && (
               <div className="space-y-2 py-2">
-                <div className="h-3 w-32 animate-pulse rounded-full bg-neutral-200 dark:bg-neutral-800" />
-                <div className="h-3 w-44 animate-pulse rounded-full bg-neutral-200 dark:bg-neutral-800" />
+                <div className="h-3 w-32 animate-pulse rounded-full bg-orange-100 dark:bg-neutral-800" />
+                <div className="h-3 w-44 animate-pulse rounded-full bg-orange-100 dark:bg-neutral-800" />
               </div>
             )}
 
@@ -561,16 +561,16 @@ const ChatBox = () => {
               <button
                 type="button"
                 onClick={scrollToBottom}
-                className="sticky bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-white p-2 shadow ring-1 ring-neutral-200 transition hover:bg-neutral-50 dark:bg-neutral-900 dark:ring-neutral-700 dark:hover:bg-neutral-800"
+                className="sticky bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-white p-2 shadow ring-1 ring-orange-100 transition hover:bg-orange-50 dark:bg-neutral-900 dark:ring-neutral-700 dark:hover:bg-neutral-800"
               >
                 <ChevronDown className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
               </button>
             )}
           </div>
 
-          <div className="border-t border-neutral-200 bg-neutral-50 px-3 py-3 dark:border-neutral-800 dark:bg-neutral-950">
+          <div className="border-t border-orange-100 bg-white px-3 py-3 dark:border-neutral-800 dark:bg-neutral-950">
             {contextHint?.pendingOrders > 0 && (
-              <div className="mb-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
+              <div className="mb-2 rounded-2xl border border-orange-100 bg-orange-50 px-3 py-2 text-xs font-medium text-orange-800 dark:border-orange-950/60 dark:bg-orange-950/30 dark:text-orange-200">
                 {contextHint.pendingOrders} commande(s) active(s) détectée(s), suggestions adaptées automatiquement.
               </div>
             )}
@@ -580,7 +580,7 @@ const ChatBox = () => {
                 type="button"
                 onClick={handleGoBack}
                 disabled={!stepStack.length || loading || loadingSession}
-                className="inline-flex min-h-9 items-center gap-1 rounded-full border border-neutral-300 px-3 text-xs font-medium text-neutral-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-900"
+                className="inline-flex min-h-9 items-center gap-1 rounded-full border border-orange-100 bg-orange-50 px-3 text-xs font-bold text-orange-700 transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-orange-950/60 dark:bg-orange-950/30 dark:text-orange-200"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Retour
@@ -589,7 +589,7 @@ const ChatBox = () => {
                 type="button"
                 onClick={handleRestart}
                 disabled={loading || loadingSession}
-                className="inline-flex min-h-9 items-center gap-1 rounded-full border border-neutral-300 px-3 text-xs font-medium text-neutral-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-900"
+                className="inline-flex min-h-9 items-center gap-1 rounded-full border border-neutral-200 bg-white px-3 text-xs font-bold text-neutral-700 transition hover:border-orange-200 hover:text-[#ff6a00] disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
                 Recommencer
@@ -598,7 +598,7 @@ const ChatBox = () => {
                 <button
                   type="button"
                   onClick={() => openLink(hasActionLink)}
-                  className="ml-auto inline-flex min-h-9 items-center gap-1 rounded-full bg-neutral-900 px-3 text-xs font-semibold text-white transition hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+                  className="ml-auto inline-flex min-h-9 items-center gap-1 rounded-full bg-[#ff6a00] px-3 text-xs font-bold text-white shadow-[0_8px_20px_rgba(255,106,0,0.22)] transition hover:bg-[#f05f00]"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
                   Ouvrir
@@ -612,20 +612,20 @@ const ChatBox = () => {
 
             <div className="flex max-h-[140px] flex-wrap gap-1.5 overflow-y-auto pr-1">
               {loading ? (
-                <div className="h-9 w-full animate-pulse rounded-xl bg-neutral-200 dark:bg-neutral-800" />
+                <div className="h-10 w-full animate-pulse rounded-2xl bg-orange-100 dark:bg-neutral-800" />
               ) : options.length ? (
                 options.map((option) => (
                   <button
                     key={option.id}
                     type="button"
                     onClick={() => handleSelectOption(option)}
-                    className="inline-flex min-h-10 items-center rounded-full border border-neutral-300 bg-white px-3 py-2 text-left text-xs font-medium text-neutral-800 transition hover:border-neutral-900 hover:bg-neutral-900 hover:text-white dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:border-neutral-100 dark:hover:bg-neutral-100 dark:hover:text-neutral-900"
+                    className="inline-flex min-h-10 items-center rounded-full border border-orange-100 bg-[#fff7ed] px-3.5 py-2 text-left text-xs font-bold text-neutral-800 shadow-sm transition hover:-translate-y-0.5 hover:border-[#ff6a00] hover:bg-[#ff6a00] hover:text-white active:translate-y-0 dark:border-orange-950/60 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:border-[#ff6a00] dark:hover:bg-[#ff6a00] dark:hover:text-white"
                   >
                     {option.title}
                   </button>
                 ))
               ) : noOptions ? (
-                <div className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
+                <div className="w-full rounded-2xl border border-orange-100 bg-orange-50 px-3 py-2 text-xs text-orange-800 dark:border-orange-950/60 dark:bg-orange-950/30 dark:text-orange-200">
                   Aucun choix supplémentaire. Utilisez “Recommencer” pour explorer une autre branche.
                 </div>
               ) : null}
@@ -638,7 +638,7 @@ const ChatBox = () => {
         <button
           type="button"
           onClick={isButtonCollapsed ? handleExpandButton : () => setIsOpen((prev) => !prev)}
-          className={`group relative flex items-center justify-center gap-2 rounded-full bg-black text-white shadow-lg transition-all duration-300 ${
+          className={`group relative flex items-center justify-center gap-2 rounded-full bg-[#ff6a00] text-white shadow-[0_18px_45px_rgba(255,106,0,0.34)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#f05f00] active:translate-y-0 ${
             isButtonCollapsed ? 'h-11 w-11 min-w-11 rounded-l-full' : 'px-5 py-3 pl-5 pr-12'
           }`}
           title={isButtonCollapsed ? "Afficher l'assistant" : isOpen ? 'Fermer' : 'Assistant'}
@@ -659,7 +659,7 @@ const ChatBox = () => {
               event.stopPropagation();
               handleCollapseButton();
             }}
-            className="absolute -right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-black text-white shadow-md transition-colors hover:bg-neutral-800"
+            className="absolute -right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-[#111827] text-white shadow-md transition-colors hover:bg-[#ff6a00]"
             title="Rentrer le bouton"
             aria-label="Rentrer le bouton"
           >

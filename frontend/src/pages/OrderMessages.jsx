@@ -50,12 +50,12 @@ const STATUS_LABELS = {
 };
 
 const STATUS_STYLES = {
-  pending: 'bg-gray-100 text-gray-700 border-gray-200',
-  confirmed: 'bg-amber-100 text-amber-800 border-amber-200',
-  delivering: 'bg-neutral-100 text-neutral-800 border-neutral-200',
-  delivered: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-  cancelled: 'bg-red-100 text-red-800 border-red-200',
-  inquiry: 'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-900/30 dark:text-neutral-300 dark:border-neutral-700'
+  pending: 'bg-stone-100 text-stone-700 ring-1 ring-stone-200',
+  confirmed: 'bg-amber-100 text-amber-800 ring-1 ring-amber-200',
+  delivering: 'bg-orange-50 text-[#FF6A00] ring-1 ring-orange-100',
+  delivered: 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200',
+  cancelled: 'bg-red-100 text-red-800 ring-1 ring-red-200',
+  inquiry: 'bg-orange-50 text-[#FF6A00] ring-1 ring-orange-100 dark:bg-neutral-900 dark:text-orange-300 dark:ring-neutral-800'
 };
 
 const STATUS_ICONS = {
@@ -532,7 +532,7 @@ export default function OrderMessages() {
 
   if ((loading && effectiveConversations.length === 0 && !offlineSnapshotActive) || inquiryLoading) {
     return (
-      <div className="hd-order-flow hd-commerce-shell min-h-screen dark:bg-gray-900 relative">
+      <div className="min-h-screen bg-[#fff4e8] text-slate-950 dark:bg-neutral-950 dark:text-white relative">
         {inquiryLoading && (
           <BaseModal
             isOpen={inquiryLoading}
@@ -545,8 +545,8 @@ export default function OrderMessages() {
           >
             <ModalBody className="px-8 py-6">
               <div className="flex flex-col items-center gap-4">
-                <div className="w-12 h-12 border-4 border-neutral-500 border-t-transparent rounded-full animate-spin" />
-                <p className="text-center text-gray-700 dark:text-gray-200 font-medium">Ouverture de la conversation avec le vendeur...</p>
+                <div className="h-12 w-12 animate-spin rounded-full border-4 border-orange-100 border-t-[#FF6A00]" />
+                <p className="text-center font-black text-slate-800 dark:text-gray-100">Ouverture de la conversation...</p>
               </div>
             </ModalBody>
           </BaseModal>
@@ -555,8 +555,8 @@ export default function OrderMessages() {
           <div className="max-w-6xl mx-auto px-4 py-8">
             <div className="flex items-center justify-center h-96">
               <div className="text-center">
-                <div className="w-16 h-16 rounded-full border-4 border-neutral-100 border-t-neutral-600 animate-spin mx-auto mb-4" />
-                <p className="text-gray-600 dark:text-gray-400">Chargement des conversations...</p>
+                <div className="mx-auto mb-4 h-16 w-16 animate-spin rounded-full border-4 border-orange-100 border-t-[#FF6A00]" />
+                <p className="font-semibold text-slate-600 dark:text-gray-400">Chargement des conversations...</p>
               </div>
             </div>
           </div>
@@ -566,49 +566,47 @@ export default function OrderMessages() {
   }
 
   return (
-    <div className="hd-order-flow hd-commerce-shell min-h-screen dark:bg-gray-900">
-      {/* Header: breadcrumb + title + stats */}
-      <header className="border-b border-slate-200 dark:border-gray-800 bg-white dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-5">
-          <nav className="flex items-center gap-2 text-sm text-slate-500 dark:text-gray-400 mb-3">
-            <Link to="/" className="hover:text-slate-700 dark:hover:text-gray-200 transition-colors">Accueil</Link>
-            <ChevronRight className="w-4 h-4 flex-shrink-0" />
-            <Link to="/orders" className="hover:text-slate-700 dark:hover:text-gray-200 transition-colors">Commandes</Link>
-            <ChevronRight className="w-4 h-4 flex-shrink-0" />
-            <span className="text-slate-900 dark:text-white font-medium">Messagerie</span>
-          </nav>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-neutral-100 dark:bg-neutral-900/40 text-neutral-600 dark:text-neutral-400">
-                <MessageCircle className="w-6 h-6" />
+    <div className="min-h-screen bg-[#fff4e8] text-slate-950 dark:bg-neutral-950 dark:text-white">
+      <header className="sticky top-0 z-20 border-b border-orange-100/70 bg-[#fffaf4]/95 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/95">
+        <div className="mx-auto max-w-7xl px-3 py-3 sm:px-6 sm:py-4">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 text-[12px] font-black text-slate-500 [scrollbar-width:none] dark:text-gray-400 [&::-webkit-scrollbar]:hidden">
+            <Link to="/" className="shrink-0 rounded-full bg-white px-3 py-1.5 ring-1 ring-orange-100 transition hover:text-[#FF6A00] dark:bg-neutral-900 dark:ring-neutral-800">Accueil</Link>
+            <Link to="/orders" className="shrink-0 rounded-full bg-white px-3 py-1.5 ring-1 ring-orange-100 transition hover:text-[#FF6A00] dark:bg-neutral-900 dark:ring-neutral-800">Commandes</Link>
+            <span className="shrink-0 rounded-full bg-[#FF6A00] px-3 py-1.5 text-white">Messagerie</span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#FF6A00] text-white shadow-[0_16px_32px_-20px_rgba(255,106,0,0.95)]">
+                <MessageCircle className="h-6 w-6" />
               </div>
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">Messagerie</h1>
-                <p className="text-sm text-slate-500 dark:text-gray-400 mt-0.5">
+              <div className="min-w-0">
+                <p className="text-[11px] font-black uppercase tracking-wide text-[#FF6A00]">Centre messages</p>
+                <h1 className="truncate text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-3xl">Messagerie</h1>
+                <p className="mt-0.5 text-sm font-semibold text-slate-500 dark:text-gray-400">
                   {effectiveMeta.total} conversation{effectiveMeta.total !== 1 ? 's' : ''}
                   {effectiveTotalUnread > 0 && (
-                    <span className="ml-2 inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
+                    <span className="ml-2 inline-flex items-center gap-1 font-black text-[#FF6A00]">
                       · {effectiveTotalUnread} non lu{effectiveTotalUnread !== 1 ? 's' : ''}
                     </span>
                   )}
                 </p>
               </div>
             </div>
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-300 text-sm">
-              <Lock className="w-4 h-4 text-emerald-500" />
-              <span>Messages sécurisés</span>
+            <div className="hidden items-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-sm ring-1 ring-orange-100 sm:flex dark:bg-neutral-900 dark:text-gray-200 dark:ring-neutral-800">
+              <Lock className="h-4 w-4 text-emerald-500" />
+              <span>Sécurisé</span>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+      <div className="mx-auto max-w-7xl px-3 py-3 sm:px-6 sm:py-5">
         {(offlineSnapshotActive || rapid3GActive) && (
           <section
-            className={`mb-4 rounded-2xl border px-4 py-3 text-sm shadow-sm ${
+            className={`mb-3 rounded-[22px] px-4 py-3 text-sm font-semibold shadow-sm ring-1 ${
               offlineSnapshotActive
-                ? 'border-amber-200 bg-amber-50 text-amber-800'
-                : 'border-sky-200 bg-sky-50 text-sky-800'
+                ? 'bg-amber-50 text-amber-800 ring-amber-100'
+                : 'bg-sky-50 text-sky-800 ring-sky-100'
             }`}
           >
             <p className="font-semibold">
@@ -617,35 +615,36 @@ export default function OrderMessages() {
           </section>
         )}
         {/* Toolbar: search + filters */}
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4">
+        <div className="mb-3 rounded-[28px] bg-white p-3 shadow-[0_18px_60px_-42px_rgba(15,23,42,0.7)] ring-1 ring-orange-100/80 dark:bg-neutral-950 dark:ring-neutral-800">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#FF6A00]" />
             <input
               type="text"
               placeholder="Rechercher par produit, boutique ou message..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 transition-all text-sm"
+              className="h-12 w-full rounded-full border-0 bg-[#fff7ef] py-2.5 pl-12 pr-10 text-sm font-semibold text-slate-950 placeholder-slate-400 ring-1 ring-orange-100 transition focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/30 dark:bg-neutral-900 dark:text-white dark:ring-neutral-800"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-gray-700"
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:bg-orange-50 hover:text-[#FF6A00] dark:hover:bg-neutral-800"
                 aria-label="Effacer la recherche"
               >
                 <X className="w-4 h-4" />
               </button>
             )}
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex shrink-0 items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <button
               type="button"
               onClick={() => { setPage(1); setActiveFilter('all'); }}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`min-h-10 shrink-0 rounded-full px-3 text-sm font-black transition-all ${
                 activeFilter === 'all'
-                  ? 'bg-neutral-600 text-white shadow-sm'
-                  : 'bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700'
+                  ? 'bg-[#FF6A00] text-white shadow-[0_12px_24px_-18px_rgba(255,106,0,0.9)]'
+                  : 'bg-white text-slate-700 ring-1 ring-stone-200 hover:bg-orange-50 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800'
               }`}
             >
               <span className="flex items-center gap-1.5">
@@ -656,17 +655,17 @@ export default function OrderMessages() {
             <button
               type="button"
               onClick={() => { setPage(1); setActiveFilter('unread'); }}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`min-h-10 shrink-0 rounded-full px-3 text-sm font-black transition-all ${
                 activeFilter === 'unread'
-                  ? 'bg-neutral-600 text-white shadow-sm'
-                  : 'bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700'
+                  ? 'bg-[#FF6A00] text-white shadow-[0_12px_24px_-18px_rgba(255,106,0,0.9)]'
+                  : 'bg-white text-slate-700 ring-1 ring-stone-200 hover:bg-orange-50 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800'
               }`}
             >
               <span className="flex items-center gap-1.5">
                 <Bell className="w-4 h-4" />
                 Non lus
                 {effectiveTotalUnread > 0 && (
-                  <span className="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-semibold flex items-center justify-center">
+                  <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-black text-white">
                     {effectiveTotalUnread > 99 ? '99+' : effectiveTotalUnread}
                   </span>
                 )}
@@ -675,10 +674,10 @@ export default function OrderMessages() {
             <button
               type="button"
               onClick={() => { setPage(1); setActiveFilter('archived'); }}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`min-h-10 shrink-0 rounded-full px-3 text-sm font-black transition-all ${
                 activeFilter === 'archived'
-                  ? 'bg-neutral-600 text-white shadow-sm'
-                  : 'bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700'
+                  ? 'bg-[#FF6A00] text-white shadow-[0_12px_24px_-18px_rgba(255,106,0,0.9)]'
+                  : 'bg-white text-slate-700 ring-1 ring-stone-200 hover:bg-orange-50 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800'
               }`}
             >
               <span className="flex items-center gap-1.5">
@@ -688,12 +687,13 @@ export default function OrderMessages() {
             </button>
           </div>
         </div>
+        </div>
 
         {error && !offlineSnapshotActive && (
           <div className="mb-4">
             <NetworkFallbackCard
               title="Impossible de charger les conversations."
-              message="Le réseau est lent ou indisponible. Réessayez."
+              message="Les conversations mettent plus de temps à charger. Réessayez dans un instant."
               onRetry={() => {
                 setError('');
                 conversationsQuery.refetch();
@@ -706,16 +706,16 @@ export default function OrderMessages() {
         )}
 
         {/* Main: two-column on desktop, single column on mobile */}
-        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 min-h-[calc(100vh-16rem)]">
+        <div className="flex min-h-[calc(100vh-16rem)] flex-col gap-4 lg:flex-row lg:gap-6">
           {/* Conversations list */}
           <div className={`${selectedOrder ? 'hidden lg:block lg:w-[400px] xl:w-[420px] flex-shrink-0' : 'w-full'} flex flex-col`}>
             {filteredConversations.length === 0 ? (
-              <div className="bg-white dark:bg-gray-800 rounded-xl border border-slate-200 dark:border-gray-700 shadow-sm p-8 sm:p-12 text-center">
-                <div className="w-20 h-20 rounded-2xl bg-slate-100 dark:bg-gray-700 flex items-center justify-center mx-auto mb-5">
-                  <MessageCircle className="w-10 h-10 text-slate-400 dark:text-gray-500" />
+              <div className="rounded-[28px] bg-white p-8 text-center shadow-[0_18px_60px_-42px_rgba(15,23,42,0.7)] ring-1 ring-orange-100/80 dark:bg-neutral-950 dark:ring-neutral-800 sm:p-12">
+                <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-[24px] bg-[#fff7ef] ring-1 ring-orange-100 dark:bg-neutral-900 dark:ring-neutral-800">
+                  <MessageCircle className="h-10 w-10 text-[#FF6A00]" />
                 </div>
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">Aucune conversation</h2>
-                <p className="text-sm text-slate-500 dark:text-gray-400 max-w-sm mx-auto mb-6">
+                <h2 className="mb-2 text-lg font-black text-slate-950 dark:text-white">Aucune conversation</h2>
+                <p className="mx-auto mb-6 max-w-sm text-sm font-semibold text-slate-500 dark:text-gray-400">
                   {searchQuery
                     ? 'Aucune conversation ne correspond à votre recherche.'
                     : activeFilter === 'unread'
@@ -724,7 +724,7 @@ export default function OrderMessages() {
                 </p>
                 <Link
                   to="/orders"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-neutral-600 text-white text-sm font-medium hover:bg-neutral-700 transition-colors"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[#FF6A00] px-5 text-sm font-black text-white transition hover:bg-[#f45f00]"
                 >
                   <Package className="w-4 h-4" />
                   Voir mes commandes
@@ -780,29 +780,29 @@ export default function OrderMessages() {
                   tabIndex={0}
                   onClick={() => openConversation(conversation)}
                   onKeyDown={(e) => e.key === 'Enter' && openConversation(conversation)}
-                  className={`group rounded-xl border transition-all duration-200 cursor-pointer ${
+                  className={`group cursor-pointer rounded-[24px] transition-all duration-200 ${
                     isSelected
-                      ? 'bg-neutral-50 dark:bg-neutral-900/20 border-neutral-300 dark:border-neutral-700 ring-2 ring-neutral-500/30'
+                      ? 'bg-white ring-2 ring-[#FF6A00]/35 shadow-[0_18px_40px_-34px_rgba(255,106,0,0.9)] dark:bg-neutral-950'
                       : hasUnread
-                        ? 'bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 hover:border-neutral-200 dark:hover:border-neutral-800 hover:bg-slate-50/50 dark:hover:bg-gray-700/50'
-                        : 'bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 hover:border-slate-300 dark:hover:border-gray-600 hover:bg-slate-50/50 dark:hover:bg-gray-700/50'
+                        ? 'bg-white shadow-sm ring-1 ring-orange-100/80 hover:ring-orange-200 dark:bg-neutral-950 dark:ring-neutral-800'
+                        : 'bg-white shadow-sm ring-1 ring-stone-200 hover:ring-orange-200 dark:bg-neutral-950 dark:ring-neutral-800'
                   }`}
                 >
-                  <div className="p-3 sm:p-4 flex gap-3">
+                  <div className="flex gap-3 p-3 sm:p-4">
                     <div className="relative flex-shrink-0">
                       {conversation.productInfo?.image ? (
                         <img
                           src={conversation.productInfo.image}
                           alt=""
-                          className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover"
+                          className="h-16 w-16 rounded-[18px] object-cover"
                         />
                       ) : (
-                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg bg-slate-100 dark:bg-gray-700 flex items-center justify-center">
-                          <Package className="w-7 h-7 text-slate-400 dark:text-gray-500" />
+                        <div className="flex h-16 w-16 items-center justify-center rounded-[18px] bg-[#fff7ef] dark:bg-neutral-900">
+                          <Package className="h-7 w-7 text-[#FF6A00]" />
                         </div>
                       )}
                       {hasUnread && (
-                        <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                        <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-black text-white ring-2 ring-white">
                           {conversation.unreadCount > 9 ? '9+' : conversation.unreadCount}
                         </span>
                       )}
@@ -814,16 +814,16 @@ export default function OrderMessages() {
                             <Link
                               to={productPath}
                               onClick={(e) => e.stopPropagation()}
-                              className={`text-sm font-semibold truncate block ${hasUnread ? 'text-slate-900 dark:text-white' : 'text-slate-800 dark:text-gray-100'} hover:text-neutral-600 dark:hover:text-neutral-400`}
+                              className={`block truncate text-sm font-black ${hasUnread ? 'text-slate-950 dark:text-white' : 'text-slate-800 dark:text-gray-100'} hover:text-[#FF6A00]`}
                             >
                               {conversation.productInfo?.title || 'Produit'}
                             </Link>
                           ) : (
-                            <p className={`text-sm font-semibold truncate ${hasUnread ? 'text-slate-900 dark:text-white' : 'text-slate-800 dark:text-gray-100'}`}>
+                            <p className={`truncate text-sm font-black ${hasUnread ? 'text-slate-950 dark:text-white' : 'text-slate-800 dark:text-gray-100'}`}>
                               {conversation.productInfo?.title || 'Produit'}
                             </p>
                           )}
-                          <p className="mt-0.5 text-xs text-slate-500 dark:text-gray-400">
+                          <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-gray-400">
                             <span className="inline-flex items-center gap-1.5">
                               {partnerAvatar ? (
                                 <img
@@ -841,33 +841,33 @@ export default function OrderMessages() {
                             · #{conversation.orderCode || String(conversation.orderId || '').slice(-6)}
                           </p>
                         </div>
-                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium flex-shrink-0 ${statusStyle}`}>
+                        <div className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-black ${statusStyle}`}>
                           <StatusIcon className="w-3.5 h-3.5" />
                           {STATUS_LABELS[displayStatus] || '—'}
                         </div>
                       </div>
                       {conversation.latestMessage ? (
-                        <p className={`text-xs mt-1.5 line-clamp-2 ${hasUnread ? 'text-slate-700 dark:text-gray-200 font-medium' : 'text-slate-500 dark:text-gray-400'}`}>
+                        <p className={`mt-1.5 line-clamp-2 text-xs ${hasUnread ? 'font-black text-slate-700 dark:text-gray-200' : 'font-semibold text-slate-500 dark:text-gray-400'}`}>
                           {conversation.latestMessage.text}
                         </p>
                       ) : (
-                        <p className="text-xs text-slate-400 dark:text-gray-500 italic mt-1.5">Aucun message</p>
+                        <p className="mt-1.5 text-xs italic text-slate-400 dark:text-gray-500">Aucun message</p>
                       )}
-                      <p className="text-[11px] text-slate-400 dark:text-gray-500 mt-1">
+                      <p className="mt-1 text-[11px] font-semibold text-slate-400 dark:text-gray-500">
                         {formatTimestamp(conversation.latestMessage?.createdAt)}
                       </p>
                       {activeFilter === 'archived' && (
                         <button
                           type="button"
                           onClick={(e) => handleUnarchive(conversation.orderId, e)}
-                          className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-neutral-100 dark:bg-neutral-900/30 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-800/50 transition-colors"
+                          className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#fff7ef] px-2.5 py-1.5 text-xs font-black text-[#FF6A00] ring-1 ring-orange-100 transition hover:bg-orange-50 dark:bg-neutral-900 dark:text-orange-300 dark:ring-neutral-800"
                         >
                           <ArchiveRestore className="w-3.5 h-3.5" />
                           Désarchiver
                         </button>
                       )}
                     </div>
-                    <ChevronRight className="w-5 h-5 text-slate-300 dark:text-gray-600 flex-shrink-0 self-center group-hover:text-neutral-500 transition-colors" />
+                    <ChevronRight className="h-5 w-5 shrink-0 self-center text-slate-300 transition-colors group-hover:text-[#FF6A00] dark:text-gray-600" />
                   </div>
                 </div>
               );
@@ -881,8 +881,8 @@ export default function OrderMessages() {
 
         {/* Pagination */}
         {filteredConversations.length > 0 && effectiveMeta.totalPages > 1 && (
-          <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-            <p className="text-sm text-slate-600 dark:text-gray-400">
+          <div className="mt-6 flex flex-col items-center justify-between gap-4 rounded-[24px] bg-white p-4 ring-1 ring-orange-100 dark:bg-neutral-950 dark:ring-neutral-800 sm:flex-row">
+            <p className="text-sm font-semibold text-slate-600 dark:text-gray-400">
               Page <span className="font-semibold text-slate-900 dark:text-white">{page}</span> sur{' '}
               <span className="font-semibold text-slate-900 dark:text-white">{effectiveMeta.totalPages}</span>
             </p>
@@ -891,7 +891,7 @@ export default function OrderMessages() {
                 type="button"
                 onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                 disabled={page <= 1}
-                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-700 ring-1 ring-stone-200 transition hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800"
               >
                 Précédent
               </button>
@@ -899,7 +899,7 @@ export default function OrderMessages() {
                 type="button"
                 onClick={() => setPage((prev) => Math.min(effectiveMeta.totalPages, prev + 1))}
                 disabled={page >= effectiveMeta.totalPages}
-                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-700 ring-1 ring-stone-200 transition hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800"
               >
                 Suivant
               </button>
@@ -908,7 +908,7 @@ export default function OrderMessages() {
         )}
 
         <footer className="mt-8 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400 text-xs">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 ring-1 ring-orange-100 dark:bg-neutral-950 dark:text-gray-400 dark:ring-neutral-800">
             <Lock className="w-3.5 h-3.5 text-emerald-500" />
             <span>Tous vos messages sont chiffrés et sécurisés</span>
           </div>

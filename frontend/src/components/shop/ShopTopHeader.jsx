@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Heart, Share2 } from 'lucide-react';
+import { ArrowLeft, Heart, MoreHorizontal, Search, Share2 } from 'lucide-react';
 
 export default function ShopTopHeader({
   title,
@@ -12,10 +12,10 @@ export default function ShopTopHeader({
   t
 }) {
   const iconBtn =
-    'inline-flex h-10 w-10 items-center justify-center rounded-xl border border-neutral-200 bg-white text-neutral-800 shadow-sm transition hover:bg-neutral-50 active:scale-95';
+    'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/90 text-slate-950 shadow-sm ring-1 ring-black/5 backdrop-blur transition hover:bg-white active:scale-95 dark:bg-neutral-900/90 dark:text-white dark:ring-white/10';
 
   return (
-    <div className="sticky top-0 z-30 -mx-3 mb-3 flex items-center gap-2 border-b border-neutral-200 bg-white/90 px-3 py-2.5 shadow-[0_8px_24px_-22px_rgba(15,23,42,0.45)] backdrop-blur-xl sm:mx-0 sm:mb-4 sm:rounded-2xl sm:border">
+    <div className="sticky top-0 z-30 mx-0 mb-0 flex items-center gap-2 border-b border-orange-100/70 bg-[#fffaf4]/95 px-3 py-2.5 shadow-[0_10px_30px_-26px_rgba(255,106,0,0.75)] backdrop-blur-xl sm:mb-4 sm:rounded-[24px] sm:border dark:border-neutral-800 dark:bg-neutral-950/95">
       <button
         type="button"
         onClick={onBack}
@@ -24,12 +24,21 @@ export default function ShopTopHeader({
       >
         <ArrowLeft size={16} />
       </button>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-neutral-950">{title}</p>
-        {subtitle && (
-          <p className="truncate text-[10px] text-neutral-500">{subtitle}</p>
-        )}
-      </div>
+      <button
+        type="button"
+        onClick={() => {
+          const node = document.getElementById('products');
+          if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }}
+        className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full bg-white/95 px-3 text-left text-sm text-slate-500 shadow-sm ring-1 ring-orange-100 transition active:scale-[0.99] dark:bg-neutral-900 dark:text-neutral-300 dark:ring-white/10"
+        aria-label={t('shop_profile.search_in_shop', 'Rechercher dans la boutique')}
+      >
+        <Search size={16} className="shrink-0 text-[#FF6A00]" />
+        <span className="min-w-0 flex-1 truncate">
+          {title || t('shop_profile.public_shop', 'Boutique publique')}
+        </span>
+        {subtitle && <span className="hidden shrink-0 text-[11px] text-slate-400 sm:inline">{subtitle}</span>}
+      </button>
       <button
         type="button"
         onClick={onShare}
@@ -50,6 +59,13 @@ export default function ShopTopHeader({
         className={`${iconBtn} ${isFollowing ? 'border-rose-300 bg-rose-50 text-rose-700' : ''} ${followDisabled ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 shadow-none' : ''}`}
       >
         <Heart size={15} className={isFollowing ? 'fill-current' : ''} />
+      </button>
+      <button
+        type="button"
+        className={`${iconBtn} hidden sm:inline-flex`}
+        aria-label={t('shop_profile.more', 'Plus')}
+      >
+        <MoreHorizontal size={16} />
       </button>
     </div>
   );

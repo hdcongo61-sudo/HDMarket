@@ -528,7 +528,7 @@ export default function SellerOrderDetail() {
     },
     onFailed: async (error, _variables, context) => {
       if (context?.possiblyCommitted) {
-        const message = 'Réseau lent ou interrompu. Vérification automatique en cours avant tout renvoi.';
+        const message = 'Action en cours de confirmation. Le statut sera synchronisé automatiquement.';
         setStatusUpdateFeedback({ id: orderId || '', message, tone: 'warning' });
         showToast(message, { variant: 'info' });
         return;
@@ -1708,7 +1708,7 @@ export default function SellerOrderDetail() {
                 ) : null}
                 {statusMutation.uiPhase === 'slow' ? (
                   <p className="text-xs text-amber-700">
-                    Réseau lent. Vérification automatique en cours. Vérifiez le suivi avant de renvoyer.
+                    Action en cours de confirmation. Le statut sera synchronisé automatiquement.
                   </p>
                 ) : null}
               </div>

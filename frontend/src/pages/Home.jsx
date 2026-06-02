@@ -64,51 +64,6 @@ const buildImageReportContext = (product, deepLink = '') => {
   };
 };
 
-const CATEGORY_COLOR_PALETTE = [
-  {
-    iconBg: 'bg-neutral-100',
-    iconText: 'text-neutral-700',
-    chipBg: 'bg-white',
-    chipBorder: 'border-neutral-200',
-    chipText: 'text-neutral-800'
-  },
-  {
-    iconBg: 'bg-stone-100',
-    iconText: 'text-stone-700',
-    chipBg: 'bg-stone-50',
-    chipBorder: 'border-stone-200',
-    chipText: 'text-stone-800'
-  },
-  {
-    iconBg: 'bg-emerald-50',
-    iconText: 'text-emerald-700',
-    chipBg: 'bg-emerald-50/70',
-    chipBorder: 'border-emerald-100',
-    chipText: 'text-emerald-900'
-  },
-  {
-    iconBg: 'bg-zinc-100',
-    iconText: 'text-zinc-700',
-    chipBg: 'bg-zinc-50',
-    chipBorder: 'border-zinc-200',
-    chipText: 'text-zinc-800'
-  },
-  {
-    iconBg: 'bg-amber-50',
-    iconText: 'text-amber-800',
-    chipBg: 'bg-amber-50/70',
-    chipBorder: 'border-amber-100',
-    chipText: 'text-amber-900'
-  },
-  {
-    iconBg: 'bg-neutral-100',
-    iconText: 'text-neutral-700',
-    chipBg: 'bg-neutral-50',
-    chipBorder: 'border-neutral-200',
-    chipText: 'text-neutral-800'
-  }
-];
-
 /**
  * 🎨 PAGE D'ACCUEIL HDMarket - Design Alibaba Mobile First
  * Focus sur les bonnes affaires avec prix visibles
@@ -215,6 +170,7 @@ const connectedUserDeliveryAddressLabel = useMemo(() => {
   if (effectiveUserCity) return effectiveUserCity;
   return t('home.addressNotSet', 'Adresse non renseignée');
 }, [connectedUserDeliveryAddress, effectiveUserCity, t]);
+const hasDeliveryAddress = Boolean(connectedUserDeliveryAddress);
 const hasUserCity = useMemo(
   () =>
     Boolean(
@@ -360,7 +316,7 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
           return;
         }
       }
-      const slowNetworkMessage = 'Network is slow, please retry.';
+      const slowNetworkMessage = 'Chargement prolongé. Réessayez dans un instant.';
       if (isMobileView && page > 1) {
         setLoadMoreError(slowNetworkMessage);
       } else {
@@ -995,42 +951,65 @@ const loadDiscountProducts = async () => {
 
     return (
       <main className="max-w-7xl mx-auto px-2.5 max-[375px]:px-2 pt-0 pb-4 max-[375px]:pb-3 space-y-3 max-[375px]:space-y-2.5">
-        {user ? (
-          <div className="rounded-xl border border-neutral-200 bg-white px-3 py-2 shadow-sm">
-            <div className="flex items-center gap-2">
-              <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-neutral-100 text-neutral-700">
-                <MapPin className="h-3.5 w-3.5" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
-                  {t('home.deliveryAddress', 'Adresse de livraison')}
-                </p>
-                <p className="truncate text-xs font-medium text-slate-700">
-                  {connectedUserDeliveryAddressLabel}
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : null}
-        {showFullPaymentHomeBanner ? (
-          <Link
-            to="/products"
-            {...externalLinkProps}
-            className="group block rounded-2xl border border-emerald-100 bg-white px-3.5 py-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                  <Sparkles className="h-3 w-3" />
-                  Livraison offerte
+        {(user || showFullPaymentHomeBanner) ? (
+          <section className="overflow-hidden rounded-[24px] border border-orange-100 bg-white shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
+            {user ? (
+              <Link
+                to="/profile"
+                className="flex items-center gap-3 px-3.5 py-3 active:scale-[0.99]"
+              >
+                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-[#fff2e6] text-[#ff6a00] ring-1 ring-orange-100">
+                  <MapPin className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wide text-[#9a4a00]">
+                      {t('home.deliveryAddress', 'Adresse de livraison')}
+                    </span>
+                    <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${
+                      hasDeliveryAddress ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                    }`}>
+                      {hasDeliveryAddress ? 'Prête' : 'À compléter'}
+                    </span>
+                  </span>
+                  <span className="mt-0.5 block truncate text-[13px] font-black leading-tight text-slate-950">
+                    {connectedUserDeliveryAddressLabel}
+                  </span>
+                  <span className="mt-0.5 block text-[11px] font-semibold text-slate-500">
+                    Modifier avant de commander
+                  </span>
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+              </Link>
+            ) : null}
+            {showFullPaymentHomeBanner ? (
+              <Link
+                to="/products"
+                {...externalLinkProps}
+                className={`group block bg-gradient-to-r from-emerald-50 via-white to-orange-50 px-3.5 py-3 transition-all duration-200 active:scale-[0.99] ${
+                  user ? 'border-t border-orange-100' : ''
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-emerald-600 text-white shadow-[0_10px_20px_rgba(16,185,129,0.18)]">
+                    <Truck className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-100">
+                      <Sparkles className="h-3 w-3" />
+                      Livraison offerte
+                    </span>
+                    <span className="mt-1 block line-clamp-2 text-[13px] font-black leading-5 text-slate-950">
+                      {fullPaymentBannerText}
+                    </span>
+                  </span>
+                  <span className="inline-flex shrink-0 items-center rounded-full bg-neutral-950 px-3 py-1.5 text-[11px] font-black text-white shadow-sm">
+                    Voir
+                  </span>
                 </div>
-                <p className="mt-2 text-sm font-semibold leading-5 text-slate-900">{fullPaymentBannerText}</p>
-              </div>
-              <span className="inline-flex flex-shrink-0 items-center rounded-full bg-neutral-950 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm">
-                En savoir plus
-              </span>
-            </div>
-          </Link>
+              </Link>
+            ) : null}
+          </section>
         ) : null}
         <section className="-mx-2.5 overflow-hidden rounded-b-[30px] bg-[#ff3d13] text-white shadow-[0_16px_34px_rgba(255,106,0,0.2)] max-[375px]:-mx-2">
           <div className="relative px-4 pb-4 pt-4 max-[375px]:px-3">
@@ -1181,18 +1160,18 @@ const loadDiscountProducts = async () => {
         ) : null}
 
         {/* Mobile Categories Module */}
-        <section className="hidden rounded-2xl border border-gray-200 bg-white p-3 max-[375px]:p-2.5 shadow-sm">
+        <section className="hidden rounded-[24px] border border-orange-100 bg-white p-3 shadow-[0_14px_34px_rgba(117,75,36,0.08)] max-[375px]:p-2.5">
           <div className="mb-2.5 max-[375px]:mb-2 flex items-center justify-between">
             <div className="flex items-center gap-2 max-[375px]:gap-1.5">
-              <div className="inline-flex h-6 w-6 max-[375px]:h-5 max-[375px]:w-5 items-center justify-center rounded-lg bg-neutral-900">
+              <div className="inline-flex h-7 w-7 max-[375px]:h-6 max-[375px]:w-6 items-center justify-center rounded-xl bg-[#FF6A00] shadow-sm">
                 <LayoutGrid className="h-3.5 w-3.5 max-[375px]:h-3 max-[375px]:w-3 text-white" />
               </div>
-              <p className="text-xs max-[375px]:text-[11px] font-bold text-gray-900">{t('home.allCategories', 'Toutes catégories')}</p>
+              <p className="text-xs max-[375px]:text-[11px] font-black text-stone-950">{t('home.allCategories', 'Toutes catégories')}</p>
             </div>
             <button
               type="button"
               onClick={() => setCategoryModalOpen(true)}
-              className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 max-[375px]:px-2 py-1.5 max-[375px]:py-1 text-[11px] max-[375px]:text-[10px] font-semibold text-gray-700 transition-colors active:scale-95"
+              className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2.5 max-[375px]:px-2 py-1.5 max-[375px]:py-1 text-[11px] max-[375px]:text-[10px] font-black text-[#9A4A00] ring-1 ring-orange-100 transition-colors active:scale-95"
             >
               Tout voir <ChevronRight className="h-3 w-3 max-[375px]:h-2.5 max-[375px]:w-2.5" />
             </button>
@@ -1201,23 +1180,22 @@ const loadDiscountProducts = async () => {
             <Link
               to="/products"
               {...externalLinkProps}
-              className="inline-flex items-center gap-1.5 max-[375px]:gap-1 px-3.5 max-[375px]:px-3 py-2 max-[375px]:py-1.5 rounded-full bg-[#0A0A0A] text-white text-xs max-[375px]:text-[11px] font-bold leading-none whitespace-nowrap shadow-[0_1px_3px_rgba(0,0,0,0.08)] tap-feedback transition-transform"
+              className="inline-flex items-center gap-1.5 max-[375px]:gap-1 px-3.5 max-[375px]:px-3 py-2 max-[375px]:py-1.5 rounded-full bg-[#FF6A00] text-white text-xs max-[375px]:text-[11px] font-black leading-none whitespace-nowrap shadow-[0_8px_18px_rgba(255,106,0,0.22)] tap-feedback transition-transform"
             >
               <LayoutGrid className="w-3.5 h-3.5 max-[375px]:w-3 max-[375px]:h-3" />
               <span className="block truncate">{t('home.all', 'Tout')}</span>
             </Link>
-            {categoryGroups.map((group, index) => {
+            {categoryGroups.map((group) => {
               const Icon = group.icon;
-              const style = CATEGORY_COLOR_PALETTE[index % CATEGORY_COLOR_PALETTE.length];
               return (
                 <Link
                   key={group.id}
                   to={`/categories/${group.options?.[0]?.value || ''}`}
-                  className={`inline-flex min-w-0 max-w-[138px] max-[375px]:max-w-[124px] items-center justify-center gap-1.5 max-[375px]:gap-1 px-3.5 max-[375px]:px-3 py-2 max-[375px]:py-1.5 rounded-full border text-xs max-[375px]:text-[11px] font-semibold leading-none whitespace-nowrap shadow-sm active:scale-95 transition-transform ${style.chipBg} ${style.chipBorder} ${style.chipText}`}
+                  className="inline-flex min-w-0 max-w-[138px] max-[375px]:max-w-[124px] items-center justify-center gap-1.5 max-[375px]:gap-1 px-3.5 max-[375px]:px-3 py-2 max-[375px]:py-1.5 rounded-full border border-orange-100 bg-white text-xs max-[375px]:text-[11px] font-black leading-none text-stone-800 whitespace-nowrap shadow-sm active:scale-95 transition-transform"
                   title={group.label}
                 >
                   {Icon && (
-                    <span className={`inline-flex h-5 w-5 max-[375px]:h-[18px] max-[375px]:w-[18px] items-center justify-center rounded-full ${style.iconBg} ${style.iconText} flex-shrink-0 mx-auto`}>
+                    <span className="inline-flex h-5 w-5 max-[375px]:h-[18px] max-[375px]:w-[18px] items-center justify-center rounded-full bg-orange-50 text-[#FF6A00] flex-shrink-0 mx-auto">
                       <Icon className="w-3.5 h-3.5 max-[375px]:w-3 max-[375px]:h-3" />
                     </span>
                   )}
@@ -1983,42 +1961,84 @@ const loadDiscountProducts = async () => {
 
     return (
       <main className="max-w-[1400px] 2xl:max-w-[1600px] mx-auto px-6 lg:px-8 py-4 space-y-5">
-        {user ? (
-          <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white px-4 py-3 shadow-sm">
-            <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-700">
-              <MapPin className="h-4.5 w-4.5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                {t('home.deliveryAddress', 'Adresse de livraison')}
-              </p>
-              <p className="truncate text-sm font-medium text-slate-700">
-                {connectedUserDeliveryAddressLabel}
-              </p>
-            </div>
-          </div>
+        {(user || showFullPaymentHomeBanner) ? (
+          <section className={`grid gap-3 ${user && showFullPaymentHomeBanner ? 'lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)]' : 'grid-cols-1'}`}>
+            {user ? (
+              <Link
+                to="/profile"
+                className="group flex min-w-0 items-center gap-4 rounded-[24px] border border-orange-100 bg-white px-4 py-3 shadow-[0_14px_34px_rgba(117,75,36,0.07)] transition-all duration-200 hover:-translate-y-0.5 hover:border-orange-200"
+              >
+                <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-[20px] bg-[#fff2e6] text-[#ff6a00] ring-1 ring-orange-100">
+                  <MapPin className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2">
+                    <span className="text-[11px] font-black uppercase tracking-wide text-[#9a4a00]">
+                      {t('home.deliveryAddress', 'Adresse de livraison')}
+                    </span>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                      hasDeliveryAddress ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                    }`}>
+                      {hasDeliveryAddress ? 'Adresse prête' : 'À compléter'}
+                    </span>
+                  </span>
+                  <span className="mt-1 block truncate text-base font-black text-slate-950">
+                    {connectedUserDeliveryAddressLabel}
+                  </span>
+                  <span className="mt-0.5 block text-xs font-semibold text-slate-500">
+                    Utilisée pour calculer la livraison au checkout
+                  </span>
+                </span>
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-orange-50 px-3 py-2 text-xs font-black text-[#9a4a00] ring-1 ring-orange-100 transition group-hover:bg-[#ff6a00] group-hover:text-white">
+                  Modifier <ChevronRight className="h-3.5 w-3.5" />
+                </span>
+              </Link>
+            ) : null}
+            {showFullPaymentHomeBanner ? (
+              <Link
+                to="/products"
+                {...externalLinkProps}
+                className="group flex min-w-0 items-center justify-between gap-4 rounded-[24px] border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-orange-50 px-4 py-3 shadow-[0_14px_34px_rgba(16,185,129,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200"
+              >
+                <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-[20px] bg-emerald-600 text-white shadow-[0_12px_24px_rgba(16,185,129,0.18)]">
+                  <Truck className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-100">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Livraison offerte
+                  </span>
+                  <span className="mt-1.5 block line-clamp-2 text-sm font-black leading-5 text-slate-950">
+                    {fullPaymentBannerText}
+                  </span>
+                </span>
+                <span className="inline-flex shrink-0 items-center rounded-full bg-neutral-950 px-4 py-2 text-sm font-black text-white shadow-sm transition group-hover:bg-[#ff6a00]">
+                  En savoir plus
+                </span>
+              </Link>
+            ) : null}
+          </section>
         ) : null}
         {/* Category Pills Bar */}
         <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar items-center">
           <Link
             to="/products"
             {...externalLinkProps}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#0A0A0A] text-white text-sm font-bold whitespace-nowrap shadow-[0_1px_3px_rgba(0,0,0,0.08)] hover:bg-[#111111] transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#FF6A00] text-white text-sm font-black whitespace-nowrap shadow-[0_10px_22px_rgba(255,106,0,0.22)] hover:bg-[#e85f00] transition-colors"
           >
             <LayoutGrid className="w-4 h-4" />
             Tout
           </Link>
-          {categoryGroups.map((group, index) => {
+          {categoryGroups.map((group) => {
             const Icon = group.icon;
-            const style = CATEGORY_COLOR_PALETTE[index % CATEGORY_COLOR_PALETTE.length];
             return (
               <Link
                 key={group.id}
                 to={`/categories/${group.options?.[0]?.value || ''}`}
-                className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-full border text-sm font-semibold whitespace-nowrap shadow-sm transition-colors ${style.chipBg} ${style.chipBorder} ${style.chipText}`}
+                className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-full border border-orange-100 bg-white text-sm font-black text-stone-800 whitespace-nowrap shadow-sm transition-colors hover:bg-orange-50"
               >
                 {Icon && (
-                  <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full ${style.iconBg} ${style.iconText} flex-shrink-0 mx-auto`}>
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-orange-50 text-[#FF6A00] flex-shrink-0 mx-auto">
                     <Icon className="w-4 h-4" />
                   </span>
                 )}
@@ -2029,7 +2049,7 @@ const loadDiscountProducts = async () => {
           <button
             type="button"
             onClick={() => setCategoryModalOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-100 text-sm font-semibold text-gray-600 whitespace-nowrap hover:bg-gray-200 transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-orange-50 text-sm font-black text-[#9A4A00] whitespace-nowrap ring-1 ring-orange-100 hover:bg-orange-100 transition-colors"
           >
             Tout voir <ChevronRight className="w-3.5 h-3.5" />
           </button>
@@ -2043,25 +2063,6 @@ const loadDiscountProducts = async () => {
           </span>
           <Tag className="w-5 h-5 text-neutral-800 flex-shrink-0" />
         </div>
-
-        {showFullPaymentHomeBanner ? (
-          <Link
-            to="/products"
-            {...externalLinkProps}
-            className="group flex items-center justify-between gap-4 rounded-2xl border border-emerald-100 bg-white px-5 py-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5"
-          >
-            <div className="min-w-0">
-              <div className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700">
-                <Sparkles className="h-3.5 w-3.5" />
-                Paiement intégral
-              </div>
-              <p className="mt-2 text-sm font-semibold text-slate-900">{fullPaymentBannerText}</p>
-            </div>
-            <span className="inline-flex flex-shrink-0 items-center rounded-full bg-neutral-950 px-4 py-2 text-sm font-semibold text-white shadow-sm">
-              En savoir plus
-            </span>
-          </Link>
-        ) : null}
 
         {/* Zone 1: Hero (65%) + Flash Deals Panel (35%) */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
@@ -2761,42 +2762,78 @@ const loadDiscountProducts = async () => {
         size="xl"
         mobileSheet
         ariaLabel={t('home.allCategories', 'Toutes les catégories')}
-        panelClassName="sm:max-w-4xl"
+        panelClassName="sm:max-w-5xl hd-products-flow"
       >
         <ModalHeader
           title={t('home.exploreCategoriesTitle', 'Explorer nos univers')}
           subtitle={t('home.exploreCategoriesSubtitle', 'Sélectionnez une catégorie pour découvrir nos produits')}
-          icon={<LayoutGrid className="w-4 h-4 text-neutral-700 dark:text-neutral-300" />}
+          icon={<LayoutGrid className="w-4 h-4 text-[#FF6A00]" />}
           onClose={() => setCategoryModalOpen(false)}
         />
-        <ModalBody className="space-y-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-neutral-200/60 bg-neutral-100/80 px-3 py-1.5 dark:border-neutral-700/70 dark:bg-neutral-900/60">
-            <LayoutGrid className="w-4 h-4 text-neutral-800 dark:text-neutral-400" />
-            <span className="text-xs font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-200">
-              {t('home.allCategories', 'Toutes les catégories')}
-            </span>
+        <ModalBody className="space-y-5">
+          <div className="hd-products-hero rounded-[24px] p-4 text-white sm:p-5">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/16 px-3 py-1.5 ring-1 ring-white/20">
+              <LayoutGrid className="w-4 h-4 text-white" />
+              <span className="text-xs font-black uppercase tracking-wider text-white">
+                {t('home.allCategories', 'Toutes les catégories')}
+              </span>
+            </div>
+            <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/86">
+              Naviguez par univers comme un flux commerce: choisissez une famille puis affinez avec les sous-catégories.
+            </p>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {categoryGroups.map((group, index) => {
+          <Link
+            to="/products"
+            onClick={() => setCategoryModalOpen(false)}
+            className="hd-primary-button inline-flex min-h-[44px] items-center gap-2 rounded-full px-4 py-2.5 text-sm font-black"
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Voir tout le catalogue
+          </Link>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {categoryGroups.map((group) => {
               const Icon = group.icon;
-              const style = CATEGORY_COLOR_PALETTE[index % CATEGORY_COLOR_PALETTE.length];
+              const firstOption = group.options?.[0]?.value || '';
               return (
-                <Link
+                <article
                   key={group.id}
-                  to={`/categories/${group.options?.[0]?.value || ''}`}
-                  onClick={() => setCategoryModalOpen(false)}
-                  className={`group relative overflow-hidden rounded-2xl border bg-white ${style.chipBorder} backdrop-blur-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]`}
+                  className="rounded-[24px] border border-orange-100 bg-white p-4 shadow-[0_14px_34px_rgba(117,75,36,0.08)]"
                 >
-                  <div className="flex flex-col items-center gap-3 p-4 text-center">
-                    <div className={`relative mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border-2 shadow-md transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 ${style.chipBorder} ${style.iconBg}`}>
-                      {Icon ? <Icon className={`relative h-7 w-7 ${style.iconText}`} /> : null}
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-bold leading-tight text-gray-900 dark:text-white">{group.label}</p>
-                      <p className="line-clamp-2 text-xs leading-relaxed text-gray-600 dark:text-gray-400">{group.description}</p>
-                    </div>
+                  <Link
+                    to={`/categories/${firstOption}`}
+                    onClick={() => setCategoryModalOpen(false)}
+                    className="group flex items-start gap-3"
+                  >
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-[#FF6A00] ring-1 ring-orange-100 transition group-hover:scale-105">
+                      {Icon ? <Icon className="h-6 w-6" /> : <LayoutGrid className="h-6 w-6" />}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-base font-black text-stone-950">{group.label}</span>
+                      <span className="mt-1 line-clamp-2 block text-xs font-semibold leading-5 text-stone-500">{group.description}</span>
+                    </span>
+                  </Link>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {group.options.slice(0, 5).map((option) => (
+                      <Link
+                        key={option.value}
+                        to={`/categories/${option.value}`}
+                        onClick={() => setCategoryModalOpen(false)}
+                        className="rounded-full border border-orange-100 bg-orange-50/70 px-3 py-1.5 text-xs font-black text-[#9A4A00] transition hover:bg-orange-100"
+                      >
+                        {option.label}
+                      </Link>
+                    ))}
+                    {group.options.length > 5 ? (
+                      <Link
+                        to={`/categories/${firstOption}`}
+                        onClick={() => setCategoryModalOpen(false)}
+                        className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-black text-stone-600 transition hover:border-orange-100 hover:text-[#FF6A00]"
+                      >
+                        +{group.options.length - 5}
+                      </Link>
+                    ) : null}
                   </div>
-                </Link>
+                </article>
               );
             })}
           </div>

@@ -264,7 +264,7 @@ export default function AdminPayments() {
     },
     onError: (error, _variables, context) => {
       if (context?.possiblyCommitted) {
-        setActionNotice('Réseau lent ou interrompu. Vérification automatique en cours avant tout renvoi.');
+        setActionNotice('Action en cours de confirmation. Le statut sera synchronisé automatiquement.');
         setActionError('');
         return;
       }
@@ -572,7 +572,7 @@ export default function AdminPayments() {
         )}
         {paymentDecisionMutation.uiPhase === 'slow' && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 space-y-2">
-            <p>Réseau lent. Vérification automatique en cours.</p>
+            <p>Synchronisation automatique en cours.</p>
             {decisionPending.id ? (
               <button
                 type="button"

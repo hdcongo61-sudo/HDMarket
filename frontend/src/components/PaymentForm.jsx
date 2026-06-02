@@ -302,7 +302,7 @@ export default function PaymentForm({ product, onSubmitted }) {
           appAlert('Paiement enregistré. En attente de vérification par l’admin.');
         } else {
           appAlert(
-            'Le réseau est lent. Votre paiement peut déjà être enregistré. Vérifiez le statut avant de renvoyer.'
+            'Paiement en cours de confirmation. Le statut sera synchronisé automatiquement.'
           );
         }
         if (onSubmitted) {

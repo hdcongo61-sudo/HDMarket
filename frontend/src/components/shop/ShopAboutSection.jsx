@@ -20,67 +20,68 @@ export default function ShopAboutSection({
   t
 }) {
   return (
-    <div className="min-w-0 space-y-4 overflow-hidden rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+    <section className="min-w-0 space-y-3 overflow-hidden rounded-[28px] bg-white p-3 shadow-[0_18px_60px_-42px_rgba(15,23,42,0.7)] ring-1 ring-orange-100/80 dark:bg-neutral-950 dark:ring-neutral-800">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <h2 className="truncate text-base font-bold text-neutral-950 dark:text-white sm:text-lg">
+          <p className="text-[11px] font-black uppercase tracking-wide text-[#FF6A00]">Détails boutique</p>
+          <h2 className="truncate text-lg font-black text-slate-950 dark:text-white sm:text-xl">
             {t('shop_profile.about', 'À propos')}
           </h2>
-          <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+          <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
             {t('shop_profile.about_subtitle', 'Présentation et informations publiques')}
           </p>
         </div>
-        <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200">
+        <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-[#fff7ef] px-2.5 py-1 text-xs font-black text-[#FF6A00] ring-1 ring-orange-100 dark:bg-neutral-900 dark:text-orange-300 dark:ring-neutral-800">
           <Store size={12} />
           <span className="truncate">{shopCategoryLabel || 'Marketplace'}</span>
         </span>
       </div>
 
-      <section className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
-        <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+      <section className="rounded-[22px] bg-[#fffaf6] p-3 ring-1 ring-orange-100/70 dark:bg-neutral-900 dark:ring-neutral-800">
+        <p className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
           {t('shop_profile.description', 'Description')}
         </p>
-        <p className="mt-1.5 break-words text-sm text-neutral-700 dark:text-neutral-200">
+        <p className="mt-1.5 break-words text-sm leading-relaxed text-slate-700 dark:text-neutral-200">
           {shop?.shopDescription || t('shop_profile.no_description', "Cette boutique n'a pas encore de description détaillée.")}
         </p>
       </section>
 
       <dl className="grid gap-2 sm:grid-cols-2">
-        <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
-          <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+        <div className="rounded-[20px] bg-[#fffaf6] p-3 ring-1 ring-orange-100/70 dark:bg-neutral-900 dark:ring-neutral-800">
+          <dt className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
             {t('shop_profile.location', 'Localisation')}
           </dt>
-          <dd className="mt-1 flex min-w-0 items-start gap-2 text-sm text-neutral-700 dark:text-neutral-200">
-            <MapPin size={15} className="mt-0.5 shrink-0 text-neutral-500 dark:text-neutral-400" />
+          <dd className="mt-1 flex min-w-0 items-start gap-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">
+            <MapPin size={15} className="mt-0.5 shrink-0 text-[#FF6A00]" />
             <span className="break-words">
               {shopFullAddress || t('shop_profile.address_unknown', 'Adresse non renseignée')}
             </span>
           </dd>
         </div>
-        <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
-          <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+        <div className="rounded-[20px] bg-[#fffaf6] p-3 ring-1 ring-orange-100/70 dark:bg-neutral-900 dark:ring-neutral-800">
+          <dt className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
             {t('shop_profile.phone', 'Téléphone')}
           </dt>
-          <dd className="mt-1 flex min-w-0 items-start gap-2 text-sm text-neutral-700 dark:text-neutral-200">
-            <Phone size={15} className="mt-0.5 shrink-0 text-neutral-500 dark:text-neutral-400" />
+          <dd className="mt-1 flex min-w-0 items-start gap-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">
+            <Phone size={15} className="mt-0.5 shrink-0 text-[#FF6A00]" />
             <span className="break-all">{phoneLabel}</span>
           </dd>
         </div>
-        <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
-          <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+        <div className="rounded-[20px] bg-[#fffaf6] p-3 ring-1 ring-orange-100/70 dark:bg-neutral-900 dark:ring-neutral-800">
+          <dt className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
             {t('shop_profile.member_since', 'Membre depuis')}
           </dt>
-          <dd className="mt-1 flex items-start gap-2 text-sm text-neutral-700 dark:text-neutral-200">
-            <Calendar size={15} className="mt-0.5 shrink-0 text-neutral-500 dark:text-neutral-400" />
+          <dd className="mt-1 flex items-start gap-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">
+            <Calendar size={15} className="mt-0.5 shrink-0 text-[#FF6A00]" />
             <span>{formatDate(shop?.createdAt)}</span>
           </dd>
         </div>
-        <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
-          <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+        <div className="rounded-[20px] bg-[#fffaf6] p-3 ring-1 ring-orange-100/70 dark:bg-neutral-900 dark:ring-neutral-800">
+          <dt className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
             {t('shop_profile.profile', 'Profil')}
           </dt>
-          <dd className="mt-1 flex items-start gap-2 text-sm text-neutral-700 dark:text-neutral-200">
-            <ShieldCheck size={15} className="mt-0.5 shrink-0 text-neutral-500 dark:text-neutral-400" />
+          <dd className="mt-1 flex items-start gap-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">
+            <ShieldCheck size={15} className="mt-0.5 shrink-0 text-[#FF6A00]" />
             <span className="break-words">
               {isCertifiedShop
                 ? t('shop_profile.verified', 'Boutique vérifiée')
@@ -91,9 +92,9 @@ export default function ShopAboutSection({
       </dl>
 
       {shopLocation ? (
-        <section className="min-w-0 space-y-3 overflow-hidden rounded-2xl border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-950">
+        <section className="min-w-0 space-y-3 overflow-hidden rounded-[24px] bg-white p-3 ring-1 ring-orange-100/80 dark:bg-neutral-950 dark:ring-neutral-800">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-neutral-950 dark:text-white">
+            <p className="text-sm font-black text-slate-950 dark:text-white">
               {t('shop_profile.location', 'Localisation')}
             </p>
             <span
@@ -110,7 +111,7 @@ export default function ShopAboutSection({
             </span>
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-neutral-200 bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-900">
+          <div className="overflow-hidden rounded-[20px] bg-neutral-100 ring-1 ring-stone-200 dark:bg-neutral-900 dark:ring-neutral-800">
             {activeEmbedUrl ? (
               <iframe
                 title={`${t('shop_profile.map', 'Carte')} ${shop?.shopName || ''}`}
@@ -131,7 +132,7 @@ export default function ShopAboutSection({
               href={activeDirectionsUrl || '#'}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-[44px] w-full max-w-full items-center justify-center gap-1.5 overflow-hidden rounded-xl bg-neutral-950 px-3 text-center text-xs font-semibold leading-tight text-white sm:w-auto dark:bg-white dark:text-neutral-950"
+              className="inline-flex min-h-[44px] w-full max-w-full items-center justify-center gap-1.5 overflow-hidden rounded-full bg-[#FF6A00] px-3 text-center text-xs font-black leading-tight text-white sm:w-auto"
             >
               <Navigation size={14} />
               <span className="truncate">
@@ -145,7 +146,7 @@ export default function ShopAboutSection({
               href={appleDirectionsUrl || '#'}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-[44px] w-full max-w-full items-center justify-center gap-1.5 overflow-hidden rounded-xl border border-neutral-200 bg-white px-3 text-center text-xs font-semibold leading-tight text-neutral-700 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-200 sm:w-auto"
+              className="inline-flex min-h-[44px] w-full max-w-full items-center justify-center gap-1.5 overflow-hidden rounded-full bg-[#fff7ef] px-3 text-center text-xs font-black leading-tight text-slate-700 ring-1 ring-orange-100 dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-800 sm:w-auto"
             >
               <MapPin size={14} />
               <span className="truncate">Apple Plans</span>
@@ -155,7 +156,7 @@ export default function ShopAboutSection({
               type="button"
               onClick={onRequestLocation}
               disabled={distanceLoading}
-              className="inline-flex min-h-[44px] w-full max-w-full items-center justify-center gap-1.5 overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50 px-3 text-center text-xs font-semibold leading-tight text-neutral-700 disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 sm:w-auto"
+              className="inline-flex min-h-[44px] w-full max-w-full items-center justify-center gap-1.5 overflow-hidden rounded-full bg-stone-100 px-3 text-center text-xs font-black leading-tight text-slate-700 disabled:opacity-60 dark:bg-neutral-900 dark:text-neutral-200 sm:w-auto"
             >
               <Navigation size={14} />
               <span className="truncate">
@@ -181,6 +182,6 @@ export default function ShopAboutSection({
           {t('shop_profile.no_geo', "La boutique n'a pas encore partagé sa position GPS précise.")}
         </p>
       )}
-    </div>
+    </section>
   );
 }

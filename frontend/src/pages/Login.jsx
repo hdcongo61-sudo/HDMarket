@@ -48,7 +48,7 @@ const mapLoginErrorMessage = (error, isFrench = true) => {
   const rawMessage = String(error?.response?.data?.message || error?.message || '').toLowerCase();
 
   if (code.includes('TIMEDOUT') || rawMessage.includes('timeout')) {
-    return isFrench ? 'Connexion lente. Veuillez réessayer.' : 'Network is slow. Please retry.';
+    return isFrench ? 'La connexion prend plus de temps que prévu. Réessayez dans un instant.' : 'Sign-in is taking longer than expected. Please try again shortly.';
   }
   if (status === 401 || status === 403) {
     return isFrench
@@ -117,7 +117,7 @@ export default function Login() {
     createAccount: isFrench ? 'Créer un compte' : 'Create account',
     supportLead: isFrench ? 'Besoin d’aide ?' : 'Need help?',
     support: isFrench ? 'Contacter le support' : 'Contact support',
-    slowNetwork: isFrench ? 'Réseau lent, veuillez réessayer.' : 'Network is slow, please retry.',
+    slowNetwork: isFrench ? 'Connexion en cours, merci de patienter.' : 'Connection in progress, please wait.',
     sessionLabel: isFrench ? 'Session protégée' : 'Protected session',
     secureNote: isFrench
       ? 'Vos commandes, messages et paiements restent liés à votre compte.'

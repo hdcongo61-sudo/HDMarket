@@ -14,7 +14,7 @@ const mapForgotErrorMessage = (error, scope = 'send', isFrench = true) => {
   const rawMessage = String(error?.response?.data?.message || error?.message || '').toLowerCase();
 
   if (code.includes('TIMEDOUT') || rawMessage.includes('timeout')) {
-    return isFrench ? 'Connexion lente. Veuillez réessayer.' : 'Network is slow. Please retry.';
+    return isFrench ? 'La demande prend plus de temps que prévu. Réessayez dans un instant.' : 'The request is taking longer than expected. Please try again shortly.';
   }
 
   if (scope === 'send') {
@@ -98,7 +98,7 @@ export default function ForgotPassword() {
     codeSent: isFrench
       ? 'Code envoyé par email. Vérifiez votre boîte de réception.'
       : 'Code sent by email. Check your inbox.',
-    slowNetwork: isFrench ? 'Réseau lent, veuillez réessayer.' : 'Network is slow, please retry.',
+    slowNetwork: isFrench ? 'Demande en cours, merci de patienter.' : 'Request in progress, please wait.',
     passwordUpdated: isFrench ? 'Mot de passe mis à jour' : 'Password updated',
     passwordUpdatedDesc: isFrench
       ? 'Votre mot de passe a été réinitialisé avec succès.'

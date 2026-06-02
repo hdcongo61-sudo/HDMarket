@@ -552,7 +552,7 @@ export default function ImagePreviewModal({
             </span>
           ) : (
             <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white/80">
-              Qualité optimisée réseau lent
+              Qualité optimisée
             </span>
           )}
         </div>

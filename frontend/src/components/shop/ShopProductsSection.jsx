@@ -28,137 +28,105 @@ export default function ShopProductsSection({
   onGoReviews
 }) {
   const productGridClass = useCompactCards
-    ? 'mx-auto grid w-full max-w-[380px] grid-cols-1 gap-2 min-[376px]:grid-cols-2 sm:gap-3'
-    : 'grid grid-cols-2 gap-2 sm:grid-cols-3';
+    ? 'grid w-full grid-cols-2 gap-2 sm:gap-3'
+    : 'grid grid-cols-2 gap-3 sm:grid-cols-3';
 
   const activeChip =
-    'inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-neutral-950 px-3 text-xs font-semibold text-white transition dark:bg-white dark:text-neutral-950';
+    'inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-[#FF6A00] px-3 text-xs font-black text-white shadow-[0_10px_22px_-18px_rgba(255,106,0,0.9)] transition';
   const inactiveChip =
-    'inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-700 transition hover:border-neutral-400 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-200';
+    'inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-white px-3 text-xs font-black text-slate-600 ring-1 ring-stone-200 transition hover:text-slate-950 dark:bg-neutral-950 dark:text-neutral-200 dark:ring-neutral-800';
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950" id="products">
-      <div className="flex items-start justify-between gap-2">
+    <section className="overflow-hidden rounded-none bg-white p-3 shadow-[0_18px_60px_-42px_rgba(15,23,42,0.7)] ring-1 ring-orange-100/80 sm:rounded-[28px] dark:bg-neutral-950 dark:ring-neutral-800" id="products">
+      <div className="flex items-start justify-between gap-2 px-1">
         <div>
-          <h2 className="text-lg font-bold text-neutral-950 dark:text-white sm:text-xl">
+          <p className="text-[11px] font-black uppercase tracking-wide text-[#FF6A00]">
+            Boutique
+          </p>
+          <h2 className="text-xl font-black text-slate-950 dark:text-white sm:text-2xl">
             {t('shop_profile.all_products', 'Tous les produits')}
           </h2>
-          <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+          <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
             {formatCount(displayProducts.length)} {t('shop_profile.products_count', 'produits')}
           </p>
         </div>
         <button
           type="button"
           onClick={onGoReviews}
-          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-600 transition hover:border-neutral-400 hover:text-neutral-950 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300"
+          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-[#fff7ef] px-3 text-xs font-black text-[#FF6A00] ring-1 ring-orange-100 transition hover:bg-orange-50 dark:bg-neutral-900 dark:ring-neutral-800"
         >
           <span>{t('shop_profile.go_reviews', 'Avis')}</span>
           <ArrowRight size={13} />
         </button>
       </div>
 
-      {/* Feed tabs */}
-      <div className="mt-4 -mx-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className="flex w-max items-center gap-2">
-          {[
-            { id: 'all', label: t('shop_profile.tab_all', 'Tous'), count: products.length },
-            { id: 'featured', label: t('shop_profile.tab_featured', 'En vedette'), count: featuredProducts.length },
-            { id: 'latest', label: t('shop_profile.tab_latest', 'Nouveautés'), count: latestProducts.length },
-            { id: 'popular', label: t('shop_profile.tab_popular', 'Populaires'), count: topSellingProducts.length }
-          ].map((item) => {
-            const isActive = productFeed === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setProductFeed(item.id)}
-                className={isActive ? activeChip : inactiveChip}
-              >
-                <span>{item.label}</span>
-                <span
-                  className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                    isActive ? 'bg-white/20' : 'bg-neutral-100 text-neutral-500 dark:bg-neutral-900 dark:text-neutral-400'
-                  }`}
-                >
-                  {formatCount(item.count)}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Category filters */}
-      <div className="mt-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900/70">
-        <div className="mb-2.5 flex items-center justify-between gap-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-            {t('shop_profile.filter_category', 'Catégorie')}
-          </p>
-          <button
-            type="button"
-            onClick={() => { setActiveCategory('all'); setPromoOnly(false); }}
-            className="text-xs font-semibold text-neutral-500 transition hover:text-neutral-950 dark:text-neutral-400 dark:hover:text-white"
-          >
-            {t('shop_profile.reset', 'Tout')}
-          </button>
-        </div>
+      <div className="sticky top-[4.55rem] z-20 -mx-3 mt-3 border-y border-orange-100/70 bg-white/96 px-3 py-2 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/96">
         <div className="-mx-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex w-max items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setActiveCategory('all')}
-              className={activeCategory === 'all' ? activeChip : inactiveChip}
-            >
-              <span>{t('shop_profile.tab_all', 'Tous')}</span>
-              <span
-                className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                  activeCategory === 'all' ? 'bg-white/20' : 'bg-white text-neutral-500 dark:bg-neutral-950 dark:text-neutral-400'
-                }`}
-              >
-                {formatCount(products.length)}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setPromoOnly((prev) => !prev)}
-              disabled={!hasPromoProducts}
-              className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-full px-3 text-xs font-medium transition ${
-                promoOnly
-                  ? 'bg-neutral-950 text-white dark:bg-white dark:text-neutral-950'
-                  : 'border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300'
-              } ${!hasPromoProducts ? 'cursor-not-allowed opacity-50' : ''}`}
-            >
-              <Sparkles size={11} />
-              <span>{t('shop_profile.promos', 'Promos')}</span>
-            </button>
-            {categories.map((category) => {
-              const isActive = activeCategory === category;
+            {[
+              { id: 'all', label: t('shop_profile.tab_all', 'Tous'), count: products.length },
+              { id: 'featured', label: t('shop_profile.tab_featured', 'Recommandés'), count: featuredProducts.length },
+              { id: 'latest', label: t('shop_profile.tab_latest', 'Nouveautés'), count: latestProducts.length },
+              { id: 'popular', label: t('shop_profile.tab_popular', 'Populaires'), count: topSellingProducts.length }
+            ].map((item) => {
+              const isActive = productFeed === item.id;
               return (
                 <button
-                  key={category}
+                  key={item.id}
                   type="button"
-                  onClick={() => setActiveCategory(category)}
+                  onClick={() => setProductFeed(item.id)}
                   className={isActive ? activeChip : inactiveChip}
                 >
-                  <span className="max-w-[8rem] truncate">{category}</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                      isActive ? 'bg-white/20' : 'bg-white text-neutral-500 dark:bg-neutral-950 dark:text-neutral-400'
-                    }`}
-                  >
-                    {formatCount(categoryCounts[category] || 0)}
+                  <span>{item.label}</span>
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${isActive ? 'bg-white/20' : 'bg-stone-100 text-slate-500 dark:bg-neutral-900 dark:text-neutral-400'}`}>
+                    {formatCount(item.count)}
                   </span>
                 </button>
               );
             })}
           </div>
         </div>
+        <div className="mt-2 flex items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <button
+            type="button"
+            onClick={() => { setActiveCategory('all'); setPromoOnly(false); }}
+            className="inline-flex min-h-[32px] shrink-0 items-center rounded-full bg-stone-100 px-3 text-xs font-black text-slate-600 transition hover:text-slate-950 dark:bg-neutral-900 dark:text-neutral-300"
+          >
+            {t('shop_profile.reset', 'Tout')}
+          </button>
+          <button type="button" onClick={() => setActiveCategory('all')} className={activeCategory === 'all' ? activeChip : inactiveChip}>
+            <span>{t('shop_profile.tab_all', 'Tous')}</span>
+            <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${activeCategory === 'all' ? 'bg-white/20' : 'bg-stone-100 text-slate-500 dark:bg-neutral-900 dark:text-neutral-400'}`}>{formatCount(products.length)}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setPromoOnly((prev) => !prev)}
+            disabled={!hasPromoProducts}
+            className={`inline-flex min-h-[36px] shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-black transition ${
+              promoOnly
+                ? 'bg-[#FF6A00] text-white'
+                : 'bg-amber-50 text-amber-700 ring-1 ring-amber-100 hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30'
+            } ${!hasPromoProducts ? 'cursor-not-allowed opacity-50' : ''}`}
+          >
+            <Sparkles size={11} />
+            <span>{t('shop_profile.promos', 'Promos')}</span>
+          </button>
+          {categories.map((category) => {
+            const isActive = activeCategory === category;
+            return (
+              <button key={category} type="button" onClick={() => setActiveCategory(category)} className={isActive ? activeChip : inactiveChip}>
+                <span className="max-w-[8rem] truncate">{category}</span>
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${isActive ? 'bg-white/20' : 'bg-stone-100 text-slate-500 dark:bg-neutral-900 dark:text-neutral-400'}`}>{formatCount(categoryCounts[category] || 0)}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {loading && <ShimmerSkeleton rows={3} />}
 
       {!loading && displayProducts.length > 0 && (
-        <div className={`mt-4 ${productGridClass}`}>
+        <div className={`mt-3 ${productGridClass}`}>
           {displayProducts.map((product) => (
             <div key={`${product._id}-${useCompactCards ? 'compact' : 'regular'}`} className="min-w-0">
               <ProductCard
@@ -173,14 +141,14 @@ export default function ShopProductsSection({
       )}
 
       {!loading && displayProducts.length === 0 && (
-        <div className="mt-4 rounded-xl border border-dashed border-neutral-200 px-4 py-10 text-center text-sm text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
+        <div className="mt-4 rounded-[22px] border border-dashed border-orange-200 bg-orange-50/40 px-4 py-10 text-center text-sm font-semibold text-slate-500 dark:border-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-400">
           {t('shop_profile.no_products', "Cette boutique n'a pas encore de produits")}
         </div>
       )}
 
       {!loading && topSellingProducts.length > 0 && (
-        <div className="mt-4 border-t border-neutral-200 pt-4 dark:border-neutral-800">
-          <p className="mb-3 text-sm font-semibold text-neutral-950 dark:text-white">
+        <div className="mt-4 border-t border-orange-100 pt-4 dark:border-neutral-800">
+          <p className="mb-3 text-sm font-black text-slate-950 dark:text-white">
             {t('shop_profile.popular_products', 'Produits populaires')}
           </p>
           <div className={productGridClass}>
@@ -188,9 +156,9 @@ export default function ShopProductsSection({
               <Link
                 key={`top-${product._id}`}
                 to={buildProductPath(product)}
-                className="group min-w-0 rounded-xl border border-neutral-200 bg-white p-2 transition hover:border-neutral-400 dark:border-neutral-800 dark:bg-neutral-950"
+                className="group min-w-0 rounded-[18px] bg-white p-2 ring-1 ring-stone-200 transition hover:ring-orange-200 dark:bg-neutral-950 dark:ring-neutral-800"
               >
-                <div className="relative aspect-[1.2] overflow-hidden rounded-lg bg-neutral-100 dark:bg-neutral-900">
+                <div className="relative aspect-square overflow-hidden rounded-[14px] bg-neutral-100 dark:bg-neutral-900">
                   <PreviewableImage
                     src={product.images?.[0] || product.image || ''}
                     images={
@@ -215,7 +183,7 @@ export default function ShopProductsSection({
                     }}
                   />
                 </div>
-                <p className="mt-2 line-clamp-2 text-xs font-medium text-neutral-800 dark:text-neutral-100">
+                <p className="mt-2 line-clamp-2 text-xs font-black text-slate-900 dark:text-neutral-100">
                   {product.title}
                 </p>
               </Link>
@@ -223,6 +191,6 @@ export default function ShopProductsSection({
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }

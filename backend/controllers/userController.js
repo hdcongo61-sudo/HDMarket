@@ -1610,6 +1610,9 @@ export const getNotifications = asyncHandler(async (req, res) => {
       .select(
         'actor product shop type metadata display snapshot priority audience channels deepLink actionLink actionRequired actionType actionStatus actionDueAt validationType entityType entityId readAt clickedAt clickCount createdAt updatedAt'
       )
+      .populate('actor', 'name email profileImage shopLogo shopName accountType role')
+      .populate('product', 'title slug status images')
+      .populate('shop', 'shopName name slug shopLogo profileImage')
       .lean(),
     User.findById(req.user.id).select('notificationPreferences')
   ]);
@@ -1620,18 +1623,9 @@ export const getNotifications = asyncHandler(async (req, res) => {
 
   const alerts = notifications.map((notification) => {
     const snapshot = notification.snapshot || {};
-    const actorObject =
-      notification.actor && typeof notification.actor === 'object' && !mongoose.Types.ObjectId.isValid(notification.actor)
-        ? notification.actor
-        : null;
-    const productObject =
-      notification.product && typeof notification.product === 'object' && !mongoose.Types.ObjectId.isValid(notification.product)
-        ? notification.product
-        : null;
-    const shopObject =
-      notification.shop && typeof notification.shop === 'object' && !mongoose.Types.ObjectId.isValid(notification.shop)
-        ? notification.shop
-        : null;
+    const actorObject = notification.actor && typeof notification.actor === 'object' ? notification.actor : null;
+    const productObject = notification.product && typeof notification.product === 'object' ? notification.product : null;
+    const shopObject = notification.shop && typeof notification.shop === 'object' ? notification.shop : null;
     const actorId = actorObject?._id || notification.actor || null;
     const productId = productObject?._id || notification.product || null;
     const shopId = shopObject?._id || notification.shop || null;
@@ -1640,6 +1634,9 @@ export const getNotifications = asyncHandler(async (req, res) => {
           _id: actorId,
           name: actorObject?.name || snapshot.actorName || 'HDMarket',
           email: actorObject?.email || '',
+          shopName: actorObject?.shopName || '',
+          accountType: actorObject?.accountType || '',
+          role: actorObject?.role || '',
           profileImage:
             String(actorObject?.profileImage || '').trim() ||
             String(actorObject?.shopLogo || '').trim() ||

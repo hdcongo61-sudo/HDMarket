@@ -350,6 +350,80 @@ export default function OrderCheckout() {
         ? 'Merci de payer l’acompte indiqué pour chaque vendeur avant validation.'
         : `Merci de payer exactement ${formatCurrency(depositAmount)} avant validation.`;
   const showFullPaymentOption = fullPaymentPromotionEnabled && fullPaymentFreeDeliveryEnabled;
+  const paymentModeCards = useMemo(() => {
+    const baseCards = [
+      {
+        id: PAYMENT_MODES.STANDARD,
+        title: 'Paiement classique',
+        subtitle: 'Acompte pour réserver, solde à régler plus tard.',
+        eyebrow: 'Flexible',
+        icon: CreditCard,
+        amountLabel: 'À payer maintenant',
+        amount: depositAmount,
+        remainingLabel: 'Solde après validation',
+        remaining: remainingAmount,
+        tone: 'neutral',
+        bullets: ['25% maintenant', 'Solde à la livraison', 'Validation admin']
+      }
+    ];
+
+    if (showFullPaymentOption) {
+      baseCards.push({
+        id: PAYMENT_MODES.FULL_PAYMENT,
+        title: 'Paiement intégral',
+        subtitle: 'Tout payer maintenant pour verrouiller la commande.',
+        eyebrow: fullPaymentLabelText,
+        icon: ShieldCheck,
+        amountLabel: 'Total à payer',
+        amount: checkoutTotalWithDelivery,
+        remainingLabel: 'Reste à payer',
+        remaining: 0,
+        tone: 'success',
+        bullets: [
+          'Livraison offerte',
+          'Frais verrouillés',
+          deliveryMode === 'DELIVERY' && Number(deliveryFeePreviewTotal || 0) > 0
+            ? `Économie ${formatCurrency(deliveryFeePreviewTotal)}`
+            : 'Traitement prioritaire'
+        ].filter(Boolean)
+      });
+    }
+
+    if (isInstallmentProductEligible) {
+      baseCards.push({
+        id: PAYMENT_MODES.INSTALLMENT,
+        title: 'Paiement par tranche',
+        subtitle: 'Premier versement, puis échéancier suivi.',
+        eyebrow: `${installmentDuration || 0} jours`,
+        icon: ClipboardList,
+        amountLabel: 'Premier paiement',
+        amount: installmentFirstPaymentAmount,
+        remainingLabel: 'Reste échelonné',
+        remaining: installmentRemainingAmount,
+        tone: 'installment',
+        bullets: [
+          'Validation vendeur',
+          'Suivi des tranches',
+          installmentRequiresGuarantor ? 'Garant requis' : 'Garant selon profil'
+        ]
+      });
+    }
+
+    return baseCards;
+  }, [
+    checkoutTotalWithDelivery,
+    deliveryFeePreviewTotal,
+    deliveryMode,
+    depositAmount,
+    fullPaymentLabelText,
+    installmentDuration,
+    installmentFirstPaymentAmount,
+    installmentRemainingAmount,
+    installmentRequiresGuarantor,
+    isInstallmentProductEligible,
+    remainingAmount,
+    showFullPaymentOption
+  ]);
 
   useEffect(() => {
     if (!isInstallmentProductEligible && paymentMode === PAYMENT_MODES.INSTALLMENT) {
@@ -657,7 +731,7 @@ export default function OrderCheckout() {
             return;
           }
           const timeoutMessage =
-            'Réseau lent. Vérifiez vos commandes: la confirmation peut déjà être enregistrée.';
+            'Commande en cours de confirmation. Nous synchronisons automatiquement le statut.';
           setError(timeoutMessage);
           showToast(timeoutMessage, { variant: 'warning' });
           navigate('/orders');
@@ -798,7 +872,7 @@ export default function OrderCheckout() {
           return;
         }
         const timeoutMessage =
-          'Réseau lent. Vérifiez vos commandes: la confirmation peut déjà être enregistrée.';
+          'Commande en cours de confirmation. Nous synchronisons automatiquement le statut.';
         setError(timeoutMessage);
         showToast(timeoutMessage, { variant: 'warning' });
         navigate('/orders');
@@ -1261,65 +1335,119 @@ export default function OrderCheckout() {
             </div>
 
             {(isInstallmentProductEligible || showFullPaymentOption) && (
-              <div className="rounded-2xl border-2 border-neutral-200 bg-neutral-100 p-4 space-y-3">
-                <p className="text-xs font-bold uppercase text-neutral-700">Mode de paiement</p>
-                <div className={`grid gap-2 ${isInstallmentProductEligible && showFullPaymentOption ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2'}`}>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMode(PAYMENT_MODES.STANDARD)}
-                    className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-all ${
-                      isStandardPayment
-                        ? 'border-neutral-500 bg-white text-neutral-700 shadow-sm'
-                        : 'border-gray-200 bg-white text-gray-600'
-                    }`}
-                  >
-                    <span className="block font-bold text-gray-900">Paiement classique</span>
-                    <span className="mt-1 block text-xs text-gray-500">Acompte de 25% maintenant, solde plus tard.</span>
-                  </button>
-                  {showFullPaymentOption ? (
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMode(PAYMENT_MODES.FULL_PAYMENT)}
-                      className={`relative rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-all ${
-                        isFullPaymentSelected
-                          ? 'border-emerald-300 bg-emerald-50 text-emerald-900 shadow-sm'
-                          : 'border-emerald-200 bg-white text-gray-700'
-                      }`}
-                    >
-                      <span className="absolute right-3 top-3 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white">
-                        {fullPaymentLabelText}
-                      </span>
-                      <span className="block pr-20 font-bold text-gray-900">Paiement intégral</span>
-                      <span className="mt-1 block text-xs text-gray-600">
-                        Vous payez tout maintenant. Livraison offerte.
-                      </span>
-                      {deliveryMode === 'DELIVERY' && Number(deliveryFeePreviewTotal || 0) > 0 ? (
-                        <span className="mt-2 inline-flex rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                          Économisez {formatCurrency(deliveryFeePreviewTotal)} sur la livraison
-                        </span>
-                      ) : (
-                        <span className="mt-2 inline-flex rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                          Livraison gratuite activée
-                        </span>
-                      )}
-                    </button>
-                  ) : null}
-                  {isInstallmentProductEligible ? (
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMode(PAYMENT_MODES.INSTALLMENT)}
-                      className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-all ${
-                        isInstallmentPayment
-                          ? 'border-neutral-500 bg-white text-neutral-700 shadow-sm'
-                          : 'border-gray-200 bg-white text-gray-600'
-                      }`}
-                    >
-                      <span className="block font-bold text-gray-900">Paiement par tranche</span>
-                      <span className="mt-1 block text-xs text-gray-500">
-                        {installmentDuration} jours avec échéancier validé par le vendeur.
-                      </span>
-                    </button>
-                  ) : null}
+              <div className="rounded-[26px] border border-orange-100 bg-[#fff8f0] p-3 shadow-[0_16px_40px_rgba(117,75,36,0.08)] sm:p-4">
+                <div className="mb-3 flex items-start justify-between gap-3 px-1">
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-wide text-[#ff6a00]">
+                      Mode de paiement
+                    </p>
+                    <h3 className="mt-1 text-base font-black text-gray-950">
+                      Choisissez comment finaliser la commande
+                    </h3>
+                  </div>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-[#9a4a00] ring-1 ring-orange-100">
+                    {paymentModeCards.length} option{paymentModeCards.length > 1 ? 's' : ''}
+                  </span>
+                </div>
+
+                <div className={`grid gap-3 ${paymentModeCards.length >= 3 ? 'grid-cols-1 xl:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2'}`}>
+                  {paymentModeCards.map((option) => {
+                    const selected = paymentMode === option.id;
+                    const Icon = option.icon;
+                    const isSuccess = option.tone === 'success';
+                    const isInstallment = option.tone === 'installment';
+                    const toneClasses = isSuccess
+                      ? {
+                          card: selected
+                            ? 'border-emerald-300 bg-gradient-to-br from-emerald-50 via-white to-white shadow-[0_18px_36px_rgba(16,185,129,0.16)]'
+                            : 'border-emerald-100 bg-white hover:border-emerald-200',
+                          icon: 'bg-emerald-600 text-white',
+                          badge: 'bg-emerald-600 text-white',
+                          amount: 'text-emerald-700',
+                          chip: 'bg-emerald-50 text-emerald-700 ring-emerald-100'
+                        }
+                      : isInstallment
+                        ? {
+                            card: selected
+                              ? 'border-amber-300 bg-gradient-to-br from-amber-50 via-white to-white shadow-[0_18px_36px_rgba(245,158,11,0.16)]'
+                              : 'border-amber-100 bg-white hover:border-amber-200',
+                            icon: 'bg-amber-500 text-white',
+                            badge: 'bg-amber-500 text-white',
+                            amount: 'text-amber-700',
+                            chip: 'bg-amber-50 text-amber-700 ring-amber-100'
+                          }
+                        : {
+                            card: selected
+                              ? 'border-orange-300 bg-gradient-to-br from-orange-50 via-white to-white shadow-[0_18px_36px_rgba(255,106,0,0.16)]'
+                              : 'border-orange-100 bg-white hover:border-orange-200',
+                            icon: 'bg-[#ff6a00] text-white',
+                            badge: 'bg-orange-100 text-[#9a4a00]',
+                            amount: 'text-gray-950',
+                            chip: 'bg-orange-50 text-[#9a4a00] ring-orange-100'
+                          };
+
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setPaymentMode(option.id)}
+                        className={`group relative min-h-[220px] rounded-[24px] border p-4 text-left transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.985] ${toneClasses.card}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] shadow-sm ${toneClasses.icon}`}>
+                            <Icon size={19} />
+                          </span>
+                          <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${toneClasses.badge}`}>
+                            {option.eyebrow}
+                          </span>
+                        </div>
+
+                        <div className="mt-4">
+                          <div className="flex items-center gap-2">
+                            <span className={`h-4 w-4 rounded-full border-2 transition ${
+                              selected ? 'border-[#ff6a00] bg-[#ff6a00] shadow-[inset_0_0_0_3px_white]' : 'border-gray-300 bg-white'
+                            }`} />
+                            <h4 className="text-base font-black text-gray-950">{option.title}</h4>
+                          </div>
+                          <p className="mt-2 min-h-[38px] text-xs font-semibold leading-relaxed text-gray-600">
+                            {option.subtitle}
+                          </p>
+                        </div>
+
+                        <div className="mt-4 rounded-[20px] bg-white/82 p-3 ring-1 ring-black/5">
+                          <div className="flex items-end justify-between gap-3">
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-wide text-gray-500">
+                                {option.amountLabel}
+                              </p>
+                              <p className={`mt-1 text-lg font-black leading-none ${toneClasses.amount}`}>
+                                {formatCurrency(option.amount)}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[10px] font-black uppercase tracking-wide text-gray-500">
+                                {option.remainingLabel}
+                              </p>
+                              <p className="mt-1 text-sm font-black text-gray-900">
+                                {formatCurrency(option.remaining)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {option.bullets.map((item) => (
+                            <span
+                              key={`${option.id}-${item}`}
+                              className={`rounded-full px-2 py-1 text-[10px] font-black ring-1 ${toneClasses.chip}`}
+                            >
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
                 {showFullPaymentOption && (
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">

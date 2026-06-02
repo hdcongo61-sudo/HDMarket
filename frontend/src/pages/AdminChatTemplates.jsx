@@ -302,19 +302,24 @@ export default function AdminChatTemplates() {
     ));
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 pb-8">
-      <header className="rounded-2xl border border-neutral-200 bg-white/85 px-5 py-4 shadow-sm backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/80">
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-neutral-900 dark:text-neutral-100">
-          <MessageSquare className="h-6 w-6 text-neutral-700 dark:text-neutral-200" />
-          Assistant guidé · Templates
+    <div className="mx-auto max-w-7xl space-y-5 bg-[#f7f3ee] px-4 pb-8 pt-1 dark:bg-neutral-950">
+      <header className="overflow-hidden rounded-[28px] border border-orange-100 bg-white shadow-[0_18px_55px_rgba(17,24,39,0.08)] dark:border-neutral-800 dark:bg-neutral-950">
+        <div className="bg-gradient-to-br from-[#ff6a00] via-[#ff7a1a] to-[#f04423] px-5 py-5 text-white">
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/75">Centre assistant</p>
+          <h1 className="mt-1 flex items-center gap-2 text-2xl font-extrabold tracking-tight">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/18 ring-1 ring-white/25">
+              <MessageSquare className="h-5 w-5" />
+            </span>
+            Assistant guidé · Templates
         </h1>
-        <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-          Arborescence de conversation sans saisie libre, pilotée par templates structurés.
-        </p>
+          <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-white/82">
+            Organisez les réponses officielles comme un parcours commerce: rapide, clair et sans saisie libre.
+          </p>
+        </div>
       </header>
 
       {isAdmin && (
-        <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+        <section className="rounded-[24px] border border-orange-100 bg-white p-4 shadow-[0_14px_40px_rgba(17,24,39,0.06)] dark:border-neutral-800 dark:bg-neutral-950">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
@@ -331,7 +336,7 @@ export default function AdminChatTemplates() {
                 setAccessSearch(value);
                 loadAccessUsers(value).catch(() => {});
               }}
-              className="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none ring-neutral-300 transition focus:ring-2 sm:w-80 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+              className="w-full rounded-2xl border border-orange-100 bg-[#fffaf4] px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 sm:w-80 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
               placeholder="Rechercher utilisateur..."
             />
           </div>
@@ -345,7 +350,7 @@ export default function AdminChatTemplates() {
                 return (
                   <div
                     key={candidate.id}
-                    className="flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 dark:border-neutral-800 dark:bg-neutral-900"
+                    className="flex items-center justify-between rounded-2xl border border-orange-100 bg-[#fffaf4] px-3 py-2 dark:border-neutral-800 dark:bg-neutral-900"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-neutral-900 dark:text-neutral-100">
@@ -362,7 +367,7 @@ export default function AdminChatTemplates() {
                       className={`ml-3 inline-flex min-h-9 items-center rounded-full px-3 text-xs font-semibold transition disabled:opacity-60 ${
                         granted
                           ? 'border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/60 dark:bg-red-900/20 dark:text-red-300'
-                          : 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300'
+                          : 'border border-orange-100 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:border-orange-950/60 dark:bg-orange-950/30 dark:text-orange-200'
                       }`}
                     >
                       {accessSavingUserId === candidate.id
@@ -382,8 +387,8 @@ export default function AdminChatTemplates() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-          <h2 className="mb-3 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+        <section className="rounded-[24px] border border-orange-100 bg-white p-4 shadow-[0_14px_40px_rgba(17,24,39,0.06)] dark:border-neutral-800 dark:bg-neutral-950">
+          <h2 className="mb-3 text-sm font-extrabold text-neutral-950 dark:text-neutral-100">
             {editingId ? 'Modifier le nœud' : 'Nouveau nœud'}
           </h2>
 
@@ -393,7 +398,7 @@ export default function AdminChatTemplates() {
               <input
                 value={form.title}
                 onChange={(event) => handleChange('title', event.target.value)}
-                className="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none ring-neutral-300 transition focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                className="w-full rounded-2xl border border-orange-100 bg-[#fffaf4] px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                 placeholder="Ex: Où est ma commande ?"
               />
             </div>
@@ -403,7 +408,7 @@ export default function AdminChatTemplates() {
               <input
                 value={form.category}
                 onChange={(event) => handleChange('category', event.target.value)}
-                className="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none ring-neutral-300 transition focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                className="w-full rounded-2xl border border-orange-100 bg-[#fffaf4] px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                 placeholder="Orders, Payment, Disputes..."
               />
             </div>
@@ -414,7 +419,7 @@ export default function AdminChatTemplates() {
                 <select
                   value={form.type}
                   onChange={(event) => handleChange('type', event.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none ring-neutral-300 transition focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                  className="w-full rounded-2xl border border-orange-100 bg-[#fffaf4] px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                 >
                   <option value="question">Question</option>
                   <option value="info">Info</option>
@@ -427,7 +432,7 @@ export default function AdminChatTemplates() {
                 <select
                   value={form.parentId}
                   onChange={(event) => handleChange('parentId', event.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none ring-neutral-300 transition focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                  className="w-full rounded-2xl border border-orange-100 bg-[#fffaf4] px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                 >
                   <option value="">Racine</option>
                   {parentOptions
@@ -447,7 +452,7 @@ export default function AdminChatTemplates() {
                 rows={4}
                 value={form.content}
                 onChange={(event) => handleChange('content', event.target.value)}
-                className="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none ring-neutral-300 transition focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                className="w-full rounded-2xl border border-orange-100 bg-[#fffaf4] px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                 placeholder="Réponse affichée dans l’assistant..."
               />
             </div>
@@ -459,7 +464,7 @@ export default function AdminChatTemplates() {
                   type="number"
                   value={form.priority}
                   onChange={(event) => handleChange('priority', event.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none ring-neutral-300 transition focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                  className="w-full rounded-2xl border border-orange-100 bg-[#fffaf4] px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                 />
               </div>
               <div>
@@ -468,7 +473,7 @@ export default function AdminChatTemplates() {
                   type="number"
                   value={form.order}
                   onChange={(event) => handleChange('order', event.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none ring-neutral-300 transition focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                  className="w-full rounded-2xl border border-orange-100 bg-[#fffaf4] px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                 />
               </div>
             </div>
@@ -478,7 +483,7 @@ export default function AdminChatTemplates() {
               <input
                 value={form.rolesInput}
                 onChange={(event) => handleChange('rolesInput', event.target.value)}
-                className="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none ring-neutral-300 transition focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                className="w-full rounded-2xl border border-orange-100 bg-[#fffaf4] px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                 placeholder="all, client, seller, admin"
               />
             </div>
@@ -489,7 +494,7 @@ export default function AdminChatTemplates() {
                 <select
                   value={form.entityType}
                   onChange={(event) => handleChange('entityType', event.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none ring-neutral-300 transition focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                  className="w-full rounded-2xl border border-orange-100 bg-[#fffaf4] px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                 >
                   <option value="">Aucun</option>
                   <option value="order">Order</option>
@@ -505,7 +510,7 @@ export default function AdminChatTemplates() {
                 <input
                   value={form.entityId}
                   onChange={(event) => handleChange('entityId', event.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none ring-neutral-300 transition focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                  className="w-full rounded-2xl border border-orange-100 bg-[#fffaf4] px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                   placeholder="ID / slug / URL"
                 />
               </div>
@@ -516,7 +521,7 @@ export default function AdminChatTemplates() {
               <input
                 value={form.path}
                 onChange={(event) => handleChange('path', event.target.value)}
-                className="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none ring-neutral-300 transition focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                className="w-full rounded-2xl border border-orange-100 bg-[#fffaf4] px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                 placeholder="/orders, /product/slug..."
               />
             </div>
@@ -537,7 +542,7 @@ export default function AdminChatTemplates() {
               <button
                 type="submit"
                 disabled={saving}
-                className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-neutral-900 px-4 text-sm font-semibold text-white transition hover:bg-neutral-700 disabled:opacity-60 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+                className="inline-flex min-h-10 items-center gap-2 rounded-2xl bg-[#ff6a00] px-4 text-sm font-extrabold text-white shadow-[0_10px_24px_rgba(255,106,0,0.24)] transition hover:bg-[#f05f00] disabled:opacity-60"
               >
                 {editingId ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
                 {saving ? 'Enregistrement...' : editingId ? 'Mettre à jour' : 'Créer'}
@@ -546,7 +551,7 @@ export default function AdminChatTemplates() {
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="inline-flex min-h-10 items-center rounded-xl border border-neutral-300 px-4 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                  className="inline-flex min-h-10 items-center rounded-2xl border border-orange-100 bg-orange-50 px-4 text-sm font-bold text-orange-700 transition hover:bg-orange-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                 >
                   Annuler
                 </button>
@@ -555,8 +560,8 @@ export default function AdminChatTemplates() {
           </form>
         </section>
 
-        <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-          <h2 className="mb-3 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Arborescence</h2>
+        <section className="rounded-[24px] border border-orange-100 bg-white p-4 shadow-[0_14px_40px_rgba(17,24,39,0.06)] dark:border-neutral-800 dark:bg-neutral-950">
+          <h2 className="mb-3 text-sm font-extrabold text-neutral-950 dark:text-neutral-100">Arborescence</h2>
           {loading ? (
             <p className="text-sm text-neutral-500 dark:text-neutral-400">Chargement...</p>
           ) : tree.length ? (
@@ -564,11 +569,11 @@ export default function AdminChatTemplates() {
               {renderTree(tree)}
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-neutral-300 px-4 py-6 text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
+            <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/70 px-4 py-6 text-sm text-orange-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
               Aucun template pour le moment.
             </div>
           )}
-          <div className="mt-4 rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
+          <div className="mt-4 rounded-2xl border border-orange-100 bg-[#fffaf4] p-3 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
             <p className="mb-1 flex items-center gap-1 font-medium">
               <ChevronRight className="h-3.5 w-3.5" />
               Règle de flow

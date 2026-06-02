@@ -960,11 +960,11 @@ export default function ShopProfile() {
 
   return (
     <main
-      className={`w-full max-w-full overflow-x-clip [overflow-wrap:anywhere] bg-[#F7F7F8] text-slate-900 dark:bg-neutral-950 dark:text-slate-100 ${
+      className={`w-full max-w-full overflow-x-clip [overflow-wrap:anywhere] bg-[#fff4e8] text-slate-900 dark:bg-neutral-950 dark:text-slate-100 ${
         isMobile ? 'pb-36' : 'pb-12'
       }`}
     >
-      <div className="mx-auto w-full max-w-7xl min-w-0 overflow-x-clip px-3 py-3 max-[640px]:max-w-[430px] sm:px-6 sm:py-5 lg:px-8">
+      <div className="mx-auto w-full max-w-7xl min-w-0 overflow-x-clip px-0 py-0 sm:px-6 sm:py-5 lg:px-8">
         <ShopTopHeader
           title={shop.shopName}
           subtitle={[shop?.commune, shop?.city].filter(Boolean).join(', ') || t('shop_profile.public_shop', 'Boutique publique')}
@@ -986,7 +986,7 @@ export default function ShopProfile() {
           </div>
         )}
 
-        <div className="min-w-0 space-y-4">
+        <div className="min-w-0 space-y-3 sm:space-y-4">
           <ShopHero
             shop={shop}
             isCertifiedShop={isCertifiedShop}
@@ -1004,7 +1004,7 @@ export default function ShopProfile() {
           <ShopQuickInfo openingSummary={openingSummary} trustQuickInfo={trustQuickInfo} t={t} />
 
           <div className="grid min-w-0 gap-4 overflow-x-clip lg:grid-cols-[minmax(0,1fr)_340px]">
-            <div className="min-w-0 space-y-4 overflow-x-clip">
+            <div className="min-w-0 space-y-3 overflow-x-clip sm:space-y-4">
               {isMobile && (
                 <ShopOpeningHoursCard
                   openingSummary={openingSummary}
@@ -1095,7 +1095,7 @@ export default function ShopProfile() {
             </div>
 
             <aside className="hidden lg:block">
-              <div className="sticky top-24 space-y-4">
+              <div className="sticky top-28 space-y-4">
                 <ShopOpeningHoursCard
                   openingSummary={openingSummary}
                   isCertifiedShop={isCertifiedShop}
@@ -1125,7 +1125,6 @@ export default function ShopProfile() {
 
       {isMobile && (
         <ShopBottomActions
-          slug={slug}
           user={user}
           shopPhone={shop.phone}
           onMessage={goToMessage}

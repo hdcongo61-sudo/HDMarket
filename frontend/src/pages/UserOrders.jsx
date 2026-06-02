@@ -1358,7 +1358,7 @@ export default function UserOrders() {
       await cancelOrderMutation.mutateAsync({ orderId });
     } catch (err) {
       if (isApiPossiblyCommittedError(err)) {
-        appAlert('Réseau lent ou interrompu. Vérification automatique en cours. Vérifiez le statut avant de renvoyer.');
+        appAlert('Action en cours de confirmation. Le statut sera synchronisé automatiquement.');
         return;
       }
       appAlert(err.response?.data?.message || 'Impossible d\'annuler la commande.');

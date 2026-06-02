@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, Sparkles, Star, Heart, ShoppingCart, Store, TrendingUp, Zap, ChevronRight, Eye } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Sparkles, Star, Store, Zap, ChevronRight, Eye, MapPin, ShieldCheck } from 'lucide-react';
 import api from '../services/api';
 import { buildProductPath } from '../utils/links';
 import useIsMobile from '../hooks/useIsMobile';
@@ -44,7 +44,7 @@ const shuffleItems = (items = []) => {
   return list;
 };
 
-const buildRelatedPicks = (items = [], limit = 6) => {
+const buildRelatedPicks = (items = [], limit = 9) => {
   const picks = items
     .map((item) => {
       const image = pickRandomImage(item?.images);
@@ -54,7 +54,7 @@ const buildRelatedPicks = (items = [], limit = 6) => {
   return shuffleItems(picks).slice(0, limit);
 };
 
-const buildFallbackPicks = (product, limit = 6) => {
+const buildFallbackPicks = (product, limit = 9) => {
   const images = Array.isArray(product?.images) ? product.images.filter(Boolean) : [];
   return shuffleItems(images)
     .slice(0, limit)
@@ -179,11 +179,11 @@ export default function ProductPreview() {
                 candidates.length ? candidates : filtered,
                 seenKeys
               );
-              picks = buildRelatedPicks(uniqueItems, 6);
+              picks = buildRelatedPicks(uniqueItems, rapid3GActive ? 6 : 9);
             }
 
             if (!picks.length) {
-              picks = buildFallbackPicks(data, 6);
+              picks = buildFallbackPicks(data, rapid3GActive ? 6 : 9);
             }
 
             picks.forEach((pick) => {
@@ -200,7 +200,7 @@ export default function ProductPreview() {
               );
               const uniqueBoosted = filterUniqueProducts(boostedCandidates, seenKeys);
               const boostedSource = uniqueBoosted.length ? uniqueBoosted : boostedCandidates;
-              const boostedPicks = buildRelatedPicks(boostedSource, rapid3GActive ? 2 : 3);
+              const boostedPicks = buildRelatedPicks(boostedSource, rapid3GActive ? 3 : 6);
               if (boostedPicks.length) {
                 picks = [...picks, ...boostedPicks];
               }
@@ -275,7 +275,6 @@ export default function ProductPreview() {
     return buildProductPath(item);
   };
 
-  // Filter out current product from related picks
   const filteredRelatedPicks = useMemo(() => {
     if (!product) return relatedPicks;
     const currentKey = getProductKey(product);
@@ -285,259 +284,261 @@ export default function ProductPreview() {
     });
   }, [relatedPicks, product]);
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-neutral-50/30">
-      <div className="mx-auto w-full max-w-2xl px-3 sm:px-4 pb-20 pt-4 sm:pt-6 space-y-5 sm:space-y-6">
-        {/* Back Button - Enhanced */}
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-3xl bg-white border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-all duration-200 active:scale-95 shadow-sm"
-        >
-          <ArrowLeft className="h-5 w-5" />
-          Retour
-        </button>
+  const primaryImage = product?.images?.[0] || 'https://via.placeholder.com/640x640';
+  const hasProductDiscount = product?.discount > 0 && product?.priceBeforeDiscount > product?.price;
+  const shopName = product?.user?.shopName || product?.shop?.name || '';
+  const cityLabel = [product?.commune, product?.city].filter(Boolean).join(' - ');
+  const productRatingAverage = Number(product?.ratingAverage || 0);
 
+  return (
+    <div className="min-h-screen bg-[#f6f3ee] text-slate-950">
+      <div className="mx-auto w-full max-w-[430px] pb-24">
+        <header className="sticky top-0 z-30 border-b border-orange-100/80 bg-[#fffaf4]/95 px-3 py-3 backdrop-blur-xl">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              aria-label="Retour"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-slate-950 shadow-[0_8px_20px_rgba(117,75,36,0.08)] ring-1 ring-orange-100 active:scale-95"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <Link
+              to="/products"
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-white px-3 py-2.5 text-sm font-black text-slate-500 shadow-[0_8px_20px_rgba(117,75,36,0.08)] ring-1 ring-orange-100"
+            >
+              <Eye className="h-4 w-4 text-[#ff6a00]" />
+              <span className="truncate">Explorer HDMarket</span>
+            </Link>
+          </div>
+        </header>
+
+        <main className="space-y-3 px-2.5 pt-3">
         {loading ? (
-          <div className="space-y-6">
-            {/* Product Card Skeleton */}
-            <div className="animate-pulse rounded-3xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-lg">
-              <div className="flex gap-5">
-                <div className="h-32 w-32 rounded-2xl bg-gray-200 dark:bg-gray-700" />
-                <div className="flex-1 space-y-4">
-                  <div className="h-5 w-3/4 rounded-lg bg-gray-200 dark:bg-gray-700" />
-                  <div className="h-6 w-1/2 rounded-lg bg-gray-200 dark:bg-gray-700" />
-                  <div className="h-4 w-2/3 rounded-lg bg-gray-200 dark:bg-gray-700" />
-                  <div className="h-10 w-40 rounded-xl bg-gray-200 dark:bg-gray-700" />
-                </div>
+          <div className="space-y-3">
+            <div className="animate-pulse overflow-hidden rounded-[28px] bg-white shadow-[0_16px_36px_rgba(117,75,36,0.08)]">
+              <div className="aspect-[4/3] bg-orange-100/70" />
+              <div className="space-y-3 p-4">
+                <div className="h-4 w-3/4 rounded-full bg-stone-200" />
+                <div className="h-7 w-1/2 rounded-full bg-stone-200" />
+                <div className="h-10 rounded-full bg-stone-200" />
               </div>
             </div>
-            {/* Inspiration Skeleton */}
-            <div className="animate-pulse rounded-3xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-lg">
-              <div className="h-5 w-32 rounded-lg bg-gray-200 dark:bg-gray-700 mb-4" />
-              <div className="grid grid-cols-2 gap-4">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="aspect-[4/5] rounded-2xl bg-gray-200 dark:bg-gray-700" />
-                ))}
-              </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="animate-pulse overflow-hidden rounded-2xl bg-white p-1.5">
+                  <div className="aspect-square rounded-xl bg-stone-200" />
+                  <div className="mt-2 h-3 rounded-full bg-stone-200" />
+                  <div className="mt-1.5 h-3 w-2/3 rounded-full bg-stone-200" />
+                </div>
+              ))}
             </div>
           </div>
         ) : error ? (
-          <div className="rounded-3xl border-2 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-8 text-center shadow-lg">
-            <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Zap className="w-8 h-8 text-red-600 dark:text-red-400" />
+          <div className="rounded-[28px] border border-red-100 bg-white p-8 text-center shadow-[0_16px_36px_rgba(117,75,36,0.08)]">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50">
+              <Zap className="h-7 w-7 text-red-500" />
             </div>
-            <p className="text-red-700 dark:text-red-400 font-semibold text-base">{error}</p>
+            <p className="text-sm font-black text-red-600">{error}</p>
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-black text-white active:scale-95"
+            >
+              Retour
+            </button>
           </div>
         ) : product ? (
-          <div className="space-y-6">
-            {/* Product Card - Enhanced */}
-            <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-white via-neutral-50/40 to-neutral-50/40 dark:from-gray-800 dark:via-gray-800 dark:to-neutral-950/20 border-2 border-neutral-300/60 dark:border-neutral-800/50 shadow-2xl">
-              {/* Decorative gradient bar */}
-              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-neutral-500 via-neutral-500 to-neutral-500" />
-              
-              <div className="p-6 sm:p-8">
-                <div className="flex gap-5 sm:gap-6">
-                  {/* Product Image Enhanced */}
-                  <div className="relative flex-shrink-0">
-                    <div className="h-32 w-32 sm:h-40 sm:w-40 overflow-hidden rounded-3xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 shadow-2xl ring-4 ring-white dark:ring-gray-700">
-                      <img
-                        src={product.images?.[0] || 'https://via.placeholder.com/128x128'}
-                        alt={product.title}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    {product.discount > 0 && (
-                      <div className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 via-neutral-500 to-red-600 text-white text-xs font-black px-3 py-1.5 rounded-full shadow-2xl ring-2 ring-white">
-                        -{product.discount}%
-                      </div>
-                    )}
-                  </div>
+          <div className="space-y-3">
+            <section className="overflow-hidden rounded-[28px] bg-white shadow-[0_18px_40px_rgba(117,75,36,0.10)]">
+              <Link to={productLink} state={{ previewBackPath }} className="group block">
+                <div className="relative aspect-[4/3] overflow-hidden bg-stone-100">
+                  <img
+                    src={primaryImage}
+                    alt={product.title}
+                    className="h-full w-full object-cover transition duration-700 group-active:scale-[1.02]"
+                  />
+                  <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/35 to-transparent" />
+                  {hasProductDiscount ? (
+                    <span className="absolute left-3 top-3 rounded-full bg-[#ff3d13] px-2.5 py-1 text-xs font-black text-white shadow-lg">
+                      -{product.discount}%
+                    </span>
+                  ) : null}
+                  <span className="absolute bottom-3 right-3 rounded-full bg-black/55 px-2.5 py-1 text-xs font-black text-white backdrop-blur">
+                    Aperçu
+                  </span>
+                </div>
 
-                  {/* Product Info Enhanced */}
-                  <div className="flex-1 min-w-0 space-y-3 sm:space-y-4">
-                    <div>
-                      <h1 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white line-clamp-2 leading-tight mb-3">
-                        {product.title}
-                      </h1>
-                      <div className="flex items-baseline gap-3">
-                        <p className="text-2xl sm:text-3xl font-black text-neutral-600 dark:text-neutral-400">
+                <div className="space-y-3 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-[28px] font-black leading-none text-[#ff6a00]">
                           {formatCurrency(product.price)}
                         </p>
-                        {product.priceBeforeDiscount && product.priceBeforeDiscount > product.price && (
-                          <p className="text-base sm:text-lg text-gray-500 dark:text-gray-400 line-through font-bold">
+                        {hasProductDiscount ? (
+                          <p className="text-sm font-bold text-stone-400 line-through">
                             {formatCurrency(product.priceBeforeDiscount)}
                           </p>
-                        )}
+                        ) : null}
                       </div>
+                      <h1 className="mt-2 line-clamp-2 text-base font-black leading-6 text-slate-950">
+                        {product.title}
+                      </h1>
                     </div>
+                    <span className="inline-flex shrink-0 items-center rounded-full bg-orange-50 px-3 py-2 text-xs font-black text-[#9a4a00] ring-1 ring-orange-100">
+                      Voir
+                    </span>
+                  </div>
 
-                    {product?.user?.shopName && (
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 bg-gradient-to-br from-neutral-500 to-neutral-600 rounded-lg flex items-center justify-center">
-                          <Store className="w-3.5 h-3.5 text-white" />
-                        </div>
-                        <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 truncate">
-                          {product.user.shopName}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Rating & Stats */}
-                    {(product.ratingAverage || product.commentCount) && (
-                      <div className="flex items-center gap-3 text-xs">
-                        {product.ratingAverage > 0 && (
-                          <div className="flex items-center gap-1">
-                            <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
-                            <span className="font-bold text-gray-700 dark:text-gray-300">
-                              {Number(product.ratingAverage).toFixed(1)}
-                            </span>
-                            {product.ratingCount > 0 && (
-                              <span className="text-gray-500 dark:text-gray-400">
-                                ({formatCount(product.ratingCount)})
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        {product.commentCount > 0 && (
-                          <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-                            <MessageCircle className="h-3.5 w-3.5" />
-                            <span>{formatCount(product.commentCount)}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* CTA Button Enhanced */}
-                    <Link
-                      to={productLink}
-                      state={{ previewBackPath }}
-                      className="inline-flex items-center justify-center gap-2 w-full rounded-3xl bg-neutral-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-neutral-700 hover:shadow-md transition-all duration-200 active:scale-95"
-                    >
-                      <Eye className="w-5 h-5" />
-                      Voir le produit
-                      <ChevronRight className="w-5 h-5" />
-                    </Link>
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] font-black text-stone-600">
+                    {productRatingAverage > 0 ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-amber-700">
+                        <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+                        {productRatingAverage.toFixed(1)}
+                      </span>
+                    ) : null}
+                    {product?.commentCount > 0 ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-stone-50 px-2 py-1">
+                        <MessageCircle className="h-3.5 w-3.5" />
+                        {formatCount(product.commentCount)}
+                      </span>
+                    ) : null}
+                    {cityLabel ? (
+                      <span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-stone-50 px-2 py-1">
+                        <MapPin className="h-3.5 w-3.5 text-[#ff6a00]" />
+                        <span className="max-w-[160px] truncate">{cityLabel}</span>
+                      </span>
+                    ) : null}
                   </div>
                 </div>
+              </Link>
+
+              {shopName ? (
+                <div className="border-t border-stone-100 px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#fff2e6] text-[#ff6a00] ring-1 ring-orange-100">
+                      <Store className="h-5 w-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-black text-slate-950">{shopName}</p>
+                      <p className="flex items-center gap-1 text-[11px] font-bold text-stone-500">
+                        <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                        Boutique reliée au produit
+                      </p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-stone-400" />
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="grid grid-cols-[1fr_1.45fr] gap-2 border-t border-stone-100 p-3">
+                <button
+                  type="button"
+                  onClick={() => navigate(-1)}
+                  className="min-h-[48px] rounded-full bg-stone-100 text-sm font-black text-slate-800 active:scale-[0.98]"
+                >
+                  Retour
+                </button>
+                <Link
+                  to={productLink}
+                  state={{ previewBackPath }}
+                  className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ffb000] to-[#ff4d16] text-sm font-black text-white shadow-[0_12px_24px_rgba(255,106,0,0.22)] active:scale-[0.98]"
+                >
+                  Voir le produit
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
               </div>
             </section>
 
-            {/* Inspiration Section - Enhanced */}
-            <section className="rounded-3xl border-2 border-gray-200/60 dark:border-gray-700/50 bg-white dark:bg-gray-800 shadow-2xl overflow-hidden">
-              {/* Section Header Enhanced */}
-              <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 dark:from-amber-900/20 dark:to-orange-900/20 px-6 py-5 border-b-2 border-amber-200 dark:border-gray-700">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-amber-400 via-orange-500 to-amber-600 rounded-2xl flex items-center justify-center shadow-lg ring-2 ring-white">
-                    <Sparkles className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-black text-gray-900 dark:text-white">Inspiration</h2>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">Produits similaires pour vous</p>
-                  </div>
+            <section className="rounded-[28px] bg-white p-3 shadow-[0_16px_36px_rgba(117,75,36,0.08)]">
+              <div className="mb-3 flex items-center justify-between px-1">
+                <div>
+                  <h2 className="text-lg font-black text-slate-950">Produits à découvrir</h2>
+                  <p className="text-xs font-semibold text-stone-500">Sélection rapide en 3 colonnes</p>
                 </div>
+                <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2.5 py-1.5 text-[11px] font-black text-[#9a4a00] ring-1 ring-orange-100">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Taobao
+                </span>
               </div>
 
-              {/* Products Grid Enhanced */}
-              <div className="p-5 sm:p-6">
-                {relatedLoading ? (
-                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                    {[1, 2, 3, 4].map((item) => (
-                      <div
-                        key={`preview-related-skeleton-${item}`}
-                        className="animate-pulse overflow-hidden rounded-3xl border-2 border-gray-200 bg-white p-3 shadow-lg"
-                      >
-                        <div className="aspect-[4/5] w-full rounded-2xl bg-gray-200" />
-                        <div className="mt-3 h-4 w-4/5 rounded bg-gray-200" />
-                        <div className="mt-2 h-4 w-2/5 rounded bg-gray-200" />
-                      </div>
-                    ))}
-                  </div>
-                ) : filteredRelatedPicks.length ? (
-                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                    {filteredRelatedPicks.map((pick, index) => {
-                      const ratingAverage = Number(pick.product?.ratingAverage || 0).toFixed(1);
-                      const ratingCount = formatCount(pick.product?.ratingCount || 0);
-                      const commentCount = formatCount(pick.product?.commentCount || 0);
-                      const hasDiscount = pick.product?.discount > 0 && pick.product?.priceBeforeDiscount > pick.product?.price;
-                      
-                      return (
-                        <Link
-                          key={`${pick.product?._id || 'product'}-${pick.image}-${index}`}
-                          to={buildPreviewLink(pick.product)}
-                          state={{ previewBackPath }}
-                          className="group relative overflow-hidden rounded-3xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-[1.03] active:scale-95"
-                        >
-                          {/* Image Container Enhanced */}
-                          <div className="relative aspect-[4/5] w-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 overflow-hidden">
-                            <img
-                              src={pick.image}
-                              alt={pick.product?.title || 'Produit'}
-                              className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-                            />
-                            {/* Discount Badge Enhanced */}
-                            {hasDiscount && (
-                              <div className="absolute top-3 left-3 bg-gradient-to-r from-red-500 via-neutral-500 to-red-600 text-white text-[11px] font-black px-2.5 py-1.5 rounded-full shadow-2xl ring-2 ring-white">
-                                -{pick.product.discount}%
-                              </div>
-                            )}
-                            {/* Hover Overlay Enhanced */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                          </div>
-
-                          {/* Product Info Enhanced */}
-                          <div className="p-3 sm:p-4 space-y-2.5">
-                            <p className="text-xs sm:text-sm font-black text-gray-900 dark:text-white line-clamp-2 leading-tight min-h-[2.5rem] group-hover:text-neutral-600 dark:group-hover:text-neutral-400 transition-colors">
-                              {pick.product?.title}
-                            </p>
-                            <div className="flex items-baseline gap-2">
-                              <p className="text-base sm:text-lg font-black text-neutral-600 dark:text-neutral-400">
-                                {formatCurrency(pick.product?.price)}
-                              </p>
-                              {hasDiscount && (
-                                <p className="text-[11px] text-gray-500 dark:text-gray-400 line-through font-bold">
-                                  {formatCurrency(pick.product.priceBeforeDiscount)}
-                                </p>
-                              )}
-                            </div>
-                            {/* Stats Enhanced */}
-                            <div className="flex items-center gap-2.5 text-[10px] sm:text-[11px]">
-                              {ratingAverage > 0 && (
-                                <span className="inline-flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg">
-                                  <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
-                                  <span className="font-black text-gray-700 dark:text-gray-300">{ratingAverage}</span>
-                                  {ratingCount > 0 && <span className="text-gray-500">({ratingCount})</span>}
-                                </span>
-                              )}
-                              {commentCount > 0 && (
-                                <span className="inline-flex items-center gap-1 bg-neutral-50 px-2 py-1 rounded-lg">
-                                  <MessageCircle className="h-3.5 w-3.5 text-neutral-600" />
-                                  <span className="font-semibold text-gray-700">{commentCount}</span>
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 p-12 text-center">
-                    <div className="w-16 h-16 bg-gray-200 dark:bg-gray-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                      <Sparkles className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+              {relatedLoading ? (
+                <div className="grid grid-cols-3 gap-2">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((item) => (
+                    <div
+                      key={`preview-related-skeleton-${item}`}
+                      className="animate-pulse overflow-hidden rounded-2xl bg-stone-50 p-1.5"
+                    >
+                      <div className="aspect-square w-full rounded-xl bg-stone-200" />
+                      <div className="mt-2 h-3 w-4/5 rounded bg-stone-200" />
+                      <div className="mt-1.5 h-3 w-2/5 rounded bg-stone-200" />
                     </div>
-                    <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">
-                      Aucune inspiration pour le moment
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500">
-                      D'autres produits similaires apparaîtront ici
-                    </p>
+                  ))}
+                </div>
+              ) : filteredRelatedPicks.length ? (
+                <div className="grid grid-cols-3 gap-2">
+                  {filteredRelatedPicks.map((pick, index) => {
+                    const pickRatingAverage = Number(pick.product?.ratingAverage || 0);
+                    const pickHasDiscount = pick.product?.discount > 0 && pick.product?.priceBeforeDiscount > pick.product?.price;
+                    const soldCount = pick.product?.salesCount || pick.product?.soldCount || pick.product?.ordersCount || 0;
+
+                    return (
+                      <Link
+                        key={`${pick.product?._id || 'product'}-${pick.image}-${index}`}
+                        to={buildPreviewLink(pick.product)}
+                        state={{ previewBackPath }}
+                        className="group overflow-hidden rounded-2xl bg-white p-1.5 shadow-[0_8px_18px_rgba(117,75,36,0.07)] ring-1 ring-stone-100 transition active:scale-[0.97]"
+                      >
+                        <div className="relative aspect-square overflow-hidden rounded-xl bg-stone-100">
+                          <img
+                            src={pick.image}
+                            alt={pick.product?.title || 'Produit'}
+                            className="h-full w-full object-cover transition duration-500 group-active:scale-105"
+                            loading="lazy"
+                          />
+                          {pickHasDiscount ? (
+                            <span className="absolute left-1.5 top-1.5 rounded-full bg-[#ff3d13] px-1.5 py-0.5 text-[9px] font-black leading-none text-white">
+                              -{pick.product.discount}%
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="pt-2">
+                          <p className="line-clamp-2 min-h-[32px] text-[11px] font-black leading-4 text-slate-950">
+                            {pick.product?.title}
+                          </p>
+                          <p className="mt-1 truncate text-sm font-black leading-none text-[#ff6a00]">
+                            {formatCurrency(pick.product?.price)}
+                          </p>
+                          <div className="mt-1 flex min-h-[16px] items-center gap-1 text-[9px] font-bold text-stone-500">
+                            {pickRatingAverage > 0 ? (
+                              <span className="inline-flex items-center gap-0.5">
+                                <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" />
+                                {pickRatingAverage.toFixed(1)}
+                              </span>
+                            ) : null}
+                            {soldCount > 0 ? <span>{formatCount(soldCount)} vendus</span> : null}
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-3xl border border-dashed border-orange-100 bg-orange-50/40 p-8 text-center">
+                  <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#ff6a00] shadow-sm">
+                    <Sparkles className="h-7 w-7" />
                   </div>
-                )}
-              </div>
+                  <p className="text-sm font-black text-slate-800">Aucune inspiration pour le moment</p>
+                  <p className="mt-1 text-xs font-semibold text-stone-500">
+                    D'autres produits similaires apparaîtront ici.
+                  </p>
+                </div>
+              )}
             </section>
           </div>
         ) : null}
+        </main>
       </div>
     </div>
   );

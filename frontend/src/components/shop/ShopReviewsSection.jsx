@@ -31,13 +31,14 @@ export default function ShopReviewsSection({
   const ownCommentExists = Boolean(currentUserReview?.comment?.trim());
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950" id="reviews">
-      <div className="flex items-start justify-between gap-2">
+    <section className="overflow-hidden rounded-[28px] bg-white p-3 shadow-[0_18px_60px_-42px_rgba(15,23,42,0.7)] ring-1 ring-orange-100/80 dark:bg-neutral-950 dark:ring-neutral-800" id="reviews">
+      <div className="flex items-start justify-between gap-2 px-1">
         <div>
-          <h2 className="text-lg font-bold text-neutral-950 dark:text-white sm:text-xl">
+          <p className="text-[11px] font-black uppercase tracking-wide text-[#FF6A00]">Communauté</p>
+          <h2 className="text-xl font-black text-slate-950 dark:text-white sm:text-2xl">
             {t('shop_profile.reviews', 'Avis clients')}
           </h2>
-          <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+          <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
             {formatCount(ratingCount)} {t('shop_profile.reviews_count', 'avis')} ·{' '}
             {formatRatingLabel(ratingAverage)}/5
           </p>
@@ -45,7 +46,7 @@ export default function ShopReviewsSection({
         <button
           type="button"
           onClick={() => setShowCommentsModal(true)}
-          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-600 transition hover:border-neutral-400 hover:text-neutral-950 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:text-white"
+          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-[#fff7ef] px-3 text-xs font-black text-[#FF6A00] ring-1 ring-orange-100 transition hover:bg-orange-50 dark:bg-neutral-900 dark:ring-neutral-800"
         >
           <span>{t('shop_profile.view_all', 'Voir tout')}</span>
           <ExternalLink size={13} />
@@ -54,7 +55,7 @@ export default function ShopReviewsSection({
 
       {/* Rating summary card */}
       {ratingCount > 0 && (
-        <div className="mt-4 overflow-hidden rounded-xl bg-neutral-950 dark:bg-neutral-900 p-4">
+        <div className="mt-4 overflow-hidden rounded-[24px] bg-slate-950 p-4 dark:bg-neutral-900">
           <div className="flex items-center gap-5">
             <span className="text-[44px] font-extrabold leading-none text-white">
               {formatRatingLabel(ratingAverage)}
@@ -108,9 +109,9 @@ export default function ShopReviewsSection({
       {showReviewForm && (
         <form
           onSubmit={onSubmitReview}
-          className="mt-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 p-4"
+          className="mt-4 rounded-[24px] bg-[#fffaf6] p-4 ring-1 ring-orange-100/80 dark:bg-neutral-900 dark:ring-neutral-800"
         >
-          <p className="text-sm font-medium text-neutral-950 dark:text-white">
+          <p className="text-sm font-black text-slate-950 dark:text-white">
             {t('shop_profile.your_rating', 'Votre note')}
           </p>
           <div className="mt-2 flex gap-2">
@@ -136,7 +137,7 @@ export default function ShopReviewsSection({
             value={reviewForm.comment}
             onChange={(e) => setReviewForm((prev) => ({ ...prev, comment: e.target.value }))}
             rows={4}
-            className="mt-3 w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-950 placeholder-neutral-400 focus:border-neutral-950 focus:outline-none dark:border-neutral-800 dark:bg-neutral-950 dark:text-white dark:focus:border-white"
+            className="mt-3 w-full rounded-[18px] border border-orange-100 bg-white px-3 py-2.5 text-sm text-slate-950 placeholder-slate-400 focus:border-[#FF6A00] focus:outline-none dark:border-neutral-800 dark:bg-neutral-950 dark:text-white"
             placeholder={t('shop_profile.comment_placeholder', 'Partagez votre expérience...')}
           />
           {reviewError && (
@@ -145,7 +146,7 @@ export default function ShopReviewsSection({
           <button
             type="submit"
             disabled={reviewPending || !user}
-            className="mt-3 inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-neutral-950 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-neutral-950"
+            className="mt-3 inline-flex min-h-[48px] w-full items-center justify-center rounded-full bg-[#FF6A00] text-sm font-black text-white transition hover:bg-[#f45f00] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {reviewPending
               ? t('shop_profile.sending', 'Envoi...')
@@ -157,7 +158,7 @@ export default function ShopReviewsSection({
       )}
 
       {!showReviewForm && ownCommentExists && (
-        <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10 px-3 py-2">
+        <div className="mt-3 flex items-center justify-between gap-2 rounded-[20px] bg-emerald-50 px-3 py-2 ring-1 ring-emerald-100 dark:bg-emerald-500/10 dark:ring-emerald-500/30">
           <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
             {t('shop_profile.review_published', 'Votre avis est publié')}
           </p>
@@ -185,7 +186,7 @@ export default function ShopReviewsSection({
             return (
               <article
                 key={review._id}
-                className="rounded-xl border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-950"
+                className="rounded-[22px] bg-white p-3 ring-1 ring-stone-200 dark:bg-neutral-950 dark:ring-neutral-800"
               >
                 <div className="flex items-start gap-3">
                   {avatarSrc ? (
@@ -201,7 +202,7 @@ export default function ShopReviewsSection({
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <p className="text-sm font-medium text-neutral-950 dark:text-white">{name}</p>
+                      <p className="text-sm font-black text-slate-950 dark:text-white">{name}</p>
                       <div className="flex items-center gap-0.5">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <Star
@@ -219,7 +220,7 @@ export default function ShopReviewsSection({
                         {formatDate(review.createdAt)}
                       </span>
                     </div>
-                    <p className="mt-1.5 text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">
+                    <p className="mt-1.5 text-sm leading-relaxed text-slate-600 dark:text-neutral-400">
                       {review.comment || t('shop_profile.no_comment', 'Pas de commentaire')}
                     </p>
                   </div>
@@ -243,7 +244,7 @@ export default function ShopReviewsSection({
             );
           })
         ) : (
-          <div className="rounded-xl border border-dashed border-neutral-200 px-4 py-8 text-center text-sm text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
+        <div className="rounded-[22px] border border-dashed border-orange-200 bg-orange-50/40 px-4 py-8 text-center text-sm font-semibold text-slate-500 dark:border-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-400">
             {t('shop_profile.no_reviews', 'Aucun avis publié pour le moment')}
           </div>
         )}
@@ -341,6 +342,6 @@ export default function ShopReviewsSection({
             )}
         </GlassModalBody>
       </GlassBottomSheetModal>
-    </div>
+    </section>
   );
 }

@@ -3,7 +3,7 @@ import { RefreshCcw } from 'lucide-react';
 
 export default function NetworkFallbackCard({
   title = 'Unable to load data.',
-  message = 'Network is slow, please retry.',
+  message = 'Loading is taking longer than expected. Please try again shortly.',
   onRetry,
   retryLabel = 'Retry',
   refreshLabel = 'Refresh page'

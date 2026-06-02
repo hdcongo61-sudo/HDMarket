@@ -18,7 +18,7 @@ import {
 import AuthContext from '../context/AuthContext';
 import useUserNotifications, { triggerNotificationsRefresh } from '../hooks/useUserNotifications';
 import usePullToRefresh from '../hooks/usePullToRefresh';
-import api from '../services/api';
+import api, { clearCache } from '../services/api';
 import { buildProductPath, buildShopPath } from '../utils/links';
 import { resolveNotificationLink } from '../utils/notificationLinks';
 import NotificationItem from '../components/notifications/NotificationItem';
@@ -44,6 +44,12 @@ const ORDER_TYPES = new Set([
   'order_message',
   'order_address_updated',
   'order_delivery_fee_updated'
+]);
+const REMINDER_TYPES = new Set([
+  'order_reminder',
+  'installment_due_reminder',
+  'installment_overdue_warning',
+  'review_reminder'
 ]);
 const COMPLAINT_TYPES = new Set(['complaint_created', 'complaint_resolved']);
 
@@ -284,6 +290,7 @@ const getPriorityScore = (alert) => {
 const applyFilter = (alert, filterKey) => {
   if (filterKey === 'all') return true;
   if (filterKey === 'unread') return Boolean(alert?.isNew);
+  if (filterKey === 'reminders') return REMINDER_TYPES.has(alert?.type) || String(alert?.metadata?.reminderType || '').trim();
   return resolveCategory(alert) === filterKey;
 };
 
@@ -310,12 +317,15 @@ export default function NotificationPage() {
   const [visibleCount, setVisibleCount] = useState(20);
   const [expandedIds, setExpandedIds] = useState(() => new Set());
   const [markingAll, setMarkingAll] = useState(false);
+  const [deletingIds, setDeletingIds] = useState(() => new Set());
+  const [markingIds, setMarkingIds] = useState(() => new Set());
   const [actionError, setActionError] = useState('');
   const sentinelRef = useRef(null);
   const filters = useMemo(
     () => [
       { key: 'all', label: t('notifications.filters.all', 'Tout') },
       { key: 'unread', label: t('notifications.filters.unread', 'Non lues') },
+      { key: 'reminders', label: t('notifications.filters.reminders', 'Rappels') },
       { key: 'orders', label: t('notifications.filters.orders', 'Commandes') },
       { key: 'boost', label: t('notifications.filters.boost', 'Boost') },
       { key: 'dispute', label: t('notifications.filters.dispute', 'Litiges') },
@@ -415,6 +425,7 @@ export default function NotificationPage() {
     const countsMap = {
       all: alerts.length,
       unread: alerts.filter((alert) => alert?.isNew).length,
+      reminders: alerts.filter((alert) => applyFilter(alert, 'reminders')).length,
       orders: alerts.filter((alert) => resolveCategory(alert) === 'orders').length,
       boost: alerts.filter((alert) => resolveCategory(alert) === 'boost').length,
       dispute: alerts.filter((alert) => resolveCategory(alert) === 'dispute').length,
@@ -427,9 +438,13 @@ export default function NotificationPage() {
 
   const handleMarkRead = async (notificationIds) => {
     if (!Array.isArray(notificationIds) || !notificationIds.length) return;
+    const normalizedIds = notificationIds.map((id) => String(id)).filter(Boolean);
+    if (!normalizedIds.length) return;
+    setMarkingIds((prev) => new Set([...prev, ...normalizedIds]));
     try {
-      await fetchMarkRead(notificationIds);
-      const idSet = new Set(notificationIds.map((id) => String(id)));
+      await fetchMarkRead(normalizedIds);
+      await clearCache('/users/notifications');
+      const idSet = new Set(normalizedIds);
       updateCounts((prev) => {
         const previousAlerts = Array.isArray(prev?.alerts) ? prev.alerts : [];
         const markedUnread = previousAlerts.filter((alert) => idSet.has(String(alert?._id)) && alert.isNew).length;
@@ -445,13 +460,19 @@ export default function NotificationPage() {
           commentAlerts: Math.max(0, Number(prev?.commentAlerts || 0) - markedUnread)
         };
       });
-      triggerNotificationsRefresh({ type: 'markRead', notificationIds, refetch: false });
+      triggerNotificationsRefresh({ type: 'markRead', notificationIds: normalizedIds, refetch: false });
     } catch (requestError) {
       setActionError(
         requestError?.response?.data?.message ||
           requestError?.message ||
           t('notifications.errors.markRead', 'Impossible de marquer la notification comme lue.')
       );
+    } finally {
+      setMarkingIds((prev) => {
+        const next = new Set(prev);
+        normalizedIds.forEach((id) => next.delete(id));
+        return next;
+      });
     }
   };
 
@@ -464,34 +485,50 @@ export default function NotificationPage() {
 
   const handleDelete = async (notificationId) => {
     if (!notificationId) return;
+    const notificationIdStr = String(notificationId);
+    if (deletingIds.has(notificationIdStr)) return;
+    setActionError('');
+    setDeletingIds((prev) => new Set([...prev, notificationIdStr]));
+    let previousState = null;
+    updateCounts((prev) => {
+      previousState = prev;
+      const previousAlerts = Array.isArray(prev?.alerts) ? prev.alerts : [];
+      const deleted = previousAlerts.find((alert) => String(alert?._id) === notificationIdStr);
+      const wasUnread = Boolean(deleted?.isNew);
+      return {
+        ...prev,
+        alerts: previousAlerts.filter((alert) => String(alert?._id) !== notificationIdStr),
+        unreadCount: wasUnread ? Math.max(0, Number(prev?.unreadCount || 0) - 1) : Number(prev?.unreadCount || 0),
+        commentAlerts: wasUnread
+          ? Math.max(0, Number(prev?.commentAlerts || 0) - 1)
+          : Number(prev?.commentAlerts || 0)
+      };
+    });
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(notificationIdStr);
+      return next;
+    });
     try {
-      await api.delete(`/users/notifications/${notificationId}`);
-      updateCounts((prev) => {
-        const previousAlerts = Array.isArray(prev?.alerts) ? prev.alerts : [];
-        const notificationIdStr = String(notificationId);
-        const deleted = previousAlerts.find((alert) => String(alert?._id) === notificationIdStr);
-        const wasUnread = Boolean(deleted?.isNew);
-        return {
-          ...prev,
-          alerts: previousAlerts.filter((alert) => String(alert?._id) !== notificationIdStr),
-          unreadCount: wasUnread ? Math.max(0, Number(prev?.unreadCount || 0) - 1) : Number(prev?.unreadCount || 0),
-          commentAlerts: wasUnread
-            ? Math.max(0, Number(prev?.commentAlerts || 0) - 1)
-            : Number(prev?.commentAlerts || 0)
-        };
+      await api.delete(`/users/notifications/${notificationIdStr}`, {
+        skipCache: true,
+        headers: { 'x-skip-cache': '1' }
       });
-      setExpandedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(notificationId);
-        return next;
-      });
-      triggerNotificationsRefresh({ type: 'delete', notificationId, refetch: false });
+      await clearCache('/users/notifications');
+      triggerNotificationsRefresh({ type: 'delete', notificationId: notificationIdStr, refetch: false });
     } catch (requestError) {
+      if (previousState) updateCounts(previousState);
       setActionError(
         requestError?.response?.data?.message ||
           requestError?.message ||
           t('notifications.errors.delete', 'Impossible de supprimer la notification.')
       );
+    } finally {
+      setDeletingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(notificationIdStr);
+        return next;
+      });
     }
   };
 
@@ -501,6 +538,7 @@ export default function NotificationPage() {
     setActionError('');
     try {
       await fetchMarkRead([]);
+      await clearCache('/users/notifications');
       updateCounts((prev) => ({
         ...prev,
         alerts: (prev?.alerts || []).map((alert) => ({ ...alert, isNew: false })),
@@ -658,7 +696,7 @@ export default function NotificationPage() {
               <div className="rounded-2xl border border-orange-100 bg-white p-1 shadow-sm">
                 <NetworkFallbackCard
                   title={t('notifications.errors.loadTitle', 'Unable to load data.')}
-                  message={t('notifications.errors.load', 'Network is slow, please retry.')}
+                  message={t('notifications.errors.load', 'Loading is taking longer than expected. Please try again shortly.')}
                   onRetry={refresh}
                   retryLabel={t('common.retry', 'Retry')}
                   refreshLabel={t('common.refreshPage', 'Refresh page')}
@@ -713,6 +751,8 @@ export default function NotificationPage() {
                               }}
                               onMarkRead={() => handleMarkRead([alert._id])}
                               onDelete={() => handleDelete(alert._id)}
+                              markReadPending={markingIds.has(String(alert._id))}
+                              deletePending={deletingIds.has(String(alert._id))}
                               onNavigateAction={(to) => {
                                 api.post(`/users/notifications/${alert._id}/click`).catch(() => {});
                                 if (/^https?:\/\//i.test(String(to || ''))) {

@@ -1,5 +1,7 @@
 import Notification from '../models/notificationModel.js';
 import Order from '../models/orderModel.js';
+import Product from '../models/productModel.js';
+import User from '../models/userModel.js';
 import { enqueueNotificationJob } from '../queues/notificationQueue.js';
 import { dispatchNotificationPayload } from './notificationDispatcher.js';
 import { initRedis, getRedisClient, isRedisReady } from '../config/redisClient.js';
@@ -67,6 +69,21 @@ const GROUPABLE_TYPES = new Set([
   'admin_broadcast',
   'order_reminder'
 ]);
+
+const loadSnapshotRefs = async ({ actorId, productId, shopId }) => {
+  const [actor, product, shop] = await Promise.all([
+    actorId
+      ? User.findById(actorId).select('name shopName profileImage shopLogo').lean().catch(() => null)
+      : null,
+    productId
+      ? Product.findById(productId).select('title slug').lean().catch(() => null)
+      : null,
+    shopId
+      ? User.findById(shopId).select('name shopName slug profileImage shopLogo').lean().catch(() => null)
+      : null
+  ]);
+  return { actor, product, shop };
+};
 
 const PRIORITY_RANK = Object.freeze({
   LOW: 1,
@@ -426,7 +443,11 @@ export const createNotification = async ({
       validationType
     });
     const resolvedChannels = sanitizeChannels(channels);
+    const snapshotRefs = await loadSnapshotRefs({ actorId, productId, shopId });
     const resolvedSnapshot = buildNotificationSnapshot({
+      actor: snapshotRefs.actor,
+      product: snapshotRefs.product,
+      shop: snapshotRefs.shop,
       metadata: enrichedMetadata,
       snapshot
     });

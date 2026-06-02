@@ -1004,7 +1004,7 @@ const SellerMobileOrderCard = ({
           )}
           {statusUpdatingId === order._id && statusUpdateUiPhase === 'slow' && statusUpdateError.id !== order._id && (
             <p className="mt-2 text-center text-xs text-amber-700">
-              Réseau lent. Vérification automatique en cours. Vérifiez le statut avant de renvoyer.
+              Action en cours de confirmation. Le statut sera synchronisé automatiquement.
             </p>
           )}
         </div>
@@ -1493,7 +1493,7 @@ export default function SellerOrders() {
     },
     onError: async (err, variables, context) => {
       if (context?.possiblyCommitted) {
-        const message = 'Réseau lent ou interrompu. Vérification automatique en cours avant tout renvoi.';
+        const message = 'Action en cours de confirmation. Le statut sera synchronisé automatiquement.';
         setStatusUpdateError({ id: variables?.orderId || '', message, tone: 'warning' });
         showToast(message, { variant: 'info' });
         return;
@@ -1559,7 +1559,7 @@ export default function SellerOrders() {
     },
     onError: async (err, _variables, context) => {
       if (context?.possiblyCommitted) {
-        showToast('Réseau lent ou interrompu. Vérification automatique en cours avant tout renvoi.', {
+        showToast('Action en cours de confirmation. Le statut sera synchronisé automatiquement.', {
           variant: 'info'
         });
         closeCancelModal();

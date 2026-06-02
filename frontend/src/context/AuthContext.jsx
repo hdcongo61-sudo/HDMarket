@@ -9,7 +9,15 @@ import { queryClient } from '../lib/queryClient';
 import { normalizePermissions } from '../utils/permissions';
 import { appAlert } from '../utils/appDialog';
 
-const AuthContext = createContext();
+export const defaultAuthContextValue = {
+  user: null,
+  loading: false,
+  login: async () => {},
+  logout: async () => {},
+  updateUser: async () => {}
+};
+
+const AuthContext = createContext(defaultAuthContextValue);
 
 const isTruthyFlag = (value) => {
   if (value === true || value === 1) return true;

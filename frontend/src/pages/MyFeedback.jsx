@@ -112,15 +112,15 @@ export default function MyFeedback() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-neutral-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <User className="w-8 h-8 text-white" />
+      <div className="hd-products-flow flex min-h-screen items-center justify-center bg-[#f6f2ec] px-4">
+        <div className="rounded-[28px] border border-orange-100 bg-white p-6 text-center shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] bg-orange-50 text-[#FF6A00]">
+            <User className="h-8 w-8" />
           </div>
-          <p className="text-gray-500">Vous devez être connecté pour accéder à cette page.</p>
+          <p className="text-sm font-semibold text-stone-600">Vous devez être connecté pour accéder à cette page.</p>
           <Link
             to="/login"
-            className="mt-4 inline-flex items-center gap-2 text-neutral-600 font-medium"
+            className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-full bg-[#FF6A00] px-5 text-sm font-black text-white"
           >
             <ArrowLeft size={16} />
             Retour à la connexion
@@ -131,44 +131,47 @@ export default function MyFeedback() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 text-neutral-950 dark:bg-neutral-950 dark:text-white">
-      <div className="mx-auto max-w-4xl space-y-4 px-3 py-4 sm:px-4 sm:py-6">
+    <div className="hd-products-flow min-h-screen bg-[#f6f2ec] text-stone-950">
+      <div className="mx-auto max-w-5xl space-y-4 px-3 py-4 pb-24 sm:px-5 sm:py-6">
         <Link
           to="/profile"
-          className="inline-flex min-h-[40px] items-center gap-2 rounded-2xl border border-neutral-200 bg-white px-3 text-sm font-semibold text-neutral-600 transition hover:bg-neutral-50 hover:text-neutral-950 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-900 dark:hover:text-white"
+          className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-orange-100 bg-white px-4 text-sm font-black text-[#9A4A00] shadow-sm transition active:scale-95"
         >
           <ArrowLeft size={18} />
           Retour au profil
         </Link>
 
-        <section className="overflow-hidden rounded-[24px] border border-neutral-200 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.08)] dark:border-neutral-800 dark:bg-neutral-950">
-          <div className="border-b border-neutral-200 p-5 dark:border-neutral-800 sm:p-6">
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-neutral-500 dark:text-neutral-400">Voix utilisateur</p>
-            <h1 className="mt-2 text-2xl font-bold text-neutral-950 dark:text-white">Avis sur l’amélioration</h1>
-            <p className="mt-2 text-sm leading-6 text-neutral-500 dark:text-neutral-400">
+        <section className="overflow-hidden rounded-[28px] border border-orange-100 bg-white shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
+          <div className="hd-products-hero p-5 text-white sm:p-6">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/16 px-3 py-1.5 ring-1 ring-white/20">
+              <MessageCircle className="h-4 w-4" />
+              <span className="text-xs font-black uppercase tracking-wide">Voix utilisateur</span>
+            </div>
+            <h1 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">Avis sur l’amélioration</h1>
+            <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-white/86">
                 Partagez vos idées pour améliorer HDMarket. Limité à 5 avis par utilisateur.
-              </p>
+            </p>
             <div className="mt-4 grid grid-cols-2 gap-2 sm:max-w-sm">
-              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
-                <p className="text-[11px] font-bold text-neutral-500 dark:text-neutral-400">Envoyés</p>
-                <p className="mt-1 text-lg font-bold text-neutral-950 dark:text-white">{stats.total}/5</p>
+              <div className="rounded-2xl bg-white/14 p-3 ring-1 ring-white/18">
+                <p className="text-[11px] font-black uppercase tracking-wide text-white/70">Envoyés</p>
+                <p className="mt-1 text-xl font-black text-white">{stats.total}/5</p>
               </div>
-              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
-                <p className="text-[11px] font-bold text-neutral-500 dark:text-neutral-400">Restants</p>
-                <p className="mt-1 text-lg font-bold text-neutral-950 dark:text-white">{stats.remaining}</p>
+              <div className="rounded-2xl bg-white/14 p-3 ring-1 ring-white/18">
+                <p className="text-[11px] font-black uppercase tracking-wide text-white/70">Restants</p>
+                <p className="mt-1 text-xl font-black text-white">{stats.remaining}</p>
               </div>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4 p-5 sm:p-6">
             <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-bold text-neutral-700 dark:text-neutral-200">
-                <FileText className="w-4 h-4 text-neutral-500" />
+              <label className="flex items-center gap-2 text-sm font-black text-stone-800">
+                <FileText className="h-4 w-4 text-[#FF6A00]" />
                 Sujet *
               </label>
               <input
                 type="text"
-                className="min-h-[48px] w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 text-sm outline-none transition focus:border-neutral-400 focus:bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:text-white"
+                className="min-h-[52px] w-full rounded-[18px] border border-orange-100 bg-orange-50/35 px-4 text-sm font-semibold outline-none transition focus:border-[#FF6A00] focus:bg-white focus:ring-4 focus:ring-orange-100"
                 placeholder="Ex : Nouvelle fonctionnalité"
                 value={subject}
                 onChange={(e) => { setSubject(e.target.value); setSubmitError(''); setSubmitSuccess(''); }}
@@ -178,12 +181,12 @@ export default function MyFeedback() {
               />
             </div>
             <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-bold text-neutral-700 dark:text-neutral-200">
-                <MessageCircle className="w-4 h-4 text-neutral-500" />
+              <label className="flex items-center gap-2 text-sm font-black text-stone-800">
+                <MessageCircle className="h-4 w-4 text-[#FF6A00]" />
                 Votre avis *
               </label>
               <textarea
-                className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition placeholder:text-neutral-400 focus:border-neutral-400 focus:bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:text-white"
+                className="w-full rounded-[18px] border border-orange-100 bg-orange-50/35 px-4 py-3 text-sm font-semibold outline-none transition placeholder:text-stone-400 focus:border-[#FF6A00] focus:bg-white focus:ring-4 focus:ring-orange-100"
                 rows={4}
                 value={body}
                 onChange={(e) => { setBody(e.target.value); setSubmitError(''); setSubmitSuccess(''); }}
@@ -193,7 +196,7 @@ export default function MyFeedback() {
                 required
               />
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-neutral-500 dark:text-neutral-400">
+            <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-bold text-stone-500">
               <span>
                 {stats.remaining > 0
                   ? `Il vous reste ${stats.remaining} avis sur 5.`
@@ -203,8 +206,8 @@ export default function MyFeedback() {
             </div>
             {(submitError || submitSuccess) && (
               <div
-                className={`flex items-center gap-2 text-sm ${
-                  submitError ? 'text-red-600 dark:text-red-300' : 'text-emerald-600 dark:text-emerald-300'
+                className={`rounded-2xl px-4 py-3 text-sm font-bold ${
+                  submitError ? 'bg-red-50 text-red-700 ring-1 ring-red-100' : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100'
                 }`}
               >
                 {submitError ? (
@@ -221,7 +224,7 @@ export default function MyFeedback() {
               <button
                 type="submit"
                 disabled={submitLoading || stats.remaining <= 0}
-                className="inline-flex min-h-[48px] items-center gap-2 rounded-2xl bg-neutral-950 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-black disabled:opacity-60 dark:bg-white dark:text-neutral-950 dark:hover:bg-neutral-200"
+                className="hd-primary-button inline-flex min-h-[50px] items-center gap-2 rounded-full px-6 text-sm font-black disabled:opacity-60"
               >
                 {submitLoading ? (
                   <span className="flex items-center gap-2">
@@ -239,24 +242,29 @@ export default function MyFeedback() {
           </form>
         </section>
 
-        <section className="rounded-[24px] border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 sm:p-6">
-          <h2 className="mb-4 text-lg font-bold text-neutral-950 dark:text-white">Vos avis envoyés</h2>
+        <section className="rounded-[28px] border border-orange-100 bg-white p-5 shadow-[0_14px_34px_rgba(117,75,36,0.08)] sm:p-6">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wide text-[#FF6A00]">Historique</p>
+              <h2 className="mt-1 text-xl font-black text-stone-950">Vos avis envoyés</h2>
+            </div>
+          </div>
           {listLoading ? (
             <div className="space-y-2">
               {[1, 2].map((i) => (
                 <div
                   key={i}
-                  className="animate-pulse rounded-2xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900"
+                  className="animate-pulse rounded-[22px] border border-orange-100 bg-orange-50/35 p-4"
                 >
-                  <div className="h-4 w-1/2 rounded bg-gray-200" />
-                  <div className="mt-2 h-3 w-3/4 rounded bg-gray-200" />
+                  <div className="h-4 w-1/2 rounded-full bg-orange-100" />
+                  <div className="mt-2 h-3 w-3/4 rounded-full bg-stone-100" />
                 </div>
               ))}
             </div>
           ) : listError ? (
-            <p className="text-sm text-red-600 dark:text-red-300">{listError}</p>
+            <p className="rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-700 ring-1 ring-red-100">{listError}</p>
           ) : items.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-neutral-300 p-4 text-sm text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">Aucun avis envoyé pour le moment.</p>
+            <p className="rounded-[22px] border border-dashed border-orange-200 bg-orange-50/35 p-5 text-sm font-semibold text-stone-500">Aucun avis envoyé pour le moment.</p>
           ) : (
             <div className="space-y-2">
               {items.map((item) => {
@@ -266,22 +274,22 @@ export default function MyFeedback() {
                     type="button"
                     key={item._id}
                     onClick={() => setModalItem(item)}
-                    className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-left shadow-sm transition hover:border-neutral-300 hover:bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-950"
+                    className="w-full rounded-[22px] border border-orange-100 bg-orange-50/30 px-4 py-3 text-left shadow-sm transition hover:bg-white"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="text-sm font-bold text-neutral-950 dark:text-white">{item.subject}</p>
-                        <p className="text-xs text-neutral-500 dark:text-neutral-400">{formatDate(item.createdAt)}</p>
+                        <p className="text-sm font-black text-stone-950">{item.subject}</p>
+                        <p className="text-xs font-semibold text-stone-500">{formatDate(item.createdAt)}</p>
                       </div>
                       <span
                         className={`rounded-full px-2 py-1 text-[11px] font-semibold shrink-0 ${
-                          isRead ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300'
+                          isRead ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100' : 'bg-amber-50 text-amber-700 ring-1 ring-amber-100'
                         }`}
                       >
                         {isRead ? 'Lu' : 'Non lu'}
                       </span>
                     </div>
-                    <p className="mt-2 line-clamp-2 text-xs text-neutral-600 dark:text-neutral-300">{item.body}</p>
+                    <p className="mt-2 line-clamp-2 text-xs font-semibold leading-5 text-stone-600">{item.body}</p>
                   </button>
                 );
               })}
@@ -296,6 +304,7 @@ export default function MyFeedback() {
         size="md"
         mobileSheet
         ariaLabel="Détail avis"
+        panelClassName="hd-products-flow"
       >
         {modalItem ? (
           <>
@@ -305,19 +314,19 @@ export default function MyFeedback() {
               onClose={() => setModalItem(null)}
             />
             <ModalBody className="space-y-3">
-              <div className="flex items-center justify-between text-xs text-gray-500">
+              <div className="flex items-center justify-between text-xs font-bold text-stone-500">
                 <span>{formatDate(modalItem.createdAt)}</span>
                 <span
                   className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
-                    modalItem.readAt ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                    modalItem.readAt ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100' : 'bg-amber-50 text-amber-700 ring-1 ring-amber-100'
                   }`}
                 >
                   {modalItem.readAt ? 'Lu' : 'Non lu'}
                 </span>
               </div>
-              <p className="whitespace-pre-line text-sm text-gray-700">{modalItem.body}</p>
+              <p className="whitespace-pre-line text-sm font-semibold leading-6 text-stone-700">{modalItem.body}</p>
               {modalItem.readAt ? (
-                <p className="text-xs text-gray-500">Lu le {formatDate(modalItem.readAt)}</p>
+                <p className="text-xs font-semibold text-stone-500">Lu le {formatDate(modalItem.readAt)}</p>
               ) : null}
             </ModalBody>
           </>

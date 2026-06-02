@@ -58,29 +58,26 @@ export default class GlobalErrorBoundary extends React.Component {
     }
 
     return (
-      <div className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
-        <div className="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+      <div className="min-h-screen bg-[#fff4e8] px-4 py-10 text-slate-950 dark:bg-neutral-950 dark:text-white">
+        <div className="mx-auto max-w-md rounded-[28px] bg-white p-6 shadow-[0_24px_70px_-50px_rgba(15,23,42,0.8)] ring-1 ring-orange-100 dark:bg-neutral-900 dark:ring-neutral-800">
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#FF6A00]">
             HDMarket
           </p>
-          <h1 className="mt-2 text-lg font-semibold">Une erreur est survenue</h1>
-          <p className="mt-2 text-sm text-slate-600">
-            L’interface a rencontré un problème. Veuillez réessayer.
+          <h1 className="mt-2 text-xl font-black">Actualisation nécessaire</h1>
+          <p className="mt-2 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">
+            Nous avons besoin de recharger cette page pour rétablir l’affichage.
           </p>
-          {this.state.errorMessage ? (
-            <p className="mt-2 text-xs text-slate-500 line-clamp-2">{this.state.errorMessage}</p>
-          ) : null}
           <div className="mt-5 flex gap-2">
             <button
               type="button"
               onClick={this.handleRetry}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-neutral-900 px-6 text-sm font-semibold text-white transition hover:bg-neutral-800"
+              className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#FF6A00] px-6 text-sm font-black text-white transition hover:bg-[#f45f00]"
             >
-              Réessayer
+              Actualiser
             </button>
             <a
               href="/"
-              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-neutral-200 px-6 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
+              className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#fff7ef] px-6 text-sm font-black text-slate-700 ring-1 ring-orange-100 transition hover:bg-orange-50 dark:bg-neutral-950 dark:text-slate-200 dark:ring-neutral-800"
             >
               Accueil
             </a>

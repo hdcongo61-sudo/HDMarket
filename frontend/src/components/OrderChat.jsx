@@ -1310,7 +1310,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="relative inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-neutral-600 to-neutral-600 text-white font-semibold hover:from-neutral-700 hover:to-neutral-700 transition-all shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
+        className="relative inline-flex min-h-11 items-center gap-2 rounded-full bg-[#FF6A00] px-4 text-sm font-black text-white shadow-[0_16px_30px_-20px_rgba(255,106,0,0.95)] transition-all hover:bg-[#f45f00] active:scale-[0.98]"
       >
         <MessageCircle className="w-4 h-4" />
         <span>{buttonText}</span>
@@ -1344,14 +1344,13 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
       isOpen={isOpen}
       onClose={closeChat}
       size="md"
-      panelClassName="w-full h-full sm:h-[85vh] sm:max-h-[700px] sm:max-w-lg overflow-hidden border border-gray-200/50 bg-white shadow-2xl animate-in slide-in-from-bottom-4 duration-300 dark:border-gray-700/50 dark:bg-gray-900"
+      panelClassName="w-full h-full sm:h-[88vh] sm:max-h-[740px] sm:max-w-lg overflow-hidden border-0 bg-[#fff4e8] shadow-2xl ring-1 ring-orange-100 animate-in slide-in-from-bottom-4 duration-300 dark:bg-neutral-950 dark:ring-neutral-800 sm:rounded-[30px]"
       rootClassName="z-[130] p-0 sm:p-4"
       ariaLabel="Conversation commande"
     >
       <div className="flex h-full w-full flex-col">
-        {/* Header — matches app (iOS safe area top) */}
         <header
-          className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+          className="flex-shrink-0 border-b border-orange-100/80 bg-[#fffaf4]/96 shadow-[0_10px_34px_-28px_rgba(255,106,0,0.85)] backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/96"
           style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))' }}
         >
           <div className="flex items-center justify-between gap-3 px-4 py-3">
@@ -1359,7 +1358,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
               <button
                 type="button"
                 onClick={closeChat}
-                className="flex-shrink-0 p-2 -ml-1 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200 transition-colors sm:hidden"
+                className="-ml-1 flex-shrink-0 rounded-full bg-white p-2 text-slate-700 shadow-sm ring-1 ring-orange-100 transition-colors hover:bg-orange-50 hover:text-[#FF6A00] dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800"
                 aria-label="Retour"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -1370,26 +1369,26 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                   <img
                     src={productImage}
                     alt={productName}
-                    className="w-12 h-12 rounded-xl object-cover ring-2 ring-gray-100 dark:ring-gray-700"
+                    className="h-12 w-12 rounded-[18px] object-cover ring-2 ring-white dark:ring-neutral-800"
                   />
                 ) : (
-                  <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400 dark:text-gray-500">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-[#fff7ef] text-[#FF6A00] ring-1 ring-orange-100 dark:bg-neutral-900 dark:ring-neutral-800">
                     {isCustomer ? <Store className="w-6 h-6" /> : <User className="w-6 h-6" />}
                   </div>
                 )}
-                <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-gray-900 rounded-full" title="En ligne" />
+                <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-neutral-950" title="En ligne" />
               </div>
 
               <div className="flex-1 min-w-0">
                 {showClientLabel && (
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide truncate">
+                  <p className="truncate text-xs font-black uppercase tracking-wide text-[#FF6A00]">
                     Client
                   </p>
                 )}
-                <h2 className="font-semibold text-gray-900 dark:text-white truncate">
+                <h2 className="truncate font-black text-slate-950 dark:text-white">
                   {showClientLabel ? (clientName || '—') : recipientName}
                 </h2>
-                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                <div className="mt-0.5 flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-gray-400">
                   <span className="truncate">#{orderRef}</span>
                   <span className="flex-shrink-0">·</span>
                   <span className="flex items-center gap-1 flex-shrink-0">
@@ -1404,7 +1403,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
               <button
                 type="button"
                 onClick={() => setShowSearch(!showSearch)}
-                className={`p-2.5 rounded-lg transition-colors ${showSearch ? 'bg-neutral-50 text-neutral-600 dark:bg-neutral-900/30 dark:text-neutral-400' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200'}`}
+                className={`rounded-full p-2.5 transition-colors ${showSearch ? 'bg-[#FF6A00] text-white' : 'bg-white text-slate-600 ring-1 ring-orange-100 hover:bg-orange-50 hover:text-[#FF6A00] dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800'}`}
                 title="Rechercher dans les messages"
               >
                 <Search className="w-5 h-5" />
@@ -1412,7 +1411,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
               <button
                 type="button"
                 onClick={() => setShowInfo(!showInfo)}
-                className={`p-2.5 rounded-lg transition-colors ${showInfo ? 'bg-neutral-50 text-neutral-600 dark:bg-neutral-900/30 dark:text-neutral-400' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200'}`}
+                className={`rounded-full p-2.5 transition-colors ${showInfo ? 'bg-[#FF6A00] text-white' : 'bg-white text-slate-600 ring-1 ring-orange-100 hover:bg-orange-50 hover:text-[#FF6A00] dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800'}`}
                 title="Informations commande"
               >
                 <Info className="w-5 h-5" />
@@ -1421,7 +1420,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                 <button
                   type="button"
                   onClick={() => setShowChatMenu(!showChatMenu)}
-                  className="p-2.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200 transition-colors"
+                  className="rounded-full bg-white p-2.5 text-slate-600 ring-1 ring-orange-100 transition-colors hover:bg-orange-50 hover:text-[#FF6A00] dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800"
                   title="Options"
                 >
                   <MoreVertical className="w-5 h-5" />
@@ -1429,7 +1428,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                 {showChatMenu && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowChatMenu(false)} aria-hidden="true" />
-                    <div className="absolute right-0 top-full mt-1 py-1 w-52 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-50">
+                    <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-[20px] bg-white p-1.5 shadow-2xl ring-1 ring-orange-100 dark:bg-neutral-900 dark:ring-neutral-800">
                       {hasProductLink && (
                         <Link
                           to={productPath}
@@ -1437,7 +1436,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                             setShowChatMenu(false);
                             closeChat();
                           }}
-                          className="flex items-center gap-2 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-t-xl"
+                          className="flex items-center gap-2 rounded-[14px] px-3 py-2.5 text-sm font-black text-slate-700 hover:bg-orange-50 dark:text-gray-200 dark:hover:bg-neutral-800"
                         >
                           <ExternalLink className="w-4 h-4" />
                           Voir le produit
@@ -1460,7 +1459,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                               setArchiving(false);
                             }
                           }}
-                          className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
+                          className="flex w-full items-center gap-2 rounded-[14px] px-3 py-2.5 text-sm font-black text-slate-700 hover:bg-orange-50 disabled:opacity-50 dark:text-gray-200 dark:hover:bg-neutral-800"
                         >
                           {archiving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
                           Archiver la conversation
@@ -1483,7 +1482,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                               setDeleting(false);
                             }
                           }}
-                          className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 rounded-b-xl"
+                          className="flex w-full items-center gap-2 rounded-[14px] px-3 py-2.5 text-sm font-black text-red-600 hover:bg-red-50 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-900/20"
                         >
                           {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                           Supprimer la conversation
@@ -1496,7 +1495,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
               <button
                 type="button"
                 onClick={closeChat}
-                className="hidden sm:flex p-2.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200 transition-colors"
+                className="hidden rounded-full bg-white p-2.5 text-slate-600 ring-1 ring-orange-100 transition-colors hover:bg-orange-50 hover:text-[#FF6A00] dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800 sm:flex"
                 aria-label="Fermer"
               >
                 <X className="w-5 h-5" />
@@ -1524,29 +1523,29 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
         {/* Search panel */}
         {showSearch && (
-          <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-4 py-3">
+          <div className="flex-shrink-0 border-b border-orange-100 bg-white/90 px-4 py-3 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/90">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
+              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#FF6A00]" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Rechercher dans les messages..."
-                className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 text-sm"
+                className="w-full rounded-full border-0 bg-[#fff7ef] py-2.5 pl-11 pr-10 text-sm font-semibold text-slate-950 placeholder-slate-400 ring-1 ring-orange-100 focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/30 dark:bg-neutral-900 dark:text-white dark:ring-neutral-800"
                 autoFocus
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-gray-400 transition-colors hover:bg-orange-50 hover:text-[#FF6A00] dark:hover:bg-neutral-800"
                 >
                   <X className="w-4 h-4" />
                 </button>
               )}
             </div>
             {searchQuery && (
-              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-gray-400">
                 {filteredMessages.length} message{filteredMessages.length !== 1 ? 's' : ''} trouvé{filteredMessages.length !== 1 ? 's' : ''}
               </p>
             )}
@@ -1555,10 +1554,10 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
         {/* Info panel — product, order ref */}
         {showInfo && (
-          <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-4 py-4 space-y-4">
+          <div className="flex-shrink-0 space-y-4 border-b border-orange-100 bg-white/90 px-4 py-4 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/90">
             <div className="flex items-center gap-4">
               {productImage && (
-                <img src={productImage} alt={productName} className="w-16 h-16 rounded-xl object-cover flex-shrink-0 ring-1 ring-gray-200 dark:ring-gray-600" />
+                <img src={productImage} alt={productName} className="h-16 w-16 flex-shrink-0 rounded-[20px] object-cover ring-1 ring-orange-100 dark:ring-neutral-800" />
               )}
               <div className="flex-1 min-w-0">
                 {hasProductLink ? (
@@ -1568,14 +1567,14 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                       setShowInfo(false);
                       closeChat();
                     }}
-                    className="font-semibold text-gray-900 dark:text-white truncate block hover:text-neutral-600 dark:hover:text-neutral-400 transition-colors"
+                    className="block truncate font-black text-slate-950 transition-colors hover:text-[#FF6A00] dark:text-white"
                   >
                     {productName}
                   </Link>
                 ) : (
-                  <p className="font-semibold text-gray-900 dark:text-white truncate">{productName}</p>
+                  <p className="truncate font-black text-slate-950 dark:text-white">{productName}</p>
                 )}
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Commande #{orderRef}</p>
+                <p className="mt-0.5 text-sm font-semibold text-slate-500 dark:text-gray-400">Commande #{orderRef}</p>
                 {hasProductLink && (
                   <Link
                     to={productPath}
@@ -1583,7 +1582,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                       setShowInfo(false);
                       closeChat();
                     }}
-                    className="inline-flex items-center gap-1.5 mt-2 text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:underline"
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#fff7ef] px-3 py-1.5 text-sm font-black text-[#FF6A00] ring-1 ring-orange-100 dark:bg-neutral-900 dark:text-orange-300 dark:ring-neutral-800"
                   >
                     <ExternalLink className="w-4 h-4" />
                     Voir le produit
@@ -1591,7 +1590,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                 )}
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-black text-slate-600 dark:text-gray-400">
               <span className="flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-emerald-500" />
                 Transaction protégée
@@ -1608,11 +1607,11 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
         <div
           ref={messagesContainerRef}
           onScroll={handleMessagesScroll}
-          className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/80 dark:bg-gray-900/80 min-h-0"
+          className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-[#fff4e8] p-4 dark:bg-neutral-950"
         >
           {loadingOlderMessages && (
             <div className="flex items-center justify-center py-1">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-gray-500 shadow-sm dark:bg-gray-800 dark:text-gray-300">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-slate-500 shadow-sm ring-1 ring-orange-100 dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 Chargement des anciens messages…
               </span>
@@ -1621,7 +1620,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
           {/* Client name inside chat (when admin/seller) */}
           {showClientLabel && clientName && (
             <div className="flex justify-center mb-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-xs font-medium text-gray-600 dark:text-gray-400 shadow-sm">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm ring-1 ring-orange-100 dark:bg-neutral-900 dark:text-gray-400 dark:ring-neutral-800">
                 <User className="w-3.5 h-3.5 text-neutral-500 dark:text-neutral-400" />
                 Client : {clientName}
               </span>
@@ -1629,26 +1628,26 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
           )}
           {searchQuery && filteredMessages.length === 0 && !loading ? (
             <div className="flex flex-col items-center justify-center min-h-[200px] text-center px-6 py-8">
-              <div className="w-14 h-14 rounded-2xl bg-gray-200 dark:bg-gray-700 flex items-center justify-center mb-4">
-                <Search className="w-7 h-7 text-gray-500 dark:text-gray-400" />
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[20px] bg-white ring-1 ring-orange-100 dark:bg-neutral-900 dark:ring-neutral-800">
+                <Search className="h-7 w-7 text-[#FF6A00]" />
               </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Aucun résultat</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <h3 className="mb-1 font-black text-slate-950 dark:text-white">Aucun résultat</h3>
+              <p className="text-sm font-semibold text-slate-500 dark:text-gray-400">
                 Aucun message ne correspond à « {searchQuery} »
               </p>
             </div>
           ) : loading && messages.length === 0 && !offlineSnapshotActive ? (
             <div className="flex flex-col items-center justify-center min-h-[200px] gap-4 py-8">
-              <div className="w-10 h-10 rounded-full border-2 border-gray-200 border-t-neutral-600 dark:border-gray-700 dark:border-t-neutral-500 animate-spin" />
-              <p className="text-sm text-gray-500 dark:text-gray-400">Chargement des messages...</p>
+              <div className="h-10 w-10 animate-spin rounded-full border-2 border-orange-100 border-t-[#FF6A00]" />
+              <p className="text-sm font-semibold text-slate-500 dark:text-gray-400">Chargement des messages...</p>
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center min-h-[200px] text-center px-6 py-8">
-              <div className="w-14 h-14 rounded-2xl bg-neutral-100 dark:bg-neutral-900/40 flex items-center justify-center mb-4">
-                <MessageCircle className="w-7 h-7 text-neutral-600 dark:text-neutral-400" />
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[20px] bg-white ring-1 ring-orange-100 dark:bg-neutral-900 dark:ring-neutral-800">
+                <MessageCircle className="h-7 w-7 text-[#FF6A00]" />
               </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Démarrez la conversation</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-5 max-w-xs">
+              <h3 className="mb-1 font-black text-slate-950 dark:text-white">Démarrez la conversation</h3>
+              <p className="mb-5 max-w-xs text-sm font-semibold text-slate-500 dark:text-gray-400">
                 Posez vos questions concernant cette commande. Vos messages sont sécurisés.
               </p>
               <div className="flex flex-wrap justify-center gap-2">
@@ -1657,7 +1656,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                     key={index}
                     type="button"
                     onClick={() => sendQuickReply(reply)}
-                    className="px-4 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-300 hover:bg-neutral-50 dark:hover:bg-neutral-900/30 hover:border-neutral-200 dark:hover:border-neutral-800 transition-colors"
+                    className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-700 ring-1 ring-orange-100 transition hover:bg-orange-50 dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800"
                   >
                     {reply}
                   </button>
@@ -1668,7 +1667,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
             Object.entries(messageGroups).map(([dateKey, msgs]) => (
               <div key={dateKey}>
                 <div className="flex items-center justify-center my-4">
-                  <span className="px-3 py-1.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-xs font-medium text-gray-600 dark:text-gray-400 shadow-sm">
+                  <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm ring-1 ring-orange-100 dark:bg-neutral-900 dark:text-gray-400 dark:ring-neutral-800">
                     {formatDate(msgs[0].createdAt)}
                   </span>
                 </div>
@@ -1692,15 +1691,15 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                               <img
                                 src={resolveUserProfileImage(message.sender)}
                                 alt={message.sender?.shopName || message.sender?.name || 'Utilisateur'}
-                                className="h-8 w-8 rounded-full object-cover"
+                                className="h-8 w-8 rounded-full object-cover ring-2 ring-white dark:ring-neutral-900"
                               />
                             ) : message.sender?.shopName ? (
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-neutral-400 to-neutral-600 flex items-center justify-center text-white text-xs font-bold">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FF6A00] text-xs font-black text-white">
                                 {message.sender.shopName.charAt(0).toUpperCase()}
                               </div>
                             ) : (
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center">
-                                <User className="w-4 h-4 text-white" />
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white ring-1 ring-orange-100 dark:bg-neutral-900 dark:ring-neutral-800">
+                                <User className="h-4 w-4 text-[#FF6A00]" />
                               </div>
                             )}
                           </div>
@@ -1709,12 +1708,12 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                         <div
                           className={`max-w-[80%] sm:max-w-[75%] group ${
                             isOwnMessage
-                              ? 'bg-neutral-600 text-white rounded-2xl rounded-br-md shadow-sm'
-                              : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 rounded-2xl rounded-bl-md shadow-sm'
-                          } px-4 py-2.5 relative ${isPending ? 'opacity-80' : ''}`}
+                              ? 'rounded-[22px] rounded-br-md bg-gradient-to-r from-[#FFB000] to-[#FF6A00] text-white shadow-[0_14px_28px_-20px_rgba(255,106,0,0.85)]'
+                              : 'rounded-[22px] rounded-bl-md bg-white text-slate-950 shadow-sm ring-1 ring-orange-100 dark:bg-neutral-900 dark:text-white dark:ring-neutral-800'
+                          } relative px-4 py-2.5 ${isPending ? 'opacity-80' : ''}`}
                         >
                           {!isOwnMessage && showAvatar && (
-                            <p className="text-xs font-semibold mb-1 text-neutral-600 dark:text-neutral-400">
+                            <p className="mb-1 text-xs font-black text-[#FF6A00] dark:text-orange-300">
                               {message.sender?.shopName || message.sender?.name || 'Utilisateur'}
                             </p>
                           )}
@@ -1728,7 +1727,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                                 onKeyDown={(e) => {
                                   if (e.key === 'Escape') handleCancelEdit();
                                 }}
-                                className="w-full min-h-[80px] px-3 py-2 rounded-lg text-sm bg-white/10 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/40 resize-none"
+                                className="min-h-[80px] w-full resize-none rounded-[16px] border border-white/30 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/40"
                                 placeholder="Modifier le message..."
                                 rows={3}
                                 autoFocus
@@ -1737,7 +1736,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                                 <button
                                   type="button"
                                   onClick={handleCancelEdit}
-                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-sm transition-colors"
+                                  className="flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1.5 text-sm font-black text-white transition-colors hover:bg-white/30"
                                 >
                                   <X className="w-3.5 h-3.5" />
                                   Annuler
@@ -1746,7 +1745,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                                   type="button"
                                   onClick={handleSaveEdit}
                                   disabled={savingEditId === message._id || !editingText.trim()}
-                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white text-neutral-600 hover:bg-neutral-50 text-sm font-medium transition-colors disabled:opacity-50"
+                                  className="flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1.5 text-sm font-black text-[#FF6A00] transition-colors hover:bg-orange-50 disabled:opacity-50"
                                 >
                                   {savingEditId === message._id ? (
                                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1768,11 +1767,11 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                                     <img
                                       src={att.url}
                                       alt={att.filename}
-                                      className="max-h-28 max-w-[200px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                      className="max-h-28 max-w-[200px] cursor-pointer rounded-[16px] object-cover transition-opacity hover:opacity-90"
                                       onClick={() => setSelectedImage(att.url)}
                                     />
                                   ) : att.type === 'audio' ? (
-                                    <div className={`flex items-center gap-2 rounded-lg px-3 py-2 ${isOwnMessage ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-700'}`}>
+                                    <div className={`flex items-center gap-2 rounded-[16px] px-3 py-2 ${isOwnMessage ? 'bg-white/20' : 'bg-[#fff7ef] dark:bg-neutral-800'}`}>
                                       <span className="text-xs">{att.filename}</span>
                                       {message.voiceMessage?.duration && (
                                         <span className="text-[11px] opacity-80">{Math.round(message.voiceMessage.duration)}s</span>
@@ -1782,7 +1781,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                                     <a
                                       href={att.url}
                                       download={att.filename}
-                                      className={`flex items-center gap-2 rounded-lg px-3 py-2 ${isOwnMessage ? 'bg-white/20 hover:bg-white/30' : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                                      className={`flex items-center gap-2 rounded-[16px] px-3 py-2 ${isOwnMessage ? 'bg-white/20 hover:bg-white/30' : 'bg-[#fff7ef] hover:bg-orange-50 dark:bg-neutral-800 dark:hover:bg-neutral-700'}`}
                                     >
                                       <File className="h-4 w-4" />
                                       <span className="text-xs">{att.filename}</span>
@@ -1794,7 +1793,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                             </div>
                           )}
                           
-                          <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
+                          <p className="whitespace-pre-wrap break-words text-sm font-medium leading-relaxed">
                             {searchQuery ? (
                               (() => {
                                 const text = message.isDecrypted ? message.text : message.text || '[Message chiffré]';
@@ -1855,7 +1854,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                                       handleAddReaction(message._id, emoji);
                                     }
                                   }}
-                                  className="flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-xs hover:bg-white/30 dark:bg-gray-700/50"
+                                  className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-black ${isOwnMessage ? 'bg-white/20 hover:bg-white/30' : 'bg-orange-50 text-[#FF6A00] ring-1 ring-orange-100 hover:bg-orange-100 dark:bg-neutral-800 dark:ring-neutral-700'}`}
                                 >
                                   <span>{emoji}</span>
                                   {count > 1 && <span>{count}</span>}
@@ -1870,13 +1869,13 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                           >
                             <span
                               className={`text-[10px] ${
-                                isOwnMessage ? 'text-neutral-200' : 'text-gray-400 dark:text-gray-500'
+                                isOwnMessage ? 'text-orange-50' : 'text-slate-400 dark:text-gray-500'
                               }`}
                             >
                               {formatTimestamp(message.createdAt)}
                             </span>
                             {isOwnMessage && !isPending && (
-                              <span className="text-neutral-200">
+                              <span className="text-orange-50">
                                 {message.readAt ? (
                                   <CheckCheck className="w-3.5 h-3.5" />
                                 ) : (
@@ -1885,17 +1884,17 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                               </span>
                             )}
                             {isOwnMessage && message.queued && (
-                              <span className="text-[10px] text-amber-100">En attente réseau</span>
+                              <span className="text-[10px] text-orange-50">En attente</span>
                             )}
                             {isOwnMessage && isPending && message.verificationPending && (
-                              <span className="text-[10px] text-amber-100">Vérification en cours</span>
+                              <span className="text-[10px] text-orange-50">Synchronisation</span>
                             )}
                             {isOwnMessage && canEditMessage(message) && !isPending && (
                               <button
                                 type="button"
                                 onClick={() => handleStartEdit(message)}
                                 title="Modifier le message"
-                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-0.5 rounded hover:bg-white/20 text-neutral-200 hover:text-white"
+                                className="rounded p-0.5 text-orange-50 opacity-0 transition-opacity hover:bg-white/20 hover:text-white focus:opacity-100 group-hover:opacity-100"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
                               </button>
@@ -1906,7 +1905,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                                 onClick={() => handleDeleteMessage(message._id)}
                                 disabled={deletingMessageId === message._id}
                                 title="Supprimer le message"
-                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-0.5 rounded hover:bg-white/20 disabled:opacity-50 text-neutral-200 hover:text-white"
+                                className="rounded p-0.5 text-orange-50 opacity-0 transition-opacity hover:bg-white/20 hover:text-white focus:opacity-100 disabled:opacity-50 group-hover:opacity-100"
                               >
                                 {deletingMessageId === message._id ? (
                                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1979,15 +1978,15 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
         {/* Quick replies */}
         {showQuickReplies && (
-          <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-4 py-3">
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Réponses rapides</p>
+          <div className="flex-shrink-0 border-t border-orange-100 bg-white/90 px-4 py-3 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/90">
+            <p className="mb-2 text-xs font-black uppercase tracking-wide text-[#FF6A00]">Réponses rapides</p>
             <div className="flex flex-wrap gap-2">
               {QUICK_REPLIES.map((reply, index) => (
                 <button
                   key={index}
                   type="button"
                   onClick={() => sendQuickReply(reply)}
-                  className="px-3 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-300 hover:bg-neutral-50 dark:hover:bg-neutral-900/30 hover:border-neutral-200 dark:hover:border-neutral-800 transition-colors"
+                  className="rounded-full bg-[#fff7ef] px-3 py-2 text-sm font-black text-slate-700 ring-1 ring-orange-100 transition hover:bg-orange-50 dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800"
                 >
                   {reply}
                 </button>
@@ -1998,25 +1997,25 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
         {/* Error banner */}
         {sendMessageMutation.uiPhase === 'stillWorking' && !error && (
-          <div className="flex-shrink-0 px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-200 dark:border-amber-800 flex items-center gap-2">
+          <div className="flex flex-shrink-0 items-center gap-2 border-t border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-900/20">
             <Loader2 className="w-4 h-4 text-amber-600 dark:text-amber-300 flex-shrink-0 animate-spin" />
-            <p className="text-sm text-amber-700 dark:text-amber-300 flex-1 min-w-0">
+            <p className="min-w-0 flex-1 text-sm font-semibold text-amber-700 dark:text-amber-300">
               Envoi en cours... merci de patienter.
             </p>
           </div>
         )}
         {sendMessageMutation.uiPhase === 'slow' && !error && (
-          <div className="flex-shrink-0 px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-200 dark:border-amber-800 flex items-center gap-2">
+          <div className="flex flex-shrink-0 items-center gap-2 border-t border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-900/20">
             <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-300 flex-shrink-0" />
-            <p className="text-sm text-amber-700 dark:text-amber-300 flex-1 min-w-0">
-              Réseau lent. Vérification automatique en cours.
+            <p className="min-w-0 flex-1 text-sm font-semibold text-amber-700 dark:text-amber-300">
+              Synchronisation automatique en cours.
             </p>
           </div>
         )}
         {error && !offlineSnapshotActive && (
-          <div className="flex-shrink-0 px-4 py-2.5 bg-red-50 dark:bg-red-900/20 border-t border-red-200 dark:border-red-800 flex items-center gap-2">
+          <div className="flex flex-shrink-0 items-center gap-2 border-t border-red-200 bg-red-50 px-4 py-2.5 dark:border-red-800 dark:bg-red-900/20">
             <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
-            <p className="text-sm text-red-700 dark:text-red-300 flex-1 min-w-0">{error}</p>
+            <p className="min-w-0 flex-1 text-sm font-semibold text-red-700 dark:text-red-300">{error}</p>
             <button type="button" onClick={() => setError('')} className="flex-shrink-0 p-1 rounded-lg text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors" aria-label="Fermer">
               <X className="w-4 h-4" />
             </button>
@@ -2025,26 +2024,26 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
         {/* Upload progress */}
         {uploadProgress != null && (
-          <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 bg-neutral-50 dark:bg-neutral-900/20 px-4 py-3">
+          <div className="flex-shrink-0 border-t border-orange-100 bg-white/90 px-4 py-3 dark:border-neutral-800 dark:bg-neutral-950/90">
             <div className="flex items-center justify-between gap-3 mb-2">
-              <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Envoi en cours…</span>
-              <span className="text-sm font-semibold text-neutral-600 dark:text-neutral-400 tabular-nums">{uploadProgress}%</span>
+              <span className="text-sm font-black text-slate-700 dark:text-neutral-300">Envoi en cours...</span>
+              <span className="text-sm font-black tabular-nums text-[#FF6A00]">{uploadProgress}%</span>
             </div>
-            <div className="h-2 w-full rounded-full bg-neutral-200 dark:bg-neutral-800 overflow-hidden">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-orange-100 dark:bg-neutral-800">
               <div
-                className="h-full bg-neutral-600 dark:bg-neutral-500 rounded-full transition-all duration-300 ease-out"
+                className="h-full rounded-full bg-[#FF6A00] transition-all duration-300 ease-out"
                 style={{ width: `${uploadProgress}%` }}
               />
             </div>
             {uploadingLabel && (
-              <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-400 truncate">{uploadingLabel}</p>
+              <p className="mt-1.5 truncate text-xs font-semibold text-slate-600 dark:text-neutral-400">{uploadingLabel}</p>
             )}
           </div>
         )}
 
         {/* Attachments preview */}
         {attachments.length > 0 && (
-          <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-4 py-2">
+          <div className="flex-shrink-0 border-t border-orange-100 bg-white/90 px-4 py-2 dark:border-neutral-800 dark:bg-neutral-950/90">
             <div className="flex flex-wrap gap-2">
               {attachments.map((att, idx) => (
                 <div key={att.url || att.filename || `preview-att-${idx}`} className="relative">
@@ -2053,18 +2052,18 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                       <img
                         src={att.url}
                         alt={att.filename}
-                        className="h-16 w-16 rounded-lg object-cover"
+                        className="h-16 w-16 rounded-[18px] object-cover"
                       />
                       <button
                         type="button"
                         onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}
-                        className="absolute -right-1 -top-1 rounded-full bg-red-500 p-0.5 text-white"
+                        className="absolute -right-1 -top-1 rounded-full bg-red-500 p-0.5 text-white ring-2 ring-white"
                       >
                         <X className="h-3 w-3" />
                       </button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 rounded-lg bg-white dark:bg-gray-700 px-2 py-1">
+                    <div className="flex items-center gap-2 rounded-[16px] bg-[#fff7ef] px-2 py-1 ring-1 ring-orange-100 dark:bg-neutral-900 dark:ring-neutral-800">
                       <File className="h-4 w-4" />
                       <span className="text-xs">{att.filename}</span>
                       <button
