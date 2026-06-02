@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#6366f1" />
+    <meta name="theme-color" content="#FF6A00" />
     <meta name="description" content="HDMarket - Marketplace et boutiques vérifiées" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -16,10 +16,104 @@
     <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>HDMarket</title>
-    <script type="module" crossorigin src="/assets/index-BJH-aHvI.js"></script>
+    <script type="module" crossorigin src="/assets/index-CSTwzI3k.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-BpDUyEJo.css">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <style>
+        html,
+        body {
+          margin: 0;
+          min-height: 100%;
+          background: #fff8f1;
+        }
+
+        .hd-boot-shell {
+          min-height: 100vh;
+          min-height: 100dvh;
+          display: grid;
+          place-items: center;
+          padding: 24px;
+          background:
+            radial-gradient(circle at 50% 36%, rgba(255, 106, 0, 0.12), transparent 30%),
+            linear-gradient(180deg, #fffaf4 0%, #fff8f1 54%, #f7f3ee 100%);
+          color: #231f1b;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        .hd-boot-card {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 14px;
+        }
+
+        .hd-boot-logo {
+          width: 72px;
+          height: 72px;
+          border-radius: 24px;
+          display: grid;
+          place-items: center;
+          background: #ffffff;
+          box-shadow: 0 18px 45px rgba(255, 106, 0, 0.18);
+          border: 1px solid rgba(255, 106, 0, 0.16);
+          overflow: hidden;
+        }
+
+        .hd-boot-logo img {
+          width: 44px;
+          height: 44px;
+          -o-object-fit: contain;
+             object-fit: contain;
+        }
+
+        .hd-boot-title {
+          margin: 0;
+          font-size: 12px;
+          font-weight: 800;
+          letter-spacing: 0.24em;
+          text-transform: uppercase;
+          color: rgba(35, 31, 27, 0.56);
+        }
+
+        .hd-boot-loader {
+          width: 132px;
+          height: 4px;
+          border-radius: 999px;
+          overflow: hidden;
+          background: rgba(255, 106, 0, 0.13);
+        }
+
+        .hd-boot-loader::before {
+          content: "";
+          display: block;
+          width: 45%;
+          height: 100%;
+          border-radius: inherit;
+          background: #ff6a00;
+          animation: hd-boot-progress 1s ease-in-out infinite;
+        }
+
+        @keyframes hd-boot-progress {
+          0% {
+            transform: translateX(-100%);
+          }
+          100% {
+            transform: translateX(235%);
+          }
+        }
+      </style>
+      <div class="hd-boot-shell" role="status" aria-live="polite" aria-busy="true">
+        <div class="hd-boot-card">
+          <div class="hd-boot-logo">
+            <img src="/favicon.svg" alt="HDMarket" />
+          </div>
+          <p class="hd-boot-title">HDMarket</p>
+          <div class="hd-boot-loader" aria-hidden="true"></div>
+        </div>
+      </div>
+    </div>
+    <noscript>HDMarket nécessite JavaScript pour fonctionner.</noscript>
   </body>
 </html>

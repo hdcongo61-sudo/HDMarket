@@ -60,7 +60,10 @@ export const CartProvider = ({ children }) => {
   }, [handleResponse, user]);
 
   useEffect(() => {
-    fetchCart();
+    const timer = setTimeout(() => {
+      fetchCart();
+    }, user ? 700 : 0);
+    return () => clearTimeout(timer);
   }, [fetchCart]);
 
   const addItem = useCallback(

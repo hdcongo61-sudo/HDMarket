@@ -279,7 +279,7 @@ function AppContent() {
   }, [pathname]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setBootLoading(false), 1400);
+    const timer = setTimeout(() => setBootLoading(false), 120);
     return () => clearTimeout(timer);
   }, []);
 
@@ -1177,12 +1177,15 @@ export default function App() {
     setHeadIcon(fallbackLogo);
     window.addEventListener('hdmarket:app-logo-updated', onAppLogoUpdated);
 
-    api
-      .get('/settings/app-logo', { skipCache: true })
-      .then((res) => applyFromPayload(res?.data || {}))
-      .catch(() => setHeadIcon(fallbackLogo));
+    const timer = window.setTimeout(() => {
+      api
+        .get('/settings/app-logo', { silentGlobalError: true })
+        .then((res) => applyFromPayload(res?.data || {}))
+        .catch(() => setHeadIcon(fallbackLogo));
+    }, 800);
 
     return () => {
+      window.clearTimeout(timer);
       window.removeEventListener('hdmarket:app-logo-updated', onAppLogoUpdated);
     };
   }, []);

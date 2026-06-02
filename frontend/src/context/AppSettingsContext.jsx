@@ -11,6 +11,7 @@ const STORAGE_KEYS = {
   currency: 'hd_pref_currency',
   city: 'hd_pref_city',
   theme: 'hd_pref_theme',
+  publicSettings: 'hd_public_settings_payload',
   publicRuntime: 'hd_public_runtime_settings'
 };
 
@@ -142,21 +143,27 @@ export const AppSettingsProvider = ({ children }) => {
     return safe;
   }, []);
 
-  const loadPublicSettings = useCallback(async () => {
+  const loadPublicSettings = useCallback(async ({ forceRefresh = false } = {}) => {
     const refreshToken = Date.now();
+    const getFreshConfig = () =>
+      forceRefresh
+        ? {
+            skipCache: true,
+            headers: { 'x-skip-cache': '1' },
+            params: { refresh: refreshToken }
+          }
+        : { silentGlobalError: true };
     try {
-      const { data } = await api.get('/settings/public', {
-        skipCache: true,
-        headers: { 'x-skip-cache': '1' },
-        params: { refresh: refreshToken }
-      });
-      return normalizePublicPayload(data || {});
+      const { data } = await api.get('/settings/public', getFreshConfig());
+      const normalized = normalizePublicPayload(data || {});
+      storage.set(STORAGE_KEYS.publicSettings, normalized);
+      return normalized;
     } catch {
       const [currenciesResult, citiesResult, communesResult, runtimeResult] = await Promise.allSettled([
-        api.get('/settings/currencies', { skipCache: true, headers: { 'x-skip-cache': '1' }, params: { refresh: refreshToken } }),
-        api.get('/settings/cities', { skipCache: true, headers: { 'x-skip-cache': '1' }, params: { refresh: refreshToken } }),
-        api.get('/settings/communes', { skipCache: true, headers: { 'x-skip-cache': '1' }, params: { refresh: refreshToken } }),
-        api.get('/settings/runtime', { skipCache: true, headers: { 'x-skip-cache': '1' }, params: { refresh: refreshToken } })
+        api.get('/settings/currencies', getFreshConfig()),
+        api.get('/settings/cities', getFreshConfig()),
+        api.get('/settings/communes', getFreshConfig()),
+        api.get('/settings/runtime', getFreshConfig())
       ]);
 
       const fallbackPayload = {
@@ -185,7 +192,9 @@ export const AppSettingsProvider = ({ children }) => {
         fallbackPayload.featureFlags = runtimeResponse?.featureFlags || {};
         fallbackPayload.ui = runtimeResponse?.byCategory?.ui || {};
       }
-      return normalizePublicPayload(fallbackPayload);
+      const normalized = normalizePublicPayload(fallbackPayload);
+      storage.set(STORAGE_KEYS.publicSettings, normalized);
+      return normalized;
     }
   }, [normalizePublicPayload]);
 
@@ -196,7 +205,7 @@ export const AppSettingsProvider = ({ children }) => {
       refreshing = true;
       try {
         await clearCache('/settings');
-        await loadPublicSettings();
+        await loadPublicSettings({ forceRefresh: true });
       } finally {
         refreshing = false;
       }
@@ -209,7 +218,11 @@ export const AppSettingsProvider = ({ children }) => {
     const bootstrap = async () => {
       setLoading(true);
       try {
-        const payload = await loadPublicSettings();
+        const cachedPayload = await storage.get(STORAGE_KEYS.publicSettings);
+        const payload =
+          cachedPayload && typeof cachedPayload === 'object'
+            ? normalizePublicPayload(cachedPayload)
+            : normalizePublicPayload({});
         if (!mounted) return;
 
         const storedLanguage = (await storage.get(STORAGE_KEYS.language)) || '';
@@ -238,6 +251,9 @@ export const AppSettingsProvider = ({ children }) => {
         setCurrencyCodeState(String(nextCurrency).toUpperCase());
         setCityState(String(nextCity));
         setThemeState(nextTheme);
+        setLoading(false);
+
+        loadPublicSettings().catch(() => {});
       } catch {
         if (!mounted) return;
       } finally {

@@ -45,7 +45,10 @@ export const FavoriteProvider = ({ children }) => {
   }, [user?.token]);
 
   useEffect(() => {
-    fetchFavorites();
+    const timer = setTimeout(() => {
+      fetchFavorites();
+    }, user?.token ? 800 : 0);
+    return () => clearTimeout(timer);
   }, [fetchFavorites]);
 
   useEffect(() => {

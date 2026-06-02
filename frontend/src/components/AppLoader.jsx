@@ -16,9 +16,10 @@ export default function AppLoader({
   const [logo, setLogo] = useState(logoSrc || '');
 
   useEffect(() => {
+    if (!visible) return undefined;
     if (logoSrc) {
       setLogo(logoSrc);
-      return;
+      return undefined;
     }
 
     let isMounted = true;
@@ -33,7 +34,7 @@ export default function AppLoader({
       window.addEventListener('hdmarket:app-logo-updated', onAppLogoUpdated);
     }
     api
-      .get('/settings/app-logo', { skipCache: true })
+      .get('/settings/app-logo', { silentGlobalError: true })
       .then((res) => {
         if (!isMounted) return;
         const nextLogo = res?.data?.appLogoMobile || res?.data?.appLogoDesktop || '';
@@ -50,7 +51,7 @@ export default function AppLoader({
         window.removeEventListener('hdmarket:app-logo-updated', onAppLogoUpdated);
       }
     };
-  }, [logoSrc]);
+  }, [logoSrc, visible]);
 
   if (!visible) return null;
 

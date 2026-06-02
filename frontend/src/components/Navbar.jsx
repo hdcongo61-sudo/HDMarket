@@ -2718,9 +2718,10 @@ export default function Navbar() {
       }
     };
     
-    loadShops();
+    const timer = window.setTimeout(loadShops, 1400);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
   }, []);
 
@@ -2728,7 +2729,7 @@ export default function Navbar() {
     let cancelled = false;
     const loadAppLogos = async () => {
       try {
-        const { data } = await api.get("/settings/app-logo", { skipCache: true });
+        const { data } = await api.get("/settings/app-logo", { silentGlobalError: true });
         if (cancelled) return;
         setAppLogos({
           desktop: data?.appLogoDesktop || "",
@@ -2754,9 +2755,10 @@ export default function Navbar() {
       window.addEventListener('hdmarket:app-logo-updated', onAppLogoUpdated);
     }
 
-    loadAppLogos();
+    const timer = window.setTimeout(loadAppLogos, 900);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
       if (typeof window !== 'undefined') {
         window.removeEventListener('hdmarket:app-logo-updated', onAppLogoUpdated);
       }

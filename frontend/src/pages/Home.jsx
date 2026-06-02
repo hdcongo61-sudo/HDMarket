@@ -3,7 +3,6 @@ import { Link, useSearchParams } from "react-router-dom";
 import api, { isApiCanceledError } from "../services/api";
 import ProductCard from "../components/ProductCard";
 import PreviewableImage from "../components/media/PreviewableImage";
-import MobileSplash from "../components/MobileSplash";
 import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
 import ShimmerSkeleton from "../components/ui/ShimmerSkeleton";
 import categoryGroups, { allCategoryOptions } from "../data/categories";
@@ -131,8 +130,6 @@ export default function Home() {
   const [promoBannerStartAt, setPromoBannerStartAt] = useState('');
   const [promoBannerEndAt, setPromoBannerEndAt] = useState('');
   const [promoNow, setPromoNow] = useState(() => new Date());
-  const [appLogoMobile, setAppLogoMobile] = useState('');
-  const [splashShown, setSplashShown] = useState(false);
   const [topProductsTab, setTopProductsTab] = useState('favorites');
   const [installmentProducts, setInstallmentProducts] = useState([]);
   const [installmentLoading, setInstallmentLoading] = useState(false);
@@ -260,8 +257,6 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
     if (endDate && promoNow > endDate) return false;
     return true;
   }, [hasPromoAsset, parsePromoDate, promoBannerEndAt, promoBannerStartAt, promoNow]);
-  const showMobileSplash = isMobileView && !splashShown && loading && page === 1;
-
   // === CHARGEMENT DES PRODUITS ===
   const loadProducts = useCallback(async () => {
     if (homeProductsAbortRef.current) {
@@ -403,30 +398,9 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
 
   useEffect(() => {
     let active = true;
-    const loadAppLogo = async () => {
-      try {
-        const { data } = await api.get('/settings/app-logo');
-        if (!active) return;
-        setAppLogoMobile(data?.appLogoMobile || data?.appLogoDesktop || '');
-      } catch (error) {
-        if (!active) return;
-        setAppLogoMobile('');
-      }
-    };
-    loadAppLogo();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
     const loadPromoBanner = async () => {
       try {
-        const { data } = await api.get('/settings/promo-banner', {
-          skipCache: true,
-          headers: { 'x-skip-cache': '1' }
-        });
+        const { data } = await api.get('/settings/promo-banner', { silentGlobalError: true });
         if (!active) return;
         setPromoBanner(data?.promoBanner || '');
         setPromoBannerMobile(data?.promoBannerMobile || '');
@@ -447,12 +421,6 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
       active = false;
     };
   }, []);
-
-  useEffect(() => {
-    if (!loading && page === 1) {
-      setSplashShown(true);
-    }
-  }, [loading, page]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -2737,7 +2705,6 @@ const loadDiscountProducts = async () => {
 
   return (
     <div className="hd-commerce-shell min-h-screen">
-      <MobileSplash visible={showMobileSplash} logoSrc={appLogoMobile} label="HDMarket" />
       {(offlineSnapshotActive || rapid3GActive) && (
         <div className="mx-auto max-w-7xl px-2 pt-3 sm:px-4 lg:px-8">
           <section

@@ -246,12 +246,16 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    if (!user?.token) return undefined;
+    let cancelled = false;
     const fetchProfile = async () => {
-      if (!user?.token) return;
+      if (cancelled || !user?.token) return;
       try {
         const { data } = await api.get('/users/profile');
+        if (cancelled) return;
         updateUser(data);
       } catch (e) {
+        if (cancelled) return;
         if (e.response?.status === 401) {
           logout();
         } else if (e.response?.status === 403 && e.response?.data?.code === 'ACCOUNT_BLOCKED') {
@@ -263,7 +267,11 @@ export const AuthProvider = ({ children }) => {
         }
       }
     };
-    fetchProfile();
+    const timer = setTimeout(fetchProfile, 900);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.token]);
 
