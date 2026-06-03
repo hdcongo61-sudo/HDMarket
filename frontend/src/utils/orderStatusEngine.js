@@ -2,9 +2,12 @@ const ORDER_GROUP_STATUS_MAP = {
   buyer: {
     all: [],
     payment_due: ['pending_payment'],
+    awaiting_seller: ['pending', 'paid', 'confirmed', 'ready_for_delivery'],
     active: ['pending', 'paid', 'confirmed', 'ready_for_delivery', 'pending_installment', 'installment_active'],
     pickup: ['ready_for_pickup', 'picked_up_confirmed'],
     delivery: ['out_for_delivery', 'delivering', 'delivery_proof_submitted'],
+    proof: ['delivery_proof_submitted'],
+    installments: ['pending_installment', 'installment_active', 'overdue_installment', 'completed'],
     completed: ['confirmed_by_client', 'delivered', 'completed'],
     cancelled: ['cancelled']
   },
@@ -13,9 +16,13 @@ const ORDER_GROUP_STATUS_MAP = {
     new: ['pending_payment', 'paid', 'pending', 'pending_installment'],
     prepare: ['confirmed', 'ready_for_delivery'],
     handoff: ['ready_for_pickup', 'out_for_delivery', 'delivering', 'delivery_proof_submitted'],
+    pickup: ['ready_for_pickup', 'picked_up_confirmed'],
+    proof: ['delivery_proof_submitted'],
     payment: ['pending_payment', 'paid', 'pending_installment', 'installment_active', 'overdue_installment'],
     installments: ['pending_installment', 'installment_active', 'overdue_installment', 'completed'],
+    late: ['overdue_installment'],
     completed: ['picked_up_confirmed', 'confirmed_by_client', 'delivered', 'completed'],
+    cancelled: ['cancelled'],
     problems: ['overdue_installment', 'dispute_opened', 'cancelled']
   }
 };
@@ -24,9 +31,12 @@ export const ORDER_FILTER_GROUPS = {
   buyer: [
     { key: 'all', label: 'Toutes', description: 'Toutes vos commandes' },
     { key: 'payment_due', label: 'À payer', description: 'Paiement ou preuve attendu' },
+    { key: 'awaiting_seller', label: 'Vendeur', description: 'Validation ou préparation' },
     { key: 'active', label: 'En cours', description: 'Commandes en préparation' },
     { key: 'pickup', label: 'À récupérer', description: 'Retrait boutique' },
     { key: 'delivery', label: 'Livraison', description: 'Suivi livraison' },
+    { key: 'proof', label: 'Preuve', description: 'Preuve à confirmer' },
+    { key: 'installments', label: 'Tranches', description: 'Paiements échelonnés' },
     { key: 'completed', label: 'Terminées', description: 'Achats finalisés' },
     { key: 'cancelled', label: 'Annulées', description: 'Commandes annulées' }
   ],
@@ -35,12 +45,26 @@ export const ORDER_FILTER_GROUPS = {
     { key: 'new', label: 'Nouvelles', description: 'À traiter maintenant' },
     { key: 'prepare', label: 'À préparer', description: 'Préparation vendeur' },
     { key: 'handoff', label: 'Livraison/retrait', description: 'Remise client ou livreur' },
+    { key: 'pickup', label: 'Retrait', description: 'Commandes à récupérer' },
+    { key: 'proof', label: 'Preuves', description: 'Preuves de livraison' },
     { key: 'payment', label: 'Paiement', description: 'Paiement à suivre' },
     { key: 'installments', label: 'Tranches', description: 'Ventes échelonnées' },
+    { key: 'late', label: 'Retards', description: 'Tranches en retard' },
     { key: 'completed', label: 'Terminées', description: 'Commandes clôturées' },
+    { key: 'cancelled', label: 'Annulées', description: 'Commandes annulées' },
     { key: 'problems', label: 'Problèmes', description: 'Retards ou annulations' }
   ]
 };
+
+const normalizeStatusKey = (value) => String(value || '').trim().toLowerCase();
+
+const normalizeCountMap = (map = {}) =>
+  Object.entries(map || {}).reduce((acc, [key, value]) => {
+    const safeKey = normalizeStatusKey(key);
+    if (!safeKey) return acc;
+    acc[safeKey] = Math.max(0, Number(value || 0));
+    return acc;
+  }, {});
 
 export const getOrderGroupStatuses = (role = 'buyer', group = 'all') =>
   ORDER_GROUP_STATUS_MAP[role]?.[group] || [];
@@ -230,4 +254,66 @@ export const countOrdersByGroup = (orders = [], role = 'buyer') => {
     acc[group.key] = list.filter((order) => statuses.has(String(order?.status || '').toLowerCase())).length;
     return acc;
   }, {});
+};
+
+export const countOrderStatusMapByGroup = (byStatus = {}, role = 'buyer') => {
+  const counts = normalizeCountMap(byStatus);
+  const groups = ORDER_FILTER_GROUPS[role] || ORDER_FILTER_GROUPS.buyer;
+  const all = Object.values(counts).reduce((sum, count) => sum + Number(count || 0), 0);
+
+  return groups.reduce((acc, group) => {
+    if (group.key === 'all') {
+      acc[group.key] = all;
+      return acc;
+    }
+    const statuses = new Set(getOrderGroupStatuses(role, group.key).map(normalizeStatusKey));
+    acc[group.key] = Object.entries(counts).reduce(
+      (sum, [status, count]) => sum + (statuses.has(status) ? Number(count || 0) : 0),
+      0
+    );
+    return acc;
+  }, {});
+};
+
+export const normalizeOrderSummaryStats = (payload = {}, role = 'buyer') => {
+  const byStatus = normalizeCountMap(payload?.byStatus || {});
+  const derivedByGroup = countOrderStatusMapByGroup(byStatus, role);
+  const total = Math.max(0, Number(payload?.total ?? derivedByGroup.all ?? 0));
+
+  return {
+    total,
+    totalAmount: Math.max(0, Number(payload?.totalAmount || 0)),
+    paymentPending: Math.max(0, Number(payload?.paymentPending || 0)),
+    urgentCount: Math.max(0, Number(payload?.urgentCount || 0)),
+    activeCount: Math.max(0, Number(payload?.activeCount || 0)),
+    byStatus,
+    byGroup: {
+      ...normalizeCountMap(payload?.byGroup || {}),
+      ...derivedByGroup,
+      all: total
+    }
+  };
+};
+
+export const patchOrderSummaryStatusCounters = (
+  summary = {},
+  { previousStatus, nextStatus, role = 'buyer' } = {}
+) => {
+  const prev = normalizeStatusKey(previousStatus);
+  const next = normalizeStatusKey(nextStatus);
+  if (!prev || !next || prev === next) {
+    return normalizeOrderSummaryStats(summary, role);
+  }
+
+  const byStatus = normalizeCountMap(summary?.byStatus || {});
+  byStatus[prev] = Math.max(0, Number(byStatus[prev] || 0) - 1);
+  byStatus[next] = Math.max(0, Number(byStatus[next] || 0) + 1);
+
+  return normalizeOrderSummaryStats(
+    {
+      ...summary,
+      byStatus
+    },
+    role
+  );
 };

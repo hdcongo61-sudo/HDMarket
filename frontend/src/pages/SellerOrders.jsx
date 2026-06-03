@@ -54,7 +54,9 @@ import {
   getOrderItemCount,
   getOrderTotal,
   getOrderUiState,
-  isOrderGroupKey
+  isOrderGroupKey,
+  normalizeOrderSummaryStats,
+  patchOrderSummaryStatusCounters
 } from '../utils/orderStatusEngine';
 import useReliableMutation from '../hooks/useReliableMutation';
 import useOrderRealtimeSync from '../hooks/useOrderRealtimeSync';
@@ -134,9 +136,13 @@ const SELLER_TAB_ICONS = {
   new: Sparkles,
   prepare: Package,
   handoff: Truck,
+  pickup: Store,
+  proof: ShieldCheck,
   payment: CreditCard,
   installments: Receipt,
+  late: AlertCircle,
   completed: CheckCircle,
+  cancelled: X,
   problems: AlertCircle
 };
 
@@ -1150,18 +1156,32 @@ export default function SellerOrders() {
     );
   };
 
+  const loadOrderStats = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setStatsLoading(true);
+    try {
+      const { data } = await api.get('/orders/seller/summary', {
+        skipCache: true,
+        headers: { 'x-skip-cache': '1' }
+      });
+      setStats(normalizeOrderSummaryStats(data, 'seller'));
+    } catch (err) {
+      console.error('Error loading stats:', err);
+    } finally {
+      if (!silent) setStatsLoading(false);
+    }
+  }, []);
+
   const bumpStatusCounters = useCallback((previousStatus, nextStatus) => {
     const prev = String(previousStatus || '').trim();
     const next = String(nextStatus || '').trim();
     if (!prev || !next || prev === next) return;
-    setStats((s) => ({
-      ...s,
-      byStatus: {
-        ...s.byStatus,
-        [prev]: Math.max(0, (s.byStatus[prev] || 1) - 1),
-        [next]: (s.byStatus[next] || 0) + 1
-      }
-    }));
+    setStats((current) =>
+      patchOrderSummaryStatusCounters(current, {
+        previousStatus: prev,
+        nextStatus: next,
+        role: 'seller'
+      })
+    );
   }, []);
 
   const { pullDistance, refreshing, bind } = usePullToRefresh(refreshOrders, {
@@ -1282,42 +1302,38 @@ export default function SellerOrders() {
       const payload = event?.detail || {};
       const incomingOrderId = String(payload?.orderId || '').trim();
       if (!incomingOrderId) return;
+      const previousOrder = orders.find((entry) => String(entry?._id || '') === incomingOrderId);
+      const previousStatus = getStatusCounterValue(previousOrder);
+      const statusPayload = payload?.order || payload;
+      const nextStatus = String(statusPayload?.status || '').trim() ? getStatusCounterValue(statusPayload) : '';
+      if (previousOrder && previousStatus && nextStatus && previousStatus !== nextStatus) {
+        bumpStatusCounters(previousStatus, nextStatus);
+      }
       setOrders((prev) => {
         const patched = dedupeOrders(
           prev.map((entry) => applyRealtimeStatusPatch(entry, payload))
         );
         return patched.filter((entry) => orderMatchesSellerFilter(entry, activeStatus));
       });
+      loadOrderStats({ silent: true });
     };
 
     window.addEventListener('hdmarket:orders-status-updated', onStatusUpdated);
     return () =>
       window.removeEventListener('hdmarket:orders-status-updated', onStatusUpdated);
-  }, [activeStatus]);
+  }, [activeStatus, bumpStatusCounters, loadOrderStats, orders]);
 
-  // Load compact order summary without fetching every seller order.
   useEffect(() => {
-    let active = true;
-    const loadStats = async () => {
-      setStatsLoading(true);
-      try {
-        const { data } = await api.get('/orders/seller/summary');
-        if (!active) return;
-        setStats({
-          total: Number(data?.total || 0),
-          totalAmount: Number(data?.totalAmount || 0),
-          byStatus: data?.byStatus || {},
-          byGroup: data?.byGroup || {}
-        });
-      } catch (err) {
-        console.error('Error loading stats:', err);
-      } finally {
-        if (active) setStatsLoading(false);
-      }
+    loadOrderStats();
+  }, [loadOrderStats]);
+
+  useEffect(() => {
+    const refreshStats = () => loadOrderStats({ silent: true });
+    window.addEventListener('hdmarket:orders-refresh', refreshStats);
+    return () => {
+      window.removeEventListener('hdmarket:orders-refresh', refreshStats);
     };
-    loadStats();
-    return () => { active = false; };
-  }, []);
+  }, [loadOrderStats]);
 
   useEffect(() => {
     let active = true;

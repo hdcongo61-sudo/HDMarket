@@ -80,9 +80,12 @@ const INSTALLMENT_SALE_STATUS_FILTERS = new Set(['confirmed', 'delivering', 'del
 const ORDER_STATUS_GROUPS = {
   buyer: {
     payment_due: ['pending_payment'],
+    awaiting_seller: ['pending', 'paid', 'confirmed', 'ready_for_delivery'],
     active: ['pending', 'paid', 'confirmed', 'ready_for_delivery', 'pending_installment', 'installment_active'],
     pickup: ['ready_for_pickup', 'picked_up_confirmed'],
     delivery: ['out_for_delivery', 'delivering', 'delivery_proof_submitted'],
+    proof: ['delivery_proof_submitted'],
+    installments: ['pending_installment', 'installment_active', 'overdue_installment', 'completed'],
     completed: ['confirmed_by_client', 'delivered', 'completed'],
     cancelled: ['cancelled']
   },
@@ -90,9 +93,13 @@ const ORDER_STATUS_GROUPS = {
     new: ['pending_payment', 'paid', 'pending', 'pending_installment'],
     prepare: ['confirmed', 'ready_for_delivery'],
     handoff: ['ready_for_pickup', 'out_for_delivery', 'delivering', 'delivery_proof_submitted'],
+    pickup: ['ready_for_pickup', 'picked_up_confirmed'],
+    proof: ['delivery_proof_submitted'],
     payment: ['pending_payment', 'paid', 'pending_installment', 'installment_active', 'overdue_installment'],
     installments: ['pending_installment', 'installment_active', 'overdue_installment', 'completed'],
+    late: ['overdue_installment'],
     completed: ['picked_up_confirmed', 'confirmed_by_client', 'delivered', 'completed'],
+    cancelled: ['cancelled'],
     problems: ['overdue_installment', 'dispute_opened', 'cancelled']
   }
 };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Heart, MessageCircle, Navigation, Pencil, Phone, Rocket, Share2 } from 'lucide-react';
+import { Heart, Loader2, MessageCircle, Navigation, Pencil, Phone, Rocket, Share2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function ShopActionsCard({
@@ -74,12 +74,19 @@ export default function ShopActionsCard({
             type="button"
             onClick={onFollowToggle}
             disabled={followDisabled}
-            className={`${outlineBtn} ${isFollowing ? 'bg-rose-50 text-rose-700 ring-rose-100 hover:bg-rose-100' : ''} ${followDisabled ? 'cursor-not-allowed bg-gray-100 text-gray-400 shadow-none ring-gray-200' : ''}`}
+            aria-busy={followPending}
+            className={`${outlineBtn} ${isFollowing ? 'bg-rose-50 text-rose-700 ring-rose-100 hover:bg-rose-100' : ''} ${followPending ? 'scale-[0.99] ring-orange-200' : ''} ${followDisabled ? 'cursor-not-allowed bg-gray-100 text-gray-400 shadow-none ring-gray-200' : ''}`}
           >
-            <Heart size={15} className={isFollowing ? 'fill-current' : ''} />
+            {followPending ? (
+              <Loader2 size={15} className="animate-spin" />
+            ) : (
+              <Heart size={15} className={isFollowing ? 'fill-current' : ''} />
+            )}
             <span>
               {followPending
-                ? '...'
+                ? isFollowing
+                  ? t('shop_profile.following', 'Suivie')
+                  : t('shop_profile.follow', 'Suivre')
                 : isFollowing
                   ? t('shop_profile.following', 'Suivie')
                   : t('shop_profile.follow', 'Suivre')}

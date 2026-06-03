@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Heart, MoreHorizontal, Search, Share2 } from 'lucide-react';
+import { ArrowLeft, Heart, Loader2, MoreHorizontal, Search, Share2 } from 'lucide-react';
 
 export default function ShopTopHeader({
   title,
@@ -9,6 +9,7 @@ export default function ShopTopHeader({
   onFollowToggle,
   isFollowing,
   followDisabled,
+  followPending = false,
   t
 }) {
   const iconBtn =
@@ -51,14 +52,19 @@ export default function ShopTopHeader({
         type="button"
         onClick={onFollowToggle}
         disabled={followDisabled}
+        aria-busy={followPending}
         aria-label={
           isFollowing
             ? t('shop_profile.unfollow', 'Ne plus suivre')
             : t('shop_profile.follow', 'Suivre')
         }
-        className={`${iconBtn} ${isFollowing ? 'border-rose-300 bg-rose-50 text-rose-700' : ''} ${followDisabled ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 shadow-none' : ''}`}
+        className={`${iconBtn} ${isFollowing ? 'border-rose-300 bg-rose-50 text-rose-700 shadow-[0_10px_24px_rgba(244,63,94,0.16)]' : ''} ${followPending ? 'scale-95 ring-rose-200' : ''} ${followDisabled ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 shadow-none' : ''}`}
       >
-        <Heart size={15} className={isFollowing ? 'fill-current' : ''} />
+        {followPending ? (
+          <Loader2 size={15} className="animate-spin" />
+        ) : (
+          <Heart size={15} className={isFollowing ? 'fill-current' : ''} />
+        )}
       </button>
       <button
         type="button"

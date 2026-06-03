@@ -1,5 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Download, Flag, Share2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Flag,
+  MoreHorizontal,
+  RotateCcw,
+  Share2,
+  X,
+  ZoomIn,
+  ZoomOut
+} from 'lucide-react';
 import BaseModal from '../modals/BaseModal';
 import { useToast } from '../../context/ToastContext';
 import api from '../../services/api';
@@ -403,70 +414,82 @@ export default function ImagePreviewModal({
       return next;
     });
   }, []);
+  const zoomPercent = Math.round(scale * 100);
 
   return (
     <BaseModal
       isOpen={isOpen}
       onClose={onClose}
       size="full"
+      fullscreen
       mobileSheet={false}
       ariaLabel="Aperçu image"
-      backdropClassName="!bg-black/92 backdrop-blur-sm"
-      panelClassName="sm:max-w-6xl !border-0 !bg-black/95 text-white shadow-none"
+      rootClassName="sm:!p-0"
+      backdropClassName="!bg-[#070707]/94 backdrop-blur-md"
+      panelClassName="sm:max-w-6xl !border-0 !bg-[#0b0b0b] text-white shadow-none sm:rounded-[28px]"
     >
-      <div className="relative w-full p-2 sm:p-4">
-        <div className="absolute left-3 top-3 z-20 inline-flex items-center gap-2">
-          <button
-            type="button"
-            onClick={zoomOut}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white shadow-sm transition hover:bg-black/75"
-            aria-label="Zoom arrière"
-          >
-            <ZoomOut className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            onClick={zoomIn}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white shadow-sm transition hover:bg-black/75"
-            aria-label="Zoom avant"
-          >
-            <ZoomIn className="h-5 w-5" />
-          </button>
-        </div>
+      <div className="relative h-full min-h-0 w-full overflow-hidden bg-[#0b0b0b] sm:rounded-[28px]">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-28 bg-gradient-to-b from-black/80 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-44 bg-gradient-to-t from-black via-black/70 to-transparent" />
 
-        <div className="absolute right-3 top-3 z-20 flex items-center gap-2">
-          <div className="relative">
+        <div className="absolute left-3 right-3 top-3 z-30 flex items-center justify-between gap-3 pt-[env(safe-area-inset-top,0px)]">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 backdrop-blur-xl transition hover:bg-white/20 active:scale-95"
+            aria-label="Fermer l'aperçu"
+          >
+            <X className="h-5 w-5" />
+          </button>
+
+          <div className="min-w-0 flex-1 text-center">
+            {canNavigate ? (
+              <span className="inline-flex rounded-full bg-white/14 px-3 py-1.5 text-xs font-black text-white ring-1 ring-white/10 backdrop-blur-xl">
+                {currentIndex + 1} / {safeImages.length}
+              </span>
+            ) : null}
+          </div>
+
+          <div className="relative flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setMenuOpen((prev) => !prev)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-800 shadow-sm transition hover:bg-white"
-              aria-label="Actions image"
+              onClick={handleShare}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 backdrop-blur-xl transition hover:bg-white/20 active:scale-95"
+              aria-label="Partager"
             >
               <Share2 className="h-5 w-5" />
             </button>
+            <button
+              type="button"
+              onClick={() => setMenuOpen((prev) => !prev)}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 backdrop-blur-xl transition hover:bg-white/20 active:scale-95"
+              aria-label="Actions image"
+            >
+              <MoreHorizontal className="h-5 w-5" />
+            </button>
             {menuOpen ? (
-              <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
+              <div className="absolute right-0 top-12 w-52 overflow-hidden rounded-3xl border border-orange-100 bg-white p-1.5 text-slate-900 shadow-[0_18px_45px_rgba(0,0,0,0.22)]">
                 <button
                   type="button"
                   onClick={handleShare}
-                  className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                  className="flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-orange-50"
                 >
-                  <Share2 className="h-4 w-4" />
+                  <Share2 className="h-4 w-4 text-[#FF6A00]" />
                   Partager
                 </button>
                 <button
                   type="button"
                   onClick={handleDownload}
-                  className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                  className="flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-orange-50"
                 >
-                  <Download className="h-4 w-4" />
+                  <Download className="h-4 w-4 text-[#FF6A00]" />
                   Télécharger
                 </button>
                 <button
                   type="button"
                   onClick={handleReportMenuAction}
                   disabled={!canNativeReport}
-                  className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Flag className="h-4 w-4" />
                   Signaler
@@ -474,14 +497,24 @@ export default function ImagePreviewModal({
               </div>
             ) : null}
           </div>
+        </div>
 
+        <div className="absolute left-3 top-20 z-20 hidden items-center gap-2 sm:inline-flex">
           <button
             type="button"
-            onClick={onClose}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-800 shadow-sm transition hover:bg-white"
-            aria-label="Fermer l'aperçu"
+            onClick={zoomOut}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 backdrop-blur-xl transition hover:bg-white/20 active:scale-95"
+            aria-label="Zoom arrière"
           >
-            <X className="h-5 w-5" />
+            <ZoomOut className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={zoomIn}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 backdrop-blur-xl transition hover:bg-white/20 active:scale-95"
+            aria-label="Zoom avant"
+          >
+            <ZoomIn className="h-5 w-5" />
           </button>
         </div>
 
@@ -490,7 +523,7 @@ export default function ImagePreviewModal({
             <button
               type="button"
               onClick={() => moveIndex(-1)}
-              className="absolute left-3 top-1/2 z-20 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-slate-800 shadow-sm transition hover:bg-white"
+              className="absolute left-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 backdrop-blur-xl transition hover:bg-white/20 active:scale-95 sm:inline-flex"
               aria-label="Image précédente"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -498,7 +531,7 @@ export default function ImagePreviewModal({
             <button
               type="button"
               onClick={() => moveIndex(1)}
-              className="absolute right-3 top-1/2 z-20 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-slate-800 shadow-sm transition hover:bg-white"
+              className="absolute right-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 backdrop-blur-xl transition hover:bg-white/20 active:scale-95 sm:inline-flex"
               aria-label="Image suivante"
             >
               <ChevronRight className="h-5 w-5" />
@@ -506,9 +539,9 @@ export default function ImagePreviewModal({
           </>
         ) : null}
 
-        <div className="max-h-[82vh] overflow-hidden bg-black">
+        <div className="relative z-0 h-full overflow-hidden bg-[#0b0b0b]">
           <div
-            className="flex h-[82vh] w-full items-center justify-center touch-none"
+            className="flex h-full w-full items-center justify-center touch-none px-2 pb-44 pt-20 sm:pb-36"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
@@ -516,7 +549,7 @@ export default function ImagePreviewModal({
             <img
               src={currentImage}
               alt={title || 'Image'}
-              className="mx-auto block max-h-[82vh] w-auto max-w-full object-contain select-none"
+              className="mx-auto block max-h-full w-auto max-w-full object-contain select-none"
               style={{
                 transform: `translate3d(${translate.x}px, ${translate.y}px, 0) scale(${scale})`,
                 transformOrigin: 'center center',
@@ -531,30 +564,103 @@ export default function ImagePreviewModal({
           </div>
         </div>
 
-        <div className="mt-3 flex items-center justify-center gap-2">
+        <div className="absolute inset-x-0 bottom-0 z-30 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] sm:px-5 sm:pb-5">
           {canNavigate ? (
-            <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold text-white">
-              {currentIndex + 1} / {safeImages.length}
-            </span>
+            <div className="mobile-scroll-x mb-3 flex gap-2 overflow-x-auto pb-1">
+              {safeImages.map((image, index) => (
+                <button
+                  key={`${image}-${index}`}
+                  type="button"
+                  onClick={() => {
+                    setCurrentIndex(index);
+                    resetTransform();
+                    setMenuOpen(false);
+                  }}
+                  className={`h-14 w-14 shrink-0 overflow-hidden rounded-2xl border-2 bg-white/10 transition active:scale-95 sm:h-16 sm:w-16 ${
+                    index === currentIndex
+                      ? 'border-[#FF6A00] shadow-[0_0_0_2px_rgba(255,106,0,0.25)]'
+                      : 'border-white/18 opacity-70 hover:opacity-100'
+                  }`}
+                  aria-label={`Afficher image ${index + 1}`}
+                >
+                  <img
+                    src={lowQualityImages[index] || image}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                </button>
+              ))}
+            </div>
           ) : null}
-          {scale > 1 ? (
-            <button
-              type="button"
-              onClick={() => resetTransform()}
-              className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold text-white hover:bg-white/30"
-            >
-              Réinitialiser zoom
-            </button>
-          ) : null}
-          {hdEnabled ? (
-            <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-100">
-              HD actif
-            </span>
-          ) : (
-            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white/80">
-              Qualité optimisée
-            </span>
-          )}
+
+          <div className="rounded-[28px] border border-white/10 bg-white/12 p-3 shadow-[0_18px_55px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black text-white">{title || 'Image produit'}</p>
+                <p className="text-xs font-semibold text-white/58">Double tap pour zoomer · pincez pour agrandir</p>
+              </div>
+              <span className="shrink-0 rounded-full bg-[#FF6A00] px-3 py-1 text-xs font-black text-white">
+                {zoomPercent}%
+              </span>
+            </div>
+
+            <div className="grid grid-cols-[44px_minmax(0,1fr)_44px_44px] items-center gap-2">
+              <button
+                type="button"
+                onClick={zoomOut}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-950 shadow-sm transition hover:bg-orange-50 active:scale-95 disabled:opacity-50"
+                aria-label="Zoom arrière"
+                disabled={scale <= ZOOM_MIN}
+              >
+                <ZoomOut className="h-5 w-5" />
+              </button>
+              <input
+                type="range"
+                min={ZOOM_MIN}
+                max={ZOOM_MAX}
+                step="0.1"
+                value={scale}
+                onChange={(event) => applyScale(Number(event.target.value))}
+                className="h-2 w-full accent-[#FF6A00]"
+                aria-label="Niveau de zoom"
+              />
+              <button
+                type="button"
+                onClick={zoomIn}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-950 shadow-sm transition hover:bg-orange-50 active:scale-95 disabled:opacity-50"
+                aria-label="Zoom avant"
+                disabled={scale >= ZOOM_MAX}
+              >
+                <ZoomIn className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => resetTransform()}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/14 text-white ring-1 ring-white/10 transition hover:bg-white/20 active:scale-95"
+                aria-label="Réinitialiser zoom"
+              >
+                <RotateCcw className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {hdEnabled ? (
+                <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-black text-emerald-100 ring-1 ring-emerald-400/20">
+                  HD actif
+                </span>
+              ) : (
+                <span className="rounded-full bg-white/12 px-3 py-1 text-xs font-bold text-white/80 ring-1 ring-white/10">
+                  Chargement optimisé
+                </span>
+              )}
+              {scale > 1 ? (
+                <span className="rounded-full bg-orange-500/16 px-3 py-1 text-xs font-bold text-orange-100 ring-1 ring-orange-400/20">
+                  Déplacez l’image avec un doigt
+                </span>
+              ) : null}
+            </div>
+          </div>
         </div>
 
         {reportOpen ? (

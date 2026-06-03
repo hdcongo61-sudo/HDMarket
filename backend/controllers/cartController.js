@@ -84,6 +84,14 @@ const ensureCart = async (userId) => {
   return cart;
 };
 
+const ensureWritableCart = async (userId) => {
+  let cart = await Cart.findOne({ user: userId });
+  if (!cart) {
+    cart = await Cart.create({ user: userId, items: [] });
+  }
+  return cart;
+};
+
 const formatCart = (cart) => {
   if (!cart) {
     return {
@@ -207,7 +215,7 @@ export const addItem = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: selectedAttributesValidation.message });
   }
 
-  const cart = await ensureCart(req.user.id);
+  const cart = await ensureWritableCart(req.user.id);
   const selectionKey = selectedAttributesValidation.selectionKey;
   const existing = cart.items.find(
     (item) =>
@@ -241,7 +249,7 @@ export const updateItem = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Quantity must be zero or higher' });
   }
 
-  const cart = await ensureCart(req.user.id);
+  const cart = await ensureWritableCart(req.user.id);
   const requestedSelectionKey = resolveRequestedSelectionKey({ selectionKey, selectedAttributes });
   const existing = cart.items.find(
     (item) =>
@@ -253,7 +261,13 @@ export const updateItem = asyncHandler(async (req, res) => {
   }
 
   if (qty === 0) {
-    cart.items = cart.items.filter((item) => getItemProductId(item) !== productId);
+    cart.items = cart.items.filter(
+      (item) =>
+        !(
+          getItemProductId(item) === productId &&
+          getItemSelectionKey(item) === requestedSelectionKey
+        )
+    );
   } else {
     existing.quantity = qty;
   }
@@ -274,7 +288,7 @@ export const removeItem = asyncHandler(async (req, res) => {
     selectionKey: req.query?.selectionKey || req.body?.selectionKey,
     selectedAttributes: req.body?.selectedAttributes
   });
-  const cart = await ensureCart(req.user.id);
+  const cart = await ensureWritableCart(req.user.id);
   const beforeLength = cart.items.length;
   cart.items = cart.items.filter(
     (item) =>
@@ -295,7 +309,7 @@ export const removeItem = asyncHandler(async (req, res) => {
 });
 
 export const clearCart = asyncHandler(async (req, res) => {
-  const cart = await ensureCart(req.user.id);
+  const cart = await ensureWritableCart(req.user.id);
   cart.items = [];
   await cart.save();
   await invalidateUserCache(req.user.id, ['cart']);

@@ -48,6 +48,7 @@ import useSellerOrderDetailQuery from '../hooks/useSellerOrderDetailQuery';
 import useSellerOrderStatusMutation from '../hooks/useSellerOrderStatusMutation';
 import useOrderRealtimeSync from '../hooks/useOrderRealtimeSync';
 import useNetworkProfile from '../hooks/useNetworkProfile';
+import { orderQueryKeys } from '../hooks/useOrderQueryKeys';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
@@ -511,14 +512,60 @@ export default function SellerOrderDetail() {
     currentStatus: order?.status || ''
   });
 
+  const applyOrderSnapshot = useCallback(
+    (payload) => {
+      const nextOrder =
+        payload?.order && typeof payload.order === 'object' ? payload.order : payload;
+      if (!nextOrder?._id) return false;
+      setOrder(nextOrder);
+      queryClient.setQueryData(orderQueryKeys.detail('seller', String(orderId || '')), (existing) => ({
+        ...(existing || {}),
+        order: nextOrder,
+        unreadCount: Number(existing?.unreadCount || 0)
+      }));
+      return true;
+    },
+    [orderId, queryClient]
+  );
+
+  const patchOrdersListPayload = useCallback((payload, nextOrder) => {
+    if (!nextOrder?._id) return payload;
+    if (Array.isArray(payload)) {
+      return payload.map((entry) =>
+        String(entry?._id || '') === String(nextOrder._id) ? nextOrder : entry
+      );
+    }
+    if (payload && Array.isArray(payload.items)) {
+      return {
+        ...payload,
+        items: payload.items.map((entry) =>
+          String(entry?._id || '') === String(nextOrder._id) ? nextOrder : entry
+        )
+      };
+    }
+    return payload;
+  }, []);
+
+  const applyOrderToSellerCaches = useCallback(
+    (nextOrder) => {
+      if (!nextOrder?._id) return false;
+      applyOrderSnapshot(nextOrder);
+      queryClient.setQueriesData({ queryKey: orderQueryKeys.listRoot('seller') }, (existing) =>
+        patchOrdersListPayload(existing, nextOrder)
+      );
+      return true;
+    },
+    [applyOrderSnapshot, patchOrdersListPayload, queryClient]
+  );
+
   const statusMutation = useSellerOrderStatusMutation({
     orderId,
     onApplied: async (result) => {
       const payload = result?.data?.data || result?.data;
       if (payload?.order?._id) {
-        setOrder(payload.order);
+        applyOrderToSellerCaches(payload.order);
       } else if (payload?._id) {
-        setOrder(payload);
+        applyOrderToSellerCaches(payload);
       }
       setStatusUpdateFeedback({ id: '', message: '', tone: 'error' });
       showToast(
@@ -545,16 +592,17 @@ export default function SellerOrderDetail() {
     }
   });
 
-  const invalidateOrderQueries = useCallback(async () => {
-    await queryClient.invalidateQueries({
-      queryKey: ['orders', 'detail', 'seller', String(orderId || '')],
+  const invalidateOrderQueries = useCallback(() => {
+    queryClient.invalidateQueries({
+      queryKey: orderQueryKeys.detail('seller', String(orderId || '')),
       refetchType: 'active'
-    });
-    await queryClient.invalidateQueries({
-      queryKey: ['orders', 'list', 'seller'],
+    }).catch(() => {});
+    queryClient.invalidateQueries({
+      queryKey: orderQueryKeys.listRoot('seller'),
       refetchType: 'inactive'
-    });
+    }).catch(() => {});
     window.dispatchEvent(new Event('hdmarket:orders-refresh'));
+    return Promise.resolve();
   }, [orderId, queryClient]);
 
   const handleStatusUpdate = async (nextStatus) => {
@@ -588,10 +636,10 @@ export default function SellerOrderDetail() {
       const { data } = await api.patch(`/orders/seller/${order._id}/delivery-fee`, {
         deliveryFeeTotal: num
       });
-      setOrder(data);
+      applyOrderToSellerCaches(data);
       setDeliveryFeeEditValue('');
       showToast('Frais de livraison mis à jour. Le client a été notifié.', { variant: 'success' });
-      await invalidateOrderQueries();
+      invalidateOrderQueries();
     } catch (err) {
       showToast(err.response?.data?.message || 'Impossible de modifier les frais.', { variant: 'error' });
     } finally {
@@ -607,9 +655,9 @@ export default function SellerOrderDetail() {
         approve
       });
       if (data?._id) {
-        setOrder(data);
+        applyOrderToSellerCaches(data);
       } else {
-        await loadOrder();
+        loadOrder();
       }
       showToast(
         approve
@@ -617,7 +665,7 @@ export default function SellerOrderDetail() {
           : 'Commande tranche refusée et annulée.',
         { variant: 'success' }
       );
-      await invalidateOrderQueries();
+      invalidateOrderQueries();
     } catch (err) {
       const message = err.response?.data?.message || 'Impossible de traiter la preuve de vente.';
       showToast(message, { variant: 'error' });
@@ -634,12 +682,12 @@ export default function SellerOrderDetail() {
         `/orders/seller/${order._id}/installment/payments/${scheduleIndex}/validate`,
         { approve }
       );
-      setOrder(data);
+      applyOrderToSellerCaches(data);
       showToast(
         approve ? 'Tranche validée.' : 'Tranche rejetée. Le client doit renvoyer une preuve.',
         { variant: 'success' }
       );
-      await invalidateOrderQueries();
+      invalidateOrderQueries();
     } catch (err) {
       const message = err.response?.data?.message || 'Impossible de valider cette tranche.';
       showToast(message, { variant: 'error' });
@@ -664,7 +712,7 @@ export default function SellerOrderDetail() {
         reason: cancelReason.trim(),
         issueRefund
       });
-      setOrder(data);
+      applyOrderToSellerCaches(data);
       showToast(
         issueRefund
           ? 'Commande annulée. Le client est notifié et le remboursement est demandé.'
@@ -672,7 +720,7 @@ export default function SellerOrderDetail() {
         { variant: 'success' }
       );
       closeCancelModal({ force: true });
-      await invalidateOrderQueries();
+      invalidateOrderQueries();
     } catch (err) {
       const message = err.response?.data?.message || err.response?.data?.details?.[0] || 'Impossible d\'annuler la commande.';
       showToast(message, { variant: 'error' });
@@ -750,8 +798,8 @@ export default function SellerOrderDetail() {
       setRequestPlatformDeliveryOpen(false);
       setRequestPlatformDeliveryNote('');
       setRequestPlatformDeliveryInvoiceUrl('');
-      await loadOrder();
-      await invalidateOrderQueries();
+      loadOrder();
+      invalidateOrderQueries();
     } catch (err) {
       const message =
         err.response?.data?.message ||
@@ -793,8 +841,8 @@ export default function SellerOrderDetail() {
         setDeliveryPinDraft(nextCode || '');
       }
       showToast(data?.message || 'Code de livraison mis à jour.', { variant: 'success' });
-      await loadOrder();
-      await invalidateOrderQueries();
+      loadOrder();
+      invalidateOrderQueries();
     } catch (err) {
       const message =
         err.response?.data?.message ||
@@ -1071,7 +1119,7 @@ export default function SellerOrderDetail() {
   };
 
   return (
-    <div className="hd-order-flow hd-commerce-shell min-h-screen dark:bg-neutral-950">
+    <div className="hd-order-flow min-h-screen bg-[#f6f3ee] text-slate-950 dark:bg-neutral-950">
       <GlassHeader
         title={`Commande #${order._id.slice(-6)}`}
         subtitle="Détail vendeur"
@@ -1104,56 +1152,70 @@ export default function SellerOrderDetail() {
           </section>
         </div>
       )}
-      <div className="max-w-3xl mx-auto px-4 py-6">
+      <div className="mx-auto max-w-5xl px-3 py-4 pb-28 sm:px-5 sm:py-6">
 
-        <div className="bg-white rounded-2xl border-2 border-gray-100 shadow-sm overflow-hidden">
-          <div className={`${statusStyle.header} text-white px-6 py-4`}>
+        <div className="overflow-hidden rounded-[30px] border border-orange-100 bg-white shadow-[0_18px_48px_rgba(117,75,36,0.10)]">
+          <div className="relative overflow-hidden bg-gradient-to-br from-[#ff6a00] via-[#ff3d13] to-[#ff8a1f] px-5 py-5 text-white sm:px-7 sm:py-6">
+            <div className="absolute inset-x-0 top-0 h-px bg-white/40" />
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-white/20 backdrop-blur-sm">
-                  <StatusIcon className="w-5 h-5" />
+                <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-white/20 shadow-[0_12px_26px_rgba(90,32,0,0.18)] ring-1 ring-white/25 backdrop-blur-sm">
+                  <StatusIcon className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-white/80 uppercase tracking-wide">Commande</p>
-                  <h3 className="text-lg font-bold">#{order._id.slice(-6)}</h3>
+                  <p className="text-xs font-black uppercase tracking-wide text-white/78">Commande vendeur</p>
+                  <h3 className="text-2xl font-black tracking-tight">#{order._id.slice(-6)}</h3>
+                  <p className="mt-1 text-xs font-semibold text-white/78">
+                    {formatOrderTimestamp(order.createdAt) || 'Date non disponible'}
+                  </p>
                 </div>
               </div>
-              <span className="px-3 py-1.5 rounded-lg bg-white/20 text-xs font-bold uppercase">
+              <span className="rounded-full bg-white px-3 py-2 text-xs font-black uppercase text-[#9A4A00] shadow-sm">
                 {STATUS_LABELS[displayStatusLabel] || displayStatusLabel}
               </span>
             </div>
           </div>
 
-          <div className="p-6 space-y-6">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <Package className="w-4 h-4 text-gray-500" />
-                <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Articles commandés</h4>
+          <div className="space-y-4 bg-[#fffaf4] p-3 sm:p-5">
+            <section className="rounded-[26px] border border-orange-100 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-orange-50 text-[#FF6A00] ring-1 ring-orange-100">
+                    <Package className="w-4 h-4" />
+                  </span>
+                  <div>
+                    <h4 className="text-sm font-black text-gray-900">Articles commandés</h4>
+                    <p className="text-xs font-semibold text-stone-500">{orderItems.length} article{orderItems.length > 1 ? 's' : ''}</p>
+                  </div>
+                </div>
+                <span className="rounded-full bg-orange-50 px-3 py-1.5 text-xs font-black text-[#9A4A00] ring-1 ring-orange-100">
+                  {formatCurrency(totalAmount)}
+                </span>
               </div>
               <div className="space-y-3">
                 {orderItems.map((item, index) => (
-                  <div key={`${order._id}-${index}`} className="flex items-start gap-4 p-4 rounded-xl border border-gray-100 bg-gray-50/50">
+                  <div key={`${order._id}-${index}`} className="flex items-start gap-3 rounded-[22px] border border-stone-100 bg-[#fffaf4] p-2.5 sm:gap-4 sm:p-3">
                     {item.snapshot?.image || item.product?.images?.[0] ? (
-                      <img src={item.snapshot?.image || item.product?.images?.[0]} alt={item.snapshot?.title || 'Produit'} className="w-16 h-16 rounded-xl object-cover border border-gray-200 flex-shrink-0" />
+                      <img src={item.snapshot?.image || item.product?.images?.[0]} alt={item.snapshot?.title || 'Produit'} className="h-20 w-20 flex-shrink-0 rounded-[18px] border border-orange-100 object-cover sm:h-24 sm:w-24" />
                     ) : (
-                      <div className="w-16 h-16 rounded-xl bg-neutral-100 flex items-center justify-center flex-shrink-0">
+                      <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-[18px] bg-orange-50 sm:h-24 sm:w-24">
                         <Package className="w-6 h-6 text-neutral-600" />
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between gap-2 mb-1">
                         {item.product ? (
-                          <Link to={buildProductPath(item.product)} {...externalLinkProps} className="font-bold text-gray-900 hover:text-neutral-600 truncate">
+                          <Link to={buildProductPath(item.product)} {...externalLinkProps} className="line-clamp-2 font-black text-gray-900 hover:text-[#FF6A00]">
                             {item.snapshot?.title || 'Produit'}
                           </Link>
                         ) : (
                           <span className="font-bold text-gray-900">{item.snapshot?.title || 'Produit'}</span>
                         )}
-                        <span className="text-sm font-bold text-gray-900 whitespace-nowrap">{formatCurrency((item.snapshot?.price || 0) * (item.quantity || 1))}</span>
+                        <span className="whitespace-nowrap text-sm font-black text-[#FF6A00]">{formatCurrency((item.snapshot?.price || 0) * (item.quantity || 1))}</span>
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-gray-500 mb-1">
-                        <span>Quantité: {item.quantity || 1}</span>
-                        <span>Prix unitaire: {formatCurrency(item.snapshot?.price || 0)}</span>
+                      <div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-gray-500">
+                        <span className="rounded-full bg-white px-2 py-1 ring-1 ring-stone-100">Qté {item.quantity || 1}</span>
+                        <span className="rounded-full bg-white px-2 py-1 ring-1 ring-stone-100">{formatCurrency(item.snapshot?.price || 0)} / unité</span>
                       </div>
                       <SelectedAttributesList
                         selectedAttributes={item.selectedAttributes}
@@ -1169,13 +1231,13 @@ export default function SellerOrderDetail() {
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {order.deliveryCode && (
                 <div>
                   <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-neutral-500" /> Code de livraison</h4>
-                  <div className="p-5 rounded-xl border-2 border-neutral-200 bg-neutral-50">
+                  <div className="rounded-[22px] border border-orange-100 bg-orange-50 p-5">
                     <p className="text-xs font-semibold text-neutral-700 uppercase mb-2">Code pour le livreur</p>
                     <div className="text-4xl font-black text-neutral-900 tracking-wider font-mono text-center">{order.deliveryCode}</div>
                   </div>
@@ -1183,7 +1245,7 @@ export default function SellerOrderDetail() {
               )}
               <div>
                 <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2"><User className="w-4 h-4 text-gray-500" /> Client</h4>
-                <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 space-y-2">
+                <div className="space-y-2 rounded-[22px] border border-orange-100 bg-white p-4 shadow-sm">
                   <p className="text-sm font-semibold text-gray-900">{order.customer?.name || 'Client'}</p>
                   {order.customer?.phone && <p className="text-xs text-gray-500 flex items-center gap-1"><Phone className="w-3 h-3" />{order.customer.phone}</p>}
                   {order.customer?.email && <p className="text-xs text-gray-500 flex items-center gap-1"><Mail className="w-3 h-3" />{order.customer.email}</p>}
@@ -1195,7 +1257,7 @@ export default function SellerOrderDetail() {
               <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-gray-500" /> {isPickupOrder ? 'Point de retrait' : 'Adresse de livraison'}
               </h4>
-              <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 space-y-2">
+              <div className="space-y-2 rounded-[22px] border border-orange-100 bg-white p-4 shadow-sm">
                 {isPickupOrder ? (
                   <>
                     <p className="text-sm font-semibold text-gray-900">{pickupShopAddress?.shopName || 'Boutique'}</p>
@@ -1266,25 +1328,25 @@ export default function SellerOrderDetail() {
             )}
 
             {order.trackingNote && (
-              <div>
+              <div className="rounded-[24px] border border-orange-100 bg-white p-4 shadow-sm">
                 <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2"><Info className="w-4 h-4 text-gray-500" /> Note de suivi</h4>
-                <div className="p-4 rounded-xl border border-neutral-100 bg-neutral-50/50"><p className="text-sm text-gray-700">{order.trackingNote}</p></div>
+                <p className="text-sm font-semibold leading-6 text-gray-700">{order.trackingNote}</p>
               </div>
             )}
 
-            <div>
+            <section className="rounded-[26px] border border-orange-100 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
               <h4 className="text-sm font-bold text-gray-900 uppercase mb-3 flex items-center gap-2"><CreditCard className="w-4 h-4 text-gray-500" /> Paiement</h4>
-              <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-[20px] border border-orange-100 bg-orange-50 px-3 py-3">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm text-blue-700">Mode de paiement</span>
+                    <span className="text-sm font-black text-[#9A4A00]">Mode de paiement</span>
                     {isFullPaymentOrder && (
                       <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
                         BEST VALUE
                       </span>
                     )}
                   </div>
-                  <span className="text-sm font-semibold text-blue-900">{paymentModeLabel}</span>
+                  <span className="text-sm font-black text-slate-950">{paymentModeLabel}</span>
                 </div>
                 {!isPickupOrder && (Number(order.deliveryFeeTotal ?? 0) > 0 || canEditDeliveryFee || deliveryFeeLockedByFullPayment) && (
                   <div className="space-y-2">
@@ -1336,9 +1398,9 @@ export default function SellerOrderDetail() {
                     ) : null}
                   </div>
                 )}
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Total commande</span>
-                  <span className="text-lg font-bold text-gray-900">
+                <div className="flex justify-between rounded-[20px] border border-stone-100 bg-[#fffaf4] px-3 py-3">
+                  <span className="text-sm font-semibold text-gray-600">Total commande</span>
+                  <span className="text-xl font-black text-[#FF6A00]">
                     {formatCurrency(isInstallmentOrder ? installmentTotal : totalAmount)}
                   </span>
                 </div>
@@ -1416,7 +1478,7 @@ export default function SellerOrderDetail() {
                   </>
                 )}
               </div>
-            </div>
+            </section>
 
             {isInstallmentOrder && (
               <InstallmentReminder
@@ -1501,7 +1563,7 @@ export default function SellerOrderDetail() {
                 minFiles={canRequestPickupProof ? 3 : 1}
                 onSuccess={(updatedOrder) => {
                   if (updatedOrder?._id) {
-                    setOrder(updatedOrder);
+                    applyOrderToSellerCaches(updatedOrder);
                     setShowDeliveryProofForm(false);
                     showToast(
                       canRequestPickupProof
@@ -1509,6 +1571,7 @@ export default function SellerOrderDetail() {
                         : 'Preuve de livraison envoyée au client.',
                       { variant: 'success' }
                     );
+                    invalidateOrderQueries();
                   } else {
                     loadOrder();
                   }
@@ -1664,15 +1727,15 @@ export default function SellerOrderDetail() {
               </div>
             )}
 
-            <div className="rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
+            <div className="rounded-[26px] border border-orange-100 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
               <OrderChat order={order} buttonText="Contacter l'acheteur" unreadCount={unreadCount} />
             </div>
 
             {sellerPrimaryAction ? (
-              <div className="rounded-2xl border border-gray-100 bg-white p-4 space-y-2">
+              <div className="space-y-3 rounded-[26px] border border-orange-100 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-gray-500" />
-                  <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                  <ShieldCheck className="w-4 h-4 text-[#FF6A00]" />
+                  <h4 className="text-sm font-black text-gray-900">
                     Action suivante
                   </h4>
                 </div>
@@ -1687,7 +1750,7 @@ export default function SellerOrderDetail() {
                     paymentValidationLoadingIndex >= 0 ||
                     order.cancellationWindow?.isActive
                   }
-                  className={`inline-flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${getPrimaryActionClassName(
+                  className={`inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-full border px-4 text-sm font-black shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${getPrimaryActionClassName(
                     sellerPrimaryAction.intent
                   )}`}
                 >
@@ -1715,10 +1778,10 @@ export default function SellerOrderDetail() {
             ) : null}
 
             {canManageInstallmentSaleStatus && !sellerPrimaryAction && (
-              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-3">
+              <div className="space-y-3 rounded-[26px] border border-orange-100 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-gray-500" />
-                  <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                  <ShieldCheck className="w-4 h-4 text-[#FF6A00]" />
+                  <h4 className="text-sm font-black text-gray-900">
                     Mettre à jour le statut de vente
                   </h4>
                 </div>
@@ -1800,10 +1863,10 @@ export default function SellerOrderDetail() {
               !['cancelled', 'delivery_proof_submitted', 'confirmed_by_client', 'completed', 'delivered', 'picked_up_confirmed'].includes(
                 order.status
               ) && (
-              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-3">
+              <div className="space-y-3 rounded-[26px] border border-orange-100 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-gray-500" />
-                  <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                  <ShieldCheck className="w-4 h-4 text-[#FF6A00]" />
+                  <h4 className="text-sm font-black text-gray-900">
                     Mettre à jour le statut {isPickupOrder ? '(retrait boutique)' : ''}
                   </h4>
                 </div>

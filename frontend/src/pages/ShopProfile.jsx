@@ -465,6 +465,18 @@ export default function ShopProfile() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: shopProfileQueryKey });
       const previous = queryClient.getQueryData(shopProfileQueryKey);
+      const previousFollowingShops = Array.isArray(user?.followingShops)
+        ? user.followingShops.map((entry) => String(entry))
+        : [];
+      const shopId = String(shop?._id || '');
+      const nextFollowingShops = isFollowing
+        ? previousFollowingShops.filter((entry) => entry !== shopId)
+        : Array.from(new Set([...previousFollowingShops, shopId]));
+
+      if (typeof updateUser === 'function' && shopId) {
+        updateUser({ followingShops: nextFollowingShops });
+      }
+
       queryClient.setQueryData(shopProfileQueryKey, (old) => {
         if (!old?.shop) return old;
         const currentFollowers = Number(old.shop.followersCount || 0);
@@ -479,7 +491,7 @@ export default function ShopProfile() {
           }
         };
       });
-      return { previous };
+      return { previous, previousFollowingShops, wasFollowing: isFollowing };
     },
     onError: async (err, _variables, context) => {
       if (isApiPossiblyCommittedError(err)) {
@@ -495,19 +507,25 @@ export default function ShopProfile() {
         }
       }
       if (context?.previous) queryClient.setQueryData(shopProfileQueryKey, context.previous);
+      if (typeof updateUser === 'function' && Array.isArray(context?.previousFollowingShops)) {
+        updateUser({ followingShops: context.previousFollowingShops });
+      }
       showToast(
         getApiErrorMessage(err, t('shop_profile.follow_error', 'Impossible de suivre cette boutique.')),
         { variant: 'error' }
       );
     },
-    onSuccess: (data) => {
+    onSuccess: (data, _variables, context) => {
       if (typeof updateUser === 'function' && shop?._id) {
-        const current = Array.isArray(user?.followingShops)
-          ? user.followingShops.map((entry) => String(entry))
-          : [];
-        const next = isFollowing
-          ? current.filter((entry) => entry !== String(shop._id))
-          : Array.from(new Set([...current, String(shop._id)]));
+        const current = Array.isArray(context?.previousFollowingShops)
+          ? context.previousFollowingShops
+          : Array.isArray(user?.followingShops)
+            ? user.followingShops.map((entry) => String(entry))
+            : [];
+        const shouldFollow = !Boolean(context?.wasFollowing ?? isFollowing);
+        const next = shouldFollow
+          ? Array.from(new Set([...current, String(shop._id)]))
+          : current.filter((entry) => entry !== String(shop._id));
         updateUser({ followingShops: next });
       }
       queryClient.setQueryData(shopProfileQueryKey, (old) => {
@@ -522,7 +540,7 @@ export default function ShopProfile() {
       });
       showToast(
         data?.message ||
-          (isFollowing
+          (context?.wasFollowing ?? isFollowing
             ? t('shop_profile.unfollowed', 'Boutique désabonnée.')
             : t('shop_profile.followed', 'Boutique suivie.')),
         { variant: 'success' }
@@ -908,7 +926,8 @@ export default function ShopProfile() {
     }
   ];
 
-  const followDisabled = followMutation.isPending || !shop?._id || !shopVerifiedFlag || isOwnShop;
+  const followPending = followMutation.isPending;
+  const followDisabled = !shop?._id || !shopVerifiedFlag || isOwnShop;
 
   const isOfflineSnapshot = shouldUseOfflineSnapshot && shopQuery.isError && Boolean(shopQuery.data);
   const isNetworkErrorWithoutResponse = Boolean(shopQuery.isError && !shop && !shopQuery.error?.response);
@@ -973,6 +992,7 @@ export default function ShopProfile() {
           onFollowToggle={handleFollowToggle}
           isFollowing={isFollowing}
           followDisabled={followDisabled}
+          followPending={followPending}
           t={t}
         />
 
@@ -1021,7 +1041,7 @@ export default function ShopProfile() {
                 isCertifiedShop={isCertifiedShop}
                 isFollowing={isFollowing}
                 followDisabled={followDisabled}
-                followPending={followMutation.isPending}
+                followPending={followPending}
                 onPrimaryAction={handlePrimaryAction}
                 onShare={handleShareShop}
                 onMessage={goToMessage}
@@ -1109,7 +1129,7 @@ export default function ShopProfile() {
                   isCertifiedShop={isCertifiedShop}
                   isFollowing={isFollowing}
                   followDisabled={followDisabled}
-                  followPending={followMutation.isPending}
+                  followPending={followPending}
                   onPrimaryAction={handlePrimaryAction}
                   onShare={handleShareShop}
                   onMessage={goToMessage}
@@ -1134,6 +1154,7 @@ export default function ShopProfile() {
           onFollowToggle={handleFollowToggle}
           isFollowing={isFollowing}
           followDisabled={followDisabled}
+          followPending={followPending}
           t={t}
         />
       )}

@@ -1,6 +1,12 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../services/api';
 import AuthContext from './AuthContext';
+import {
+  buildCartItemMutationKey,
+  patchCartItemQuantity,
+  recalculateCart,
+  removeCartItem
+} from '../utils/cartPricing';
 
 const initialCart = {
   items: [],
@@ -24,16 +30,18 @@ export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState(initialCart);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const mutationSeqRef = useRef(0);
+  const latestItemMutationRef = useRef(new Map());
 
   const handleResponse = useCallback((data) => {
     if (!data) {
       setCart(initialCart);
     } else {
-      setCart({
+      setCart(recalculateCart({
         items: data.items || [],
         totals: data.totals || { quantity: 0, subtotal: 0 },
         updatedAt: data.updatedAt || null
-      });
+      }));
     }
   }, []);
 
@@ -91,50 +99,94 @@ export const CartProvider = ({ children }) => {
   const updateItem = useCallback(
     async (productId, quantity, selectedAttributes = [], selectionKey = '') => {
       if (!user) return;
-      setLoading(true);
+      const mutationKey = buildCartItemMutationKey({ productId, selectionKey, selectedAttributes });
+      const mutationSeq = mutationSeqRef.current + 1;
+      mutationSeqRef.current = mutationSeq;
+      latestItemMutationRef.current.set(mutationKey, mutationSeq);
+      const rollbackCart = cart;
+      setCart((current) =>
+        patchCartItemQuantity(current, {
+          productId,
+          quantity,
+          selectionKey,
+          selectedAttributes
+        })
+      );
+      setError('');
       try {
         if (quantity <= 0) {
           const { data } = await api.delete(`/cart/items/${productId}`, {
             data: { selectionKey, selectedAttributes }
           });
-          handleResponse(data);
+          if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
+            handleResponse(data);
+          }
         } else {
           const { data } = await api.put(`/cart/items/${productId}`, {
             quantity,
             selectionKey,
             selectedAttributes
           });
-          handleResponse(data);
+          if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
+            handleResponse(data);
+          }
         }
         setError('');
       } catch (e) {
-        setError(e.response?.data?.message || e.message || 'Impossible de mettre à jour le panier.');
+        if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
+          setCart(rollbackCart);
+          setError(e.response?.data?.message || e.message || 'Impossible de mettre à jour le panier.');
+        }
         throw e;
       } finally {
-        setLoading(false);
+        if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
+          latestItemMutationRef.current.delete(mutationKey);
+        }
       }
     },
-    [handleResponse, user]
+    [cart, handleResponse, user]
   );
 
   const removeItem = useCallback(
     async (productId, selectedAttributes = [], selectionKey = '') => {
       if (!user) return;
-      setLoading(true);
+      const mutationKey = buildCartItemMutationKey({ productId, selectionKey, selectedAttributes });
+      const mutationSeq = mutationSeqRef.current + 1;
+      mutationSeqRef.current = mutationSeq;
+      latestItemMutationRef.current.set(mutationKey, mutationSeq);
+      const rollbackCart = cart;
+      const itemToRemove = (cart.items || []).find(
+        (item) => buildCartItemMutationKey({
+          productId: item?.product?._id || item?.product,
+          selectionKey: item?.selectionKey || '',
+          selectedAttributes: item?.selectedAttributes || []
+        }) === mutationKey
+      );
+      if (itemToRemove) {
+        setCart((current) => removeCartItem(current, itemToRemove));
+      }
+      setError('');
       try {
         const { data } = await api.delete(`/cart/items/${productId}`, {
           data: { selectionKey, selectedAttributes }
         });
-        handleResponse(data);
+        if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
+          handleResponse(data);
+        }
         setError('');
       } catch (e) {
-        setError(e.response?.data?.message || e.message || 'Impossible de retirer l’article.');
+        if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
+          setCart(rollbackCart);
+          setError(e.response?.data?.message || e.message || 'Impossible de retirer l’article.');
+        }
         throw e;
       } finally {
-        setLoading(false);
+        if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
+          latestItemMutationRef.current.delete(mutationKey);
+        }
       }
     },
-    [handleResponse, user]
+    [cart, handleResponse, user]
   );
 
   const clearCart = useCallback(async () => {

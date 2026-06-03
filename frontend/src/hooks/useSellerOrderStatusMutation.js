@@ -76,6 +76,29 @@ const getOptimisticSellerOrder = (order, nextStatus) => {
       };
 };
 
+const dispatchOrderStatusSnapshot = (order) => {
+  if (typeof window === 'undefined' || !order?._id) return;
+  window.dispatchEvent(
+    new CustomEvent('hdmarket:orders-status-updated', {
+      detail: {
+        orderId: String(order._id),
+        status: order.status,
+        installmentSaleStatus: order.installmentSaleStatus,
+        platformDeliveryStatus: order.platformDeliveryStatus,
+        platformDeliveryRequestId: order.platformDeliveryRequestId,
+        deliveryStatus: order.deliveryStatus,
+        outForDeliveryAt: order.outForDeliveryAt,
+        shippedAt: order.shippedAt,
+        deliverySubmittedAt: order.deliverySubmittedAt,
+        deliveryDate: order.deliveryDate,
+        deliveredAt: order.deliveredAt,
+        clientDeliveryConfirmedAt: order.clientDeliveryConfirmedAt,
+        updatedAt: order.updatedAt || new Date().toISOString()
+      }
+    })
+  );
+};
+
 export const useSellerOrderStatusMutation = ({
   orderId,
   onApplied,
@@ -281,13 +304,14 @@ export const useSellerOrderStatusMutation = ({
       const nextOrder = normalizeMutationPayload(result?.data);
       if (nextOrder?._id) {
         applyOrderToCaches(nextOrder);
+        dispatchOrderStatusSnapshot(nextOrder);
       } else {
-        await queryClient.invalidateQueries({ queryKey: detailKey, refetchType: 'active' });
+        queryClient.invalidateQueries({ queryKey: detailKey, refetchType: 'active' }).catch(() => {});
       }
       queryClient.invalidateQueries({
         queryKey: listRootKey,
         refetchType: 'active'
-      });
+      }).catch(() => {});
       if (typeof onApplied === 'function') {
         await onApplied(result, variables, context);
       }
@@ -312,9 +336,9 @@ export const useSellerOrderStatusMutation = ({
         });
       }
     },
-    onSettled: async (data) => {
+    onSettled: (data) => {
       if (data?.data?.queued) return;
-      await queryClient.invalidateQueries({ queryKey: detailKey, refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: detailKey, refetchType: 'active' }).catch(() => {});
     }
   });
 

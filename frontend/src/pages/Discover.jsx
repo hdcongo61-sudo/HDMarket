@@ -105,11 +105,21 @@ function ProductRail({ products = [], loading = false }) {
 export default function Discover() {
   const { user } = useContext(AuthContext);
   const { city: preferredCity } = useAppSettings();
-  const [loading, setLoading] = useState(true);
   const [sections, setSections] = useState({ topDeals: [], topSales: [], newProducts: [], local: [] });
   const [shops, setShops] = useState([]);
+  const [loadingSections, setLoadingSections] = useState({
+    local: true,
+    topDeals: true,
+    topSales: true,
+    newProducts: true,
+    shops: true
+  });
   const [error, setError] = useState('');
   const city = preferredCity || user?.preferredCity || user?.city || '';
+
+  const setSectionLoading = useCallback((key, value) => {
+    setLoadingSections((prev) => ({ ...prev, [key]: value }));
+  }, []);
 
   const categoryShortcuts = useMemo(
     () =>
@@ -124,21 +134,72 @@ export default function Discover() {
   );
 
   const loadDiscover = useCallback(async () => {
-    setLoading(true);
     setError('');
-    try {
-      const [highlightsRes, topSalesRes, localRes, shopsRes] = await Promise.allSettled([
-        api.get('/products/public/highlights'),
-        api.get('/products/public/top-sales', { params: { limit: 10, page: 1 } }),
-        api.get('/products/public', {
+    setLoadingSections({
+      local: true,
+      topDeals: true,
+      topSales: true,
+      newProducts: true,
+      shops: true
+    });
+
+    const loadLocal = async () => {
+      try {
+        const { data } = await api.get('/products/public', {
           params: {
             page: 1,
             limit: 10,
             sort: 'new',
             ...(city ? { userCity: city, locationPriority: true } : {})
           }
-        }),
-        api.get('/shops', {
+        });
+        setSections((prev) => ({
+          ...prev,
+          local: toItems(data).slice(0, 10)
+        }));
+      } catch (err) {
+        setError(err?.response?.data?.message || 'Impossible de charger la découverte.');
+      } finally {
+        setSectionLoading('local', false);
+      }
+    };
+
+    const loadHighlights = async () => {
+      try {
+        const { data } = await api.get('/products/public/highlights', { silentGlobalError: true });
+        setSections((prev) => ({
+          ...prev,
+          topDeals: toItems(data?.topDeals || data?.topDiscounts).slice(0, 10),
+          newProducts: toItems(data?.newProducts).slice(0, 10)
+        }));
+      } catch {
+        setSections((prev) => ({ ...prev, topDeals: [], newProducts: [] }));
+      } finally {
+        setSectionLoading('topDeals', false);
+        setSectionLoading('newProducts', false);
+      }
+    };
+
+    const loadTopSales = async () => {
+      try {
+        const { data } = await api.get('/products/public/top-sales', {
+          params: { limit: 10, page: 1 },
+          silentGlobalError: true
+        });
+        setSections((prev) => ({
+          ...prev,
+          topSales: toItems(data).slice(0, 10)
+        }));
+      } catch {
+        setSections((prev) => ({ ...prev, topSales: [] }));
+      } finally {
+        setSectionLoading('topSales', false);
+      }
+    };
+
+    const loadShops = async () => {
+      try {
+        const { data } = await api.get('/shops', {
           params: {
             verified: 'true',
             limit: 8,
@@ -147,23 +208,20 @@ export default function Discover() {
             withProductCounts: 'false'
           },
           silentGlobalError: true
-        })
-      ]);
+        });
+        setShops(toItems(data).slice(0, 8));
+      } catch {
+        setShops([]);
+      } finally {
+        setSectionLoading('shops', false);
+      }
+    };
 
-      const highlights = highlightsRes.status === 'fulfilled' ? highlightsRes.value?.data || {} : {};
-      setSections({
-        topDeals: toItems(highlights.topDeals || highlights.topDiscounts).slice(0, 10),
-        topSales: toItems(topSalesRes.status === 'fulfilled' ? topSalesRes.value?.data : []).slice(0, 10),
-        newProducts: toItems(highlights.newProducts).slice(0, 10),
-        local: toItems(localRes.status === 'fulfilled' ? localRes.value?.data : []).slice(0, 10)
-      });
-      setShops(toItems(shopsRes.status === 'fulfilled' ? shopsRes.value?.data : []).slice(0, 8));
-    } catch (err) {
-      setError(err?.response?.data?.message || 'Impossible de charger la découverte.');
-    } finally {
-      setLoading(false);
-    }
-  }, [city]);
+    loadLocal();
+    window.setTimeout(loadHighlights, 80);
+    window.setTimeout(loadTopSales, 160);
+    window.setTimeout(loadShops, 240);
+  }, [city, setSectionLoading]);
 
   useEffect(() => {
     loadDiscover();
@@ -238,15 +296,15 @@ export default function Discover() {
             subtitle="Priorité aux produits proches quand votre ville est connue."
             to="/products"
           />
-          <ProductRail products={sections.local} loading={loading} />
+          <ProductRail products={sections.local} loading={loadingSections.local} />
         </section>
 
         <section className="mt-8 grid gap-4 lg:grid-cols-[1fr_0.9fr]">
           <div className="hd-surface rounded-[26px] p-4">
             <SectionHeader icon={Store} title="Boutiques à suivre" subtitle="Vendeurs vérifiés pour une navigation plus sûre." to="/shops/verified" />
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {(loading ? Array.from({ length: 4 }) : shops).map((shop, index) =>
-                loading ? (
+              {(loadingSections.shops ? Array.from({ length: 4 }) : shops).map((shop, index) =>
+                loadingSections.shops ? (
                   <ShimmerSkeleton key={index} className="h-28 rounded-3xl" />
                 ) : (
                   <Link key={shop._id || shop.slug} to={buildShopPath(shop)} className="rounded-3xl bg-white p-3 ring-1 ring-orange-100 transition hover:-translate-y-0.5 hover:bg-orange-50">
@@ -285,7 +343,7 @@ export default function Discover() {
         {sectionMeta.map((meta) => (
           <section key={meta.key} className="mt-8">
             <SectionHeader {...meta} />
-            <ProductRail products={sections[meta.key]} loading={loading} />
+            <ProductRail products={sections[meta.key]} loading={loadingSections[meta.key]} />
           </section>
         ))}
       </div>

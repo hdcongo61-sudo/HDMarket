@@ -60,7 +60,9 @@ import {
   getOrderItemCount,
   getOrderTotal,
   getOrderUiState,
-  isOrderGroupKey
+  isOrderGroupKey,
+  normalizeOrderSummaryStats,
+  patchOrderSummaryStatusCounters
 } from '../utils/orderStatusEngine';
 import useReliableMutation from '../hooks/useReliableMutation';
 import useOrderRealtimeSync from '../hooks/useOrderRealtimeSync';
@@ -130,9 +132,12 @@ const INSTALLMENT_SALE_STATUS_LABELS = {
 const BUYER_TAB_ICONS = {
   all: ClipboardList,
   payment_due: CreditCard,
+  awaiting_seller: Package,
   active: Clock,
   pickup: Store,
   delivery: Truck,
+  proof: ShieldCheck,
+  installments: Receipt,
   completed: CheckCircle,
   cancelled: X
 };
@@ -1032,21 +1037,61 @@ export default function UserOrders() {
     currentStatus: hasActiveOrders ? 'pending_payment' : 'delivered'
   });
 
+  const loadOrderStats = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setStatsLoading(true);
+    try {
+      const { data } = await api.get('/orders/summary', {
+        skipCache: true,
+        headers: { 'x-skip-cache': '1' }
+      });
+      setStats(normalizeOrderSummaryStats(data, 'buyer'));
+    } catch (err) {
+      console.error('Error loading stats:', err);
+    } finally {
+      if (!silent) setStatsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const onStatusUpdated = (event) => {
       const payload = event?.detail || {};
       const incomingOrderId = String(payload?.orderId || '').trim();
       if (!incomingOrderId) return;
+      const previousOrder = orders.find((entry) => String(entry?._id || '') === incomingOrderId);
+      const previousStatus = String(previousOrder?.status || '').trim().toLowerCase();
+      const nextStatus = String(payload?.order?.status || payload?.status || '').trim().toLowerCase();
+      if (previousStatus && nextStatus && previousStatus !== nextStatus) {
+        setStats((current) =>
+          patchOrderSummaryStatusCounters(current, {
+            previousStatus,
+            nextStatus,
+            role: 'buyer'
+          })
+        );
+      }
       setOrders((prev) => {
         const patched = prev.map((entry) => applyRealtimeStatusPatch(entry, payload));
         return patched.filter((entry) => orderMatchesBuyerFilter(entry, activeStatus));
       });
+      loadOrderStats({ silent: true });
     };
 
     window.addEventListener('hdmarket:orders-status-updated', onStatusUpdated);
     return () =>
       window.removeEventListener('hdmarket:orders-status-updated', onStatusUpdated);
-  }, [activeStatus]);
+  }, [activeStatus, loadOrderStats, orders]);
+
+  useEffect(() => {
+    loadOrderStats();
+  }, [loadOrderStats]);
+
+  useEffect(() => {
+    const refreshStats = () => loadOrderStats({ silent: true });
+    window.addEventListener('hdmarket:orders-refresh', refreshStats);
+    return () => {
+      window.removeEventListener('hdmarket:orders-refresh', refreshStats);
+    };
+  }, [loadOrderStats]);
 
   // Cache orders for offline access
   useEffect(() => {
@@ -1140,30 +1185,6 @@ export default function UserOrders() {
     setTouchStart(null);
     setTouchEnd(null);
   };
-
-  // Load compact order summary without fetching the full order list.
-  useEffect(() => {
-    let active = true;
-    const loadStats = async () => {
-      setStatsLoading(true);
-      try {
-        const { data } = await api.get('/orders/summary');
-        if (!active) return;
-        setStats({
-          total: Number(data?.total || 0),
-          totalAmount: Number(data?.totalAmount || 0),
-          byStatus: data?.byStatus || {},
-          byGroup: data?.byGroup || {}
-        });
-      } catch (err) {
-        console.error('Error loading stats:', err);
-      } finally {
-        if (active) setStatsLoading(false);
-      }
-    };
-    loadStats();
-    return () => { active = false; };
-  }, []);
 
   const loadUnreadCounts = async (orderIds) => {
     if (!orderIds || orderIds.length === 0 || !user?._id) return {};

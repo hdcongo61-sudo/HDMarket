@@ -15,6 +15,24 @@ const normalizeMutationPayload = (result) => {
   return null;
 };
 
+const dispatchOrderStatusSnapshot = (order) => {
+  if (typeof window === 'undefined' || !order?._id) return;
+  window.dispatchEvent(
+    new CustomEvent('hdmarket:orders-status-updated', {
+      detail: {
+        orderId: String(order._id),
+        status: order.status,
+        deliveryStatus: order.deliveryStatus,
+        deliverySubmittedAt: order.deliverySubmittedAt,
+        deliveryDate: order.deliveryDate,
+        deliveredAt: order.deliveredAt,
+        clientDeliveryConfirmedAt: order.clientDeliveryConfirmedAt,
+        updatedAt: order.updatedAt || new Date().toISOString()
+      }
+    })
+  );
+};
+
 export const useBuyerOrderStatusMutation = ({ orderId, onApplied, onFailed } = {}) => {
   const queryClient = useQueryClient();
   const detailKey = orderQueryKeys.detail('user', orderId);
@@ -67,13 +85,14 @@ export const useBuyerOrderStatusMutation = ({ orderId, onApplied, onFailed } = {
           order: nextOrder,
           unreadCount: Number(existing?.unreadCount || 0)
         }));
+        dispatchOrderStatusSnapshot(nextOrder);
       } else {
-        await queryClient.invalidateQueries({ queryKey: detailKey, refetchType: 'active' });
+        queryClient.invalidateQueries({ queryKey: detailKey, refetchType: 'active' }).catch(() => {});
       }
       queryClient.invalidateQueries({
         queryKey: orderQueryKeys.listRoot('user'),
         refetchType: 'active'
-      });
+      }).catch(() => {});
       if (typeof onApplied === 'function') {
         await onApplied(result, variables, context);
       }
@@ -89,8 +108,8 @@ export const useBuyerOrderStatusMutation = ({ orderId, onApplied, onFailed } = {
         await onFailed(error, variables, context);
       }
     },
-    onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: detailKey, refetchType: 'active' });
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: detailKey, refetchType: 'active' }).catch(() => {});
     }
   });
 };

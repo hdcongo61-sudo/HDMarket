@@ -1,5 +1,5 @@
 import React from 'react';
-import { Heart, MessageCircle, Navigation, Phone, Share2, Store } from 'lucide-react';
+import { Heart, Loader2, MessageCircle, Navigation, Phone, Share2, Store } from 'lucide-react';
 
 export default function ShopBottomActions({
   user,
@@ -11,6 +11,7 @@ export default function ShopBottomActions({
   onFollowToggle,
   isFollowing,
   followDisabled,
+  followPending = false,
   t
 }) {
   const btnBase =
@@ -79,14 +80,23 @@ export default function ShopBottomActions({
           type="button"
           onClick={onFollowToggle}
           disabled={followDisabled}
+          aria-busy={followPending}
           className={`${btnBase} ${
             isFollowing
               ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-100'
               : 'bg-white text-slate-800 ring-1 ring-stone-200 hover:bg-stone-50 dark:bg-neutral-950 dark:text-neutral-100 dark:ring-neutral-800'
-          } ${followDisabled ? 'cursor-not-allowed bg-neutral-100 text-neutral-400 shadow-none ring-neutral-200 dark:bg-neutral-900' : ''}`}
+          } ${followPending ? 'scale-[0.99] ring-orange-200' : ''} ${followDisabled ? 'cursor-not-allowed bg-neutral-100 text-neutral-400 shadow-none ring-neutral-200 dark:bg-neutral-900' : ''}`}
         >
-          <Heart size={15} className={isFollowing ? 'fill-current' : ''} />
-          <span className="truncate">{t('shop_profile.follow', 'Suivre')}</span>
+          {followPending ? (
+            <Loader2 size={15} className="animate-spin" />
+          ) : (
+            <Heart size={15} className={isFollowing ? 'fill-current' : ''} />
+          )}
+          <span className="truncate">
+            {isFollowing
+              ? t('shop_profile.following', 'Suivie')
+              : t('shop_profile.follow', 'Suivre')}
+          </span>
         </button>
       </div>
     </div>

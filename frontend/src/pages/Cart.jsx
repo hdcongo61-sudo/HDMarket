@@ -79,7 +79,10 @@ export default function Cart() {
   const changeQuantity = async (item, quantity) => {
     const productId = item?.product?._id;
     const cartItemKey = getCartItemKey(item);
-    const value = Math.max(0, Number.isNaN(Number(quantity)) ? 0 : Number(quantity));
+    const parsedQuantity = Number.parseInt(String(quantity), 10);
+    if (!productId || !cartItemKey || !Number.isFinite(parsedQuantity)) return;
+    const value = Math.max(1, parsedQuantity);
+    if (value === Number(item?.quantity || 0)) return;
     setPending((prev) => ({ ...prev, [cartItemKey]: true }));
     try {
       await updateItem(productId, value, item?.selectedAttributes || [], item?.selectionKey || '');
@@ -141,7 +144,7 @@ export default function Cart() {
     }
   };
 
-  const disableAll = loading || pending.all;
+  const disableAll = Boolean(pending.all);
 
   // Calculate savings
   const totalSavings = items.reduce((sum, item) => {
@@ -423,7 +426,7 @@ export default function Cart() {
                               type="button"
                               className="flex h-10 min-h-[40px] w-10 min-w-[40px] items-center justify-center rounded-full bg-white text-stone-800 shadow-sm ring-1 ring-orange-100 transition hover:text-[#FF6A00] active:scale-95 disabled:opacity-40"
                               onClick={() => changeQuantity(item, quantity - 1)}
-                              disabled={disableAll || pending[cartItemKey] || quantity <= 1}
+                              disabled={disableAll || quantity <= 1}
                               aria-label="Diminuer la quantité"
                             >
                               <span className="text-lg font-black">−</span>
@@ -438,7 +441,7 @@ export default function Cart() {
                                 className="h-10 w-full rounded-full border border-orange-200 bg-white text-center text-base font-black text-slate-950 shadow-inner outline-none transition focus:border-[#FF6A00] focus:ring-2 focus:ring-orange-100 disabled:bg-stone-50 disabled:text-stone-400"
                                 value={quantity}
                                 onChange={(e) => changeQuantity(item, e.target.value)}
-                                disabled={disableAll || pending[cartItemKey]}
+                                disabled={disableAll}
                               />
                             </div>
                             
@@ -446,7 +449,7 @@ export default function Cart() {
                               type="button"
                               className="flex h-10 min-h-[40px] w-10 min-w-[40px] items-center justify-center rounded-full bg-white text-stone-800 shadow-sm ring-1 ring-orange-100 transition hover:text-[#FF6A00] active:scale-95 disabled:opacity-40"
                               onClick={() => changeQuantity(item, quantity + 1)}
-                              disabled={disableAll || pending[cartItemKey]}
+                              disabled={disableAll}
                               aria-label="Augmenter la quantité"
                             >
                               <span className="text-lg font-black">+</span>
