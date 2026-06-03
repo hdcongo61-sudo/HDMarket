@@ -137,7 +137,7 @@ export default function Navbar() {
   const location = useLocation();
   const isCourierRoute = location.pathname.startsWith('/delivery') || location.pathname.startsWith('/courier');
   const { user, logout } = useContext(AuthContext);
-  const { theme, setTheme, t, cities, isFeatureEnabled, getRuntimeValue } = useAppSettings();
+  const { theme, setTheme, t, cities, isFeatureEnabled, getRuntimeValue, app, ui } = useAppSettings();
   const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
     defaultValue: true
   });
@@ -279,6 +279,18 @@ export default function Navbar() {
   const defaultMobileAppLogo = '/icons/icon-192.svg';
   const desktopLogo = appLogos.desktop || appLogos.mobile || defaultAppLogo;
   const mobileLogo = appLogos.mobile || appLogos.desktop || defaultMobileAppLogo;
+  const mobileBrandText = String(
+    app?.app_name ||
+      app?.name ||
+      app?.brandName ||
+      app?.brand_name ||
+      ui?.app_name ||
+      ui?.brandName ||
+      ui?.brand_name ||
+      getRuntimeValue('app_name', '') ||
+      getRuntimeValue('brand_name', '') ||
+      'HDMarket'
+  ).trim() || 'HDMarket';
 
   const handleSearchBlur = () => {
     setTimeout(() => {
@@ -2960,14 +2972,15 @@ export default function Navbar() {
             <Link to="/" className="flex items-center space-x-2 sm:space-x-3 group active:scale-95 transition-transform">
               {desktopLogo || mobileLogo ? (
                 <>
-                  <img
-                    src={mobileLogo || desktopLogo}
-                    alt="Logo HDMarket"
-                    className="h-10 w-10 sm:h-14 sm:w-14 rounded-xl object-contain border border-gray-200/60 dark:border-gray-700/60 bg-white dark:bg-gray-800 shadow-sm sm:shadow-md transition-all duration-300 group-hover:shadow-lg sm:hidden"
-                  />
+                  <span
+                    className="inline-flex max-w-[136px] items-center truncate text-[27px] font-black leading-none tracking-normal text-[#FF6A00] drop-shadow-[0_2px_8px_rgba(255,106,0,0.14)] sm:hidden"
+                    title={mobileBrandText}
+                  >
+                    {mobileBrandText}
+                  </span>
                   <img
                     src={desktopLogo || mobileLogo}
-                    alt="Logo HDMarket"
+                    alt={mobileBrandText}
                     className="hidden h-[62px] w-auto max-w-[200px] object-contain sm:block transition-all duration-300 group-hover:scale-105"
                     style={{ lineHeight: '28px' }}
                   />
@@ -2979,7 +2992,7 @@ export default function Navbar() {
                   </div>
                   <div className="hidden sm:flex flex-col">
                     <span className="text-xl font-black text-gray-900 dark:text-white">
-                      HDMarket
+                      {mobileBrandText}
                     </span>
                     <span className="text-xs text-gray-500 dark:text-gray-400 -mt-1">{t('nav.marketplacePremium', 'Marketplace Premium')}</span>
                   </div>
@@ -2999,7 +3012,7 @@ export default function Navbar() {
               aria-label={t('nav.search', 'Rechercher')}
             >
               <Search className="h-4 w-4 text-[#FF6A00]" />
-              <span className="min-w-0 flex-1 truncate">{t('nav.searchMobile', 'Rechercher sur HDMarket')}</span>
+              <span className="min-w-0 flex-1 truncate">{t('nav.searchMobile', `Rechercher sur ${mobileBrandText}`)}</span>
             </button>
 
             {/* === ACTIONS MOBILE SIMPLIFIÉES === */}
