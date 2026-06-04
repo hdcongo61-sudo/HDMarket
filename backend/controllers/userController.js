@@ -1711,7 +1711,9 @@ export const getNotifications = asyncHandler(async (req, res) => {
         break;
       case 'product_rejection':
       case 'product_rejected':
-        message = `${actorName} a rejeté votre annonce${productLabel}. Contactez l'équipe support pour plus d'informations.`;
+        message = metadata.reason
+          ? `Votre annonce${productLabel} n'a pas été approuvée. Motif: ${metadata.reason}. Vous pouvez la modifier et la soumettre à nouveau.`
+          : `Votre annonce${productLabel} n'a pas été approuvée. Modifiez-la et soumettez-la à nouveau.`;
         break;
       case 'product_certified':
         message = `${actorName} a certifié votre annonce${productLabel}.`;
@@ -1740,7 +1742,7 @@ export const getNotifications = asyncHandler(async (req, res) => {
       }
       case 'shop_verified': {
         const shopLabel = shopInfo?.shopName || shopInfo?.name || metadata.shopName || 'votre boutique';
-        message = `${actorName} a vérifié ${shopLabel}.`;
+        message = `Félicitations ! ${actorName} a vérifié ${shopLabel}. Le badge "Vérifié" est maintenant visible pour tous les acheteurs.`;
         break;
       }
       case 'complaint_resolved': {
@@ -1830,14 +1832,17 @@ export const getNotifications = asyncHandler(async (req, res) => {
       }
       case 'order_placed':
       case 'order_created': {
-        const city = metadata.deliveryCity ? ` pour ${metadata.deliveryCity}` : '';
-        let action = 'créé';
+        const city = metadata.deliveryCity ? ` — Livraison à ${metadata.deliveryCity}` : '';
+        const shopName = metadata.shopName || '';
         if (metadata.status === 'confirmed') {
-          action = 'confirmé';
+          message = shopName
+            ? `${shopName} a confirmé ${yourOrderSubject}${city}. Votre commande est en préparation.`
+            : `${actorName} a confirmé ${yourOrderSubject}${city}. Votre commande est en préparation.`;
         } else if (metadata.status === 'pending') {
-          action = 'mis en attente';
+          message = `${actorName} a mis ${yourOrderSubject} en attente${city}.`;
+        } else {
+          message = `${actorName} a créé ${yourOrderSubject}${city}. Nous vous tiendrons informé des prochaines étapes.`;
         }
-        message = `${actorName} a ${action} ${yourOrderSubject}${city}. Nous vous tiendrons informé des étapes de livraison.`;
         break;
       }
       case 'order_accepted': {
@@ -1888,8 +1893,9 @@ export const getNotifications = asyncHandler(async (req, res) => {
         break;
       }
       case 'order_delivering': {
-        const city = metadata.deliveryCity ? ` pour ${metadata.deliveryCity}` : '';
-        message = `${yourOrderSubject} est en cours de livraison${city}.`;
+        const city = metadata.deliveryCity ? ` à ${metadata.deliveryCity}` : '';
+        const shopName = metadata.shopName || 'Le vendeur';
+        message = `${shopName} a expédié ${yourOrderSubject}${city}. Préparez-vous à recevoir votre colis !`;
         break;
       }
       case 'delivery_assigned':
@@ -1900,26 +1906,24 @@ export const getNotifications = asyncHandler(async (req, res) => {
       }
       case 'delivery_in_progress':
       case 'delivery_request_in_progress': {
-        const city = metadata.deliveryCity ? ` pour ${metadata.deliveryCity}` : '';
-        message = `La livraison de ${yourOrderSubject} est en cours${city}.`;
+        const courierName = metadata.courierName || 'un livreur';
+        const city = metadata.deliveryCity ? ` à ${metadata.deliveryCity}` : '';
+        message = `Votre colis ${yourOrderSubject} est en cours d'acheminement${city} avec ${courierName}. Soyez prêt à le réceptionner.`;
         break;
       }
       case 'delivery_completed':
       case 'delivery_request_delivered': {
-        message = `La livraison de ${yourOrderSubject} est terminée.`;
+        message = `La livraison de ${yourOrderSubject} est arrivée à destination. Merci de votre confiance !`;
         break;
       }
       case 'order_delivered': {
         const address = metadata.deliveryAddress ? ` à ${metadata.deliveryAddress}` : '';
         const city = metadata.deliveryCity ? ` (${metadata.deliveryCity})` : '';
-        const deliveredAtDate = metadata.deliveredAt ? new Date(metadata.deliveredAt) : null;
-        const deliveredAt = deliveredAtDate && !Number.isNaN(deliveredAtDate.getTime())
-          ? ` le ${deliveredAtDate.toLocaleDateString('fr-FR')}`
-          : '';
+        const shopName = metadata.shopName || actorName;
         if (metadata.deliveryProofSubmitted) {
-          message = `${actorName} a soumis la preuve de livraison pour ${orderSubject}${address}${city}${deliveredAt}. Veuillez confirmer ou ouvrir un litige.`;
+          message = `${shopName} a livré ${orderSubject}${address}${city} et soumis une preuve de livraison. Vérifiez le colis et confirmez la réception.`;
         } else {
-          message = `${actorName} a marqué ${orderSubject} comme livrée${address}${city}${deliveredAt}. Merci pour votre confiance.`;
+          message = `${shopName} a marqué ${orderSubject} comme livrée${address}${city}. Confirmez que vous avez bien reçu le colis.`;
         }
         break;
       }
@@ -1966,11 +1970,11 @@ export const getNotifications = asyncHandler(async (req, res) => {
         break;
       }
       case 'installment_completed': {
-        message = `Paiement terminé: toutes les tranches de ${yourOrderSubject} sont réglées. Vous pouvez générer la facture.`;
+        message = `🎉 Paiement terminé ! Toutes les tranches de ${yourOrderSubject} sont réglées. Le vendeur va maintenant pouvoir vous livrer.`;
         break;
       }
       case 'installment_product_suspended': {
-        message = metadata.message || 'Le paiement par tranche de votre produit a été suspendu après plusieurs impayés.';
+        message = metadata.message || '⚠️ Le paiement par tranche de votre produit a été suspendu en raison d\'impayés. Régularisez pour le réactiver.';
         break;
       }
       case 'review_reminder': {
@@ -1985,15 +1989,15 @@ export const getNotifications = asyncHandler(async (req, res) => {
         break;
       }
       case 'order_message': {
-        message = `${actorName} vous a envoyé un message concernant ${orderSubject}.`;
+        message = `${actorName} vous a envoyé un message au sujet de ${orderSubject}. Consultez la conversation pour répondre.`;
         break;
       }
       case 'order_cancelled': {
-        const reason = metadata.reason ? ` Raison: ${metadata.reason}` : '';
+        const reason = metadata.reason ? ` — Motif: ${metadata.reason}` : '';
         const refundAmount = Number(metadata.refundAmount || 0);
         const refundText = metadata.refundRequested
           ? refundAmount > 0
-            ? ` Remboursement demandé: ${refundAmount.toLocaleString('fr-FR')} FCFA.`
+            ? ` Remboursement de ${refundAmount.toLocaleString('fr-FR')} FCFA demandé.`
             : ' Remboursement demandé.'
           : '';
         message = `${actorName} a annulé ${orderSubject}.${reason}${refundText}`;

@@ -11,6 +11,8 @@ const MIN_COMPRESS_BYTES = 420 * 1024;
 const buildFileUrl = (url) => {
   if (!url) return '';
   if (/^https?:\/\//i.test(url)) return url;
+  if (/^data:/i.test(url)) return url;
+  if (/^blob:/i.test(url)) return url;
   const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
   const host = apiBase.replace(/\/api\/?$/, '');
   return `${host}/${String(url).replace(/^\/+/, '')}`;

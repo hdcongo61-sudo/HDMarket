@@ -367,7 +367,8 @@ export default function OrderDetail() {
   const userScopeId = String(user?._id || user?.id || '').trim();
   const normalizeFileUrl = useCallback((url) => {
     if (!url) return '';
-    if (/^(https?:|data:)\/\//i.test(url)) return url;
+    if (/^https?:\/\//i.test(url)) return url;
+    if (/^data:/i.test(url)) return url;
     if (/^blob:/i.test(url)) return url;
     const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
     const host = apiBase.replace(/\/api\/?$/, '');
