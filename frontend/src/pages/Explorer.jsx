@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import useRecommendations from '../hooks/useRecommendations';
 import AuthContext from '../context/AuthContext';
-import { FavoriteContext } from '../context/FavoriteContext';
+import FavoriteContext from '../context/FavoriteContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { buildProductPath } from '../utils/links';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
