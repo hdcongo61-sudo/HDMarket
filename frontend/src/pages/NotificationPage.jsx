@@ -216,6 +216,20 @@ const notificationMeta = (alert, t) => {
   return { title: explicitTitle || t('notifications.notification', 'Notification'), icon: <Bell className="h-4 w-4" />, tone: 'system' };
 };
 
+const BUYER_SIDE_ORDER_TYPES_FALLBACK = new Set([
+  'order_created',
+  'order_placed',
+  'order_delivering',
+  'order_delivered',
+  'review_reminder',
+  'installment_due_reminder',
+  'installment_overdue_warning',
+  'installment_payment_validated',
+  'installment_completed',
+  'order_full_payment_waived',
+  'order_cancellation_window_skipped'
+]);
+
 const buildOrderNotificationPath = (alert, user) => {
   const orderId =
     extractObjectId(alert?.metadata?.orderId) ||
@@ -237,7 +251,22 @@ const buildOrderNotificationPath = (alert, user) => {
   if (isBackOffice) {
     return `/admin/orders?orderId=${encodeURIComponent(orderId)}`;
   }
+
+  // Check if user is the customer of this order
+  const userCustomerId = String(user?._id || user?.id || '').trim();
+  const orderCustomerId = String(alert?.metadata?.customerId || '').trim();
+  const userIsOrderCustomer = Boolean(userCustomerId && orderCustomerId && userCustomerId === orderCustomerId);
+
+  // User is the buyer — always route to buyer page
+  if (userIsOrderCustomer) {
+    return `/orders/detail/${orderId}`;
+  }
+  // User is seller/shop and NOT the customer
   if (isSeller) {
+    // Fallback for old notifications without customerId: guess from notification type
+    if (!orderCustomerId && BUYER_SIDE_ORDER_TYPES_FALLBACK.has(String(alert?.type || ''))) {
+      return `/orders/detail/${orderId}`;
+    }
     return `/seller/orders/detail/${orderId}`;
   }
   return `/orders/detail/${orderId}`;

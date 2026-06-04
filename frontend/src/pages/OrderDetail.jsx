@@ -367,7 +367,8 @@ export default function OrderDetail() {
   const userScopeId = String(user?._id || user?.id || '').trim();
   const normalizeFileUrl = useCallback((url) => {
     if (!url) return '';
-    if (/^https?:\/\//i.test(url)) return url;
+    if (/^(https?:|data:)\/\//i.test(url)) return url;
+    if (/^blob:/i.test(url)) return url;
     const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
     const host = apiBase.replace(/\/api\/?$/, '');
     return `${host}/${String(url).replace(/^\/+/, '')}`;
@@ -1438,44 +1439,63 @@ export default function OrderDetail() {
                   </p>
                 )}
                 {(order.deliveryProofImages || []).length > 0 && (
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {(order.deliveryProofImages || []).map((proof, index) => {
-                      const src = normalizeFileUrl(proof?.url || proof?.path || '');
-                      if (!src) return null;
-                      return (
-                        <button
-                          key={`proof-image-${index}`}
-                          type="button"
-                          onClick={() => openProofPreview(src, `Preuve ${index + 1}`)}
-                          className="group relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-white ring-1 ring-neutral-200"
-                        >
-                          <img
-                            src={src}
-                            alt={`Preuve ${index + 1}`}
-                            className="h-full w-full object-contain bg-slate-50 p-1"
-                            loading="lazy"
-                          />
-                          <span className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5 text-[10px] font-semibold text-white">
-                            Photo {index + 1}
-                          </span>
-                        </button>
-                      );
-                    })}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-sky-50">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                      </div>
+                      <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">Photos de livraison</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {(order.deliveryProofImages || []).map((proof, index) => {
+                        const src = normalizeFileUrl(proof?.url || proof?.path || '');
+                        if (!src) return null;
+                        return (
+                          <button
+                            key={`proof-image-${index}`}
+                            type="button"
+                            onClick={() => openProofPreview(src, `Photo ${index + 1}`)}
+                            className="group relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-white ring-1 ring-sky-100 transition hover:ring-sky-300 hover:shadow-md"
+                          >
+                            <img
+                              src={src}
+                              alt={`Photo de livraison ${index + 1}`}
+                              className="h-full w-full object-contain bg-slate-50 p-2"
+                              loading="lazy"
+                            />
+                            <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/55 px-2 py-1 text-[10px] font-semibold text-white group-hover:bg-black/70 transition">
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                              Photo {index + 1}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
                 {order.clientSignatureImage && (
-                  <div>
-                    <p className="text-xs font-semibold text-gray-700 mb-1">Signature client</p>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-rose-50">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"/><polygon points="18 2 22 6 12 16 8 16 8 12 18 2"/></svg>
+                      </div>
+                      <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">Signature du client</p>
+                    </div>
                     <button
                       type="button"
                       onClick={() => openProofPreview(order.clientSignatureImage, 'Signature client')}
-                      className="block w-full max-w-md overflow-hidden rounded-lg border border-gray-200 bg-white"
+                      className="group relative block w-full overflow-hidden rounded-xl border border-rose-100 bg-rose-50/30 ring-1 ring-rose-100 transition hover:ring-rose-300"
                     >
                       <img
-                        src={order.clientSignatureImage}
+                        src={normalizeFileUrl(order.clientSignatureImage)}
                         alt="Signature client"
-                        className="h-24 w-full bg-white object-contain p-1"
+                        className="h-28 w-full object-contain p-3"
+                        loading="lazy"
                       />
+                      <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/50 px-2 py-1 text-[10px] font-semibold text-white group-hover:bg-black/65 transition">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        Agrandir
+                      </span>
                     </button>
                   </div>
                 )}

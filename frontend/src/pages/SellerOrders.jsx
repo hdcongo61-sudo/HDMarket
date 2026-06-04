@@ -152,6 +152,13 @@ const STATUS_TABS = ORDER_FILTER_GROUPS.seller.map((tab) => ({
 }));
 
 const PAGE_SIZE = 6;
+const TERMINAL_ORDER_STATUSES = new Set([
+  'delivered',
+  'picked_up_confirmed',
+  'confirmed_by_client',
+  'completed',
+  'cancelled'
+]);
 const ACTIVE_LIVE_STATUSES = new Set([
   'pending_payment',
   'paid',
@@ -169,8 +176,8 @@ const ACTIVE_LIVE_STATUSES = new Set([
 
 const SELLER_OFFLINE_QUEUEABLE_STATUSES = new Set([
   'confirmed',
-  'ready_for_pickup',
   'ready_for_delivery',
+  'ready_for_pickup',
   'delivering',
   'out_for_delivery'
 ]);
@@ -206,6 +213,13 @@ const ORDER_FLOW = [
     color: 'amber'
   },
   {
+    id: 'ready_for_delivery',
+    label: 'Prête à livrer',
+    description: 'La commande est prête. Le vendeur peut démarrer la livraison.',
+    icon: Package,
+    color: 'amber'
+  },
+  {
     id: 'delivering',
     label: 'En cours de livraison',
     description: 'Le colis est pris en charge par le livreur.',
@@ -213,9 +227,16 @@ const ORDER_FLOW = [
     color: 'blue'
   },
   {
-    id: 'delivered',
+    id: 'delivery_proof_submitted',
+    label: 'Preuve soumise',
+    description: 'Preuve de livraison envoyée au client.',
+    icon: ClipboardList,
+    color: 'indigo'
+  },
+  {
+    id: 'completed',
     label: 'Commande terminée',
-    description: 'La commande est livrée avec succès.',
+    description: 'La commande est livrée et clôturée avec succès.',
     icon: CheckCircle,
     color: 'emerald'
   },
@@ -321,6 +342,7 @@ const getSellerTimelineStatus = (order) => {
   }
 
   if (rawStatus === 'delivering') return 'out_for_delivery';
+  if (rawStatus === 'delivered' || rawStatus === 'picked_up_confirmed') return 'completed';
   return rawStatus || 'pending';
 };
 
@@ -616,18 +638,20 @@ const SellerMobileOrderCard = ({
     if (value === 'cancelled') return 'cancelled';
     if (['picked_up_confirmed', 'delivered', 'delivery_proof_submitted', 'confirmed_by_client', 'completed'].includes(value)) return 'delivered';
     if (['ready_for_pickup', 'delivering', 'out_for_delivery'].includes(value)) return 'delivering';
-    if (['confirmed', 'ready_for_delivery'].includes(value)) return 'confirmed';
+    if (value === 'ready_for_delivery') return 'ready_for_delivery';
+    if (value === 'confirmed') return 'confirmed';
     return 'pending';
   })();
 
   // Progress percentage based on status
-  const progressMap = { pending: 25, confirmed: 50, delivering: 75, delivered: 100, cancelled: 0 };
+  const progressMap = { pending: 20, confirmed: 40, ready_for_delivery: 55, delivering: 75, delivered: 100, cancelled: 0 };
   const progress = progressMap[normalizedStatus] || 0;
 
   // Status colors
   const statusColors = {
     pending: { bg: 'bg-neutral-500 dark:bg-neutral-300', light: 'bg-neutral-100 dark:bg-neutral-800', text: 'text-neutral-700 dark:text-neutral-200', border: 'border-neutral-200 dark:border-neutral-700' },
     confirmed: { bg: 'bg-neutral-600 dark:bg-neutral-300', light: 'bg-neutral-100 dark:bg-neutral-800', text: 'text-neutral-800 dark:text-neutral-100', border: 'border-neutral-200 dark:border-neutral-700' },
+    ready_for_delivery: { bg: 'bg-neutral-700 dark:bg-neutral-200', light: 'bg-neutral-100 dark:bg-neutral-800', text: 'text-neutral-800 dark:text-neutral-100', border: 'border-neutral-200 dark:border-neutral-700' },
     delivering: { bg: 'bg-neutral-700 dark:bg-neutral-200', light: 'bg-neutral-100 dark:bg-neutral-800', text: 'text-neutral-800 dark:text-neutral-100', border: 'border-neutral-200 dark:border-neutral-700' },
     delivered: { bg: 'bg-neutral-800 dark:bg-neutral-200', light: 'bg-neutral-100 dark:bg-neutral-800', text: 'text-neutral-900 dark:text-neutral-100', border: 'border-neutral-200 dark:border-neutral-700' },
     cancelled: { bg: 'bg-red-500', light: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' }
@@ -638,6 +662,7 @@ const SellerMobileOrderCard = ({
   const timelineSteps = [
     { id: 'pending', label: 'Passée', icon: ClipboardList, time: order.createdAt },
     { id: 'confirmed', label: 'Confirmée', icon: Package, time: order.confirmedAt },
+    { id: 'ready_for_delivery', label: 'Prête à livrer', icon: Package, time: order.readyForPickupAt },
     {
       id: 'delivering',
       label: isPickupOrder ? 'Prête au retrait' : 'Expédiée',
@@ -654,7 +679,7 @@ const SellerMobileOrderCard = ({
     }
   ];
 
-  const statusIndex = ['pending', 'confirmed', 'delivering', 'delivered'].indexOf(normalizedStatus);
+  const statusIndex = ['pending', 'confirmed', 'ready_for_delivery', 'delivering', 'delivered'].indexOf(normalizedStatus);
   const isCancelled = order.status === 'cancelled';
   const canUpdateStatus =
     !isCancelled &&
@@ -746,7 +771,7 @@ const SellerMobileOrderCard = ({
         {/* Progress Dots */}
         {!isCancelled && (
           <div className="flex items-center gap-2">
-            {[0, 1, 2, 3].map((step) => (
+            {[0, 1, 2, 3, 4].map((step) => (
               <div
                 key={step}
                 className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${
@@ -965,7 +990,18 @@ const SellerMobileOrderCard = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => onStatusUpdate(order._id, isPickupOrder ? 'ready_for_pickup' : 'delivering')}
+                  onClick={() =>
+                    onStatusUpdate(
+                      order._id,
+                      isPickupOrder
+                        ? 'ready_for_pickup'
+                        : order.status === 'confirmed'
+                          ? 'ready_for_delivery'
+                          : order.status === 'ready_for_delivery'
+                            ? 'delivering'
+                            : 'delivering'
+                    )
+                  }
                   disabled={
                     (isPickupOrder
                       ? !['confirmed'].includes(String(order.status || '').toLowerCase())
@@ -975,22 +1011,21 @@ const SellerMobileOrderCard = ({
                   className="flex items-center justify-center gap-2 py-3 rounded-xl bg-neutral-900 text-white font-semibold text-sm hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                 >
                   {isPickupOrder ? <Package className="w-4 h-4" /> : <Truck className="w-4 h-4" />}
-                  {isPickupOrder ? 'Prête au retrait' : t('orders.ship', 'Expédier')}
+                  {isPickupOrder
+                    ? 'Prête au retrait'
+                    : order.status === 'confirmed'
+                      ? 'Prêt à livrer'
+                      : order.status === 'ready_for_delivery'
+                        ? 'Expédier'
+                        : 'Expédier'}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onStatusUpdate(order._id, isPickupOrder ? 'picked_up_confirmed' : 'delivered')}
-                  disabled={
-                    (isPickupOrder
-                      ? !['confirmed', 'ready_for_pickup'].includes(String(order.status || '').toLowerCase())
-                      : !['delivering', 'out_for_delivery'].includes(String(order.status || '').toLowerCase())) ||
-                    statusUpdatingId === order._id
-                  }
-                  className="flex items-center justify-center gap-2 py-3 rounded-xl bg-neutral-900 text-white font-semibold text-sm hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                <Link
+                  to={`/seller/order/detail/${order._id}`}
+                  className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#FF6A00] text-white font-semibold text-sm hover:bg-[#e55f00] transition-all"
                 >
                   <CheckCircle className="w-4 h-4" />
-                  {isPickupOrder ? 'Retrait confirmé' : t('orders.delivered', 'Livrée')}
-                </button>
+                  {t('orders.deliveryProof', 'Preuve livraison')}
+                </Link>
               </>
             )}
             <button
@@ -1078,10 +1113,37 @@ export default function SellerOrders() {
     enabled: Boolean(user?._id || user?.id)
   });
 
+  const bumpStatusCounters = useCallback((previousStatus, nextStatus) => {
+    const prev = String(previousStatus || '').trim();
+    const next = String(nextStatus || '').trim();
+    if (!prev || !next || prev === next) return;
+    setStats((current) =>
+      patchOrderSummaryStatusCounters(current, {
+        previousStatus: prev,
+        nextStatus: next,
+        role: 'seller'
+      })
+    );
+  }, []);
+
   const mergeOrderUpdate = useCallback(
     (updatedOrder) => {
       if (!updatedOrder?._id) return;
+      const newStatus = String(updatedOrder?.status || '').toLowerCase();
+      const isTerminal = TERMINAL_ORDER_STATUSES.has(newStatus);
+
       setOrders((prev) => {
+        const previousOrder = prev.find((entry) => String(entry?._id || '') === String(updatedOrder._id));
+        const previousStatus = getStatusCounterValue(previousOrder);
+        const nextStatusCounter = getStatusCounterValue(updatedOrder);
+        // Bump stats counters when status changed
+        if (previousOrder && previousStatus && nextStatusCounter && previousStatus !== nextStatusCounter) {
+          bumpStatusCounters(previousStatus, nextStatusCounter);
+        }
+        // Remove terminal orders immediately
+        if (isTerminal) {
+          return prev.filter((entry) => String(entry?._id || '') !== String(updatedOrder._id));
+        }
         const patched = dedupeOrders(
           prev.map((entry) =>
             String(entry?._id || '') === String(updatedOrder._id) ? updatedOrder : entry
@@ -1092,7 +1154,20 @@ export default function SellerOrders() {
 
       queryClient.setQueriesData(
         { queryKey: orderQueryKeys.listRoot('seller') },
-        (existing) => patchOrdersListPayload(existing, updatedOrder)
+        (existing) => {
+          if (isTerminal) {
+            if (Array.isArray(existing)) {
+              return existing.filter((entry) => String(entry?._id || '') !== String(updatedOrder._id));
+            }
+            if (existing && Array.isArray(existing.items)) {
+              return {
+                ...existing,
+                items: existing.items.filter((entry) => String(entry?._id || '') !== String(updatedOrder._id))
+              };
+            }
+          }
+          return patchOrdersListPayload(existing, updatedOrder);
+        }
       );
 
       queryClient.setQueryData(
@@ -1104,7 +1179,7 @@ export default function SellerOrders() {
         })
       );
     },
-    [activeStatus, queryClient]
+    [activeStatus, bumpStatusCounters, queryClient]
   );
 
   const invalidateOrderItem = useCallback(
@@ -1169,19 +1244,6 @@ export default function SellerOrders() {
     } finally {
       if (!silent) setStatsLoading(false);
     }
-  }, []);
-
-  const bumpStatusCounters = useCallback((previousStatus, nextStatus) => {
-    const prev = String(previousStatus || '').trim();
-    const next = String(nextStatus || '').trim();
-    if (!prev || !next || prev === next) return;
-    setStats((current) =>
-      patchOrderSummaryStatusCounters(current, {
-        previousStatus: prev,
-        nextStatus: next,
-        role: 'seller'
-      })
-    );
   }, []);
 
   const { pullDistance, refreshing, bind } = usePullToRefresh(refreshOrders, {
@@ -1315,13 +1377,12 @@ export default function SellerOrders() {
         );
         return patched.filter((entry) => orderMatchesSellerFilter(entry, activeStatus));
       });
-      loadOrderStats({ silent: true });
     };
 
     window.addEventListener('hdmarket:orders-status-updated', onStatusUpdated);
     return () =>
       window.removeEventListener('hdmarket:orders-status-updated', onStatusUpdated);
-  }, [activeStatus, bumpStatusCounters, loadOrderStats, orders]);
+  }, [activeStatus, bumpStatusCounters, orders]);
 
   useEffect(() => {
     loadOrderStats();

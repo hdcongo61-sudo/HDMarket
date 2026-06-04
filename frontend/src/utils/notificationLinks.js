@@ -193,6 +193,37 @@ const extractOrderIdFromLink = (link) => {
   return match?.[1] || '';
 };
 
+const BUYER_SIDE_ORDER_TYPES = new Set([
+  'order_created',
+  'order_placed',
+  'order_delivering',
+  'order_delivered',
+  'review_reminder',
+  'installment_due_reminder',
+  'installment_overdue_warning',
+  'installment_payment_validated',
+  'installment_completed',
+  'installment_product_suspended',
+  'order_full_payment_waived',
+  'order_cancellation_window_skipped'
+]);
+
+const SELLER_SIDE_ORDER_TYPES = new Set([
+  'order_received',
+  'order_accepted',
+  'order_rejected',
+  'order_reminder',
+  'payment_pending',
+  'payment_proof_submitted',
+  'installment_payment_submitted',
+  'installment_sale_confirmation_required',
+  'installment_sale_confirmed',
+  'order_address_updated',
+  'order_delivery_fee_updated',
+  'order_full_payment_received',
+  'order_full_payment_ready'
+]);
+
 const buildOrderPath = (alert, user, fallbackOrderId = '') => {
   const metadata = alert?.metadata || {};
   const orderId =
@@ -205,8 +236,23 @@ const buildOrderPath = (alert, user, fallbackOrderId = '') => {
     return `/orders/messages?orderId=${encodeURIComponent(orderId)}`;
   }
   if (!orderId) return '';
+
+  // If user is explicitly the customer of this order, always route to buyer page
+  const userCustomerId = String(user?._id || user?.id || '').trim();
+  const orderCustomerId = String(metadata.customerId || '').trim();
+  const userIsOrderCustomer = Boolean(userCustomerId && orderCustomerId && userCustomerId === orderCustomerId);
+
   if (userIsBackoffice(user)) return `/admin/orders?orderId=${encodeURIComponent(orderId)}`;
-  if (userIsSeller(user)) return `/seller/orders/detail/${orderId}`;
+  // User is the buyer — always route to buyer page regardless of role/accountType
+  if (userIsOrderCustomer) return `/orders/detail/${orderId}`;
+  // User is a seller/shop and NOT the customer — determine route
+  if (userIsSeller(user)) {
+    // Fallback for old notifications without customerId: guess from notification type
+    if (!orderCustomerId && BUYER_SIDE_ORDER_TYPES.has(String(alert?.type || ''))) {
+      return `/orders/detail/${orderId}`;
+    }
+    return `/seller/orders/detail/${orderId}`;
+  }
   return `/orders/detail/${orderId}`;
 };
 

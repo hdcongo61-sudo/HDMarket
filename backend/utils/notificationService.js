@@ -238,13 +238,14 @@ const enrichOrderContextMetadata = async ({ type, metadata = {} }) => {
   if (!orderId) return baseMetadata;
 
   try {
-    const order = await Order.findById(orderId).select('items.snapshot.title').lean();
+    const order = await Order.findById(orderId).select('items.snapshot.title customer').lean();
     const orderTitles = extractOrderProductTitles(order);
-    if (!orderTitles.length) return baseMetadata;
+    const customerId = String(order?.customer || '').trim();
+    if (!orderTitles.length && !customerId) return baseMetadata;
     return {
       ...baseMetadata,
-      orderProductTitle: orderTitles[0],
-      productTitles: orderTitles
+      ...(orderTitles.length ? { orderProductTitle: orderTitles[0], productTitles: orderTitles } : {}),
+      ...(customerId ? { customerId } : {})
     };
   } catch {
     return baseMetadata;

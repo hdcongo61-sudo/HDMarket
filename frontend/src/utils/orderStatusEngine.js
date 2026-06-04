@@ -199,11 +199,17 @@ export const getOrderPrimaryAction = (order, role = 'buyer') => {
       return { key: 'validate_installment', label: 'Valider la tranche', tone: 'urgent' };
     }
     if (['pending', 'paid'].includes(status)) return { key: 'confirm', label: 'Confirmer', tone: 'primary' };
-    if (['confirmed', 'ready_for_delivery'].includes(status)) {
-      return { key: 'prepare', label: delivery.mode === 'pickup' ? 'Marquer prêt' : 'Préparer livraison', tone: 'primary' };
+    if (status === 'confirmed') {
+      return { key: 'prepare', label: delivery.mode === 'pickup' ? 'Marquer prêt' : 'Marquer prêt à livrer', tone: 'primary' };
     }
-    if (['ready_for_pickup', 'out_for_delivery', 'delivering'].includes(status)) {
-      return { key: 'handoff', label: delivery.mode === 'pickup' ? 'Suivre retrait' : 'Suivre livraison', tone: 'primary' };
+    if (status === 'ready_for_delivery') {
+      return { key: 'start_delivery', label: 'Démarrer la livraison', tone: 'primary' };
+    }
+    if (status === 'ready_for_pickup') {
+      return { key: 'handoff', label: 'Suivre retrait', tone: 'primary' };
+    }
+    if (['out_for_delivery', 'delivering'].includes(status)) {
+      return { key: 'handoff', label: 'Suivre livraison', tone: 'primary' };
     }
     return { key: 'view', label: 'Voir le détail', tone: 'neutral' };
   }

@@ -37,6 +37,7 @@ import {
   getUserRating,
   upsertRating
 } from '../controllers/ratingController.js';
+import { getUserRecommendations } from '../controllers/recommendationController.js';
 
 const router = express.Router();
 const productMutationIdempotency = idempotencyMiddleware({ ttlMs: 10 * 60 * 1000 });
@@ -53,6 +54,14 @@ const productViewRateLimiter = rateLimit({
     });
   }
 });
+
+// Personalized recommendations (authenticated, cached)
+router.get(
+  '/recommendations',
+  protect,
+  cacheMiddleware({ ttl: 120000, scope: 'user' }),
+  getUserRecommendations
+);
 
 // Public (validation query) - with caching
 router.get('/public/highlights', cacheMiddleware({ ttl: 300000 }), getPublicHighlights);

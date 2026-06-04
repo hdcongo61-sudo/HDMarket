@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import api from '../services/api';
 import { orderQueryKeys } from './useOrderQueryKeys';
 import useNetworkProfile from './useNetworkProfile';
@@ -68,6 +68,7 @@ export const useSellerOrdersListQuery = ({
       return normalizeOrdersListPayload(data, page);
     },
     staleTime: rapid3GActive ? 45_000 : 20_000,
+    placeholderData: keepPreviousData,
     refetchOnWindowFocus: false,
     refetchInterval: (query) => {
       const items = Array.isArray(query?.state?.data?.items) ? query.state.data.items : [];

@@ -91,6 +91,7 @@ export const useOrderRealtimeSync = ({
       if (!incomingOrderId) return;
       if (orderId && incomingOrderId !== String(orderId)) return;
 
+      // Instant optimistic patch — no server refetch needed
       queryClient.setQueriesData(
         { queryKey: ['orders', 'detail'] },
         (existing) => patchOrderSnapshot(existing, payload)
@@ -99,10 +100,6 @@ export const useOrderRealtimeSync = ({
         { queryKey: orderQueryKeys.listRoot(scope) },
         (existing) => patchOrderCollection(existing, payload)
       );
-      queryClient.invalidateQueries({
-        queryKey: orderQueryKeys.listRoot(scope),
-        refetchType: 'active'
-      });
     };
 
     const onGlobalRefresh = () => {

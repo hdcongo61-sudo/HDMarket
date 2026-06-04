@@ -243,6 +243,16 @@ export const assertSellerStatusTransition = ({ order, nextStatus }) => {
     throwTransitionError("Impossible d'annuler une commande déjà livrée.");
   }
 
+  // Enforce sequential delivery flow (non-pickup, non-installment)
+  if (!isPickupOrder(order) && toStatus(order?.paymentType) !== 'installment') {
+    if (status === 'delivering' && currentStatus !== 'ready_for_delivery') {
+      throwTransitionError('La commande doit être marquée "Prête à livrer" avant de démarrer la livraison.');
+    }
+    if (['delivered', 'delivery_proof_submitted'].includes(status) && currentStatus !== 'delivering' && currentStatus !== 'out_for_delivery') {
+      throwTransitionError('La livraison doit être en cours avant de fournir une preuve ou de marquer livré.');
+    }
+  }
+
   if (status === 'delivered' && !isPickupOrder(order) && !hasValidDeliveryEvidence(order)) {
     throwTransitionError('Preuve de livraison obligatoire: photo(s) + signature client.');
   }

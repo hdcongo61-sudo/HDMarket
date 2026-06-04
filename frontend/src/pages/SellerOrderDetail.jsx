@@ -183,6 +183,7 @@ const getSellerTimelineStatus = (order, workflowStatus = '') => {
   }
 
   if (rawStatus === 'delivering') return 'out_for_delivery';
+  if (rawStatus === 'delivered' || rawStatus === 'picked_up_confirmed') return 'completed';
   return rawStatus || 'pending';
 };
 
@@ -280,12 +281,12 @@ const getPrimaryActionClassName = (intent = 'primary') => {
 const CLASSIC_ORDER_FLOW = [
   { id: 'pending_payment', label: 'Paiement en attente', description: 'En attente de confirmation du paiement.', icon: Clock, color: 'gray' },
   { id: 'paid', label: 'Payée', description: 'Paiement soumis par le client. En attente de confirmation.', icon: CreditCard, color: 'emerald' },
-  { id: 'ready_for_delivery', label: 'Prête à livrer', description: 'Préparation terminée.', icon: Package, color: 'amber' },
-  { id: 'out_for_delivery', label: 'En cours de livraison', description: 'Colis pris en charge.', icon: Truck, color: 'blue' },
-  { id: 'delivered', label: 'Livrée', description: 'Livraison signalée.', icon: CheckCircle, color: 'emerald' },
-  { id: 'delivery_proof_submitted', label: 'Preuve soumise', description: 'En attente de confirmation client.', icon: ClipboardList, color: 'indigo' },
-  { id: 'confirmed_by_client', label: 'Confirmée client', description: 'Le client a confirmé la réception.', icon: CheckCircle, color: 'emerald' },
-  { id: 'completed', label: 'Commande terminée', description: 'Livraison clôturée.', icon: CheckCircle, color: 'emerald' },
+  { id: 'confirmed', label: 'Commande confirmée', description: 'Commande acceptée par le vendeur.', icon: Package, color: 'amber' },
+  { id: 'ready_for_delivery', label: 'Prête à livrer', description: 'Préparation terminée, prête pour expédition.', icon: Package, color: 'amber' },
+  { id: 'out_for_delivery', label: 'En cours de livraison', description: 'Colis pris en charge par le livreur.', icon: Truck, color: 'blue' },
+  { id: 'delivery_proof_submitted', label: 'Preuve soumise', description: 'Preuve de livraison envoyée. En attente de confirmation client.', icon: ClipboardList, color: 'indigo' },
+  { id: 'confirmed_by_client', label: 'Confirmée par le client', description: 'Le client a confirmé la réception.', icon: CheckCircle, color: 'emerald' },
+  { id: 'completed', label: 'Commande terminée', description: 'Livraison clôturée avec succès.', icon: CheckCircle, color: 'emerald' },
   { id: 'cancelled', label: 'Commande annulée', description: 'Cette commande a été annulée.', icon: X, color: 'red' }
 ];
 
@@ -470,7 +471,8 @@ export default function SellerOrderDetail() {
 
   const normalizeFileUrl = useCallback((url) => {
     if (!url) return '';
-    if (/^https?:\/\//i.test(url)) return url;
+    if (/^(https?:|data:)\/\//i.test(url)) return url;
+    if (/^blob:/i.test(url)) return url;
     const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
     const host = apiBase.replace(/\/api\/?$/, '');
     return `${host}/${String(url).replace(/^\/+/, '')}`;
@@ -997,13 +999,12 @@ export default function SellerOrderDetail() {
     const map = {
       pending: 'pending_payment',
       ready_for_pickup: 'ready_for_delivery',
-      picked_up_confirmed: 'delivered',
-      confirmed: 'ready_for_delivery',
+      picked_up_confirmed: 'completed',
       delivering: 'out_for_delivery',
       delivered:
-        order.deliveryStatus === 'submitted' && !platformAutoConfirmed
+        String(order.deliveryStatus || '').toLowerCase() === 'submitted' && !platformAutoConfirmed
           ? 'delivery_proof_submitted'
-          : 'delivered'
+          : 'completed'
     };
     return map[order.status] || order.status;
   })();
@@ -1579,49 +1580,75 @@ export default function SellerOrderDetail() {
               />
             )}
 
-            {!isInstallmentOrder && order.deliveryStatus === 'submitted' && !platformDeliveryAutoConfirmed && (
-              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 space-y-2">
-                <p className="text-sm font-semibold text-neutral-900">
-                  Preuve de livraison soumise. En attente de confirmation du client.
-                </p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {(order.deliveryProofImages || []).map((proof, index) => {
-                    const src = normalizeFileUrl(proof?.url || proof?.path || '');
-                    if (!src) return null;
-                    return (
-                      <button
-                        key={`seller-proof-${index}`}
-                        type="button"
-                        onClick={() => openProofPreview(src, `Preuve ${index + 1}`)}
-                        className="group relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-white ring-1 ring-neutral-200"
-                      >
-                        <img
-                          src={src}
-                          alt={`Preuve ${index + 1}`}
-                          className="h-full w-full object-contain bg-slate-50 p-1"
-                          loading="lazy"
-                        />
-                        <span className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5 text-[10px] font-semibold text-white">
-                          Photo {index + 1}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {order.clientSignatureImage && (
+            {!isInstallmentOrder && ['submitted', 'verified'].includes(String(order.deliveryStatus || '').toLowerCase()) && !platformDeliveryAutoConfirmed && ((Array.isArray(order.deliveryProofImages) && order.deliveryProofImages.length > 0) || order.clientSignatureImage) && (
+              <div className="rounded-[26px] border border-orange-100 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)] space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-emerald-50">
+                    <ClipboardList className="w-4 h-4 text-emerald-600" />
+                  </div>
                   <div>
-                    <p className="text-xs font-semibold text-neutral-700 mb-1">Signature client</p>
+                    <h4 className="text-sm font-black text-gray-900">Preuve de livraison</h4>
+                    <p className="text-[11px] text-gray-500">
+                      {String(order.deliveryStatus || '').toLowerCase() === 'verified'
+                        ? 'Livraison confirmée par le client.'
+                        : 'Preuve soumise. En attente de confirmation du client.'}
+                    </p>
+                  </div>
+                </div>
+                {Array.isArray(order.deliveryProofImages) && order.deliveryProofImages.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                      Photos ({order.deliveryProofImages.length})
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {(order.deliveryProofImages || []).map((proof, index) => {
+                        const src = normalizeFileUrl(proof?.url || proof?.path || '');
+                        if (!src) return null;
+                        return (
+                          <button
+                            key={`seller-proof-${index}`}
+                            type="button"
+                            onClick={() => openProofPreview(src, `Photo ${index + 1}`)}
+                            className="group relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-white ring-1 ring-emerald-100 transition hover:ring-emerald-300 hover:shadow-md"
+                          >
+                            <img
+                              src={src}
+                              alt={`Photo de livraison ${index + 1}`}
+                              className="h-full w-full object-contain bg-slate-50 p-2"
+                              loading="lazy"
+                            />
+                            <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/55 px-2 py-1 text-[10px] font-semibold text-white group-hover:bg-black/70 transition">
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                              Photo {index + 1}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {order.clientSignatureImage && (
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"/><polygon points="18 2 22 6 12 16 8 16 8 12 18 2"/></svg>
+                      Signature du client
+                    </p>
                     <button
                       type="button"
                       onClick={() => openProofPreview(order.clientSignatureImage, 'Signature client')}
-                      className="block w-full max-w-md overflow-hidden rounded-lg border border-neutral-200 bg-white"
+                      className="group relative block w-full overflow-hidden rounded-xl border border-rose-100 bg-rose-50/30 ring-1 ring-rose-100 transition hover:ring-rose-300"
                     >
                       <img
                         src={normalizeFileUrl(order.clientSignatureImage)}
-                        alt="Signature client"
-                        className="h-24 w-full bg-white object-contain p-1"
+                        alt="Signature du client"
+                        className="h-28 w-full object-contain p-3"
                         loading="lazy"
                       />
+                      <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/50 px-2 py-1 text-[10px] font-semibold text-white group-hover:bg-black/65 transition">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        Agrandir
+                      </span>
                     </button>
                   </div>
                 )}

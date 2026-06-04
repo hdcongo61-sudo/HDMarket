@@ -888,6 +888,69 @@ const loadDiscountProducts = async () => {
     );
   };
 
+  // === POUR VOUS — AI-Powered Recommendations ===
+  const PourVousSection = () => {
+    const { user } = useContext(AuthContext);
+    const [recommendedProducts, setRecommendedProducts] = useState([]);
+    const [recsLoading, setRecsLoading] = useState(false);
+    const [recsError, setRecsError] = useState(false);
+    const recsLoadedRef = useRef(false);
+
+    useEffect(() => {
+      if (!user || recsLoadedRef.current) return;
+      recsLoadedRef.current = true;
+      setRecsLoading(true);
+      api.get('/products/recommendations', { params: { page: 1, limit: 8 }, skipCache: false })
+        .then(({ data }) => {
+          setRecommendedProducts(data?.items || []);
+        })
+        .catch(() => setRecsError(true))
+        .finally(() => setRecsLoading(false));
+    }, [user]);
+
+    if (!user) return null;
+    if (!recsLoading && !recsError && recommendedProducts.length === 0) return null;
+
+    return (
+      <section className="rounded-2xl border border-purple-100 bg-gradient-to-br from-purple-50/40 to-orange-50/40 p-3 shadow-sm">
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-purple-600" />
+              <h2 className="text-sm font-bold text-gray-900">{t('home.pourVous', 'Pour vous')}</h2>
+            </div>
+            <p className="mt-0.5 text-[11px] text-gray-500">
+              {t('home.pourVousSubtitle', 'Recommandations basées sur vos goûts')}
+            </p>
+          </div>
+          <Link to="/explore" className="shrink-0 text-xs font-semibold text-purple-700">
+            {t('home.exploreAll', 'Explorer')} <Sparkles className="inline h-3 w-3 ml-0.5" />
+          </Link>
+        </div>
+
+        {recsLoading ? (
+          <div className="grid grid-cols-2 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={`rec-skel-${i}`} className="h-44 animate-pulse rounded-xl bg-gray-200" />
+            ))}
+          </div>
+        ) : recsError ? (
+          <p className="text-xs text-gray-500 py-3 text-center">
+            {t('home.recsError', 'Indisponible. Revenez plus tard.')}
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {recommendedProducts.slice(0, 4).map((product) => (
+              <div key={`pourvous-${product._id}`} className="overflow-hidden rounded-xl border border-purple-100 bg-white p-1 shadow-sm hover:shadow-md transition">
+                <ProductCard p={product} productLink={buildHomeProductLink(product)} />
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    );
+  };
+
   // === MOBILE COMPACT FEED LAYOUT (Proposal A) ===
   const renderMobileHome = () => {
     const fallbackDeals = [
@@ -1845,6 +1908,9 @@ const loadDiscountProducts = async () => {
             </div>
           )}
         </section>
+
+        {/* Pour Vous — AI Recommendations */}
+        <PourVousSection />
 
         {/* Discover More Quick Links */}
         <section className="pb-2">

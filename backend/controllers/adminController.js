@@ -1175,6 +1175,7 @@ export const blockUser = asyncHandler(async (req, res) => {
 
   user.isBlocked = true;
   user.blockedAt = new Date();
+  user.sessionsInvalidatedAt = new Date();
   const trimmed = typeof reasonRaw === 'string' ? reasonRaw.trim() : '';
   user.blockedReason = trimmed.slice(0, 500);
 
@@ -1192,6 +1193,24 @@ export const blockUser = asyncHandler(async (req, res) => {
       reason: user.blockedReason
     },
     ipAddress: req.ip || req.connection?.remoteAddress
+  });
+
+  // Send real-time notification + disconnect user
+  const restrictedUserIds = [String(user._id)];
+  await createNotification({
+    userId: user._id,
+    actorId: req.user.id,
+    type: 'account_restriction',
+    metadata: {
+      restrictionType: 'blocked',
+      restrictionLabel: 'Compte suspendu',
+      reason: user.blockedReason || 'Votre compte a été suspendu par un administrateur.',
+      message: user.blockedReason
+        ? `Votre compte a été suspendu. Raison: ${user.blockedReason}`
+        : 'Votre compte a été suspendu par un administrateur. Contactez le support pour plus d\'informations.'
+    },
+    priority: 'CRITICAL',
+    pushEnabled: true
   });
 
   const populated = await user.populate('shopVerifiedBy', 'name email');
@@ -1226,6 +1245,20 @@ export const unblockUser = asyncHandler(async (req, res) => {
       userEmail: user.email
     },
     ipAddress: req.ip || req.connection?.remoteAddress
+  });
+
+  // Notify user their account was restored
+  await createNotification({
+    userId: user._id,
+    actorId: req.user.id,
+    type: 'account_restriction_lifted',
+    metadata: {
+      restrictionType: 'blocked',
+      restrictionLabel: 'Compte suspendu',
+      message: 'Votre compte a été réactivé par un administrateur. Vous pouvez à nouveau utiliser HDMarket.'
+    },
+    priority: 'HIGH',
+    pushEnabled: true
   });
 
   res.json(toAdminUserResponse(user));
@@ -1548,6 +1581,7 @@ export const updateUserRole = asyncHandler(async (req, res) => {
 
   const previousRole = user.role;
   user.role = role;
+  user.sessionsInvalidatedAt = new Date();
   await user.save();
 
   // Create audit log
@@ -1974,6 +2008,7 @@ export const toggleBoostManager = asyncHandler(async (req, res) => {
   }
   
   user.canManageBoosts = !user.canManageBoosts;
+  user.sessionsInvalidatedAt = new Date(); // force re-login so permission takes immediate effect
   await user.save();
   res.json({
     message: user.canManageBoosts
@@ -2008,6 +2043,7 @@ export const togglePaymentVerifier = asyncHandler(async (req, res) => {
 
   // Toggle the permission
   user.canVerifyPayments = !user.canVerifyPayments;
+  user.sessionsInvalidatedAt = new Date();
   await user.save();
 
   res.json({
@@ -2054,6 +2090,7 @@ export const toggleComplaintManager = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Impossible de modifier les permissions d\'un administrateur ou fondateur.' });
   }
   user.canManageComplaints = !user.canManageComplaints;
+  user.sessionsInvalidatedAt = new Date();
   await user.save();
   res.json({
     message: user.canManageComplaints
@@ -2099,6 +2136,7 @@ export const toggleProductManager = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Impossible de modifier les permissions d\'un administrateur ou fondateur.' });
   }
   user.canManageProducts = !user.canManageProducts;
+  user.sessionsInvalidatedAt = new Date();
   await user.save();
   res.json({
     message: user.canManageProducts
@@ -2145,6 +2183,7 @@ export const toggleDeliveryManager = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Impossible de modifier les permissions d\'un administrateur ou fondateur.' });
   }
   user.canManageDelivery = !user.canManageDelivery;
+  user.sessionsInvalidatedAt = new Date();
   await user.save();
   res.json({
     message: user.canManageDelivery
@@ -2211,6 +2250,7 @@ export const toggleChatTemplateManager = asyncHandler(async (req, res) => {
 
   const wasGranted = Boolean(user.canManageChatTemplates);
   user.canManageChatTemplates = !wasGranted;
+  user.sessionsInvalidatedAt = new Date();
   await user.save();
 
   await createAuditLog({
@@ -2272,6 +2312,7 @@ export const toggleHelpCenterEditor = asyncHandler(async (req, res) => {
   }
 
   user.canManageHelpCenter = !user.canManageHelpCenter;
+  user.sessionsInvalidatedAt = new Date();
   await user.save();
 
   res.json({
@@ -2443,6 +2484,11 @@ export const setUserRestriction = asyncHandler(async (req, res) => {
     restrictedBy: restricted ? req.user.id : null,
     restrictedAt: restricted ? new Date() : null
   };
+
+  // Force session invalidation so restriction takes effect immediately
+  if (restricted) {
+    user.sessionsInvalidatedAt = new Date();
+  }
 
   await user.save();
 

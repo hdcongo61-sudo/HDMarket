@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Filter, Tag, DollarSign } from 'lucide-react';
+import { ArrowLeft, Filter, Tag, DollarSign, HeartOff, X } from 'lucide-react';
 import FavoriteContext from '../context/FavoriteContext';
 import ProductCard from '../components/ProductCard';
 import { getCategoryMeta } from '../data/categories';
@@ -18,13 +18,25 @@ const PRICE_RANGES = [
 
 export default function Favorites() {
   const navigate = useNavigate();
-  const { favorites, loading } = useContext(FavoriteContext);
+  const { favorites, loading, removeFavorite } = useContext(FavoriteContext);
   const [page, setPage] = useState(1);
   const [filterCategory, setFilterCategory] = useState('');
   const [filterPrice, setFilterPrice] = useState('all');
+  const [unfavingId, setUnfavingId] = useState('');
   const [isMobileView, setIsMobileView] = useState(() =>
     typeof window === 'undefined' ? false : window.innerWidth <= 767
   );
+
+  const handleUnfavorite = async (productId) => {
+    setUnfavingId(productId);
+    try {
+      await removeFavorite(productId);
+    } catch {
+      // silently handled by context
+    } finally {
+      setUnfavingId('');
+    }
+  };
 
   const categoriesInFavorites = useMemo(() => {
     const seen = new Set();
@@ -272,7 +284,27 @@ export default function Favorites() {
             <>
               <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
                 {paginatedFavorites.map((product) => (
-                  <ProductCard key={product._id} p={product} />
+                  <div key={product._id} className="group/fav relative">
+                    <ProductCard p={product} />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleUnfavorite(product._id);
+                      }}
+                      disabled={unfavingId === product._id}
+                      className="absolute top-2 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-red-500 shadow-md ring-1 ring-red-200 opacity-0 transition-all duration-200 hover:bg-red-500 hover:text-white hover:ring-red-500 active:scale-90 group-hover/fav:opacity-100 sm:h-8 sm:w-8"
+                      aria-label="Retirer des favoris"
+                      title="Retirer des favoris"
+                    >
+                      {unfavingId === product._id ? (
+                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      ) : (
+                        <HeartOff className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      )}
+                    </button>
+                  </div>
                 ))}
               </div>
               {renderPagination()}

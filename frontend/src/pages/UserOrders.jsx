@@ -148,6 +148,13 @@ const STATUS_TABS = ORDER_FILTER_GROUPS.buyer.map((tab) => ({
 }));
 
 const PAGE_SIZE = 6;
+const TERMINAL_ORDER_STATUSES = new Set([
+  'delivered',
+  'picked_up_confirmed',
+  'confirmed_by_client',
+  'completed',
+  'cancelled'
+]);
 const ACTIVE_LIVE_STATUSES = new Set([
   'pending_payment',
   'paid',
@@ -971,15 +978,49 @@ export default function UserOrders() {
   const mergeOrderUpdate = useCallback(
     (updatedOrder) => {
       if (!updatedOrder?._id) return;
+      const newStatus = String(updatedOrder?.status || '').toLowerCase();
+      const isTerminal = TERMINAL_ORDER_STATUSES.has(newStatus);
+
       setOrders((prev) => {
+        const previousOrder = prev.find((entry) => String(entry?._id || '') === String(updatedOrder._id));
+        const previousStatus = String(previousOrder?.status || '').trim().toLowerCase();
+        // Bump stats counters when status changed
+        if (previousOrder && previousStatus && previousStatus !== newStatus) {
+          setStats((current) =>
+            patchOrderSummaryStatusCounters(current, {
+              previousStatus,
+              nextStatus: newStatus,
+              role: 'buyer'
+            })
+          );
+        }
+        // Remove terminal orders from list immediately
+        if (isTerminal) {
+          return prev.filter((entry) => String(entry?._id || '') !== String(updatedOrder._id));
+        }
         const patched = prev.map((entry) =>
           String(entry?._id || '') === String(updatedOrder._id) ? updatedOrder : entry
         );
         return patched.filter((entry) => orderMatchesBuyerFilter(entry, activeStatus));
       });
+
       queryClient.setQueriesData(
         { queryKey: orderQueryKeys.listRoot('user') },
-        (existing) => patchOrdersListPayload(existing, updatedOrder)
+        (existing) => {
+          // Remove terminal orders from cache too
+          if (isTerminal) {
+            if (Array.isArray(existing)) {
+              return existing.filter((entry) => String(entry?._id || '') !== String(updatedOrder._id));
+            }
+            if (existing && Array.isArray(existing.items)) {
+              return {
+                ...existing,
+                items: existing.items.filter((entry) => String(entry?._id || '') !== String(updatedOrder._id))
+              };
+            }
+          }
+          return patchOrdersListPayload(existing, updatedOrder);
+        }
       );
       queryClient.setQueryData(
         orderQueryKeys.detail('user', String(updatedOrder._id)),
@@ -1073,13 +1114,12 @@ export default function UserOrders() {
         const patched = prev.map((entry) => applyRealtimeStatusPatch(entry, payload));
         return patched.filter((entry) => orderMatchesBuyerFilter(entry, activeStatus));
       });
-      loadOrderStats({ silent: true });
     };
 
     window.addEventListener('hdmarket:orders-status-updated', onStatusUpdated);
     return () =>
       window.removeEventListener('hdmarket:orders-status-updated', onStatusUpdated);
-  }, [activeStatus, loadOrderStats, orders]);
+  }, [activeStatus, orders]);
 
   useEffect(() => {
     loadOrderStats();
