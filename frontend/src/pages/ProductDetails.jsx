@@ -26,7 +26,8 @@ import {
   ChevronUp,
   Flag,
   Trash2,
-  Search
+  Search,
+  Video
 } from "lucide-react";
 import AuthContext from "../context/AuthContext";
 import CartContext from "../context/CartContext";
@@ -465,9 +466,12 @@ export default function ProductDetails() {
         setWhatsappClicks(data.whatsappClicks || 0);
         setFavoriteCount(data.favoritesCount || 0);
         // Fetch bundle suggestions
-        api.get(`/products/public/${productId || data._id || data.id}/bundle-suggestions`)
-          .then(({ data: bd }) => setBundleData(bd))
-          .catch(() => setBundleData(null));
+        const pid = data._id || data.id;
+        if (pid) {
+          api.get(`/products/public/${pid}/bundle-suggestions`)
+            .then(({ data: bd }) => setBundleData(bd))
+            .catch(() => setBundleData(null));
+        }
         if (!hydratedFromSnapshot) {
           setComments([]);
           setRelatedProducts([]);

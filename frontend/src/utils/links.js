@@ -22,7 +22,11 @@ const extractSlug = (value, slugKey = 'slug') => {
 
 export const buildProductPath = (product) => {
   const slug = extractSlug(product, 'slug');
-  return slug ? `/product/${slug}` : '/product';
+  if (slug) return `/product/${slug}`;
+  // Fallback to ID when slug is missing
+  const id = product?._id || product?.id;
+  if (id) return `/product/${id}`;
+  return '/product';
 };
 
 export const buildShopPath = (shop) => {

@@ -1057,9 +1057,6 @@ export default function SellerOrderDetail() {
     !isPickupOrder &&
     !['REQUESTED', 'ACCEPTED', 'IN_PROGRESS', 'DELIVERED'].includes(platformDeliveryStatus) &&
     !['cancelled', 'completed'].includes(order.status);
-  const buyerCity = String(order.customer?.city || order.deliveryCity || '').trim();
-  const cityMismatch =
-    Boolean(sellerCity && buyerCity) && sellerCity.toLowerCase() !== buyerCity.toLowerCase();
   const cancellationBlockedByStatus = ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(order.status);
   const canCancelOrder = !cancellationBlockedByStatus && order.status !== 'cancelled' && !order.cancellationWindow?.isActive;
   const sellerPrimaryAction = getPrimaryActionMeta(order);
@@ -1297,37 +1294,6 @@ export default function SellerOrderDetail() {
                 )}
               </div>
             </div>
-
-            {cityMismatch && (
-              <div className="rounded-2xl border-2 border-orange-200 bg-orange-50 p-4 space-y-3">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-orange-700 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-bold text-orange-900">Attention: villes différentes</p>
-                    <p className="text-xs text-orange-800 mt-1">
-                      Le vendeur est à <span className="font-semibold">{sellerCity}</span> et l'acheteur est à{' '}
-                      <span className="font-semibold">{buyerCity}</span>. Si la livraison est impossible, vous pouvez annuler la commande et demander un remboursement.
-                    </p>
-                  </div>
-                </div>
-                {canCancelOrder && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      openCancelModal({
-                        defaultRefund: true,
-                        prefillReason:
-                          "Annulation pour contrainte de livraison: vendeur et acheteur dans des villes différentes."
-                      })
-                    }
-                    className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100"
-                  >
-                    <X className="w-4 h-4" />
-                    Annuler et demander remboursement
-                  </button>
-                )}
-              </div>
-            )}
 
             {order.trackingNote && (
               <div className="rounded-[24px] border border-orange-100 bg-white p-4 shadow-sm">

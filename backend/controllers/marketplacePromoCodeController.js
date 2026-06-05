@@ -70,12 +70,23 @@ const toPromoResponse = (promo, now = new Date()) => {
   const isExpired = endDate ? endDate < now : false;
   const isUpcoming = startDate ? startDate > now : false;
 
+  // Include populated product data if available
+  const productData = promo.productId && typeof promo.productId === 'object'
+    ? {
+        _id: promo.productId._id,
+        title: promo.productId.title,
+        slug: promo.productId.slug,
+        images: promo.productId.images || []
+      }
+    : null;
+
   return {
     id: promo._id,
     code: promo.code,
     boutiqueId: promo.boutiqueId,
     appliesTo: promo.appliesTo,
-    productId: promo.productId || null,
+    productId: promo.productId ? (typeof promo.productId === 'object' ? promo.productId._id : promo.productId) : null,
+    product: productData,
     discountType: promo.discountType,
     discountValue: Number(promo.discountValue || 0),
     usageLimit,
@@ -202,7 +213,7 @@ export const listMyMarketplacePromoCodes = asyncHandler(async (req, res) => {
       .sort({ createdAt: -1 })
       .skip((pageNumber - 1) * pageSize)
       .limit(pageSize)
-      .populate('productId', 'title slug')
+      .populate('productId', 'title slug images')
       .lean(),
     MarketplacePromoCode.countDocuments(filter)
   ]);
@@ -858,7 +869,7 @@ export const listAdminPromoCodes = asyncHandler(async (req, res) => {
       .skip((pageNumber - 1) * pageSize)
       .limit(pageSize)
       .populate('boutiqueId', 'name shopName email')
-      .populate('productId', 'title slug')
+      .populate('productId', 'title slug images')
       .lean(),
     MarketplacePromoCode.countDocuments(filter)
   ]);

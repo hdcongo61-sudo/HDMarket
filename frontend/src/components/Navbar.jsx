@@ -1591,7 +1591,6 @@ export default function Navbar() {
     const recentSearches = searchHistory.slice(0, 5);
     const hasRecentSearches = recentSearches.length > 0;
     const topCategories = availableCategories.slice(0, 4);
-    const topShops = shops.filter((s) => Boolean(s.shopVerified ?? s.verified)).slice(0, 4);
 
     return (
       <div className="max-h-[400px] overflow-auto">
@@ -1665,60 +1664,7 @@ export default function Navbar() {
           </div>
         )}
 
-        {/* Shop Suggestions (Verified Shops) */}
-        {topShops.length > 0 && (
-          <div>
-            <div className="px-4 py-2.5 bg-gradient-to-r from-neutral-100 to-neutral-100 dark:from-neutral-900/20 dark:to-neutral-900/20">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Store size={14} className="text-neutral-800 dark:text-neutral-300" />
-                  <span className="text-xs font-bold text-neutral-800 dark:text-neutral-300 uppercase tracking-wide">
-                    {t('nav.verifiedShops', 'Boutiques vérifiées')}
-                  </span>
-                </div>
-                <Link
-                  to="/shops/verified"
-                  onClick={() => setShowResults(false)}
-                  className="text-[10px] font-semibold text-neutral-800 dark:text-neutral-300 hover:underline"
-                >
-                  {t('nav.viewAll', 'Voir tout')}
-                </Link>
-              </div>
-            </div>
-            <div className="p-2 space-y-1">
-              {topShops.map((shop) => (
-                <button
-                  key={shop._id}
-                  type="button"
-                  onClick={() => {
-                    setShowResults(false);
-                    navigate(buildShopPath(shop));
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800/40 transition-colors text-left group"
-                >
-                  <img
-                    src={shop.shopLogo || '/api/placeholder/40/40'}
-                    alt={shop.shopName}
-                    className="w-10 h-10 rounded-lg object-cover border border-gray-200 dark:border-gray-700"
-                    onError={(e) => { e.target.src = '/api/placeholder/40/40'; }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                        {shop.shopName}
-                      </span>
-                      <VerifiedBadge verified={Boolean(shop.shopVerified ?? shop.verified)} showLabel={false} />
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                      {shop.shopAddress || 'HDMarket'}
-                    </p>
-                  </div>
-                  <ChevronRight size={16} className="text-gray-300 dark:text-gray-600 group-hover:text-neutral-500 transition-colors" />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Shop Suggestions (Verified Shops) — removed to avoid duplication with search results shops section */}
       </div>
     );
   };
@@ -3496,17 +3442,44 @@ export default function Navbar() {
             </div>
 
             {/* === BOUTON MENU MOBILE === */}
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className={`md:hidden flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-300 active:scale-95 ${
-                isMenuOpen 
-                  ? 'bg-neutral-100 dark:bg-neutral-900/40 text-neutral-900 dark:text-neutral-300 shadow-md' 
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700'
-              }`}
-              aria-label={isMenuOpen ? t('nav.closeMenu', 'Fermer le menu') : t('nav.openMenu', 'Ouvrir le menu')}
-            >
-              {isMenuOpen ? <X size={20} strokeWidth={2.5} /> : <Menu size={20} strokeWidth={2} />}
-            </button>
+            <div className="flex items-center gap-2 md:hidden">
+              {/* Direct profile link for logged-in users */}
+              {user ? (
+                <Link
+                  to="/profile"
+                  className="flex items-center justify-center w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-95 transition-all"
+                  aria-label={t('nav.profile', 'Profil')}
+                >
+                  {resolveUserProfileImage(user) ? (
+                    <img
+                      src={resolveUserProfileImage(user)}
+                      alt={user.name || ''}
+                      className="h-7 w-7 rounded-full object-cover"
+                    />
+                  ) : (
+                    <User size={18} />
+                  )}
+                </Link>
+              ) : (
+                <Link
+                  to="/login"
+                  className="flex items-center justify-center h-10 px-3 rounded-xl bg-black text-white text-xs font-semibold hover:bg-neutral-700 active:scale-95 transition-all"
+                >
+                  {t('nav.login', 'Connexion')}
+                </Link>
+              )}
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-300 active:scale-95 ${
+                  isMenuOpen 
+                    ? 'bg-neutral-100 dark:bg-neutral-900/40 text-neutral-900 dark:text-neutral-300 shadow-md' 
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+                aria-label={isMenuOpen ? t('nav.closeMenu', 'Fermer le menu') : t('nav.openMenu', 'Ouvrir le menu')}
+              >
+                {isMenuOpen ? <X size={20} strokeWidth={2.5} /> : <Menu size={20} strokeWidth={2} />}
+              </button>
+            </div>
           </div>
         </div>
 

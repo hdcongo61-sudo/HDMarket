@@ -24,6 +24,7 @@ const Explorer = lazy(() => import('./pages/Explorer'));
 const FlashSales = lazy(() => import('./pages/FlashSales'));
 const Wallet = lazy(() => import('./pages/Wallet'));
 const SellerAnalyticsV2 = lazy(() => import('./pages/SellerAnalyticsV2'));
+const SellerPromoCodes = lazy(() => import('./pages/SellerPromoCodes'));
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
@@ -507,6 +508,7 @@ function AppContent() {
           <Route path="/flash-sales" element={<FlashSales />} />
           <Route path="/wallet" element={<Wallet />} />
           <Route path="/seller/analytics" element={<SellerAnalyticsV2 />} />
+          <Route path="/seller/promo-codes" element={<SellerPromoCodes />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />

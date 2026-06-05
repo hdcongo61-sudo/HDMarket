@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAppSettings } from '../context/AppSettingsContext';
-import AuthSuccessCard from '../components/auth/AuthSuccessCard';
 import useAppBrandLogo from '../hooks/useAppBrandLogo';
 
 const SLOW_NETWORK_MS = 8000;
@@ -80,7 +79,6 @@ export default function Login() {
   const identifierRef = useRef(null);
   const passwordRef = useRef(null);
   const slowNetworkTimerRef = useRef(null);
-  const successRedirectTimerRef = useRef(null);
 
   const [form, setForm] = useState({ phone: '', password: '' });
   const [rememberMe, setRememberMe] = useState(true);
@@ -88,8 +86,6 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [slowNetwork, setSlowNetwork] = useState(false);
   const [error, setError] = useState('');
-  const [successPayload, setSuccessPayload] = useState(null);
-  const [finalizing, setFinalizing] = useState(false);
   const isFrench = String(language || 'fr')
     .toLowerCase()
     .startsWith('fr');
@@ -128,12 +124,7 @@ export default function Login() {
       : 'Access followed shops, seller conversations, and deliveries in one clear workspace.',
     liveStatus: isFrench ? 'Espace client prêt' : 'Customer space ready',
     deliveryStatus: isFrench ? 'Livraisons suivies' : 'Tracked deliveries',
-    messageStatus: isFrench ? 'Messages vendeurs' : 'Seller messages',
-    successTitle: isFrench ? 'Connexion réussie' : 'Login successful',
-    successDescription: isFrench
-      ? 'Bon retour. Préparation de votre espace.'
-      : 'Welcome back. Preparing your dashboard.',
-    successStatus: isFrench ? 'Préparation de votre espace...' : 'Preparing your workspace...'
+    messageStatus: isFrench ? 'Messages vendeurs' : 'Seller messages'
   };
 
   const commerceHighlights = [
@@ -160,34 +151,12 @@ export default function Login() {
   useEffect(() => {
     return () => {
       if (slowNetworkTimerRef.current) clearTimeout(slowNetworkTimerRef.current);
-      if (successRedirectTimerRef.current) clearTimeout(successRedirectTimerRef.current);
     };
   }, []);
 
-  const completeLogin = async (target = from) => {
-    if (!successPayload || finalizing) return;
-    setFinalizing(true);
-    try {
-      await login(successPayload);
-      nav(target, { replace: true });
-    } finally {
-      setFinalizing(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!successPayload) return;
-    successRedirectTimerRef.current = setTimeout(() => {
-      completeLogin(from);
-    }, 1300);
-    return () => {
-      if (successRedirectTimerRef.current) clearTimeout(successRedirectTimerRef.current);
-    };
-  }, [successPayload]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const submit = async (event) => {
     event.preventDefault();
-    if (loading || successPayload) return;
+    if (loading) return;
 
     setError('');
     setSlowNetwork(false);
@@ -197,7 +166,9 @@ export default function Login() {
 
     try {
       const { data } = await api.post('/auth/login', form);
-      setSuccessPayload(data || null);
+      // Redirect directly — no success interstitial
+      await login(data);
+      nav(from, { replace: true });
     } catch (requestError) {
       setError(mapLoginErrorMessage(requestError, isFrench));
     } finally {
@@ -206,7 +177,7 @@ export default function Login() {
     }
   };
 
-  if (user && !successPayload && !finalizing) {
+  if (user) {
     return <Navigate to={from} replace />;
   }
 
@@ -241,12 +212,10 @@ export default function Login() {
             className="relative overflow-hidden rounded-[24px] border border-black/5 bg-white/82 p-5 shadow-[0_24px_70px_rgba(20,20,20,0.10)] backdrop-blur-2xl dark:border-white/10 dark:bg-neutral-950/76 sm:p-7"
           >
             <AnimatePresence mode="wait">
-              {!successPayload ? (
                 <motion.div
                   key="login-form"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.28 }}
                 >
                   <header className="mb-7">
@@ -281,15 +250,17 @@ export default function Login() {
                       <label htmlFor="login-identifier" className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-neutral-400">
                         {copy.identifierLabel}
                       </label>
-                      <div className="relative">
-                        <Phone className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-neutral-500" />
+                      <div className="flex items-stretch overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition focus-within:border-[#FF6A00] focus-within:ring-2 focus-within:ring-[#FF6A00]/10 dark:border-white/10 dark:bg-white/[0.04]">
+                        <span className="flex items-center justify-center border-r border-slate-200 bg-slate-50 px-4 text-slate-400 dark:border-white/10 dark:bg-white/[0.04] dark:text-neutral-500">
+                          <Phone size={18} />
+                        </span>
                         <input
                           id="login-identifier"
                           ref={identifierRef}
                           type="text"
                           autoComplete="username"
                           inputMode="email"
-                          className="ui-input min-h-[54px] rounded-[18px] border-slate-200 bg-white/95 px-11 text-[15px] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition focus:scale-[1.005] dark:border-white/10 dark:bg-white/[0.04]"
+                          className="ui-input min-h-[54px] flex-1 border-0 bg-transparent px-4 text-[15px] placeholder:text-slate-400 dark:placeholder:text-neutral-500"
                           placeholder={copy.identifierPlaceholder}
                           value={form.phone}
                           onChange={(e) => {
@@ -311,14 +282,16 @@ export default function Login() {
                       <label htmlFor="login-password" className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-neutral-400">
                         {copy.passwordLabel}
                       </label>
-                      <div className="relative">
-                        <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-neutral-500" />
+                      <div className="flex items-stretch overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition focus-within:border-[#FF6A00] focus-within:ring-2 focus-within:ring-[#FF6A00]/10 dark:border-white/10 dark:bg-white/[0.04]">
+                        <span className="flex items-center justify-center border-r border-slate-200 bg-slate-50 px-4 text-slate-400 dark:border-white/10 dark:bg-white/[0.04] dark:text-neutral-500">
+                          <LockKeyhole size={18} />
+                        </span>
                         <input
                           id="login-password"
                           ref={passwordRef}
                           type={showPassword ? 'text' : 'password'}
                           autoComplete="current-password"
-                          className="ui-input min-h-[54px] w-full rounded-[18px] border-slate-200 bg-white/95 px-11 pr-12 text-[15px] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition focus:scale-[1.005] dark:border-white/10 dark:bg-white/[0.04]"
+                          className="ui-input min-h-[54px] flex-1 border-0 bg-transparent px-4 pr-2 text-[15px] placeholder:text-slate-400 dark:placeholder:text-neutral-500"
                           placeholder={copy.passwordPlaceholder}
                           value={form.password}
                           onChange={(e) => {
@@ -330,7 +303,7 @@ export default function Login() {
                         <button
                           type="button"
                           onClick={() => setShowPassword((prev) => !prev)}
-                          className="absolute right-2 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-[14px] text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 active:scale-95 dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white"
+                          className="flex items-center justify-center border-l border-slate-200 bg-slate-50 px-3 text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 active:scale-95 dark:border-white/10 dark:bg-white/[0.04] dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white"
                           aria-label={showPassword ? copy.hidePassword : copy.showPassword}
                         >
                           {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -387,24 +360,6 @@ export default function Login() {
                     </p>
                   </footer>
                 </motion.div>
-              ) : (
-                <motion.div
-                  key="login-success"
-                  initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.28 }}
-                  className="flex min-h-[420px] items-center"
-                >
-                  <AuthSuccessCard
-                    variant="login"
-                    loading={finalizing || loading}
-                    title={copy.successTitle}
-                    description={copy.successDescription}
-                    statusText={copy.successStatus}
-                  />
-                </motion.div>
-              )}
             </AnimatePresence>
           </motion.section>
 

@@ -407,7 +407,27 @@ export default function OrderDetail() {
     if (nextOrder?._id && nextOrder?.status !== 'cancelled') {
       api.get(`/orders/${nextOrder._id}/tracking`)
         .then(({ data }) => setTrackingData(data))
-        .catch(() => setTrackingData(null));
+        .catch(() => {
+          // Show basic fallback with order timeline
+          setTrackingData({
+            orderId: nextOrder._id,
+            status: nextOrder.status,
+            createdAt: nextOrder.createdAt,
+            currentPosition: null,
+            mapCenter: { lat: -4.2634, lng: 15.2429 },
+            checkpoints: [{
+              type: 'placed',
+              icon: '🛒',
+              label: 'Commande passée',
+              time: nextOrder.createdAt,
+              description: 'Suivi en attente de mise à jour par le vendeur.',
+              active: true,
+              isCurrent: true
+            }],
+            hasDeliveryRequest: false,
+            courierName: null
+          });
+        });
     }
   }, [buyerOrderDetailQuery.data]);
 
@@ -1143,6 +1163,10 @@ export default function OrderDetail() {
     normalizeAddressPart(order?.customer?.city) ||
     normalizeAddressPart(user?.city) ||
     '';
+  // City mismatch warning for buyer
+  const sellerCity = normalizeAddressPart(order?.seller?.city || '');
+  const buyerCity = displayDeliveryCity;
+  const cityMismatch = Boolean(sellerCity && buyerCity) && sellerCity.toLowerCase() !== buyerCity.toLowerCase();
   const personalAddressIsDifferent =
     Boolean(personalAddressLine) &&
     deliveryAddressText &&
@@ -1887,6 +1911,22 @@ export default function OrderDetail() {
             {/* 📍 Carte de suivi (Proposal 5) */}
             {effectiveOrderStatus !== 'cancelled' && trackingData && (
               <OrderTrackingMap trackingData={trackingData} />
+            )}
+
+            {/* ⚠️ City mismatch warning (buyer side) */}
+            {cityMismatch && (
+              <div className="rounded-2xl border-2 border-orange-200 bg-orange-50 p-4 space-y-2">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-orange-700 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-bold text-orange-900">Attention: villes différentes</p>
+                    <p className="text-xs text-orange-800 mt-1">
+                      Le vendeur est à <span className="font-semibold">{sellerCity}</span> et vous êtes à{' '}
+                      <span className="font-semibold">{buyerCity}</span>. Vérifiez les conditions de livraison avant de confirmer la commande.
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
 
             {buyerPrimaryAction ? (
