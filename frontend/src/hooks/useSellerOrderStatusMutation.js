@@ -336,9 +336,20 @@ export const useSellerOrderStatusMutation = ({
         });
       }
     },
-    onSettled: (data) => {
-      if (data?.data?.queued) return;
-      queryClient.invalidateQueries({ queryKey: detailKey, refetchType: 'active' }).catch(() => {});
+    onSettled: (data, error) => {
+      // Skip immediate invalidation if optimistic update already applied
+      const wasApplied = data?.data?.queued
+        ? false
+        : data?.data?.order?._id || data?.data?._id;
+      if (!wasApplied) {
+        queryClient.invalidateQueries({ queryKey: detailKey, refetchType: 'active' }).catch(() => {});
+      }
+      // Background consistency refresh after a short delay
+      if (!data?.data?.queued) {
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: detailKey, refetchType: 'active' }).catch(() => {});
+        }, 3000);
+      }
     }
   });
 

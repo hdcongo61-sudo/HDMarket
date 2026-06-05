@@ -98,6 +98,7 @@ const Suggestions = lazy(() => import('./pages/Suggestions'));
 const AdvancedSearch = lazy(() => import('./pages/AdvancedSearch'));
 const OrderMessages = lazy(() => import('./pages/OrderMessages'));
 const ShopConversionRequest = lazy(() => import('./pages/ShopConversionRequest'));
+const ShopAssistant = lazy(() => import('./pages/ShopAssistant'));
 const Footer = lazy(() => import('./components/Footer'));
 const ChatBox = lazy(() => import('./components/ChatBox'));
 const PushNotificationsManager = lazy(() => import('./components/PushNotificationsManager'));
@@ -509,6 +510,7 @@ function AppContent() {
           <Route path="/wallet" element={<Wallet />} />
           <Route path="/seller/analytics" element={<SellerAnalyticsV2 />} />
           <Route path="/seller/promo-codes" element={<SellerPromoCodes />} />
+          <Route path="/seller/assistant" element={<ShopAssistant />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />

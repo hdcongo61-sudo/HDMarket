@@ -4,9 +4,9 @@ import { isApiPossiblyCommittedError } from '../services/api';
 import { createIdempotencyKey } from '../utils/idempotency';
 import { verifyEventually } from '../utils/reliability';
 
-const DEFAULT_VERIFY_DELAYS_MS = [2000, 4000, 6000];
-const DEFAULT_STILL_WORKING_MS = 6000;
-const DEFAULT_SLOW_MS = 11_000;
+const DEFAULT_VERIFY_DELAYS_MS = [1500, 3000, 5000];
+const DEFAULT_STILL_WORKING_MS = 4000;
+const DEFAULT_SLOW_MS = 8000;
 
 const clearTimer = (timerRef) => {
   if (!timerRef?.current) return;

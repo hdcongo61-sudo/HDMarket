@@ -41,7 +41,8 @@ import {
   Sparkles,
   Tag,
   AlertTriangle,
-  CalendarClock
+  CalendarClock,
+  ShieldCheck
 } from 'lucide-react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -1144,6 +1145,25 @@ export default function UserDashboard() {
                   Sur {Number(promoAnalytics?.metrics?.totalOrders || 0).toLocaleString('fr-FR')} commandes
                 </p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {!loading && isShopUser && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8 space-y-5">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Assistant boutique</h3>
+                <p className="text-sm text-gray-500">
+                  Déléguez la gestion de votre boutique à un assistant de confiance.
+                </p>
+              </div>
+              <Link
+                to="/seller/assistant"
+                className="shrink-0 inline-flex items-center gap-1 rounded-xl bg-[#FF6A00] px-3 py-2 text-xs font-bold text-white hover:bg-[#e05e00] transition"
+              >
+                <ShieldCheck size={14} /> Gérer l'assistant
+              </Link>
             </div>
           </div>
         )}

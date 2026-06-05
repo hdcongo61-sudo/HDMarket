@@ -42,6 +42,7 @@ import flashSaleRoutes from './routes/flashSaleRoutes.js';
 import sellerReputationRoutes from './routes/sellerReputationRoutes.js';
 import walletRoutes from './routes/walletRoutes.js';
 import sellerAnalyticsV2Routes from './routes/sellerAnalyticsV2Routes.js';
+import shopAssistantRoutes from './routes/shopAssistantRoutes.js';
 
 import User from './models/userModel.js';
 import Order from './models/orderModel.js';
@@ -314,6 +315,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/shops', shopAssistantRoutes);
 app.use('/api/shops', shopRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/analytics', analyticsRoutes);

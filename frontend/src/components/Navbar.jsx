@@ -3443,31 +3443,6 @@ export default function Navbar() {
 
             {/* === BOUTON MENU MOBILE === */}
             <div className="flex items-center gap-2 md:hidden">
-              {/* Direct profile link for logged-in users */}
-              {user ? (
-                <Link
-                  to="/profile"
-                  className="flex items-center justify-center w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-95 transition-all"
-                  aria-label={t('nav.profile', 'Profil')}
-                >
-                  {resolveUserProfileImage(user) ? (
-                    <img
-                      src={resolveUserProfileImage(user)}
-                      alt={user.name || ''}
-                      className="h-7 w-7 rounded-full object-cover"
-                    />
-                  ) : (
-                    <User size={18} />
-                  )}
-                </Link>
-              ) : (
-                <Link
-                  to="/login"
-                  className="flex items-center justify-center h-10 px-3 rounded-xl bg-black text-white text-xs font-semibold hover:bg-neutral-700 active:scale-95 transition-all"
-                >
-                  {t('nav.login', 'Connexion')}
-                </Link>
-              )}
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-300 active:scale-95 ${
