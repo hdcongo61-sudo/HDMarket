@@ -662,7 +662,7 @@ function ProductCard({
               onError={() => setImageError(true)}
               loading="lazy"
               decoding="async"
-              fetchPriority="low"
+              fetchpriority="low"
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             />
             {!imageLoaded && <div className="absolute inset-0 animate-pulse bg-neutral-200 dark:bg-neutral-800" />}
