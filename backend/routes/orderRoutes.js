@@ -36,6 +36,7 @@ import {
   deleteDraftOrder,
   createInquiryOrder
 } from '../controllers/orderController.js';
+import { getOrderTracking } from '../controllers/orderTrackingController.js';
 import {
   requestPlatformDeliveryForOrder,
   sellerUpdateDeliveryPinForOrder
@@ -202,6 +203,7 @@ router.post(
   clientConfirmDelivery
 );
 router.get('/:id/delivery-logs', validate(schemas.idParam, 'params'), getOrderDeliveryLogs);
+router.get('/:id/tracking', protect, validate(schemas.idParam, 'params'), getOrderTracking);
 router.post(
   '/:id/request-delivery',
   validate(schemas.idParam, 'params'),

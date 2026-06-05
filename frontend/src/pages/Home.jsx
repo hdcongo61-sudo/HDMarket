@@ -2,6 +2,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } 
 import { Link, useSearchParams } from "react-router-dom";
 import api, { isApiCanceledError } from "../services/api";
 import ProductCard from "../components/ProductCard";
+import FlashSaleCard from "../components/FlashSaleCard";
 import PreviewableImage from "../components/media/PreviewableImage";
 import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
 import ShimmerSkeleton from "../components/ui/ShimmerSkeleton";
@@ -122,6 +123,8 @@ export default function Home() {
   const [promoShopsLoading, setPromoShopsLoading] = useState(false);
   const [flashDeals, setFlashDeals] = useState([]);
   const [flashDealsLoading, setFlashDealsLoading] = useState(false);
+  const [activeFlashSales, setActiveFlashSales] = useState([]);
+  const [activeFlashSalesLoading, setActiveFlashSalesLoading] = useState(false);
   const [flashNow, setFlashNow] = useState(() => Date.now());
   const [heroBanner, setHeroBanner] = useState('');
   const [promoBanner, setPromoBanner] = useState('');
@@ -478,6 +481,7 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
   const loadPromoHomeData = async () => {
     setPromoShopsLoading(true);
     setFlashDealsLoading(true);
+    setActiveFlashSalesLoading(true);
     try {
       const { data } = await api.get('/marketplace-promo-codes/public/home', {
         params: {
@@ -494,6 +498,16 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
     } finally {
       setPromoShopsLoading(false);
       setFlashDealsLoading(false);
+    }
+
+    // Fetch flash sales from new system
+    try {
+      const { data: fsData } = await api.get('/flash-sales', { params: { limit: 8 } });
+      setActiveFlashSales(fsData?.items || []);
+    } catch {
+      setActiveFlashSales([]);
+    } finally {
+      setActiveFlashSalesLoading(false);
     }
   };
 
@@ -892,24 +906,27 @@ const loadDiscountProducts = async () => {
   const PourVousSection = () => {
     const { user } = useContext(AuthContext);
     const [recommendedProducts, setRecommendedProducts] = useState([]);
-    const [recsLoading, setRecsLoading] = useState(false);
+    const [recsLoading, setRecsLoading] = useState(true);
     const [recsError, setRecsError] = useState(false);
     const recsLoadedRef = useRef(false);
 
     useEffect(() => {
       if (!user || recsLoadedRef.current) return;
       recsLoadedRef.current = true;
-      setRecsLoading(true);
       api.get('/products/recommendations', { params: { page: 1, limit: 8 }, skipCache: false })
         .then(({ data }) => {
           setRecommendedProducts(data?.items || []);
+          setRecsLoading(false);
         })
-        .catch(() => setRecsError(true))
-        .finally(() => setRecsLoading(false));
+        .catch(() => {
+          setRecsError(true);
+          setRecsLoading(false);
+        });
     }, [user]);
 
-    if (!user) return null;
-    if (!recsLoading && !recsError && recommendedProducts.length === 0) return null;
+    // Don't render anything while loading — avoid layout flash
+    if (!user || recsLoading) return null;
+    if (recommendedProducts.length === 0) return null;
 
     return (
       <section className="rounded-2xl border border-purple-100 bg-gradient-to-br from-purple-50/40 to-orange-50/40 p-3 shadow-sm">
@@ -928,13 +945,7 @@ const loadDiscountProducts = async () => {
           </Link>
         </div>
 
-        {recsLoading ? (
-          <div className="grid grid-cols-2 gap-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={`rec-skel-${i}`} className="h-44 animate-pulse rounded-xl bg-gray-200" />
-            ))}
-          </div>
-        ) : recsError ? (
+        {recsError ? (
           <p className="text-xs text-gray-500 py-3 text-center">
             {t('home.recsError', 'Indisponible. Revenez plus tard.')}
           </p>
@@ -982,6 +993,9 @@ const loadDiscountProducts = async () => {
 
     return (
       <main className="max-w-7xl mx-auto px-2.5 max-[375px]:px-2 pt-0 pb-4 max-[375px]:pb-3 space-y-3 max-[375px]:space-y-2.5">
+        {/* Pour Vous — AI Recommendations (placed prominently at top) */}
+        <PourVousSection />
+
         {(user || showFullPaymentHomeBanner) ? (
           <section className="overflow-hidden rounded-[24px] border border-orange-100 bg-white shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
             {user ? (
@@ -1363,6 +1377,30 @@ const loadDiscountProducts = async () => {
                     )}
                   </div>
                 </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ⚡ Flash Sales — Countdown Deals (Proposal 2) */}
+        {!activeFlashSalesLoading && activeFlashSales.length > 0 && (
+          <section className="rounded-2xl border border-red-100 bg-gradient-to-br from-red-50/40 to-orange-50/40 p-3">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-red-500">
+                  <Zap size={14} className="text-white fill-white" />
+                </div>
+                <h2 className="text-sm font-bold text-gray-900">
+                  {t('home.flashSalesTitle', '⚡ Bons Plans Flash')}
+                </h2>
+              </div>
+              <Link to="/flash-sales" className="text-xs font-semibold text-red-600">
+                {t('home.viewAll', 'Voir tout')} <ChevronRight className="inline h-3 w-3" />
+              </Link>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-1 hide-scrollbar" style={scrollStyle}>
+              {activeFlashSales.map((fs) => (
+                <FlashSaleCard key={fs._id} flashSale={fs} compact />
               ))}
             </div>
           </section>
@@ -1908,9 +1946,6 @@ const loadDiscountProducts = async () => {
             </div>
           )}
         </section>
-
-        {/* Pour Vous — AI Recommendations */}
-        <PourVousSection />
 
         {/* Discover More Quick Links */}
         <section className="pb-2">

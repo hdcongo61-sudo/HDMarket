@@ -89,7 +89,12 @@ const notificationSchema = new mongoose.Schema(
       'shop_conversion_request',
       'shop_conversion_approved',
       'shop_conversion_rejected',
-      'validation_required'
+      'validation_required',
+      'price_drop',
+      'back_in_stock',
+      'abandoned_cart',
+      'seller_new_product',
+      'weekly_digest'
     ],
       required: true
     },

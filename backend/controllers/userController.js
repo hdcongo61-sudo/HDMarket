@@ -91,7 +91,12 @@ const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   account_restriction_lifted: true,
   validation_required: true,
   shop_conversion_approved: true,
-  shop_conversion_rejected: true
+  shop_conversion_rejected: true,
+  price_drop: true,
+  back_in_stock: true,
+  abandoned_cart: true,
+  seller_new_product: true,
+  weekly_digest: true
 });
 
 const mergeNotificationPreferences = (prefs = {}) => {

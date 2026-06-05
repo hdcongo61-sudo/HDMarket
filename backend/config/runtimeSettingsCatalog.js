@@ -629,6 +629,13 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     defaultValue: true,
     isPublic: true
   },
+  enable_digital_wallet: {
+    category: 'feature_flags',
+    description: 'Activer le portefeuille numérique (dépôts, achats, retraits). Proposal 6.',
+    valueType: 'boolean',
+    defaultValue: false,
+    isPublic: true
+  },
   allow_guest_checkout: {
     category: 'feature_flags',
     description: 'Autoriser les commandes invité.',

@@ -294,7 +294,7 @@ export default function Favorites() {
                         handleUnfavorite(product._id);
                       }}
                       disabled={unfavingId === product._id}
-                      className="absolute top-2 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-red-500 shadow-md ring-1 ring-red-200 opacity-0 transition-all duration-200 hover:bg-red-500 hover:text-white hover:ring-red-500 active:scale-90 group-hover/fav:opacity-100 sm:h-8 sm:w-8"
+                      className="absolute top-2 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-red-500 shadow-md ring-1 ring-red-200 transition-all duration-200 hover:bg-red-500 hover:text-white hover:ring-red-500 active:scale-90 sm:h-8 sm:w-8"
                       aria-label="Retirer des favoris"
                       title="Retirer des favoris"
                     >

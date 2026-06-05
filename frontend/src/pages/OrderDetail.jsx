@@ -52,6 +52,7 @@ import useBuyerOrderStatusMutation from '../hooks/useBuyerOrderStatusMutation';
 import useOrderRealtimeSync from '../hooks/useOrderRealtimeSync';
 import { orderQueryKeys } from '../hooks/useOrderQueryKeys';
 import { appAlert, appConfirm } from '../utils/appDialog';
+import OrderTrackingMap from '../components/OrderTrackingMap';
 import useNetworkProfile from '../hooks/useNetworkProfile';
 import { createIdempotencyKey } from '../utils/idempotency';
 import {
@@ -352,6 +353,7 @@ export default function OrderDetail() {
     useNetworkProfile();
 
   const [order, setOrder] = useState(null);
+  const [trackingData, setTrackingData] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [skipLoadingId, setSkipLoadingId] = useState(null);
   const [reordering, setReordering] = useState(false);
@@ -400,6 +402,13 @@ export default function OrderDetail() {
     const nextOrder = buyerOrderDetailQuery.data?.order || null;
     setOrder(nextOrder);
     setUnreadCount(Number(buyerOrderDetailQuery.data?.unreadCount || 0));
+
+    // Fetch tracking data when order is loaded
+    if (nextOrder?._id && nextOrder?.status !== 'cancelled') {
+      api.get(`/orders/${nextOrder._id}/tracking`)
+        .then(({ data }) => setTrackingData(data))
+        .catch(() => setTrackingData(null));
+    }
   }, [buyerOrderDetailQuery.data]);
 
   useOrderRealtimeSync({
@@ -1873,6 +1882,11 @@ export default function OrderDetail() {
                   deliveryMode={order.deliveryMode}
                 />
               )
+            )}
+
+            {/* 📍 Carte de suivi (Proposal 5) */}
+            {effectiveOrderStatus !== 'cancelled' && trackingData && (
+              <OrderTrackingMap trackingData={trackingData} />
             )}
 
             {buyerPrimaryAction ? (

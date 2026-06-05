@@ -38,6 +38,10 @@ import boostRoutes from './routes/boostRoutes.js';
 import founderRoutes from './routes/founderRoutes.js';
 import courierRoutes from './routes/courierRoutes.js';
 import deliveryRoutes from './routes/deliveryRoutes.js';
+import flashSaleRoutes from './routes/flashSaleRoutes.js';
+import sellerReputationRoutes from './routes/sellerReputationRoutes.js';
+import walletRoutes from './routes/walletRoutes.js';
+import sellerAnalyticsV2Routes from './routes/sellerAnalyticsV2Routes.js';
 
 import User from './models/userModel.js';
 import Order from './models/orderModel.js';
@@ -87,6 +91,8 @@ import {
   closeRealtimeAnalyticsWorker,
   initRealtimeAnalyticsWorker
 } from './workers/realtimeAnalyticsWorker.js';
+import { closeEngagementQueue, ensureEngagementSchedules, initEngagementQueue } from './queues/engagementQueue.js';
+import { closeEngagementWorker, initEngagementWorker } from './workers/engagementWorker.js';
 import { closeSideEffectQueue, initSideEffectQueue } from './queues/sideEffectQueue.js';
 import { closeSideEffectWorker, initSideEffectWorker } from './workers/sideEffectWorker.js';
 import { isTokenBlacklisted, wasSessionInvalidated } from './services/sessionSecurityService.js';
@@ -127,6 +133,20 @@ if (realtimeAnalyticsEnabled) {
   });
   initRealtimeAnalyticsWorker().catch(() => {
     // Optional analytics worker.
+  });
+}
+
+// Engagement notifications (Proposal 8) — smart re-engagement engine
+const engagementEnabled = String(process.env.ENGAGEMENT_ENABLED || 'true') !== 'false';
+if (engagementEnabled) {
+  initEngagementQueue().catch(() => {
+    // Optional engagement queue.
+  });
+  initEngagementWorker().catch(() => {
+    // Optional engagement worker.
+  });
+  ensureEngagementSchedules().catch(() => {
+    // Optional engagement schedules.
   });
 }
 
@@ -314,6 +334,10 @@ app.use('/api/boosts', boostRoutes);
 app.use('/api/founder', founderRoutes);
 app.use('/api/courier', courierRoutes);
 app.use('/api/delivery', deliveryRoutes);
+app.use('/api/flash-sales', flashSaleRoutes);
+app.use('/api/seller-reputation', sellerReputationRoutes);
+app.use('/api/wallet', walletRoutes);
+app.use('/api/seller-analytics-v2', sellerAnalyticsV2Routes);
 app.use('/api/*', notFoundApiHandler);
 
 app.use(globalErrorHandler);
@@ -657,6 +681,8 @@ const gracefulShutdown = async () => {
     await closeRealtimeAnalyticsQueue();
     await closeOrderAutomationWorker();
     await closeOrderAutomationQueue();
+    await closeEngagementWorker();
+    await closeEngagementQueue();
     await closeSideEffectWorker();
     await closeSideEffectQueue();
     await closeNotificationWorker();

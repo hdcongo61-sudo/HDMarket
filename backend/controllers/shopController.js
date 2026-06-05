@@ -589,7 +589,11 @@ export const upsertShopReview = asyncHandler(async (req, res) => {
 
   const payload = {
     rating: req.body.rating,
-    comment: (req.body.comment || '').trim()
+    comment: (req.body.comment || '').trim(),
+    descriptionRating: req.body.descriptionRating != null ? Number(req.body.descriptionRating) : undefined,
+    communicationRating: req.body.communicationRating != null ? Number(req.body.communicationRating) : undefined,
+    deliveryRating: req.body.deliveryRating != null ? Number(req.body.deliveryRating) : undefined,
+    order: req.body.orderId || undefined
   };
 
   let review = await ShopReview.findOne({ shop: shop._id, user: req.user.id });
@@ -598,6 +602,10 @@ export const upsertShopReview = asyncHandler(async (req, res) => {
   if (review) {
     review.rating = payload.rating;
     review.comment = payload.comment;
+    if (payload.descriptionRating !== undefined) review.descriptionRating = payload.descriptionRating;
+    if (payload.communicationRating !== undefined) review.communicationRating = payload.communicationRating;
+    if (payload.deliveryRating !== undefined) review.deliveryRating = payload.deliveryRating;
+    if (payload.order) review.order = payload.order;
     await review.save();
   } else {
     review = await ShopReview.create({ shop: shop._id, user: req.user.id, ...payload });

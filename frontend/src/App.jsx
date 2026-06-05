@@ -21,6 +21,9 @@ import { queryClient } from './lib/queryClient';
 const Home = lazy(() => import('./pages/Home'));
 const Discover = lazy(() => import('./pages/Discover'));
 const Explorer = lazy(() => import('./pages/Explorer'));
+const FlashSales = lazy(() => import('./pages/FlashSales'));
+const Wallet = lazy(() => import('./pages/Wallet'));
+const SellerAnalyticsV2 = lazy(() => import('./pages/SellerAnalyticsV2'));
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
@@ -501,6 +504,9 @@ function AppContent() {
           <Route path="/" element={<Home />} />
           <Route path="/discover" element={<Discover />} />
           <Route path="/explore" element={<Explorer />} />
+          <Route path="/flash-sales" element={<FlashSales />} />
+          <Route path="/wallet" element={<Wallet />} />
+          <Route path="/seller/analytics" element={<SellerAnalyticsV2 />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />

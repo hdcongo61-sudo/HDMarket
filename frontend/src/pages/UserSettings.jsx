@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Palette, RefreshCcw, UserCircle } from 'lucide-react';
+import { ArrowLeft, Bell, Palette, RefreshCcw, UserCircle } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -10,9 +10,32 @@ import CitySelector from '../components/settings/CitySelector';
 import { useToast } from '../context/ToastContext';
 import { unregisterServiceWorker } from '../utils/serviceWorker';
 import { clearAllCache } from '../services/api';
+import api from '../services/api';
 import indexedDB, { STORES } from '../utils/indexedDB';
 import { clearSearchCache } from '../utils/searchCache';
 import { appConfirm } from '../utils/appDialog';
+
+// ── Notification Toggle Component ──
+const NotifToggle = React.memo(({ label, checked, onChange }) => (
+  <div className="flex items-center justify-between py-2">
+    <span className="text-sm text-gray-700 dark:text-neutral-300">{label}</span>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ${
+        checked ? 'bg-orange-500' : 'bg-gray-300 dark:bg-neutral-600'
+      }`}
+    >
+      <span
+        className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+          checked ? 'translate-x-6' : 'translate-x-1'
+        }`}
+      />
+    </button>
+  </div>
+));
 
 export default function UserSettings() {
   const { user } = useContext(AuthContext);
@@ -23,6 +46,8 @@ export default function UserSettings() {
   const { theme, setTheme, formatPrice, savingPreferences, t, refreshSettings } = useAppSettings();
   const [clearingPwaCache, setClearingPwaCache] = useState(false);
   const [hardRefreshing, setHardRefreshing] = useState(false);
+  const [notifPrefs, setNotifPrefs] = useState(null);
+  const [savingNotifPrefs, setSavingNotifPrefs] = useState(false);
   const themeOptions = useMemo(
     () => [
       { value: 'system', label: t('settings.theme.system', 'Systeme') },
@@ -37,6 +62,37 @@ export default function UserSettings() {
   useEffect(() => {
     refreshSettings();
   }, [refreshSettings]);
+
+  // Load notification preferences
+  useEffect(() => {
+    let cancelled = false;
+    api.get('/users/notification-preferences')
+      .then(({ data }) => {
+        if (!cancelled) setNotifPrefs(data?.preferences || {});
+      })
+      .catch(() => {
+        if (!cancelled) setNotifPrefs({});
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleNotifToggle = useCallback(async (key) => {
+    if (!notifPrefs || savingNotifPrefs) return;
+    const currentVal = notifPrefs[key];
+    const newVal = !currentVal;
+    // Optimistic update
+    setNotifPrefs((prev) => ({ ...prev, [key]: newVal }));
+    setSavingNotifPrefs(true);
+    try {
+      await api.patch('/users/notification-preferences', { [key]: newVal });
+    } catch {
+      // Revert on failure
+      setNotifPrefs((prev) => ({ ...prev, [key]: currentVal }));
+      showToast(t('settings.notifError', 'Impossible d\'enregistrer la préférence.'), { variant: 'error' });
+    } finally {
+      setSavingNotifPrefs(false);
+    }
+  }, [notifPrefs, savingNotifPrefs, showToast, t]);
 
   const softRefreshCurrentRoute = useCallback(() => {
     const params = new URLSearchParams(location.search || '');
@@ -234,6 +290,93 @@ export default function UserSettings() {
               </option>
             ))}
           </select>
+        </section>
+
+        {/* ── Notification Preferences ── */}
+        <section className="ui-card rounded-[24px] space-y-4 px-4 py-5">
+          <div className="flex items-center gap-2">
+            <Bell size={16} className="text-gray-500 dark:text-neutral-300" />
+            <h2 className="text-sm font-semibold">{t('settings.notifications', 'Notifications')}</h2>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-neutral-400">
+            {t('settings.notifDescription', 'Choisissez les notifications que vous souhaitez recevoir.')}
+          </p>
+
+          {!notifPrefs ? (
+            <p className="py-3 text-center text-sm text-gray-400">{t('settings.loading', 'Chargement...')}</p>
+          ) : (
+            <div className="divide-y divide-gray-100 dark:divide-neutral-700">
+              {/* ── COMMANDES ── */}
+              <div className="py-2">
+                <p className="mb-2 text-xs font-semibold text-orange-600">{t('settings.notifOrders', 'Commandes')}</p>
+                {[
+                  ['order_created', t('settings.notifOrderCreated', 'Commande confirmée')],
+                  ['order_received', t('settings.notifOrderReceived', 'Nouvelle commande reçue')],
+                  ['order_delivering', t('settings.notifOrderDelivering', 'Colis en route')],
+                  ['order_delivered', t('settings.notifOrderDelivered', 'Commande livrée')],
+                  ['order_cancelled', t('settings.notifOrderCancelled', 'Commande annulée')],
+                  ['order_message', t('settings.notifOrderMessage', 'Nouveau message commande')],
+                  ['order_reminder', t('settings.notifOrderReminder', 'Rappel de commande')],
+                  ['review_reminder', t('settings.notifReviewReminder', 'Rappel d\'avis')],
+                ].map(([key, label]) => (
+                  <NotifToggle key={key} label={label} checked={!!notifPrefs[key]} onChange={() => handleNotifToggle(key)} />
+                ))}
+              </div>
+
+              {/* ── PAIEMENTS ── */}
+              <div className="py-2">
+                <p className="mb-2 text-xs font-semibold text-green-600">{t('settings.notifPayments', 'Paiements')}</p>
+                {[
+                  ['payment_pending', t('settings.notifPaymentPending', 'Paiement en attente')],
+                  ['installment_due_reminder', t('settings.notifInstallmentDue', 'Échéance approche')],
+                  ['installment_overdue_warning', t('settings.notifInstallmentOverdue', 'Tranche en retard')],
+                ].map(([key, label]) => (
+                  <NotifToggle key={key} label={label} checked={!!notifPrefs[key]} onChange={() => handleNotifToggle(key)} />
+                ))}
+              </div>
+
+              {/* ── SOCIAL ── */}
+              <div className="py-2">
+                <p className="mb-2 text-xs font-semibold text-blue-600">{t('settings.notifSocial', 'Social')}</p>
+                {[
+                  ['product_comment', t('settings.notifComment', 'Commentaires')],
+                  ['reply', t('settings.notifReply', 'Réponses')],
+                  ['favorite', t('settings.notifFavorite', 'Ajouts aux favoris')],
+                  ['rating', t('settings.notifRating', 'Évaluations')],
+                  ['shop_review', t('settings.notifShopReview', 'Avis boutique')],
+                  ['shop_follow', t('settings.notifShopFollow', 'Nouveaux abonnés')],
+                ].map(([key, label]) => (
+                  <NotifToggle key={key} label={label} checked={!!notifPrefs[key]} onChange={() => handleNotifToggle(key)} />
+                ))}
+              </div>
+
+              {/* ── ENGAGEMENT (Proposal 8) ── */}
+              <div className="py-2">
+                <p className="mb-2 text-xs font-semibold text-purple-600">{t('settings.notifEngagement', 'Découvertes & Bons plans')}</p>
+                {[
+                  ['price_drop', t('settings.notifPriceDrop', '📉 Baisse de prix sur mes favoris')],
+                  ['back_in_stock', t('settings.notifBackInStock', '🔄 Produit de retour en stock')],
+                  ['abandoned_cart', t('settings.notifAbandonedCart', '🛒 Rappel panier oublié')],
+                  ['seller_new_product', t('settings.notifSellerNewProduct', '🆕 Nouveautés des boutiques suivies')],
+                  ['weekly_digest', t('settings.notifWeeklyDigest', '📊 Récap hebdomadaire')],
+                ].map(([key, label]) => (
+                  <NotifToggle key={key} label={label} checked={!!notifPrefs[key]} onChange={() => handleNotifToggle(key)} />
+                ))}
+              </div>
+
+              {/* ── COMPTE ── */}
+              <div className="py-2">
+                <p className="mb-2 text-xs font-semibold text-gray-600">{t('settings.notifAccount', 'Compte')}</p>
+                {[
+                  ['admin_broadcast', t('settings.notifAdminBroadcast', 'Messages HDMarket')],
+                  ['account_restriction', t('settings.notifAccountRestriction', 'Restrictions de compte')],
+                  ['dispute_created', t('settings.notifDisputeCreated', 'Litiges')],
+                ].map(([key, label]) => (
+                  <NotifToggle key={key} label={label} checked={!!notifPrefs[key]} onChange={() => handleNotifToggle(key)} />
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         <section className="ui-card rounded-[24px] space-y-4 px-4 py-5">

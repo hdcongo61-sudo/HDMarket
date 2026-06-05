@@ -149,6 +149,24 @@ const userSchema = new mongoose.Schema(
     followersCount: { type: Number, default: 0, min: 0 },
     followingShops: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
+
+    // === Proposal 3: Seller Level & Reputation ===
+    sellerLevel: {
+      type: String,
+      enum: ['debutant', 'confirme', 'avance', 'or', 'diamant'],
+      default: 'debutant',
+      index: true
+    },
+    sellerLevelUpdatedAt: { type: Date, default: null },
+    // Computed stats (updated by sweep)
+    totalCompletedOrders: { type: Number, default: 0, min: 0 },
+    avgRating: { type: Number, default: 0, min: 0, max: 5 },
+    avgDescriptionRating: { type: Number, default: 0, min: 0, max: 5 },
+    avgCommunicationRating: { type: Number, default: 0, min: 0, max: 5 },
+    avgDeliveryRating: { type: Number, default: 0, min: 0, max: 5 },
+    disputeRate: { type: Number, default: 0, min: 0, max: 100 },
+    totalReviews: { type: Number, default: 0, min: 0 },
+
     notificationPreferences: {
       product_comment: { type: Boolean, default: true },
       reply: { type: Boolean, default: true },
@@ -198,7 +216,12 @@ const userSchema = new mongoose.Schema(
       account_restriction_lifted: { type: Boolean, default: true },
       validation_required: { type: Boolean, default: true },
       shop_conversion_approved: { type: Boolean, default: true },
-      shop_conversion_rejected: { type: Boolean, default: true }
+      shop_conversion_rejected: { type: Boolean, default: true },
+      price_drop: { type: Boolean, default: true },
+      back_in_stock: { type: Boolean, default: true },
+      abandoned_cart: { type: Boolean, default: true },
+      seller_new_product: { type: Boolean, default: true },
+      weekly_digest: { type: Boolean, default: true }
     },
     notificationsReadAt: { type: Date },
     isBlocked: { type: Boolean, default: false },

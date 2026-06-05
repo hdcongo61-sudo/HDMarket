@@ -21,7 +21,6 @@ import {
   Phone,
   Reply,
   CornerDownLeft,
-  Video,
   X,
   ChevronDown,
   ChevronUp,
@@ -49,6 +48,7 @@ import {
 import { resolveUserProfileImage } from "../utils/userAvatar";
 import VerifiedBadge from "../components/VerifiedBadge";
 import OrderChat from "../components/OrderChat";
+import BundleDeal from "../components/BundleDeal";
 import ReportModal from "../components/ReportModal";
 import BaseModal, { ModalBody, ModalHeader } from "../components/modals/BaseModal";
 import { useToast } from "../context/ToastContext";
@@ -93,6 +93,7 @@ export default function ProductDetails() {
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [relatedLoading, setRelatedLoading] = useState(false);
   const [shopGalleryProducts, setShopGalleryProducts] = useState([]);
+  const [bundleData, setBundleData] = useState(null);
   const [isFollowingShop, setIsFollowingShop] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("description");
@@ -463,6 +464,10 @@ export default function ProductDetails() {
         setOfflineSnapshotActive(false);
         setWhatsappClicks(data.whatsappClicks || 0);
         setFavoriteCount(data.favoritesCount || 0);
+        // Fetch bundle suggestions
+        api.get(`/products/public/${productId || data._id || data.id}/bundle-suggestions`)
+          .then(({ data: bd }) => setBundleData(bd))
+          .catch(() => setBundleData(null));
         if (!hydratedFromSnapshot) {
           setComments([]);
           setRelatedProducts([]);
@@ -1683,8 +1688,14 @@ export default function ProductDetails() {
     const cleaned = base
       .map((value) => String(value || '').trim())
       .filter(Boolean);
-    return Array.from(new Set(cleaned)).slice(0, 10);
-  }, [product?.images]);
+    const unique = Array.from(new Set(cleaned)).slice(0, 10);
+    // Images first, then video at the end if present
+    const items = unique.map((src) => ({ type: 'image', src }));
+    if (product?.video && String(product.video).trim()) {
+      items.push({ type: 'video', src: String(product.video).trim() });
+    }
+    return items;
+  }, [product?.images, product?.video]);
   const shopGalleryImages = useMemo(() => {
     const pool = [];
     shopGalleryProducts.forEach((shopProduct) => {
@@ -1739,7 +1750,9 @@ export default function ProductDetails() {
     }
   }, [galleryImages.length, selectedImage]);
 
-  const displayedImage = galleryImages[selectedImage] || "https://via.placeholder.com/600x600";
+  const displayedImage = galleryImages[selectedImage]?.src || "https://via.placeholder.com/600x600";
+  const isDisplayedVideo = galleryImages[selectedImage]?.type === 'video';
+  const displayedVideoSrc = isDisplayedVideo ? galleryImages[selectedImage]?.src : '';
   const imageCursorClass = "cursor-pointer";
   const hasMultipleGalleryImages = galleryImages.length > 1;
   const mobileMainGalleryImageClass = hasMultipleGalleryImages
@@ -2032,14 +2045,26 @@ export default function ProductDetails() {
               onSlideChange={(swiper) => setSelectedImage(swiper.activeIndex)}
               className="w-full aspect-[4/5] bg-neutral-100 dark:bg-neutral-900"
             >
-              {galleryImages.map((image, index) => (
-                <SwiperSlide key={image || index}>
-                  <img
-                    src={image}
-                    alt={`${product.title} - ${index + 1}`}
-                    className={mobileMainGalleryImageClass}
-                    onClick={() => openImageModal(index)}
-                  />
+              {galleryImages.map((item, index) => (
+                <SwiperSlide key={item.src || index}>
+                  {item.type === 'video' ? (
+                    <video
+                      src={item.src}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      poster={galleryImages.find((g) => g.type === 'image')?.src}
+                      className={mobileMainGalleryImageClass}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <img
+                      src={item.src}
+                      alt={`${product.title} - ${index + 1}`}
+                      className={mobileMainGalleryImageClass}
+                      onClick={() => openImageModal(index)}
+                    />
+                  )}
                 </SwiperSlide>
               ))}
             </Swiper>
@@ -2048,11 +2073,23 @@ export default function ProductDetails() {
               className="w-full aspect-[4/5] bg-neutral-100 dark:bg-neutral-900"
               onClick={() => openImageModal(0)}
             >
-              <img
-                src={galleryImages[0] || "https://via.placeholder.com/600x750"}
-                alt={product.title}
-                className={mobileMainGalleryImageClass}
-              />
+              {galleryImages[0]?.type === 'video' ? (
+                <video
+                  src={galleryImages[0].src}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  poster={undefined}
+                  className={mobileMainGalleryImageClass}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <img
+                  src={galleryImages[0]?.src || "https://via.placeholder.com/600x750"}
+                  alt={product.title}
+                  className={mobileMainGalleryImageClass}
+                />
+              )}
             </div>
           )}
 
@@ -2115,17 +2152,26 @@ export default function ProductDetails() {
 
         {galleryImages.length > 1 && (
           <div className="product-detail-thumb-rail flex gap-2 overflow-x-auto px-3 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {galleryImages.map((image, index) => (
+            {galleryImages.map((item, index) => (
               <button
-                key={`mobile-thumb-${image || index}`}
+                key={`mobile-thumb-${item.src || index}`}
                 type="button"
                 onClick={() => setSelectedImage(index)}
-                className={`product-detail-thumb h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100 transition-all duration-300 ${selectedImage === index
+                className={`product-detail-thumb h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100 transition-all duration-300 relative ${selectedImage === index
                   ? 'is-active opacity-100 shadow-md'
                   : 'opacity-50 hover:opacity-100 border border-gray-200'
                   }`}
               >
-                <img src={image} alt={`${product.title} miniature ${index + 1}`} className="h-full w-full object-cover" />
+                {item.type === 'video' ? (
+                  <>
+                    <img src={galleryImages.find((g) => g.type === 'image')?.src || ''} alt="Vidéo" className="h-full w-full object-cover" />
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    </span>
+                  </>
+                ) : (
+                  <img src={item.src} alt={`${product.title} miniature ${index + 1}`} className="h-full w-full object-cover" />
+                )}
               </button>
             ))}
           </div>
@@ -2621,6 +2667,20 @@ export default function ProductDetails() {
         </div>
       )}
 
+      {/* Bundle Deals — Frequently Bought Together (Proposal 7) */}
+      {bundleData && bundleData.bundle && bundleData.bundle.length > 0 && (
+        <div className="px-4 mb-3">
+          <BundleDeal
+            bundleData={bundleData}
+            onAddAll={async (items) => {
+              for (const item of items) {
+                await addToCart(item._id, 1);
+              }
+            }}
+          />
+        </div>
+      )}
+
       {/* 13. Related Products (horizontal scroll) */}
       {(relatedLoading || relatedProducts.length > 0) && (
         <div className="mb-3">
@@ -2656,31 +2716,6 @@ export default function ProductDetails() {
                 </div>
               </Link>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* 14. Video */}
-      {product.video && (
-        <div className="mx-4 mb-3 overflow-hidden rounded-[24px] border border-orange-100 bg-white shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
-          <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-[#fff2e6] via-white to-orange-50 px-4 py-3">
-            <div className="flex items-center gap-2.5">
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#FF6A00] text-white shadow-[0_10px_20px_rgba(255,106,0,0.20)]">
-                <Video className="h-5 w-5" />
-              </span>
-              <div>
-                <p className="text-sm font-black text-slate-950">Vidéo de présentation</p>
-                <p className="text-[11px] font-semibold text-stone-500">Regardez le produit avant de contacter le vendeur</p>
-              </div>
-            </div>
-            <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-[#9A4A00] ring-1 ring-orange-100">
-              Aperçu
-            </span>
-          </div>
-          <div className="bg-black p-1">
-            <div className="overflow-hidden rounded-[20px] bg-black">
-              <video src={product.video} controls poster={galleryImages[0]} preload="metadata" className="aspect-video w-full object-contain" />
-            </div>
           </div>
         </div>
       )}
@@ -3015,17 +3050,30 @@ export default function ProductDetails() {
               <div className={desktopGalleryLayoutClass}>
                 {hasMultipleGalleryImages && (
                   <div className="order-2 flex gap-2 overflow-x-auto pb-1 lg:order-1 lg:max-h-[620px] lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {galleryImages.map((image, index) => (
+                    {galleryImages.map((item, index) => (
                       <button
-                        key={`desktop-thumb-${image || index}`}
+                        key={`desktop-thumb-${item.src || index}`}
                         type="button"
                         onClick={() => handleThumbnailClick(index)}
-                        className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-[14px] bg-gray-50 border transition-all duration-300 sm:h-[72px] sm:w-[72px] lg:h-20 lg:w-20 ${selectedImage === index
+                        className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-[14px] bg-gray-50 border transition-all duration-300 sm:h-[72px] sm:w-[72px] lg:h-20 lg:w-20 relative ${selectedImage === index
                           ? 'ring-2 ring-neutral-900 border-transparent ring-offset-1 opacity-100 shadow-md'
                           : 'border-gray-200 opacity-60 hover:opacity-100 hover:border-gray-300'
                           }`}
                       >
-                        <img src={image} alt={`${product.title} - Image ${index + 1}`} className="h-full w-full object-cover" />
+                        {item.type === 'video' ? (
+                          <>
+                            <img
+                              src={galleryImages.find((g) => g.type === 'image')?.src || ''}
+                              alt="Vidéo"
+                              className="h-full w-full object-cover"
+                            />
+                            <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="1"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                            </span>
+                          </>
+                        ) : (
+                          <img src={item.src} alt={`${product.title} - Image ${index + 1}`} className="h-full w-full object-cover" />
+                        )}
                       </button>
                     ))}
                   </div>
@@ -3037,16 +3085,33 @@ export default function ProductDetails() {
                     onClick={handleImageClick}
                   >
                     <AnimatePresence mode="popLayout">
-                      <motion.img
-                        key={selectedImage}
-                        src={displayedImage}
-                        alt={product?.title || 'Produit'}
-                        initial={{ opacity: 0, filter: "blur(4px)", scale: 0.98 }}
-                        animate={{ opacity: 1, filter: "blur(0px)", scale: 1 }}
-                        exit={{ opacity: 0, filter: "blur(4px)", scale: 1.02 }}
-                        transition={{ duration: 0.35, ease: "easeOut" }}
-                        className={`${desktopMainGalleryImageClass} transition-transform duration-700 group-hover:scale-[1.03]`}
-                      />
+                      {isDisplayedVideo ? (
+                        <motion.video
+                          key={`video-${selectedImage}`}
+                          src={displayedVideoSrc}
+                          controls
+                          playsInline
+                          preload="metadata"
+                          poster={galleryImages.find((g) => g.type === 'image')?.src}
+                          initial={{ opacity: 0, filter: "blur(4px)", scale: 0.98 }}
+                          animate={{ opacity: 1, filter: "blur(0px)", scale: 1 }}
+                          exit={{ opacity: 0, filter: "blur(4px)", scale: 1.02 }}
+                          transition={{ duration: 0.35, ease: "easeOut" }}
+                          className={`${desktopMainGalleryImageClass} transition-transform duration-700 group-hover:scale-[1.03]`}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <motion.img
+                          key={selectedImage}
+                          src={displayedImage}
+                          alt={product?.title || 'Produit'}
+                          initial={{ opacity: 0, filter: "blur(4px)", scale: 0.98 }}
+                          animate={{ opacity: 1, filter: "blur(0px)", scale: 1 }}
+                          exit={{ opacity: 0, filter: "blur(4px)", scale: 1.02 }}
+                          transition={{ duration: 0.35, ease: "easeOut" }}
+                          className={`${desktopMainGalleryImageClass} transition-transform duration-700 group-hover:scale-[1.03]`}
+                        />
+                      )}
                     </AnimatePresence>
 
                     <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/30 to-transparent pointer-events-none" />
@@ -4517,11 +4582,22 @@ export default function ProductDetails() {
             <div
               className="max-h-[85vh] overflow-hidden rounded-2xl bg-black shadow-lg"
             >
-              <img
-                src={displayedImage}
-                alt={product?.title || 'Produit'}
-                className="mx-auto block max-h-[85vh] w-auto max-w-full object-contain"
-              />
+              {galleryImages[selectedImage]?.type === 'video' ? (
+                <video
+                  src={galleryImages[selectedImage].src}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  poster={galleryImages.find((g) => g.type === 'image')?.src}
+                  className="mx-auto block max-h-[85vh] w-auto max-w-full"
+                />
+              ) : (
+                <img
+                  src={displayedImage}
+                  alt={product?.title || 'Produit'}
+                  className="mx-auto block max-h-[85vh] w-auto max-w-full object-contain"
+                />
+              )}
             </div>
             <div className="absolute right-4 top-4 flex gap-2 z-10">
               {user && (
@@ -4570,21 +4646,34 @@ export default function ProductDetails() {
             {galleryImages.length > 1 && (
               <div className="mt-4 flex justify-center">
                 <div className="flex max-w-full gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-black/45 px-3 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {galleryImages.map((image, index) => (
+                  {galleryImages.map((item, index) => (
                     <button
-                      key={`modal-thumb-${image || index}`}
+                      key={`modal-thumb-${item.src || index}`}
                       type="button"
                       onClick={() => setSelectedImage(index)}
-                      className={`h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border transition ${selectedImage === index
+                      className={`h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border transition relative ${selectedImage === index
                         ? 'border-white ring-2 ring-white/50'
                         : 'border-white/20 hover:border-white/50'
                         }`}
                     >
-                      <img
-                        src={image}
-                        alt={`${product?.title || 'Produit'} miniature ${index + 1}`}
-                        className="h-full w-full object-cover"
-                      />
+                      {item.type === 'video' ? (
+                        <>
+                          <img
+                            src={galleryImages.find((g) => g.type === 'image')?.src || ''}
+                            alt="Vidéo miniature"
+                            className="h-full w-full object-cover"
+                          />
+                          <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                          </span>
+                        </>
+                      ) : (
+                        <img
+                          src={item.src}
+                          alt={`${product?.title || 'Produit'} miniature ${index + 1}`}
+                          className="h-full w-full object-cover"
+                        />
+                      )}
                     </button>
                   ))}
                 </div>

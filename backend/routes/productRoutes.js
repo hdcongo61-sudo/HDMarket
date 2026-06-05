@@ -2,7 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { protect } from '../middlewares/authMiddleware.js';
 import { requireRole } from '../middlewares/roleMiddleware.js';
-import { upload } from '../utils/upload.js';
+import { getBundleSuggestions } from '../services/bundleService.js';
 import { validate, schemas } from '../middlewares/validate.js';
 import { cacheMiddleware } from '../utils/cache.js';
 import { idempotencyMiddleware } from '../middlewares/idempotencyMiddleware.js';
@@ -74,6 +74,15 @@ router.get('/public/top-sales/today', cacheMiddleware({ ttl: 120000 }), getTopSa
 router.get('/public', cacheMiddleware({ ttl: 180000 }), validate(schemas.publicQuery, 'query'), getPublicProducts);
 router.get('/public/:id/comments', cacheMiddleware({ ttl: 120000 }), getCommentsForProduct);
 router.get('/public/:id/ratings', cacheMiddleware({ ttl: 120000 }), getRatingSummary);
+// Bundle suggestions — frequently bought together (Proposal 7)
+router.get('/public/:id/bundle-suggestions', cacheMiddleware({ ttl: 600000 }), async (req, res) => {
+  try {
+    const result = await getBundleSuggestions(req.params.id);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Erreur suggestion bundle' });
+  }
+});
 router.post(
   '/public/:id/view',
   productViewRateLimiter,

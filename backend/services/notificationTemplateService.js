@@ -401,6 +401,58 @@ const TEMPLATES = {
     actionLabel: 'Voir mon compte'
   }),
 
+  // === ENGAGEMENT (Proposal 8) ===
+  price_drop: ({ metadata, snapshot }) => {
+    const saved = formatAmount(metadata.saved || metadata.oldPrice - metadata.newPrice);
+    const pct = metadata.pctDown || Math.round(Number(metadata.pctDown || 10));
+    const title = metadata.productTitle || snapshot.productTitle || 'Un article';
+    return {
+      title: '📉 Baisse de prix !',
+      message: `Bonne nouvelle ! Le prix de "${title}" a baissé de ${pct}%${saved ? ` (soit ${saved} d'économie)` : ''}. Profitez-en vite !`,
+      actionLabel: 'Voir le produit'
+    };
+  },
+  back_in_stock: ({ metadata, snapshot }) => {
+    const title = metadata.productTitle || snapshot.productTitle || 'Un article';
+    return {
+      title: '🔄 De retour en stock',
+      message: `"${title}" est de nouveau disponible ! L'article que vous aviez en favoris est à nouveau en vente.`,
+      actionLabel: 'Voir le produit'
+    };
+  },
+  abandoned_cart: ({ metadata }) => {
+    const count = Number(metadata.itemCount || 1);
+    const label = metadata.firstProductTitle || 'articles';
+    return {
+      title: '🛒 Panier en attente',
+      message: `Vous avez ${count} article${count > 1 ? 's' : ''} en attente dans votre panier${label !== 'articles' ? ` dont "${label}"` : ''}. Finalisez votre commande avant que ça ne parte !`,
+      actionLabel: 'Voir mon panier'
+    };
+  },
+  seller_new_product: ({ metadata }) => {
+    const shopName = metadata.shopName || 'Une boutique';
+    const title = metadata.firstProductTitle || 'un nouveau produit';
+    const count = Number(metadata.newProductCount || 1);
+    const price = metadata.firstProductPrice ? ` à ${Number(metadata.firstProductPrice).toLocaleString('fr-FR')} FCFA` : '';
+    return {
+      title: '🆕 Nouveau produit',
+      message: `${shopName} a ajouté ${count > 1 ? `${count} nouveaux produits` : `"${title}"${price}`}${count > 1 ? ` dont "${title}"${price}` : ''}. Découvrez-le maintenant !`,
+      actionLabel: 'Voir le produit'
+    };
+  },
+  weekly_digest: ({ metadata }) => {
+    const parts = [];
+    if (metadata.dealCount > 0) parts.push(`${metadata.dealCount} bon(s) plan(s) en promotion`);
+    if (metadata.newFromFollowedCount > 0) parts.push(`${metadata.newFromFollowedCount} nouveautés de vos boutiques`);
+    if (metadata.popularCount > 0) parts.push(`${metadata.popularCount} articles populaires près de chez vous`);
+    const summary = parts.length ? parts.join(', ') : 'des offres du moment';
+    return {
+      title: '📊 Votre récap de la semaine',
+      message: `Découvrez ${summary}. Consultez vos recommandations personnalisées !`,
+      actionLabel: 'Explorer'
+    };
+  },
+
   // === MISC ===
   review_reminder: ({ metadata, snapshot }) => ({
     title: 'Donnez votre avis',
