@@ -8,7 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "build:ios": "npm run build && npx cap sync ios",
-    "build:android": "npm run build && npx cap sync android"
+    "build:android": "npm run build && npx cap sync android",
+    "ios": "npm run build && npx cap sync ios && npx cap open ios",
+    "android": "npm run build && npx cap sync android && npx cap open android"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.1",

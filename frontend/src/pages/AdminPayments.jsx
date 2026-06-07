@@ -1,5 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { X } from 'lucide-react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
@@ -52,7 +53,14 @@ const paymentFilterOptions = [
   { value: 'waiting', label: 'En attente' },
   { value: 'verified', label: 'Validés' },
   { value: 'rejected', label: 'Rejetés' },
-  { value: 'disabled_products', label: 'Annonces désactivées' }
+  { value: 'disabled_products', label: 'Annonces désactivées' },
+  { value: 'wallet_deposits', label: 'Portefeuille HDMarket' }
+];
+
+const walletDepositStatusOptions = [
+  { value: 'pending', label: 'En attente' },
+  { value: 'completed', label: 'Validés' },
+  { value: 'failed', label: 'Refusés' }
 ];
 
 export default function AdminPayments() {
@@ -77,6 +85,16 @@ export default function AdminPayments() {
   const [actionError, setActionError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [decisionPending, setDecisionPending] = useState({ id: '', type: '' });
+
+  // Wallet deposit state
+  const [walletDeposits, setWalletDeposits] = useState([]);
+  const [walletDepositsLoading, setWalletDepositsLoading] = useState(false);
+  const [walletDepositsError, setWalletDepositsError] = useState('');
+  const [walletDepositPage, setWalletDepositPage] = useState(1);
+  const [walletDepositTotal, setWalletDepositTotal] = useState(0);
+  const [walletDepositStatus, setWalletDepositStatus] = useState('pending');
+  const [walletDepositingId, setWalletDepositingId] = useState('');
+  const [proofPreviewUrl, setProofPreviewUrl] = useState('');
   const externalLinkProps = useDesktopExternalLink();
   const isMobileView = useIsMobile(1023);
 
@@ -93,6 +111,14 @@ export default function AdminPayments() {
       return `${filesBase}/${cleaned.replace(/^\/+/, '')}`;
     },
     [filesBase]
+  );
+
+  const getPaymentProofUrl = useCallback(
+    (payment) => {
+      const url = payment?.proofImage?.url || payment?.metadata?.proofImageUrl || '';
+      return url ? normalizeUrl(url) : '';
+    },
+    [normalizeUrl]
   );
 
   const loadStats = useCallback(async () => {
@@ -211,6 +237,54 @@ export default function AdminPayments() {
   }, [payments, page]);
 
   const totalPages = Math.max(1, Math.ceil(payments.length / PAYMENTS_PER_PAGE));
+
+  // ─── Wallet Deposit Review ─────────────────────────────────
+  const loadWalletDeposits = useCallback(async (pageNum = 1) => {
+    setWalletDepositsLoading(true);
+    setWalletDepositsError('');
+    try {
+      const { data } = await api.get('/wallet/admin/pending-deposits', {
+        params: { page: pageNum, limit: 10, status: walletDepositStatus },
+        skipCache: true
+      });
+      setWalletDeposits(data.items || []);
+      setWalletDepositTotal(data.total || 0);
+      setWalletDepositPage(pageNum);
+    } catch (err) {
+      setWalletDepositsError('Impossible de charger les dépôts en attente.');
+    } finally {
+      setWalletDepositsLoading(false);
+    }
+  }, [walletDepositStatus]);
+
+  const handleWalletDepositAction = async (walletId, transactionId, approved, note = '') => {
+    setWalletDepositingId(String(transactionId));
+    try {
+      const endpoint = approved ? '/wallet/admin/approve-deposit' : '/wallet/admin/reject-deposit';
+      await api.post(endpoint, { walletId, transactionId, note });
+      setActionNotice(approved ? 'Dépôt validé avec succès.' : 'Dépôt refusé.');
+      loadWalletDeposits(walletDepositPage);
+    } catch (err) {
+      setActionError(err?.response?.data?.message || 'Erreur lors de l\'opération.');
+    } finally {
+      setWalletDepositingId('');
+      setTimeout(() => { setActionNotice(''); setActionError(''); }, 4000);
+    }
+  };
+
+  useEffect(() => {
+    if (filter === 'wallet_deposits') {
+      loadWalletDeposits();
+    }
+  }, [filter, loadWalletDeposits]);
+
+  useEffect(() => {
+    if (filter === 'wallet_deposits') {
+      setWalletDepositPage(1);
+    }
+  }, [filter, walletDepositStatus]);
+
+  const walletDepositTotalPages = Math.max(1, Math.ceil(walletDepositTotal / 10));
 
 
   const paymentDecisionMutation = useReliableMutation({
@@ -397,7 +471,9 @@ export default function AdminPayments() {
         </Link>
       </header>
 
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      {filter !== 'wallet_deposits' && (
+        <>
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="rounded-xl border bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold text-gray-500 uppercase">Total</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{formatNumber(paymentSummary.total)}</p>
@@ -452,23 +528,28 @@ export default function AdminPayments() {
         </div>
       )}
 
+      {/* Always-visible filter + search bar */}
       <section className="rounded-xl border bg-white p-5 shadow-sm space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Liste des paiements</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              {filter === 'wallet_deposits' ? 'Portefeuille HDMarket' : 'Liste des paiements'}
+            </h2>
             <p className="text-xs text-gray-500">
-              Utilisez les filtres pour trouver rapidement un produit ou une transaction.
+              {filter === 'wallet_deposits'
+                ? 'Filtrez les dépôts portefeuille et vérifiez les preuves de paiement.'
+                : 'Utilisez les filtres pour trouver rapidement un produit ou une transaction.'}
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3 w-full md:w-auto">
             {isMobileView ? (
-              <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
+              <div className="-mx-1 flex flex-wrap gap-2 pb-1">
                 {paymentFilterOptions.map((option) => (
                   <button
                     key={option.value}
                     type="button"
                     onClick={() => setFilter(option.value)}
-                    className={`flex-shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    className={`rounded-full px-3.5 py-2 text-xs font-semibold transition ${
                       filter === option.value
                         ? 'bg-neutral-600 text-white shadow'
                         : 'border border-gray-200 bg-white text-gray-600'
@@ -481,7 +562,7 @@ export default function AdminPayments() {
             ) : (
               <div className="flex items-center gap-2">
                 <label htmlFor="payments-status-filter" className="text-sm text-gray-600">
-                  Statut&nbsp;:
+                  Vue&nbsp;:
                 </label>
                 <select
                   id="payments-status-filter"
@@ -497,56 +578,55 @@ export default function AdminPayments() {
                 </select>
               </div>
             )}
-            <div className="w-full sm:w-64">
-              <input
-                type="search"
-                value={searchDraft}
-                onChange={(e) => setSearchDraft(e.target.value)}
-                placeholder="Rechercher un produit…"
-                className="w-full rounded border px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
-              />
-            </div>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <div className="flex items-center gap-2">
-                <label htmlFor="start-date" className="text-sm text-gray-600">
-                  Du
-                </label>
-                <input
-                  id="start-date"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="rounded border px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <label htmlFor="end-date" className="text-sm text-gray-600">
-                  Au
-                </label>
-                <input
-                  id="end-date"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="rounded border px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
-                />
-              </div>
-              {(startDate || endDate) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStartDate('');
-                    setEndDate('');
-                  }}
-                  className="text-xs font-semibold text-gray-600 hover:text-gray-900"
-                >
-                  Réinitialiser
-                </button>
-              )}
-            </div>
+            {filter !== 'wallet_deposits' && (
+              <>
+                <div className="w-full sm:w-64">
+                  <input
+                    type="search"
+                    value={searchDraft}
+                    onChange={(e) => setSearchDraft(e.target.value)}
+                    placeholder="Rechercher un produit…"
+                    className="w-full rounded border px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
+                  />
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="start-date" className="text-sm text-gray-600">Du</label>
+                    <input
+                      id="start-date"
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="rounded border px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="end-date" className="text-sm text-gray-600">Au</label>
+                    <input
+                      id="end-date"
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="rounded border px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
+                    />
+                  </div>
+                  {(startDate || endDate) && (
+                    <button
+                      type="button"
+                      onClick={() => { setStartDate(''); setEndDate(''); }}
+                      className="text-xs font-semibold text-gray-600 hover:text-gray-900"
+                    >
+                      Réinitialiser
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
+      </section>
 
+      {/* All payment content: stats + table, hidden when wallet deposits shown */}
         {paymentsError && (
           <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{paymentsError}</div>
         )}
@@ -648,6 +728,23 @@ export default function AdminPayments() {
                       )}
                     </div>
                   ) : null}
+                  {getPaymentProofUrl(payment) ? (
+                    <div>
+                      <p className="mb-2 text-xs font-semibold text-gray-600">Preuve de paiement</p>
+                      <button
+                        type="button"
+                        onClick={() => setProofPreviewUrl(getPaymentProofUrl(payment))}
+                        className="block cursor-zoom-in"
+                      >
+                        <img
+                          src={getPaymentProofUrl(payment)}
+                          alt="Preuve de paiement"
+                          className="h-24 w-24 rounded-lg border border-gray-200 object-cover shadow-sm"
+                          loading="lazy"
+                        />
+                      </button>
+                    </div>
+                  ) : null}
                   <div className="flex flex-wrap gap-2">
                     {payment.product && (
                       <Link
@@ -740,6 +837,7 @@ export default function AdminPayments() {
                   <th className="p-2 border text-left">Payeur</th>
                   <th className="p-2 border text-left">Opérateur</th>
                   <th className="p-2 border text-left">Montant</th>
+                  <th className="p-2 border text-left">Preuve</th>
                   <th className="p-2 border text-left">Validé par</th>
                   <th className="p-2 border text-left">Statut</th>
                   <th className="p-2 border text-left">Actions</th>
@@ -748,7 +846,7 @@ export default function AdminPayments() {
               <tbody>
                 {paymentsLoading ? (
                   <tr>
-                    <td colSpan={8} className="p-4 text-center text-sm text-gray-500">
+                    <td colSpan={9} className="p-4 text-center text-sm text-gray-500">
                       Chargement des paiements…
                     </td>
                   </tr>
@@ -775,6 +873,24 @@ export default function AdminPayments() {
                         <p className="text-xs text-gray-500">
                           Due: {formatCurrency(payment.commissionDueAmount ?? payment.amount)}
                         </p>
+                      </td>
+                      <td className="p-2 border align-top">
+                        {getPaymentProofUrl(payment) ? (
+                          <button
+                            type="button"
+                            onClick={() => setProofPreviewUrl(getPaymentProofUrl(payment))}
+                            className="cursor-zoom-in"
+                          >
+                            <img
+                              src={getPaymentProofUrl(payment)}
+                              alt="Preuve de paiement"
+                              className="h-16 w-16 rounded-lg border border-gray-200 object-cover"
+                              loading="lazy"
+                            />
+                          </button>
+                        ) : (
+                          <span className="text-xs text-gray-500">—</span>
+                        )}
                       </td>
                       <td className="p-2 border align-top">
                         {payment.status === 'verified' && payment.validatedBy ? (
@@ -875,7 +991,7 @@ export default function AdminPayments() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={8} className="p-4 text-center text-sm text-gray-500">
+                    <td colSpan={9} className="p-4 text-center text-sm text-gray-500">
                       Aucun paiement à afficher avec ces critères.
                     </td>
                   </tr>
@@ -914,7 +1030,200 @@ export default function AdminPayments() {
             </div>
           </div>
         )}
-      </section>
+        </>
+      )}
+      {/* ─── Wallet Deposit Review Section ─────────────────── */}
+      {filter === 'wallet_deposits' && (
+        <>
+        {/* Wallet stats row */}
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-3 mt-4">
+          <div className="rounded-xl border bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold text-gray-500 uppercase">
+              {walletDepositStatusOptions.find((option) => option.value === walletDepositStatus)?.label || 'Dépôts'}
+            </p>
+            <p className="text-2xl font-bold text-yellow-600 mt-1">{formatNumber(walletDepositTotal)}</p>
+            <p className="text-xs text-gray-500 mt-1">Dépôts Portefeuille HDMarket</p>
+          </div>
+          <div className="rounded-xl border bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold text-gray-500 uppercase">Montant total</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">
+              {formatCurrency(walletDeposits.reduce((s, d) => s + Number(d.amount || 0), 0))}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">FCFA en attente de validation</p>
+          </div>
+          <div className="rounded-xl border bg-white p-4 shadow-sm flex items-center justify-center">
+            <Link to="/admin" className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">
+              ← Retour au tableau de bord
+            </Link>
+          </div>
+        </section>
+
+        <section className="rounded-xl border bg-white p-5 shadow-sm space-y-4 mt-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Portefeuille HDMarket</h2>
+            <p className="text-xs text-gray-500">
+              Vérifiez les preuves de paiement des dépôts portefeuille.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase text-gray-500">Statut</span>
+            {walletDepositStatusOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setWalletDepositStatus(option.value)}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                  walletDepositStatus === option.value
+                    ? 'bg-neutral-900 text-white'
+                    : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          {actionNotice && (
+            <div className="rounded-lg bg-green-50 px-4 py-2 text-sm font-medium text-green-700">{actionNotice}</div>
+          )}
+          {actionError && (
+            <div className="rounded-lg bg-red-50 px-4 py-2 text-sm font-medium text-red-700">{actionError}</div>
+          )}
+
+          {walletDepositsLoading ? (
+            <div className="py-10 text-center text-sm text-gray-400">Chargement des dépôts...</div>
+          ) : walletDepositsError ? (
+            <div className="py-6 text-center text-sm text-red-500">{walletDepositsError}</div>
+          ) : walletDeposits.length === 0 ? (
+            <div className="py-10 text-center text-sm text-gray-400">Aucun dépôt Portefeuille HDMarket avec ce statut.</div>
+          ) : (
+            <div className="space-y-4">
+              {walletDeposits.map((deposit) => {
+                const proofUrls = Array.isArray(deposit.metadata?.proofUrls) ? deposit.metadata.proofUrls : [];
+                const paymentMethod = deposit.metadata?.paymentMethod || 'other';
+                const methodLabels = { orange_money: 'Orange Money', mtn_money: 'MTN Money', airtel_money: 'Airtel Money', bank_transfer: 'Virement', other: 'Autre' };
+
+                return (
+                  <div key={deposit._id} className="rounded-xl border border-gray-200 bg-gray-50/60 p-4 space-y-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="space-y-1">
+                        <p className="text-sm font-bold text-gray-900">
+                          {deposit.userName || 'Utilisateur'} — {formatCurrency(deposit.amount)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {deposit.userPhone && <span>Tél: {deposit.userPhone} · </span>}
+                          {methodLabels[paymentMethod] || paymentMethod}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Réf: <span className="font-mono font-semibold">{deposit.reference || '—'}</span> · {formatDateTime(deposit.createdAt)}
+                        </p>
+                        {deposit.note && <p className="text-xs text-gray-400 italic">{deposit.note}</p>}
+                      </div>
+                      {deposit.status === 'pending' ? (
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleWalletDepositAction(deposit.walletId, deposit._id, true)}
+                            disabled={walletDepositingId === String(deposit._id)}
+                            className="rounded-lg bg-green-600 px-4 py-2 text-xs font-bold text-white hover:bg-green-700 disabled:opacity-50"
+                          >
+                            {walletDepositingId === String(deposit._id) ? '...' : 'Valider'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleWalletDepositAction(deposit.walletId, deposit._id, false, 'Preuve insuffisante')}
+                            disabled={walletDepositingId === String(deposit._id)}
+                            className="rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
+                          >
+                            {walletDepositingId === String(deposit._id) ? '...' : 'Refuser'}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
+                          {walletDepositStatusOptions.find((option) => option.value === deposit.status)?.label || deposit.status}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Proof images */}
+                    <div>
+                      <p className="text-xs font-semibold text-gray-600 mb-2">Preuve de paiement :</p>
+                      {proofUrls.length > 0 ? (
+                        <div className="flex gap-2 overflow-x-auto pb-1">
+                          {proofUrls.map((url, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => setProofPreviewUrl(normalizeUrl(url))}
+                              className="flex-shrink-0 cursor-zoom-in"
+                            >
+                              <img
+                                src={normalizeUrl(url)}
+                                alt={`Preuve dépôt ${i + 1}`}
+                                className="h-28 w-28 rounded-lg border border-gray-200 object-cover hover:ring-2 hover:ring-orange-400 transition"
+                                loading="lazy"
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="rounded-lg border border-dashed border-gray-200 bg-white px-3 py-2 text-xs text-gray-400">
+                          Aucune image de preuve ajoutée.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {walletDepositTotal > 10 && (
+                <div className="flex items-center justify-center gap-3 pt-3 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => loadWalletDeposits(walletDepositPage - 1)}
+                    disabled={walletDepositPage <= 1}
+                    className="rounded border px-3 py-1 text-xs font-semibold disabled:opacity-40"
+                  >
+                    ‹ Précédent
+                  </button>
+                  <span className="text-xs text-gray-500">Page {walletDepositPage} / {walletDepositTotalPages}</span>
+                  <button
+                    type="button"
+                    onClick={() => loadWalletDeposits(walletDepositPage + 1)}
+                    disabled={walletDepositPage >= walletDepositTotalPages}
+                    className="rounded border px-3 py-1 text-xs font-semibold disabled:opacity-40"
+                  >
+                    Suivant ›
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+        </>
+      )}
+
+      {/* Proof image preview overlay */}
+      {proofPreviewUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={() => setProofPreviewUrl('')}
+        >
+          <button
+            type="button"
+            onClick={() => setProofPreviewUrl('')}
+            className="absolute top-4 right-4 rounded-full bg-white/20 p-2 text-white hover:bg-white/30 transition"
+          >
+            <X size={24} />
+          </button>
+          <img
+            src={proofPreviewUrl}
+            alt="Preuve de paiement"
+            className="max-h-[90vh] max-w-full rounded-xl object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

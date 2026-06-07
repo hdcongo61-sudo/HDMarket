@@ -127,9 +127,11 @@ export default function NotificationItem({
               onPointerUp={cancelLongPress}
               onPointerLeave={cancelLongPress}
               className={`group relative flex w-full items-start gap-3 rounded-[22px] border px-3.5 py-3.5 text-left shadow-[0_10px_26px_rgba(117,75,36,0.07)] transition-all hover:scale-[1.002] ${
-                isUnread
-                  ? 'border-orange-200 bg-white'
-                  : 'border-orange-100/80 bg-white/88'
+                isActionsOpen
+                  ? 'border-red-200 bg-white/25 backdrop-blur-sm'
+                  : isUnread
+                    ? 'border-orange-200 bg-white'
+                    : 'border-orange-100/80 bg-white/88'
               }`}
             >
               {isUnread ? (

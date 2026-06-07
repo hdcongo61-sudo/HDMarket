@@ -215,8 +215,14 @@ export const createPayment = asyncHandler(async (req, res) => {
     },
     async () => {
       const [moderators, waitingCount] = await Promise.all([
-        User.find({ role: { $in: ['admin', 'founder', 'manager'] } })
-          .select('_id role')
+        User.find({
+          $or: [
+            { role: { $in: ['admin', 'founder', 'manager'] } },
+            { canVerifyPayments: true }
+          ],
+          isActive: { $ne: false }
+        })
+          .select('_id role canVerifyPayments')
           .lean(),
         Payment.countDocuments({ status: 'waiting' })
       ]);
@@ -229,18 +235,21 @@ export const createPayment = asyncHandler(async (req, res) => {
 
         const notifications = moderators
           .filter((moderator) => String(moderator._id) !== String(req.user.id))
-          .map((moderator) =>
-            createNotification({
+          .map((moderator) => {
+            const role = String(moderator.role || '').toLowerCase();
+            const isVerifier = Boolean(moderator.canVerifyPayments) && !['admin', 'founder', 'manager'].includes(role);
+            return createNotification({
               userId: moderator._id,
               actorId: req.user.id,
               productId: product._id,
               type: 'payment_pending',
-              audience:
-                String(moderator.role || '').toLowerCase() === 'founder'
-                  ? 'FOUNDER'
-                  : String(moderator.role || '').toLowerCase() === 'admin'
-                  ? 'ADMIN'
-                  : 'ROLE_GROUP',
+              audience: isVerifier
+                ? 'ROLE_GROUP'
+                : role === 'founder'
+                ? 'FOUNDER'
+                : role === 'admin'
+                ? 'ADMIN'
+                : 'ROLE_GROUP',
               targetRole: [String(moderator.role || '').toUpperCase()],
               actionRequired: true,
               actionType: 'VERIFY',
@@ -251,8 +260,8 @@ export const createPayment = asyncHandler(async (req, res) => {
               entityId: String(payment._id),
               validationType: 'productValidation',
               metadata
-            })
-          );
+            });
+          });
 
         if (notifications.length) {
           await Promise.all(notifications);

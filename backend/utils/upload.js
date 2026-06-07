@@ -29,7 +29,7 @@ const PDF_EXTENSION_SET = new Set(PDF_EXTENSIONS);
 const IMAGE_MIME_SET = new Set(IMAGE_MIMES);
 const VIDEO_MIME_SET = new Set(VIDEO_MIMES);
 const PDF_MIME_SET = new Set(PDF_MIMES);
-const PROOF_FIELD_SET = new Set(['saleConfirmationProof', 'firstPaymentProof', 'proofOfPayment']);
+const PROOF_FIELD_SET = new Set(['saleConfirmationProof', 'firstPaymentProof', 'proofOfPayment', 'proof']);
 
 const storage = multer.memoryStorage();
 const parsePositiveInt = (value, fallback) => {

@@ -476,16 +476,22 @@ export const createBoostRequest = asyncHandler(async (req, res) => {
 });
 
 export const listMyBoostRequests = asyncHandler(async (req, res) => {
-  const sellerId = req.user?.id || req.user?._id;
-  await ensureSellerEligible(sellerId);
+  const userId = req.user?.id || req.user?._id;
   await expireBoostRequests();
+
+  // Admin/founder/manager accounts don't have seller boost requests — return empty
+  if (['admin', 'founder', 'manager'].includes(String(req.user?.role || ''))) {
+    return res.json({ items: [], pagination: { page: 1, limit: 30, total: 0, pages: 0 } });
+  }
+
+  await ensureSellerEligible(userId);
 
   const { pageNumber, pageSize, skip } = sanitizePageParams({
     page: req.query?.page,
     limit: req.query?.limit
   });
   const status = String(req.query?.status || '').trim().toUpperCase();
-  const filter = { sellerId };
+  const filter = { sellerId: userId };
   if (Object.values(BOOST_REQUEST_STATUSES).includes(status)) {
     filter.status = status;
   }

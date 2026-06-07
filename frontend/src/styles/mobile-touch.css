@@ -1,0 +1,40 @@
+/* 
+ * mobile-touch.css
+ * Global mobile touch & image optimizations
+ * Imported once in main.jsx
+ */
+
+/* Eliminate 300ms tap delay on all interactive elements */
+button, a, [role="button"], input, select, textarea,
+[tabindex]:not([tabindex="-1"]) {
+  touch-action: manipulation;
+}
+
+/* Prevent text selection on interactive UI (not content) */
+button, [role="button"], .no-select {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Smooth momentum scrolling on iOS */
+.hd-scroll {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+}
+
+/* Prevent iOS zoom on double-tap for buttons */
+button, [role="button"] {
+  touch-action: manipulation;
+}
+
+/* Image rendering: prevent blurry upscaled images */
+img:not([width]):not([height]) {
+  /* Let browser reserve space — added via inline style */
+}
+
+/* Fix iOS input zoom on font-size < 16px */
+@media screen and (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}

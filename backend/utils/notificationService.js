@@ -247,7 +247,8 @@ const enrichOrderContextMetadata = async ({ type, metadata = {} }) => {
       ...(orderTitles.length ? { orderProductTitle: orderTitles[0], productTitles: orderTitles } : {}),
       ...(customerId ? { customerId } : {})
     };
-  } catch {
+  } catch (err) {
+    console.warn('[notificationService] Failed to enrich order context metadata for order', orderId, err?.message || err);
     return baseMetadata;
   }
 };

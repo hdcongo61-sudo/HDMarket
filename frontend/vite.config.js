@@ -14,6 +14,9 @@ export default defineConfig({
     __HDMARKET_BUILD_ID__: JSON.stringify(buildId)
   },
   plugins: [tailwindcss()],
+  esbuild: {
+    drop: ['console', 'debugger']
+  },
   css: {
     postcss: {
       plugins: [autoprefixer()]

@@ -470,27 +470,47 @@ export default function NotificationPage() {
     const normalizedIds = notificationIds.map((id) => String(id)).filter(Boolean);
     if (!normalizedIds.length) return;
     setMarkingIds((prev) => new Set([...prev, ...normalizedIds]));
+
+    // Optimistic update — update count immediately before server confirms
+    const idSet = new Set(normalizedIds);
+    updateCounts((prev) => {
+      const previousAlerts = Array.isArray(prev?.alerts) ? prev.alerts : [];
+      const markedUnread = previousAlerts.filter((alert) => idSet.has(String(alert?._id)) && alert.isNew).length;
+      const nextAlerts = previousAlerts.map((alert) =>
+        idSet.has(String(alert?._id))
+          ? { ...alert, isNew: false, readAt: alert.readAt || new Date().toISOString() }
+          : alert
+      );
+      return {
+        ...prev,
+        alerts: nextAlerts,
+        unreadCount: Math.max(0, Number(prev?.unreadCount || 0) - markedUnread),
+        commentAlerts: Math.max(0, Number(prev?.commentAlerts || 0) - markedUnread)
+      };
+    });
+    triggerNotificationsRefresh({ type: 'markRead', notificationIds: normalizedIds, refetch: false });
+
+    // Confirm with server (non-blocking for UX)
     try {
       await fetchMarkRead(normalizedIds);
       await clearCache('/users/notifications');
-      const idSet = new Set(normalizedIds);
+    } catch (requestError) {
+      // Revert optimistic update on failure
       updateCounts((prev) => {
         const previousAlerts = Array.isArray(prev?.alerts) ? prev.alerts : [];
-        const markedUnread = previousAlerts.filter((alert) => idSet.has(String(alert?._id)) && alert.isNew).length;
         const nextAlerts = previousAlerts.map((alert) =>
           idSet.has(String(alert?._id))
-            ? { ...alert, isNew: false, readAt: alert.readAt || new Date().toISOString() }
+            ? { ...alert, isNew: true, readAt: null }
             : alert
         );
         return {
           ...prev,
           alerts: nextAlerts,
-          unreadCount: Math.max(0, Number(prev?.unreadCount || 0) - markedUnread),
-          commentAlerts: Math.max(0, Number(prev?.commentAlerts || 0) - markedUnread)
+          unreadCount: Number(prev?.unreadCount || 0) + idSet.size,
+          commentAlerts: Number(prev?.commentAlerts || 0) + idSet.size
         };
       });
       triggerNotificationsRefresh({ type: 'markRead', notificationIds: normalizedIds, refetch: false });
-    } catch (requestError) {
       setActionError(
         requestError?.response?.data?.message ||
           requestError?.message ||
@@ -774,9 +794,6 @@ export default function NotificationPage() {
                                   }
                                   return next;
                                 });
-                                if (isUnread) {
-                                  handleMarkRead([alert._id]);
-                                }
                               }}
                               onMarkRead={() => handleMarkRead([alert._id])}
                               onDelete={() => handleDelete(alert._id)}
@@ -784,13 +801,14 @@ export default function NotificationPage() {
                               deletePending={deletingIds.has(String(alert._id))}
                               onNavigateAction={(to) => {
                                 api.post(`/users/notifications/${alert._id}/click`).catch(() => {});
+                                // Mark as read BEFORE navigation so the API call completes
+                                if (isUnread) {
+                                  handleMarkRead([alert._id]);
+                                }
                                 if (/^https?:\/\//i.test(String(to || ''))) {
                                   window.location.assign(to);
                                 } else {
                                   navigate(to);
-                                }
-                                if (isUnread) {
-                                  handleMarkRead([alert._id]);
                                 }
                               }}
                             />

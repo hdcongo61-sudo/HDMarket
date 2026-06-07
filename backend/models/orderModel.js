@@ -270,6 +270,11 @@ const orderSchema = new mongoose.Schema(
     },
     paymentName: { type: String, trim: true, default: '' },
     paymentTransactionCode: { type: String, trim: true, default: '' },
+    paymentSource: {
+      type: String,
+      enum: ['mobile_money', 'wallet', 'cod', ''],
+      default: ''
+    },
     confirmedAt: { type: Date },
     readyForPickupAt: { type: Date },
     outForDeliveryAt: { type: Date },
@@ -415,6 +420,16 @@ orderSchema.pre('save', function orderStatusTracking(next) {
   }
   if (this.reviewStatus === 'DONE' && !this.reviewCompletedAt) {
     this.reviewCompletedAt = new Date();
+  }
+  // Finalize payment when order reaches a terminal status
+  const finalStatuses = ['delivered', 'completed', 'confirmed_by_client', 'picked_up_confirmed'];
+  if (this.isModified('status') && finalStatuses.includes(this.status)) {
+    this.paidAmount = this.totalAmount || 0;
+    this.remainingAmount = 0;
+    this.paymentStatus = 'PAID_FULL';
+    if (!this.paymentCompletedAt) {
+      this.paymentCompletedAt = new Date();
+    }
   }
   next();
 });

@@ -17,7 +17,12 @@ import {
   Square,
   Save,
   Trash2,
-  CopyPlus
+  CopyPlus,
+  Wallet,
+  Zap,
+  Award,
+  ShieldCheck,
+  Percent
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -57,7 +62,12 @@ const SECTION_CONFIG = [
   { id: 'shops', label: 'Boutiques', icon: Store, description: 'Vérifications et top boutiques' },
   { id: 'metrics', label: 'Métriques clés', icon: TrendingUp, description: 'Taux globaux de performance' },
   { id: 'growth', label: 'Croissance', icon: TrendingUp, description: 'Evolution période vs précédente' },
-  { id: 'content', label: 'Contenu', icon: FileText, description: 'Qualité des annonces et prix moyens' }
+  { id: 'content', label: 'Contenu', icon: FileText, description: 'Qualité des annonces et prix moyens' },
+  { id: 'wallet', label: 'Portefeuille', icon: Wallet, description: 'Soldes, dépôts, retraits et transactions' },
+  { id: 'flashSales', label: 'Ventes Flash', icon: Zap, description: 'Performance des ventes flash' },
+  { id: 'sellerReputation', label: 'Réputation Vendeurs', icon: Award, description: 'Niveaux, notes et classements' },
+  { id: 'shopAssistant', label: 'Assistants Boutique', icon: ShieldCheck, description: 'Délégations et activité' },
+  { id: 'promoCodes', label: 'Codes Promo', icon: Percent, description: 'Utilisation et performance des codes promo' }
 ];
 
 const CORE_SECTION_IDS = ['users', 'orders', 'products', 'payments', 'delivery', 'metrics'];
@@ -197,6 +207,16 @@ const getSectionChartConfig = (report, id) => {
       );
     case 'content':
       return makeBar(topEntries(report.content?.avgPriceByCategory || {}, 8).map(([k, v]) => [humanizeKey(k), v]), '#4b5563');
+    case 'wallet':
+      return makeBar(topEntries(report.wallet?.byTransactionType || {}, 8).map(([k, v]) => [humanizeKey(k), v]), '#16a34a');
+    case 'flashSales':
+      return makeBar(topEntries(report.flashSales?.byStatus || {}, 8).map(([k, v]) => [humanizeKey(k), v]), '#f97316');
+    case 'sellerReputation':
+      return makeBar(topEntries(report.sellerReputation?.byLevel || {}, 6).map(([k, v]) => [humanizeKey(k), v]), '#8b5cf6');
+    case 'shopAssistant':
+      return makeBar(topEntries(report.shopAssistant?.byStatus || {}, 4).map(([k, v]) => [humanizeKey(k), v]), '#0ea5e9');
+    case 'promoCodes':
+      return makeBar(topEntries(report.promoCodes?.byDiscountType || {}, 4).map(([k, v]) => [humanizeKey(k), v]), '#ec4899');
     default:
       return null;
   }
@@ -235,6 +255,16 @@ const hasSectionData = (report, id) => {
       return Boolean(report.growth);
     case 'content':
       return Boolean(report.content);
+    case 'wallet':
+      return Boolean(report.wallet);
+    case 'flashSales':
+      return Boolean(report.flashSales);
+    case 'sellerReputation':
+      return Boolean(report.sellerReputation);
+    case 'shopAssistant':
+      return Boolean(report.shopAssistant);
+    case 'promoCodes':
+      return Boolean(report.promoCodes);
     default:
       return false;
   }
@@ -428,6 +458,62 @@ const getSectionRows = (report, id) => {
       });
       return rows;
     }
+    case 'wallet': {
+      const rows = [
+        ['Total portefeuilles', formatNumber(report.wallet?.totalWallets)],
+        ['Solde total', formatCurrency(report.wallet?.totalBalance)],
+        ['Dépôts (période)', formatCurrency(report.wallet?.totalDeposits)],
+        ['Retraits (période)', formatCurrency(report.wallet?.totalWithdrawals)],
+        ['Achats via wallet', formatCurrency(report.wallet?.totalPurchases)],
+        ['Commissions déduites', formatCurrency(report.wallet?.totalCommissions)]
+      ];
+      topEntries(report.wallet?.byTransactionType || {}, 6).forEach(([key, count]) => {
+        rows.push([`Transactions: ${humanizeKey(key)}`, formatNumber(count)]);
+      });
+      return rows;
+    }
+    case 'flashSales': {
+      const rows = [
+        ['Ventes flash totales', formatNumber(report.flashSales?.total)],
+        ['Actives', formatNumber(report.flashSales?.active)],
+        ['Terminées', formatNumber(report.flashSales?.ended)],
+        ['Épuisées (sold out)', formatNumber(report.flashSales?.soldOut)],
+        ['Ventes (période)', formatNumber(report.flashSales?.salesInPeriod)],
+        ['Revenu flash', formatCurrency(report.flashSales?.totalRevenue)]
+      ];
+      return rows;
+    }
+    case 'sellerReputation': {
+      const rows = [
+        ['Vendeurs évalués', formatNumber(report.sellerReputation?.totalRated)],
+        ['Note moyenne globale', Number(report.sellerReputation?.avgRating || 0).toFixed(2)],
+        ['Niveau Or', formatNumber(report.sellerReputation?.byLevel?.gold || 0)],
+        ['Niveau Diamant', formatNumber(report.sellerReputation?.byLevel?.diamond || 0)],
+        ['Niveau Argent', formatNumber(report.sellerReputation?.byLevel?.silver || 0)],
+        ['Taux de litige moyen', formatPercent(report.sellerReputation?.avgDisputeRate || 0)]
+      ];
+      return rows;
+    }
+    case 'shopAssistant': {
+      const rows = [
+        ['Total assistants', formatNumber(report.shopAssistant?.total)],
+        ['Actifs', formatNumber(report.shopAssistant?.active)],
+        ['En attente', formatNumber(report.shopAssistant?.pending)],
+        ['Retirés / Partis', formatNumber(report.shopAssistant?.removedOrLeft)],
+        ['Actions enregistrées', formatNumber(report.shopAssistant?.totalActions)]
+      ];
+      return rows;
+    }
+    case 'promoCodes': {
+      const rows = [
+        ['Total codes promo', formatNumber(report.promoCodes?.total)],
+        ['Actifs', formatNumber(report.promoCodes?.active)],
+        ['Utilisés (période)', formatNumber(report.promoCodes?.usedInPeriod)],
+        ['Remise totale accordée', formatCurrency(report.promoCodes?.totalDiscountAmount)],
+        ['Taux d\'utilisation', formatPercent(report.promoCodes?.usageRate || 0)]
+      ];
+      return rows;
+    }
     default:
       return [];
   }
@@ -614,7 +700,13 @@ export default function AdminReports() {
     if (selectedSections.messaging && report.messaging) {
       cards.push({ title: 'Messages', value: formatNumber(report.messaging.totalMessages), sub: `${formatNumber(report.messaging.unreadMessages)} non lus`, icon: MessageSquare });
     }
-    return cards.slice(0, 6);
+    if (selectedSections.wallet && report.wallet) {
+      cards.push({ title: 'Portefeuille', value: formatCurrency(report.wallet.totalBalance), sub: `${formatNumber(report.wallet.totalWallets)} portefeuilles`, icon: Wallet });
+    }
+    if (selectedSections.flashSales && report.flashSales) {
+      cards.push({ title: 'Flash Sales', value: formatNumber(report.flashSales.active), sub: `${formatNumber(report.flashSales.total)} totales`, icon: Zap });
+    }
+    return cards.slice(0, 8);
   }, [report, selectedSections]);
 
   const exportPDF = useCallback(async () => {

@@ -2,8 +2,7 @@ import asyncHandler from 'express-async-handler';
 import jwt from 'jsonwebtoken';
 import User from '../models/userModel.js';
 import PhoneBlacklist from '../models/phoneBlacklistModel.js';
-import { sanitizeShopHours } from '../utils/shopHours.js';
-import { resolvePermissionsForUser } from '../services/rbacService.js';
+import { buildSession } from '../services/sessionFactory.js';
 import { blacklistToken } from '../services/sessionSecurityService.js';
 import {
   consumePasswordResetToken,
@@ -22,63 +21,15 @@ import { getRuntimeConfig } from '../services/configService.js';
 const genToken = (user) =>
   jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
-const buildAuthResponse = (user, token) => ({
-  _id: user._id,
-  name: user.name,
-  email: user.email,
-  phone: user.phone,
-  phoneVerified: Boolean(user.phoneVerified),
-  role: user.role,
-  permissions: resolvePermissionsForUser(user),
-  accountType: user.accountType,
-  profileImage: user.profileImage || null,
-  shopVerified: Boolean(user.shopVerified),
-  shopName: user.shopName || null,
-  shopAddress: user.shopAddress || null,
-  shopLogo: user.shopLogo || null,
-  followersCount: Number(user.followersCount || 0),
-  followingShops: Array.isArray(user.followingShops) ? user.followingShops : [],
-  canReadFeedback: Boolean(user.canReadFeedback),
-  canVerifyPayments: Boolean(user.canVerifyPayments),
-  canManageBoosts: Boolean(user.canManageBoosts),
-  canManageComplaints: Boolean(user.canManageComplaints),
-  canManageProducts: Boolean(user.canManageProducts),
-  canManageDelivery: Boolean(user.canManageDelivery),
-  canManageChatTemplates: Boolean(user.canManageChatTemplates),
-  canManageHelpCenter: Boolean(user.canManageHelpCenter),
-  country: user.country,
-  address: user.address || '',
-  city: user.city,
-  commune: user.commune || '',
-  preferredLanguage: user.preferredLanguage || 'fr',
-  preferredCurrency: user.preferredCurrency || 'XAF',
-  preferredCity: user.preferredCity || user.city || '',
-  theme: user.theme || 'system',
-  gender: user.gender,
-  shopDescription: user.shopDescription || '',
-  shopLocation:
-    Array.isArray(user.shopLocation?.coordinates) && user.shopLocation.coordinates.length === 2
-      ? {
-          type: 'Point',
-          coordinates: [Number(user.shopLocation.coordinates[0]), Number(user.shopLocation.coordinates[1])],
-          longitude: Number(user.shopLocation.coordinates[0]),
-          latitude: Number(user.shopLocation.coordinates[1])
-        }
-      : null,
-  shopLocationVerified: Boolean(user.shopLocationVerified),
-  shopLocationAccuracy: Number.isFinite(Number(user.shopLocationAccuracy))
-    ? Number(user.shopLocationAccuracy)
-    : null,
-  shopLocationUpdatedAt: user.shopLocationUpdatedAt || null,
-  shopLocationTrustScore: Number.isFinite(Number(user.shopLocationTrustScore))
-    ? Number(user.shopLocationTrustScore)
-    : 0,
-  shopLocationNeedsReview: Boolean(user.shopLocationNeedsReview),
-  shopLocationReviewStatus: user.shopLocationReviewStatus || 'approved',
-  shopLocationReviewFlags: Array.isArray(user.shopLocationReviewFlags) ? user.shopLocationReviewFlags : [],
-  shopHours: sanitizeShopHours(user.shopHours || []),
-  token
-});
+/**
+ * Build the login/register response using the canonical session factory.
+ * The only difference: we include the raw `token` string at top level.
+ */
+const buildAuthResponse = (user, token) => {
+  const decoded = jwt.decode(token) || {};
+  const session = buildSession(user, decoded, token);
+  return session;
+};
 
 const toBoolean = (value, fallback = false) => {
   if (typeof value === 'boolean') return value;

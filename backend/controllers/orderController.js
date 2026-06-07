@@ -200,6 +200,14 @@ const getDeliveryProofResubmissionLimit = async () => {
   return Math.max(1, parsed);
 };
 
+const getMaxDeliveryProofPhotos = async () => {
+  const fallback = Math.max(1, Number(process.env.MAX_DELIVERY_PROOF_PHOTOS || 3));
+  const configured = await getRuntimeConfig('max_delivery_proof_photos', { fallback });
+  const parsed = Number(configured);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(1, parsed);
+};
+
 const formatSmsAmount = (value) =>
   Number(value || 0).toLocaleString('fr-FR', {
     minimumFractionDigits: 0,
@@ -857,6 +865,221 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
   await invalidateAdminCache(['admin', 'dashboard']);
 
   res.status(201).json(buildOrderResponse(populated));
+});
+
+// ─── Wallet Checkout (Proposal 6) ────────────────────────
+
+export const walletCheckoutOrder = asyncHandler(async (req, res) => {
+  const userId = req.user?.id || req.user?._id;
+  const { items, deliveryMode, shippingAddress, promoEntries } = req.body;
+
+  // Verify wallet payment is enabled
+  const walletEnabled = await getRuntimeConfig('enable_wallet_payment', { fallback: false });
+  if (!walletEnabled) {
+    return res.status(403).json({ message: 'Le paiement par portefeuille est désactivé.' });
+  }
+
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ message: 'Aucun article dans la commande.' });
+  }
+
+  // Load wallet
+  const { getOrCreateWallet } = await import('../services/walletService.js');
+  const wallet = await getOrCreateWallet(userId);
+
+  try {
+  // Calculate total
+  const productIds = items.map((i) => i.productId);
+  const products = await Product.find({ _id: { $in: productIds }, status: 'approved' }).lean();
+  if (products.length !== items.length) {
+    return res.status(400).json({ message: 'Un ou plusieurs produits ne sont plus disponibles.' });
+  }
+
+  const productMap = new Map(products.map((p) => [String(p._id), p]));
+  let totalAmount = 0;
+  const orderItems = [];
+  const consumedPromos = [];
+
+  // Build promo entries map by sellerId (only non-empty codes)
+  const promoEntriesMap = new Map();
+  if (Array.isArray(promoEntries)) {
+    promoEntries.forEach((pe) => {
+      const code = String(pe?.promoCode || '').trim().toUpperCase();
+      if (pe?.sellerId && code) {
+        promoEntriesMap.set(String(pe.sellerId), code);
+      }
+    });
+  }
+
+  for (const item of items) {
+    const product = productMap.get(String(item.productId));
+    if (!product) continue;
+
+    // Check per-shop wallet eligibility (by phone number)
+    const shopId = String(product.user || product.shopId || '');
+    const enabledPhonesStr = await getRuntimeConfig('wallet_enabled_shops', { fallback: '' });
+    const enabledPhones = String(enabledPhonesStr)
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (enabledPhones.length > 0) {
+      const shop = await User.findById(shopId).select('phone').lean();
+      const shopPhone = String(shop?.phone || '').trim();
+      if (!shopPhone || !enabledPhones.includes(shopPhone)) {
+        return res.status(400).json({
+          message: `Le paiement par portefeuille n'est pas disponible pour la boutique de "${product.title}".`
+        });
+      }
+    }
+
+    const qty = Math.max(1, Number(item.quantity || 1));
+    const price = Number(product.price || 0);
+    const lineTotal = price * qty;
+    totalAmount += lineTotal;
+
+    orderItems.push({
+      product: product._id,
+      quantity: qty,
+      unitPrice: price,
+      lineTotal,
+      snapshot: {
+        title: product.title,
+        price,
+        image: Array.isArray(product.images) ? product.images[0] || '' : '',
+        shopName: product.shopName || '',
+        shopId: product.user || product.shopId,
+        shopAddress: product.shopAddress || '',
+        shopCity: product.city || '',
+        shopCommune: product.commune || '',
+        slug: product.slug || ''
+      }
+    });
+  }
+
+  // ── Apply promo codes per shop ──────────────────────────
+  if (promoEntriesMap.size > 0) {
+    // Group order items by shop
+    const shopItemMap = new Map();
+    orderItems.forEach((oi) => {
+      const sid = String(oi.snapshot.shopId || 'unknown');
+      if (!shopItemMap.has(sid)) shopItemMap.set(sid, []);
+      shopItemMap.get(sid).push(oi);
+    });
+
+    for (const [sellerId, promoCode] of promoEntriesMap) {
+      const sellerItems = shopItemMap.get(sellerId);
+      if (!sellerItems || sellerItems.length === 0) continue;
+      try {
+        const promoResult = await consumeMarketplacePromoForOrder({
+          code: promoCode,
+          boutiqueId: sellerId,
+          clientId: userId,
+          items: sellerItems
+        });
+        if (promoResult?.applied) {
+          consumedPromos.push({ promoId: promoResult.promo?._id, clientId: userId });
+          const oldSubtotal = sellerItems.reduce((s, oi) => s + Number(oi.lineTotal || 0), 0);
+          const newSubtotal = Number(promoResult.pricing?.finalAmount || oldSubtotal);
+          const promoDiscount = Math.max(0, oldSubtotal - newSubtotal);
+          totalAmount -= promoDiscount;
+          // Apply discount proportionally across seller items
+          if (promoDiscount > 0 && oldSubtotal > 0) {
+            const ratio = newSubtotal / oldSubtotal;
+            sellerItems.forEach((oi) => {
+              oi.lineTotal = Math.round(Number(oi.lineTotal || 0) * ratio);
+              oi.unitPrice = Math.round(Number(oi.unitPrice || 0) * ratio);
+            });
+          }
+        }
+      } catch {
+        // Promo code invalid or expired — silently skip
+      }
+    }
+  }
+
+  // Apply wallet discount if configured
+  const rawDiscountPercent = Number(await getRuntimeConfig('wallet_discount_percent', { fallback: 0 }));
+  const walletDiscountPct = Math.min(100, Math.max(0, Number.isFinite(rawDiscountPercent) ? rawDiscountPercent : 0));
+  const discountAmount = walletDiscountPct > 0 ? Math.round(totalAmount * (walletDiscountPct / 100)) : 0;
+  const finalAmount = totalAmount - discountAmount;
+
+  // Wallet must have enough balance for the discounted payment
+  if (wallet.availableBalance < finalAmount) {
+    return res.status(400).json({
+      message: 'Solde portefeuille insuffisant pour finaliser cette commande.'
+    });
+  }
+
+  // Deduct from wallet (discounted amount)
+  const { purchaseFromWallet } = await import('../services/walletService.js');
+  await purchaseFromWallet({
+    userId,
+    amount: finalAmount,
+    reference: 'wallet-checkout'
+  });
+
+  // Create order(s) — one per shop
+  const shopGroups = new Map();
+  orderItems.forEach((oi) => {
+    const sid = String(oi.snapshot.shopId || 'unknown');
+    if (!shopGroups.has(sid)) shopGroups.set(sid, []);
+    shopGroups.get(sid).push(oi);
+  });
+
+  // Distribute discount proportionally across shop groups
+  const discountRate = totalAmount > 0 ? discountAmount / totalAmount : 0;
+
+  const createdOrders = [];
+  for (const [sellerId, sellerItems] of shopGroups) {
+    const sellerSubtotal = sellerItems.reduce((s, i) => s + i.lineTotal, 0);
+    const sellerDiscount = Math.round(sellerSubtotal * discountRate);
+    const sellerTotal = sellerSubtotal - sellerDiscount;
+
+    const order = await Order.create({
+      customer: userId,
+      createdBy: userId,
+      items: sellerItems,
+      deliveryAddress: shippingAddress?.addressLine || 'Adresse non spécifiée',
+      deliveryCity: shippingAddress?.cityName || 'Brazzaville',
+      shippingAddressSnapshot: {
+        cityId: shippingAddress?.cityId || null,
+        cityName: shippingAddress?.cityName || '',
+        communeId: shippingAddress?.communeId || null,
+        communeName: shippingAddress?.communeName || '',
+        addressLine: shippingAddress?.addressLine || '',
+        phone: shippingAddress?.phone || ''
+      },
+      status: 'paid',
+      paymentType: 'full',
+      paymentMode: 'FULL_PAYMENT',
+      paymentSource: 'wallet',
+      paymentStatus: 'PAID_FULL',
+      paymentCompletedAt: new Date(),
+      deliveryMode: deliveryMode || 'PICKUP',
+      deliveryFeeSource: 'FULL_PAYMENT_WAIVER',
+      deliveryFeeWaived: true,
+      deliveryFeeLocked: true,
+      itemsSubtotal: sellerSubtotal,
+      deliveryFeeTotal: 0,
+      discountTotal: sellerDiscount,
+      totalAmount: sellerTotal,
+      paidAmount: sellerTotal,
+      remainingAmount: 0
+    });
+    createdOrders.push(order);
+  }
+
+  res.status(201).json({
+    message: 'Commande payée via portefeuille HDMarket.',
+    orders: createdOrders.map(buildOrderResponse)
+  });
+  } catch (err) {
+    console.error('[walletCheckout] Error:', err?.message || err, err?.stack);
+    return res.status(500).json({
+      message: 'Erreur interne lors du paiement portefeuille. Veuillez réessayer.',
+      error: process.env.NODE_ENV !== 'production' ? String(err?.message || err) : undefined
+    });
+  }
 });
 
 export const userCheckoutOrder = asyncHandler(async (req, res) => {
@@ -1990,11 +2213,40 @@ export const getUserOrder = asyncHandler(async (req, res) => {
   if (!ensureObjectId(id)) {
     return res.status(400).json({ message: 'Commande inconnue.' });
   }
-  const order = await baseOrderQuery().findOne({ _id: id, customer: userId, isDraft: false });
+
+  // First try: user is the customer
+  let order = await baseOrderQuery().findOne({ _id: id, customer: userId, isDraft: false });
+
+  // Fallback: user is a seller of items in this order (e.g., shop user routed to buyer link)
+  if (!order) {
+    order = await baseOrderQuery().findOne({
+      _id: id,
+      'items.snapshot.shopId': userId,
+      isDraft: false
+    });
+  }
+
   if (!order) {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
   await ensureOrderProductSlugs([order]);
+
+  // If user is not the customer, filter items to only show their shop's items
+  const userIdStr = String(userId);
+  const isCustomer = String(order.customer?._id || order.customer) === userIdStr;
+  if (!isCustomer) {
+    const filteredItems = filterOrderItemsForSeller(order, userId);
+    if (!filteredItems.length) {
+      return res.status(404).json({ message: 'Commande introuvable.' });
+    }
+    const response = buildOrderResponse(order);
+    response.items = filteredItems.map((item) => {
+      const normalized = item.toObject ? item.toObject() : item;
+      return { ...normalized, snapshot: normalized.snapshot || {} };
+    });
+    return res.json(response);
+  }
+
   res.json(buildOrderResponse(order));
 });
 
@@ -2589,10 +2841,24 @@ export const sellerGetOrder = asyncHandler(async (req, res) => {
   if (!ensureObjectId(id)) {
     return res.status(400).json({ message: 'Commande inconnue.' });
   }
-  const order = await baseOrderQuery().findOne({ _id: id, 'items.snapshot.shopId': userId, isDraft: false });
+
+  // First try: user is a seller of items in this order
+  let order = await baseOrderQuery().findOne({ _id: id, 'items.snapshot.shopId': userId, isDraft: false });
+
+  // Fallback: user is the customer (e.g., shop user bought from another shop, routed to seller link)
+  if (!order) {
+    order = await baseOrderQuery().findOne({ _id: id, customer: userId, isDraft: false });
+    if (order) {
+      // User is the customer — return full order (not filtered)
+      await ensureOrderProductSlugs([order]);
+      return res.json(buildOrderResponse(order));
+    }
+  }
+
   if (!order) {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
+
   await ensureOrderProductSlugs([order]);
   const filteredItems = filterOrderItemsForSeller(order, userId);
   if (!filteredItems.length) {
@@ -2684,6 +2950,7 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user?.id || req.user?._id;
   const deliveryProofResubmissionLimit = await getDeliveryProofResubmissionLimit();
+  const maxProofPhotos = await getMaxDeliveryProofPhotos();
   if (!ensureObjectId(id)) {
     return res.status(400).json({ message: 'Commande inconnue.' });
   }
@@ -2719,19 +2986,21 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
   }
 
   const proofImages = normalizeDeliveryProofFiles(req.files);
-  if (proofImages.length < minimumProofImages) {
+  const effectiveMin = Math.min(minimumProofImages, maxProofPhotos);
+  if (proofImages.length < effectiveMin) {
     return res.status(400).json({
       message: isPickupOrder
-        ? `Ajoutez au moins ${minimumProofImages} photos de retrait.`
-        : `Ajoutez au moins ${minimumProofImages} photo de livraison.`
+        ? `Ajoutez au moins ${effectiveMin} photos de retrait (max ${maxProofPhotos}).`
+        : `Ajoutez au moins ${effectiveMin} photo de livraison (max ${maxProofPhotos}).`
     });
   }
+  const cappedProofImages = proofImages.slice(0, maxProofPhotos);
 
   const now = new Date();
   const location = extractDeliveryLocation(req.body);
   const noteValue = String(req.body?.deliveryNote || '').trim();
 
-  order.deliveryProofImages = proofImages;
+  order.deliveryProofImages = cappedProofImages;
   order.clientSignatureImage = signatureImage;
   order.deliveryNote = noteValue.slice(0, 1000);
   order.deliveryDate = now;
@@ -2933,6 +3202,22 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
   (order.items || []).forEach((item) => {
     if (item?.snapshot?.shopId) sellerIds.add(String(item.snapshot.shopId));
   });
+
+  // Deduct platform commission from seller wallets (Proposal 6)
+  const commissionRate = Number(process.env.PLATFORM_COMMISSION_RATE || 0.03);
+  if (commissionRate > 0) {
+    for (const sellerId of sellerIds) {
+      const sellerItems = (order.items || []).filter(
+        (item) => String(item?.snapshot?.shopId || '') === sellerId
+      );
+      const sellerTotal = sellerItems.reduce((sum, item) => sum + (Number(item?.lineTotal) || 0), 0);
+      const commission = Math.round(sellerTotal * commissionRate);
+      if (commission > 0) {
+        const { deductCommission } = await import('../services/walletService.js');
+        deductCommission({ userId: sellerId, amount: commission, orderId: String(order._id) }).catch(() => {});
+      }
+    }
+  }
 
   res.json({
     message: 'Livraison confirmée. La commande est terminée.',

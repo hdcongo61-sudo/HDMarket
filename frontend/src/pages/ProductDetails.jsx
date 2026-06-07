@@ -432,13 +432,13 @@ export default function ProductDetails() {
         let data;
         console.debug("Loading product", { slug });
         try {
-          const response = await api.get(`/products/public/${slug}`);
+          const response = await api.get(`/products/public/${slug}`, { silentGlobalError: true });
           data = response.data;
         } catch (publicError) {
           const status = publicError?.response?.status;
           if (status === 404 && user) {
             try {
-              const response = await api.get(`/products/${slug}`);
+              const response = await api.get(`/products/${slug}`, { silentGlobalError: true });
               data = response.data;
             } catch (privateError) {
               if (privateError?.response?.status === 401) {
@@ -613,6 +613,8 @@ export default function ProductDetails() {
 
   // Scroll to top when page opens or slug changes
   useEffect(() => {
+    // Reset image selection when navigating to a new product
+    setSelectedImage(0);
     // Immediate scroll to top
     window.scrollTo(0, 0);
     // Smooth scroll as fallback
@@ -641,6 +643,11 @@ export default function ProductDetails() {
     if (commentId) {
       pendingFocusCommentIdRef.current = commentId;
       setHighlightedCommentId(commentId);
+    }
+
+    const imageParam = parseInt(params.get('image'), 10);
+    if (Number.isFinite(imageParam) && imageParam >= 0) {
+      setSelectedImage(imageParam);
     }
   }, [location.hash, location.search]);
 
@@ -1704,9 +1711,9 @@ export default function ProductDetails() {
     const pool = [];
     shopGalleryProducts.forEach((shopProduct) => {
       const images = Array.isArray(shopProduct?.images) ? shopProduct.images : [];
-      images.forEach((src) => {
+      images.forEach((src, imgIndex) => {
         if (!src) return;
-        pool.push({ src, product: shopProduct });
+        pool.push({ src, product: shopProduct, imageIndex: imgIndex });
       });
     });
     const shuffled = [...pool];
@@ -1754,9 +1761,10 @@ export default function ProductDetails() {
     }
   }, [galleryImages.length, selectedImage]);
 
-  const displayedImage = galleryImages[selectedImage]?.src || "https://via.placeholder.com/600x600";
-  const isDisplayedVideo = galleryImages[selectedImage]?.type === 'video';
-  const displayedVideoSrc = isDisplayedVideo ? galleryImages[selectedImage]?.src : '';
+  const safeSelectedImage = galleryImages.length > 0 ? Math.min(selectedImage, galleryImages.length - 1) : 0;
+  const displayedImage = galleryImages[safeSelectedImage]?.src || "https://via.placeholder.com/600x600";
+  const isDisplayedVideo = galleryImages[safeSelectedImage]?.type === 'video';
+  const displayedVideoSrc = isDisplayedVideo ? galleryImages[safeSelectedImage]?.src : '';
   const imageCursorClass = "cursor-pointer";
   const hasMultipleGalleryImages = galleryImages.length > 1;
   const mobileMainGalleryImageClass = hasMultipleGalleryImages
@@ -2168,7 +2176,7 @@ export default function ProductDetails() {
               >
                 {item.type === 'video' ? (
                   <>
-                    <img src={galleryImages.find((g) => g.type === 'image')?.src || ''} alt="Vidéo" className="h-full w-full object-cover" />
+                    <img src={galleryImages.find((g) => g.type === 'image')?.src || ''} alt="Vidéo" className="h-full w-full object-cover" loading="lazy" />
                     <span className="absolute inset-0 flex items-center justify-center bg-black/30">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                     </span>
@@ -2655,9 +2663,9 @@ export default function ProductDetails() {
           {shopGalleryImages.length > 0 ? (
             <div className="grid grid-cols-3 gap-2">
               {shopGalleryImages.map((image) => (
-                <Link key={`${image.product?._id || 'shop'}-${image.src}`} to={buildProductPath(image.product)} {...externalLinkProps}
+                <Link key={`${image.product?._id || 'shop'}-${image.src}`} to={`${buildProductPath(image.product)}?image=${image.imageIndex}`} {...externalLinkProps}
                   className="aspect-square overflow-hidden rounded-xl border border-gray-100">
-                  <img src={image.src} alt={image.product?.title || 'Photo boutique'} className="w-full h-full object-cover" />
+                  <img src={image.src} alt={image.product?.title || 'Photo boutique'} className="w-full h-full object-cover" loading="lazy" />
                 </Link>
               ))}
             </div>
@@ -4087,7 +4095,7 @@ export default function ProductDetails() {
                 {shopGalleryImages.map((image) => (
                   <Link
                     key={`${image.product?._id || 'shop'}-${image.src}`}
-                    to={buildProductPath(image.product)}
+                    to={`${buildProductPath(image.product)}?image=${image.imageIndex}`}
                     {...externalLinkProps}
                     className="aspect-square overflow-hidden rounded-xl border border-gray-100"
                   >
@@ -4586,9 +4594,9 @@ export default function ProductDetails() {
             <div
               className="max-h-[85vh] overflow-hidden rounded-2xl bg-black shadow-lg"
             >
-              {galleryImages[selectedImage]?.type === 'video' ? (
+              {isDisplayedVideo ? (
                 <video
-                  src={galleryImages[selectedImage].src}
+                  src={displayedVideoSrc}
                   controls
                   playsInline
                   preload="metadata"

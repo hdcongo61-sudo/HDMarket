@@ -795,6 +795,24 @@ export const resolveAdminDispute = asyncHandler(async (req, res) => {
     metadata: { resolutionType, favor: favor || null, nextStatus }
   });
 
+  // Refund to buyer wallet when dispute resolved in client's favor with full refund
+  if (resolutionType === 'refund_full' && nextStatus === 'RESOLVED_CLIENT') {
+    try {
+      const order = await Order.findById(dispute.orderId).select('totalAmount paidAmount customer').lean();
+      if (order && order.totalAmount > 0) {
+        const refundAmount = order.paidAmount || order.totalAmount;
+        const { refundToWallet } = await import('../services/walletService.js');
+        refundToWallet({
+          userId: dispute.clientId,
+          amount: refundAmount,
+          orderId: String(dispute.orderId),
+          processedBy: req.user.id,
+          note: `Remboursement automatique — litige ${dispute._id} résolu en faveur du client`
+        }).catch(() => {});
+      }
+    } catch {} // non-blocking
+  }
+
   await Promise.allSettled([
     createNotification({
       userId: dispute.clientId,

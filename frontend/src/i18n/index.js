@@ -1,6 +1,6 @@
 const localeModules = import.meta.glob('../locales/*/*.json');
 
-const DEFAULT_NAMESPACES = ['common', 'orders'];
+const DEFAULT_NAMESPACES = ['common', 'orders', 'admin'];
 
 const resolveLanguageCandidates = (languageCode = 'fr') => {
   const normalized = String(languageCode || 'fr').toLowerCase().trim();

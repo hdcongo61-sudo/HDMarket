@@ -352,3 +352,202 @@ export const getPendingWithdrawals = async ({ page = 1, limit = 20 } = {}) => {
 
   return { items, total, page, pages: Math.ceil(total / limit) };
 };
+
+// ─── USER DEPOSIT REQUEST (with proof) ────────────────────
+
+const PAYMENT_METHOD_LABELS = {
+  orange_money: 'Orange Money',
+  mtn_money: 'MTN Money',
+  airtel_money: 'Airtel Money',
+  bank_transfer: 'Virement bancaire',
+  other: 'Autre'
+};
+
+/**
+ * User submits a deposit request with proof of Mobile Money transfer.
+ * Funds are NOT credited until an admin approves.
+ */
+export const submitDepositRequest = async ({
+  userId,
+  amount,
+  reference = '',
+  paymentMethod = 'other',
+  proofUrls = []
+}) => {
+  if (!amount || amount <= 0) throw new Error('Le montant doit être supérieur à 0');
+
+  const wallet = await getOrCreateWallet(userId);
+  const balanceBefore = wallet.balance;
+
+  wallet.transactions.push({
+    type: 'deposit',
+    amount,
+    balanceBefore,
+    balanceAfter: balanceBefore, // Balance unchanged until approved
+    reference,
+    status: 'pending',
+    note: `Dépôt ${PAYMENT_METHOD_LABELS[paymentMethod] || paymentMethod} en attente de vérification`,
+    metadata: {
+      reference,
+      paymentMethod,
+      proofUrls,
+      submittedAt: new Date().toISOString()
+    }
+  });
+
+  await wallet.save();
+
+  const lastTxn = wallet.transactions[wallet.transactions.length - 1];
+
+  // Notify admins about the pending deposit
+  const admins = await User.find({ role: { $in: ['admin', 'founder', 'manager'] } }).select('_id').lean();
+  await Promise.all(admins.map((admin) =>
+    createNotification({
+      userId: admin._id,
+      actorId: userId,
+      type: 'payment_proof_submitted',
+      allowSelf: false,
+      priority: 'HIGH',
+      pushEnabled: true,
+      metadata: {
+        amount,
+        reference,
+        paymentMethod,
+        walletId: String(wallet._id),
+        transactionId: String(lastTxn._id),
+        proofUrls,
+        message: `Nouveau dépôt ${PAYMENT_METHOD_LABELS[paymentMethod] || ''} de ${formatXAF(amount)} en attente.`
+      },
+      entityType: 'payment',
+      entityId: String(lastTxn._id),
+      deepLink: '/admin/payment-verification'
+    }).catch(() => {})
+  ));
+
+  return {
+    transactionId: lastTxn._id,
+    status: 'pending',
+    balance: wallet.balance,
+    availableBalance: wallet.availableBalance
+  };
+};
+
+/**
+ * Get all pending deposit transactions across all wallets.
+ */
+export const getPendingDeposits = async ({ page = 1, limit = 20, status = 'pending' } = {}) => {
+  const skip = (page - 1) * limit;
+  const normalizedStatus = String(status || 'pending').trim().toLowerCase();
+  const allowedStatuses = new Set(['pending', 'completed', 'failed', 'reversed']);
+  const statusFilter = allowedStatuses.has(normalizedStatus) ? normalizedStatus : 'pending';
+
+  const wallets = await Wallet.find({ 'transactions.type': 'deposit', 'transactions.status': statusFilter })
+    .select('user transactions')
+    .populate('user', 'name phone email')
+    .lean();
+
+  const pendingTxns = [];
+  for (const wallet of wallets) {
+    for (const txn of wallet.transactions) {
+      if (txn.type === 'deposit' && txn.status === statusFilter) {
+        pendingTxns.push({
+          ...txn,
+          walletId: wallet._id,
+          userId: wallet.user?._id,
+          userName: wallet.user?.name || '',
+          userPhone: wallet.user?.phone || ''
+        });
+      }
+    }
+  }
+
+  pendingTxns.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const total = pendingTxns.length;
+  const items = pendingTxns.slice(skip, skip + limit);
+
+  return { items, total, page, pages: Math.ceil(total / limit) };
+};
+
+/**
+ * Admin approves a pending deposit — credits the wallet.
+ */
+export const approveDeposit = async ({ walletId, transactionId, processedBy, note = '' }) => {
+  const wallet = await Wallet.findById(walletId);
+  if (!wallet) throw new Error('Portefeuille introuvable.');
+
+  const txn = wallet.transactions.id(transactionId);
+  if (!txn) throw new Error('Transaction introuvable.');
+  if (txn.type !== 'deposit' || txn.status !== 'pending') {
+    throw new Error('Cette transaction ne peut pas être approuvée.');
+  }
+
+  const balanceBefore = wallet.balance;
+  wallet.balance += txn.amount;
+  txn.balanceAfter = wallet.balance;
+  txn.status = 'completed';
+  txn.processedBy = processedBy;
+  txn.processedAt = new Date();
+  txn.note = note || 'Dépôt vérifié par l\'administrateur';
+
+  await wallet.save();
+
+  // Notify user
+  await createNotification({
+    userId: wallet.user,
+    actorId: processedBy || wallet.user,
+    type: 'payment_validated',
+    allowSelf: true,
+    priority: 'HIGH',
+    pushEnabled: true,
+    metadata: {
+      amount: txn.amount,
+      message: `Votre dépôt de ${formatXAF(txn.amount)} a été validé. Votre portefeuille a été crédité.`,
+      walletBalance: wallet.balance
+    },
+    entityType: 'payment',
+    entityId: String(transactionId),
+    deepLink: '/wallet'
+  });
+
+  return { status: 'completed', balance: wallet.balance, availableBalance: wallet.availableBalance };
+};
+
+/**
+ * Admin rejects a pending deposit — no balance change.
+ */
+export const rejectDeposit = async ({ walletId, transactionId, processedBy, note = '' }) => {
+  const wallet = await Wallet.findById(walletId);
+  if (!wallet) throw new Error('Portefeuille introuvable.');
+
+  const txn = wallet.transactions.id(transactionId);
+  if (!txn) throw new Error('Transaction introuvable.');
+  if (txn.type !== 'deposit' || txn.status !== 'pending') {
+    throw new Error('Cette transaction ne peut pas être refusée.');
+  }
+
+  txn.status = 'failed';
+  txn.processedBy = processedBy;
+  txn.processedAt = new Date();
+  txn.note = note || 'Dépôt refusé par l\'administrateur';
+
+  await wallet.save();
+
+  // Notify user
+  await createNotification({
+    userId: wallet.user,
+    actorId: processedBy || wallet.user,
+    type: 'payment_validated',
+    allowSelf: true,
+    pushEnabled: true,
+    metadata: {
+      amount: txn.amount,
+      message: `Votre demande de dépôt de ${formatXAF(txn.amount)} a été refusée.${note ? ` Motif: ${note}` : ''}`,
+      walletBalance: wallet.balance
+    },
+    entityType: 'payment',
+    entityId: String(transactionId),
+    deepLink: '/wallet'
+  });
+
+  return { status: 'failed', balance: wallet.balance, availableBalance: wallet.availableBalance };
+};

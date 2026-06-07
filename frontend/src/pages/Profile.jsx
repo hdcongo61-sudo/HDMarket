@@ -1157,7 +1157,8 @@ export default function Profile() {
       if (!response.ok) return '';
       const payload = await response.json();
       return String(payload?.display_name || '').trim();
-    } catch {
+    } catch (err) {
+      console.warn('[Profile] Reverse geocode failed:', err?.message || err);
       return '';
     } finally {
       if (timeoutId) window.clearTimeout(timeoutId);

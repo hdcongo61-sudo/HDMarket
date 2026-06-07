@@ -784,6 +784,7 @@ export default function ProductForm(props) {
         };
         
         mediaRecorder.onerror = (error) => {
+          cleanupProgress();
           console.error('Compression error:', error);
           setVideoError('Erreur lors de la compression. Veuillez essayer avec une autre vidéo.');
           setIsCompressingVideo(false);
@@ -793,14 +794,21 @@ export default function ProductForm(props) {
         };
         
         // Update progress while video plays
-        const progressInterval = setInterval(() => {
+        let progressInterval;
+        const cleanupProgress = () => {
+          if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = null;
+          }
+        };
+        progressInterval = setInterval(() => {
           if (videoElement.ended || videoElement.paused) return;
           const timeProgress = Math.min(98, (videoElement.currentTime / duration) * 100);
           setCompressionProgress(timeProgress);
         }, 200);
         
         videoElement.onended = () => {
-          clearInterval(progressInterval);
+          cleanupProgress();
           setCompressionProgress(98);
           setTimeout(() => mediaRecorder.stop(), 150);
         };
@@ -810,6 +818,7 @@ export default function ProductForm(props) {
         await videoElement.play();
         
       } catch (error) {
+        cleanupProgress();
         console.error('Video compression error:', error);
         setVideoError('Erreur lors de la compression. Le fichier est peut-être trop volumineux ou corrompu. Veuillez essayer avec une vidéo plus courte.');
         setIsCompressingVideo(false);

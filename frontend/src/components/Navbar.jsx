@@ -330,11 +330,9 @@ export default function Navbar() {
 
     const fetchOrders = async () => {
       try {
-        const { data } = await api.get('/orders?limit=50');
+        const { data } = await api.get('/orders/summary', { skipCache: true, headers: { 'x-skip-cache': '1' } });
         if (!cancelled) {
-          const collection = Array.isArray(data) ? data : data?.items || [];
-          const active = collection.filter((order) => order?.status !== 'delivered').length;
-          setActiveOrders(active);
+          setActiveOrders(Number(data?.activeCount || data?.urgentCount || 0));
         }
       } catch (error) {
         if (!cancelled) {
@@ -363,11 +361,9 @@ export default function Navbar() {
 
     const fetchSellerOrders = async () => {
       try {
-        const { data } = await api.get('/orders/seller?limit=50');
+        const { data } = await api.get('/orders/seller/summary', { skipCache: true, headers: { 'x-skip-cache': '1' } });
         if (!cancelled) {
-          const collection = Array.isArray(data) ? data : data?.items || [];
-          const active = collection.filter((order) => order?.status !== 'delivered').length;
-          setSellerOrders(active);
+          setSellerOrders(Number(data?.activeCount || data?.urgentCount || 0));
         }
       } catch (error) {
         if (!cancelled) {
@@ -455,13 +451,17 @@ export default function Navbar() {
       });
 
       socket.on('orders:status:updated', (payload) => {
-        if (!payload?.orderId) return;
-        window.dispatchEvent(
-          new CustomEvent('hdmarket:orders-status-updated', {
-            detail: payload
-          })
-        );
-        window.dispatchEvent(new Event('hdmarket:orders-refresh'));
+        // Handle order-specific events
+        if (payload?.orderId) {
+          window.dispatchEvent(
+            new CustomEvent('hdmarket:orders-status-updated', {
+              detail: payload
+            })
+          );
+          window.dispatchEvent(new Event('hdmarket:orders-refresh'));
+        }
+        // Always refresh notifications count (covers comments, replies, ratings, etc.)
+        window.dispatchEvent(new Event('hdmarket:notifications-refresh'));
       });
     };
 

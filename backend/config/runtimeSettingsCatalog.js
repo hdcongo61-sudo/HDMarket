@@ -452,6 +452,15 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     min: 1,
     max: 10
   },
+  max_delivery_proof_photos: {
+    category: 'order_automation',
+    description: 'Nombre max de photos par soumission de preuve de livraison/retrait.',
+    valueType: 'number',
+    defaultValue: 3,
+    isPublic: true,
+    min: 1,
+    max: 10
+  },
   dispute_window_hours: {
     category: 'order_automation',
     description: 'Fenêtre de temps pour ouvrir un litige après livraison (heures).',
@@ -635,6 +644,29 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     valueType: 'boolean',
     defaultValue: false,
     isPublic: true
+  },
+  enable_wallet_payment: {
+    category: 'feature_flags',
+    description: 'Permettre le paiement direct via le portefeuille HDMarket lors du checkout.',
+    valueType: 'boolean',
+    defaultValue: false,
+    isPublic: true
+  },
+  wallet_enabled_shops: {
+    category: 'feature_flags',
+    description: 'Numéros de téléphone des boutiques autorisées au paiement portefeuille (séparés par des virgules). Vide = toutes les boutiques si enable_wallet_payment actif.',
+    valueType: 'string',
+    defaultValue: '',
+    isPublic: true
+  },
+  wallet_discount_percent: {
+    category: 'discounts_promos',
+    description: 'Remise (%) appliquée automatiquement quand le client paie avec son portefeuille HDMarket. 0 = pas de remise.',
+    valueType: 'number',
+    defaultValue: 0,
+    isPublic: true,
+    min: 0,
+    max: 100
   },
   allow_guest_checkout: {
     category: 'feature_flags',

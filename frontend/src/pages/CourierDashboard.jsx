@@ -384,7 +384,8 @@ export default function CourierDashboard() {
   const handleLogout = async () => {
     try {
       await api.post(`${apiPrefix}/logout-event`, {});
-    } catch {
+    } catch (err) {
+      console.warn('[CourierDashboard] Logout event failed:', err?.message || err);
       // best effort event log
     }
     queryClient.clear();

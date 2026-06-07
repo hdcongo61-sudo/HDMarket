@@ -758,7 +758,8 @@ export default function AdminOrders() {
               (msg) => String(msg.recipient?._id) === String(user._id) && !msg.readAt
             ) : [];
             return { orderId, count: unread.length };
-          } catch {
+          } catch (err) {
+            console.warn('[AdminOrders] Unread messages fetch failed for order', orderId, err?.message || err);
             return { orderId, count: 0 };
           }
         })
@@ -767,7 +768,8 @@ export default function AdminOrders() {
         acc[orderId] = count;
         return acc;
       }, {});
-    } catch {
+    } catch (err) {
+      console.warn('[AdminOrders] Unread count fetch failed:', err?.message || err);
       return {};
     }
   }, [user?._id]);

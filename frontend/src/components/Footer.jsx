@@ -29,8 +29,8 @@ export default function Footer() {
 
   return (
     <footer className="hidden md:block border-t border-orange-100 bg-[#fff8f1] text-neutral-700 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300">
-      <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
-        <div className="grid gap-6 lg:grid-cols-[1.35fr_0.8fr_0.8fr_1.1fr]">
+      <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-[1.3fr_0.85fr_0.85fr_1.1fr]">
           <section className="overflow-hidden rounded-[28px] border border-orange-100 bg-white shadow-[0_18px_50px_rgba(17,24,39,0.07)] dark:border-neutral-800 dark:bg-neutral-900">
             <div className="bg-gradient-to-br from-[#ff6a00] via-[#ff7a1a] to-[#f04423] px-6 py-6 text-white">
               <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-white/75">
@@ -123,7 +123,7 @@ export default function Footer() {
           </section>
         </div>
 
-        <div className="mt-6 flex flex-col gap-3 rounded-[22px] border border-orange-100 bg-white px-5 py-4 text-xs font-semibold text-neutral-500 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
+        <div className="mt-8 flex flex-col gap-3 rounded-[22px] border border-orange-100 bg-white px-5 py-4 text-xs font-semibold text-neutral-500 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
           <p>{t('footer.rights', `© ${year} ETS HD Tech Filial — Tous droits réservés.`).replace('{year}', String(year))}</p>
           <p className="flex items-center gap-2">
             <Store className="h-4 w-4 text-[#ff6a00]" />

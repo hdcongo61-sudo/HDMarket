@@ -132,11 +132,11 @@ function OwnerView({ shopId }) {
           Une seule personne à la fois.
         </p>
 
-        <div className="mt-4 flex gap-2">
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:gap-2">
           <select
             value={lookupType}
             onChange={e => setLookupType(e.target.value)}
-            className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-medium"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-medium sm:w-auto"
           >
             <option value="email">Email</option>
             <option value="phone">Téléphone</option>
@@ -158,7 +158,7 @@ function OwnerView({ shopId }) {
           <button
             onClick={invite}
             disabled={inviteLoading || !!assistant}
-            className="flex items-center gap-1.5 rounded-xl bg-[#FF6A00] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#e05e00] disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#FF6A00] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#e05e00] disabled:opacity-50 sm:w-auto"
           >
             {inviteLoading ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
             Inviter
@@ -169,14 +169,14 @@ function OwnerView({ shopId }) {
       {/* Current Assistant */}
       {assistant ? (
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FF6A00]/10 text-[#FF6A00] font-black">
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-[#FF6A00]/10 text-[#FF6A00] font-black">
                 {(assistant.assistant?.name || 'A').charAt(0).toUpperCase()}
               </div>
-              <div>
-                <p className="font-bold text-gray-900">{assistant.assistant?.name || '—'}</p>
-                <p className="text-sm text-gray-500">{assistant.assistant?.email || assistant.assistant?.phone || ''}</p>
+              <div className="min-w-0">
+                <p className="font-bold text-gray-900 truncate">{assistant.assistant?.name || '—'}</p>
+                <p className="text-sm text-gray-500 truncate">{assistant.assistant?.email || assistant.assistant?.phone || ''}</p>
                 <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
                   assistant.status === 'active' ? 'bg-green-100 text-green-700' :
                   assistant.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
@@ -189,7 +189,7 @@ function OwnerView({ shopId }) {
             <button
               onClick={remove}
               disabled={actionLoading}
-              className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-100 disabled:opacity-50"
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-100 disabled:opacity-50 sm:self-start"
             >
               {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <UserX size={14} />}
               Retirer

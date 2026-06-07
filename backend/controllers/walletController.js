@@ -5,7 +5,11 @@ import {
   deposit,
   requestWithdrawal,
   processWithdrawal,
-  getPendingWithdrawals
+  getPendingWithdrawals,
+  submitDepositRequest,
+  getPendingDeposits,
+  approveDeposit,
+  rejectDeposit
 } from '../services/walletService.js';
 import { getRuntimeConfig } from '../services/configService.js';
 
@@ -57,6 +61,38 @@ export const requestMyWithdrawal = asyncHandler(async (req, res) => {
   res.json({ message: 'Demande de retrait enregistrée. En attente de validation.', ...result });
 });
 
+// ─── USER DEPOSIT REQUEST (with proof) ────────────────────
+
+export const requestMyDeposit = asyncHandler(async (req, res) => {
+  const { amount, reference, paymentMethod } = req.body;
+
+  if (!amount || Number(amount) <= 0) {
+    return res.status(400).json({ message: 'Montant invalide.' });
+  }
+
+  const allowedMethods = ['orange_money', 'mtn_money', 'airtel_money', 'bank_transfer', 'other'];
+  const method = allowedMethods.includes(paymentMethod) ? paymentMethod : 'other';
+
+  // Collect uploaded proof file(s) — multer.fields() returns { proof: [...] }
+  const proofField = req.files?.proof || [];
+  const proofUrls = Array.isArray(proofField)
+    ? proofField.map((f) => f.path || f.location || '').filter(Boolean)
+    : [];
+
+  const result = await submitDepositRequest({
+    userId: req.user.id,
+    amount: Number(amount),
+    reference: reference || '',
+    paymentMethod: method,
+    proofUrls
+  });
+
+  res.json({
+    message: 'Demande de dépôt envoyée. En attente de vérification par un administrateur.',
+    ...result
+  });
+});
+
 // ─── ADMIN ENDPOINTS ──────────────────────────────────────
 
 export const adminDeposit = asyncHandler(async (req, res) => {
@@ -106,6 +142,51 @@ export const adminProcessWithdrawal = asyncHandler(async (req, res) => {
 export const adminGetUserWallet = asyncHandler(async (req, res) => {
   const wallet = await getWallet(req.params.userId);
   res.json(wallet);
+});
+
+// ─── ADMIN DEPOSIT APPROVAL ───────────────────────────────
+
+export const adminGetPendingDeposits = asyncHandler(async (req, res) => {
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+  const status = String(req.query.status || 'pending').trim().toLowerCase();
+
+  const result = await getPendingDeposits({ page, limit, status });
+  res.json(result);
+});
+
+export const adminApproveDeposit = asyncHandler(async (req, res) => {
+  const { walletId, transactionId, note } = req.body;
+
+  if (!walletId || !transactionId) {
+    return res.status(400).json({ message: 'walletId et transactionId requis.' });
+  }
+
+  const result = await approveDeposit({
+    walletId,
+    transactionId,
+    processedBy: req.user.id,
+    note: note || ''
+  });
+
+  res.json({ message: 'Dépôt validé avec succès.', ...result });
+});
+
+export const adminRejectDeposit = asyncHandler(async (req, res) => {
+  const { walletId, transactionId, note } = req.body;
+
+  if (!walletId || !transactionId) {
+    return res.status(400).json({ message: 'walletId et transactionId requis.' });
+  }
+
+  const result = await rejectDeposit({
+    walletId,
+    transactionId,
+    processedBy: req.user.id,
+    note: note || ''
+  });
+
+  res.json({ message: 'Dépôt refusé.', ...result });
 });
 
 // ─── PUBLIC STATUS ────────────────────────────────────────

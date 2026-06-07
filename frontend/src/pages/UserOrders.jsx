@@ -179,6 +179,7 @@ const normalizeStatusFilter = (value) => {
 
 const orderMatchesBuyerFilter = (order, filterKey) => {
   if (!filterKey || filterKey === 'all') return true;
+  if (filterKey === 'wallet') return String(order?.paymentSource || '') === 'wallet';
   if (isOrderGroupKey('buyer', filterKey)) {
     return getOrderGroupStatuses('buyer', filterKey).includes(String(order?.status || '').trim().toLowerCase());
   }
@@ -1237,7 +1238,8 @@ export default function UserOrders() {
               (msg) => String(msg.recipient?._id) === String(user._id) && !msg.readAt
             ) : [];
             return { orderId, count: unread.length };
-          } catch {
+          } catch (err) {
+            console.warn('[UserOrders] Failed to fetch unread messages for order', orderId, err);
             return { orderId, count: 0 };
           }
         })
@@ -1246,7 +1248,8 @@ export default function UserOrders() {
         acc[orderId] = count;
         return acc;
       }, {});
-    } catch {
+    } catch (err) {
+      console.warn('[UserOrders] Failed to fetch unread message counts', err);
       return {};
     }
   };

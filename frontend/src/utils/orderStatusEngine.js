@@ -37,6 +37,7 @@ export const ORDER_FILTER_GROUPS = {
     { key: 'delivery', label: 'Livraison', description: 'Suivi livraison' },
     { key: 'proof', label: 'Preuve', description: 'Preuve à confirmer' },
     { key: 'installments', label: 'Tranches', description: 'Paiements échelonnés' },
+    { key: 'wallet', label: 'Portefeuille', description: 'Payées via portefeuille' },
     { key: 'completed', label: 'Terminées', description: 'Achats finalisés' },
     { key: 'cancelled', label: 'Annulées', description: 'Commandes annulées' }
   ],
@@ -49,6 +50,7 @@ export const ORDER_FILTER_GROUPS = {
     { key: 'proof', label: 'Preuves', description: 'Preuves de livraison' },
     { key: 'payment', label: 'Paiement', description: 'Paiement à suivre' },
     { key: 'installments', label: 'Tranches', description: 'Ventes échelonnées' },
+    { key: 'wallet', label: 'Portefeuille', description: 'Payées via portefeuille' },
     { key: 'late', label: 'Retards', description: 'Tranches en retard' },
     { key: 'completed', label: 'Terminées', description: 'Commandes clôturées' },
     { key: 'cancelled', label: 'Annulées', description: 'Commandes annulées' },

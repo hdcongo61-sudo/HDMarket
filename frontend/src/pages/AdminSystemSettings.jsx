@@ -18,6 +18,7 @@ import {
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import AuthContext from '../context/AuthContext';
+import { useAppSettings } from '../context/AppSettingsContext';
 import { emitSettingsRefresh } from '../utils/settingsRefresh';
 import useIsMobile from '../hooks/useIsMobile';
 import { appConfirm } from '../utils/appDialog';
@@ -284,7 +285,14 @@ const CollapsibleBody = ({ open, children }) => (
 export default function AdminSystemSettings() {
   const { showToast } = useToast();
   const { user } = useContext(AuthContext);
+  const { t, language } = useAppSettings();
   const isMobile = useIsMobile();
+
+  // Translate a runtime setting label or description
+  const tSetting = useCallback((key, fallback, type = 'settings') => {
+    const result = t(`admin.${type}.${key}`);
+    return result && result !== `admin.${type}.${key}` ? result : (fallback || key);
+  }, [t]);
   const isFounder = user?.role === 'founder';
   const [loading, setLoading] = useState(true);
   const [fees, setFees] = useState({});
@@ -1419,12 +1427,14 @@ export default function AdminSystemSettings() {
                           className="rounded-lg border border-emerald-100 bg-white/75 p-2.5 dark:border-emerald-900/70 dark:bg-neutral-950/40"
                         >
                           <div className="mb-2">
-                            <p className="text-xs font-semibold text-slate-900 dark:text-neutral-100">{entry.label}</p>
+                            <p className="text-xs font-semibold text-slate-900 dark:text-neutral-100">
+                              {tSetting(key, entry.label)}
+                            </p>
                             <p className="text-[11px] text-slate-500 dark:text-neutral-400">
-                              {setting?.description || entry.fallbackDescription}
+                              {tSetting(key, setting?.description || entry.fallbackDescription, 'desc')}
                             </p>
                             <p className="mt-1 text-[10px] text-slate-400 dark:text-neutral-500">
-                              key: <code className="rounded bg-white px-1 py-0.5 dark:bg-neutral-900">{key}</code>
+                              {t('admin.keyLabel', 'clé')}: <code className="rounded bg-white px-1 py-0.5 dark:bg-neutral-900">{key}</code>
                             </p>
                           </div>
                           {setting ? (
@@ -1499,12 +1509,14 @@ export default function AdminSystemSettings() {
                           className="rounded-lg border border-indigo-100 bg-white/70 p-2.5 dark:border-indigo-900/70 dark:bg-neutral-950/40"
                         >
                           <div className="mb-2">
-                            <p className="text-xs font-semibold text-slate-900 dark:text-neutral-100">{entry.label}</p>
+                            <p className="text-xs font-semibold text-slate-900 dark:text-neutral-100">
+                              {tSetting(key, entry.label)}
+                            </p>
                             <p className="text-[11px] text-slate-500 dark:text-neutral-400">
-                              {setting?.description || entry.fallbackDescription}
+                              {tSetting(key, setting?.description || entry.fallbackDescription, 'desc')}
                             </p>
                             <p className="mt-1 text-[10px] text-slate-400 dark:text-neutral-500">
-                              key: <code className="rounded bg-white px-1 py-0.5 dark:bg-neutral-900">{key}</code>
+                              {t('admin.keyLabel', 'clé')}: <code className="rounded bg-white px-1 py-0.5 dark:bg-neutral-900">{key}</code>
                             </p>
                           </div>
                           {setting ? (
@@ -1563,12 +1575,14 @@ export default function AdminSystemSettings() {
                           className="rounded-lg border border-sky-100 bg-white/70 p-2.5 dark:border-sky-900/70 dark:bg-neutral-950/40"
                         >
                           <div className="mb-2">
-                            <p className="text-xs font-semibold text-slate-900 dark:text-neutral-100">{entry.label}</p>
+                            <p className="text-xs font-semibold text-slate-900 dark:text-neutral-100">
+                              {tSetting(key, entry.label)}
+                            </p>
                             <p className="text-[11px] text-slate-500 dark:text-neutral-400">
-                              {setting?.description || entry.fallbackDescription}
+                              {tSetting(key, setting?.description || entry.fallbackDescription, 'desc')}
                             </p>
                             <p className="mt-1 text-[10px] text-slate-400 dark:text-neutral-500">
-                              key: <code className="rounded bg-white px-1 py-0.5 dark:bg-neutral-900">{key}</code>
+                              {t('admin.keyLabel', 'clé')}: <code className="rounded bg-white px-1 py-0.5 dark:bg-neutral-900">{key}</code>
                             </p>
                           </div>
                           {setting ? (
@@ -1626,7 +1640,7 @@ export default function AdminSystemSettings() {
                               <div>
                                 <p className="text-xs font-semibold text-gray-900 dark:text-neutral-100">{key}</p>
                                 <p className="text-[11px] text-gray-500 dark:text-neutral-400">
-                                  {item?.description || 'Sans description'}
+                                  {tSetting(key, item?.description || '', 'desc') || t('admin.noDescription', 'Sans description')}
                                 </p>
                               </div>
                               <div className="flex items-center gap-2">
@@ -1790,7 +1804,7 @@ export default function AdminSystemSettings() {
                         <span className="text-xs text-gray-500">{flag?.environment || 'all'}</span>
                       </div>
                       <p className="mb-3 text-xs text-gray-500 dark:text-neutral-400">
-                        {flag?.description || 'Sans description'}
+                        {tSetting(featureName, flag?.description || '', 'desc') || t('admin.noDescription', 'Sans description')}
                       </p>
                       <div className="flex flex-wrap items-center gap-2">
                         <button

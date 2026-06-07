@@ -85,8 +85,9 @@ export default function UserSettings() {
     setSavingNotifPrefs(true);
     try {
       await api.patch('/users/notification-preferences', { [key]: newVal });
-    } catch {
+    } catch (err) {
       // Revert on failure
+      console.error('[UserSettings] Failed to save notification preference:', key, err);
       setNotifPrefs((prev) => ({ ...prev, [key]: currentVal }));
       showToast(t('settings.notifError', 'Impossible d\'enregistrer la préférence.'), { variant: 'error' });
     } finally {

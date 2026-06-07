@@ -4,6 +4,10 @@ import { requireAnyPermission, requireRole } from '../middlewares/roleMiddleware
 import { validate, schemas } from '../middlewares/validate.js';
 import { idempotencyMiddleware } from '../middlewares/idempotencyMiddleware.js';
 import { cacheMiddleware } from '../utils/cache.js';
+
+const skipCacheByHeader = (req) => String(req.headers['x-skip-cache'] || '').trim() === '1';
+const orderCacheUser = (ttl = 45000) => cacheMiddleware({ domain: 'orders', scope: 'user', ttl, skipCache: skipCacheByHeader });
+const orderCacheSeller = (ttl = 45000) => cacheMiddleware({ domain: 'orders', scope: 'seller', ttl, skipCache: skipCacheByHeader });
 import {
   adminCreateOrder,
   adminDeleteOrder,
@@ -28,6 +32,7 @@ import {
   clientConfirmDelivery,
   getOrderDeliveryLogs,
   sellerUpdateOrderStatus,
+  walletCheckoutOrder,
   sellerCancelOrder,
   sellerDeliveryStatsOverview,
   sellerDeliveryStatsProducts,
@@ -124,6 +129,11 @@ router.post(
   validate(schemas.orderCheckout),
   userCheckoutOrder
 );
+router.post(
+  '/wallet-checkout',
+  idempotencyMiddleware(),
+  walletCheckoutOrder
+);
 router.get('/installment/eligibility', getInstallmentEligibility);
 router.post(
   '/:id/installment/payments/:scheduleIndex/proof',
@@ -165,18 +175,18 @@ router.post('/inquiry', idempotencyMiddleware(), validate(schemas.orderInquiry),
 router.post('/draft', idempotencyMiddleware(), saveDraftOrder);
 router.get('/draft', getDraftOrders);
 router.delete('/draft/:id', validate(schemas.idParam, 'params'), deleteDraftOrder);
-router.get('/summary', cacheMiddleware({ domain: 'orders', scope: 'user', ttl: 45000 }), userOrdersSummary);
-router.get('/seller/summary', cacheMiddleware({ domain: 'orders', scope: 'seller', ttl: 45000 }), sellerOrdersSummary);
-router.get('/seller', cacheMiddleware({ domain: 'orders', scope: 'seller', ttl: 45000 }), sellerListOrders);
+router.get('/summary', orderCacheUser(45000), userOrdersSummary);
+router.get('/seller/summary', orderCacheSeller(45000), sellerOrdersSummary);
+router.get('/seller', orderCacheSeller(45000), sellerListOrders);
 router.get(
   '/detail/:id',
-  cacheMiddleware({ domain: 'orders', scope: 'user', ttl: 30000 }),
+  orderCacheUser(30000),
   validate(schemas.idParam, 'params'),
   getUserOrder
 );
 router.get(
   '/seller/detail/:id',
-  cacheMiddleware({ domain: 'orders', scope: 'seller', ttl: 30000 }),
+  orderCacheSeller(30000),
   validate(schemas.idParam, 'params'),
   sellerGetOrder
 );
@@ -259,7 +269,7 @@ router.post('/:id/archive', validate(schemas.idParam, 'params'), idempotencyMidd
 router.post('/:id/unarchive', validate(schemas.idParam, 'params'), idempotencyMiddleware(), unarchiveOrderConversation);
 router.post('/:id/delete', validate(schemas.idParam, 'params'), idempotencyMiddleware(), deleteOrderConversation);
 
-router.get('/', cacheMiddleware({ domain: 'orders', scope: 'user', ttl: 45000 }), userListOrders);
+router.get('/', orderCacheUser(45000), userListOrders);
 router.get('/:id/review-reminder-check', validate(schemas.idParam, 'params'), checkOrderReviewReminderStatus);
 router.get('/:id/review', validate(schemas.idParam, 'params'), getBuyerOrderReviewPage);
 router.post(

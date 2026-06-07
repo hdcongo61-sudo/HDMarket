@@ -62,7 +62,7 @@ export default function SwipeActions({
 
   return (
     <div className="relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2">
+      <div className={`pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2 transition-opacity duration-200 ${openSide === 'left' ? 'opacity-100' : 'opacity-0'}`}>
         <button
           type="button"
           onClick={handleMarkRead}
@@ -78,7 +78,7 @@ export default function SwipeActions({
         </button>
       </div>
 
-      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+      <div className={`pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 transition-opacity duration-200 ${openSide === 'right' ? 'opacity-100' : 'opacity-0'}`}>
         <button
           type="button"
           onClick={handleDelete}

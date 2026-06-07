@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/userModel.js';
-import { resolvePermissionsForUser } from '../services/rbacService.js';
+import { buildReqUser } from '../services/sessionFactory.js';
 import {
   extractBearerToken,
   isTokenBlacklisted,
@@ -22,7 +22,19 @@ export const protect = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.id).select(
-      'role permissions phone isBlocked blockedReason isActive isLocked lockReason sessionsInvalidatedAt canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageChatTemplates canManageHelpCenter'
+      'name email phone phoneVerified role permissions accountType profileImage gender ' +
+      'isActive isBlocked blockedReason isLocked lockReason sessionsInvalidatedAt ' +
+      'canReadFeedback canVerifyPayments canManageBoosts canManageComplaints ' +
+      'canManageProducts canManageDelivery canManageChatTemplates canManageHelpCenter ' +
+      'shopName shopAddress shopLogo shopBanner shopDescription shopVerified ' +
+      'followersCount followingShops freeDeliveryEnabled freeDeliveryNote ' +
+      'shopBoosted shopBoostScore shopBoostedBy shopBoostedAt shopBoostStartDate shopBoostEndDate ' +
+      'shopLocation shopLocationVerified shopLocationAccuracy shopLocationUpdatedAt ' +
+      'shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags ' +
+      'shopHours ' +
+      'sellerLevel sellerLevelUpdatedAt totalCompletedOrders avgRating totalReviews disputeRate ' +
+      'country city commune address preferredLanguage preferredCurrency preferredCity theme ' +
+      'restrictions'
     ).lean();
     if (!user) {
       return res.status(401).json({ message: 'Not authorized' });
@@ -56,22 +68,9 @@ export const protect = async (req, res, next) => {
       });
     }
 
-    const resolvedPermissions = resolvePermissionsForUser(user);
-
-    req.user = {
-      id: user._id.toString(),
-      role: user.role,
-      permissions: resolvedPermissions,
-      phone: user.phone || '',
-      canReadFeedback: user.canReadFeedback,
-      canVerifyPayments: user.canVerifyPayments,
-      canManageBoosts: user.canManageBoosts,
-      canManageComplaints: user.canManageComplaints,
-      canManageProducts: user.canManageProducts,
-      canManageDelivery: user.canManageDelivery,
-      canManageChatTemplates: user.canManageChatTemplates,
-      canManageHelpCenter: user.canManageHelpCenter
-    };
+    // Build canonical session shape (includes id, _id, and all needed fields)
+    req.user = buildReqUser(user, decoded);
+    // Preserve raw token & decoded JWT on request for edge cases
     req.authToken = token;
     req.authDecoded = decoded;
     if (req.query?.token) {

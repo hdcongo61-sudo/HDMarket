@@ -31,7 +31,8 @@ export default function Favorites() {
     setUnfavingId(productId);
     try {
       await removeFavorite(productId);
-    } catch {
+    } catch (err) {
+      console.warn('[Favorites] Unfavorite failed:', err?.message || err);
       // silently handled by context
     } finally {
       setUnfavingId('');

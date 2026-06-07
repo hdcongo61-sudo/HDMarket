@@ -31,7 +31,7 @@ import {
   getTopSalesTodayByCity,
   getProductAnalytics
 } from '../controllers/productController.js';
-import { addComment, getCommentsForProduct } from '../controllers/commentController.js';
+import { addComment, deleteCommentAdmin, deleteMyComment, getCommentsForProduct } from '../controllers/commentController.js';
 import {
   deleteRating,
   getRatingSummary,
@@ -95,6 +95,8 @@ router.post('/public/:id/whatsapp-click', validate(schemas.identifierParam, 'par
 
 // Détail protégé si non approuvé
 router.post('/:id/comments', protect, validate(schemas.identifierParam, 'params'), validate(schemas.commentCreate), addComment);
+router.delete('/comments/:id', protect, deleteMyComment);
+router.delete('/comments/:id/admin', protect, requireRole(['admin', 'manager']), deleteCommentAdmin);
 router.get('/:id/rating', protect, validate(schemas.identifierParam, 'params'), getUserRating);
 router.put('/:id/rating', protect, validate(schemas.identifierParam, 'params'), validate(schemas.ratingUpsert), upsertRating);
 router.delete('/:id/rating', protect, validate(schemas.identifierParam, 'params'), deleteRating);

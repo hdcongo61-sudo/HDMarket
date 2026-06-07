@@ -1,0 +1,27 @@
+WEEK 1 (App Store Readiness):
+  [ ] Create PrivacyInfo.xcprivacy
+  [ ] Add NSCameraUsageDescription, NSPhotoLibraryUsageDescription, NSLocationWhenInUseUsageDescription
+  [ ] Create App.entitlements with aps-environment
+  [ ] Fix armv7 → arm64 in Info.plist
+
+WEEK 2 (Stability):
+  [ ] Lazy-load exceljs, xlsx, jspdf, recharts
+  [ ] Add loading="lazy" to all <img> tags
+  [ ] Add alt text to all images
+  [ ] Fix all setInterval leaks
+  [ ] Add error reporting to bare catch blocks
+
+WEEK 3 (UX Polish):
+  [ ] Create LaunchScreen.storyboard
+  [ ] Fix manifest theme_color → #FF6A00
+  [ ] Replace window.confirm/prompt with custom dialogs
+  [ ] Add native share sheet for products
+  [ ] Add haptic feedback to key interactions
+  [ ] Add pull-to-refresh to product/order lists
+
+WEEK 4 (Launch):
+  [ ] Remove ATS exceptions for localhost (or document)
+  [ ] Add in-app rating prompt after 5th order
+  [ ] Add deep linking / universal links
+  [ ] Strip console.log in production build
+  [ ] Test on real iPhone (iPhone SE, iPhone 15)

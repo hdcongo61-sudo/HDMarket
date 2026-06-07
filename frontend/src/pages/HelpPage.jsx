@@ -217,8 +217,9 @@ export default function HelpPage() {
         if (!active) return;
         setCompanyName(data?.companyName || 'HDMarket');
         setConditions(Array.isArray(data?.conditions) ? data.conditions : []);
-      } catch {
+      } catch (err) {
         if (!active) return;
+        console.warn('[HelpPage] Load help center failed:', err?.message || err);
         setConditions([]);
       }
     };
@@ -293,8 +294,9 @@ export default function HelpPage() {
             canManageHelpCenter: Boolean(candidate.canManageHelpCenter)
           }));
         setEditorCandidates(candidates);
-      } catch {
+      } catch (err) {
         if (!active) return;
+        console.warn('[HelpPage] Load editors failed:', err?.message || err);
         setEditorCandidates([]);
       }
     }, 320);
@@ -359,7 +361,8 @@ export default function HelpPage() {
       });
       localStorage.setItem(queueKey, JSON.stringify(list.slice(0, 20)));
       return true;
-    } catch {
+    } catch (err) {
+      console.warn('[HelpPage] Offline queue failed:', err?.message || err);
       return false;
     }
   };

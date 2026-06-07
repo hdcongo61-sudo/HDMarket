@@ -490,7 +490,8 @@ export default function AdminDashboard() {
     try {
       const { data } = await api.get('/admin/online-stats');
       setOnlineStats(data || null);
-    } catch {
+    } catch (err) {
+      console.warn('[AdminDashboard] Failed to load online stats:', err);
       // Keep previous online snapshot on transient failures.
     } finally {
       setOnlineStatsLoading(false);
@@ -706,7 +707,8 @@ export default function AdminDashboard() {
           try {
             const res = await api.get(`/products/${item.product._id}`);
             return { id: item.product._id, images: res.data?.images || [] };
-          } catch {
+          } catch (err) {
+            console.warn('[AdminDashboard] Failed to fetch product images for recent order', item.product._id, err);
             return { id: item.product._id, images: [] };
           }
         })

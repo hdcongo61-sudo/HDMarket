@@ -1,6 +1,6 @@
-import React, { useCallback, useContext, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Wallet, ArrowDownUp, ArrowUpRight, ArrowDownLeft, RefreshCcw, Clock, Ban } from 'lucide-react';
+import { ArrowLeft, Wallet, ArrowDownUp, ArrowUpRight, ArrowDownLeft, RefreshCcw, Clock, Ban, Upload, X } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useToast } from '../context/ToastContext';
@@ -47,6 +47,16 @@ export default function WalletPage() {
   const [withdrawing, setWithdrawing] = useState(false);
   const [withdrawModal, setWithdrawModal] = useState(false);
 
+  const [depositModal, setDepositModal] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('');
+  const [depositRef, setDepositRef] = useState('');
+  const [depositMethod, setDepositMethod] = useState('orange_money');
+  const [depositProof, setDepositProof] = useState([]);
+  const [depositPreview, setDepositPreview] = useState([]);
+  const [depositing, setDepositing] = useState(false);
+  const [contactNetworks, setContactNetworks] = useState([]);
+  const proofInputRef = useRef(null);
+
   const loadWallet = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -78,7 +88,16 @@ export default function WalletPage() {
     }
   }, []);
 
-  useEffect(() => { loadWallet(); loadTransactions(); }, [loadWallet, loadTransactions]);
+  useEffect(() => { loadWallet(); loadTransactions(); loadContactNetworks(); }, [loadWallet, loadTransactions]);
+
+  const loadContactNetworks = useCallback(async () => {
+    try {
+      const { data } = await api.get('/settings/networks');
+      setContactNetworks(Array.isArray(data) ? data.filter((n) => n.isActive !== false) : []);
+    } catch {
+      setContactNetworks([]);
+    }
+  }, []);
 
   const handleWithdraw = async () => {
     const amount = Number(withdrawAmount);
@@ -97,6 +116,60 @@ export default function WalletPage() {
     } finally {
       setWithdrawing(false);
     }
+  };
+
+  const handleDeposit = async () => {
+    const amount = Number(depositAmount);
+    if (!amount || amount <= 0) return showToast('Montant invalide.', { variant: 'error' });
+
+    // Validate reference: must be exactly 10 digits
+    const cleanRef = String(depositRef || '').replace(/\D/g, '');
+    if (!cleanRef || cleanRef.length !== 10) {
+      return showToast('La référence de transaction doit contenir exactement 10 chiffres.', { variant: 'error' });
+    }
+
+    if (!depositProof.length) return showToast('Veuillez ajouter une preuve de paiement (capture d\'écran).', { variant: 'error' });
+    setDepositing(true);
+    try {
+      const formData = new FormData();
+      formData.append('amount', amount);
+      formData.append('reference', cleanRef);
+      formData.append('paymentMethod', depositMethod);
+      depositProof.forEach((file) => formData.append('proof', file));
+
+      await api.post('/wallet/deposit-request', formData);
+      showToast('Demande de dépôt envoyée. En attente de vérification par un administrateur.', { variant: 'success' });
+      setDepositModal(false);
+      setDepositAmount('');
+      setDepositRef('');
+      setDepositMethod('orange_money');
+      setDepositProof([]);
+      setDepositPreview([]);
+      loadWallet();
+      loadTransactions();
+    } catch (err) {
+      showToast(err?.response?.data?.message || 'Erreur lors de la demande de dépôt.', { variant: 'error' });
+    } finally {
+      setDepositing(false);
+    }
+  };
+
+  const handleProofChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setDepositProof((prev) => [...prev, ...files]);
+    const previews = files.map((f) => URL.createObjectURL(f));
+    setDepositPreview((prev) => [...prev, ...previews]);
+    e.target.value = '';
+  };
+
+  const removeProof = (index) => {
+    setDepositProof((prev) => prev.filter((_, i) => i !== index));
+    setDepositPreview((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      if (prev[index]?.startsWith('blob:')) URL.revokeObjectURL(prev[index]);
+      return next;
+    });
   };
 
   const formatDate = (d) => new Date(d).toLocaleString('fr-FR', {
@@ -158,6 +231,12 @@ export default function WalletPage() {
               </p>
             )}
             <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setDepositModal(true)}
+                className="rounded-xl bg-white/20 px-4 py-2 text-xs font-bold backdrop-blur-sm hover:bg-white/30 transition"
+              >
+                {t('wallet.deposit', 'Déposer')}
+              </button>
               <button
                 onClick={() => setWithdrawModal(true)}
                 className="rounded-xl bg-white/20 px-4 py-2 text-xs font-bold backdrop-blur-sm hover:bg-white/30 transition"
@@ -292,6 +371,121 @@ export default function WalletPage() {
                 className="flex-1 rounded-xl bg-orange-500 py-2.5 text-sm font-bold text-white disabled:opacity-40"
               >
                 {withdrawing ? 'Envoi...' : 'Demander le retrait'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Deposit Modal */}
+      {depositModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={() => setDepositModal(false)}>
+          <div className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-gray-900">{t('wallet.depositTitle', 'Déposer sur mon portefeuille')}</h3>
+            <p className="mt-1 text-xs text-gray-500">
+              {t('wallet.depositHint', 'Envoyez de l\'argent via Mobile Money, puis soumettez la preuve de paiement ci-dessous. Votre compte sera crédité après vérification.')}
+            </p>
+            <div className="mt-4 space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-600">Montant envoyé (FCFA)</label>
+                <input
+                  type="number"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  placeholder="ex: 5000"
+                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600">Mode de paiement</label>
+                <select
+                  value={depositMethod}
+                  onChange={(e) => setDepositMethod(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm bg-white"
+                >
+                  <option value="orange_money">Orange Money</option>
+                  <option value="mtn_money">MTN Money</option>
+                  <option value="airtel_money">Airtel Money</option>
+                  <option value="bank_transfer">Virement bancaire</option>
+                  <option value="other">Autre</option>
+                </select>
+                {/* Show matching contact network number */}
+                {(() => {
+                  const methodLabels = { orange_money: 'orange', mtn_money: 'mtn', airtel_money: 'airtel' };
+                  const searchTerm = methodLabels[depositMethod] || depositMethod;
+                  const network = contactNetworks.find((n) =>
+                    String(n?.name || '').toLowerCase().includes(searchTerm)
+                  );
+                  if (network?.phoneNumber) {
+                    return (
+                      <p className="mt-1.5 text-xs text-gray-500">
+                        Numéro à utiliser : <span className="font-bold text-[#FF6A00]">{network.phoneNumber}</span>
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600">Référence / Numéro de transaction</label>
+                <input
+                  type="text"
+                  value={depositRef}
+                  onChange={(e) => setDepositRef(e.target.value)}
+                  placeholder="ex: 0612345678 (10 chiffres)"
+                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600">Preuve de paiement</label>
+                <input
+                  ref={proofInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleProofChange}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => proofInputRef.current?.click()}
+                  disabled={depositProof.length >= 1}
+                  className="mt-1 w-full rounded-xl border-2 border-dashed border-gray-200 px-3 py-4 text-sm text-gray-500 hover:border-orange-300 hover:text-orange-600 transition disabled:opacity-40 flex items-center justify-center gap-2"
+                >
+                  <Upload size={16} />
+                  {depositProof.length === 0
+                    ? 'Ajouter une capture d\'écran du paiement'
+                    : 'Preuve ajoutée (1/1)'}
+                </button>
+                {depositPreview.length > 0 && (
+                  <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+                    {depositPreview.map((url, i) => (
+                      <div key={i} className="relative flex-shrink-0">
+                        <img src={url} alt={`Preuve ${i + 1}`} className="h-20 w-20 rounded-lg object-cover border border-gray-200" />
+                        <button
+                          type="button"
+                          onClick={() => removeProof(i)}
+                          className="absolute -top-1.5 -right-1.5 rounded-full bg-red-500 text-white w-5 h-5 flex items-center justify-center shadow"
+                        >
+                          <X size={10} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setDepositModal(false)}
+                className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-600"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleDeposit}
+                disabled={depositing || !depositAmount || !depositProof.length}
+                className="flex-1 rounded-xl bg-orange-500 py-2.5 text-sm font-bold text-white disabled:opacity-40"
+              >
+                {depositing ? 'Envoi...' : 'Soumettre le dépôt'}
               </button>
             </div>
           </div>

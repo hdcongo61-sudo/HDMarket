@@ -65,7 +65,8 @@ export default function SellerPromoCodes() {
         params: { page: 1, limit: 50, status: filter }
       });
       setPromos(data?.items || []);
-    } catch {
+    } catch (err) {
+      console.warn('[SellerPromoCodes] Load promos failed:', err?.message || err);
       setPromos([]);
     } finally {
       setLoading(false);
@@ -77,14 +78,14 @@ export default function SellerPromoCodes() {
     try {
       const { data } = await api.get('/marketplace-promo-codes/my/analytics');
       setAnalytics(data);
-    } catch { /* ignore */ }
+    } catch (err) { console.warn('[SellerPromoCodes] Analytics failed:', err?.message || err); /* ignore */ }
   }, [isShopUser]);
 
   const loadProducts = async () => {
     try {
       const { data } = await api.get('/products', { params: { limit: 200 } });
       setProducts(Array.isArray(data) ? data : []);
-    } catch { setProducts([]); }
+    } catch (err) { console.warn('[SellerPromoCodes] Load products failed:', err?.message || err); setProducts([]); }
   };
 
   useEffect(() => { loadPromos(); loadAnalytics(); }, [loadPromos, loadAnalytics]);

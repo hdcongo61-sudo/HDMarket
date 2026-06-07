@@ -162,6 +162,7 @@ const formatOrderTimestamp = (value) =>
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 const normalizeAddressPart = (value) => (typeof value === 'string' ? value.trim() : '');
 const resolveOrderPaymentMode = (order) => {
+  if (String(order?.paymentSource || '') === 'wallet') return 'WALLET';
   if (String(order?.paymentType || '').toLowerCase() === 'installment') return 'INSTALLMENT';
   if (
     String(order?.paymentMode || '').toUpperCase() === 'FULL_PAYMENT' ||
@@ -174,6 +175,8 @@ const resolveOrderPaymentMode = (order) => {
 
 const getPaymentModeLabel = (mode) => {
   switch (mode) {
+    case 'WALLET':
+      return 'Portefeuille HDMarket';
     case 'INSTALLMENT':
       return 'Paiement par tranche';
     case 'FULL_PAYMENT':

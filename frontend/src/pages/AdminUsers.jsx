@@ -8,9 +8,9 @@ import VerifiedBadge from '../components/VerifiedBadge';
 import BaseModal from '../components/modals/BaseModal';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import AuthContext from '../context/AuthContext';
+import { appConfirm, appPrompt } from '../utils/appDialog';
 import { hasAnyPermission } from '../utils/permissions';
 import { resolveUserProfileImage } from '../utils/userAvatar';
-import { appConfirm } from '../utils/appDialog';
 
 const RESTRICTION_TYPES = [
   { key: 'canComment', label: 'Commentaires', icon: MessageSquareOff, color: 'orange', shopOnly: false },
@@ -474,7 +474,7 @@ export default function AdminUsers() {
 
   const handleBlock = async (user) => {
     const defaultReason = user.blockedReason || '';
-    const reason = window.prompt(
+    const reason = await appPrompt(
       'Raison de la suspension (facultatif, visible uniquement par les administrateurs) :',
       defaultReason
     );
@@ -553,7 +553,7 @@ export default function AdminUsers() {
       setActionError("Vous n'avez pas la permission de gérer les boutiques.");
       return;
     }
-    const reason = window.prompt('Raison du rejet (facultatif) :', '');
+    const reason = await appPrompt('Raison du rejet (facultatif) :', '');
     if (reason === null) return;
     setConversionLoading(true);
     setActionError('');
@@ -580,13 +580,13 @@ export default function AdminUsers() {
       setActionError("Vous n'avez pas la permission de gérer les boutiques.");
       return;
     }
-    const shopName = window.prompt('Nom de la boutique :', user.shopName || '');
+    const shopName = await appPrompt('Nom de la boutique :', user.shopName || '');
     if (shopName === null) return;
     if (!shopName.trim()) {
       setActionError('Le nom de la boutique est requis.');
       return;
     }
-    const shopAddress = window.prompt('Adresse de la boutique :', user.shopAddress || '');
+    const shopAddress = await appPrompt('Adresse de la boutique :', user.shopAddress || '');
     if (shopAddress === null) return;
     if (!shopAddress.trim()) {
       setActionError("L'adresse de la boutique est requise.");
@@ -902,20 +902,20 @@ export default function AdminUsers() {
 
   const handleForcePasswordReset = async (user) => {
     if (!user?.id) return;
-    const mode = window.prompt(
+    const mode = await appPrompt(
       'Choisir la méthode:\n1 = Envoyer un lien par email\n2 = Définir le mot de passe directement',
       '1'
     );
     if (mode === null) return;
 
     if (String(mode).trim() === '2') {
-      const newPassword = window.prompt('Nouveau mot de passe (minimum 6 caractères):', '');
+      const newPassword = await appPrompt('Nouveau mot de passe (minimum 6 caractères):', '');
       if (newPassword === null) return;
       if (String(newPassword).length < 6) {
         setActionError('Le mot de passe doit contenir au moins 6 caractères.');
         return;
       }
-      const confirmPassword = window.prompt('Confirmez le nouveau mot de passe:', '');
+      const confirmPassword = await appPrompt('Confirmez le nouveau mot de passe:', '');
       if (confirmPassword === null) return;
       if (String(confirmPassword) !== String(newPassword)) {
         setActionError('La confirmation du mot de passe ne correspond pas.');
@@ -957,7 +957,7 @@ export default function AdminUsers() {
     } catch {
       // Fallback handled below with prompt.
     }
-    window.prompt('Copiez ce lien de réinitialisation manuel :', resetLink);
+    appPrompt('Copiez ce lien de réinitialisation manuel :', resetLink);
   };
 
   const handleForceLogout = async (user) => {
@@ -978,7 +978,7 @@ export default function AdminUsers() {
   const handleLockAccount = async (user) => {
     if (!user?.id) return;
     const defaultReason = user?.lockReason || '';
-    const reason = window.prompt('Motif du verrouillage (facultatif) :', defaultReason);
+    const reason = await appPrompt('Motif du verrouillage (facultatif) :', defaultReason);
     if (reason === null) return;
     const endpoint = isFounder
       ? `/founder/lock-user/${user.id}`

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles, Tag, Clock, Flame, Grid3x3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ShimmerSkeleton from '../ui/ShimmerSkeleton';
 import ProductCard from '../ProductCard';
@@ -31,97 +31,131 @@ export default function ShopProductsSection({
     ? 'grid w-full grid-cols-2 gap-2 sm:gap-3'
     : 'grid grid-cols-2 gap-3 sm:grid-cols-3';
 
+  const activeTab =
+    'inline-flex items-center gap-1.5 rounded-xl bg-[#FF6A00] px-3.5 py-2 text-xs font-black text-white shadow-sm transition';
+  const inactiveTab =
+    'inline-flex items-center gap-1.5 rounded-xl bg-gray-100 px-3.5 py-2 text-xs font-semibold text-gray-600 transition active:scale-95 dark:bg-neutral-800 dark:text-neutral-300';
+
   const activeChip =
-    'inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-[#FF6A00] px-3 text-xs font-black text-white shadow-[0_10px_22px_-18px_rgba(255,106,0,0.9)] transition';
+    'inline-flex shrink-0 items-center gap-1 rounded-full bg-[#FF6A00] px-2.5 py-1.5 text-[11px] font-bold text-white shadow-sm transition';
   const inactiveChip =
-    'inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-white px-3 text-xs font-black text-slate-600 ring-1 ring-stone-200 transition hover:text-slate-950 dark:bg-neutral-950 dark:text-neutral-200 dark:ring-neutral-800';
+    'inline-flex shrink-0 items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1.5 text-[11px] font-semibold text-gray-600 transition active:scale-95 dark:bg-neutral-800 dark:text-neutral-300';
+
+  const FEED_TABS = [
+    { id: 'all', label: t('shop_profile.tab_all', 'Tous'), icon: Grid3x3, count: products.length },
+    { id: 'featured', label: t('shop_profile.tab_featured', 'Recommandés'), icon: Flame, count: featuredProducts.length },
+    { id: 'latest', label: t('shop_profile.tab_latest', 'Nouveautés'), icon: Clock, count: latestProducts.length },
+    { id: 'popular', label: t('shop_profile.tab_popular', 'Populaires'), icon: Tag, count: topSellingProducts.length }
+  ];
 
   return (
-    <section className="overflow-hidden rounded-none bg-white p-3 shadow-[0_18px_60px_-42px_rgba(15,23,42,0.7)] ring-1 ring-orange-100/80 sm:rounded-[28px] dark:bg-neutral-950 dark:ring-neutral-800" id="products">
-      <div className="flex items-start justify-between gap-2 px-1">
+    <section className="overflow-hidden rounded-none bg-white shadow-[0_18px_60px_-42px_rgba(15,23,42,0.7)] ring-1 ring-orange-100/80 sm:rounded-[28px] dark:bg-neutral-950 dark:ring-neutral-800" id="products">
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between gap-2 px-4 pt-4">
         <div>
           <p className="text-[11px] font-black uppercase tracking-wide text-[#FF6A00]">
-            Boutique
+            {t('shop_profile.shop_label', 'Boutique')}
           </p>
-          <h2 className="text-xl font-black text-slate-950 dark:text-white sm:text-2xl">
-            {t('shop_profile.all_products', 'Tous les produits')}
+          <h2 className="text-lg font-black text-slate-950 dark:text-white">
+            {t('shop_profile.all_products', 'Produits')}
           </h2>
-          <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-            {formatCount(displayProducts.length)} {t('shop_profile.products_count', 'produits')}
-          </p>
         </div>
-        <button
-          type="button"
-          onClick={onGoReviews}
-          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-[#fff7ef] px-3 text-xs font-black text-[#FF6A00] ring-1 ring-orange-100 transition hover:bg-orange-50 dark:bg-neutral-900 dark:ring-neutral-800"
-        >
-          <span>{t('shop_profile.go_reviews', 'Avis')}</span>
-          <ArrowRight size={13} />
-        </button>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-bold text-gray-500 dark:bg-neutral-800 dark:text-neutral-400">
+            {formatCount(displayProducts.length)}
+          </span>
+          <button
+            type="button"
+            onClick={onGoReviews}
+            className="inline-flex items-center gap-1 rounded-full bg-[#fff7ef] px-3 py-1.5 text-[11px] font-bold text-[#FF6A00] ring-1 ring-orange-100 transition hover:bg-orange-50 dark:bg-neutral-900 dark:ring-neutral-800"
+          >
+            {t('shop_profile.go_reviews', 'Avis')}
+            <ArrowRight size={12} />
+          </button>
+        </div>
       </div>
 
-      <div className="sticky top-[4.55rem] z-20 -mx-3 mt-3 border-y border-orange-100/70 bg-white/96 px-3 py-2 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/96">
-        <div className="-mx-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="flex w-max items-center gap-2">
-            {[
-              { id: 'all', label: t('shop_profile.tab_all', 'Tous'), count: products.length },
-              { id: 'featured', label: t('shop_profile.tab_featured', 'Recommandés'), count: featuredProducts.length },
-              { id: 'latest', label: t('shop_profile.tab_latest', 'Nouveautés'), count: latestProducts.length },
-              { id: 'popular', label: t('shop_profile.tab_popular', 'Populaires'), count: topSellingProducts.length }
-            ].map((item) => {
+      {/* ── Sticky Tab Bar ── */}
+      <div className="sticky top-[4.55rem] z-20 mt-3 bg-white/96 backdrop-blur-xl dark:bg-neutral-950/96">
+        {/* Product Feed Tabs */}
+        <div className="overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex w-max gap-1.5">
+            {FEED_TABS.map((item) => {
               const isActive = productFeed === item.id;
+              const Icon = item.icon;
               return (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => setProductFeed(item.id)}
+                  className={isActive ? activeTab : inactiveTab}
+                >
+                  <Icon size={13} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Category Chips */}
+        <div className="overflow-x-auto border-t border-gray-100 px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden dark:border-neutral-800">
+          <div className="flex w-max items-center gap-1.5">
+            {/* Tous */}
+            <button
+              type="button"
+              onClick={() => { setActiveCategory('all'); }}
+              className={activeCategory === 'all' && !promoOnly ? activeChip : inactiveChip}
+            >
+              <Grid3x3 size={11} />
+              <span>{t('shop_profile.tab_all', 'Tous')}</span>
+            </button>
+
+            {/* Promos toggle */}
+            <button
+              type="button"
+              onClick={() => { setPromoOnly((prev) => !prev); if (!promoOnly) setActiveCategory('all'); }}
+              disabled={!hasPromoProducts}
+              className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-bold transition ${
+                promoOnly
+                  ? 'bg-[#FF6A00] text-white shadow-sm'
+                  : 'bg-amber-50 text-amber-700 ring-1 ring-amber-100 dark:bg-amber-500/10 dark:text-amber-300'
+              } ${!hasPromoProducts ? 'cursor-not-allowed opacity-40' : ''}`}
+            >
+              <Sparkles size={11} />
+              <span>{t('shop_profile.promos', 'Promos')}</span>
+            </button>
+
+            {/* Divider */}
+            {categories.length > 0 && (
+              <span className="mx-0.5 h-5 w-px bg-gray-200 dark:bg-neutral-700" />
+            )}
+
+            {/* Category pills */}
+            {categories.map((category) => {
+              const isActive = activeCategory === category && !promoOnly;
+              return (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={() => { setActiveCategory(category); setPromoOnly(false); }}
                   className={isActive ? activeChip : inactiveChip}
                 >
-                  <span>{item.label}</span>
-                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${isActive ? 'bg-white/20' : 'bg-stone-100 text-slate-500 dark:bg-neutral-900 dark:text-neutral-400'}`}>
-                    {formatCount(item.count)}
+                  <span className="max-w-[7rem] truncate">{category}</span>
+                  <span className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-black ${
+                    isActive ? 'bg-white/20' : 'bg-gray-200 text-gray-500 dark:bg-neutral-700 dark:text-neutral-400'
+                  }`}>
+                    {formatCount(categoryCounts[category] || 0)}
                   </span>
                 </button>
               );
             })}
           </div>
         </div>
-        <div className="mt-2 flex items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <button
-            type="button"
-            onClick={() => { setActiveCategory('all'); setPromoOnly(false); }}
-            className="inline-flex min-h-[32px] shrink-0 items-center rounded-full bg-stone-100 px-3 text-xs font-black text-slate-600 transition hover:text-slate-950 dark:bg-neutral-900 dark:text-neutral-300"
-          >
-            {t('shop_profile.reset', 'Tout')}
-          </button>
-          <button type="button" onClick={() => setActiveCategory('all')} className={activeCategory === 'all' ? activeChip : inactiveChip}>
-            <span>{t('shop_profile.tab_all', 'Tous')}</span>
-            <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${activeCategory === 'all' ? 'bg-white/20' : 'bg-stone-100 text-slate-500 dark:bg-neutral-900 dark:text-neutral-400'}`}>{formatCount(products.length)}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setPromoOnly((prev) => !prev)}
-            disabled={!hasPromoProducts}
-            className={`inline-flex min-h-[36px] shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-black transition ${
-              promoOnly
-                ? 'bg-[#FF6A00] text-white'
-                : 'bg-amber-50 text-amber-700 ring-1 ring-amber-100 hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30'
-            } ${!hasPromoProducts ? 'cursor-not-allowed opacity-50' : ''}`}
-          >
-            <Sparkles size={11} />
-            <span>{t('shop_profile.promos', 'Promos')}</span>
-          </button>
-          {categories.map((category) => {
-            const isActive = activeCategory === category;
-            return (
-              <button key={category} type="button" onClick={() => setActiveCategory(category)} className={isActive ? activeChip : inactiveChip}>
-                <span className="max-w-[8rem] truncate">{category}</span>
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${isActive ? 'bg-white/20' : 'bg-stone-100 text-slate-500 dark:bg-neutral-900 dark:text-neutral-400'}`}>{formatCount(categoryCounts[category] || 0)}</span>
-              </button>
-            );
-          })}
-        </div>
       </div>
+
+      {/* ── Product Grid ── */}
+      <div className="px-4 pb-6">
 
       {loading && <ShimmerSkeleton rows={3} />}
 
@@ -191,6 +225,7 @@ export default function ShopProductsSection({
           </div>
         </div>
       )}
+      </div>
     </section>
   );
 }

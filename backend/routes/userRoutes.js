@@ -113,7 +113,12 @@ router.post('/password/send-code', validate(schemas.passwordSendCode), sendPassw
 router.post('/password/change', validate(schemas.passwordChange), changePassword);
 router.get(
   '/notifications',
-  cacheMiddleware({ domain: 'notifications', scope: 'user', ttl: 45000 }),
+  cacheMiddleware({
+    domain: 'notifications',
+    scope: 'user',
+    ttl: 45000,
+    skipCache: (req) => String(req.headers['x-skip-cache'] || '').trim() === '1'
+  }),
   getNotifications
 );
 router.get('/notifications/stream', streamNotifications);

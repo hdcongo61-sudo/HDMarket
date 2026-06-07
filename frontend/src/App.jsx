@@ -51,6 +51,10 @@ const CategoryProducts = lazy(() => import('./pages/CategoryProducts'));
 const Products = lazy(() => import('./pages/Products'));
 const CityProducts = lazy(() => import('./pages/CityProducts'));
 const ProductDetails = lazy(() => import('./pages/ProductDetails'));
+const ProductDetailsWrapper = () => {
+  const { slug } = useParams();
+  return <ProductDetails key={slug} />;
+};
 const ProductPreview = lazy(() => import('./pages/ProductPreview'));
 const EditProduct = lazy(() => import('./pages/EditProduct'));
 const Cart = lazy(() => import('./pages/Cart'));
@@ -514,7 +518,7 @@ function AppContent() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/product/:slug" element={<ProductDetails />} />
+          <Route path="/product/:slug" element={<ProductDetailsWrapper />} />
           <Route path="/product-preview/:slug" element={<ProductPreview />} />
           <Route path="/shop/:slug" element={<ShopProfile />} />
           <Route path="/shops/verified" element={<VerifiedShops />} />

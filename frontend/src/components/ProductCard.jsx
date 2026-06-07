@@ -13,6 +13,7 @@ import VerifiedBadge from './VerifiedBadge';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import useIsMobile from '../hooks/useIsMobile';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { lightTap } from '../utils/haptic';
 import ImagePreviewModal from './media/ImagePreviewModal';
 import useNetworkProfile from '../hooks/useNetworkProfile';
 import { trackEvent } from '../services/analytics';
@@ -87,7 +88,7 @@ function ProductCard({
 
   const hasMultipleImages = productImages.length > 1;
   const shouldShowCarousel = hasMultipleImages; // Enable carousel for multiple images
-  const shouldAutoCarousel = false; // Auto-carousel disabled - manual only
+  const shouldAutoCarousel = productImages.length > 2;
   const hideDenseMobileBadges = Boolean(isShopProfileCompact || (useCompactMobile && hideMobileDiscountBadge));
   const LONG_PRESS_DELAY_MS = 430;
   const LONG_PRESS_MOVE_THRESHOLD_PX = 14;
@@ -490,6 +491,7 @@ function ProductCard({
     setAddError('');
     try {
       await addItem(p._id, 1);
+      lightTap(); // no await needed — sync call
       setFeedback('Ajouté au panier !');
     } catch (e) {
       setAddError(e.response?.data?.message || e.message || "Impossible d'ajouter cet article.");

@@ -210,7 +210,66 @@ export const addComment = asyncHandler(async (req, res) => {
     reviewedAt: new Date()
   }).catch(() => null);
 
+  // Emit real-time socket event for instant comment notifications
+  try {
+    const { emitOrderStatusUpdated } = await import('../sockets/chatSocket.js');
+    emitOrderStatusUpdated({
+      orderId: null,
+      status: 'comment_added',
+      customerId: product.user,
+      sellerIds: [product.user],
+      updatedBy: req.user.id,
+      updatedAt: new Date().toISOString(),
+      metadata: {
+        type: parent ? 'reply' : 'product_comment',
+        productId: String(product._id),
+        commentId: String(comment._id),
+        slug: product.slug || ''
+      }
+    });
+  } catch {} // non-blocking
+
   res.status(201).json(formatComment(comment));
+});
+
+// ─── Delete Own Comment ──────────────────────────────────
+
+export const deleteMyComment = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user?.id || req.user?._id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'ID de commentaire invalide.' });
+  }
+
+  const comment = await Comment.findById(id);
+  if (!comment) {
+    return res.status(404).json({ message: 'Commentaire introuvable.' });
+  }
+
+  // Only the comment author can delete it
+  if (String(comment.user) !== String(userId)) {
+    return res.status(403).json({ message: 'Vous ne pouvez supprimer que vos propres commentaires.' });
+  }
+
+  // Delete the comment and all its replies
+  const result = await Comment.deleteMany({
+    $or: [
+      { _id: id },
+      { parent: id }
+    ]
+  });
+
+  // Invalidate product cache
+  invalidateProductCache();
+
+  res.json({
+    success: true,
+    message: result.deletedCount > 1
+      ? 'Commentaire et réponses supprimés avec succès.'
+      : 'Commentaire supprimé avec succès.',
+    deletedCount: result.deletedCount
+  });
 });
 
 export const deleteCommentAdmin = asyncHandler(async (req, res) => {
