@@ -17,7 +17,7 @@ import { createNotification } from '../utils/notificationService.js';
 
 // ─── HELPERS ──────────────────────────────────────────────
 
-const getOrCreateWallet = async (userId) => {
+export const getOrCreateWallet = async (userId) => {
   let wallet = await Wallet.findOne({ user: userId });
   if (!wallet) {
     wallet = await Wallet.create({

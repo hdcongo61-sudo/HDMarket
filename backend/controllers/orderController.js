@@ -883,11 +883,11 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Aucun article dans la commande.' });
   }
 
+  try {
   // Load wallet
   const { getOrCreateWallet } = await import('../services/walletService.js');
   const wallet = await getOrCreateWallet(userId);
 
-  try {
   // Calculate total
   const productIds = items.map((i) => i.productId);
   const products = await Product.find({ _id: { $in: productIds }, status: 'approved' }).lean();
@@ -1075,8 +1075,11 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
   });
   } catch (err) {
     console.error('[walletCheckout] Error:', err?.message || err, err?.stack);
-    return res.status(500).json({
-      message: 'Erreur interne lors du paiement portefeuille. Veuillez réessayer.',
+    const statusCode = Number(err?.statusCode || err?.status || 500);
+    return res.status(statusCode >= 400 && statusCode < 600 ? statusCode : 500).json({
+      message: statusCode < 500
+        ? err.message
+        : 'Erreur interne lors du paiement portefeuille. Veuillez réessayer.',
       error: process.env.NODE_ENV !== 'production' ? String(err?.message || err) : undefined
     });
   }
