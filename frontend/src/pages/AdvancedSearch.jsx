@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -21,7 +21,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import api from '../services/api';
-import ProductCard from '../components/ProductCard';
+import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
 import { allCategoryOptions } from '../data/categories';
 import categoryGroups from '../data/categories';
@@ -73,6 +73,8 @@ export default function AdvancedSearch() {
   const [minSales, setMinSales] = useState(searchParams.get('minSales') || '');
   const [sort, setSort] = useState(searchParams.get('sort') || 'new');
   const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
+  const loadMoreSentinelRef = useRef(null);
+  const infiniteScrollLockRef = useRef(0);
 
   // UI states
   const [showFilters, setShowFilters] = useState(false);
@@ -180,7 +182,7 @@ export default function AdvancedSearch() {
       const fetchedItems = Array.isArray(data) ? data : data?.items || [];
       const pagination = data?.pagination || {};
       
-      setItems(fetchedItems);
+      setItems((prev) => (page > 1 ? [...prev, ...fetchedItems] : fetchedItems));
       setTotalResults(pagination.total || fetchedItems.length);
       setTotalPages(Math.max(1, Number(pagination.pages) || 1));
       setOfflineSnapshotActive(false);
@@ -206,6 +208,27 @@ export default function AdvancedSearch() {
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return undefined;
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel) return undefined;
+    if (loading || page >= totalPages) return undefined;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        const now = Date.now();
+        if (now - infiniteScrollLockRef.current < 400) return;
+        infiniteScrollLockRef.current = now;
+        setPage((prev) => Math.min(prev + 1, totalPages));
+      },
+      { rootMargin: '720px 0px 720px 0px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loading, page, totalPages]);
 
   useEffect(() => {
     if (!items.length || shouldUseOfflineSnapshot) return;
@@ -674,44 +697,28 @@ export default function AdvancedSearch() {
 
             {/* Loading */}
             {loading && items.length === 0 ? (
-              <ProductCardSkeleton
-                count={6}
-                className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
-              />
+              <ProductCardSkeleton count={10} viewMode="masonry" />
             ) : items.length > 0 ? (
               <>
                 {/* Products Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {items.map((product) => (
-                    <ProductCard
-                      key={product._id}
-                      p={product}
-                      onProductClick={recordProductView}
-                    />
-                  ))}
-                </div>
+                <ProductMasonryGrid products={items} onProductClick={recordProductView} />
+                {loading && items.length > 0 && (
+                  <div className="flex justify-center py-4">
+                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-neutral-600 border-t-transparent" />
+                  </div>
+                )}
+                <div ref={loadMoreSentinelRef} className="h-8" aria-hidden="true" />
 
                 {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="mt-8 flex items-center justify-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page <= 1}
-                      className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Précédent
-                    </button>
-                    <span className="px-4 py-2 text-sm text-gray-600">
-                      Page {page} sur {totalPages}
-                    </span>
+                {page < totalPages && (
+                  <div className="mt-4 flex items-center justify-center gap-2">
                     <button
                       type="button"
                       onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={page >= totalPages}
-                      className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={loading}
+                      className="rounded-full border border-orange-100 bg-white px-4 py-2 text-xs font-black text-[#9A4A00] shadow-sm active:scale-95 disabled:cursor-wait disabled:opacity-60"
                     >
-                      Suivant
+                      Charger plus
                     </button>
                   </div>
                 )}

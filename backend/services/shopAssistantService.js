@@ -4,7 +4,7 @@
  */
 
 import mongoose from 'mongoose';
-import ShopAssistant from '../models/shopAssistantModel.js';
+import ShopAssistant, { ALLOWED_PERMISSIONS } from '../models/shopAssistantModel.js';
 import AssistantAuditLog from '../models/assistantAuditLogModel.js';
 import User from '../models/userModel.js';
 import { createNotification } from '../utils/notificationService.js';
@@ -47,6 +47,10 @@ const notify = async (userId, actorId, shopId, type, metadata = {}) => {
   } catch { /* non-blocking */ }
 };
 
+const normalizePermissions = (permissions = []) => [
+  ...new Set((permissions || []).filter((permission) => ALLOWED_PERMISSIONS.includes(permission)))
+];
+
 // ─── Invite ─────────────────────────────────────────────
 
 export const inviteAssistant = async ({ shopId, ownerId, email, phone, userId, permissions = [] }) => {
@@ -79,13 +83,7 @@ export const inviteAssistant = async ({ shopId, ownerId, email, phone, userId, p
   }).lean();
   if (existingShopAssignment) throw { status: 409, message: 'Cette boutique a déjà un assistant actif ou en attente.' };
 
-  // Filter valid permissions
-  const validPerms = (permissions || []).filter(p =>
-    ['respond_to_comments', 'manage_product_questions', 'confirm_orders', 'reject_orders',
-     'update_order_status', 'manage_delivery_requests', 'respond_to_buyer_messages',
-     'manage_product_availability', 'view_shop_dashboard', 'view_shop_orders',
-     'view_shop_products', 'view_shop_notifications'].includes(p)
-  );
+  const validPerms = normalizePermissions(permissions);
 
   const assignment = await ShopAssistant.create({
     shop: shopId,
@@ -179,12 +177,7 @@ export const updatePermissions = async ({ shopId, ownerId, permissions }) => {
   if (!assignment) throw { status: 404, message: 'Aucun assistant trouvé.' };
   if (String(assignment.owner) !== String(ownerId)) throw { status: 403, message: 'Seul le propriétaire peut modifier les permissions.' };
 
-  const validPerms = (permissions || []).filter(p =>
-    ['respond_to_comments', 'manage_product_questions', 'confirm_orders', 'reject_orders',
-     'update_order_status', 'manage_delivery_requests', 'respond_to_buyer_messages',
-     'manage_product_availability', 'view_shop_dashboard', 'view_shop_orders',
-     'view_shop_products', 'view_shop_notifications'].includes(p)
-  );
+  const validPerms = normalizePermissions(permissions);
 
   assignment.permissions = validPerms;
   await assignment.save();
@@ -207,11 +200,40 @@ export const getShopAssistant = async (shopId) => {
 export const getMyAssistantShop = async (userId) => {
   const assignment = await ShopAssistant.findOne({ assistant: userId, status: 'active' })
     .populate('shop', 'shopName name slug shopLogo')
+    .populate('owner', 'name shopName email phone')
     .lean();
   if (!assignment) return null;
 
-  const { shop, permissions, acceptedAt } = assignment;
-  return { shop, permissions, acceptedAt };
+  const { shop, owner, permissions, acceptedAt, invitedAt } = assignment;
+  return { shop, owner, permissions, acceptedAt, invitedAt, status: assignment.status };
+};
+
+export const getMyPendingInvitations = async (userId) => {
+  return ShopAssistant.find({ assistant: userId, status: 'pending' })
+    .sort({ invitedAt: -1, createdAt: -1 })
+    .populate('shop', 'shopName name slug shopLogo city')
+    .populate('owner', 'name shopName email phone')
+    .lean();
+};
+
+export const getAssistantAuditLogs = async ({ shopId, userId, limit = 20 }) => {
+  const userObjectId = String(userId);
+  const isOwner = userObjectId === String(shopId);
+  if (!isOwner) {
+    const assignment = await ShopAssistant.findOne({
+      shop: shopId,
+      assistant: userId,
+      status: 'active'
+    }).select('_id').lean();
+    if (!assignment) throw { status: 403, message: 'Accès refusé au journal assistant.' };
+  }
+
+  const safeLimit = Math.min(50, Math.max(5, Number(limit) || 20));
+  return AssistantAuditLog.find({ shop: shopId })
+    .sort({ createdAt: -1 })
+    .limit(safeLimit)
+    .populate('actor', 'name email phone shopName')
+    .lean();
 };
 
 export const hasPermission = async (userId, shopId, permission) => {

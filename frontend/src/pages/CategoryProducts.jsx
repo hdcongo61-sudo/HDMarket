@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api, { isApiCanceledError } from '../services/api';
 import ProductCard from '../components/ProductCard';
+import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
 import categoryGroups, { getCategoryMeta } from '../data/categories';
 import { ChevronRight, ArrowLeft, SlidersHorizontal, Grid2X2, List } from 'lucide-react';
@@ -28,6 +29,7 @@ export default function CategoryProducts() {
   const pageParam = Number(searchParams.get('page'));
   const initialPageRef = useRef(Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1);
   const infiniteScrollLockRef = useRef(0);
+  const loadMoreSentinelRef = useRef(null);
 
   const [items, setItems] = useState([]);
   const [offlineSnapshotActive, setOfflineSnapshotActive] = useState(false);
@@ -148,9 +150,7 @@ export default function CategoryProducts() {
         if (!active) return;
         const fetched = Array.isArray(data) ? data : data?.items ?? [];
         const pagination = Array.isArray(data) ? { pages: 1 } : data?.pagination ?? {};
-        setItems((prev) =>
-          isMobileView && page > 1 ? [...prev, ...fetched] : fetched
-        );
+        setItems((prev) => (page > 1 ? [...prev, ...fetched] : fetched));
         setTotalPages(Math.max(1, Number(pagination.pages) || 1));
         setOfflineSnapshotActive(false);
       } catch (e) {
@@ -169,7 +169,7 @@ export default function CategoryProducts() {
         }
         const message =
           e.response?.data?.message || e.message || 'Impossible de charger les produits de cette catégorie.';
-        if (isMobileView && page > 1) {
+        if (page > 1) {
           setLoadMoreError(message);
         } else {
           setError(message);
@@ -202,7 +202,6 @@ export default function CategoryProducts() {
   }, [items, shouldUseOfflineSnapshot, snapshotKey, totalPages]);
 
   useEffect(() => {
-    if (!isMobileView) return;
     if (loading) return;
     if (loadMoreError) return;
     if (page >= totalPages) return;
@@ -220,7 +219,29 @@ export default function CategoryProducts() {
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [isMobileView, loading, loadMoreError, page, totalPages]);
+  }, [loading, loadMoreError, page, totalPages]);
+
+  useEffect(() => {
+    if (viewMode === 'list') return undefined;
+    if (typeof IntersectionObserver === 'undefined') return undefined;
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel) return undefined;
+    if (loading || loadMoreError || page >= totalPages) return undefined;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        const now = Date.now();
+        if (now - infiniteScrollLockRef.current < 400) return;
+        infiniteScrollLockRef.current = now;
+        setPage((prev) => Math.min(prev + 1, totalPages));
+      },
+      { rootMargin: '720px 0px 720px 0px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loading, loadMoreError, page, totalPages, viewMode]);
 
   const renderPagination = () => {
     if (totalPages <= 1) return null;
@@ -439,20 +460,18 @@ export default function CategoryProducts() {
       )}
 
       {loading && page === 1 ? (
-        <ProductCardSkeleton count={8} viewMode={viewMode} />
+        <ProductCardSkeleton count={10} viewMode={viewMode === 'list' ? 'list' : 'masonry'} />
       ) : items.length ? (
         <>
-          <div
-            className={
-              viewMode === 'list'
-                ? 'space-y-3'
-                : 'grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4'
-            }
-          >
-            {items.map((product) => (
-              <ProductCard key={product._id} p={product} categoryListing viewMode={viewMode} />
-            ))}
-          </div>
+          {viewMode === 'list' ? (
+            <div className="space-y-3">
+              {items.map((product) => (
+                <ProductCard key={product._id} p={product} categoryListing viewMode="list" />
+              ))}
+            </div>
+          ) : (
+            <ProductMasonryGrid products={items} cardProps={{ categoryListing: true }} />
+          )}
           {loading && page > 1 && (
             <div className="flex justify-center py-4">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-neutral-600 border-t-transparent" />
@@ -473,7 +492,19 @@ export default function CategoryProducts() {
               </button>
             </div>
           )}
-          {renderPagination()}
+          {viewMode !== 'list' && <div ref={loadMoreSentinelRef} className="h-8" aria-hidden="true" />}
+          {!loading && !loadMoreError && page < totalPages && (
+            <div className="flex justify-center py-2">
+              <button
+                type="button"
+                onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+                className="rounded-full border border-orange-100 bg-white px-4 py-2 text-xs font-black text-[#9A4A00] shadow-sm active:scale-95"
+              >
+                Charger plus
+              </button>
+            </div>
+          )}
+          {viewMode === 'list' ? renderPagination() : null}
         </>
       ) : (
         <div className="rounded-2xl border border-gray-100 bg-white p-6 text-center text-sm text-gray-500">

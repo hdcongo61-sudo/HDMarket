@@ -97,6 +97,10 @@ const CACHE_EXCLUDE_PREFIXES = [
   '/chat',
   '/settings/networks'
 ];
+const CACHE_EXCLUDE_PATTERNS = [
+  /^\/shops\/me\/assistant(?:-|\/|$)/,
+  /^\/shops\/[^/?]+\/assistant(?:\/|$)/
+];
 const SW_MANAGED_CACHE_PREFIXES = [
   '/products/public',
   '/shops',
@@ -131,8 +135,42 @@ const resolveRequestId = (error) =>
       ''
   ).trim();
 
+const AUTH_SESSION_MESSAGE = 'Votre session a expiré. Veuillez vous reconnecter.';
+const AUTH_LOGIN_REQUIRED_MESSAGE = 'Veuillez vous connecter pour continuer.';
+
+const AUTH_ERROR_MESSAGE_BY_CODE = Object.freeze({
+  AUTH_TOKEN_MISSING: AUTH_LOGIN_REQUIRED_MESSAGE,
+  AUTH_TOKEN_INVALID: AUTH_SESSION_MESSAGE,
+  AUTH_USER_NOT_FOUND: AUTH_SESSION_MESSAGE,
+  TOKEN_BLACKLISTED: AUTH_SESSION_MESSAGE,
+  SESSION_INVALIDATED: AUTH_SESSION_MESSAGE
+});
+
+const normalizeAuthErrorMessage = (error) => {
+  const status = Number(error?.response?.status || 0);
+  if (status !== 401) return '';
+
+  const code = String(error?.response?.data?.code || error?.code || '').toUpperCase();
+  if (AUTH_ERROR_MESSAGE_BY_CODE[code]) return AUTH_ERROR_MESSAGE_BY_CODE[code];
+
+  const rawMessage = String(error?.response?.data?.message || error?.message || '').trim().toLowerCase();
+  if (
+    rawMessage === 'not authorized, no token' ||
+    rawMessage === 'not authorized' ||
+    rawMessage === 'token invalid'
+  ) {
+    return rawMessage.includes('no token') ? AUTH_LOGIN_REQUIRED_MESSAGE : AUTH_SESSION_MESSAGE;
+  }
+
+  return '';
+};
+
 const resolveApiErrorMessage = (error, fallback = 'Une erreur est survenue.') =>
-  error?.response?.data?.message || error?.userMessage || error?.message || fallback;
+  normalizeAuthErrorMessage(error) ||
+  error?.response?.data?.message ||
+  error?.userMessage ||
+  error?.message ||
+  fallback;
 
 const resolveAbortReason = (error, config = {}) => {
   const signalReason = config?.__abortController?.signal?.reason;
@@ -634,7 +672,10 @@ const shouldCacheRequest = (config) => {
       !SW_MANAGED_CACHE_EXCLUDE_PATTERNS.some((pattern) => pattern.test(normalized));
     if (managedBySw) return false;
   }
-  if (CACHE_EXCLUDE_PREFIXES.some((prefix) => normalized.startsWith(prefix))) return false;
+  if (
+    CACHE_EXCLUDE_PREFIXES.some((prefix) => normalized.startsWith(prefix)) ||
+    CACHE_EXCLUDE_PATTERNS.some((pattern) => pattern.test(normalized))
+  ) return false;
   return CACHE_ALLOW_PREFIXES.some((prefix) => normalized.startsWith(prefix));
 };
 
@@ -786,6 +827,15 @@ api.interceptors.response.use(
         data: { message: error.userMessage },
         headers: {},
         config
+      };
+    }
+    const authMessage = normalizeAuthErrorMessage(error);
+    if (authMessage) {
+      error.userMessage = authMessage;
+      error.message = authMessage;
+      error.response.data = {
+        ...(error.response.data || {}),
+        message: authMessage
       };
     }
     const requestId = resolveRequestId(error);

@@ -71,3 +71,19 @@ export const getMyAssistantShop = asyncHandler(async (req, res) => {
   const result = await sas.getMyAssistantShop(req.user.id || req.user._id);
   res.json({ success: true, data: result });
 });
+
+// GET /api/shops/me/assistant-invitations
+export const getMyPendingInvitations = asyncHandler(async (req, res) => {
+  const result = await sas.getMyPendingInvitations(req.user.id || req.user._id);
+  res.json({ success: true, data: result });
+});
+
+// GET /api/shops/:shopId/assistant/audit
+export const getAssistantAuditLogs = asyncHandler(async (req, res) => {
+  const result = await sas.getAssistantAuditLogs({
+    shopId: req.params.shopId,
+    userId: req.user.id || req.user._id,
+    limit: req.query.limit
+  });
+  res.json({ success: true, data: result });
+});

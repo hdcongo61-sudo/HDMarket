@@ -8,7 +8,9 @@ import {
   leaveShop,
   updatePermissions,
   getShopAssistant,
-  getMyAssistantShop
+  getMyAssistantShop,
+  getMyPendingInvitations,
+  getAssistantAuditLogs
 } from '../controllers/shopAssistantController.js';
 
 const router = Router();
@@ -22,8 +24,10 @@ router.route('/:shopId/assistant/reject').post(rejectInvitation);
 router.route('/:shopId/assistant/leave').post(leaveShop);
 router.route('/:shopId/assistant').get(getShopAssistant).delete(removeAssistant);
 router.route('/:shopId/assistant/permissions').put(updatePermissions);
+router.get('/:shopId/assistant/audit', getAssistantAuditLogs);
 
 // User-scoped route
 router.get('/me/assistant-shop', getMyAssistantShop);
+router.get('/me/assistant-invitations', getMyPendingInvitations);
 
 export default router;

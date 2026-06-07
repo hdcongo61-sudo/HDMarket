@@ -8,6 +8,7 @@ export default function ProductCardSkeleton({
   className = ''
 }) {
   const isList = viewMode === 'list';
+  const isMasonry = viewMode === 'masonry';
 
   return (
     <div
@@ -15,6 +16,8 @@ export default function ProductCardSkeleton({
         className ||
         (isList
           ? 'space-y-3'
+          : isMasonry
+          ? 'columns-2 gap-2 sm:columns-3 sm:gap-3 lg:columns-4 xl:columns-5'
           : 'grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4')
       }
       aria-hidden="true"
@@ -23,13 +26,15 @@ export default function ProductCardSkeleton({
         <article
           key={`product-card-skeleton-${index}`}
           className={`overflow-hidden border border-neutral-100 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950 ${
-            isList ? 'flex rounded-[22px]' : 'rounded-[22px]'
+            isList ? 'flex rounded-[22px]' : `rounded-[14px] ${isMasonry ? 'mb-2 break-inside-avoid sm:mb-3' : ''}`
           }`}
         >
           <ShimmerBlock
             className={
               isList
                 ? 'h-auto min-h-[132px] w-[38%] shrink-0 rounded-none'
+                : isMasonry
+                ? `${index % 5 === 1 || index % 5 === 4 ? 'aspect-[4/5]' : 'aspect-square'} rounded-none`
                 : `${compact ? 'aspect-square' : 'aspect-[4/5]'} rounded-none`
             }
           />

@@ -4,9 +4,9 @@ import AuthContext from '../context/AuthContext';
 import { useNavigate, Navigate, useLocation, Link } from 'react-router-dom';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAppSettings } from '../context/AppSettingsContext';
-import AuthTrustPanel from '../components/auth/AuthTrustPanel';
 import AuthSuccessCard from '../components/auth/AuthSuccessCard';
 import useAppBrandLogo from '../hooks/useAppBrandLogo';
+import TaobaoAuthPanel from '../components/auth/TaobaoAuthPanel';
 
 const SLOW_NETWORK_MS = 8000;
 
@@ -343,17 +343,33 @@ export default function Register() {
   }
 
   return (
-    <main className="glass-page-shell hd-commerce-shell min-h-screen px-4 py-6 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 sm:py-10">
-      <div className="mx-auto w-full max-w-6xl">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:gap-6">
-          <section className="hd-form-card relative overflow-hidden rounded-3xl p-5 dark:border-slate-700/60 dark:bg-slate-900/80 sm:p-7">
-            <div className="pointer-events-none absolute left-0 right-0 top-0 h-44 -translate-y-1/3 bg-gradient-to-b from-orange-100/80 via-orange-50/55 to-transparent blur-3xl dark:from-orange-800/25 dark:via-orange-900/10" />
+    <main className="min-h-screen overflow-hidden bg-[#fff7ed] px-4 py-4 text-slate-950 dark:bg-[#120704] dark:text-white sm:px-6 lg:px-8">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(255,106,0,0.18),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,237,213,0.55))] dark:bg-[radial-gradient(circle_at_18%_8%,rgba(255,106,0,0.18),transparent_30%),linear-gradient(180deg,rgba(22,9,4,0.92),rgba(7,7,7,1))]" />
+      <div className="relative mx-auto flex min-h-[calc(100dvh-2rem)] w-full max-w-6xl flex-col justify-center gap-4">
+        <nav className="mx-auto flex w-full max-w-6xl items-center justify-between rounded-[20px] border border-orange-100 bg-white/86 px-3 py-2 shadow-[0_16px_44px_rgba(154,69,0,0.10)] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.06]">
+          <Link to="/" className="inline-flex items-center gap-2 rounded-2xl pr-2 text-sm font-black text-slate-950 dark:text-white">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-50 shadow-sm ring-1 ring-orange-100 dark:bg-neutral-900 dark:ring-white/10">
+              <img src={logoSrc} alt={copy.appBadge} className="h-7 w-7 object-contain" />
+            </span>
+            {copy.appBadge}
+          </Link>
+          <Link
+            to="/login"
+            className="rounded-full bg-orange-50 px-3 py-2 text-xs font-black text-[#b84900] ring-1 ring-orange-100 transition hover:bg-orange-100 dark:bg-orange-400/10 dark:text-orange-100 dark:ring-orange-300/15"
+          >
+            {copy.signIn}
+          </Link>
+        </nav>
+
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,0.96fr)_minmax(0,1.04fr)] lg:items-stretch">
+          <section className="relative overflow-hidden rounded-[28px] border border-orange-100 bg-white p-5 shadow-[0_24px_70px_rgba(154,69,0,0.14)] backdrop-blur-2xl dark:border-white/10 dark:bg-neutral-950/82 sm:p-7">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-orange-50 to-transparent dark:from-orange-500/10" />
             {!successPayload ? (
               <>
                 <header className="relative mb-6">
                   <div className="mb-4 flex justify-center lg:justify-start">
                     <div className="inline-flex flex-col items-center lg:items-start">
-                      <div className="inline-flex h-20 w-20 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                      <div className="inline-flex h-20 w-20 items-center justify-center rounded-[22px] bg-[#ff6a00] shadow-[0_18px_44px_rgba(255,106,0,0.28)] dark:bg-white">
                         <img
                           src={logoSrc}
                           alt={copy.appBadge}
@@ -362,19 +378,19 @@ export default function Register() {
                       </div>
                     </div>
                   </div>
-                  <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
+                  <h1 className="mt-4 text-2xl font-black tracking-normal text-slate-950 dark:text-white sm:text-3xl">
                     {copy.title}
                   </h1>
-                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                  <p className="mt-2 text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">
                     {copy.subtitle}
                   </p>
                 </header>
 
                 <div className="mb-5 grid grid-cols-2 gap-2">
-                  <div className={`rounded-xl px-3 py-2 text-xs font-semibold ${step === 1 ? 'hd-soft-button text-[#9a4a00] dark:text-orange-100' : 'glass-card text-slate-500 dark:text-slate-300'}`}>
+                  <div className={`rounded-[16px] px-3 py-2 text-xs font-black ${step === 1 ? 'bg-orange-50 text-[#b84900] ring-1 ring-orange-100 dark:bg-orange-500/10 dark:text-orange-100' : 'bg-slate-50 text-slate-500 ring-1 ring-slate-100 dark:bg-white/[0.04] dark:text-slate-300 dark:ring-white/10'}`}>
                     {copy.step1}
                   </div>
-                  <div className={`rounded-xl px-3 py-2 text-xs font-semibold ${step === 2 ? 'hd-soft-button text-[#9a4a00] dark:text-orange-100' : 'glass-card text-slate-500 dark:text-slate-300'}`}>
+                  <div className={`rounded-[16px] px-3 py-2 text-xs font-black ${step === 2 ? 'bg-orange-50 text-[#b84900] ring-1 ring-orange-100 dark:bg-orange-500/10 dark:text-orange-100' : 'bg-slate-50 text-slate-500 ring-1 ring-slate-100 dark:bg-white/[0.04] dark:text-slate-300 dark:ring-white/10'}`}>
                     {copy.step2}
                   </div>
                 </div>
@@ -455,8 +471,8 @@ export default function Register() {
                         />
                       </div>
 
-                      <div className="rounded-2xl glass-card p-3">
-                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-100">
+                      <div className="rounded-[18px] bg-orange-50 p-3 ring-1 ring-orange-100 dark:bg-white/[0.04] dark:ring-white/10">
+                        <p className="text-xs font-black text-slate-700 dark:text-slate-100">
                           {copy.verificationTitle}
                         </p>
                         <div className="mt-2 flex gap-2">
@@ -472,7 +488,7 @@ export default function Register() {
                             type="button"
                             onClick={sendVerificationCode}
                             disabled={codeSending || !form.email.trim()}
-                            className="hd-soft-button min-h-[48px] rounded-[18px] px-3 text-xs font-semibold disabled:opacity-60 dark:text-orange-100"
+                            className="min-h-[48px] rounded-[16px] bg-white px-3 text-xs font-black text-[#b84900] ring-1 ring-orange-100 transition hover:bg-orange-100 disabled:opacity-60 dark:bg-orange-500/10 dark:text-orange-100 dark:ring-orange-300/15"
                           >
                             {codeSending ? copy.sendingCode : codeSent ? copy.resendCode : copy.sendCode}
                           </button>
@@ -492,7 +508,7 @@ export default function Register() {
                           setStep(2);
                           setTimeout(() => passwordRef.current?.focus(), 80);
                         }}
-                        className="hd-primary-button inline-flex min-h-[48px] w-full items-center justify-center rounded-[18px] px-4 text-sm font-semibold text-white"
+                        className="inline-flex min-h-[48px] w-full items-center justify-center rounded-[16px] bg-[#ff6a00] px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(255,106,0,0.24)] transition hover:bg-[#e85f00]"
                       >
                         {copy.continueStep2}
                       </button>
@@ -519,7 +535,7 @@ export default function Register() {
                             <button
                               type="button"
                               onClick={() => setShowPassword((prev) => !prev)}
-                              className="absolute right-1.5 top-1.5 inline-flex h-9 w-9 items-center justify-center rounded-lg glass-card text-slate-600 dark:text-slate-200"
+                              className="absolute right-1.5 top-1.5 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-[#b84900] ring-1 ring-orange-100 transition hover:bg-orange-100 dark:bg-white/[0.04] dark:text-slate-200 dark:ring-white/10"
                             >
                               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                             </button>
@@ -545,7 +561,7 @@ export default function Register() {
                             <button
                               type="button"
                               onClick={() => setShowConfirmPassword((prev) => !prev)}
-                              className="absolute right-1.5 top-1.5 inline-flex h-9 w-9 items-center justify-center rounded-lg glass-card text-slate-600 dark:text-slate-200"
+                              className="absolute right-1.5 top-1.5 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-[#b84900] ring-1 ring-orange-100 transition hover:bg-orange-100 dark:bg-white/[0.04] dark:text-slate-200 dark:ring-white/10"
                             >
                               {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                             </button>
@@ -553,7 +569,7 @@ export default function Register() {
                         </div>
                       </div>
 
-                      <section className="glass-card rounded-2xl p-3">
+                      <section className="rounded-[18px] bg-orange-50 p-3 ring-1 ring-orange-100 dark:bg-white/[0.04] dark:ring-white/10">
                         <div className="flex items-center justify-between">
                           <p className="text-xs font-semibold text-slate-700 dark:text-slate-100">
                             {copy.passwordStrength}
@@ -654,8 +670,8 @@ export default function Register() {
                               key={option.value}
                               className={`min-h-[48px] rounded-xl px-3 py-3 text-center text-sm font-semibold transition ${
                                 form.gender === option.value
-                                  ? 'hd-soft-button text-[#9a4a00] dark:text-orange-100'
-                                  : 'glass-card text-slate-700 dark:text-slate-100'
+                                  ? 'bg-orange-50 text-[#b84900] ring-1 ring-orange-100 dark:bg-orange-500/10 dark:text-orange-100 dark:ring-orange-300/15'
+                                  : 'bg-slate-50 text-slate-700 ring-1 ring-slate-100 dark:bg-white/[0.04] dark:text-slate-100 dark:ring-white/10'
                               }`}
                             >
                               <input
@@ -672,7 +688,7 @@ export default function Register() {
                         </div>
                       </div>
 
-                      <label className="flex items-start gap-2 rounded-xl glass-card px-3 py-2.5 text-xs text-slate-700 dark:text-slate-200">
+                      <label className="flex items-start gap-2 rounded-[16px] bg-slate-50 px-3 py-2.5 text-xs text-slate-700 ring-1 ring-slate-100 dark:bg-white/[0.04] dark:text-slate-200 dark:ring-white/10">
                         <input
                           type="checkbox"
                           checked={acceptedTerms}
@@ -708,14 +724,14 @@ export default function Register() {
                         <button
                           type="button"
                           onClick={() => setStep(1)}
-                          className="hd-soft-button min-h-[48px] rounded-[18px] px-4 text-sm font-semibold dark:text-orange-100"
+                          className="min-h-[48px] rounded-[16px] bg-orange-50 px-4 text-sm font-black text-[#b84900] ring-1 ring-orange-100 transition hover:bg-orange-100 dark:bg-orange-500/10 dark:text-orange-100 dark:ring-orange-300/15"
                         >
                           {copy.back}
                         </button>
                         <button
                           type="submit"
                           disabled={!canSubmit}
-                          className="hd-primary-button inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[18px] px-4 text-sm font-semibold text-white disabled:opacity-60"
+                          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[16px] bg-[#ff6a00] px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(255,106,0,0.24)] transition hover:bg-[#e85f00] disabled:opacity-60"
                         >
                           {loading ? <Loader2 size={16} className="animate-spin" /> : null}
                           {loading ? copy.creatingAccount : copy.createAccount}
@@ -725,10 +741,10 @@ export default function Register() {
                   )}
                 </form>
 
-                <footer className="mt-6 border-t border-white/35 pt-4 text-sm text-slate-600 dark:text-slate-300">
+                <footer className="mt-6 border-t border-orange-100 pt-4 text-sm text-slate-600 dark:border-white/10 dark:text-slate-300">
                   <p>
                     {copy.haveAccount}{' '}
-                    <Link to="/login" className="font-semibold text-slate-800 hover:underline dark:text-white">
+                    <Link to="/login" className="font-black text-[#d45a00] hover:underline dark:text-orange-100">
                       {copy.signIn}
                     </Link>
                   </p>
@@ -760,10 +776,9 @@ export default function Register() {
               />
             )}
 
-            {!successPayload ? <AuthTrustPanel compact /> : null}
           </section>
 
-          <AuthTrustPanel />
+          <TaobaoAuthPanel mode="register" logoSrc={logoSrc} />
         </div>
       </div>
     </main>

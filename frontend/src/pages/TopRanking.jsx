@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import api from '../services/api';
-import ProductCard from '../components/ProductCard';
+import ProductMasonryGrid from '../components/ProductMasonryGrid';
+import ProductCardSkeleton from '../components/ProductCardSkeleton';
 
 const LIMIT = 60;
 const PAGE_SIZE = 12;
@@ -10,9 +11,8 @@ export default function TopRanking() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
-  const [isMobileView, setIsMobileView] = useState(() =>
-    typeof window === 'undefined' ? false : window.innerWidth <= 767
-  );
+  const loadMoreSentinelRef = useRef(null);
+  const infiniteScrollLockRef = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -50,34 +50,47 @@ export default function TopRanking() {
   }, []);
 
   useEffect(() => {
-    const handleResize = () => {
-      if (typeof window === 'undefined') return;
-      setIsMobileView(window.innerWidth <= 767);
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
     setPage(1);
   }, [items.length]);
 
   useEffect(() => {
-    if (!isMobileView) return;
     if (page >= Math.max(1, Math.ceil(items.length / PAGE_SIZE))) return;
     const handleScroll = () => {
+      const now = Date.now();
+      if (now - infiniteScrollLockRef.current < 400) return;
       const threshold = 200;
       if (
         window.innerHeight + window.scrollY >=
         document.documentElement.scrollHeight - threshold
       ) {
+        infiniteScrollLockRef.current = now;
         setPage((prev) => Math.min(prev + 1, Math.max(1, Math.ceil(items.length / PAGE_SIZE))));
       }
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [isMobileView, items.length, page]);
+  }, [items.length, page]);
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return undefined;
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel) return undefined;
+    if (page >= Math.max(1, Math.ceil(items.length / PAGE_SIZE))) return undefined;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        const now = Date.now();
+        if (now - infiniteScrollLockRef.current < 400) return;
+        infiniteScrollLockRef.current = now;
+        setPage((prev) => Math.min(prev + 1, Math.max(1, Math.ceil(items.length / PAGE_SIZE))));
+      },
+      { rootMargin: '720px 0px 720px 0px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [items.length, page]);
 
   const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
 
@@ -91,74 +104,6 @@ export default function TopRanking() {
     const end = page * PAGE_SIZE;
     return items.slice(0, end);
   }, [items, page]);
-
-  const renderPagination = () => {
-    if (isMobileView) return null;
-    if (items.length <= PAGE_SIZE) return null;
-
-    const visiblePages = Math.min(5, totalPages);
-    const half = Math.floor(visiblePages / 2);
-    let start = Math.max(1, page - half);
-    let end = Math.min(totalPages, start + visiblePages - 1);
-    start = Math.max(1, end - visiblePages + 1);
-    const pages = Array.from({ length: end - start + 1 }, (_, idx) => start + idx);
-
-    return (
-      <div className="flex justify-center items-center space-x-2 mt-8 pb-[88px] md:pb-0">
-        <button
-          onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-          disabled={page <= 1}
-          className="flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        >
-          ‹
-        </button>
-        {start > 1 && (
-          <>
-            <button
-              onClick={() => setPage(1)}
-              className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
-                page === 1 ? 'bg-neutral-600 text-white border-neutral-600' : 'border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              1
-            </button>
-            {start > 2 && <span className="px-1 text-gray-500">...</span>}
-          </>
-        )}
-        {pages.map((pageNum) => (
-          <button
-            key={pageNum}
-            onClick={() => setPage(pageNum)}
-            className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
-              page === pageNum ? 'bg-neutral-600 text-white border-neutral-600' : 'border-gray-300 hover:bg-gray-50'
-            }`}
-          >
-            {pageNum}
-          </button>
-        ))}
-        {end < totalPages && (
-          <>
-            {end < totalPages - 1 && <span className="px-1 text-gray-500">...</span>}
-            <button
-              onClick={() => setPage(totalPages)}
-              className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
-                page === totalPages ? 'bg-neutral-600 text-white border-neutral-600' : 'border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              {totalPages}
-            </button>
-          </>
-        )}
-        <button
-          onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-          disabled={page >= totalPages}
-          className="flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        >
-          ›
-        </button>
-      </div>
-    );
-  };
 
   return (
     <div className="hd-products-flow">
@@ -174,25 +119,22 @@ export default function TopRanking() {
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 8 }).map((_, idx) => (
-            <div key={idx} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-              <div className="h-32 rounded-xl bg-gray-100 animate-pulse" />
-              <div className="mt-3 space-y-2">
-                <div className="h-3 rounded bg-gray-100 animate-pulse" />
-                <div className="h-3 w-24 rounded bg-gray-100 animate-pulse" />
-              </div>
-            </div>
-          ))}
-        </div>
+        <ProductCardSkeleton count={10} viewMode="masonry" />
       ) : items.length ? (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {paginatedItems.map((product) => (
-              <ProductCard key={product._id} p={product} />
-            ))}
-          </div>
-          {renderPagination()}
+          <ProductMasonryGrid products={paginatedItems} />
+          <div ref={loadMoreSentinelRef} className="h-8" aria-hidden="true" />
+          {page < totalPages && (
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                className="rounded-full border border-orange-100 bg-white px-4 py-2 text-xs font-black text-[#9A4A00] shadow-sm active:scale-95"
+              >
+                Charger plus
+              </button>
+            </div>
+          )}
         </>
       ) : (
         <p className="text-sm text-gray-500">

@@ -11,6 +11,7 @@ const STORAGE_KEYS = {
   currency: 'hd_pref_currency',
   city: 'hd_pref_city',
   theme: 'hd_pref_theme',
+  assistantChatEnabled: 'hd_pref_assistant_chat_enabled',
   publicSettings: 'hd_public_settings_payload',
   publicRuntime: 'hd_public_runtime_settings'
 };
@@ -104,6 +105,7 @@ export const AppSettingsProvider = ({ children }) => {
   const [currencyCode, setCurrencyCodeState] = useState('XAF');
   const [city, setCityState] = useState('');
   const [theme, setThemeState] = useState('system');
+  const [assistantChatEnabled, setAssistantChatEnabledState] = useState(true);
   const [resources, setResources] = useState({});
 
   const normalizePublicPayload = useCallback((payload = {}) => {
@@ -229,6 +231,7 @@ export const AppSettingsProvider = ({ children }) => {
         const storedCurrency = (await storage.get(STORAGE_KEYS.currency)) || '';
         const storedCity = (await storage.get(STORAGE_KEYS.city)) || '';
         const storedTheme = (await storage.get(STORAGE_KEYS.theme)) || '';
+        const storedAssistantChatEnabled = await storage.get(STORAGE_KEYS.assistantChatEnabled);
 
         const nextLanguage =
           user?.preferredLanguage ||
@@ -251,6 +254,7 @@ export const AppSettingsProvider = ({ children }) => {
         setCurrencyCodeState(String(nextCurrency).toUpperCase());
         setCityState(String(nextCity));
         setThemeState(nextTheme);
+        setAssistantChatEnabledState(storedAssistantChatEnabled !== false);
         setLoading(false);
 
         loadPublicSettings().catch(() => {});
@@ -292,6 +296,10 @@ export const AppSettingsProvider = ({ children }) => {
   useEffect(() => {
     storage.set(STORAGE_KEYS.city, city);
   }, [city]);
+
+  useEffect(() => {
+    storage.set(STORAGE_KEYS.assistantChatEnabled, assistantChatEnabled);
+  }, [assistantChatEnabled]);
 
   useEffect(() => {
     storage.set('hd_public_currency_settings', {
@@ -395,6 +403,10 @@ export const AppSettingsProvider = ({ children }) => {
     [publicSettings.defaultCurrency, selectedCurrency]
   );
 
+  const setAssistantChatEnabled = useCallback((value) => {
+    setAssistantChatEnabledState(Boolean(value));
+  }, []);
+
   const getRuntimeValue = useCallback(
     (key, fallback = null) => {
       const normalized = String(key || '').trim();
@@ -459,6 +471,7 @@ export const AppSettingsProvider = ({ children }) => {
       currencyCode,
       city,
       theme,
+      assistantChatEnabled,
       selectedCurrency,
       t,
       formatPrice,
@@ -468,6 +481,7 @@ export const AppSettingsProvider = ({ children }) => {
       setCurrency: (value) => persistPreferences({ preferredCurrency: value }),
       setCity: (value) => persistPreferences({ preferredCity: value }),
       setTheme: (value) => persistPreferences({ theme: value }),
+      setAssistantChatEnabled,
       updatePreferences: persistPreferences,
       isFeatureEnabled
     }),
@@ -489,12 +503,14 @@ export const AppSettingsProvider = ({ children }) => {
       currencyCode,
       city,
       theme,
+      assistantChatEnabled,
       selectedCurrency,
       t,
       formatPrice,
       getRuntimeValue,
       loadPublicSettings,
       persistPreferences,
+      setAssistantChatEnabled,
       isFeatureEnabled
     ]
   );

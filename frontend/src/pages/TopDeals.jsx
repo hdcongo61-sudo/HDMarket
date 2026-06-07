@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import api from '../services/api';
-import ProductCard from '../components/ProductCard';
+import ProductMasonryGrid from '../components/ProductMasonryGrid';
+import ProductCardSkeleton from '../components/ProductCardSkeleton';
 
 const PAGE_LIMIT = 12;
 
@@ -10,6 +11,8 @@ export default function TopDeals() {
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const loadMoreSentinelRef = useRef(null);
+  const infiniteScrollLockRef = useRef(0);
 
   const fetchDeals = async () => {
     setLoading(true);
@@ -24,7 +27,7 @@ export default function TopDeals() {
       });
       const fetched = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
       const filtered = fetched.filter((product) => Number(product.discount) > 0);
-      setItems(filtered);
+      setItems((prev) => (page > 1 ? [...prev, ...filtered] : filtered));
       setTotalPages(data?.pagination?.pages || 1);
     } catch (e) {
       setError(
@@ -38,6 +41,27 @@ export default function TopDeals() {
   useEffect(() => {
     fetchDeals();
   }, [page]);
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return undefined;
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel) return undefined;
+    if (loading || page >= totalPages) return undefined;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        const now = Date.now();
+        if (now - infiniteScrollLockRef.current < 400) return;
+        infiniteScrollLockRef.current = now;
+        setPage((prev) => Math.min(prev + 1, totalPages));
+      },
+      { rootMargin: '720px 0px 720px 0px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loading, page, totalPages]);
 
   return (
     <div className="hd-products-flow">
@@ -56,48 +80,28 @@ export default function TopDeals() {
         </p>
       )}
 
-      {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 8 }).map((_, idx) => (
-            <div key={idx} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-              <div className="h-32 rounded-xl bg-gray-100 animate-pulse" />
-              <div className="mt-3 space-y-2">
-                <div className="h-3 rounded bg-gray-100 animate-pulse" />
-                <div className="h-3 w-24 rounded bg-gray-100 animate-pulse" />
-              </div>
-            </div>
-          ))}
-        </div>
+      {loading && page === 1 ? (
+        <ProductCardSkeleton count={10} viewMode="masonry" />
       ) : items.length ? (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {items.map((product) => (
-              <ProductCard key={product._id} p={product} />
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 text-xs text-gray-500">
-            <span>
-              Page {page} / {totalPages}
-            </span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-                disabled={page <= 1}
-                className="rounded-full border border-gray-200 px-3 py-1 font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Précédent
-              </button>
+          <ProductMasonryGrid products={items} />
+          {loading && page > 1 && (
+            <div className="flex justify-center py-4">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-neutral-600 border-t-transparent" />
+            </div>
+          )}
+          <div ref={loadMoreSentinelRef} className="h-8" aria-hidden="true" />
+          {!loading && page < totalPages && (
+            <div className="flex justify-center">
               <button
                 type="button"
                 onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-                disabled={page >= totalPages}
-                className="rounded-full border border-gray-200 px-3 py-1 font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-full border border-orange-100 bg-white px-4 py-2 text-xs font-black text-[#9A4A00] shadow-sm active:scale-95"
               >
-                Suivant
+                Charger plus
               </button>
             </div>
-          </div>
+          )}
         </>
       ) : (
         <p className="text-sm text-gray-500">

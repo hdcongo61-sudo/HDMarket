@@ -35,6 +35,7 @@ function ProductCard({
   compactMobile = false,
   shopProfileCompact = false,
   categoryListing = false,
+  taobaoFeed = false,
   viewMode = 'grid'
 }) {
   const { user } = useContext(AuthContext);
@@ -562,7 +563,7 @@ function ProductCard({
     });
     const primaryImageSrcSet = getProductCardSrcSet(primaryImageOriginal, { lite: useLiteImageMode });
     const shopName = p?.user?.shopName || 'Boutique HDMarket';
-    const useTaobaoMobileCard = Boolean(isMobile && !isListCard && !isShopProfileCompact);
+    const useTaobaoMobileCard = Boolean((isMobile || taobaoFeed) && !isListCard && !isShopProfileCompact);
     const mobilePromoLabel = hasActivePromo
       ? `${promoScopeLabel} -${promoPercentLabel}%`
       : hasDiscount

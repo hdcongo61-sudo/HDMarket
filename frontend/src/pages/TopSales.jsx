@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
-import { TrendingUp, Award, Star, ShoppingCart, ArrowLeft } from 'lucide-react';
+import ProductCardSkeleton from '../components/ProductCardSkeleton';
+import { TrendingUp, Award, ShoppingCart, ArrowLeft } from 'lucide-react';
 import { buildProductPath } from '../utils/links';
 
 const PAGE_LIMIT = 12;
@@ -16,6 +17,8 @@ export default function TopSales() {
   const [totalPages, setTotalPages] = useState(1);
   const [searchParams, setSearchParams] = useSearchParams();
   const pageParam = Number(searchParams.get('page'));
+  const loadMoreSentinelRef = useRef(null);
+  const infiniteScrollLockRef = useRef(0);
 
   useEffect(() => {
     if (Number.isInteger(pageParam) && pageParam > 0) {
@@ -34,7 +37,7 @@ export default function TopSales() {
         }
       });
       const fetched = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
-      setItems(fetched);
+      setItems((prev) => (page > 1 ? [...prev, ...fetched] : fetched));
       setTotalPages(data?.pagination?.pages || 1);
     } catch (e) {
       setError(
@@ -48,6 +51,27 @@ export default function TopSales() {
   useEffect(() => {
     fetchTopSales();
   }, [page]);
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return undefined;
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel) return undefined;
+    if (loading || page >= totalPages) return undefined;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        const now = Date.now();
+        if (now - infiniteScrollLockRef.current < 400) return;
+        infiniteScrollLockRef.current = now;
+        setPage((prev) => Math.min(prev + 1, totalPages));
+      },
+      { rootMargin: '720px 0px 720px 0px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loading, page, totalPages]);
 
   useEffect(() => {
     const targetPage = page === 1 ? null : String(page);
@@ -94,12 +118,8 @@ export default function TopSales() {
           </div>
         </header>
 
-        {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="animate-pulse bg-white rounded-xl border border-gray-200 h-96" />
-            ))}
-          </div>
+        {loading && page === 1 ? (
+          <ProductCardSkeleton count={10} viewMode="masonry" />
         ) : error ? (
           <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 sm:p-6 text-center">
             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -109,9 +129,9 @@ export default function TopSales() {
           </div>
         ) : items.length > 0 ? (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
+            <div className="columns-2 gap-2 sm:columns-3 sm:gap-3 lg:columns-4 xl:columns-5">
               {items.map((product, index) => (
-                <div key={product._id} className="relative">
+                <div key={product._id} className="relative mb-2 break-inside-avoid sm:mb-3">
                   {/* Ranking Badge */}
                   {index < 3 && (
                     <div className="absolute -top-2 -left-2 z-30">
@@ -130,49 +150,26 @@ export default function TopSales() {
                   <ProductCard
                     p={product}
                     productLink={buildProductPath(product)}
+                    taobaoFeed
                   />
                 </div>
               ))}
             </div>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex justify-center items-center space-x-2 mt-8">
+            {loading && page > 1 && (
+              <div className="flex justify-center py-4">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-neutral-600 border-t-transparent" />
+              </div>
+            )}
+            <div ref={loadMoreSentinelRef} className="h-8" aria-hidden="true" />
+            {!loading && page < totalPages && (
+              <div className="flex justify-center">
                 <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  type="button"
+                  onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                  className="rounded-full border border-orange-100 bg-white px-4 py-2 text-xs font-black text-[#9A4A00] shadow-sm active:scale-95"
                 >
-                  ‹
-                </button>
-
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  const pageNum = i + 1;
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => setPage(pageNum)}
-                      className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
-                        page === pageNum
-                          ? "bg-neutral-600 text-white border-neutral-600"
-                          : "border-gray-300 hover:bg-gray-50"
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-
-                {totalPages > 5 && (
-                  <span className="px-2 text-gray-500">...</span>
-                )}
-
-                <button
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                  className="flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                >
-                  ›
+                  Charger plus
                 </button>
               </div>
             )}

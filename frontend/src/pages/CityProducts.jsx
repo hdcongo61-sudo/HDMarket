@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import api from '../services/api';
-import ProductCard from '../components/ProductCard';
+import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import { useAppSettings } from '../context/AppSettingsContext';
 
@@ -196,10 +196,10 @@ export default function CityProducts() {
         )}
 
         {loading ? (
-          <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="columns-2 gap-2 sm:columns-3 sm:gap-3 lg:columns-4 xl:columns-5">
             {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="rounded-2xl border border-gray-200 bg-white p-2 sm:p-4 shadow-sm">
-                <div className="mb-2 sm:mb-3 aspect-square rounded-xl bg-gray-100 animate-pulse" />
+              <div key={index} className="mb-2 break-inside-avoid rounded-[14px] border border-gray-200 bg-white p-2 shadow-sm sm:mb-3">
+                <div className={`${index % 3 === 1 ? 'aspect-[4/5]' : 'aspect-square'} mb-2 rounded-xl bg-gray-100 animate-pulse`} />
                 <div className="space-y-1.5 sm:space-y-2">
                   <div className="h-3 sm:h-4 rounded bg-gray-100 animate-pulse" />
                   <div className="h-3 sm:h-4 w-2/3 rounded bg-gray-100 animate-pulse" />
@@ -209,11 +209,7 @@ export default function CityProducts() {
             ))}
           </div>
         ) : items.length ? (
-          <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {items.map((product) => (
-              <ProductCard key={product._id} p={product} />
-            ))}
-          </div>
+          <ProductMasonryGrid products={items} />
         ) : (
           <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
             Aucune annonce disponible pour cette ville pour le moment.

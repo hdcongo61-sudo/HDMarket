@@ -268,7 +268,7 @@ function AppContent() {
   const location = useLocation();
   const { pathname } = location;
   const { user } = useContext(AuthContext);
-  const { isFeatureEnabled, getRuntimeValue } = useAppSettings();
+  const { isFeatureEnabled, getRuntimeValue, assistantChatEnabled } = useAppSettings();
   const shopLoad = useShopProfileLoad();
   const [splashConfig, setSplashConfig] = useState(null);
   const [splashDismissed, setSplashDismissed] = useState(false);
@@ -1146,7 +1146,7 @@ function AppContent() {
           <Footer />
         </Suspense>
       ) : null}
-      {!isCourierRoute && chatEnabled ? (
+      {!isCourierRoute && chatEnabled && assistantChatEnabled ? (
         <Suspense fallback={null}>
           <ChatBox />
         </Suspense>

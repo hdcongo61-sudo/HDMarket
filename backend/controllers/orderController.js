@@ -1011,7 +1011,7 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
   }
 
   // Deduct from wallet (discounted amount)
-  const { purchaseFromWallet } = await import('../services/walletService.js');
+  const { purchaseFromWallet, creditSellerWalletSale } = await import('../services/walletService.js');
   await purchaseFromWallet({
     userId,
     amount: finalAmount,
@@ -1067,6 +1067,15 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
       remainingAmount: 0
     });
     createdOrders.push(order);
+    if (sellerId && sellerId !== 'unknown' && sellerTotal > 0) {
+      await creditSellerWalletSale({
+        userId: sellerId,
+        amount: sellerTotal,
+        orderId: String(order._id),
+        buyerId: userId,
+        reference: 'wallet-checkout'
+      });
+    }
   }
 
   res.status(201).json({

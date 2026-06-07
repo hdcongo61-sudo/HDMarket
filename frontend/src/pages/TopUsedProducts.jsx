@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
-import ProductCard from '../components/ProductCard';
+import ProductMasonryGrid from '../components/ProductMasonryGrid';
+import ProductCardSkeleton from '../components/ProductCardSkeleton';
 
 const LIMIT = 60;
 
@@ -60,23 +61,9 @@ export default function TopUsedProducts() {
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 8 }).map((_, idx) => (
-            <div key={idx} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-              <div className="h-32 rounded-xl bg-gray-100 animate-pulse" />
-              <div className="mt-3 space-y-2">
-                <div className="h-3 rounded bg-gray-100 animate-pulse" />
-                <div className="h-3 w-24 rounded bg-gray-100 animate-pulse" />
-              </div>
-            </div>
-          ))}
-        </div>
+        <ProductCardSkeleton count={10} viewMode="masonry" />
       ) : items.length ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {items.map((product) => (
-            <ProductCard key={product._id} p={product} />
-          ))}
-        </div>
+        <ProductMasonryGrid products={items} />
       ) : (
         <p className="text-sm text-gray-500">
           Pas encore d&apos;annonces d&apos;occasion disponibles. Revenez plus tard pour dénicher la bonne affaire.

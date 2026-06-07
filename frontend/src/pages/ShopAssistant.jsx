@@ -1,79 +1,329 @@
-import React, { useCallback, useContext, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowLeft, UserPlus, Mail, Phone, Hash, Search, ShieldCheck,
-  Trash2, LogOut, Settings, CheckCircle, XCircle, Clock,
-  Activity, Zap, Store, MessageSquare, ShoppingBag, Truck,
-  Bell, BarChart3, Package, AlertCircle, Loader2, UserX, UserCheck
+  Activity,
+  AlertCircle,
+  ArrowLeft,
+  BarChart3,
+  Bell,
+  CheckCircle,
+  ChevronRight,
+  Clock,
+  Hash,
+  Loader2,
+  LogOut,
+  Mail,
+  MessageSquare,
+  Package,
+  Phone,
+  ShieldCheck,
+  ShoppingBag,
+  SlidersHorizontal,
+  Store,
+  Trash2,
+  Truck,
+  UserCheck,
+  UserPlus,
+  UserX,
+  XCircle
 } from 'lucide-react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
-// ─── Permission labels & icons ────────────────────────────
-const PERMISSIONS_MAP = [
-  { key: 'respond_to_comments', label: 'Répondre aux commentaires', icon: MessageSquare },
-  { key: 'manage_product_questions', label: 'Gérer les questions produits', icon: MessageSquare },
-  { key: 'confirm_orders', label: 'Confirmer les commandes', icon: ShoppingBag },
-  { key: 'reject_orders', label: 'Rejeter les commandes', icon: XCircle },
-  { key: 'update_order_status', label: 'Mettre à jour les statuts de commande', icon: Package },
-  { key: 'manage_delivery_requests', label: 'Gérer les demandes de livraison', icon: Truck },
-  { key: 'respond_to_buyer_messages', label: 'Répondre aux messages acheteurs', icon: MessageSquare },
-  { key: 'manage_product_availability', label: 'Gérer la disponibilité des produits', icon: Package },
-  { key: 'view_shop_dashboard', label: 'Voir le tableau de bord', icon: BarChart3 },
-  { key: 'view_shop_orders', label: 'Voir les commandes', icon: ShoppingBag },
-  { key: 'view_shop_products', label: 'Voir les produits', icon: Package },
-  { key: 'view_shop_notifications', label: 'Voir les notifications', icon: Bell }
+const PERMISSION_GROUPS = [
+  {
+    title: 'Clients',
+    description: 'Commentaires, questions produits et messages acheteurs.',
+    permissions: [
+      { key: 'respond_to_comments', label: 'Commentaires', description: 'Repondre aux commentaires publics.', icon: MessageSquare },
+      { key: 'manage_product_questions', label: 'Questions produits', description: 'Traiter les questions avant achat.', icon: MessageSquare },
+      { key: 'respond_to_buyer_messages', label: 'Messages acheteurs', description: 'Repondre aux conversations client.', icon: Mail }
+    ]
+  },
+  {
+    title: 'Commandes',
+    description: 'Validation, refus, statuts et demandes de livraison.',
+    permissions: [
+      { key: 'confirm_orders', label: 'Confirmer', description: 'Accepter les commandes recues.', icon: ShoppingBag },
+      { key: 'reject_orders', label: 'Rejeter', description: 'Refuser une commande non traitable.', icon: XCircle },
+      { key: 'update_order_status', label: 'Statuts', description: 'Mettre a jour le suivi des commandes.', icon: Package },
+      { key: 'manage_delivery_requests', label: 'Livraisons', description: 'Gerer les demandes de livraison.', icon: Truck }
+    ]
+  },
+  {
+    title: 'Boutique',
+    description: 'Consultation du tableau de bord, produits et notifications.',
+    permissions: [
+      { key: 'manage_product_availability', label: 'Disponibilite', description: 'Activer ou desactiver la disponibilite.', icon: Package },
+      { key: 'view_shop_dashboard', label: 'Tableau de bord', description: 'Consulter les indicateurs boutique.', icon: BarChart3 },
+      { key: 'view_shop_orders', label: 'Voir commandes', description: 'Acceder a la liste des commandes.', icon: ShoppingBag },
+      { key: 'view_shop_products', label: 'Voir produits', description: 'Consulter le catalogue boutique.', icon: Package },
+      { key: 'view_shop_notifications', label: 'Notifications', description: 'Voir les alertes boutique.', icon: Bell }
+    ]
+  }
 ];
 
-// ─── Owner View ───────────────────────────────────────────
+const PERMISSIONS = PERMISSION_GROUPS.flatMap((group) => group.permissions);
+const PERMISSION_BY_KEY = Object.fromEntries(PERMISSIONS.map((permission) => [permission.key, permission]));
+
+const PRESETS = [
+  {
+    key: 'operations',
+    label: 'Operations',
+    description: 'Commandes, livraisons et lecture du catalogue.',
+    permissions: [
+      'confirm_orders',
+      'reject_orders',
+      'update_order_status',
+      'manage_delivery_requests',
+      'view_shop_orders',
+      'view_shop_products',
+      'view_shop_notifications'
+    ]
+  },
+  {
+    key: 'support',
+    label: 'Support client',
+    description: 'Questions, commentaires et messages acheteurs.',
+    permissions: [
+      'respond_to_comments',
+      'manage_product_questions',
+      'respond_to_buyer_messages',
+      'view_shop_products',
+      'view_shop_notifications'
+    ]
+  },
+  {
+    key: 'manager',
+    label: 'Gestion complete',
+    description: 'Toutes les permissions assistant disponibles.',
+    permissions: PERMISSIONS.map((permission) => permission.key)
+  }
+];
+
+const ACTION_LABELS = {
+  assistant_invited: 'Invitation envoyee',
+  assistant_accepted: 'Invitation acceptee',
+  assistant_rejected: 'Invitation refusee',
+  assistant_removed: 'Assistant retire',
+  assistant_left: 'Assistant parti',
+  assistant_permissions_updated: 'Permissions modifiees',
+  assistant_order_confirmed: 'Commande confirmee',
+  assistant_order_rejected: 'Commande rejetee',
+  assistant_order_status_updated: 'Statut commande modifie',
+  assistant_comment_replied: 'Commentaire traite',
+  assistant_message_replied: 'Message acheteur traite'
+};
+
+const STATUS_COPY = {
+  active: { label: 'Actif', className: 'bg-emerald-50 text-emerald-700 ring-emerald-100', Icon: CheckCircle },
+  pending: { label: 'Invitation en attente', className: 'bg-amber-50 text-amber-700 ring-amber-100', Icon: Clock },
+  removed: { label: 'Retire', className: 'bg-gray-100 text-gray-600 ring-gray-200', Icon: UserX },
+  left: { label: 'Parti', className: 'bg-gray-100 text-gray-600 ring-gray-200', Icon: LogOut }
+};
+
+const formatDate = (value) => {
+  if (!value) return 'Non defini';
+  try {
+    return new Intl.DateTimeFormat('fr-FR', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(new Date(value));
+  } catch {
+    return 'Date invalide';
+  }
+};
+
+const getDisplayName = (user, fallback = 'Utilisateur') =>
+  user?.shopName || user?.name || user?.email || user?.phone || fallback;
+
+function StatusBadge({ status }) {
+  const statusData = STATUS_COPY[status] || STATUS_COPY.pending;
+  const Icon = statusData.Icon;
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${statusData.className}`}>
+      <Icon size={13} />
+      {statusData.label}
+    </span>
+  );
+}
+
+function Metric({ label, value, icon: Icon }) {
+  return (
+    <div className="rounded-lg border border-gray-100 bg-white px-4 py-3 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-bold uppercase tracking-wide text-gray-500">{label}</p>
+        <Icon size={16} className="text-[#FF6A00]" />
+      </div>
+      <p className="mt-2 text-2xl font-black text-gray-900">{value}</p>
+    </div>
+  );
+}
+
+function PermissionPill({ permissionKey }) {
+  const permission = PERMISSION_BY_KEY[permissionKey];
+  if (!permission) return null;
+  const Icon = permission.icon;
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700">
+      <Icon size={12} />
+      {permission.label}
+    </span>
+  );
+}
+
+function PermissionSwitch({ permission, checked, onToggle, disabled }) {
+  const Icon = permission.icon;
+  return (
+    <label className={`flex cursor-pointer gap-3 rounded-lg border p-3 transition ${checked ? 'border-[#FF6A00]/30 bg-orange-50/50' : 'border-gray-100 bg-white hover:bg-gray-50'} ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}>
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={() => onToggle(permission.key)}
+        className="mt-1 h-4 w-4 accent-[#FF6A00]"
+      />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <Icon size={15} className={checked ? 'text-[#FF6A00]' : 'text-gray-400'} />
+          <p className="text-sm font-bold text-gray-900">{permission.label}</p>
+        </div>
+        <p className="mt-1 text-xs leading-5 text-gray-500">{permission.description}</p>
+      </div>
+    </label>
+  );
+}
+
+function ActivityLog({ logs, loading }) {
+  return (
+    <section className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-black text-gray-900">Journal d'activite</h2>
+          <p className="text-sm text-gray-500">Historique des invitations, permissions et actions assistant.</p>
+        </div>
+        <Activity size={18} className="text-[#FF6A00]" />
+      </div>
+
+      <div className="mt-4 space-y-3">
+        {loading ? (
+          <div className="flex items-center justify-center py-8 text-sm text-gray-500">
+            <Loader2 size={18} className="mr-2 animate-spin text-[#FF6A00]" />
+            Chargement du journal...
+          </div>
+        ) : logs.length ? (
+          logs.map((log) => (
+            <div key={log._id} className="flex gap-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-3">
+              <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#FF6A00] ring-1 ring-gray-100">
+                <Activity size={15} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-gray-900">{ACTION_LABELS[log.action] || log.action}</p>
+                <p className="text-xs text-gray-500">
+                  {getDisplayName(log.actor, log.actorRole === 'owner' ? 'Vendeur' : 'Assistant')} · {formatDate(log.createdAt)}
+                </p>
+                {Array.isArray(log.metadata?.permissions) && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {log.metadata.permissions.slice(0, 6).map((permission) => (
+                      <PermissionPill key={permission} permissionKey={permission} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center">
+            <p className="text-sm font-semibold text-gray-600">Aucune activite pour le moment.</p>
+            <p className="mt-1 text-xs text-gray-400">Les invitations et modifications apparaitront ici.</p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
 
 function OwnerView({ shopId }) {
   const { showToast } = useToast();
   const [assistant, setAssistant] = useState(null);
+  const [auditLogs, setAuditLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [auditLoading, setAuditLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-
-  // Invite form
   const [lookupType, setLookupType] = useState('email');
   const [lookupValue, setLookupValue] = useState('');
-  const [inviteLoading, setInviteLoading] = useState(false);
-
-  // Permissions edit
+  const [selectedPerms, setSelectedPerms] = useState(PRESETS[0].permissions);
   const [editPerms, setEditPerms] = useState(false);
-  const [selectedPerms, setSelectedPerms] = useState([]);
+
+  const activePermissions = assistant?.permissions || selectedPerms;
+  const permissionCount = activePermissions.length;
+
+  const fetchAudit = useCallback(async () => {
+    if (!shopId) return;
+    setAuditLoading(true);
+    try {
+      const { data } = await api.get(`/shops/${shopId}/assistant/audit?limit=12`);
+      setAuditLogs(Array.isArray(data.data) ? data.data : []);
+    } catch {
+      setAuditLogs([]);
+    } finally {
+      setAuditLoading(false);
+    }
+  }, [shopId]);
 
   const fetchAssistant = useCallback(async () => {
+    setLoading(true);
     try {
       const { data } = await api.get(`/shops/${shopId}/assistant`);
-      setAssistant(data.data);
-      if (data.data) setSelectedPerms(data.data.permissions || []);
+      const nextAssistant = data.data || null;
+      setAssistant(nextAssistant);
+      if (nextAssistant?.permissions) setSelectedPerms(nextAssistant.permissions);
     } catch {
-      // No assistant yet — that's fine
       setAssistant(null);
     } finally {
       setLoading(false);
     }
   }, [shopId]);
 
-  useEffect(() => { fetchAssistant(); }, [fetchAssistant]);
+  useEffect(() => {
+    fetchAssistant();
+    fetchAudit();
+  }, [fetchAssistant, fetchAudit]);
+
+  const togglePerm = (key) => {
+    setSelectedPerms((prev) => (prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]));
+  };
+
+  const applyPreset = (preset) => {
+    setSelectedPerms(preset.permissions);
+    setEditPerms(true);
+  };
 
   const invite = async () => {
-    if (!lookupValue.trim()) return showToast('Veuillez saisir une valeur.', 'error');
-    setInviteLoading(true);
+    const value = lookupValue.trim();
+    if (!value) return showToast('Veuillez saisir une valeur.', 'error');
+    if (!selectedPerms.length) return showToast('Selectionnez au moins une permission.', 'error');
+
+    setActionLoading(true);
     try {
-      const body = {};
-      if (lookupType === 'email') body.email = lookupValue.trim();
-      else if (lookupType === 'phone') body.phone = lookupValue.trim();
-      else body.userId = lookupValue.trim();
+      const body = { permissions: selectedPerms };
+      if (lookupType === 'email') body.email = value;
+      else if (lookupType === 'phone') body.phone = value;
+      else body.userId = value;
+
       await api.post(`/shops/${shopId}/assistant/invite`, body);
-      showToast('Invitation envoyée !', 'success');
+      showToast('Invitation envoyee.', 'success');
       setLookupValue('');
-      fetchAssistant();
-    } catch (e) {
-      showToast(e.response?.data?.message || 'Erreur lors de l\'invitation.', 'error');
+      await fetchAssistant();
+      await fetchAudit();
+    } catch (error) {
+      showToast(error.response?.data?.message || "Erreur lors de l'invitation.", 'error');
     } finally {
-      setInviteLoading(false);
+      setActionLoading(false);
     }
   };
 
@@ -82,33 +332,32 @@ function OwnerView({ shopId }) {
     setActionLoading(true);
     try {
       await api.delete(`/shops/${shopId}/assistant`);
-      showToast('Assistant retiré.', 'success');
-      fetchAssistant();
-    } catch (e) {
-      showToast(e.response?.data?.message || 'Erreur.', 'error');
+      showToast('Assistant retire.', 'success');
+      setAssistant(null);
+      setEditPerms(false);
+      setSelectedPerms(PRESETS[0].permissions);
+      await fetchAudit();
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Erreur.', 'error');
     } finally {
       setActionLoading(false);
     }
   };
 
   const savePermissions = async () => {
+    if (!selectedPerms.length) return showToast('Selectionnez au moins une permission.', 'error');
     setActionLoading(true);
     try {
       await api.put(`/shops/${shopId}/assistant/permissions`, { permissions: selectedPerms });
-      showToast('Permissions mises à jour.', 'success');
+      showToast('Permissions mises a jour.', 'success');
       setEditPerms(false);
-      fetchAssistant();
-    } catch (e) {
-      showToast(e.response?.data?.message || 'Erreur.', 'error');
+      await fetchAssistant();
+      await fetchAudit();
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Erreur.', 'error');
     } finally {
       setActionLoading(false);
     }
-  };
-
-  const togglePerm = (key) => {
-    setSelectedPerms(prev =>
-      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
-    );
   };
 
   if (loading) {
@@ -121,196 +370,238 @@ function OwnerView({ shopId }) {
 
   return (
     <div className="space-y-6">
-      {/* Invite Section */}
-      <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-        <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-          <UserPlus size={18} className="text-[#FF6A00]" />
-          Inviter un assistant
-        </h3>
-        <p className="mt-1 text-sm text-gray-500">
-          Un assistant peut vous aider à gérer les commandes, répondre aux clients, et plus encore.
-          Une seule personne à la fois.
-        </p>
-
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:gap-2">
-          <select
-            value={lookupType}
-            onChange={e => setLookupType(e.target.value)}
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-medium sm:w-auto"
-          >
-            <option value="email">Email</option>
-            <option value="phone">Téléphone</option>
-            <option value="userId">ID Utilisateur</option>
-          </select>
-          <div className="relative flex-1">
-            {lookupType === 'email' && <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />}
-            {lookupType === 'phone' && <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />}
-            {lookupType === 'userId' && <Hash size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />}
-            <input
-              type="text"
-              value={lookupValue}
-              onChange={e => setLookupValue(e.target.value)}
-              placeholder={lookupType === 'email' ? 'email@exemple.com' : lookupType === 'phone' ? '+243...' : 'ID utilisateur'}
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-4 text-sm outline-none focus:ring-2 focus:ring-[#FF6A00]/30"
-              onKeyDown={e => e.key === 'Enter' && invite()}
-            />
-          </div>
-          <button
-            onClick={invite}
-            disabled={inviteLoading || !!assistant}
-            className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#FF6A00] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#e05e00] disabled:opacity-50 sm:w-auto"
-          >
-            {inviteLoading ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
-            Inviter
-          </button>
-        </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Metric label="Assistant" value={assistant ? '1' : '0'} icon={UserCheck} />
+        <Metric label="Statut" value={assistant?.status === 'active' ? 'Actif' : assistant?.status === 'pending' ? 'Attente' : 'Libre'} icon={ShieldCheck} />
+        <Metric label="Permissions" value={permissionCount} icon={SlidersHorizontal} />
       </div>
 
-      {/* Current Assistant */}
-      {assistant ? (
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-[#FF6A00]/10 text-[#FF6A00] font-black">
-                {(assistant.assistant?.name || 'A').charAt(0).toUpperCase()}
+      <section className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="text-base font-black text-gray-900">Assistant de boutique</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-500">
+              Confiez les operations quotidiennes a une personne de confiance avec des droits limites et visibles.
+              Un seul assistant peut etre actif ou en attente pour cette boutique.
+            </p>
+          </div>
+          {assistant && <StatusBadge status={assistant.status} />}
+        </div>
+
+        {assistant ? (
+          <div className="mt-5 flex flex-col gap-4 rounded-lg border border-gray-100 bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#FF6A00] text-lg font-black text-white">
+                {getDisplayName(assistant.assistant, 'A').charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0">
-                <p className="font-bold text-gray-900 truncate">{assistant.assistant?.name || '—'}</p>
-                <p className="text-sm text-gray-500 truncate">{assistant.assistant?.email || assistant.assistant?.phone || ''}</p>
-                <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
-                  assistant.status === 'active' ? 'bg-green-100 text-green-700' :
-                  assistant.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
-                }`}>
-                  {assistant.status === 'active' ? <CheckCircle size={12} /> : <Clock size={12} />}
-                  {assistant.status === 'active' ? 'Actif' : 'En attente'}
-                </span>
+                <p className="truncate text-base font-black text-gray-900">{getDisplayName(assistant.assistant)}</p>
+                <p className="truncate text-sm text-gray-500">{assistant.assistant?.email || assistant.assistant?.phone || 'Contact non renseigne'}</p>
+                <p className="mt-1 text-xs text-gray-400">
+                  Invite le {formatDate(assistant.invitedAt)}
+                  {assistant.acceptedAt ? ` · Accepte le ${formatDate(assistant.acceptedAt)}` : ''}
+                </p>
               </div>
             </div>
             <button
               onClick={remove}
               disabled={actionLoading}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-100 disabled:opacity-50 sm:self-start"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-100 disabled:opacity-50"
             >
-              {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <UserX size={14} />}
+              {actionLoading ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
               Retirer
             </button>
           </div>
-
-          {/* Permissions */}
-          <div className="mt-4 border-t border-gray-100 pt-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-bold text-gray-700">Permissions</h4>
-              <button
-                onClick={() => setEditPerms(!editPerms)}
-                className="flex items-center gap-1 text-xs font-semibold text-[#FF6A00]"
-              >
-                <Settings size={12} />
-                {editPerms ? 'Annuler' : 'Modifier'}
-              </button>
+        ) : (
+          <div className="mt-5 rounded-lg border border-dashed border-gray-200 bg-gray-50 p-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#FF6A00] ring-1 ring-gray-100">
+                <UserPlus size={18} />
+              </div>
+              <div>
+                <p className="font-bold text-gray-900">Aucun assistant configure</p>
+                <p className="mt-1 text-sm leading-6 text-gray-500">
+                  Choisissez un utilisateur existant avec son email, telephone ou ID, puis envoyez une invitation.
+                </p>
+              </div>
             </div>
+          </div>
+        )}
 
-            {editPerms ? (
-              <div className="mt-3 space-y-2">
-                {PERMISSIONS_MAP.map(({ key, label, icon: Icon }) => (
-                  <label key={key} className="flex items-center gap-3 rounded-lg border border-gray-100 p-2.5 hover:bg-gray-50 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedPerms.includes(key)}
-                      onChange={() => togglePerm(key)}
-                      className="accent-[#FF6A00]"
-                    />
-                    <Icon size={14} className="text-gray-400" />
-                    <span className="text-sm text-gray-700">{label}</span>
-                  </label>
-                ))}
-                <button
-                  onClick={savePermissions}
-                  disabled={actionLoading}
-                  className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#FF6A00] py-2.5 text-sm font-bold text-white hover:bg-[#e05e00] disabled:opacity-50"
-                >
-                  {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-                  Enregistrer les permissions
-                </button>
-              </div>
+        {!assistant && (
+          <div className="mt-5 grid gap-3 lg:grid-cols-[180px_1fr_auto]">
+            <select
+              value={lookupType}
+              onChange={(event) => setLookupType(event.target.value)}
+              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-[#FF6A00]/25"
+            >
+              <option value="email">Email</option>
+              <option value="phone">Telephone</option>
+              <option value="userId">ID utilisateur</option>
+            </select>
+            <div className="relative">
+              {lookupType === 'email' && <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />}
+              {lookupType === 'phone' && <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />}
+              {lookupType === 'userId' && <Hash size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />}
+              <input
+                type="text"
+                value={lookupValue}
+                onChange={(event) => setLookupValue(event.target.value)}
+                onKeyDown={(event) => event.key === 'Enter' && invite()}
+                placeholder={lookupType === 'email' ? 'email@exemple.com' : lookupType === 'phone' ? '+243...' : 'ID utilisateur'}
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-4 text-sm outline-none focus:ring-2 focus:ring-[#FF6A00]/25"
+              />
+            </div>
+            <button
+              onClick={invite}
+              disabled={actionLoading}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#FF6A00] px-4 py-2.5 text-sm font-black text-white hover:bg-[#e05e00] disabled:opacity-50"
+            >
+              {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
+              Inviter
+            </button>
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="text-base font-black text-gray-900">Permissions assistant</h2>
+            <p className="mt-1 text-sm text-gray-500">Selectionnez exactement ce que l'assistant peut faire.</p>
+          </div>
+          {assistant && (
+            <button
+              onClick={() => {
+                setSelectedPerms(assistant.permissions || []);
+                setEditPerms((prev) => !prev);
+              }}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50"
+            >
+              <SlidersHorizontal size={15} />
+              {editPerms ? 'Annuler' : 'Modifier'}
+            </button>
+          )}
+        </div>
+
+        {(!assistant || editPerms) && (
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            {PRESETS.map((preset) => (
+              <button
+                key={preset.key}
+                type="button"
+                onClick={() => applyPreset(preset)}
+                className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-left transition hover:border-[#FF6A00]/30 hover:bg-orange-50"
+              >
+                <p className="text-sm font-black text-gray-900">{preset.label}</p>
+                <p className="mt-1 text-xs leading-5 text-gray-500">{preset.description}</p>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {assistant && !editPerms ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {(assistant.permissions || []).length ? (
+              assistant.permissions.map((permission) => <PermissionPill key={permission} permissionKey={permission} />)
             ) : (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {(assistant.permissions || []).length === 0 ? (
-                  <span className="text-sm text-gray-400">Aucune permission définie.</span>
-                ) : (
-                  (assistant.permissions || []).map(perm => {
-                    const def = PERMISSIONS_MAP.find(p => p.key === perm);
-                    return def ? (
-                      <span key={perm} className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
-                        <def.icon size={12} />{def.label}
-                      </span>
-                    ) : null;
-                  })
-                )}
-              </div>
+              <p className="text-sm text-gray-400">Aucune permission definie.</p>
             )}
           </div>
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/50 p-8 text-center">
-          <UserPlus size={32} className="mx-auto text-gray-300" />
-          <p className="mt-2 text-sm font-medium text-gray-400">Aucun assistant pour le moment.</p>
-          <p className="text-xs text-gray-300">Invitez quelqu'un pour vous aider à gérer votre boutique.</p>
-        </div>
-      )}
+        ) : (
+          <div className="mt-5 space-y-5">
+            {PERMISSION_GROUPS.map((group) => (
+              <div key={group.title}>
+                <div className="mb-3">
+                  <p className="text-sm font-black text-gray-900">{group.title}</p>
+                  <p className="text-xs text-gray-500">{group.description}</p>
+                </div>
+                <div className="grid gap-2 md:grid-cols-2">
+                  {group.permissions.map((permission) => (
+                    <PermissionSwitch
+                      key={permission.key}
+                      permission={permission}
+                      checked={selectedPerms.includes(permission.key)}
+                      onToggle={togglePerm}
+                      disabled={actionLoading}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+            {assistant && (
+              <button
+                onClick={savePermissions}
+                disabled={actionLoading}
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#FF6A00] px-4 py-3 text-sm font-black text-white hover:bg-[#e05e00] disabled:opacity-50 sm:w-auto"
+              >
+                {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+                Enregistrer les permissions
+              </button>
+            )}
+          </div>
+        )}
+      </section>
 
-      {/* Activity Log placeholder */}
-      <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-        <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-          <Activity size={16} className="text-[#FF6A00]" />
-          Journal d'activité
-        </h3>
-        <p className="mt-2 text-sm text-gray-400">
-          Les actions de l'assistant sont enregistrées ici (commentaires, commandes, etc.).
-        </p>
-      </div>
+      <ActivityLog logs={auditLogs} loading={auditLoading} />
     </div>
   );
 }
 
-// ─── Assistant View ────────────────────────────────────────
-
-function AssistantView({ userId }) {
+function AssistantView() {
   const { showToast } = useToast();
   const [assignment, setAssignment] = useState(null);
   const [pendingInvites, setPendingInvites] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [auditLoading, setAuditLoading] = useState(false);
 
-  const fetchData = useCallback(async () => {
+  const fetchAudit = useCallback(async (shopId) => {
+    if (!shopId) return setAuditLogs([]);
+    setAuditLoading(true);
     try {
-      const [shopRes, invitesRes] = await Promise.all([
-        api.get('/shops/me/assistant-shop'),
-        api.get('/shops') // We'll filter pending invites client-side
-      ]);
-      setAssignment(shopRes.data.data);
-      // For pending invites, we need to check each shop's assistant status
-      // This is a simplification — ideally a dedicated endpoint
-      setPendingInvites([]);
+      const { data } = await api.get(`/shops/${shopId}/assistant/audit?limit=10`);
+      setAuditLogs(Array.isArray(data.data) ? data.data : []);
     } catch {
-      // OK
+      setAuditLogs([]);
     } finally {
-      setLoading(false);
+      setAuditLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [assignmentRes, invitesRes] = await Promise.all([
+        api.get('/shops/me/assistant-shop'),
+        api.get('/shops/me/assistant-invitations')
+      ]);
+      const nextAssignment = assignmentRes.data.data || null;
+      setAssignment(nextAssignment);
+      setPendingInvites(Array.isArray(invitesRes.data.data) ? invitesRes.data.data : []);
+      await fetchAudit(nextAssignment?.shop?._id);
+    } catch {
+      setAssignment(null);
+      setPendingInvites([]);
+      setAuditLogs([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchAudit]);
 
-  // For pending invites, we'd need a dedicated endpoint. Simplified for now.
-  // The user would see invites via notifications.
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const accept = async (shopId) => {
     setActionLoading(true);
     try {
       await api.post(`/shops/${shopId}/assistant/accept`);
-      showToast('Invitation acceptée !', 'success');
-      fetchData();
-    } catch (e) {
-      showToast(e.response?.data?.message || 'Erreur.', 'error');
+      showToast('Invitation acceptee.', 'success');
+      await fetchData();
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Erreur.', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -320,28 +611,41 @@ function AssistantView({ userId }) {
     setActionLoading(true);
     try {
       await api.post(`/shops/${shopId}/assistant/reject`);
-      showToast('Invitation refusée.', 'success');
-      fetchData();
-    } catch (e) {
-      showToast(e.response?.data?.message || 'Erreur.', 'error');
+      showToast('Invitation refusee.', 'success');
+      await fetchData();
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Erreur.', 'error');
     } finally {
       setActionLoading(false);
     }
   };
 
   const leave = async (shopId) => {
-    if (!confirm('Quitter votre rôle d\'assistant dans cette boutique ?')) return;
+    if (!confirm("Quitter votre role d'assistant dans cette boutique ?")) return;
     setActionLoading(true);
     try {
       await api.post(`/shops/${shopId}/assistant/leave`);
-      showToast('Vous avez quitté la boutique.', 'success');
+      showToast('Vous avez quitte la boutique.', 'success');
       setAssignment(null);
-    } catch (e) {
-      showToast(e.response?.data?.message || 'Erreur.', 'error');
+      setAuditLogs([]);
+      await fetchData();
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Erreur.', 'error');
     } finally {
       setActionLoading(false);
     }
   };
+
+  const quickLinks = useMemo(() => {
+    const permissions = assignment?.permissions || [];
+    const shop = assignment?.shop || {};
+    return [
+      permissions.includes('view_shop_dashboard') && { to: `/shop/${shop.slug || shop._id}`, label: 'Boutique', icon: Store },
+      permissions.includes('view_shop_orders') && { to: '/seller/orders', label: 'Commandes', icon: ShoppingBag },
+      permissions.includes('view_shop_products') && { to: '/seller/products', label: 'Produits', icon: Package },
+      permissions.includes('view_shop_notifications') && { to: '/notifications', label: 'Notifications', icon: Bell }
+    ].filter(Boolean);
+  }, [assignment]);
 
   if (loading) {
     return (
@@ -351,128 +655,176 @@ function AssistantView({ userId }) {
     );
   }
 
-  // If user is an active assistant
-  if (assignment) {
-    const { shop, permissions } = assignment;
-    return (
-      <div className="space-y-6">
-        {/* Active Assignment Card */}
-        <div className="rounded-2xl border border-l-4 border-l-[#FF6A00] bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#FF6A00]/10 text-2xl">
-              🏪
-            </div>
-            <div className="flex-1">
-              <p className="text-sm text-gray-500">Vous êtes assistant de</p>
-              <p className="text-lg font-black text-gray-900">{shop?.shopName || shop?.name || 'Boutique'}</p>
-            </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">
-              <ShieldCheck size={12} />Actif
-            </span>
-          </div>
-
-          {/* Permissions display */}
-          <div className="mt-4 border-t border-gray-100 pt-4">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Vos permissions</p>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {(permissions || []).map(perm => {
-                const def = PERMISSIONS_MAP.find(p => p.key === perm);
-                return def ? (
-                  <span key={perm} className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
-                    <def.icon size={12} />{def.label}
-                  </span>
-                ) : null;
-              })}
-              {(permissions || []).length === 0 && (
-                <span className="text-xs text-gray-400">Aucune permission spécifique.</span>
-              )}
-            </div>
-          </div>
-
-          {/* Quick Links */}
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            {permissions?.includes('view_shop_dashboard') && (
-              <Link to={`/shop/${shop?._id}`} className="flex items-center gap-2 rounded-xl border border-gray-200 p-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">
-                <BarChart3 size={16} className="text-[#FF6A00]" /> Tableau de bord
-              </Link>
-            )}
-            {permissions?.includes('view_shop_orders') && (
-              <Link to="/seller/orders" className="flex items-center gap-2 rounded-xl border border-gray-200 p-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">
-                <ShoppingBag size={16} className="text-[#FF6A00]" /> Commandes
-              </Link>
-            )}
-            {permissions?.includes('view_shop_products') && (
-              <Link to="/seller/products" className="flex items-center gap-2 rounded-xl border border-gray-200 p-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">
-                <Package size={16} className="text-[#FF6A00]" /> Produits
-              </Link>
-            )}
-          </div>
-
-          {/* Leave */}
-          <div className="mt-4 border-t border-gray-100 pt-4">
-            <button
-              onClick={() => leave(shop?._id)}
-              disabled={actionLoading}
-              className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-100 disabled:opacity-50"
-            >
-              {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
-              Quitter ce rôle
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // No assignment
   return (
-    <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/50 p-10 text-center">
-      <Store size={40} className="mx-auto text-gray-300" />
-      <p className="mt-3 text-base font-semibold text-gray-500">Vous n'êtes assistant d'aucune boutique.</p>
-      <p className="mt-1 text-sm text-gray-400">
-        Lorsqu'un vendeur vous invitera, vous recevrez une notification.
-      </p>
+    <div className="space-y-6">
+      {pendingInvites.length > 0 && (
+        <section className="rounded-lg border border-amber-100 bg-amber-50 p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-amber-700 ring-1 ring-amber-100">
+              <Clock size={18} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base font-black text-gray-900">Invitation en attente</h2>
+              <p className="mt-1 text-sm text-gray-600">Acceptez seulement si vous connaissez la boutique et le vendeur.</p>
+            </div>
+          </div>
+          <div className="mt-4 space-y-3">
+            {pendingInvites.map((invite) => (
+              <div key={invite._id} className="rounded-lg border border-amber-100 bg-white p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-black text-gray-900">{getDisplayName(invite.shop, 'Boutique')}</p>
+                    <p className="text-sm text-gray-500">Invite par {getDisplayName(invite.owner, 'Vendeur')} · {formatDate(invite.invitedAt)}</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {(invite.permissions || []).map((permission) => <PermissionPill key={permission} permissionKey={permission} />)}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => reject(invite.shop?._id)}
+                      disabled={actionLoading}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      <XCircle size={15} />
+                      Refuser
+                    </button>
+                    <button
+                      onClick={() => accept(invite.shop?._id)}
+                      disabled={actionLoading}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#FF6A00] px-3 py-2 text-sm font-black text-white hover:bg-[#e05e00] disabled:opacity-50"
+                    >
+                      {actionLoading ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />}
+                      Accepter
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {assignment ? (
+        <>
+          <section className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex min-w-0 gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#FF6A00] text-white">
+                  <Store size={22} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-500">Vous assistez</p>
+                  <h2 className="truncate text-xl font-black text-gray-900">{getDisplayName(assignment.shop, 'Boutique')}</h2>
+                  <p className="mt-1 text-xs text-gray-400">Actif depuis {formatDate(assignment.acceptedAt)}</p>
+                </div>
+              </div>
+              <StatusBadge status="active" />
+            </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <Metric label="Permissions" value={(assignment.permissions || []).length} icon={ShieldCheck} />
+              <Metric label="Invitations" value={pendingInvites.length} icon={Clock} />
+              <Metric label="Acces" value={quickLinks.length} icon={ChevronRight} />
+            </div>
+
+            <div className="mt-5">
+              <p className="text-sm font-black text-gray-900">Vos permissions</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {(assignment.permissions || []).length ? (
+                  assignment.permissions.map((permission) => <PermissionPill key={permission} permissionKey={permission} />)
+                ) : (
+                  <p className="text-sm text-gray-400">Aucune permission definie.</p>
+                )}
+              </div>
+            </div>
+
+            {quickLinks.length > 0 && (
+              <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {quickLinks.map((link) => {
+                  const Icon = link.icon;
+                  return (
+                    <Link
+                      key={link.to}
+                      to={link.to}
+                      className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-3 text-sm font-bold text-gray-800 hover:bg-orange-50 hover:text-[#FF6A00]"
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <Icon size={16} />
+                        {link.label}
+                      </span>
+                      <ChevronRight size={15} />
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="mt-5 border-t border-gray-100 pt-4">
+              <button
+                onClick={() => leave(assignment.shop?._id)}
+                disabled={actionLoading}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-100 disabled:opacity-50"
+              >
+                {actionLoading ? <Loader2 size={15} className="animate-spin" /> : <LogOut size={15} />}
+                Quitter ce role
+              </button>
+            </div>
+          </section>
+
+          <ActivityLog logs={auditLogs} loading={auditLoading} />
+        </>
+      ) : (
+        <section className="rounded-lg border border-dashed border-gray-200 bg-white p-10 text-center shadow-sm">
+          <Store size={40} className="mx-auto text-gray-300" />
+          <p className="mt-3 text-base font-black text-gray-600">Vous n'etes assistant d'aucune boutique.</p>
+          <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-gray-400">
+            Lorsqu'un vendeur vous invite, l'invitation apparait ici avec les permissions demandees.
+          </p>
+        </section>
+      )}
     </div>
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────
-
 export default function ShopAssistant() {
   const { user } = useContext(AuthContext);
-
   const isShop = user?.accountType === 'shop';
   const shopId = user?._id || user?.id;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="sticky top-0 z-30 bg-white border-b border-gray-100">
-        <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
-          <Link to="/my" className="rounded-xl p-1.5 hover:bg-gray-100">
-            <ArrowLeft size={20} className="text-gray-600" />
-          </Link>
-          <div>
-            <h1 className="text-lg font-black text-gray-900">Assistant boutique</h1>
-            <p className="text-xs text-gray-500">
-              {isShop ? 'Gérez votre assistant' : 'Gérez votre rôle d\'assistant'}
-            </p>
+      <div className="sticky top-0 z-30 border-b border-gray-100 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <Link to="/my" className="rounded-lg p-2 hover:bg-gray-100" aria-label="Retour">
+              <ArrowLeft size={20} className="text-gray-600" />
+            </Link>
+            <div className="min-w-0">
+              <h1 className="truncate text-lg font-black text-gray-900">Assistant boutique</h1>
+              <p className="truncate text-xs text-gray-500">
+                {isShop ? 'Delegation professionnelle de votre boutique' : "Votre role d'assistant HDMarket"}
+              </p>
+            </div>
+          </div>
+          <div className="hidden items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-600 sm:inline-flex">
+            <ShieldCheck size={14} className="text-[#FF6A00]" />
+            Acces controle
           </div>
         </div>
       </div>
 
-      <div className="mx-auto max-w-2xl px-4 py-6">
+      <main className="mx-auto max-w-5xl px-4 py-6">
         {!user ? (
-          <div className="rounded-2xl border border-gray-100 bg-white p-10 text-center">
+          <section className="rounded-lg border border-gray-100 bg-white p-10 text-center shadow-sm">
             <AlertCircle size={32} className="mx-auto text-gray-300" />
-            <p className="mt-2 font-medium text-gray-500">Connectez-vous pour accéder à cette page.</p>
-          </div>
+            <p className="mt-2 font-bold text-gray-600">Connectez-vous pour acceder a cette page.</p>
+          </section>
         ) : isShop ? (
           <OwnerView shopId={shopId} />
         ) : (
-          <AssistantView userId={user?._id || user?.id} />
+          <AssistantView />
         )}
-      </div>
+      </main>
     </div>
   );
 }

@@ -13,7 +13,12 @@ export const protect = async (req, res, next) => {
   if (!token && req.query?.token) {
     token = req.query.token;
   }
-  if (!token) return res.status(401).json({ message: 'Not authorized, no token' });
+  if (!token) {
+    return res.status(401).json({
+      message: 'Veuillez vous connecter pour continuer.',
+      code: 'AUTH_TOKEN_MISSING'
+    });
+  }
 
   try {
     if (await isTokenBlacklisted(token)) {
@@ -37,7 +42,10 @@ export const protect = async (req, res, next) => {
       'restrictions'
     ).lean();
     if (!user) {
-      return res.status(401).json({ message: 'Not authorized' });
+      return res.status(401).json({
+        message: 'Session expirée. Veuillez vous reconnecter.',
+        code: 'AUTH_USER_NOT_FOUND'
+      });
     }
     if (!user.isActive) {
       return res.status(403).json({
@@ -78,7 +86,10 @@ export const protect = async (req, res, next) => {
     }
     next();
   } catch (e) {
-    return res.status(401).json({ message: 'Token invalid' });
+    return res.status(401).json({
+      message: 'Session expirée. Veuillez vous reconnecter.',
+      code: 'AUTH_TOKEN_INVALID'
+    });
   }
 };
 

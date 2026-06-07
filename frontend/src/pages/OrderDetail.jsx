@@ -164,14 +164,15 @@ const normalizeAddressPart = (value) => (typeof value === 'string' ? value.trim(
 const resolveOrderPaymentMode = (order) => {
   if (String(order?.paymentSource || '') === 'wallet') return 'WALLET';
   if (String(order?.paymentType || '').toLowerCase() === 'installment') return 'INSTALLMENT';
-  if (
-    String(order?.paymentMode || '').toUpperCase() === 'FULL_PAYMENT' ||
-    String(order?.paymentStatus || '').toUpperCase() === 'PAID_FULL'
-  ) {
-    return 'FULL_PAYMENT';
-  }
+  const explicitPaymentMode = String(order?.paymentMode || '').trim().toUpperCase();
+  if (explicitPaymentMode === 'FULL_PAYMENT') return 'FULL_PAYMENT';
+  if (explicitPaymentMode && explicitPaymentMode !== 'STANDARD') return explicitPaymentMode;
+  if (!explicitPaymentMode && String(order?.paymentStatus || '').toUpperCase() === 'PAID_FULL') return 'FULL_PAYMENT';
   return 'STANDARD';
 };
+
+const shouldHideDeliveryDetailsForPaymentMode = (mode) =>
+  ['FULL_PAYMENT', 'WALLET'].includes(String(mode || '').toUpperCase());
 
 const getPaymentModeLabel = (mode) => {
   switch (mode) {
@@ -907,6 +908,7 @@ export default function OrderDetail() {
     const escapeHtml = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     const pdfStatus = getEffectiveOrderStatus(o);
     const pdfPaymentMode = resolveOrderPaymentMode(o);
+    const hidePdfDeliveryDetails = shouldHideDeliveryDetailsForPaymentMode(pdfPaymentMode);
     const pdfCustomerName = escapeHtml(o?.customer?.name || o?.customerName || 'Client HDMarket');
     const pdfCustomerPhone = escapeHtml(o?.customer?.phone || o?.customerPhone || '');
     const pdfCustomerEmail = escapeHtml(o?.customer?.email || '');
@@ -942,9 +944,16 @@ export default function OrderDetail() {
       })
       .join('');
     const deliveryLocked = Boolean(o?.deliveryFeeLocked) && String(o?.deliveryFeeWaiverReason || '') === 'FULL_PAYMENT';
-    const deliveryRowHtml = !pickupOrderInPdf && (deliveryFeeTotal > 0 || deliveryLocked)
+    const deliveryRowHtml = !hidePdfDeliveryDetails && !pickupOrderInPdf && (deliveryFeeTotal > 0 || deliveryLocked)
       ? `<tr><td colspan="4" class="right muted">Frais de livraison</td><td class="right strong">${deliveryLocked ? 'Offerts' : formatCurrency(deliveryFeeTotal)}</td></tr>`
       : '';
+    const deliveryCardHtml = hidePdfDeliveryDetails
+      ? ''
+      : `<section class="card">
+            <h2>${pickupOrderInPdf ? 'Retrait boutique' : 'Livraison'}</h2>
+            <p class="strong">${pdfDeliveryAddress}</p>
+            ${pdfDeliveryCity ? `<p class="muted">${pdfDeliveryCity}</p>` : ''}
+          </section>`;
     const orderShort = escapeHtml(o?._id?.slice(-6) || '');
     const html = `<!doctype html>
 <html lang="fr">
@@ -1012,11 +1021,7 @@ export default function OrderDetail() {
             ${pdfCustomerPhone ? `<p class="muted">${pdfCustomerPhone}</p>` : ''}
             ${pdfCustomerEmail ? `<p class="muted">${pdfCustomerEmail}</p>` : ''}
           </section>
-          <section class="card">
-            <h2>${pickupOrderInPdf ? 'Retrait boutique' : 'Livraison'}</h2>
-            <p class="strong">${pdfDeliveryAddress}</p>
-            ${pdfDeliveryCity ? `<p class="muted">${pdfDeliveryCity}</p>` : ''}
-          </section>
+          ${deliveryCardHtml}
         </div>
         <table>
           <thead><tr><th>#</th><th>Article</th><th class="right">Prix</th><th class="right">Qté</th><th class="right">Total</th></tr></thead>
@@ -1087,9 +1092,11 @@ export default function OrderDetail() {
   const isInstallmentOrder = order.paymentType === 'installment';
   const orderPaymentMode = resolveOrderPaymentMode(order);
   const isFullPaymentOrder = orderPaymentMode === 'FULL_PAYMENT';
+  const hideDeliveryDetails = shouldHideDeliveryDetailsForPaymentMode(orderPaymentMode);
   const deliveryFeeLockedByFullPayment =
     Boolean(order.deliveryFeeLocked) && String(order.deliveryFeeWaiverReason || '') === 'FULL_PAYMENT';
   const showDeliveryFeeRow =
+    !hideDeliveryDetails &&
     !isPickupOrder(order) &&
     (Number(order.deliveryFeeTotal ?? 0) > 0 || Boolean(order.deliveryFeeWaived) || deliveryFeeLockedByFullPayment);
   const paymentModeLabel = getPaymentModeLabel(orderPaymentMode);
@@ -1180,19 +1187,21 @@ export default function OrderDetail() {
     String(order.platformDeliveryStatus || '').toUpperCase() === 'DELIVERED';
   const deliveryConfirmationDone = order.deliveryStatus === 'verified' || platformDeliveryAutoConfirmed;
   const buyerPrimaryAction = getBuyerPrimaryActionMeta(order);
+  const visibleBuyerPrimaryAction =
+    hideDeliveryDetails && buyerPrimaryAction?.mode === 'confirm_delivery' ? null : buyerPrimaryAction;
   const handlePrimaryBuyerAction = async () => {
-    if (!buyerPrimaryAction || buyerPrimaryAction.mode === 'none') return;
-    if (buyerPrimaryAction.mode === 'cancel') {
+    if (!visibleBuyerPrimaryAction || visibleBuyerPrimaryAction.mode === 'none') return;
+    if (visibleBuyerPrimaryAction.mode === 'cancel') {
       await handleCancelOrder();
       return;
     }
-    if (buyerPrimaryAction.mode === 'confirm_delivery') {
+    if (visibleBuyerPrimaryAction.mode === 'confirm_delivery') {
       await handleConfirmDelivery();
     }
   };
   const isPrimaryActionPending =
-    (buyerPrimaryAction?.mode === 'cancel' && buyerStatusMutation.isReliablePending) ||
-    (buyerPrimaryAction?.mode === 'confirm_delivery' && confirmDeliveryMutation.isReliablePending);
+    (visibleBuyerPrimaryAction?.mode === 'cancel' && buyerStatusMutation.isReliablePending) ||
+    (visibleBuyerPrimaryAction?.mode === 'confirm_delivery' && confirmDeliveryMutation.isReliablePending);
   const statusTimelineEntries = [
     { key: 'created', label: 'Créée', icon: Calendar, time: order.createdAt },
     { key: 'confirmed', label: 'Confirmée', icon: Package, time: order.confirmedAt },
@@ -1250,7 +1259,7 @@ export default function OrderDetail() {
           </section>
         </div>
       )}
-      {(queuedDeliveryActionCount > 0 || deliveryQueueSyncing) && (
+      {!hideDeliveryDetails && (queuedDeliveryActionCount > 0 || deliveryQueueSyncing) && (
         <div className="mx-auto max-w-5xl px-4 pt-4">
           <section className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm shadow-sm dark:border-violet-800 dark:bg-violet-900/20 dark:text-violet-300">
             <p className="font-semibold text-violet-800 dark:text-violet-300">
@@ -1304,7 +1313,7 @@ export default function OrderDetail() {
                   <ShieldCheck className="w-5 h-5 inline mr-2" />
                   {skipLoadingId === order._id ? 'En cours...' : 'Autoriser le vendeur à traiter'}
                 </button>
-                {buyerPrimaryAction?.key !== 'cancel_order' ? (
+                {visibleBuyerPrimaryAction?.key !== 'cancel_order' ? (
                   <button type="button" onClick={handleCancelOrder} className="w-full rounded-full bg-red-600 px-6 py-3 text-sm font-black text-white shadow-sm hover:bg-red-700">
                     <X className="w-5 h-5 inline mr-2" /> Annuler la commande
                   </button>
@@ -1369,6 +1378,7 @@ export default function OrderDetail() {
               </div>
             </section>
 
+            {!hideDeliveryDetails && (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {order.deliveryCode && (
                 <div className="rounded-[26px] border border-orange-100 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
@@ -1440,15 +1450,16 @@ export default function OrderDetail() {
                 </div>
               </div>
             </div>
+            )}
 
-            {order.trackingNote && (
+            {!hideDeliveryDetails && order.trackingNote && (
               <div className="rounded-[24px] border border-orange-100 bg-white p-4 shadow-sm">
                 <h4 className="mb-2 flex items-center gap-2 text-sm font-black text-gray-900"><Info className="w-4 h-4 text-[#FF6A00]" /> Note de suivi</h4>
                 <p className="text-sm font-semibold leading-6 text-gray-700">{order.trackingNote}</p>
               </div>
             )}
 
-            {(order.deliveryStatus === 'submitted' ||
+            {!hideDeliveryDetails && (order.deliveryStatus === 'submitted' ||
               order.deliveryStatus === 'verified' ||
               order.status === 'delivery_proof_submitted') && (
               <div className="space-y-3 rounded-[26px] border border-emerald-100 bg-white p-4 shadow-[0_12px_30px_rgba(16,185,129,0.08)]">
@@ -1612,7 +1623,7 @@ export default function OrderDetail() {
                     </span>
                   </div>
                 )}
-                {deliveryFeeLockedByFullPayment && (
+                {!hideDeliveryDetails && deliveryFeeLockedByFullPayment && (
                   <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
                     Livraison offerte grâce au paiement intégral. Aucun frais de livraison ne peut être ajouté sur cette commande.
                   </div>
@@ -1912,12 +1923,12 @@ export default function OrderDetail() {
             )}
 
             {/* 📍 Carte de suivi (Proposal 5) */}
-            {effectiveOrderStatus !== 'cancelled' && trackingData && (
+            {!hideDeliveryDetails && effectiveOrderStatus !== 'cancelled' && trackingData && (
               <OrderTrackingMap trackingData={trackingData} />
             )}
 
             {/* ⚠️ City mismatch warning (buyer side) */}
-            {cityMismatch && (
+            {!hideDeliveryDetails && cityMismatch && (
               <div className="rounded-2xl border-2 border-orange-200 bg-orange-50 p-4 space-y-2">
                 <div className="flex items-start gap-2">
                   <AlertCircle className="w-5 h-5 text-orange-700 flex-shrink-0 mt-0.5" />
@@ -1932,7 +1943,7 @@ export default function OrderDetail() {
               </div>
             )}
 
-            {buyerPrimaryAction ? (
+            {visibleBuyerPrimaryAction ? (
               <div className="space-y-2 rounded-[26px] border border-orange-100 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-gray-500" />
@@ -1945,20 +1956,20 @@ export default function OrderDetail() {
                   onClick={handlePrimaryBuyerAction}
                   disabled={isPrimaryActionPending || skipLoadingId === order._id}
                   className={`inline-flex w-full items-center justify-center gap-2 rounded-full border px-4 py-3 text-sm font-black disabled:cursor-not-allowed disabled:opacity-60 ${getPrimaryActionClassName(
-                    buyerPrimaryAction.intent
+                    visibleBuyerPrimaryAction.intent
                   )}`}
                 >
                   {isPrimaryActionPending ? (
                     <Clock className="h-4 w-4 animate-spin" />
                   ) : null}
-                  {buyerPrimaryAction.label}
+                  {visibleBuyerPrimaryAction.label}
                 </button>
-                {buyerPrimaryAction.mode === 'cancel' && buyerStatusMutation.uiPhase === 'stillWorking' ? (
+                {visibleBuyerPrimaryAction.mode === 'cancel' && buyerStatusMutation.uiPhase === 'stillWorking' ? (
                   <p className="text-xs text-amber-700">
                     Traitement en cours... merci de patienter.
                   </p>
                 ) : null}
-                {buyerPrimaryAction.mode === 'cancel' && buyerStatusMutation.uiPhase === 'slow' ? (
+                {visibleBuyerPrimaryAction.mode === 'cancel' && buyerStatusMutation.uiPhase === 'slow' ? (
                   <p className="text-xs text-amber-700">
                     Action en cours de confirmation. Le statut sera synchronisé automatiquement.
                   </p>

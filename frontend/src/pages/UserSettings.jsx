@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bell, Palette, RefreshCcw, UserCircle } from 'lucide-react';
+import { ArrowLeft, Bell, Bot, Palette, RefreshCcw, UserCircle } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -43,7 +43,16 @@ export default function UserSettings() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
-  const { theme, setTheme, formatPrice, savingPreferences, t, refreshSettings } = useAppSettings();
+  const {
+    theme,
+    setTheme,
+    formatPrice,
+    savingPreferences,
+    t,
+    refreshSettings,
+    assistantChatEnabled,
+    setAssistantChatEnabled
+  } = useAppSettings();
   const [clearingPwaCache, setClearingPwaCache] = useState(false);
   const [hardRefreshing, setHardRefreshing] = useState(false);
   const [notifPrefs, setNotifPrefs] = useState(null);
@@ -291,6 +300,30 @@ export default function UserSettings() {
               </option>
             ))}
           </select>
+        </section>
+
+        <section className="ui-card rounded-[24px] space-y-3 px-4 py-5">
+          <div className="flex items-center gap-2">
+            <Bot size={16} className="text-gray-500 dark:text-neutral-300" />
+            <h2 className="text-sm font-semibold">
+              {t('settings.assistantChat', 'Assistant chat')}
+            </h2>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-neutral-400">
+            {t(
+              'settings.assistantChatDescription',
+              'Activez ou desactivez le bouton flottant de l’assistant HDMarket.'
+            )}
+          </p>
+          <NotifToggle
+            label={
+              assistantChatEnabled
+                ? t('settings.assistantChatEnabled', 'Assistant active')
+                : t('settings.assistantChatDisabled', 'Assistant desactive')
+            }
+            checked={assistantChatEnabled}
+            onChange={() => setAssistantChatEnabled(!assistantChatEnabled)}
+          />
         </section>
 
         {/* ── Notification Preferences ── */}

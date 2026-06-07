@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { CreditCard, Search, ShieldCheck, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import api, { isApiCanceledError } from '../services/api';
-import ProductCard from '../components/ProductCard';
+import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
 import { getCategoryMeta } from '../data/categories';
 import { recordProductView } from '../utils/recentViews';
@@ -40,6 +40,7 @@ const [items, setItems] = useState([]);
 const pageParam = Number(searchParams.get('page'));
 const initialPageRef = useRef(Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1);
 const infiniteScrollLockRef = useRef(0);
+const loadMoreSentinelRef = useRef(null);
 const [page, setPage] = useState(initialPageRef.current);
 const [isMobileView, setIsMobileView] = useState(() =>
   typeof window === 'undefined' ? false : window.innerWidth <= 767
@@ -109,7 +110,7 @@ const fetchProducts = useCallback(async () => {
       const { data } = await api.get('/products/public', { params });
       const fetchedItems = Array.isArray(data) ? data : data?.items || [];
       const paginationMeta = Array.isArray(data) ? { pages: 1 } : data?.pagination || {};
-      setItems((prev) => (isMobileView && page > 1 ? [...prev, ...fetchedItems] : fetchedItems));
+      setItems((prev) => (page > 1 ? [...prev, ...fetchedItems] : fetchedItems));
       setTotalPages(Math.max(1, Number(paginationMeta.pages) || 1));
       setOfflineSnapshotActive(false);
     } catch (e) {
@@ -128,7 +129,7 @@ const fetchProducts = useCallback(async () => {
         }
       }
       const message = e.response?.data?.message || e.message || 'Impossible de charger les produits.';
-      if (isMobileView && page > 1) {
+      if (page > 1) {
         setLoadMoreError(message);
       } else {
         setError(message);
@@ -157,7 +158,6 @@ const fetchProducts = useCallback(async () => {
   }, [sort, searchTerm, categoryFilter, shopVerified, installmentOnly]);
 
   useEffect(() => {
-    if (!isMobileView) return;
     if (loading) return;
     if (loadMoreError) return;
     if (page >= totalPages) return;
@@ -175,7 +175,28 @@ const fetchProducts = useCallback(async () => {
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [isMobileView, loading, loadMoreError, page, totalPages]);
+  }, [loading, loadMoreError, page, totalPages]);
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return undefined;
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel) return undefined;
+    if (loading || loadMoreError || page >= totalPages) return undefined;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        const now = Date.now();
+        if (now - infiniteScrollLockRef.current < 400) return;
+        infiniteScrollLockRef.current = now;
+        setPage((prev) => Math.min(prev + 1, totalPages));
+      },
+      { rootMargin: '720px 0px 720px 0px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loading, loadMoreError, page, totalPages]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -256,28 +277,6 @@ const fetchProducts = useCallback(async () => {
       return params;
     }, { replace: true });
   };
-
-const paginationButtons = useMemo(() => {
-  const buttons = [];
-  const visiblePages = Math.min(5, totalPages);
-  for (let i = 1; i <= visiblePages; i += 1) {
-    buttons.push(
-        <button
-          key={i}
-          type="button"
-          onClick={() => setPage(i)}
-          className={`flex h-10 w-10 items-center justify-center rounded-lg border text-sm transition-colors ${
-            page === i
-              ? 'border-neutral-600 bg-neutral-600 text-white'
-              : 'border-gray-200 hover:bg-gray-50'
-          }`}
-        >
-          {i}
-        </button>
-      );
-    }
-  return buttons;
-}, [page, totalPages]);
 
   const categoryMeta = useMemo(() => getCategoryMeta(categoryFilter), [categoryFilter]);
 
@@ -446,21 +445,10 @@ const paginationButtons = useMemo(() => {
         )}
 
         {loading && page === 1 ? (
-          <ProductCardSkeleton
-            count={6}
-            className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4"
-          />
+          <ProductCardSkeleton count={10} viewMode="masonry" />
         ) : items.length ? (
           <>
-            <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {items.map((product) => (
-                <ProductCard
-                  key={product._id}
-                  p={product}
-                  onProductClick={recordProductView}
-                />
-              ))}
-            </div>
+            <ProductMasonryGrid products={items} onProductClick={recordProductView} />
             {loading && page > 1 && (
               <div className="flex justify-center py-4">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-neutral-600 border-t-transparent" />
@@ -478,33 +466,23 @@ const paginationButtons = useMemo(() => {
                 </button>
               </div>
             )}
+            <div ref={loadMoreSentinelRef} className="h-8" aria-hidden="true" />
+            {!loading && !loadMoreError && page < totalPages && (
+              <div className="flex justify-center py-2">
+                <button
+                  type="button"
+                  onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+                  className="rounded-full border border-orange-100 bg-white px-4 py-2 text-xs font-black text-[#9A4A00] shadow-sm active:scale-95"
+                >
+                  Charger plus
+                </button>
+              </div>
+            )}
           </>
         ) : (
           <div className="rounded-[24px] border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
             <ShieldCheck className="mx-auto mb-3 h-10 w-10 text-[#FF6A00]" />
             <p className="font-bold text-stone-900">Aucun produit ne correspond à votre recherche pour le moment.</p>
-          </div>
-        )}
-
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 pt-4">
-            <button
-              type="button"
-              onClick={() => setPage((value) => Math.max(1, value - 1))}
-              disabled={page <= 1}
-              className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              ‹
-            </button>
-            {paginationButtons}
-            <button
-              type="button"
-              onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
-              disabled={page >= totalPages}
-              className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              ›
-            </button>
           </div>
         )}
 

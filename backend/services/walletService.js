@@ -253,6 +253,63 @@ export const refundToWallet = async ({ userId, amount, orderId = '', processedBy
 };
 
 /**
+ * Sale — Credit seller wallet after buyer pays with HDMarket wallet.
+ */
+export const creditSellerWalletSale = async ({ userId, amount, orderId = '', buyerId = '', reference = '' }) => {
+  if (!amount || amount <= 0) throw new Error('Le montant doit être supérieur à 0');
+
+  const wallet = await getOrCreateWallet(userId);
+  const orderKey = String(orderId || '').trim();
+  if (orderKey) {
+    const alreadyCredited = (wallet.transactions || []).some(
+      (txn) =>
+        txn.type === 'sale' &&
+        txn.status === 'completed' &&
+        String(txn?.metadata?.orderId || txn.reference || '') === orderKey
+    );
+    if (alreadyCredited) {
+      return { balance: wallet.balance, availableBalance: wallet.availableBalance, alreadyCredited: true };
+    }
+  }
+
+  const balanceBefore = wallet.balance;
+  wallet.balance += amount;
+  wallet.transactions.push({
+    type: 'sale',
+    amount,
+    balanceBefore,
+    balanceAfter: wallet.balance,
+    reference: orderKey || reference,
+    status: 'completed',
+    processedAt: new Date(),
+    note: `Vente portefeuille HDMarket — commande ${orderKey || reference}`,
+    metadata: { orderId: orderKey, buyerId, reference }
+  });
+
+  await wallet.save();
+
+  await createNotification({
+    userId,
+    actorId: buyerId || userId,
+    type: 'payment_validated',
+    allowSelf: true,
+    priority: 'HIGH',
+    pushEnabled: true,
+    metadata: {
+      amount,
+      message: `Votre portefeuille a été crédité de ${formatXAF(amount)} pour une commande payée via Portefeuille HDMarket.`,
+      walletBalance: wallet.balance,
+      orderId: orderKey
+    },
+    entityType: 'payment',
+    entityId: orderKey || String(wallet.transactions[wallet.transactions.length - 1]._id),
+    deepLink: orderKey ? `/seller/orders/${orderKey}` : '/wallet'
+  });
+
+  return { balance: wallet.balance, availableBalance: wallet.availableBalance, alreadyCredited: false };
+};
+
+/**
  * Commission — Platform deducts commission from seller wallet.
  */
 export const deductCommission = async ({ userId, amount, orderId = '' }) => {
